@@ -4,6 +4,38 @@ import pytest
 from sqlalchemy import text
 
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
+from src.core.platform.modules.domain.subscription import ModuleEntitlementRecord
+
+
+def test_module_entitlement_record_dto_normalizes_and_validates_fields():
+    record = ModuleEntitlementRecord(
+        module_code="  PAYROLL  ",
+        licensed="1",
+        enabled="1",
+        lifecycle_status="  TRIAL  ",
+    )
+
+    assert record.module_code == "hr_management"
+    assert record.licensed is True
+    assert record.enabled is True
+    assert record.lifecycle_status == "trial"
+
+    with pytest.raises(ValidationError) as exc_code:
+        ModuleEntitlementRecord(
+            module_code=" ",
+            licensed=True,
+            enabled=False,
+        )
+    assert exc_code.value.code == "MODULE_CODE_REQUIRED"
+
+    with pytest.raises(ValidationError) as exc_status:
+        ModuleEntitlementRecord(
+            module_code="project_management",
+            licensed=True,
+            enabled=True,
+            lifecycle_status="unsupported",
+        )
+    assert exc_status.value.code == "MODULE_STATUS_INVALID"
 
 
 def test_module_catalog_service_bootstraps_persistent_defaults(services):
@@ -36,6 +68,7 @@ def test_module_catalog_service_normalizes_legacy_payroll_entitlement_rows_to_hr
         text(
             """
         INSERT INTO organization_module_entitlements (
+            tenant_id,
             organization_id,
             module_code,
             licensed,
@@ -43,6 +76,7 @@ def test_module_catalog_service_normalizes_legacy_payroll_entitlement_rows_to_hr
             lifecycle_status,
             updated_at
         ) VALUES (
+            :tenant_id,
             :organization_id,
             'payroll',
             0,
@@ -52,7 +86,10 @@ def test_module_catalog_service_normalizes_legacy_payroll_entitlement_rows_to_hr
         )
         """
         ),
-        {"organization_id": active_org.id},
+        {
+            "tenant_id": services["tenant_context_service"].get_active_tenant_id(),
+            "organization_id": active_org.id,
+        },
     )
     session.commit()
 

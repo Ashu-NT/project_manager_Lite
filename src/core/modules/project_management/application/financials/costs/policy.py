@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
+from src.core.modules.project_management.contracts.repositories.cost import CostRepository
 from src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.application.financials.utils.helpers import (
     is_effectively_equal,

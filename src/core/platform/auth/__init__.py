@@ -3,10 +3,20 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from src.core.platform.auth.application import AuthService
+    from src.core.platform.auth.application import (
+        AuthService,
+        RoleGovernanceService,
+        TenantRoleAdministrationService,
+    )
     from src.core.platform.auth.domain import UserSessionContext, UserSessionPrincipal
 
-__all__ = ["AuthService", "UserSessionContext", "UserSessionPrincipal"]
+__all__ = [
+    "AuthService",
+    "RoleGovernanceService",
+    "TenantRoleAdministrationService",
+    "UserSessionContext",
+    "UserSessionPrincipal",
+]
 
 
 def __getattr__(name: str):
@@ -14,6 +24,16 @@ def __getattr__(name: str):
         from src.core.platform.auth.application import AuthService
 
         return AuthService
+    if name == "RoleGovernanceService":
+        from src.core.platform.auth.application import RoleGovernanceService
+
+        return RoleGovernanceService
+    if name == "TenantRoleAdministrationService":
+        from src.core.platform.auth.application import (
+            TenantRoleAdministrationService,
+        )
+
+        return TenantRoleAdministrationService
     if name == "UserSessionContext":
         from src.core.platform.auth.domain import UserSessionContext
 

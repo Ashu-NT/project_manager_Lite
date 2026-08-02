@@ -77,6 +77,8 @@ def serialize_scheduling_calendar_view_model(
         "hoursPerDay": view_model.hours_per_day,
         "holidays": serialize_scheduling_record_view_models(view_model.holidays),
         "emptyState": view_model.empty_state,
+        "calendarId": view_model.calendar_id,
+        "calendarName": view_model.calendar_name,
     }
 
 

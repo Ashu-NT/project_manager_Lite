@@ -21,8 +21,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.collabor
     TaskCommentORM,
     TaskPresenceORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.cost_calendar import (
-    CalendarEventORM,
+from src.core.modules.project_management.infrastructure.persistence.orm.cost import (
     CostItemORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.register import RegisterEntryORM
@@ -33,7 +32,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
 
 
 def _build_priority_detail_rows(now, today, project_a, project_b, resource_a, resource_b, task_a1, task_b1, task_a2, task_b2):
-    """Build assignments, deps, comments, presence, costs, events, registers, baselines."""
+    """Build assignments, deps, comments, presence, costs, registers, baselines."""
     assignment_a = TaskAssignmentORM(
         id="assignment-a",
         task_id=task_a1.id,
@@ -130,26 +129,6 @@ def _build_priority_detail_rows(now, today, project_a, project_b, resource_a, re
         actual_amount=0.0,
         version=1,
     )
-    event_a = CalendarEventORM(
-        id="event-a",
-        title="Event A",
-        start_date=today,
-        end_date=today,
-        project_id=project_a.id,
-        task_id=task_a1.id,
-        all_day=True,
-        description="",
-    )
-    event_b = CalendarEventORM(
-        id="event-b",
-        title="Event B",
-        start_date=today,
-        end_date=today,
-        project_id=project_b.id,
-        task_id=task_b1.id,
-        all_day=True,
-        description="",
-    )
     register_a = RegisterEntryORM(
         id="register-a",
         project_id=project_a.id,
@@ -241,7 +220,7 @@ def _build_priority_detail_rows(now, today, project_a, project_b, resource_a, re
     return (
         assignment_a, assignment_b, dependency_a, dependency_b,
         comment_a, comment_b, presence_a, presence_b,
-        cost_a, cost_b, event_a, event_b,
+        cost_a, cost_b,
         register_a, register_b, baseline_a, baseline_b,
         baseline_task_a, baseline_task_b, variance_a, variance_b,
     )

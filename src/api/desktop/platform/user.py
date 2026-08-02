@@ -31,20 +31,19 @@ class PlatformUserDesktopApi:
         return execute_desktop_operation(
             lambda: tuple(
                 self._serialize_role(role)
-                for role in self._auth_service.list_roles()
+                for role in self._auth_service.list_customer_assignable_roles()
             )
         )
 
     def create_user(self, command: UserCreateCommand) -> DesktopApiResult[UserDto]:
         return execute_desktop_operation(
             lambda: self._serialize_user(
-                self._auth_service.register_user(
+                self._auth_service.onboard_tenant_user(
                     username=command.username,
                     raw_password=command.password,
                     display_name=command.display_name,
                     email=command.email,
                     is_active=command.is_active,
-                    role_names=command.role_names,
                 )
             )
         )
@@ -135,14 +134,15 @@ class PlatformUserDesktopApi:
             must_change_password=user.must_change_password,
             version=user.version,
             role_names=tuple(sorted(self._auth_service.get_user_role_names(user.id))),
+            account_type=getattr(user, "account_type", "human"),
         )
 
     def _assign_role_and_get_user(self, *, user_id: str, role_name: str) -> UserDto:
-        self._auth_service.assign_role(user_id, role_name)
+        self._auth_service.assign_customer_role(user_id, role_name)
         return self._serialize_user(self._find_user(user_id))
 
     def _revoke_role_and_get_user(self, *, user_id: str, role_name: str) -> UserDto:
-        self._auth_service.revoke_role(user_id, role_name)
+        self._auth_service.revoke_customer_role(user_id, role_name)
         return self._serialize_user(self._find_user(user_id))
 
     def _reset_password_and_get_user(self, command: UserPasswordResetCommand) -> UserDto:

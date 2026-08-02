@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
@@ -78,6 +78,7 @@ class PreventiveInstanceScheduler:
         desired_due_dates = self.build_planned_due_dates(plan, as_of)
         desired_instances: list[MaintenancePreventivePlanInstance] = []
         changed = False
+        audit_now = datetime.now(timezone.utc)
 
         for due_at in desired_due_dates:
             existing = planned_by_due.pop(due_at, None)
@@ -89,6 +90,8 @@ class PreventiveInstanceScheduler:
                 plan_id=plan.id,
                 due_at=due_at,
                 notes=f"Planned schedule instance for preventive plan {plan.plan_code}.",
+                created_at=audit_now,
+                updated_at=audit_now,
             )
             self._instance_repo.add(instance)
             desired_instances.append(instance)
@@ -101,7 +104,7 @@ class PreventiveInstanceScheduler:
         next_due_at = desired_instances[0].due_at if desired_instances else None
         if plan.next_due_at != next_due_at:
             plan.next_due_at = next_due_at
-            plan.updated_at = as_of
+            plan.updated_at = audit_now
             self._plan_repo.update(plan)
             changed = True
 

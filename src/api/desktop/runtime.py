@@ -12,6 +12,7 @@ from src.api.desktop.platform import (
     PlatformDepartmentDesktopApi,
     PlatformDocumentDesktopApi,
     PlatformEmployeeDesktopApi,
+    PlatformIdentityDesktopApi,
     PlatformPartyDesktopApi,
     PlatformRuntimeDesktopApi,
     PlatformSiteDesktopApi,
@@ -98,6 +99,7 @@ from src.core.platform.department import DepartmentService
 from src.core.platform.documents import DocumentService
 from src.core.platform.employee import EmployeeService
 from src.core.platform.integration.module_registry import ModuleRegistry
+from src.core.platform.identity import ServicePrincipalService
 from src.core.platform.party import PartyService
 from src.core.platform.site import SiteService
 
@@ -120,6 +122,7 @@ class DesktopApiRegistry:
     platform_support: PlatformSupportDesktopApi
     platform_tenant: PlatformTenantDesktopApi | None
     platform_user: PlatformUserDesktopApi
+    platform_identity: PlatformIdentityDesktopApi
     project_management_dashboard: ProjectManagementDashboardDesktopApi
     project_management_collaboration: ProjectManagementCollaborationDesktopApi
     project_management_financials: ProjectManagementFinancialsDesktopApi
@@ -191,6 +194,9 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     auth_service = services.get("auth_service")
     if not isinstance(auth_service, AuthService):
         raise RuntimeError("Platform auth service is not configured.")
+    service_principal_service = services.get("service_principal_service")
+    if not isinstance(service_principal_service, ServicePrincipalService):
+        raise RuntimeError("Platform service-principal service is not configured.")
 
     project_service = services.get("project_service")
     task_service = services.get("task_service")
@@ -323,6 +329,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             approval_service=approval_service,
             procurement_service=inventory_procurement_service,
             reservation_service=inventory_reservation_service,
+            enterprise_calendar_api=enterprise_calendar_api,
         ),
     )
     inventory_procurement_apis = build_inventory_procurement_desktop_runtime_apis(
@@ -377,6 +384,9 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         platform_user=PlatformUserDesktopApi(
             auth_service=auth_service,
         ),
+        platform_identity=PlatformIdentityDesktopApi(
+            service_principal_service=service_principal_service,
+        ),
         **vars(project_management_apis),
         **vars(inventory_procurement_apis),
         **vars(maintenance_apis),
@@ -387,14 +397,21 @@ def _build_platform_tenant_api(
     services: Mapping[str, object],
 ) -> PlatformTenantDesktopApi | None:
     from src.core.platform.tenancy.application.tenant_admin_service import TenantAdminService as _TAS
+    from src.core.platform.tenancy.application.tenant_membership_service import TenantMembershipService as _TMS
     from src.core.platform.tenancy.tenant_context import TenantContextService as _TCS
 
     tenant_admin_service = services.get("tenant_admin_service")
     tenant_context_service = services.get("tenant_context_service")
-    if isinstance(tenant_admin_service, _TAS) and isinstance(tenant_context_service, _TCS):
+    tenant_membership_service = services.get("tenant_membership_service")
+    if (
+        isinstance(tenant_admin_service, _TAS)
+        and isinstance(tenant_context_service, _TCS)
+        and isinstance(tenant_membership_service, _TMS)
+    ):
         return PlatformTenantDesktopApi(
             tenant_admin_service=tenant_admin_service,
             tenant_context_service=tenant_context_service,
+            tenant_membership_service=tenant_membership_service,
         )
     return None
 

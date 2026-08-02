@@ -8,7 +8,7 @@ from src.core.modules.project_management.api.desktop.financials.models.snapshots
     FinancialSnapshotDto,
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.analytics_serializer import serialize_analytics
-from src.core.modules.project_management.api.desktop.financials.formatters.money_formatter import format_money
+from src.core.modules.project_management.api.desktop.common.financial_formatting import format_money
 from src.core.modules.project_management.api.desktop.financials.formatters.date_formatter import format_date
 from src.core.modules.project_management.api.desktop.financials.formatters.enum_formatter import format_enum_label
 

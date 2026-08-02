@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 from src.core.platform.access.authorization import filter_project_rows
 from src.core.platform.common.exceptions import ValidationError
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
-    PortfolioIntakeStatus,
     PortfolioScenarioComparison,
     PortfolioScoringTemplate,
 )
@@ -30,33 +31,6 @@ class PortfolioSupportMixin:
                 code="TENANT_CONTEXT_REQUIRED",
             )
         return tenant_context.require_active_organization_id(operation_label=operation_label)
-
-    @staticmethod
-    def _require_non_empty(value: str, label: str) -> str:
-        text = (value or "").strip()
-        if not text:
-            raise ValidationError(f"{label} is required.")
-        return text
-
-    @staticmethod
-    def _non_negative(value: float, label: str) -> float:
-        amount = float(value or 0.0)
-        if amount < 0:
-            raise ValidationError(f"{label} cannot be negative.")
-        return amount
-
-    @staticmethod
-    def _bounded_score(value: int) -> int:
-        score = int(value or 0)
-        if score < 1 or score > 5:
-            raise ValidationError("Scores must be between 1 and 5.")
-        return score
-
-    @staticmethod
-    def _as_intake_status(value: PortfolioIntakeStatus | str) -> PortfolioIntakeStatus:
-        if isinstance(value, PortfolioIntakeStatus):
-            return value
-        return PortfolioIntakeStatus(str(value or PortfolioIntakeStatus.PROPOSED.value))
 
     @staticmethod
     def _scenario_selection(
@@ -200,13 +174,16 @@ class PortfolioSupportMixin:
     def _apply_scoring_template(
         item: PortfolioIntakeItem,
         template: PortfolioScoringTemplate,
-    ) -> None:
-        item.scoring_template_id = template.id
-        item.scoring_template_name = template.name
-        item.strategic_weight = template.strategic_weight
-        item.value_weight = template.value_weight
-        item.urgency_weight = template.urgency_weight
-        item.risk_weight = template.risk_weight
+    ) -> PortfolioIntakeItem:
+        return replace(
+            item,
+            scoring_template_id=template.id,
+            scoring_template_name=template.name,
+            strategic_weight=template.strategic_weight,
+            value_weight=template.value_weight,
+            urgency_weight=template.urgency_weight,
+            risk_weight=template.risk_weight,
+        )
 
     def _deactivate_other_templates(self) -> None:
         for template in self._ensure_scoring_templates():
@@ -215,25 +192,6 @@ class PortfolioSupportMixin:
             template.is_active = False
             template.updated_at = self._utc_now()
             self._scoring_template_repo.update(template)
-
-    @staticmethod
-    def _template_weight(value: int, label: str) -> int:
-        weight = int(value or 0)
-        if weight < 0 or weight > 9:
-            raise ValidationError(f"{label} must be between 0 and 9.")
-        return weight
-
-    @staticmethod
-    def _validate_template_mix(template: PortfolioScoringTemplate) -> None:
-        if (
-            int(template.strategic_weight or 0)
-            + int(template.value_weight or 0)
-            + int(template.urgency_weight or 0)
-        ) <= 0:
-            raise ValidationError(
-                "At least one positive delivery weight is required.",
-                code="PORTFOLIO_TEMPLATE_EMPTY",
-            )
 
     def _validate_project_ids(self, project_ids: list[str]) -> list[str]:
         known_ids = {project.id for project in self._accessible_projects()}

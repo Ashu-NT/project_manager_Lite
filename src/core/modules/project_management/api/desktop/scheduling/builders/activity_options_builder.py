@@ -12,12 +12,20 @@ def build_activity_options(
     if not normalized_project_id or task_service is None:
         return ()
     excluded = (exclude_task_id or "").strip()
-    tasks = sorted(
-        task_service.list_tasks_for_project(normalized_project_id),
-        key=lambda t: (t.start_date or date.max, (t.name or "").casefold()),
+    list_leaves = getattr(task_service, "list_leaf_tasks_for_project", None)
+    tasks = (
+        list_leaves(normalized_project_id)
+        if callable(list_leaves)
+        else sorted(
+            task_service.list_tasks_for_project(normalized_project_id),
+            key=lambda t: (t.start_date or date.max, (t.name or "").casefold()),
+        )
     )
     return tuple(
-        SchedulingProjectOptionDescriptor(value=t.id, label=t.name)
+        SchedulingProjectOptionDescriptor(
+            value=t.id,
+            label=f"{getattr(t, 'wbs_code', '')}  {t.name}".strip(),
+        )
         for t in tasks
         if t.id != excluded
     )

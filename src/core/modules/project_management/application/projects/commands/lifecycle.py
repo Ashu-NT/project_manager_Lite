@@ -1,27 +1,39 @@
 from __future__ import annotations
 
 import logging
-from datetime import date
+import json
+from dataclasses import replace
+from datetime import date, datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.application.projects.commands.validation import (
-    ProjectValidationMixin,
-)
-from src.core.modules.project_management.contracts.repositories.cost_calendar import (
-    CalendarEventRepository,
+from src.core.modules.project_management.contracts.repositories.cost import (
     CostRepository,
 )
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.financial_configuration import (
+    ProjectFinancialProfileRepository,
+)
 from src.core.modules.project_management.contracts.repositories.task import (
     AssignmentRepository,
     DependencyRepository,
     TaskRepository,
 )
 from src.core.modules.project_management.domain.projects.project import Project
+from src.core.modules.project_management.domain.tasks.hierarchy import (
+    order_tasks_children_first,
+    select_leaf_tasks,
+)
+from src.core.modules.project_management.domain.financials.configuration import (
+    ProjectFinancialProfile,
+)
+from src.core.modules.project_management.application.common.currency_policy import (
+    resolve_pm_currency,
+)
 from src.core.platform.access.authorization import require_project_permission
 from src.core.shared.activity import record_activity
+from src.core.shared.audit import record_audit_entry
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.common.interfaces import TimeEntryRepository
@@ -30,20 +42,38 @@ from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.platform.auth.domain.session import UserSessionContext
 
 logger = logging.getLogger(__name__)
-DEFAULT_CURRENCY_CODE = "EUR"
 
 
-class ProjectLifecycleMixin(ProjectValidationMixin):
+class ProjectLifecycleMixin:
     _session: Session
     _project_repo: ProjectRepository
     _task_repo: TaskRepository
     _dependency_repo: DependencyRepository
     _assignment_repo: AssignmentRepository
     _time_entry_repo: TimeEntryRepository | None
-    _calendar_repo: CalendarEventRepository
     _cost_repo: CostRepository
+    _financial_profile_repo: ProjectFinancialProfileRepository
     _user_session:UserSessionContext
-        
+
+    def _validate_project_name(
+        self,
+        name: str,
+        *,
+        organization_id: str,
+        exclude_id: str | None = None,
+    ) -> None:
+        normalized_name = name.strip().lower()
+        if not normalized_name:
+            return
+        for project in self._project_repo.list():
+            if exclude_id is not None and project.id == exclude_id:
+                continue
+            if project.name.strip().lower() == normalized_name:
+                raise ValidationError(
+                    "A project with this name already exists.",
+                    code="PROJECT_NAME_DUPLICATE",
+                )
+
     def _resolve_project_code(
         self,
         code: str,
@@ -121,31 +151,48 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
             organization_id,
             operation_label="create project",
         )
-        self._validate_project_name(name, organization_id=resolved_organization_id)
-        resolved_currency = (currency or "").strip().upper() or DEFAULT_CURRENCY_CODE
-        resolved_code = self._resolve_project_code(
-            code,
-            name,
-            organization_id=resolved_organization_id,
+        resolved_currency = resolve_pm_currency(
+            tenant_context_service=getattr(self, "_tenant_context_service", None),
+            operation_label="create project",
+            explicit=currency,
         )
         project = Project.create(
-            name=name.strip(),
-            code=resolved_code,
-            description=(description or "").strip(),
-            client_name=(client_name or "").strip() or None,
-            client_contact=(client_contact or "").strip() or None,
+            name=name,
+            description=description,
+            client_name=client_name,
+            client_contact=client_contact,
             planned_budget=planned_budget,
             currency=resolved_currency,
             start_date=start_date,
             end_date=end_date,
             organization_id=resolved_organization_id,
-            site_id=(site_id or "").strip() or None,
-            client_party_id=(client_party_id or "").strip() or None,
-            manager_user_id=(manager_user_id or "").strip() or None,
+            site_id=site_id,
+            client_party_id=client_party_id,
+            manager_user_id=manager_user_id,
+        )
+        self._validate_project_name(project.name, organization_id=resolved_organization_id)
+        project.code = self._resolve_project_code(
+            code,
+            project.name,
+            organization_id=resolved_organization_id,
         )
 
         try:
             self._project_repo.add(project)
+            self._session.flush()
+            context = self._tenant_context_service.require_organization_context(
+                operation_label="create project financial profile"
+            )
+            profile = ProjectFinancialProfile.create(
+                tenant_id=context.tenant_id,
+                organization_id=context.organization_id,
+                project_id=project.id,
+                currency_code=resolved_currency,
+                financial_start_date=project.start_date,
+                financial_end_date=project.end_date,
+            )
+            self._financial_profile_repo.add(profile)
+            self._record_financial_profile_audit("create", profile)
             self._session.commit()
             record_activity(
                 self,
@@ -162,7 +209,7 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         except IntegrityError as exc:
             self._session.rollback()
             if self._is_project_code_integrity_error(exc):
-                self._raise_project_code_duplicate(resolved_code, exc)
+                self._raise_project_code_duplicate(project.code, exc)
             logger.error("Error creating project: %s", exc)
             raise
         except Exception as exc:
@@ -204,7 +251,7 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         if not project:
             raise NotFoundError("Project not found")
 
-        tasks = self._task_repo.list_by_project(project_id)
+        tasks = select_leaf_tasks(self._task_repo.list_by_project(project_id))
         if not tasks:
             return
 
@@ -247,62 +294,93 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
             "project.manage",
             operation_label="update project",
         )
+        if currency is not None:
+            require_permission(
+                self._user_session,
+                "finance.manage",
+                operation_label="update project currency",
+            )
+            require_project_permission(
+                self._user_session,
+                project.id,
+                "finance.manage",
+                operation_label="update project currency",
+            )
         if expected_version is not None and project.version != expected_version:
             raise ConcurrencyError(
                 "Project changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
-
-        if name is not None:
-            if not name.strip():
-                raise ValidationError("Project name cannot be empty.", code="PROJECT_NAME_EMPTY")
-            self._validate_project_name(
-                name,
-                organization_id=getattr(project, "organization_id", None),
-                exclude_id=project.id,
-            )
-            project.name = name.strip()
-        if code is not None and code.strip():
-            project.code = self._resolve_project_code(
-                code,
-                project.name,
-                exclude_id=project.id,
-                organization_id=getattr(project, "organization_id", None),
-            )
-        if description is not None:
-            project.description = description.strip()
-        if status is not None:
-            project.status = status
-        if start_date is not None:
-            project.start_date = start_date
-        if end_date is not None:
-            if project.start_date and end_date < project.start_date:
-                raise ValidationError("Project end date cannot be before start date.")
-            project.end_date = end_date
-        if client_name is not None:
-            project.client_name = client_name.strip() or None
-        if client_contact is not None:
-            project.client_contact = client_contact.strip() or None
-        if planned_budget is not None:
-            if planned_budget < 0:
-                raise ValidationError("Planned budget cannot be negative.")
-            project.planned_budget = planned_budget
-        if currency is not None:
-            project.currency = currency.strip().upper() or None
-        if organization_id is not None:
-            project.organization_id = self._resolve_project_organization_id(
+        resolved_organization_id = (
+            self._resolve_project_organization_id(
                 organization_id,
                 operation_label="update project",
             )
-        if site_id is not None:
-            project.site_id = (site_id or "").strip() or None
-        if client_party_id is not None:
-            project.client_party_id = (client_party_id or "").strip() or None
-        if manager_user_id is not None:
-            project.manager_user_id = (manager_user_id or "").strip() or None
+            if organization_id is not None
+            else project.organization_id
+        )
+        candidate = replace(
+            project,
+            name=project.name if name is None else name,
+            description=project.description if description is None else description,
+            status=project.status if status is None else status,
+            start_date=project.start_date if start_date is None else start_date,
+            end_date=project.end_date if end_date is None else end_date,
+            client_name=project.client_name if client_name is None else client_name,
+            client_contact=project.client_contact if client_contact is None else client_contact,
+            planned_budget=project.planned_budget if planned_budget is None else planned_budget,
+            currency=(
+                project.currency
+                if currency is None
+                else resolve_pm_currency(
+                    tenant_context_service=getattr(self, "_tenant_context_service", None),
+                    operation_label="update project currency",
+                    explicit=currency,
+                )
+            ),
+            organization_id=resolved_organization_id,
+            site_id=project.site_id if site_id is None else site_id,
+            client_party_id=project.client_party_id if client_party_id is None else client_party_id,
+            manager_user_id=project.manager_user_id if manager_user_id is None else manager_user_id,
+        )
+        if name is not None:
+            self._validate_project_name(
+                candidate.name,
+                organization_id=getattr(candidate, "organization_id", None),
+                exclude_id=project.id,
+            )
+        if code is not None and code.strip():
+            candidate.code = self._resolve_project_code(
+                code,
+                candidate.name,
+                exclude_id=project.id,
+                organization_id=getattr(candidate, "organization_id", None),
+            )
+        project = candidate
 
         try:
             self._project_repo.update(project)
+            if currency is not None:
+                profile = self._financial_profile_repo.get_by_project(project.id)
+                if profile is None:
+                    raise NotFoundError(
+                        "Project financial profile not found.",
+                        code="FINANCIAL_PROFILE_NOT_FOUND",
+                    )
+                old_profile = replace(profile)
+                profile = replace(
+                    profile,
+                    currency_code=project.currency,
+                    updated_at=datetime.now(timezone.utc),
+                )
+                self._financial_profile_repo.update(profile)
+                # PROJECT-FINANCE-TRANSITION-ONLY(PF-B1-CURRENCY-DUAL-WRITE):
+                # Delete when all desktop/read-model currency access uses the profile.
+                self._record_financial_profile_audit(
+                    "currency_projection_update",
+                    profile,
+                    old=old_profile,
+                )
             self._session.commit()
             record_activity(
                 self,
@@ -325,6 +403,46 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         domain_events.project_changed.emit(project_id)
         return project
 
+    def _record_financial_profile_audit(
+        self,
+        operation: str,
+        profile: ProjectFinancialProfile,
+        *,
+        old: ProjectFinancialProfile | None = None,
+    ) -> None:
+        def _value(item: ProjectFinancialProfile | None) -> str | None:
+            if item is None:
+                return None
+            return json.dumps(
+                {
+                    "billing_method": item.billing_method.value,
+                    "budget_control_mode": item.budget_control_mode.value,
+                    "cost_code_policy": item.cost_code_policy.value,
+                    "currency_code": item.currency_code,
+                    "status": item.status.value,
+                    "version": item.version,
+                },
+                sort_keys=True,
+            )
+
+        record_audit_entry(
+            self,
+            operation=f"financial_profile.{operation}",
+            entity_type="project_financial_profile",
+            entity_id=profile.id,
+            entity_parent_id=profile.project_id,
+            module="project_management",
+            old_value=_value(old),
+            new_value=_value(profile),
+            workspace_id=profile.project_id,
+            source="application",
+            severity="high",
+            compliance_tag="financial",
+            metadata={"action": f"financial_profile.{operation}"},
+            commit=False,
+            fail_closed=True,
+        )
+
     def delete_project(self, project_id: str) -> None:
         require_permission(self._user_session, "project.manage", operation_label="delete project")
         project = self._project_repo.get(project_id)
@@ -338,7 +456,7 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         )
 
         try:
-            tasks = self._task_repo.list_by_project(project_id)
+            tasks = order_tasks_children_first(self._task_repo.list_by_project(project_id))
             for task in tasks:
                 self._dependency_repo.delete_for_task(task.id)
                 assignments = self._assignment_repo.list_by_task(task.id)
@@ -346,11 +464,9 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
                     for assignment in assignments:
                         self._time_entry_repo.delete_by_assignment(assignment.id)
                 self._assignment_repo.delete_by_task(task.id)
-                self._calendar_repo.delete_for_task(task.id)
                 self._task_repo.delete(task.id)
 
             self._cost_repo.delete_by_project(project_id)
-            self._calendar_repo.delete_for_project(project_id)
             self._project_repo.delete(project_id)
             self._session.commit()
             record_activity(
@@ -393,4 +509,4 @@ class ProjectLifecycleMixin(ProjectValidationMixin):
         return active_organization_id
 
 
-__all__ = ["DEFAULT_CURRENCY_CODE", "ProjectLifecycleMixin"]
+__all__ = ["ProjectLifecycleMixin"]

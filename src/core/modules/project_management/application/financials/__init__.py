@@ -29,6 +29,9 @@ from src.core.modules.project_management.application.financials.earned_value.evm
 from src.core.modules.project_management.application.financials.earned_value.evm_series import (
     EarnedValueSeriesCalculator,
 )
+from src.core.modules.project_management.application.financials.configuration_service import (
+    FinancialConfigurationService,
+)
 
 __all__ = [
     "CommitmentSummary",
@@ -48,4 +51,5 @@ __all__ = [
     "ForecastCostService",
     "LaborCostEngine",
     "MaterialRollup",
+    "FinancialConfigurationService",
 ]

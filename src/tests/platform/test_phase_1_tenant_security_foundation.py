@@ -10,10 +10,12 @@ Covers:
 """
 from __future__ import annotations
 
+from datetime import datetime
+
 import pytest
 
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
-from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.infrastructure.persistence.orm.tenant import TenantORM
 from src.core.platform.infrastructure.persistence.repositories.auth import SqlAlchemyUserRepository
 from src.core.platform.infrastructure.persistence.repositories.tenant import SqlAlchemyTenantRepository
@@ -21,7 +23,11 @@ from src.core.platform.infrastructure.persistence.repositories.user_tenant impor
     SqlAlchemyUserTenantMembershipRepository,
 )
 from src.core.platform.tenancy.domain.tenant import Tenant
-from src.core.platform.tenancy.domain.user_tenant_membership import UserTenantMembership
+from src.core.platform.tenancy.domain.user_tenant_membership import (
+    MEMBERSHIP_STATUS_ACTIVE,
+    MEMBERSHIP_STATUS_SUSPENDED,
+    UserTenantMembership,
+)
 from src.core.platform.tenancy.tenant_context import TenantContextService
 
 
@@ -49,14 +55,52 @@ def _make_principal(user_id: str, *, role_names=frozenset(), permissions=frozens
 # ---------------------------------------------------------------------------
 
 def test_user_tenant_membership_create():
-    m = UserTenantMembership.create(user_id="u1", tenant_id="t1", tenant_role="member")
+    m = UserTenantMembership.create(user_id="  u1  ", tenant_id="  t1  ")
     assert m.user_id == "u1"
     assert m.tenant_id == "t1"
-    assert m.is_active is True
-    assert m.tenant_role == "member"
+    assert m.status == MEMBERSHIP_STATUS_ACTIVE
+    assert m.accepted_at is not None
     assert m.created_at is not None
     assert m.joined_at is not None
+    assert m.version == 1
     assert m.id is not None
+
+
+def test_user_tenant_membership_dto_validates_required_fields_and_datetimes():
+    stamp = datetime(2026, 4, 24, 8, 15, 0)
+    membership = UserTenantMembership(
+        id="  membership-1  ",
+        user_id="  user-1  ",
+        tenant_id="  tenant-1  ",
+        invited_at=stamp,
+        joined_at=stamp,
+        created_at=stamp,
+        updated_at=stamp,
+    )
+
+    assert membership.id == "membership-1"
+    assert membership.user_id == "user-1"
+    assert membership.tenant_id == "tenant-1"
+    assert membership.created_at is not None
+    assert membership.created_at.tzinfo is not None
+
+    with pytest.raises(ValidationError) as exc_user:
+        UserTenantMembership.create(user_id=" ", tenant_id="tenant-1")
+    assert exc_user.value.code == "USER_ID_REQUIRED"
+
+    with pytest.raises(ValidationError) as exc_tenant:
+        UserTenantMembership.create(user_id="user-1", tenant_id=" ")
+    assert exc_tenant.value.code == "TENANT_ID_REQUIRED"
+
+    with pytest.raises(ValidationError) as exc_created:
+        UserTenantMembership(
+            id="membership-2",
+            user_id="user-2",
+            tenant_id="tenant-2",
+            created_at="not-a-datetime",
+            updated_at=stamp,
+        )
+    assert exc_created.value.code == "USER_TENANT_MEMBERSHIP_CREATED_AT_INVALID"
 
 
 # ---------------------------------------------------------------------------
@@ -85,10 +129,10 @@ def test_user_tenant_repo_add_and_get(session):
     assert fetched is not None
     assert fetched.user_id == "u-repo-1"
     assert fetched.tenant_id == "t-repo-1"
-    assert fetched.is_active is True
+    assert fetched.status == MEMBERSHIP_STATUS_ACTIVE
 
 
-def test_user_tenant_repo_add_idempotent(session):
+def test_user_tenant_repo_rejects_duplicate_membership_add(session):
     _add_tenant_row(session, "t-idem-1", "IDEM1")
     from src.core.platform.infrastructure.persistence.orm.auth import UserORM
     from datetime import datetime, timezone
@@ -106,11 +150,12 @@ def test_user_tenant_repo_add_idempotent(session):
     m2 = UserTenantMembership.create(user_id="u-idem-1", tenant_id="t-idem-1")
     repo.add(m1)
     session.flush()
-    repo.add(m2)  # Should be a no-op
-    session.flush()
+    with pytest.raises(BusinessRuleError) as exc_info:
+        repo.add(m2)
 
     users = repo.list_users_for_tenant("t-idem-1")
     assert len(users) == 1
+    assert exc_info.value.code == "USER_TENANT_MEMBERSHIP_EXISTS"
 
 
 def test_user_tenant_repo_is_active_member(session):
@@ -156,6 +201,11 @@ def test_user_tenant_repo_deactivate(session):
     repo.deactivate("u-deact-1", "t-deact-1")
     session.flush()
     assert repo.is_active_member("u-deact-1", "t-deact-1") is False
+    membership = repo.get("u-deact-1", "t-deact-1")
+    assert membership is not None
+    assert membership.status == MEMBERSHIP_STATUS_SUSPENDED
+    assert membership.suspended_at is not None
+    assert membership.version == 2
 
 
 def test_user_tenant_repo_list_tenant_ids_for_user(session):

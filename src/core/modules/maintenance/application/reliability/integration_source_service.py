@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
@@ -8,14 +9,15 @@ from sqlalchemy.orm import Session
 from src.core.modules.maintenance.domain import MaintenanceIntegrationSource
 from src.core.modules.maintenance.contracts.repositories import MaintenanceIntegrationSourceRepository
 from src.core.modules.maintenance.application.common.support import (
-    coerce_optional_datetime,
     normalize_maintenance_code,
-    normalize_maintenance_name,
     normalize_optional_text,
+)
+from src.core.modules.maintenance.application.common.scope_authorization import (
+    deny_maintenance_scope_access,
 )
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.tenancy.tenant_context import (
     TenantContextService,
@@ -132,23 +134,22 @@ class MaintenanceIntegrationSourceService:
         self._require_manage("create maintenance integration source")
         self._ensure_not_scope_restricted("create maintenance integration source")
         organization = self._active_organization()
-        normalized_code = normalize_maintenance_code(integration_code, label="Integration code")
-        if self._integration_source_repo.get_by_code(organization.id, normalized_code) is not None:
+        source = MaintenanceIntegrationSource.create(
+            organization_id=organization.id,
+            integration_code=integration_code,
+            name=name,
+            integration_type=integration_type,
+            endpoint_or_path=endpoint_or_path,
+            authentication_mode=authentication_mode,
+            schedule_expression=schedule_expression,
+            is_active=bool(is_active),
+            notes=notes,
+        )
+        if self._integration_source_repo.get_by_code(organization.id, source.integration_code) is not None:
             raise ValidationError(
                 "Integration code already exists in the active organization.",
                 code="MAINTENANCE_INTEGRATION_SOURCE_CODE_EXISTS",
             )
-        source = MaintenanceIntegrationSource.create(
-            organization_id=organization.id,
-            integration_code=normalized_code,
-            name=normalize_maintenance_name(name, label="Integration name"),
-            integration_type=normalize_maintenance_name(integration_type, label="Integration type").upper(),
-            endpoint_or_path=normalize_optional_text(endpoint_or_path),
-            authentication_mode=normalize_optional_text(authentication_mode).upper(),
-            schedule_expression=normalize_optional_text(schedule_expression),
-            is_active=bool(is_active),
-            notes=normalize_optional_text(notes),
-        )
         try:
             self._integration_source_repo.add(source)
             self._session.commit()
@@ -190,38 +191,37 @@ class MaintenanceIntegrationSourceService:
                 "Maintenance integration source changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
-        if integration_code is not None:
-            normalized_code = normalize_maintenance_code(integration_code, label="Integration code")
-            existing = self._integration_source_repo.get_by_code(organization.id, normalized_code)
-            if existing is not None and existing.id != source.id:
-                raise ValidationError(
-                    "Integration code already exists in the active organization.",
-                    code="MAINTENANCE_INTEGRATION_SOURCE_CODE_EXISTS",
-                )
-            source.integration_code = normalized_code
-        if name is not None:
-            source.name = normalize_maintenance_name(name, label="Integration name")
-        if integration_type is not None:
-            source.integration_type = normalize_maintenance_name(integration_type, label="Integration type").upper()
-        if endpoint_or_path is not None:
-            source.endpoint_or_path = normalize_optional_text(endpoint_or_path)
-        if authentication_mode is not None:
-            source.authentication_mode = normalize_optional_text(authentication_mode).upper()
-        if schedule_expression is not None:
-            source.schedule_expression = normalize_optional_text(schedule_expression)
-        if last_successful_sync_at is not None:
-            source.last_successful_sync_at = coerce_optional_datetime(last_successful_sync_at, label="Last successful sync at")
-        if last_failed_sync_at is not None:
-            source.last_failed_sync_at = coerce_optional_datetime(last_failed_sync_at, label="Last failed sync at")
-        if last_error_message is not None:
-            source.last_error_message = normalize_optional_text(last_error_message)
-        if is_active is not None:
-            source.is_active = bool(is_active)
-        if notes is not None:
-            source.notes = normalize_optional_text(notes)
-        source.updated_at = datetime.now(timezone.utc)
+        updated = replace(
+            source,
+            integration_code=source.integration_code if integration_code is None else integration_code,
+            name=source.name if name is None else name,
+            integration_type=source.integration_type if integration_type is None else integration_type,
+            endpoint_or_path=source.endpoint_or_path if endpoint_or_path is None else endpoint_or_path,
+            authentication_mode=source.authentication_mode if authentication_mode is None else authentication_mode,
+            schedule_expression=source.schedule_expression if schedule_expression is None else schedule_expression,
+            last_successful_sync_at=(
+                source.last_successful_sync_at
+                if last_successful_sync_at is None
+                else last_successful_sync_at
+            ),
+            last_failed_sync_at=(
+                source.last_failed_sync_at
+                if last_failed_sync_at is None
+                else last_failed_sync_at
+            ),
+            last_error_message=source.last_error_message if last_error_message is None else last_error_message,
+            is_active=source.is_active if is_active is None else bool(is_active),
+            notes=source.notes if notes is None else notes,
+            updated_at=datetime.now(timezone.utc),
+        )
+        existing = self._integration_source_repo.get_by_code(organization.id, updated.integration_code)
+        if existing is not None and existing.id != source.id:
+            raise ValidationError(
+                "Integration code already exists in the active organization.",
+                code="MAINTENANCE_INTEGRATION_SOURCE_CODE_EXISTS",
+            )
         try:
-            self._integration_source_repo.update(source)
+            self._integration_source_repo.update(updated)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -232,8 +232,8 @@ class MaintenanceIntegrationSourceService:
         except Exception:
             self._session.rollback()
             raise
-        self._record_change("maintenance_integration_source.update", source)
-        return source
+        self._record_change("maintenance_integration_source.update", updated)
+        return updated
 
     def record_sync_success(
         self,
@@ -321,9 +321,14 @@ class MaintenanceIntegrationSourceService:
 
     def _ensure_not_scope_restricted(self, operation_label: str) -> None:
         if self._user_session is not None and self._user_session.is_scope_restricted("maintenance"):
-            raise BusinessRuleError(
-                f"Permission denied for {operation_label}. Shared integration sources require organization-wide maintenance access.",
-                code="PERMISSION_DENIED",
+            deny_maintenance_scope_access(
+                self._user_session,
+                operation_label=operation_label,
+                message=(
+                    f"Permission denied for {operation_label}. Shared "
+                    "integration sources require organization-wide maintenance "
+                    "access."
+                ),
             )
 
     def _active_organization(self) -> Organization:

@@ -6,7 +6,6 @@ from pathlib import Path
 import pytest
 
 from src.core.platform.common.exceptions import ValidationError
-from src.core.modules.project_management.infrastructure.collaboration_store import TaskCollaborationStore
 from src.core.platform.infrastructure.persistence.orm.time import TimeEntryORM
 from src.tests.temp_dirs import cleanup_test_workspace, create_test_workspace
 
@@ -28,71 +27,6 @@ def _write_csv(workspace_dir: Path, name: str, lines: list[str]) -> Path:
 
 def _time_entry_count(services) -> int:
     return services["session"].query(TimeEntryORM).count()
-
-
-def test_db_collaboration_store_copies_file_attachments_and_preserves_tokens(
-    services,
-    workspace_dir,
-    monkeypatch,
-):
-    ps = services["project_service"]
-    ts = services["task_service"]
-    store = services["task_collaboration_store"]
-    monkeypatch.setattr("src.core.modules.project_management.infrastructure.collaboration_attachments.user_data_dir", lambda: workspace_dir)
-
-    project = ps.create_project("Collab Attachments")
-    task = ts.create_task(project.id, "DB Comment Task", start_date=date(2026, 3, 1), duration_days=1)
-    source_dir = workspace_dir / "source"
-    source_dir.mkdir(parents=True, exist_ok=True)
-    source_file = source_dir / "evidence.txt"
-    source_file.write_text("proof", encoding="utf-8")
-
-    row = store.add_comment(
-        task_id=task.id,
-        author="alice",
-        body="Please check this @bob",
-        attachments=[str(source_file), "ticket-123"],
-    )
-
-    stored_file = Path(row["attachments"][0])
-    assert stored_file.exists()
-    assert stored_file.read_text(encoding="utf-8") == "proof"
-    assert stored_file != source_file
-    assert row["attachments"][1] == "ticket-123"
-
-    rows = store.list_comments(task.id)
-    assert rows[0]["mentions"] == ["bob"]
-    assert rows[0]["attachments"] == row["attachments"]
-
-
-def test_db_collaboration_store_marks_only_the_selected_task_mentions_as_read(services):
-    ps = services["project_service"]
-    ts = services["task_service"]
-    store = services["task_collaboration_store"]
-
-    project = ps.create_project("Collab Read Scope")
-    first_task = ts.create_task(project.id, "Task A", start_date=date(2026, 3, 1), duration_days=1)
-    second_task = ts.create_task(project.id, "Task B", start_date=date(2026, 3, 2), duration_days=1)
-
-    store.add_comment(task_id=first_task.id, author="alice", body="Review this @bob", attachments=[])
-    store.add_comment(task_id=second_task.id, author="alice", body="Review that @bob", attachments=[])
-
-    store.mark_task_mentions_read(task_id=first_task.id, username="bob")
-
-    assert store.unread_mentions_count_for_users(["bob"]) == 1
-    assert store.list_comments(first_task.id)[0]["read_by"] == ["bob"]
-    assert store.list_comments(second_task.id)[0]["read_by"] == []
-
-
-@pytest.mark.parametrize("mode", ["file", "db"])
-def test_collaboration_store_rejects_blank_comments(services, workspace_dir, mode):
-    if mode == "file":
-        store = TaskCollaborationStore(storage_path=workspace_dir / "comments.json")
-    else:
-        store = services["task_collaboration_store"]
-
-    with pytest.raises(ValueError, match="Comment text is required"):
-        store.add_comment(task_id="task-1", author="alice", body="   ", attachments=[])
 
 
 def test_import_projects_collects_row_errors_without_stopping(services, workspace_dir):

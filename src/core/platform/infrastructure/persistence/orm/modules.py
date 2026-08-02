@@ -27,18 +27,16 @@ from src.infra.persistence.orm.base import Base
 class ModuleEntitlementORM(Base):
     __tablename__ = "organization_module_entitlements"
 
-    # PK stays (organization_id, module_code) until Phase C full table reconstruction.
-    # tenant_id added as a non-PK FK to support tenant-level entitlement queries.
     organization_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("organizations.id", ondelete="CASCADE"),
         primary_key=True,
     )
     module_code: Mapped[str] = mapped_column(String(128), primary_key=True)
-    tenant_id: Mapped[Optional[str]] = mapped_column(
+    tenant_id: Mapped[str] = mapped_column(
         String,
         ForeignKey("tenants.id", ondelete="CASCADE"),
-        nullable=True,
+        nullable=False,
     )
     licensed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="0")

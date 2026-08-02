@@ -30,6 +30,16 @@ class _OrgRepo(OrganizationRepository):
     def get_by_code(self, organization_code):
         return self.organization if self.organization.organization_code == organization_code else None
     def get_active(self): return self.organization
+    def get_for_tenant(self, tenant_id, organization_id):
+        if self.organization.tenant_id != tenant_id:
+            return None
+        return self.get(organization_id)
+    def get_by_code_for_tenant(self, tenant_id, organization_code):
+        if self.organization.tenant_id != tenant_id:
+            return None
+        return self.get_by_code(organization_code)
+    def get_active_for_tenant(self, tenant_id):
+        return self.organization if self.organization.tenant_id == tenant_id else None
     def list_all(self, *, active_only=None):
         rows = [self.organization]
         return rows if active_only is None else [r for r in rows if r.is_active == bool(active_only)]
@@ -139,6 +149,12 @@ class _UserRepo(UserRepository):
     def get_by_federated_identity(self, identity_provider, federated_subject):
         return next((r for r in self._rows.values() if r.identity_provider == identity_provider and r.federated_subject == federated_subject), None)
     def list_all(self): return list(self._rows.values())
+    def list_for_tenant(self, tenant_id):
+        return [
+            row
+            for row in self._rows.values()
+            if getattr(row, "tenant_id", None) == tenant_id or getattr(row, "organization_id", None) is None
+        ]
 
 
 class _WorkRequestRepo(MaintenanceWorkRequestRepository):

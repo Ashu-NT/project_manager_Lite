@@ -72,7 +72,6 @@ class PlatformUserCatalogPresenter:
                 display_name=optional_string_value(payload, "displayName"),
                 email=optional_string_value(payload, "email"),
                 is_active=bool_value(payload, "isActive", default=True),
-                role_names=tuple(self._selected_role_names(payload)),
             )
         )
 
@@ -92,7 +91,12 @@ class PlatformUserCatalogPresenter:
         if not result.ok:
             return result
 
-        current_roles = set(self._current_role_names(payload))
+        editable_roles = {
+            str(option.get("value", ""))
+            for option in self.build_role_options()
+            if option.get("value")
+        }
+        current_roles = set(self._current_role_names(payload)) & editable_roles
         desired_roles = set(self._selected_role_names(payload))
         for role_name in sorted(desired_roles - current_roles):
             result = self._user_api.assign_role(user_id, role_name)

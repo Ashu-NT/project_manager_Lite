@@ -1,8 +1,20 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
 from src.core.platform.approval.domain import ApprovalRequest, ApprovalStatus
+
+
+@dataclass(frozen=True)
+class ApprovalPostCommitEvent:
+    signal_name: str
+    payload: str
+
+
+@dataclass(frozen=True)
+class ApprovalHandlerResult:
+    post_commit_events: tuple[ApprovalPostCommitEvent, ...] = ()
 
 
 class ApprovalRepository(ABC):
@@ -42,4 +54,8 @@ class ApprovalRepository(ABC):
     def project_belongs_to_organization(self, project_id: str, organization_id: str) -> bool: ...
 
 
-__all__ = ["ApprovalRepository"]
+__all__ = [
+    "ApprovalHandlerResult",
+    "ApprovalPostCommitEvent",
+    "ApprovalRepository",
+]

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -9,7 +10,6 @@ from src.core.modules.inventory_procurement.application.common.support import (
     convert_item_quantity,
     convert_item_unit_cost_to_stock,
     normalize_nonnegative_quantity,
-    normalize_optional_text,
     normalize_positive_quantity,
     normalize_uom,
     resolve_item_uom_factor,
@@ -278,23 +278,30 @@ class StockControlMovementMixin:
                 uom=normalized_uom,
                 label="Unit cost",
             )
-        balance.on_hand_qty = new_on_hand
-        balance.reserved_qty = new_reserved
-        balance.available_qty = new_available
-        balance.uom = item.stock_uom
+        next_average_cost = float(balance.average_cost or 0.0)
         if on_hand_delta > 0:
-            balance.last_receipt_at = effective_at
-            balance.average_cost = self._resolve_average_cost(
+            next_average_cost = self._resolve_average_cost(
                 balance=balance,
                 previous_on_hand=previous_on_hand,
                 delta=on_hand_delta,
                 quantity=movement_stock_quantity,
                 unit_cost=stock_unit_cost,
             )
-        else:
-            balance.last_issue_at = effective_at
-        balance.reorder_required = bool(item.reorder_point and balance.available_qty <= float(item.reorder_point or 0.0))
-        balance.updated_at = effective_at
+        balance = replace(
+            balance,
+            on_hand_qty=new_on_hand,
+            reserved_qty=new_reserved,
+            available_qty=new_available,
+            uom=item.stock_uom,
+            average_cost=next_average_cost,
+            last_receipt_at=effective_at if on_hand_delta > 0 else balance.last_receipt_at,
+            last_issue_at=effective_at if on_hand_delta <= 0 else balance.last_issue_at,
+            reorder_required=bool(
+                item.reorder_point
+                and new_available <= float(item.reorder_point or 0.0)
+            ),
+            updated_at=effective_at,
+        )
         principal = self._user_session.principal if self._user_session is not None else None
         transaction = StockTransaction.create(
             organization_id=organization.id,
@@ -306,15 +313,15 @@ class StockControlMovementMixin:
             uom=normalized_uom,
             unit_cost=effective_unit_cost,
             transaction_at=effective_at,
-            reference_type=normalize_optional_text(reference_type),
-            reference_id=normalize_optional_text(reference_id),
+            reference_type=reference_type,
+            reference_id=reference_id,
             performed_by_user_id=getattr(principal, "user_id", None),
-            performed_by_username=str(getattr(principal, "username", "") or ""),
+            performed_by_username=getattr(principal, "username", ""),
             resulting_on_hand_qty=balance.on_hand_qty,
             resulting_available_qty=balance.available_qty,
-            notes=normalize_optional_text(notes),
-            lot_number=str(lot_number or ""),
-            serial_number=str(serial_number or ""),
+            notes=notes,
+            lot_number=lot_number,
+            serial_number=serial_number,
         )
         try:
             if is_new_balance:

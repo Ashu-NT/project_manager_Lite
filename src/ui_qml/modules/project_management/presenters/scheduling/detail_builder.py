@@ -110,6 +110,11 @@ def build_detail_view_model(
                 supporting_text="Current operational identifier.",
             ),
             SchedulingDetailFieldViewModel(
+                label="WBS",
+                value=selected_activity.wbs_code or "-",
+                supporting_text="Task-owned work breakdown structure code.",
+            ),
+            SchedulingDetailFieldViewModel(
                 label="Start",
                 value=format_date(selected_activity.start_date),
                 supporting_text=f"Latest {format_date(selected_activity.latest_start)}",
@@ -166,6 +171,7 @@ def build_detail_view_model(
         state={
             "activityId": selected_activity.id,
             "projectId": selected_activity.project_id,
+            "wbsCode": selected_activity.wbs_code or "",
             "title": selected_activity.name,
             "description": selected_activity.description or "",
             "statusLabel": selected_activity.status_label,

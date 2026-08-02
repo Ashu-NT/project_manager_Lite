@@ -20,16 +20,13 @@ from src.ui_qml.platform.presenters.user_catalog_presenter import PlatformUserCa
 
 from .admin_calendar_actions import (
     add_calendar_exception,
-    add_calendar_holiday,
     add_calendar_recurring_event,
     assign_calendar,
     calculate_calendar_working_days,
     create_enterprise_calendar,
     delete_calendar_exception,
-    delete_calendar_holiday,
     delete_calendar_recurring_event,
     remove_calendar_assignment,
-    update_calendar,
     update_enterprise_calendar,
 )
 from .admin_calendar_context import calendar_assignment_context, calendar_detail_context
@@ -286,18 +283,6 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         return set_active_organization(self, organization_id)
 
     # ── Calendar slots ────────────────────────────────────────────────────
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def updateCalendar(self, payload: dict[str, object]) -> dict[str, object]:
-        return update_calendar(self, payload)
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def addCalendarHoliday(self, payload: dict[str, object]) -> dict[str, object]:
-        return add_calendar_holiday(self, payload)
-
-    @Slot(str, result="QVariantMap")
-    def deleteCalendarHoliday(self, holiday_id: str) -> dict[str, object]:
-        return delete_calendar_holiday(self, holiday_id)
 
     @Slot("QVariantMap", result="QVariantMap")
     def calculateCalendarWorkingDays(self, payload: dict[str, object]) -> dict[str, object]:

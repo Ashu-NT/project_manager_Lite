@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
@@ -8,15 +9,16 @@ from sqlalchemy.orm import Session
 from src.core.modules.maintenance.domain import MaintenanceTaskTemplate
 from src.core.modules.maintenance.contracts.repositories import MaintenanceTaskTemplateRepository
 from src.core.modules.maintenance.application.common.support import (
-    coerce_optional_non_negative_int,
     coerce_template_status,
     normalize_maintenance_code,
-    normalize_maintenance_name,
     normalize_optional_text,
+)
+from src.core.modules.maintenance.application.common.scope_authorization import (
+    deny_maintenance_scope_access,
 )
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.tenancy.tenant_context import (
     TenantContextService,
@@ -141,27 +143,26 @@ class MaintenanceTaskTemplateService:
         self._require_manage("create maintenance task template")
         self._ensure_org_wide_access("create maintenance task template")
         organization = self._active_organization()
-        normalized_code = normalize_maintenance_code(task_template_code, label="Task template code")
-        if self._task_template_repo.get_by_code(organization.id, normalized_code) is not None:
+        row = MaintenanceTaskTemplate.create(
+            organization_id=organization.id,
+            task_template_code=task_template_code,
+            name=name,
+            description=description,
+            maintenance_type=maintenance_type,
+            revision_no=revision_no,
+            template_status=template_status,
+            estimated_minutes=estimated_minutes,
+            required_skill=required_skill,
+            requires_shutdown=bool(requires_shutdown),
+            requires_permit=bool(requires_permit),
+            is_active=bool(is_active),
+            notes=notes,
+        )
+        if self._task_template_repo.get_by_code(organization.id, row.task_template_code) is not None:
             raise ValidationError(
                 "Task template code already exists in the active organization.",
                 code="MAINTENANCE_TASK_TEMPLATE_CODE_EXISTS",
             )
-        row = MaintenanceTaskTemplate.create(
-            organization_id=organization.id,
-            task_template_code=normalized_code,
-            name=normalize_maintenance_name(name, label="Task template name"),
-            description=normalize_optional_text(description),
-            maintenance_type=normalize_optional_text(maintenance_type).upper(),
-            revision_no=self._coerce_positive_int(revision_no, label="Revision number"),
-            template_status=coerce_template_status(template_status),
-            estimated_minutes=coerce_optional_non_negative_int(estimated_minutes, label="Estimated minutes"),
-            required_skill=normalize_optional_text(required_skill),
-            requires_shutdown=bool(requires_shutdown),
-            requires_permit=bool(requires_permit),
-            is_active=bool(is_active),
-            notes=normalize_optional_text(notes),
-        )
         try:
             self._task_template_repo.add(row)
             self._session.commit()
@@ -204,40 +205,30 @@ class MaintenanceTaskTemplateService:
                 "Maintenance task template changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
-        if task_template_code is not None:
-            normalized_code = normalize_maintenance_code(task_template_code, label="Task template code")
-            existing = self._task_template_repo.get_by_code(organization.id, normalized_code)
-            if existing is not None and existing.id != row.id:
-                raise ValidationError(
-                    "Task template code already exists in the active organization.",
-                    code="MAINTENANCE_TASK_TEMPLATE_CODE_EXISTS",
-                )
-            row.task_template_code = normalized_code
-        if name is not None:
-            row.name = normalize_maintenance_name(name, label="Task template name")
-        if description is not None:
-            row.description = normalize_optional_text(description)
-        if maintenance_type is not None:
-            row.maintenance_type = normalize_optional_text(maintenance_type).upper()
-        if revision_no is not None:
-            row.revision_no = self._coerce_positive_int(revision_no, label="Revision number")
-        if template_status is not None:
-            row.template_status = coerce_template_status(template_status)
-        if estimated_minutes is not None:
-            row.estimated_minutes = coerce_optional_non_negative_int(estimated_minutes, label="Estimated minutes")
-        if required_skill is not None:
-            row.required_skill = normalize_optional_text(required_skill)
-        if requires_shutdown is not None:
-            row.requires_shutdown = bool(requires_shutdown)
-        if requires_permit is not None:
-            row.requires_permit = bool(requires_permit)
-        if is_active is not None:
-            row.is_active = bool(is_active)
-        if notes is not None:
-            row.notes = normalize_optional_text(notes)
-        row.updated_at = datetime.now(timezone.utc)
+        updated = replace(
+            row,
+            task_template_code=row.task_template_code if task_template_code is None else task_template_code,
+            name=row.name if name is None else name,
+            description=row.description if description is None else description,
+            maintenance_type=row.maintenance_type if maintenance_type is None else maintenance_type,
+            revision_no=row.revision_no if revision_no is None else revision_no,
+            template_status=row.template_status if template_status is None else template_status,
+            estimated_minutes=row.estimated_minutes if estimated_minutes is None else estimated_minutes,
+            required_skill=row.required_skill if required_skill is None else required_skill,
+            requires_shutdown=row.requires_shutdown if requires_shutdown is None else bool(requires_shutdown),
+            requires_permit=row.requires_permit if requires_permit is None else bool(requires_permit),
+            is_active=row.is_active if is_active is None else bool(is_active),
+            notes=row.notes if notes is None else notes,
+            updated_at=datetime.now(timezone.utc),
+        )
+        existing = self._task_template_repo.get_by_code(organization.id, updated.task_template_code)
+        if existing is not None and existing.id != row.id:
+            raise ValidationError(
+                "Task template code already exists in the active organization.",
+                code="MAINTENANCE_TASK_TEMPLATE_CODE_EXISTS",
+            )
         try:
-            self._task_template_repo.update(row)
+            self._task_template_repo.update(updated)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -248,8 +239,8 @@ class MaintenanceTaskTemplateService:
         except Exception:
             self._session.rollback()
             raise
-        self._record_change("maintenance_task_template.update", row)
-        return row
+        self._record_change("maintenance_task_template.update", updated)
+        return updated
 
     def _active_organization(self) -> Organization:
         return self._tenant_context_service.require_context(
@@ -272,22 +263,14 @@ class MaintenanceTaskTemplateService:
 
     def _ensure_org_wide_access(self, operation_label: str) -> None:
         if self._user_session is not None and self._user_session.is_scope_restricted("maintenance"):
-            raise BusinessRuleError(
-                f"Permission denied for {operation_label}. Template libraries require broader maintenance access.",
-                code="PERMISSION_DENIED",
+            deny_maintenance_scope_access(
+                self._user_session,
+                operation_label=operation_label,
+                message=(
+                    f"Permission denied for {operation_label}. Template "
+                    "libraries require broader maintenance access."
+                ),
             )
-
-    def _coerce_positive_int(self, value: int | str, *, label: str) -> int:
-        try:
-            resolved = int(value)
-        except (TypeError, ValueError) as exc:
-            raise ValidationError(f"{label} is invalid.", code=f"{label.upper().replace(' ', '_')}_INVALID") from exc
-        if resolved <= 0:
-            raise ValidationError(
-                f"{label} must be greater than zero.",
-                code=f"{label.upper().replace(' ', '_')}_INVALID",
-            )
-        return resolved
 
     def _record_change(self, action: str, row: MaintenanceTaskTemplate) -> None:
         record_activity(

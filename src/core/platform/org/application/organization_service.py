@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
@@ -21,13 +22,12 @@ from src.core.platform.org.support import (
     DEFAULT_ORGANIZATION_CURRENCY,
     DEFAULT_ORGANIZATION_NAME,
     DEFAULT_ORGANIZATION_TIMEZONE,
-    normalize_code,
-    normalize_name,
 )
 
 if TYPE_CHECKING:
     from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.auth.domain.session import UserSessionContext
+    from src.core.platform.tenancy.tenant_context import TenantContextService
 
 
 class OrganizationService:
@@ -38,11 +38,13 @@ class OrganizationService:
         *,
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
+        tenant_context_service: TenantContextService | None = None,
     ):
         self._session = session
         self._organization_repo = organization_repo
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
+        self._tenant_context_service = tenant_context_service
 
     # ------------------------------------------------------------------
     # Tenant context — the single gateway for all runtime methods.
@@ -132,20 +134,16 @@ class OrganizationService:
     ) -> Organization:
         require_permission(self._user_session, "settings.manage", operation_label="create organization")
         tenant_id = self._require_current_tenant_id(operation_label="create organization")
-        normalized_code = normalize_code(organization_code, label="Organization code")
-        normalized_name = normalize_name(display_name, label="Organization name")
-        normalized_timezone = normalize_name(timezone_name, label="Timezone")
-        normalized_currency = normalize_code(base_currency, label="Base currency")
-        if self._organization_repo.get_by_code_for_tenant(normalized_code, tenant_id) is not None:
-            raise ValidationError("Organization code already exists.", code="ORGANIZATION_CODE_EXISTS")
         organization = Organization.create(
-            organization_code=normalized_code,
-            display_name=normalized_name,
-            timezone_name=normalized_timezone,
-            base_currency=normalized_currency,
-            is_active=bool(is_active),
+            organization_code=organization_code,
+            display_name=display_name,
+            timezone_name=timezone_name,
+            base_currency=base_currency,
+            is_active=is_active,
             tenant_id=tenant_id,
         )
+        if self._organization_repo.get_by_code_for_tenant(organization.organization_code, tenant_id) is not None:
+            raise ValidationError("Organization code already exists.", code="ORGANIZATION_CODE_EXISTS")
         try:
             if organization.is_active:
                 self._deactivate_other_organizations(tenant_id=tenant_id, exclude_id=None)
@@ -197,32 +195,36 @@ class OrganizationService:
                 "Organization changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
-        if organization_code is not None:
-            normalized_code = normalize_code(organization_code, label="Organization code")
-            existing = self._organization_repo.get_by_code_for_tenant(normalized_code, tenant_id)
-            if existing is not None and existing.id != organization.id:
-                raise ValidationError("Organization code already exists.", code="ORGANIZATION_CODE_EXISTS")
-            organization.organization_code = normalized_code
-        if display_name is not None:
-            organization.display_name = normalize_name(display_name, label="Organization name")
-        if timezone_name is not None:
-            organization.timezone_name = normalize_name(timezone_name, label="Timezone")
-        if base_currency is not None:
-            organization.base_currency = normalize_code(base_currency, label="Base currency")
-        if is_active is not None:
-            if not is_active and organization.is_active and not self._has_other_active_organizations(
+        candidate = replace(
+            organization,
+            organization_code=(
+                organization.organization_code
+                if organization_code is None
+                else organization_code
+            ),
+            display_name=organization.display_name if display_name is None else display_name,
+            timezone_name=organization.timezone_name if timezone_name is None else timezone_name,
+            base_currency=organization.base_currency if base_currency is None else base_currency,
+            is_active=organization.is_active if is_active is None else is_active,
+            tenant_id=tenant_id,
+        )
+        existing = self._organization_repo.get_by_code_for_tenant(
+            candidate.organization_code,
+            tenant_id,
+        )
+        if existing is not None and existing.id != organization.id:
+            raise ValidationError("Organization code already exists.", code="ORGANIZATION_CODE_EXISTS")
+        if not candidate.is_active and organization.is_active and not self._has_other_active_organizations(
                 organization.id, tenant_id=tenant_id
             ):
                 raise ValidationError(
                     "At least one active organization is required.",
                     code="ORGANIZATION_ACTIVE_REQUIRED",
                 )
-            organization.is_active = bool(is_active)
-        organization.tenant_id = tenant_id  # pin: tenant ownership is immutable
         try:
-            if organization.is_active:
+            if candidate.is_active:
                 self._deactivate_other_organizations(tenant_id=tenant_id, exclude_id=organization.id)
-            self._organization_repo.update(organization)
+            self._organization_repo.update(candidate)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -234,20 +236,20 @@ class OrganizationService:
             self,
             operation="update",
             entity_type="organization",
-            entity_id=organization.id,
+            entity_id=candidate.id,
             module="platform",
             severity="low",
             metadata={
                 "action": "organization.update",
-                "organization_code": organization.organization_code,
-                "display_name": organization.display_name,
-                "timezone_name": organization.timezone_name,
-                "base_currency": organization.base_currency,
-                "is_active": str(organization.is_active),
+                "organization_code": candidate.organization_code,
+                "display_name": candidate.display_name,
+                "timezone_name": candidate.timezone_name,
+                "base_currency": candidate.base_currency,
+                "is_active": str(candidate.is_active),
             },
         )
-        domain_events.organizations_changed.emit(organization.id)
-        return organization
+        domain_events.organizations_changed.emit(candidate.id)
+        return candidate
 
     def set_active_organization(self, organization_id: str) -> Organization:
         require_permission(self._user_session, "settings.manage", operation_label="set active organization")
@@ -255,11 +257,14 @@ class OrganizationService:
         organization = self._organization_repo.get_for_tenant(organization_id, tenant_id)
         if organization is None:
             raise NotFoundError("Organization not found.", code="ORGANIZATION_NOT_FOUND")
-        organization.tenant_id = tenant_id  # pin: tenant ownership is immutable
+        candidate = replace(
+            organization,
+            is_active=True,
+            tenant_id=tenant_id,
+        )
         try:
             self._deactivate_other_organizations(tenant_id=tenant_id, exclude_id=organization.id)
-            organization.is_active = True
-            self._organization_repo.update(organization)
+            self._organization_repo.update(candidate)
             self._session.commit()
         except Exception:
             self._session.rollback()
@@ -268,19 +273,21 @@ class OrganizationService:
             self,
             operation="update",
             entity_type="organization",
-            entity_id=organization.id,
+            entity_id=candidate.id,
             module="platform",
             severity="low",
             metadata={
                 "action": "organization.set_active",
-                "organization_code": organization.organization_code,
-                "display_name": organization.display_name,
+                "organization_code": candidate.organization_code,
+                "display_name": candidate.display_name,
             },
         )
-        if self._user_session is not None:
-            self._user_session.set_active_organization_id(organization.id)
-        domain_events.organizations_changed.emit(organization.id)
-        return organization
+        if self._tenant_context_service is not None:
+            self._tenant_context_service.set_active_organization(candidate.id)
+        elif self._user_session is not None:
+            self._user_session.set_active_organization_id(candidate.id)
+        domain_events.organizations_changed.emit(candidate.id)
+        return candidate
 
     # ------------------------------------------------------------------
     # Private helpers — tenant_id passed explicitly by every caller.

@@ -13,7 +13,7 @@ from src.core.modules.project_management.application.financials.costs.queries.co
 )
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.task import TaskRepository
-from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
+from src.core.modules.project_management.contracts.repositories.cost import CostRepository
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 
 
@@ -32,7 +32,9 @@ class CostService(
         user_session=None,
         activity_service=None,
         approval_service=None,
+        enterprise_audit_service=None,
         module_catalog_service=None,
+        tenant_context_service=None,
     ):
         self._session: Session = session
         self._cost_repo: CostRepository = cost_repo
@@ -41,7 +43,9 @@ class CostService(
         self._user_session = user_session
         self._activity_service = activity_service
         self._approval_service = approval_service
+        self._enterprise_audit_service = enterprise_audit_service
         self._module_catalog_service = module_catalog_service
+        self._tenant_context_service = tenant_context_service
 
 
 __all__ = ["CostService"]

@@ -96,9 +96,14 @@ def _scoped_assignment_stmt(base_stmt, assignment_orm, entity_orm, entity_id_col
         base_stmt.select_from(assignment_orm).join(
             PlatformCalendarORM,
             assignment_orm.calendar_id == PlatformCalendarORM.id,
+        ).join(
+            entity_orm,
+            entity_id_col == entity_orm.id,
         ).where(
             PlatformCalendarORM.tenant_id == ctx.tenant_id,
             PlatformCalendarORM.organization_id == ctx.organization_id,
+            entity_orm.tenant_id == ctx.tenant_id,
+            entity_orm.organization_id == ctx.organization_id,
         )
     )
 
@@ -615,6 +620,7 @@ class SqlAlchemyShiftPatternRepository(
         obj.description = pattern.description
         obj.pattern_type = pattern.pattern_type
         obj.rotation_cycle_days = pattern.rotation_cycle_days
+        obj.anchor_date = pattern.anchor_date
         obj.timezone = pattern.timezone
         obj.is_active = pattern.is_active
 
@@ -746,6 +752,7 @@ class SqlAlchemyCalendarAssignmentRepository(
             existing.priority = assignment.priority
             return
         _ensure_calendar_in_scope(self._session, ctx, assignment.calendar_id)
+        _ensure_site_in_scope(self._session, ctx, assignment.site_id)
         self._session.add(site_assignment_to_orm(assignment))
 
     def delete_site_assignment(self, assignment_id: str) -> None:
@@ -819,6 +826,7 @@ class SqlAlchemyCalendarAssignmentRepository(
             existing.priority = assignment.priority
             return
         _ensure_calendar_in_scope(self._session, ctx, assignment.calendar_id)
+        _ensure_department_in_scope(self._session, ctx, assignment.department_id)
         self._session.add(dept_assignment_to_orm(assignment))
 
     def delete_department_assignment(self, assignment_id: str) -> None:
@@ -892,6 +900,7 @@ class SqlAlchemyCalendarAssignmentRepository(
             existing.priority = assignment.priority
             return
         _ensure_calendar_in_scope(self._session, ctx, assignment.calendar_id)
+        _ensure_employee_in_scope(self._session, ctx, assignment.employee_id)
         self._session.add(employee_assignment_to_orm(assignment))
 
     def delete_employee_assignment(self, assignment_id: str) -> None:

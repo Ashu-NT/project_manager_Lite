@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
@@ -11,15 +12,16 @@ from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceSensorRepository,
 )
 from src.core.modules.maintenance.application.common.support import (
-    coerce_decimal_value,
     coerce_optional_datetime,
-    coerce_sensor_quality_state,
     normalize_optional_text,
+)
+from src.core.modules.maintenance.application.common.scope_authorization import (
+    deny_maintenance_scope_access,
 )
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.tenancy.tenant_context import (
     TenantContextService,
@@ -125,62 +127,65 @@ class MaintenanceSensorReadingService:
         scope_id = self._scope_anchor_for(sensor)
         self._require_scope_manage(scope_id, operation_label="record maintenance sensor reading")
 
-        normalized_unit = normalize_optional_text(reading_unit).upper() or sensor.unit
-        if not normalized_unit:
+        candidate_unit = normalize_optional_text(reading_unit) or sensor.unit
+        normalized_source_batch_id = normalize_optional_text(source_batch_id)
+        normalized_raw_payload_ref = normalize_optional_text(raw_payload_ref)
+        if not candidate_unit:
             self._raise_exception_if_possible(
                 sensor_id=sensor.id,
                 exception_type="UNIT_MISMATCH",
                 message="Sensor reading was received without a usable unit.",
                 detected_at=datetime.now(timezone.utc),
-                source_batch_id=source_batch_id,
-                raw_payload_ref=raw_payload_ref,
+                source_batch_id=normalized_source_batch_id,
+                raw_payload_ref=normalized_raw_payload_ref,
             )
             raise ValidationError(
                 "Reading unit is required when the sensor does not already define one.",
                 code="MAINTENANCE_SENSOR_READING_UNIT_REQUIRED",
             )
-        if sensor.unit and normalized_unit != sensor.unit:
+        reading = MaintenanceSensorReading.create(
+            organization_id=organization.id,
+            sensor_id=sensor.id,
+            reading_value=reading_value,
+            reading_unit=candidate_unit,
+            reading_timestamp=reading_timestamp,
+            quality_state=quality_state,
+            source_name=source_name,
+            source_batch_id=source_batch_id,
+            received_at=received_at,
+            raw_payload_ref=raw_payload_ref,
+        )
+        if sensor.unit and reading.reading_unit != sensor.unit:
             self._raise_exception_if_possible(
                 sensor_id=sensor.id,
                 exception_type="UNIT_MISMATCH",
-                message=f"Sensor reading unit '{normalized_unit}' does not match configured unit '{sensor.unit}'.",
+                message=f"Sensor reading unit '{reading.reading_unit}' does not match configured unit '{sensor.unit}'.",
                 detected_at=datetime.now(timezone.utc),
-                source_batch_id=source_batch_id,
-                raw_payload_ref=raw_payload_ref,
+                source_batch_id=reading.source_batch_id,
+                raw_payload_ref=reading.raw_payload_ref,
             )
             raise ValidationError(
                 "Reading unit must match the configured maintenance sensor unit.",
                 code="MAINTENANCE_SENSOR_READING_UNIT_MISMATCH",
             )
-
-        resolved_timestamp = coerce_optional_datetime(reading_timestamp, label="Reading timestamp") or datetime.now(timezone.utc)
-        resolved_received_at = coerce_optional_datetime(received_at, label="Received at") or datetime.now(timezone.utc)
-        resolved_quality = coerce_sensor_quality_state(quality_state)
-        reading = MaintenanceSensorReading.create(
-            organization_id=organization.id,
-            sensor_id=sensor.id,
-            reading_value=coerce_decimal_value(reading_value, label="Reading value"),
-            reading_unit=normalized_unit,
-            reading_timestamp=resolved_timestamp,
-            quality_state=resolved_quality,
-            source_name=normalize_optional_text(source_name),
-            source_batch_id=normalize_optional_text(source_batch_id),
-            received_at=resolved_received_at,
-            raw_payload_ref=normalize_optional_text(raw_payload_ref),
+        should_refresh_snapshot = (
+            sensor.last_read_at is None or reading.reading_timestamp >= sensor.last_read_at
         )
-
-        should_refresh_snapshot = sensor.last_read_at is None or resolved_timestamp >= sensor.last_read_at
+        refreshed_sensor = sensor
         if should_refresh_snapshot:
-            sensor.current_value = reading.reading_value
-            sensor.unit = normalized_unit
-            sensor.last_read_at = resolved_timestamp
-            sensor.last_quality_state = resolved_quality
-            sensor.updated_at = datetime.now(timezone.utc)
+            refreshed_sensor = replace(
+                sensor,
+                current_value=reading.reading_value,
+                unit=reading.reading_unit,
+                last_read_at=reading.reading_timestamp,
+                last_quality_state=reading.quality_state,
+                updated_at=datetime.now(timezone.utc),
+            )
 
         try:
             self._sensor_reading_repo.add(reading)
             if should_refresh_snapshot:
-                self._sensor_repo.update(sensor)
+                self._sensor_repo.update(refreshed_sensor)
             self._session.commit()
         except Exception:
             self._session.rollback()
@@ -196,12 +201,12 @@ class MaintenanceSensorReadingService:
                     source_event="maintenance_sensors_changed",
                 )
             )
-        if resolved_quality.value in {"STALE", "ERROR"}:
+        if reading.quality_state.value in {"STALE", "ERROR"}:
             self._raise_exception_if_possible(
                 sensor_id=sensor.id,
-                exception_type="STALE_READING" if resolved_quality.value == "STALE" else "EXTERNAL_SYNC_FAILURE",
+                exception_type="STALE_READING" if reading.quality_state.value == "STALE" else "EXTERNAL_SYNC_FAILURE",
                 message="Sensor reading quality requires planner review.",
-                detected_at=resolved_timestamp,
+                detected_at=reading.reading_timestamp,
                 source_batch_id=reading.source_batch_id,
                 raw_payload_ref=reading.raw_payload_ref,
             )
@@ -256,9 +261,13 @@ class MaintenanceSensorReadingService:
             )
             return
         if self._user_session is not None and self._user_session.is_scope_restricted("maintenance"):
-            raise BusinessRuleError(
-                f"Permission denied for {operation_label}. The record is not anchored to a maintenance scope grant.",
-                code="PERMISSION_DENIED",
+            deny_maintenance_scope_access(
+                self._user_session,
+                operation_label=operation_label,
+                message=(
+                    f"Permission denied for {operation_label}. The record is "
+                    "not anchored to a maintenance scope grant."
+                ),
             )
 
     def _require_scope_manage(self, scope_id: str, *, operation_label: str) -> None:
@@ -272,9 +281,13 @@ class MaintenanceSensorReadingService:
             )
             return
         if self._user_session is not None and self._user_session.is_scope_restricted("maintenance"):
-            raise BusinessRuleError(
-                f"Permission denied for {operation_label}. The record is not anchored to a maintenance scope grant.",
-                code="PERMISSION_DENIED",
+            deny_maintenance_scope_access(
+                self._user_session,
+                operation_label=operation_label,
+                message=(
+                    f"Permission denied for {operation_label}. The record is "
+                    "not anchored to a maintenance scope grant."
+                ),
             )
 
     def _record_change(self, action: str, reading: MaintenanceSensorReading) -> None:

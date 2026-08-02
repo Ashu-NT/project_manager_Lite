@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
@@ -455,13 +455,14 @@ class MaintenancePreventiveGenerationService:
         generated_work_order_id: str | None,
     ) -> None:
         sensor = self._sensor_repo.get(plan.sensor_id) if plan.sensor_id else None
+        audit_now = datetime.now(timezone.utc)
         plan.last_generated_at = as_of
         if due_instance is not None:
             due_instance.status = MaintenancePreventiveInstanceStatus.GENERATED
             due_instance.generated_at = as_of
             due_instance.generated_work_request_id = generated_work_request_id
             due_instance.generated_work_order_id = generated_work_order_id
-            due_instance.updated_at = as_of
+            due_instance.updated_at = audit_now
             self._preventive_plan_instance_repo.update(due_instance)
             remaining = self._preventive_plan_instance_repo.list_for_organization(
                 plan.organization_id, plan_id=plan.id,
@@ -478,7 +479,7 @@ class MaintenancePreventiveGenerationService:
             direction=plan.sensor_direction,
             current_due_counter=plan.next_due_counter,
         )
-        plan.updated_at = as_of
+        plan.updated_at = audit_now
         self._preventive_plan_repo.update(plan)
         self._session.commit()
         if due_instance is not None and self._scheduler.plan_uses_calendar_instances(plan):
@@ -503,6 +504,7 @@ class MaintenancePreventiveGenerationService:
             if plan_task.sensor_id_override
             else None
         )
+        audit_now = datetime.now(timezone.utc)
         plan_task.last_generated_at = as_of
         plan_task.next_due_at = next_calendar_due_value(
             as_of, plan_task.calendar_frequency_unit_override, plan_task.calendar_frequency_value_override
@@ -513,7 +515,7 @@ class MaintenancePreventiveGenerationService:
             direction=plan_task.sensor_direction_override,
             current_due_counter=plan_task.next_due_counter,
         )
-        plan_task.updated_at = as_of
+        plan_task.updated_at = audit_now
         self._preventive_plan_task_repo.update(plan_task)
         self._session.commit()
         domain_events.domain_changed.emit(

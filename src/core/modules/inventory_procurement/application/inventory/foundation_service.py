@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
@@ -9,10 +10,6 @@ from src.application.runtime.entitlement_runtime import ModuleRuntimeService
 from src.core.modules.inventory_procurement.application.common.support import (
     BUSINESS_PARTY_TYPES,
     normalize_inventory_code,
-    normalize_inventory_name,
-    normalize_nonnegative_days,
-    normalize_nonnegative_quantity,
-    normalize_optional_date,
     normalize_optional_text,
 )
 from src.core.modules.inventory_procurement.application.inventory.service import InventoryService
@@ -154,14 +151,14 @@ class InventoryFoundationService:
             organization_id=organization.id,
             storeroom_id=storeroom.id,
             location_code=normalized_code,
-            name=normalize_inventory_name(name, label="Location name"),
+            name=name,
             parent_location_id=normalized_parent_id,
-            location_type=self._normalize_location_type(location_type),
+            location_type=location_type,
             is_active=bool(is_active),
             is_quarantine=bool(is_quarantine),
             allows_issue=bool(allows_issue),
             allows_putaway=bool(allows_putaway),
-            notes=normalize_optional_text(notes),
+            notes=notes,
         )
         try:
             self._location_repo.add(location)
@@ -220,41 +217,42 @@ class InventoryFoundationService:
                 "Storage location changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
+        next_location_code = location.location_code
         if location_code is not None:
-            normalized_code = normalize_inventory_code(location_code, label="Location code")
+            next_location_code = normalize_inventory_code(location_code, label="Location code")
             existing = self._location_repo.get_by_code(
                 organization.id,
                 location.storeroom_id,
-                normalized_code,
+                next_location_code,
             )
             if existing is not None and existing.id != location.id:
                 raise ValidationError(
                     "Storage location code already exists in the selected storeroom.",
                     code="INVENTORY_LOCATION_CODE_EXISTS",
                 )
-            location.location_code = normalized_code
-        if name is not None:
-            location.name = normalize_inventory_name(name, label="Location name")
-        if location_type is not None:
-            location.location_type = self._normalize_location_type(location_type)
-        if is_active is not None:
-            location.is_active = bool(is_active)
-        if is_quarantine is not None:
-            location.is_quarantine = bool(is_quarantine)
-        if allows_issue is not None:
-            location.allows_issue = bool(allows_issue)
-        if allows_putaway is not None:
-            location.allows_putaway = bool(allows_putaway)
-        if notes is not None:
-            location.notes = normalize_optional_text(notes)
+        next_parent_location_id = location.parent_location_id
         if parent_location_id is not None:
-            location.parent_location_id = self._validate_parent_location(
+            next_parent_location_id = self._validate_parent_location(
                 organization_id=organization.id,
                 storeroom_id=location.storeroom_id,
                 location_id=location.id,
                 parent_location_id=parent_location_id,
             )
-        location.updated_at = datetime.now(timezone.utc)
+        location = replace(
+            location,
+            location_code=next_location_code,
+            name=location.name if name is None else name,
+            parent_location_id=next_parent_location_id,
+            location_type=location.location_type if location_type is None else location_type,
+            is_active=location.is_active if is_active is None else bool(is_active),
+            is_quarantine=location.is_quarantine if is_quarantine is None else bool(is_quarantine),
+            allows_issue=location.allows_issue if allows_issue is None else bool(allows_issue),
+            allows_putaway=(
+                location.allows_putaway if allows_putaway is None else bool(allows_putaway)
+            ),
+            notes=location.notes if notes is None else notes,
+            updated_at=datetime.now(timezone.utc),
+        )
         try:
             self._location_repo.update(location)
             self._session.commit()
@@ -351,30 +349,6 @@ class InventoryFoundationService:
             storeroom_id=storeroom.id,
             location_id=location_id,
         )
-        normalized_min_qty = normalize_nonnegative_quantity(min_qty, label="Minimum quantity")
-        normalized_max_qty = normalize_nonnegative_quantity(max_qty, label="Maximum quantity")
-        normalized_reorder_point = normalize_nonnegative_quantity(
-            reorder_point,
-            label="Reorder point",
-        )
-        normalized_reorder_qty = normalize_nonnegative_quantity(
-            reorder_qty,
-            label="Reorder quantity",
-        )
-        normalized_eoq = normalize_nonnegative_quantity(
-            economic_order_qty,
-            label="Economic order quantity",
-        )
-        if normalized_max_qty and normalized_min_qty > normalized_max_qty:
-            raise ValidationError(
-                "Maximum quantity cannot be less than minimum quantity.",
-                code="INVENTORY_REORDER_POLICY_MAX_INVALID",
-            )
-        if normalized_max_qty and normalized_reorder_point > normalized_max_qty:
-            raise ValidationError(
-                "Reorder point cannot exceed maximum quantity.",
-                code="INVENTORY_REORDER_POLICY_POINT_INVALID",
-            )
         normalized_supplier_id = self._validate_supplier_reference(
             preferred_supplier_party_id
         )
@@ -408,44 +382,38 @@ class InventoryFoundationService:
                 stock_item_id=item.id,
                 storeroom_id=storeroom.id,
                 location_id=normalized_location_id,
-                policy_name=normalize_optional_text(policy_name),
+                policy_name=policy_name,
                 is_active=bool(is_active),
-                min_qty=normalized_min_qty,
-                max_qty=normalized_max_qty,
-                reorder_point=normalized_reorder_point,
-                reorder_qty=normalized_reorder_qty,
-                economic_order_qty=normalized_eoq,
-                lead_time_days=normalize_nonnegative_days(lead_time_days, label="Lead time"),
-                review_period_days=normalize_nonnegative_days(
-                    review_period_days,
-                    label="Review period",
-                ),
+                min_qty=min_qty,
+                max_qty=max_qty,
+                reorder_point=reorder_point,
+                reorder_qty=reorder_qty,
+                economic_order_qty=economic_order_qty,
+                lead_time_days=lead_time_days,
+                review_period_days=review_period_days,
                 preferred_supplier_party_id=normalized_supplier_id
                 or item.preferred_party_id,
             )
             action = "inventory_reorder_policy.create"
             save_method = self._reorder_policy_repo.add
         else:
-            policy.stock_item_id = item.id
-            policy.storeroom_id = storeroom.id
-            policy.location_id = normalized_location_id
-            policy.policy_name = normalize_optional_text(policy_name)
-            policy.is_active = bool(is_active)
-            policy.min_qty = normalized_min_qty
-            policy.max_qty = normalized_max_qty
-            policy.reorder_point = normalized_reorder_point
-            policy.reorder_qty = normalized_reorder_qty
-            policy.economic_order_qty = normalized_eoq
-            policy.lead_time_days = normalize_nonnegative_days(
-                lead_time_days,
-                label="Lead time",
+            policy = replace(
+                policy,
+                stock_item_id=item.id,
+                storeroom_id=storeroom.id,
+                location_id=normalized_location_id,
+                policy_name=policy_name,
+                is_active=bool(is_active),
+                min_qty=min_qty,
+                max_qty=max_qty,
+                reorder_point=reorder_point,
+                reorder_qty=reorder_qty,
+                economic_order_qty=economic_order_qty,
+                lead_time_days=lead_time_days,
+                review_period_days=review_period_days,
+                preferred_supplier_party_id=normalized_supplier_id or item.preferred_party_id,
+                updated_at=now,
             )
-            policy.review_period_days = normalize_nonnegative_days(
-                review_period_days,
-                label="Review period",
-            )
-            policy.preferred_supplier_party_id = normalized_supplier_id or item.preferred_party_id
-            policy.updated_at = now
             action = "inventory_reorder_policy.update"
             save_method = self._reorder_policy_repo.update
         try:
@@ -549,12 +517,9 @@ class InventoryFoundationService:
             stock_item_id=item.id,
             storeroom_id=storeroom.id,
             location_id=normalized_location_id,
-            scheduled_count_date=normalize_optional_date(
-                scheduled_count_date,
-                label="Scheduled count date",
-            ),
+            scheduled_count_date=scheduled_count_date,
             expected_qty=float(getattr(balance, "on_hand_qty", 0.0) or 0.0),
-            notes=normalize_optional_text(notes),
+            notes=notes,
         )
         try:
             self._cycle_count_repo.add(cycle_count)
@@ -613,44 +578,44 @@ class InventoryFoundationService:
                 "Cycle count is already closed.",
                 code="INVENTORY_CYCLE_COUNT_STATUS_INVALID",
             )
-        effective_count = normalize_nonnegative_quantity(
-            counted_qty,
-            label="Counted quantity",
+        principal = self._user_session.principal if self._user_session is not None else None
+        resolved_notes = normalize_optional_text(notes) or cycle_count.notes
+        completed_cycle_count = replace(
+            cycle_count,
+            status=CycleCountStatus.COMPLETED,
+            counted_qty=counted_qty,
+            counted_by_user_id=getattr(principal, "user_id", None),
+            counted_by_username=str(getattr(principal, "username", "") or ""),
+            completed_at=datetime.now(timezone.utc),
+            notes=resolved_notes,
         )
-        variance = round(effective_count - float(cycle_count.expected_qty or 0.0), 6)
+        variance = float(completed_cycle_count.variance_qty or 0.0)
         adjustment_transaction = None
         touched_balance_id = ""
         try:
             if abs(variance) > 1e-9:
                 adjustment_transaction = self._stock_service.post_adjustment(
-                    stock_item_id=cycle_count.stock_item_id,
-                    storeroom_id=cycle_count.storeroom_id,
+                    stock_item_id=completed_cycle_count.stock_item_id,
+                    storeroom_id=completed_cycle_count.storeroom_id,
                     quantity=abs(variance),
                     direction="INCREASE" if variance > 0 else "DECREASE",
                     reference_type="cycle_count",
-                    reference_id=cycle_count.id,
-                    notes=normalize_optional_text(notes) or cycle_count.notes,
+                    reference_id=completed_cycle_count.id,
+                    notes=completed_cycle_count.notes,
                     commit=False,
                 )
                 balance = self._stock_service.get_balance_for_stock_position(
-                    stock_item_id=cycle_count.stock_item_id,
-                    storeroom_id=cycle_count.storeroom_id,
+                    stock_item_id=completed_cycle_count.stock_item_id,
+                    storeroom_id=completed_cycle_count.storeroom_id,
                 )
                 if balance is not None:
                     touched_balance_id = balance.id
-            principal = self._user_session.principal if self._user_session is not None else None
-            cycle_count.status = CycleCountStatus.COMPLETED
-            cycle_count.counted_qty = effective_count
-            cycle_count.variance_qty = variance
-            cycle_count.counted_by_user_id = getattr(principal, "user_id", None)
-            cycle_count.counted_by_username = str(getattr(principal, "username", "") or "")
-            cycle_count.completed_at = datetime.now(timezone.utc)
-            cycle_count.notes = normalize_optional_text(notes) or cycle_count.notes
-            self._cycle_count_repo.update(cycle_count)
+            self._cycle_count_repo.update(completed_cycle_count)
             self._session.commit()
         except Exception:
             self._session.rollback()
             raise
+        cycle_count = completed_cycle_count
         if adjustment_transaction is not None:
             record_activity(
                 self,
@@ -782,17 +747,6 @@ class InventoryFoundationService:
                 code="INVENTORY_PARTY_SCOPE_INVALID",
             )
         return party.id
-
-    @staticmethod
-    def _normalize_location_type(value: str | None) -> StorageLocationType:
-        normalized = normalize_optional_text(value).upper() or StorageLocationType.BIN.value
-        try:
-            return StorageLocationType(normalized)
-        except ValueError as exc:
-            raise ValidationError(
-                "Storage location type is invalid.",
-                code="INVENTORY_LOCATION_TYPE_INVALID",
-            ) from exc
 
     @staticmethod
     def _normalize_cycle_count_status(value: str | None) -> CycleCountStatus:

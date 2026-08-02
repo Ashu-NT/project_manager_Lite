@@ -43,6 +43,7 @@ class PlatformEmployeeDesktopApi:
                     email=command.email,
                     phone=command.phone,
                     is_active=command.is_active,
+                    user_id=command.user_id,
                 )
             )
         )
@@ -63,6 +64,7 @@ class PlatformEmployeeDesktopApi:
                     email=command.email,
                     phone=command.phone,
                     is_active=command.is_active,
+                    user_id=command.user_id,
                     expected_version=command.expected_version,
                 )
             )
@@ -83,6 +85,7 @@ class PlatformEmployeeDesktopApi:
             email=employee.email,
             phone=employee.phone,
             is_active=employee.is_active,
+            user_id=employee.user_id,
             version=employee.version,
         )
 

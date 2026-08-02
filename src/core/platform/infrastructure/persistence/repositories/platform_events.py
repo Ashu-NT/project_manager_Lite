@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from src.core.platform.common.exceptions import OperationNotPermittedError
@@ -19,10 +19,12 @@ class SqlAlchemyPlatformEventRepository(PlatformEventRepository):
         self._session = session
 
     def add(self, event: PlatformEvent) -> None:
+        self._prepare_tenant_partition(event.tenant_id)
         orm = platform_event_to_orm(event)
         self._session.add(orm)
 
     def list_for_tenant(self, tenant_id: str, *, limit: int = 100) -> list[PlatformEvent]:
+        self._prepare_tenant_partition(tenant_id)
         stmt = (
             select(PlatformEventORM)
             .where(PlatformEventORM.tenant_id == tenant_id)
@@ -40,6 +42,7 @@ class SqlAlchemyPlatformEventRepository(PlatformEventRepository):
         *,
         limit: int = 100,
     ) -> list[PlatformEvent]:
+        self._prepare_tenant_partition(tenant_id)
         stmt = (
             select(PlatformEventORM)
             .where(
@@ -63,6 +66,15 @@ class SqlAlchemyPlatformEventRepository(PlatformEventRepository):
         raise OperationNotPermittedError(
             "PlatformEvent records are append-only and cannot be deleted.",
             code="PLATFORM_EVENT_IMMUTABLE",
+        )
+
+    def _prepare_tenant_partition(self, tenant_id: str) -> None:
+        normalized_tenant_id = str(tenant_id or "").strip()
+        if self._session.get_bind().dialect.name != "postgresql":
+            return
+        self._session.execute(
+            text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+            {"tenant_id": normalized_tenant_id},
         )
 
 

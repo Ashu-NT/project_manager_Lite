@@ -26,6 +26,13 @@ def task_comment_to_orm(comment: TaskComment) -> TaskCommentORM:
         read_by_json=json.dumps(list(comment.read_by or [])),
         read_by_user_ids_json=json.dumps(list(comment.read_by_user_ids or [])),
         created_at=comment.created_at,
+        parent_comment_id=comment.parent_comment_id,
+        updated_at=comment.updated_at,
+        deleted_at=comment.deleted_at,
+        deleted_by_user_id=comment.deleted_by_user_id,
+        deletion_reason=comment.deletion_reason,
+        reactions_json=json.dumps(dict(comment.reactions or {})),
+        version=comment.version,
     )
 
 
@@ -51,7 +58,31 @@ def task_comment_from_orm(obj: TaskCommentORM) -> TaskComment:
         read_by=[item.lower() for item in _decode(obj.read_by_json)],
         read_by_user_ids=[item for item in _decode(obj.read_by_user_ids_json)],
         created_at=_coerce_utc_datetime(obj.created_at),
+        parent_comment_id=obj.parent_comment_id,
+        updated_at=_coerce_utc_datetime(obj.updated_at) if obj.updated_at is not None else None,
+        deleted_at=_coerce_utc_datetime(obj.deleted_at) if obj.deleted_at is not None else None,
+        deleted_by_user_id=obj.deleted_by_user_id,
+        deletion_reason=obj.deletion_reason,
+        reactions=_decode_reactions(obj.reactions_json),
+        version=obj.version,
     )
+
+
+def _decode_reactions(value: str | None) -> dict[str, list[str]]:
+    try:
+        data = json.loads(value or "{}")
+    except Exception:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    decoded: dict[str, list[str]] = {}
+    for emoji, user_ids in data.items():
+        if not isinstance(user_ids, list):
+            continue
+        cleaned = [str(item).strip() for item in user_ids if str(item).strip()]
+        if cleaned:
+            decoded[str(emoji)] = cleaned
+    return decoded
 
 
 def task_presence_to_orm(presence: TaskPresence) -> TaskPresenceORM:
@@ -75,8 +106,8 @@ def task_presence_from_orm(obj: TaskPresenceORM) -> TaskPresence:
         username=obj.username,
         display_name=obj.display_name,
         activity=obj.activity,
-        started_at=_coerce_utc_datetime(obj.started_at),
-        last_seen_at=_coerce_utc_datetime(obj.last_seen_at),
+        started_at=obj.started_at,
+        last_seen_at=obj.last_seen_at,
     )
 
 

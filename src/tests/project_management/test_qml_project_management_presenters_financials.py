@@ -9,6 +9,10 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_financials_desktop_api,
 )
 from src.core.modules.project_management.domain.enums import CostType
+from src.core.modules.project_management.application.financials import (
+    CommitmentSummary,
+    CostForecastResult,
+)
 
 
 class _FakeTaskOptionService:
@@ -33,6 +37,41 @@ class _FakeFinanceDesktopService:
 
     def get_finance_snapshot(self, project_id: str) -> SimpleNamespace:
         return self._snapshots_by_project[project_id]
+
+
+class _FakeForecastService:
+    def compute_forecast(
+        self,
+        project_id,
+        percent_complete,
+        *,
+        method,
+        threshold_percent,
+    ) -> CostForecastResult:
+        return CostForecastResult(
+            project_id=project_id,
+            method=method,
+            bac=2300.0,
+            ac=650.0,
+            ev=2300.0 * max(0.0, min(1.0, percent_complete)),
+            etc=1650.0,
+            eac=2300.0,
+            vac=0.0,
+            cpi=0.0,
+            exceeds_threshold=False,
+            threshold_percent=threshold_percent,
+        )
+
+    def get_commitment_summary(self, project_id) -> CommitmentSummary:
+        return CommitmentSummary(
+            project_id=project_id,
+            planned_total=2300.0,
+            uncommitted_total=900.0,
+            committed_total=1400.0,
+            invoiced_total=0.0,
+            paid_total=0.0,
+            actual_total=650.0,
+        )
 
 
 def _build_cost_record(
@@ -192,6 +231,7 @@ def test_project_management_workspace_catalog_exposes_typed_financials_controlle
                 ),
             }
         ),
+        forecast_service=_FakeForecastService(),
     )
     catalog = ProjectManagementWorkspaceCatalog(
         desktop_api_registry=SimpleNamespace(project_management_financials=financials_api)

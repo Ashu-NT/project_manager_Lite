@@ -238,13 +238,30 @@ def build_maintenance_service_bundle(
             resolve_permissions=resolve_maintenance_scope_permissions,
         )
     )
+    def _maintenance_entity_exists(tenant_id: str, entity_id: str) -> bool:
+        return (
+            platform_services.tenant_context_service.require_active_tenant_id(
+                operation_label="validate maintenance access scope"
+            )
+            == tenant_id
+            and any(
+                entity is not None
+                for entity in (
+                    location_repo.get(entity_id),
+                    system_repo.get(entity_id),
+                    asset_repo.get(entity_id),
+                )
+            )
+        )
+
     platform_services.access_service.register_scope_exists_resolver(
-        "maintenance",
-        lambda entity_id: (
-            location_repo.get(entity_id) is not None
-            or system_repo.get(entity_id) is not None
-            or asset_repo.get(entity_id) is not None
-        ),
+        "maintenance", _maintenance_entity_exists
+    )
+    platform_services.role_governance_service.register_scope_exists_resolver(
+        "maintenance", _maintenance_entity_exists
+    )
+    platform_services.auth_service.register_canonical_scope_tenant_resolver(
+        "maintenance", _maintenance_entity_exists
     )
     logger.debug("Maintenance platform registrations complete")
     logger.debug("Maintenance core services build begin")

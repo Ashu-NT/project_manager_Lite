@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, datetime, timezone
 from uuid import uuid4
 
@@ -11,8 +12,6 @@ from src.core.modules.inventory_procurement.application.common.support import (
     RESERVATION_STATUS_TRANSITIONS,
     normalize_optional_text,
     normalize_positive_quantity,
-    normalize_source_reference_type,
-    normalize_uom,
     resolve_item_uom_factor,
     validate_transition,
 )
@@ -128,28 +127,18 @@ class ReservationService:
             raise ValidationError("Reservation item must be an active stocked item.", code="INVENTORY_ITEM_NOT_STOCKED")
         if not storeroom.is_active:
             raise ValidationError("Reservation storeroom must be active.", code="INVENTORY_STOREROOM_INACTIVE")
-        normalized_source_type = normalize_source_reference_type(source_reference_type)
-        normalized_source_id = normalize_optional_text(source_reference_id)
-        if not normalized_source_type or not normalized_source_id:
-            raise ValidationError(
-                "Stock reservation requires source reference type and ID.",
-                code="INVENTORY_RESERVATION_SOURCE_REQUIRED",
-            )
-        normalized_qty = normalize_positive_quantity(reserved_qty, label="Reservation quantity")
-        normalized_uom = normalize_uom(uom or item.stock_uom, label="Reservation UOM")
-        resolve_item_uom_factor(item, normalized_uom, label="Reservation UOM")
         principal = self._user_session.principal if self._user_session is not None else None
         reservation = StockReservation.create(
             organization_id=organization.id,
             reservation_number=_build_reservation_number(),
             stock_item_id=item.id,
             storeroom_id=storeroom.id,
-            reserved_qty=normalized_qty,
-            remaining_qty=normalized_qty,
-            uom=normalized_uom,
+            reserved_qty=reserved_qty,
+            remaining_qty=reserved_qty,
+            uom=uom or item.stock_uom,
             need_by_date=need_by_date,
-            source_reference_type=normalized_source_type,
-            source_reference_id=normalized_source_id,
+            source_reference_type=source_reference_type,
+            source_reference_id=source_reference_id,
             source_module=source_module or "",
             source_entity_type=source_entity_type or "",
             source_code_snapshot=source_code_snapshot or "",
@@ -157,15 +146,16 @@ class ReservationService:
             source_status_snapshot=source_status_snapshot or "",
             requested_by_user_id=getattr(principal, "user_id", None),
             requested_by_username=str(getattr(principal, "username", "") or ""),
-            notes=normalize_optional_text(notes),
+            notes=notes,
         )
+        resolve_item_uom_factor(item, reservation.uom, label="Reservation UOM")
         try:
             self._reservation_repo.add(reservation)
             transaction = self._stock_service.hold_reservation(
                 stock_item_id=item.id,
                 storeroom_id=storeroom.id,
-                quantity=normalized_qty,
-                uom=normalized_uom,
+                quantity=reservation.reserved_qty,
+                uom=reservation.uom,
                 reference_type="inventory_reservation",
                 reference_id=reservation.id,
                 notes=reservation.notes,
@@ -255,10 +245,13 @@ class ReservationService:
                 notes=normalize_optional_text(note) or reservation.notes,
                 commit=False,
             )
-            reservation.issued_qty = float(reservation.issued_qty or 0.0) + issue_qty
-            reservation.remaining_qty = next_remaining
-            reservation.status = next_status
-            reservation.notes = normalize_optional_text(note) or reservation.notes
+            reservation = replace(
+                reservation,
+                issued_qty=float(reservation.issued_qty or 0.0) + issue_qty,
+                remaining_qty=next_remaining,
+                status=next_status,
+                notes=normalize_optional_text(note) or reservation.notes,
+            )
             self._reservation_repo.update(reservation)
             self._session.commit()
         except Exception:
@@ -414,13 +407,22 @@ class ReservationService:
                 notes=normalize_optional_text(note) or reservation.notes,
                 commit=False,
             )
-            reservation.remaining_qty = 0.0
-            if status == StockReservationStatus.RELEASED:
-                reservation.released_at = effective_at
-            else:
-                reservation.cancelled_at = effective_at
-            reservation.status = status
-            reservation.notes = normalize_optional_text(note) or reservation.notes
+            reservation = replace(
+                reservation,
+                remaining_qty=0.0,
+                released_at=(
+                    effective_at
+                    if status == StockReservationStatus.RELEASED
+                    else reservation.released_at
+                ),
+                cancelled_at=(
+                    effective_at
+                    if status == StockReservationStatus.CANCELLED
+                    else reservation.cancelled_at
+                ),
+                status=status,
+                notes=normalize_optional_text(note) or reservation.notes,
+            )
             self._reservation_repo.update(reservation)
             self._session.commit()
         except Exception:

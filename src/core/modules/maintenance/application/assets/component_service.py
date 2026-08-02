@@ -1,21 +1,18 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from src.core.modules.maintenance.domain._validation import normalize_maintenance_code
 from src.core.modules.maintenance.domain import MaintenanceAssetComponent
 from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceAssetComponentRepository,
     MaintenanceAssetRepository,
 )
 from src.core.modules.maintenance.application.common.support import (
-    coerce_lifecycle_status,
-    coerce_optional_date,
-    coerce_optional_non_negative_int,
-    normalize_maintenance_code,
-    normalize_maintenance_name,
     normalize_optional_text,
 )
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
@@ -218,46 +215,34 @@ class MaintenanceAssetComponentService:
             invalid_code="MAINTENANCE_COMPONENT_SUPPLIER_INVALID",
             label="Supplier",
         )
-        resolved_install_date = coerce_optional_date(install_date, label="Install date")
-        resolved_warranty_end = coerce_optional_date(warranty_end, label="Warranty end")
-        if (
-            resolved_install_date is not None
-            and resolved_warranty_end is not None
-            and resolved_warranty_end < resolved_install_date
-        ):
-            raise ValidationError(
-                "Warranty end cannot be earlier than install date.",
-                code="MAINTENANCE_COMPONENT_WARRANTY_RANGE_INVALID",
-            )
         component = MaintenanceAssetComponent.create(
             organization_id=organization.id,
             asset_id=asset.id,
-            component_code=normalized_code,
-            name=normalize_maintenance_name(name, label="Component name"),
-            description=normalize_optional_text(description),
+            component_code=component_code,
+            name=name,
+            description=description,
             parent_component_id=parent.id if parent is not None else None,
-            component_type=normalize_optional_text(component_type).upper(),
-            status=coerce_lifecycle_status(status, is_active=bool(is_active)),
+            component_type=component_type,
+            status=status,
             manufacturer_party_id=manufacturer.id if manufacturer is not None else None,
             supplier_party_id=supplier.id if supplier is not None else None,
-            manufacturer_part_number=normalize_optional_text(manufacturer_part_number),
-            supplier_part_number=normalize_optional_text(supplier_part_number),
-            model_number=normalize_optional_text(model_number),
-            serial_number=normalize_optional_text(serial_number),
-            install_date=resolved_install_date,
-            warranty_end=resolved_warranty_end,
-            expected_life_hours=coerce_optional_non_negative_int(
-                expected_life_hours,
-                label="Expected life hours",
-            ),
-            expected_life_cycles=coerce_optional_non_negative_int(
-                expected_life_cycles,
-                label="Expected life cycles",
-            ),
-            is_critical_component=bool(is_critical_component),
-            is_active=bool(is_active),
-            notes=normalize_optional_text(notes),
+            manufacturer_part_number=manufacturer_part_number,
+            supplier_part_number=supplier_part_number,
+            model_number=model_number,
+            serial_number=serial_number,
+            install_date=install_date,
+            warranty_end=warranty_end,
+            expected_life_hours=expected_life_hours,
+            expected_life_cycles=expected_life_cycles,
+            is_critical_component=is_critical_component,
+            is_active=is_active,
+            notes=notes,
         )
+        if self._component_repo.get_by_code(organization.id, component.component_code) is not None:
+            raise ValidationError(
+                "Component code already exists in the active organization.",
+                code="MAINTENANCE_COMPONENT_CODE_EXISTS",
+            )
         try:
             self._component_repo.add(component)
             self._session.commit()
@@ -320,25 +305,7 @@ class MaintenanceAssetComponentService:
             organization=organization,
             self_id=component.id,
         )
-        if component_code is not None:
-            normalized_code = normalize_maintenance_code(component_code, label="Component code")
-            existing = self._component_repo.get_by_code(organization.id, normalized_code)
-            if existing is not None and existing.id != component.id:
-                raise ValidationError(
-                    "Component code already exists in the active organization.",
-                    code="MAINTENANCE_COMPONENT_CODE_EXISTS",
-                )
-            component.component_code = normalized_code
-        if name is not None:
-            component.name = normalize_maintenance_name(name, label="Component name")
-        if description is not None:
-            component.description = normalize_optional_text(description)
-        if component_type is not None:
-            component.component_type = normalize_optional_text(component_type).upper()
-        if is_active is not None:
-            component.is_active = bool(is_active)
-        if status is not None or is_active is not None:
-            component.status = coerce_lifecycle_status(status, is_active=component.is_active)
+        next_manufacturer_party_id = component.manufacturer_party_id
         if manufacturer_party_id is not None:
             manufacturer = self._resolve_party(
                 normalize_optional_text(manufacturer_party_id) or None,
@@ -348,7 +315,8 @@ class MaintenanceAssetComponentService:
                 invalid_code="MAINTENANCE_COMPONENT_MANUFACTURER_INVALID",
                 label="Manufacturer",
             )
-            component.manufacturer_party_id = manufacturer.id if manufacturer is not None else None
+            next_manufacturer_party_id = manufacturer.id if manufacturer is not None else None
+        next_supplier_party_id = component.supplier_party_id
         if supplier_party_id is not None:
             supplier = self._resolve_party(
                 normalize_optional_text(supplier_party_id) or None,
@@ -358,47 +326,60 @@ class MaintenanceAssetComponentService:
                 invalid_code="MAINTENANCE_COMPONENT_SUPPLIER_INVALID",
                 label="Supplier",
             )
-            component.supplier_party_id = supplier.id if supplier is not None else None
-        if manufacturer_part_number is not None:
-            component.manufacturer_part_number = normalize_optional_text(manufacturer_part_number)
-        if supplier_part_number is not None:
-            component.supplier_part_number = normalize_optional_text(supplier_part_number)
-        if model_number is not None:
-            component.model_number = normalize_optional_text(model_number)
-        if serial_number is not None:
-            component.serial_number = normalize_optional_text(serial_number)
-        if install_date is not None:
-            component.install_date = coerce_optional_date(install_date, label="Install date")
-        if warranty_end is not None:
-            component.warranty_end = coerce_optional_date(warranty_end, label="Warranty end")
-        if (
-            component.install_date is not None
-            and component.warranty_end is not None
-            and component.warranty_end < component.install_date
-        ):
-            raise ValidationError(
-                "Warranty end cannot be earlier than install date.",
-                code="MAINTENANCE_COMPONENT_WARRANTY_RANGE_INVALID",
-            )
-        if expected_life_hours is not None:
-            component.expected_life_hours = coerce_optional_non_negative_int(
-                expected_life_hours,
-                label="Expected life hours",
-            )
-        if expected_life_cycles is not None:
-            component.expected_life_cycles = coerce_optional_non_negative_int(
-                expected_life_cycles,
-                label="Expected life cycles",
-            )
-        if is_critical_component is not None:
-            component.is_critical_component = bool(is_critical_component)
-        if notes is not None:
-            component.notes = normalize_optional_text(notes)
-        component.asset_id = target_asset.id
-        component.parent_component_id = target_parent.id if target_parent is not None else None
-        component.updated_at = datetime.now(timezone.utc)
+            next_supplier_party_id = supplier.id if supplier is not None else None
+        updated = replace(
+            component,
+            asset_id=target_asset.id,
+            component_code=component.component_code if component_code is None else component_code,
+            name=component.name if name is None else name,
+            description=component.description if description is None else description,
+            parent_component_id=target_parent.id if target_parent is not None else None,
+            component_type=component.component_type if component_type is None else component_type,
+            status=component.status if status is None and is_active is None else status,
+            manufacturer_party_id=next_manufacturer_party_id,
+            supplier_party_id=next_supplier_party_id,
+            manufacturer_part_number=(
+                component.manufacturer_part_number
+                if manufacturer_part_number is None
+                else manufacturer_part_number
+            ),
+            supplier_part_number=(
+                component.supplier_part_number
+                if supplier_part_number is None
+                else supplier_part_number
+            ),
+            model_number=component.model_number if model_number is None else model_number,
+            serial_number=component.serial_number if serial_number is None else serial_number,
+            install_date=component.install_date if install_date is None else install_date,
+            warranty_end=component.warranty_end if warranty_end is None else warranty_end,
+            expected_life_hours=(
+                component.expected_life_hours
+                if expected_life_hours is None
+                else expected_life_hours
+            ),
+            expected_life_cycles=(
+                component.expected_life_cycles
+                if expected_life_cycles is None
+                else expected_life_cycles
+            ),
+            is_critical_component=(
+                component.is_critical_component
+                if is_critical_component is None
+                else is_critical_component
+            ),
+            is_active=component.is_active if is_active is None else is_active,
+            notes=component.notes if notes is None else notes,
+            updated_at=datetime.now(timezone.utc),
+        )
+        if component_code is not None:
+            existing = self._component_repo.get_by_code(organization.id, updated.component_code)
+            if existing is not None and existing.id != component.id:
+                raise ValidationError(
+                    "Component code already exists in the active organization.",
+                    code="MAINTENANCE_COMPONENT_CODE_EXISTS",
+                )
         try:
-            self._component_repo.update(component)
+            self._component_repo.update(updated)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -409,8 +390,8 @@ class MaintenanceAssetComponentService:
         except Exception:
             self._session.rollback()
             raise
-        self._record_change("maintenance_asset_component.update", component)
-        return component
+        self._record_change("maintenance_asset_component.update", updated)
+        return updated
 
     def _resolve_parent(
         self,

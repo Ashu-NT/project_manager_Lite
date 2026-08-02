@@ -19,6 +19,7 @@ def employee_to_orm(employee: Employee) -> EmployeeORM:
         email=employee.email,
         phone=employee.phone,
         is_active=employee.is_active,
+        user_id=employee.user_id,
         version=getattr(employee, "version", 1),
     )
 
@@ -38,6 +39,7 @@ def employee_from_orm(obj: EmployeeORM) -> Employee:
         email=obj.email,
         phone=obj.phone,
         is_active=obj.is_active,
+        user_id=getattr(obj, "user_id", None),
         version=getattr(obj, "version", 1),
     )
 

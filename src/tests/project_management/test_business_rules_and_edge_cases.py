@@ -121,23 +121,6 @@ def test_work_calendar_next_and_negative_day_math(services):
     assert wc.next_working_day(date(2023, 11, 4), include_today=True) == date(2023, 11, 7)
 
 
-def test_calendar_event_update_rejects_end_before_start(services):
-    ps = services["project_service"]
-    cal = services["calendar_service"]
-
-    project = ps.create_project("Calendar Event Project", "")
-    ev = cal.create_event(
-        title="Planning Session",
-        start_date=date(2023, 11, 10),
-        end_date=date(2023, 11, 12),
-        project_id=project.id,
-        description="Initial plan",
-    )
-
-    with pytest.raises(ValidationError):
-        cal.update_event(ev.id, end_date=date(2023, 11, 9))
-
-
 def test_cost_service_negative_amount_validation(services):
     ps = services["project_service"]
     ts = services["task_service"]

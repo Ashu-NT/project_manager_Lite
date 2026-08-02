@@ -1,17 +1,11 @@
 ﻿pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls
-import QtQuick.Layouts
-import QtQuick.Dialogs
 import Shell.Context 1.0 as ShellContexts
-import App.Controls 1.0 as AppControls
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
-import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "components" as Components
-import "sections" as Sections
 import "panels" as Panels
 
 AppLayouts.WorkspaceFrame {
@@ -161,6 +155,7 @@ AppLayouts.WorkspaceFrame {
                 statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
                 assignmentOptions: root.workspaceController ? (root.workspaceController.assignmentOptions || []) : []
                 dependencyTaskOptions: root.workspaceController ? (root.workspaceController.dependencyTaskOptions || []) : []
+                wbsParentOptions: root.workspaceController ? (root.workspaceController.wbsParentOptions || []) : []
                 dependencyTypeOptions: root.workspaceController ? (root.workspaceController.dependencyTypeOptions || []) : []
                 collaborationMentionOptions: root.workspaceController ? (root.workspaceController.collaborationMentionOptions || []) : []
                 collaborationDocumentOptions: root.workspaceController ? (root.workspaceController.collaborationDocumentOptions || []) : []
@@ -370,6 +365,8 @@ AppLayouts.WorkspaceFrame {
                     onActionTriggered: function(actionId) {
                         if (actionId === "edit") {
                             dialogHostLoader.invoke("openEditDialog", root.selectedTaskModel)
+                        } else if (actionId === "move_wbs") {
+                            dialogHostLoader.invoke("openWbsMoveDialog", root.selectedTaskModel)
                         } else if (actionId === "progress") {
                             dialogHostLoader.invoke("openProgressDialog", root.selectedTaskModel)
                         } else if (actionId === "delete") {
@@ -474,6 +471,12 @@ AppLayouts.WorkspaceFrame {
                     onDeleteAssignmentRequested: function(assignmentData) {
                         dialogHostLoader.invoke("openDeleteAssignmentDialog", assignmentData)
                     }
+                    onAcceptAssignmentRequested: function(assignmentData) {
+                        dialogHostLoader.invoke("openAssignmentResponseDialog", "accept", assignmentData)
+                    }
+                    onDeclineAssignmentRequested: function(assignmentData) {
+                        dialogHostLoader.invoke("openAssignmentResponseDialog", "decline", assignmentData)
+                    }
 
                     onCreateDependencyRequested: dialogHostLoader.invoke("openCreateDependencyDialog", root.selectedTaskModel)
                     onDependencySelectionChanged: function(dependencyData) {
@@ -535,6 +538,33 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     onComposeRequested: dialogHostLoader.invoke("openTaskCollaborationDialog", root.selectedTaskModel)
+                    onCommentReplyRequested: function(commentData) {
+                        dialogHostLoader.invoke(
+                            "openTaskCommentReplyDialog",
+                            commentData,
+                            root.selectedTaskModel
+                        )
+                    }
+                    onCommentEditRequested: function(commentData) {
+                        dialogHostLoader.invoke(
+                            "openTaskCommentEditDialog",
+                            commentData,
+                            root.selectedTaskModel
+                        )
+                    }
+                    onCommentDeleteRequested: function(commentData) {
+                        dialogHostLoader.invoke("openTaskCommentDeleteDialog", commentData)
+                    }
+                    onCommentReactionRequested: function(payload) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.reactToTaskComment(payload)
+                        }
+                    }
+                    onCommentReactionRemovalRequested: function(payload) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.removeTaskCommentReaction(payload)
+                        }
+                    }
                     onMarkReadRequested: function(taskId) {
                         if (root.workspaceController !== null) {
                             root.workspaceController.markTaskCollaborationRead(taskId)

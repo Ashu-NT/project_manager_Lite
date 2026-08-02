@@ -85,7 +85,7 @@ def build_workspace_state(
         calendar_options,
         default_value="default",
     )
-    calendar_snapshot = desktop_api.get_calendar_snapshot()
+    calendar_snapshot = desktop_api.get_calendar_snapshot(resolved_calendar_id)
 
     schedule_items = (
         desktop_api.list_schedule(resolved_project_id) if resolved_project_id else ()

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
@@ -9,6 +10,7 @@ from datetime import date
 
 from decimal import Decimal
 
+from src.core.modules.maintenance.domain._validation import normalize_maintenance_code
 from src.core.modules.maintenance.domain import (
     MaintenanceAsset,
     MaintenanceCriticality,
@@ -22,13 +24,6 @@ from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceSystemRepository,
 )
 from src.core.modules.maintenance.application.common.support import (
-    coerce_criticality,
-    coerce_lifecycle_status,
-    coerce_optional_date,
-    coerce_optional_decimal,
-    coerce_optional_non_negative_int,
-    normalize_maintenance_code,
-    normalize_maintenance_name,
     normalize_optional_text,
 )
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
@@ -263,46 +258,38 @@ class MaintenanceAssetService:
             invalid_code="MAINTENANCE_ASSET_SUPPLIER_INVALID",
             label="Supplier",
         )
-        resolved_install_date = coerce_optional_date(install_date, label="Install date")
-        resolved_commission_date = coerce_optional_date(commission_date, label="Commission date")
-        resolved_warranty_start = coerce_optional_date(warranty_start, label="Warranty start")
-        resolved_warranty_end = coerce_optional_date(warranty_end, label="Warranty end")
-        self._validate_date_sequence(
-            install_date=resolved_install_date,
-            commission_date=resolved_commission_date,
-            warranty_start=resolved_warranty_start,
-            warranty_end=resolved_warranty_end,
-        )
         asset = MaintenanceAsset.create(
             organization_id=organization.id,
             site_id=site.id,
             location_id=location.id,
-            asset_code=normalized_code,
-            name=normalize_maintenance_name(name, label="Asset name"),
+            asset_code=asset_code,
+            name=name,
             system_id=system.id if system is not None else None,
-            description=normalize_optional_text(description),
+            description=description,
             parent_asset_id=parent.id if parent is not None else None,
-            asset_type=normalize_optional_text(asset_type),
-            asset_category=normalize_optional_text(asset_category).upper(),
-            criticality=coerce_criticality(criticality),
-            status=coerce_lifecycle_status(status, is_active=bool(is_active)),
+            asset_type=asset_type,
+            asset_category=asset_category,
+            criticality=criticality,
+            status=status,
             manufacturer_party_id=manufacturer.id if manufacturer is not None else None,
             supplier_party_id=supplier.id if supplier is not None else None,
-            model_number=normalize_optional_text(model_number),
-            serial_number=normalize_optional_text(serial_number),
-            barcode=normalize_optional_text(barcode),
-            install_date=resolved_install_date,
-            commission_date=resolved_commission_date,
-            warranty_start=resolved_warranty_start,
-            warranty_end=resolved_warranty_end,
-            expected_life_years=coerce_optional_non_negative_int(expected_life_years, label="Expected life years"),
-            replacement_cost=coerce_optional_decimal(replacement_cost, label="Replacement cost"),
-            maintenance_strategy=normalize_optional_text(maintenance_strategy),
-            service_level=normalize_optional_text(service_level),
-            requires_shutdown_for_major_work=bool(requires_shutdown_for_major_work),
-            is_active=bool(is_active),
-            notes=normalize_optional_text(notes),
+            model_number=model_number,
+            serial_number=serial_number,
+            barcode=barcode,
+            install_date=install_date,
+            commission_date=commission_date,
+            warranty_start=warranty_start,
+            warranty_end=warranty_end,
+            expected_life_years=expected_life_years,
+            replacement_cost=replacement_cost,
+            maintenance_strategy=maintenance_strategy,
+            service_level=service_level,
+            requires_shutdown_for_major_work=requires_shutdown_for_major_work,
+            is_active=is_active,
+            notes=notes,
         )
+        if self._asset_repo.get_by_code(organization.id, asset.asset_code) is not None:
+            raise ValidationError("Asset code already exists in the active organization.", code="MAINTENANCE_ASSET_CODE_EXISTS")
         try:
             self._asset_repo.add(asset)
             self._session.commit()
@@ -377,26 +364,7 @@ class MaintenanceAssetService:
             system_id=target_system.id if target_system is not None else None,
             self_id=asset.id,
         )
-        if asset_code is not None:
-            normalized_code = normalize_maintenance_code(asset_code, label="Asset code")
-            existing = self._asset_repo.get_by_code(organization.id, normalized_code)
-            if existing is not None and existing.id != asset.id:
-                raise ValidationError("Asset code already exists in the active organization.", code="MAINTENANCE_ASSET_CODE_EXISTS")
-            asset.asset_code = normalized_code
-        if name is not None:
-            asset.name = normalize_maintenance_name(name, label="Asset name")
-        if description is not None:
-            asset.description = normalize_optional_text(description)
-        if asset_type is not None:
-            asset.asset_type = normalize_optional_text(asset_type)
-        if asset_category is not None:
-            asset.asset_category = normalize_optional_text(asset_category).upper()
-        if criticality is not None:
-            asset.criticality = coerce_criticality(criticality)
-        if is_active is not None:
-            asset.is_active = bool(is_active)
-        if status is not None or is_active is not None:
-            asset.status = coerce_lifecycle_status(status, is_active=asset.is_active)
+        next_manufacturer_party_id = asset.manufacturer_party_id
         if manufacturer_party_id is not None:
             manufacturer = self._resolve_party(
                 normalize_optional_text(manufacturer_party_id) or None,
@@ -406,7 +374,8 @@ class MaintenanceAssetService:
                 invalid_code="MAINTENANCE_ASSET_MANUFACTURER_INVALID",
                 label="Manufacturer",
             )
-            asset.manufacturer_party_id = manufacturer.id if manufacturer is not None else None
+            next_manufacturer_party_id = manufacturer.id if manufacturer is not None else None
+        next_supplier_party_id = asset.supplier_party_id
         if supplier_party_id is not None:
             supplier = self._resolve_party(
                 normalize_optional_text(supplier_party_id) or None,
@@ -416,49 +385,48 @@ class MaintenanceAssetService:
                 invalid_code="MAINTENANCE_ASSET_SUPPLIER_INVALID",
                 label="Supplier",
             )
-            asset.supplier_party_id = supplier.id if supplier is not None else None
-        if model_number is not None:
-            asset.model_number = normalize_optional_text(model_number)
-        if serial_number is not None:
-            asset.serial_number = normalize_optional_text(serial_number)
-        if barcode is not None:
-            asset.barcode = normalize_optional_text(barcode)
-        if install_date is not None:
-            asset.install_date = coerce_optional_date(install_date, label="Install date")
-        if commission_date is not None:
-            asset.commission_date = coerce_optional_date(commission_date, label="Commission date")
-        if warranty_start is not None:
-            asset.warranty_start = coerce_optional_date(warranty_start, label="Warranty start")
-        if warranty_end is not None:
-            asset.warranty_end = coerce_optional_date(warranty_end, label="Warranty end")
-        self._validate_date_sequence(
-            install_date=asset.install_date,
-            commission_date=asset.commission_date,
-            warranty_start=asset.warranty_start,
-            warranty_end=asset.warranty_end,
+            next_supplier_party_id = supplier.id if supplier is not None else None
+        updated = replace(
+            asset,
+            site_id=target_site_id,
+            location_id=target_location.id,
+            asset_code=asset.asset_code if asset_code is None else asset_code,
+            name=asset.name if name is None else name,
+            system_id=target_system.id if target_system is not None else None,
+            description=asset.description if description is None else description,
+            parent_asset_id=target_parent.id if target_parent is not None else None,
+            asset_type=asset.asset_type if asset_type is None else asset_type,
+            asset_category=asset.asset_category if asset_category is None else asset_category,
+            criticality=asset.criticality if criticality is None else criticality,
+            status=asset.status if status is None and is_active is None else status,
+            manufacturer_party_id=next_manufacturer_party_id,
+            supplier_party_id=next_supplier_party_id,
+            model_number=asset.model_number if model_number is None else model_number,
+            serial_number=asset.serial_number if serial_number is None else serial_number,
+            barcode=asset.barcode if barcode is None else barcode,
+            install_date=asset.install_date if install_date is None else install_date,
+            commission_date=asset.commission_date if commission_date is None else commission_date,
+            warranty_start=asset.warranty_start if warranty_start is None else warranty_start,
+            warranty_end=asset.warranty_end if warranty_end is None else warranty_end,
+            expected_life_years=asset.expected_life_years if expected_life_years is None else expected_life_years,
+            replacement_cost=asset.replacement_cost if replacement_cost is None else replacement_cost,
+            maintenance_strategy=asset.maintenance_strategy if maintenance_strategy is None else maintenance_strategy,
+            service_level=asset.service_level if service_level is None else service_level,
+            requires_shutdown_for_major_work=(
+                asset.requires_shutdown_for_major_work
+                if requires_shutdown_for_major_work is None
+                else requires_shutdown_for_major_work
+            ),
+            is_active=asset.is_active if is_active is None else is_active,
+            notes=asset.notes if notes is None else notes,
+            updated_at=datetime.now(timezone.utc),
         )
-        if expected_life_years is not None:
-            asset.expected_life_years = coerce_optional_non_negative_int(
-                expected_life_years,
-                label="Expected life years",
-            )
-        if replacement_cost is not None:
-            asset.replacement_cost = coerce_optional_decimal(replacement_cost, label="Replacement cost")
-        if maintenance_strategy is not None:
-            asset.maintenance_strategy = normalize_optional_text(maintenance_strategy)
-        if service_level is not None:
-            asset.service_level = normalize_optional_text(service_level)
-        if requires_shutdown_for_major_work is not None:
-            asset.requires_shutdown_for_major_work = bool(requires_shutdown_for_major_work)
-        if notes is not None:
-            asset.notes = normalize_optional_text(notes)
-        asset.site_id = target_site_id
-        asset.location_id = target_location.id
-        asset.system_id = target_system.id if target_system is not None else None
-        asset.parent_asset_id = target_parent.id if target_parent is not None else None
-        asset.updated_at = datetime.now(timezone.utc)
+        if asset_code is not None:
+            existing = self._asset_repo.get_by_code(organization.id, updated.asset_code)
+            if existing is not None and existing.id != asset.id:
+                raise ValidationError("Asset code already exists in the active organization.", code="MAINTENANCE_ASSET_CODE_EXISTS")
         try:
-            self._asset_repo.update(asset)
+            self._asset_repo.update(updated)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -466,8 +434,8 @@ class MaintenanceAssetService:
         except Exception:
             self._session.rollback()
             raise
-        self._record_change("maintenance_asset.update", asset)
-        return asset
+        self._record_change("maintenance_asset.update", updated)
+        return updated
 
     def _resolve_location(
         self,
@@ -542,19 +510,6 @@ class MaintenanceAssetService:
                 code=invalid_code,
             )
         return party
-
-    @staticmethod
-    def _validate_date_sequence(
-        *,
-        install_date: date | None,
-        commission_date: date | None,
-        warranty_start: date | None,
-        warranty_end: date | None,
-    ) -> None:
-        if install_date is not None and commission_date is not None and commission_date < install_date:
-            raise ValidationError("Commission date cannot be earlier than install date.", code="MAINTENANCE_ASSET_DATE_SEQUENCE_INVALID")
-        if warranty_start is not None and warranty_end is not None and warranty_end < warranty_start:
-            raise ValidationError("Warranty end cannot be earlier than warranty start.", code="MAINTENANCE_ASSET_WARRANTY_RANGE_INVALID")
 
     def _active_organization(self) -> Organization:
         return self._tenant_context_service.require_context(

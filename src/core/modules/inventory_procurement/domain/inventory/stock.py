@@ -1,10 +1,31 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from enum import Enum
 
+from pydantic import field_validator, model_validator
+
+from src.core.modules.inventory_procurement.domain._validation import (
+    STOREROOM_STATUS_VALUES,
+    normalize_enum,
+    normalize_inventory_code,
+    normalize_inventory_name,
+    normalize_nonnegative_quantity,
+    normalize_optional_date,
+    normalize_optional_datetime,
+    normalize_optional_identifier,
+    normalize_positive_quantity,
+    normalize_optional_text,
+    normalize_optional_upper_text,
+    normalize_positive_int,
+    normalize_required_text,
+    normalize_source_reference_type,
+    normalize_status,
+    normalize_uom,
+)
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.ids import generate_id
+from src.core.platform.common.pydantic import validated_dataclass
 
 
 class StockTransactionType(str, Enum):
@@ -27,7 +48,7 @@ class StockReservationStatus(str, Enum):
     CANCELLED = "CANCELLED"
 
 
-@dataclass
+@validated_dataclass
 class Storeroom:
     id: str
     organization_id: str
@@ -50,6 +71,87 @@ class Storeroom:
     updated_at: datetime | None = None
     notes: str = ""
     version: int = 1
+
+    @field_validator("id", "organization_id", "site_id", mode="before")
+    @classmethod
+    def _validate_required_ids(cls, value: object, info) -> str:
+        messages = {
+            "id": ("Storeroom ID is required.", "INVENTORY_STOREROOM_ID_REQUIRED"),
+            "organization_id": (
+                "Organization ID is required.",
+                "INVENTORY_STOREROOM_ORGANIZATION_REQUIRED",
+            ),
+            "site_id": ("Site is required.", "INVENTORY_SITE_REQUIRED"),
+        }
+        message, code = messages[info.field_name]
+        return normalize_required_text(value, message=message, code=code)
+
+    @field_validator("storeroom_code", mode="before")
+    @classmethod
+    def _validate_storeroom_code(cls, value: object) -> str:
+        return normalize_inventory_code(value, label="Storeroom code")
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def _validate_name(cls, value: object) -> str:
+        return normalize_inventory_name(value, label="Storeroom name")
+
+    @field_validator("description", "notes", mode="before")
+    @classmethod
+    def _normalize_text_fields(cls, value: object) -> str:
+        return normalize_optional_text(value)
+
+    @field_validator("storeroom_type", "default_currency_code", mode="before")
+    @classmethod
+    def _normalize_upper_text_fields(cls, value: object) -> str:
+        return normalize_optional_upper_text(value)
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def _validate_status(cls, value: object) -> str:
+        return normalize_status(
+            value,
+            default_status="DRAFT",
+            allowed_statuses=STOREROOM_STATUS_VALUES,
+            label="Storeroom status",
+        )
+
+    @field_validator("manager_party_id", mode="before")
+    @classmethod
+    def _normalize_manager_party_id(cls, value: object) -> str | None:
+        return normalize_optional_identifier(value)
+
+    @field_validator("created_at", "updated_at", mode="before")
+    @classmethod
+    def _validate_timestamps(cls, value: object, info) -> datetime | None:
+        return normalize_optional_datetime(
+            value,
+            message=f"Storeroom {info.field_name.replace('_', ' ')} is invalid.",
+            code=f"INVENTORY_STOREROOM_{info.field_name.upper()}_INVALID",
+        )
+
+    @field_validator("version", mode="before")
+    @classmethod
+    def _validate_version(cls, value: object) -> int:
+        return normalize_positive_int(
+            value,
+            message="Storeroom version must be positive.",
+            code="INVENTORY_STOREROOM_VERSION_INVALID",
+        )
+
+    @model_validator(mode="after")
+    def _validate_ranges(self) -> "Storeroom":
+        if (
+            self.updated_at is not None
+            and self.created_at is not None
+            and self.updated_at < self.created_at
+        ):
+            raise ValidationError(
+                "Updated timestamp cannot be earlier than created timestamp.",
+                code="INVENTORY_STOREROOM_UPDATED_RANGE_INVALID",
+            )
+        object.__setattr__(self, "is_active", self.status == "ACTIVE")
+        return self
 
     @staticmethod
     def create(
@@ -98,7 +200,7 @@ class Storeroom:
         )
 
 
-@dataclass
+@validated_dataclass
 class StockBalance:
     id: str
     organization_id: str
@@ -116,6 +218,102 @@ class StockBalance:
     reorder_required: bool = False
     updated_at: datetime | None = None
     version: int = 1
+
+    @field_validator("id", "organization_id", "stock_item_id", "storeroom_id", mode="before")
+    @classmethod
+    def _validate_required_ids(cls, value: object, info) -> str:
+        messages = {
+            "id": (
+                "Stock balance ID is required.",
+                "INVENTORY_STOCK_BALANCE_ID_REQUIRED",
+            ),
+            "organization_id": (
+                "Organization ID is required.",
+                "INVENTORY_STOCK_BALANCE_ORGANIZATION_REQUIRED",
+            ),
+            "stock_item_id": ("Stock item ID is required.", "INVENTORY_ITEM_REQUIRED"),
+            "storeroom_id": (
+                "Storeroom ID is required.",
+                "INVENTORY_STOREROOM_REQUIRED",
+            ),
+        }
+        message, code = messages[info.field_name]
+        return normalize_required_text(value, message=message, code=code)
+
+    @field_validator("uom", mode="before")
+    @classmethod
+    def _validate_uom(cls, value: object) -> str:
+        return normalize_uom(value, label="Balance UOM")
+
+    @field_validator(
+        "on_hand_qty",
+        "reserved_qty",
+        "available_qty",
+        "on_order_qty",
+        "committed_qty",
+        "average_cost",
+        mode="before",
+    )
+    @classmethod
+    def _validate_quantities(cls, value: object, info) -> float:
+        labels = {
+            "on_hand_qty": "On-hand quantity",
+            "reserved_qty": "Reserved quantity",
+            "available_qty": "Available quantity",
+            "on_order_qty": "On-order quantity",
+            "committed_qty": "Committed quantity",
+            "average_cost": "Average cost",
+        }
+        return normalize_nonnegative_quantity(value, label=labels[info.field_name])
+
+    @field_validator("last_receipt_at", "last_issue_at", "updated_at", mode="before")
+    @classmethod
+    def _validate_timestamps(cls, value: object, info) -> datetime | None:
+        return normalize_optional_datetime(
+            value,
+            message=f"Stock balance {info.field_name.replace('_', ' ')} is invalid.",
+            code=f"INVENTORY_STOCK_BALANCE_{info.field_name.upper()}_INVALID",
+        )
+
+    @field_validator("version", mode="before")
+    @classmethod
+    def _validate_version(cls, value: object) -> int:
+        return normalize_positive_int(
+            value,
+            message="Stock balance version must be positive.",
+            code="INVENTORY_STOCK_BALANCE_VERSION_INVALID",
+        )
+
+    @model_validator(mode="after")
+    def _validate_ranges(self) -> "StockBalance":
+        expected_available = round(
+            float(self.on_hand_qty or 0.0) - float(self.reserved_qty or 0.0),
+            6,
+        )
+        if abs(float(self.available_qty or 0.0) - expected_available) > 1e-9:
+            raise ValidationError(
+                "Available quantity must equal on-hand quantity minus reserved quantity.",
+                code="INVENTORY_STOCK_BALANCE_AVAILABLE_INVALID",
+            )
+        if (
+            self.updated_at is not None
+            and self.last_receipt_at is not None
+            and self.last_receipt_at > self.updated_at
+        ):
+            raise ValidationError(
+                "Last receipt timestamp cannot be later than updated timestamp.",
+                code="INVENTORY_STOCK_BALANCE_RECEIPT_RANGE_INVALID",
+            )
+        if (
+            self.updated_at is not None
+            and self.last_issue_at is not None
+            and self.last_issue_at > self.updated_at
+        ):
+            raise ValidationError(
+                "Last issue timestamp cannot be later than updated timestamp.",
+                code="INVENTORY_STOCK_BALANCE_ISSUE_RANGE_INVALID",
+            )
+        return self
 
     @staticmethod
     def create(
@@ -137,7 +335,7 @@ class StockBalance:
         )
 
 
-@dataclass
+@validated_dataclass
 class StockTransaction:
     id: str
     organization_id: str
@@ -159,6 +357,109 @@ class StockTransaction:
     lot_number: str = ""
     serial_number: str = ""
 
+    @field_validator("id", "organization_id", "stock_item_id", "storeroom_id", mode="before")
+    @classmethod
+    def _validate_required_ids(cls, value: object, info) -> str:
+        messages = {
+            "id": (
+                "Stock transaction ID is required.",
+                "INVENTORY_STOCK_TRANSACTION_ID_REQUIRED",
+            ),
+            "organization_id": (
+                "Organization ID is required.",
+                "INVENTORY_STOCK_TRANSACTION_ORGANIZATION_REQUIRED",
+            ),
+            "stock_item_id": ("Stock item ID is required.", "INVENTORY_ITEM_REQUIRED"),
+            "storeroom_id": (
+                "Storeroom ID is required.",
+                "INVENTORY_STOREROOM_REQUIRED",
+            ),
+        }
+        message, code = messages[info.field_name]
+        return normalize_required_text(value, message=message, code=code)
+
+    @field_validator("transaction_number", mode="before")
+    @classmethod
+    def _validate_transaction_number(cls, value: object) -> str:
+        return normalize_inventory_code(value, label="Transaction number")
+
+    @field_validator("transaction_type", mode="before")
+    @classmethod
+    def _validate_transaction_type(cls, value: object) -> StockTransactionType:
+        return normalize_enum(
+            value,
+            enum_type=StockTransactionType,
+            default=StockTransactionType.ISSUE,
+            message="Stock transaction type is invalid.",
+            code="INVENTORY_STOCK_TRANSACTION_TYPE_INVALID",
+        )
+
+    @field_validator("quantity", mode="before")
+    @classmethod
+    def _validate_quantity(cls, value: object) -> float:
+        return normalize_positive_quantity(value, label="Transaction quantity")
+
+    @field_validator("uom", mode="before")
+    @classmethod
+    def _validate_uom(cls, value: object) -> str:
+        return normalize_uom(value, label="Transaction UOM")
+
+    @field_validator(
+        "unit_cost",
+        "resulting_on_hand_qty",
+        "resulting_available_qty",
+        mode="before",
+    )
+    @classmethod
+    def _validate_nonnegative_quantities(cls, value: object, info) -> float:
+        labels = {
+            "unit_cost": "Unit cost",
+            "resulting_on_hand_qty": "Resulting on-hand quantity",
+            "resulting_available_qty": "Resulting available quantity",
+        }
+        return normalize_nonnegative_quantity(value, label=labels[info.field_name])
+
+    @field_validator("transaction_at", mode="before")
+    @classmethod
+    def _validate_transaction_at(cls, value: object) -> datetime | None:
+        return normalize_optional_datetime(
+            value,
+            message="Stock transaction timestamp is invalid.",
+            code="INVENTORY_STOCK_TRANSACTION_AT_INVALID",
+        )
+
+    @field_validator("performed_by_user_id", mode="before")
+    @classmethod
+    def _normalize_optional_user_id(cls, value: object) -> str | None:
+        return normalize_optional_identifier(value)
+
+    @field_validator(
+        "reference_type",
+        "reference_id",
+        "performed_by_username",
+        "notes",
+        "lot_number",
+        "serial_number",
+        mode="before",
+    )
+    @classmethod
+    def _normalize_text_fields(cls, value: object) -> str:
+        return normalize_optional_text(value)
+
+    @model_validator(mode="after")
+    def _validate_ranges(self) -> "StockTransaction":
+        if self.transaction_at is None:
+            raise ValidationError(
+                "Stock transaction timestamp is required.",
+                code="INVENTORY_STOCK_TRANSACTION_AT_REQUIRED",
+            )
+        if float(self.resulting_available_qty or 0.0) > float(self.resulting_on_hand_qty or 0.0) + 1e-9:
+            raise ValidationError(
+                "Available quantity cannot exceed on-hand quantity.",
+                code="INVENTORY_STOCK_TRANSACTION_AVAILABLE_INVALID",
+            )
+        return self
+
     @staticmethod
     def create(
         *,
@@ -166,7 +467,7 @@ class StockTransaction:
         transaction_number: str,
         stock_item_id: str,
         storeroom_id: str,
-        transaction_type: StockTransactionType,
+        transaction_type: StockTransactionType | str,
         quantity: float,
         uom: str,
         unit_cost: float = 0.0,
@@ -204,7 +505,7 @@ class StockTransaction:
         )
 
 
-@dataclass
+@validated_dataclass
 class StockReservation:
     id: str
     organization_id: str
@@ -231,6 +532,221 @@ class StockReservation:
     cancelled_at: datetime | None = None
     notes: str = ""
     version: int = 1
+
+    @field_validator("id", "organization_id", "stock_item_id", "storeroom_id", mode="before")
+    @classmethod
+    def _validate_required_ids(cls, value: object, info) -> str:
+        messages = {
+            "id": (
+                "Stock reservation ID is required.",
+                "INVENTORY_RESERVATION_ID_REQUIRED",
+            ),
+            "organization_id": (
+                "Organization ID is required.",
+                "INVENTORY_RESERVATION_ORGANIZATION_REQUIRED",
+            ),
+            "stock_item_id": ("Stock item ID is required.", "INVENTORY_ITEM_REQUIRED"),
+            "storeroom_id": (
+                "Storeroom ID is required.",
+                "INVENTORY_STOREROOM_REQUIRED",
+            ),
+        }
+        message, code = messages[info.field_name]
+        return normalize_required_text(value, message=message, code=code)
+
+    @field_validator("reservation_number", mode="before")
+    @classmethod
+    def _validate_reservation_number(cls, value: object) -> str:
+        return normalize_inventory_code(value, label="Reservation number")
+
+    @field_validator("reserved_qty", mode="before")
+    @classmethod
+    def _validate_reserved_qty(cls, value: object) -> float:
+        return normalize_positive_quantity(value, label="Reserved quantity")
+
+    @field_validator("issued_qty", "remaining_qty", mode="before")
+    @classmethod
+    def _validate_nonnegative_quantities(cls, value: object, info) -> float:
+        labels = {
+            "issued_qty": "Issued quantity",
+            "remaining_qty": "Remaining quantity",
+        }
+        return normalize_nonnegative_quantity(value, label=labels[info.field_name])
+
+    @field_validator("uom", mode="before")
+    @classmethod
+    def _validate_uom(cls, value: object) -> str:
+        return normalize_uom(value, label="Reservation UOM")
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def _validate_status(cls, value: object) -> StockReservationStatus:
+        return normalize_enum(
+            value,
+            enum_type=StockReservationStatus,
+            default=StockReservationStatus.ACTIVE,
+            message="Reservation status is invalid.",
+            code="INVENTORY_RESERVATION_STATUS_INVALID",
+        )
+
+    @field_validator("need_by_date", mode="before")
+    @classmethod
+    def _validate_need_by_date(cls, value: object) -> date | None:
+        return normalize_optional_date(value, label="Need-by date")
+
+    @field_validator("source_reference_type", mode="before")
+    @classmethod
+    def _validate_source_reference_type(cls, value: object) -> str:
+        normalized = normalize_source_reference_type(str(value or ""))
+        if not normalized:
+            raise ValidationError(
+                "Stock reservation requires source reference type and ID.",
+                code="INVENTORY_RESERVATION_SOURCE_REQUIRED",
+            )
+        return normalized
+
+    @field_validator("source_reference_id", mode="before")
+    @classmethod
+    def _validate_source_reference_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Stock reservation requires source reference type and ID.",
+            code="INVENTORY_RESERVATION_SOURCE_REQUIRED",
+        )
+
+    @field_validator("requested_by_user_id", mode="before")
+    @classmethod
+    def _normalize_optional_requester_id(cls, value: object) -> str | None:
+        return normalize_optional_identifier(value)
+
+    @field_validator(
+        "source_module",
+        "source_entity_type",
+        "source_code_snapshot",
+        "source_title_snapshot",
+        "source_status_snapshot",
+        "requested_by_username",
+        "notes",
+        mode="before",
+    )
+    @classmethod
+    def _normalize_text_fields(cls, value: object) -> str:
+        return normalize_optional_text(value)
+
+    @field_validator("created_at", "released_at", "cancelled_at", mode="before")
+    @classmethod
+    def _validate_timestamps(cls, value: object, info) -> datetime | None:
+        return normalize_optional_datetime(
+            value,
+            message=f"Stock reservation {info.field_name.replace('_', ' ')} is invalid.",
+            code=f"INVENTORY_RESERVATION_{info.field_name.upper()}_INVALID",
+        )
+
+    @field_validator("version", mode="before")
+    @classmethod
+    def _validate_version(cls, value: object) -> int:
+        return normalize_positive_int(
+            value,
+            message="Stock reservation version must be positive.",
+            code="INVENTORY_RESERVATION_VERSION_INVALID",
+        )
+
+    @model_validator(mode="after")
+    def _validate_ranges(self) -> "StockReservation":
+        reserved_qty = float(self.reserved_qty or 0.0)
+        issued_qty = float(self.issued_qty or 0.0)
+        if issued_qty > reserved_qty + 1e-9:
+            raise ValidationError(
+                "Issued quantity cannot exceed reserved quantity.",
+                code="INVENTORY_RESERVATION_QTY_INVALID",
+            )
+        if self.released_at is not None and self.cancelled_at is not None:
+            raise ValidationError(
+                "Reservation cannot be both released and cancelled.",
+                code="INVENTORY_RESERVATION_CLOSED_STATE_INVALID",
+            )
+        if (
+            self.released_at is not None
+            and self.created_at is not None
+            and self.released_at < self.created_at
+        ):
+            raise ValidationError(
+                "Released timestamp cannot be earlier than created timestamp.",
+                code="INVENTORY_RESERVATION_RELEASED_RANGE_INVALID",
+            )
+        if (
+            self.cancelled_at is not None
+            and self.created_at is not None
+            and self.cancelled_at < self.created_at
+        ):
+            raise ValidationError(
+                "Cancelled timestamp cannot be earlier than created timestamp.",
+                code="INVENTORY_RESERVATION_CANCELLED_RANGE_INVALID",
+            )
+
+        if self.status == StockReservationStatus.ACTIVE:
+            if issued_qty > 1e-9:
+                raise ValidationError(
+                    "Active reservation cannot have issued quantity.",
+                    code="INVENTORY_RESERVATION_STATUS_INVALID",
+                )
+            if self.released_at is not None or self.cancelled_at is not None:
+                raise ValidationError(
+                    "Active reservation cannot be closed.",
+                    code="INVENTORY_RESERVATION_CLOSED_STATE_INVALID",
+                )
+            object.__setattr__(self, "remaining_qty", round(reserved_qty, 6))
+            return self
+
+        if self.status == StockReservationStatus.PARTIALLY_ISSUED:
+            if issued_qty <= 0 or issued_qty >= reserved_qty:
+                raise ValidationError(
+                    "Partially issued reservation quantities are invalid.",
+                    code="INVENTORY_RESERVATION_QTY_INVALID",
+                )
+            if self.released_at is not None or self.cancelled_at is not None:
+                raise ValidationError(
+                    "Partially issued reservation cannot be closed.",
+                    code="INVENTORY_RESERVATION_CLOSED_STATE_INVALID",
+                )
+            object.__setattr__(
+                self,
+                "remaining_qty",
+                round(reserved_qty - issued_qty, 6),
+            )
+            return self
+
+        if self.status == StockReservationStatus.FULLY_ISSUED:
+            if abs(issued_qty - reserved_qty) > 1e-9:
+                raise ValidationError(
+                    "Fully issued reservation must have all reserved quantity issued.",
+                    code="INVENTORY_RESERVATION_QTY_INVALID",
+                )
+            if self.released_at is not None or self.cancelled_at is not None:
+                raise ValidationError(
+                    "Fully issued reservation cannot also be closed.",
+                    code="INVENTORY_RESERVATION_CLOSED_STATE_INVALID",
+                )
+            object.__setattr__(self, "remaining_qty", 0.0)
+            return self
+
+        if self.status == StockReservationStatus.RELEASED:
+            if self.cancelled_at is not None:
+                raise ValidationError(
+                    "Released reservation cannot also be cancelled.",
+                    code="INVENTORY_RESERVATION_CLOSED_STATE_INVALID",
+                )
+            object.__setattr__(self, "remaining_qty", 0.0)
+            return self
+
+        if self.status == StockReservationStatus.CANCELLED:
+            if self.released_at is not None:
+                raise ValidationError(
+                    "Cancelled reservation cannot also be released.",
+                    code="INVENTORY_RESERVATION_CLOSED_STATE_INVALID",
+                )
+            object.__setattr__(self, "remaining_qty", 0.0)
+        return self
 
     @staticmethod
     def create(

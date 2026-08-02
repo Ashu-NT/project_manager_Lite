@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Mock 1.0 as AppMock
 import App.Widgets 1.0 as AppWidgets
@@ -71,6 +70,8 @@ Item {
     signal editAllocationRequested(var assignmentData)
     signal setHoursRequested(var assignmentData)
     signal deleteAssignmentRequested(var assignmentData)
+    signal acceptAssignmentRequested(var assignmentData)
+    signal declineAssignmentRequested(var assignmentData)
 
     signal createDependencyRequested()
     signal editDependencyRequested(var payload)
@@ -88,6 +89,11 @@ Item {
     signal timeUnlockRequested(var payload)
 
     signal composeRequested()
+    signal commentReplyRequested(var commentData)
+    signal commentEditRequested(var commentData)
+    signal commentDeleteRequested(var commentData)
+    signal commentReactionRequested(var payload)
+    signal commentReactionRemovalRequested(var payload)
     signal markReadRequested(string taskId)
     signal collaborationRefreshRequested()
     signal openReservationsRequested()
@@ -102,6 +108,7 @@ Item {
         return String(s.percentCompleteLabel || "")
     }
     readonly property bool _hasTask: String(root.taskDetail.id || "").length > 0
+    readonly property bool _isSummary: Boolean((root.taskDetail.state || {}).isSummary)
     readonly property int _idx: root.detailPage ? root.detailPage.activeSectionIndex : 0
     readonly property var _sections: root.detailPage ? (root.detailPage.sections || []) : []
 
@@ -254,7 +261,7 @@ Item {
                     selectedAssignmentId: root.selectedAssignmentId
                     assignmentPreview: root.assignmentPreview
                     isBusy: root.isBusy
-                    canCreate: root._hasTask && root.assignmentOptions.length > 0
+                    canCreate: root._hasTask && !root._isSummary && root.assignmentOptions.length > 0
                     errorText: String(root.sectionErrors["assignments"] || "")
 
                     onCreateRequested: root.createAssignmentRequested()
@@ -266,6 +273,8 @@ Item {
                     onEditAllocationRequested: function(d) { root.editAllocationRequested(d) }
                     onSetHoursRequested: function(d) { root.setHoursRequested(d) }
                     onDeleteRequested: function(d) { root.deleteAssignmentRequested(d) }
+                    onAcceptRequested: function(d) { root.acceptAssignmentRequested(d) }
+                    onDeclineRequested: function(d) { root.declineAssignmentRequested(d) }
                 }
             }
         }
@@ -280,7 +289,7 @@ Item {
                     dependenciesModel: root.dependenciesModel
                     dependenciesTableModel: root.dependenciesTableModel
                     isBusy: root.isBusy
-                    canCreate: root._hasTask && root.dependencyTaskOptions.length > 0
+                    canCreate: root._hasTask && !root._isSummary && root.dependencyTaskOptions.length > 0
                     errorText: String(root.sectionErrors["dependencies"] || "")
                     dependencyTypeOptions: root.dependencyTypeOptions || []
 
@@ -341,6 +350,15 @@ Item {
                     errorText: String(root.sectionErrors["activity"] || "")
 
                     onComposeRequested: root.composeRequested()
+                    onReplyRequested: function(item) { root.commentReplyRequested(item) }
+                    onEditRequested: function(item) { root.commentEditRequested(item) }
+                    onDeleteRequested: function(item) { root.commentDeleteRequested(item) }
+                    onReactionRequested: function(payload) {
+                        root.commentReactionRequested(payload)
+                    }
+                    onReactionRemovalRequested: function(payload) {
+                        root.commentReactionRemovalRequested(payload)
+                    }
                     onMarkReadRequested: function(id) { root.markReadRequested(id) }
                     onRefreshRequested: root.collaborationRefreshRequested()
                 }

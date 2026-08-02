@@ -55,6 +55,25 @@ def delete_assignment(desktop_api, assignment_id: str) -> None:
         raise ValueError("Assignment ID is required to remove an assignment.")
     desktop_api.delete_assignment(normalized_assignment_id)
 
+def accept_assignment(desktop_api, assignment_id: str) -> None:
+    normalized_assignment_id = (assignment_id or "").strip()
+    if not normalized_assignment_id:
+        raise ValueError("Select an assignment before accepting it.")
+    desktop_api.accept_assignment(normalized_assignment_id)
+
+def decline_assignment(desktop_api, payload: dict[str, Any]) -> None:
+    assignment_id = require_text(
+        payload,
+        "assignmentId",
+        "Select an assignment before declining it.",
+    )
+    reason = require_text(
+        payload,
+        "reason",
+        "Provide a reason for declining this assignment.",
+    )
+    desktop_api.decline_assignment(assignment_id, reason)
+
 def preview_assignment(desktop_api, payload: dict[str, Any]) -> dict[str, object]:
     from src.core.modules.project_management.api.desktop.tasks import (
         AssignmentPreviewDesktopDto,

@@ -17,6 +17,18 @@ class TaskCreateCommand:
     status: str = TaskStatus.TODO.value
     priority: int | None = None
     deadline: date | None = None
+    parent_task_id: str | None = None
+    wbs_code: str = ""
+    sort_order: int | None = None
+
+
+@dataclass(frozen=True)
+class TaskWbsMoveCommand:
+    task_id: str
+    parent_task_id: str | None
+    wbs_code: str | None = None
+    sort_order: int | None = None
+    expected_version: int | None = None
 
 
 @dataclass(frozen=True)
@@ -43,4 +55,9 @@ class TaskProgressCommand:
     expected_version: int | None = None
 
 
-__all__ = ["TaskCreateCommand", "TaskProgressCommand", "TaskUpdateCommand"]
+__all__ = [
+    "TaskCreateCommand",
+    "TaskProgressCommand",
+    "TaskUpdateCommand",
+    "TaskWbsMoveCommand",
+]

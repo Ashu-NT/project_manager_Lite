@@ -49,5 +49,5 @@ def build_dependency_task_options(
     return tuple(
         TaskSelectorOptionViewModel(value=task.id, label=task.name)
         for task in all_tasks
-        if task.id != selected_task_id
+        if task.id != selected_task_id and not bool(getattr(task, "is_summary", False))
     )

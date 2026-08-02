@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable
 
+from src.core.platform.auth.authorization import record_authorization_denial
 from src.core.platform.auth.policy import DEFAULT_ROLE_PERMISSIONS
 from src.core.platform.common.exceptions import ValidationError
 
@@ -23,6 +24,14 @@ def enforce_separation_of_duties(service: AuthService, role_names: Iterable[str]
         permission_codes.update(DEFAULT_ROLE_PERMISSIONS.get(role.name, set()))
     conflicts = service._sod_policy.find_conflicts(permission_codes)
     if conflicts:
+        record_authorization_denial(
+            service._user_session,
+            operation_label="validate role separation of duties",
+            reason_code="ROLE_CONFLICT",
+            required_permissions=permission_codes,
+            target_scope_type="role",
+            operation="authorization.sod.denied",
+        )
         raise ValidationError(
             f"Role assignment violates separation of duties. {conflicts[0]}",
             code="ROLE_CONFLICT",

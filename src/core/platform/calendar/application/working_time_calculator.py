@@ -13,6 +13,7 @@ from src.core.platform.calendar.domain.enterprise_calendar import (
     CalendarRecurringEvent,
     CalendarWorkingRule,
     ImpactType,
+    ShiftPatternDay,
 )
 
 
@@ -89,11 +90,25 @@ class WorkingTimeCalculator:
         recurring_events: list[CalendarRecurringEvent],
         target_date: date,
         assigned_hours: float = 0.0,
+        shift_pattern_day: ShiftPatternDay | None = None,
     ) -> DayCapacity:
         weekday = target_date.weekday()
         rule = next((r for r in working_rules if r.weekday == weekday), None)
 
-        if rule is None or not rule.is_working_day:
+        # A shift pattern (rotation-based schedule) fully replaces the
+        # weekday-based rule for the day, since rotation workers don't
+        # follow a fixed weekly template.
+        if shift_pattern_day is not None:
+            is_working_day = shift_pattern_day.is_working_day
+            base_hours = shift_pattern_day.compute_hours()
+            effective_start = shift_pattern_day.start_time
+            effective_end = shift_pattern_day.end_time
+        elif rule is not None:
+            is_working_day = rule.is_working_day
+            base_hours = rule.compute_hours()
+            effective_start = rule.start_time
+            effective_end = rule.end_time
+        else:
             return DayCapacity(
                 date=target_date,
                 is_working=False,
@@ -102,9 +117,15 @@ class WorkingTimeCalculator:
                 assigned_hours=assigned_hours,
             )
 
-        base_hours = rule.compute_hours()
-        effective_start = rule.start_time
-        effective_end = rule.end_time
+        if not is_working_day:
+            return DayCapacity(
+                date=target_date,
+                is_working=False,
+                base_hours=0.0,
+                available_hours=0.0,
+                assigned_hours=assigned_hours,
+            )
+
         overrides: list[str] = []
 
         # --- Apply exceptions (highest priority wins, UNAVAILABLE stops all) ---

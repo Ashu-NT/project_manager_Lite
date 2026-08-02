@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
+
+from sqlalchemy.exc import IntegrityError
 
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
 from src.core.modules.project_management.domain.resources.resource import Resource
@@ -14,31 +17,14 @@ from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyEr
 from src.core.platform.auth.authorization import require_permission
 from src.core.shared.activity import record_activity
 from src.core.shared.events.domain_events import domain_events
+from src.core.modules.project_management.application.common.currency_policy import (
+    resolve_pm_currency,
+)
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_CURRENCY_CODE = "EUR"
-
-
-def _normalize_worker_type(value: WorkerType | str | None) -> WorkerType:
-    if isinstance(value, WorkerType):
-        return value
-    raw = str(value or WorkerType.EXTERNAL.value).strip().upper()
-    try:
-        return WorkerType(raw)
-    except ValueError as exc:
-        raise ValidationError("Worker type is invalid.", code="RESOURCE_WORKER_TYPE_INVALID") from exc
-
-
 def _employee_contact(employee) -> str:
     return (getattr(employee, "email", None) or getattr(employee, "phone", None) or "").strip()
-
-
-def _normalize_capacity_percent(value: float | None) -> float:
-    resolved = float(value if value is not None else 100.0)
-    if resolved <= 0.0:
-        raise ValidationError("Capacity percent must be greater than zero.")
-    return resolved
 
 
 class ResourceCommandMixin:
@@ -70,6 +56,30 @@ class ResourceCommandMixin:
             use_year=not bool((name or "").strip()),
         )
 
+    @staticmethod
+    def _resolved_worker_type(value: WorkerType | str | None) -> WorkerType:
+        return Resource.create(name="Worker Type Probe", worker_type=value).worker_type
+
+    @staticmethod
+    def _is_resource_code_integrity_error(exc: IntegrityError) -> bool:
+        message = " ".join(
+            part
+            for part in [
+                str(getattr(exc, "orig", "") or ""),
+                str(getattr(exc, "statement", "") or ""),
+                str(exc),
+            ]
+            if part
+        ).lower()
+        return "ux_resources_code" in message or "resources.resource_code" in message
+
+    @staticmethod
+    def _raise_resource_code_duplicate(code: str, exc: IntegrityError) -> None:
+        raise ValidationError(
+            f"Resource code '{code}' already exists.",
+            code="CODE_DUPLICATE",
+        ) from exc
+
     def create_resource(
         self,
         name: str,
@@ -86,50 +96,48 @@ class ResourceCommandMixin:
         code: str = "",
     ) -> Resource:
         require_permission(self._user_session, "resource.manage", operation_label="create resource")
-        resolved_worker_type = _normalize_worker_type(worker_type)
-        employee = None
+        organization_id = self._active_organization_id(operation_label="create resource")
+        resolved_worker_type = self._resolved_worker_type(worker_type)
+        resolved_name = name
+        resolved_role = role
+        resolved_contact = contact
+        resolved_employee_id = employee_id
         if resolved_worker_type == WorkerType.EMPLOYEE:
-            if not employee_id:
+            if not resolved_employee_id:
                 raise ValidationError("Employee resource requires an employee selection.")
             if self._employee_repo is None:
                 raise ValidationError("Employee directory is not available.")
-            employee = self._employee_repo.get(employee_id)
+            employee = self._employee_repo.get(resolved_employee_id)
             if employee is None:
                 raise ValidationError("Selected employee was not found.", code="EMPLOYEE_NOT_FOUND")
             if not getattr(employee, "is_active", True):
                 raise ValidationError("Selected employee is inactive.", code="EMPLOYEE_INACTIVE")
-        else:
-            employee_id = None
-        resolved_name = (name or "").strip()
-        resolved_role = (role or "").strip()
-        resolved_contact = (contact or "").strip()
-        if employee is not None:
             resolved_name = employee.full_name
             resolved_role = employee.title or resolved_role
             resolved_contact = _employee_contact(employee) or resolved_contact
-        if not resolved_name:
-            raise ValidationError("Resource name cannot be empty.")
-        if hourly_rate < 0:
-            raise ValidationError("Hourly rate cannot be negative.")
-        resolved_currency = (currency_code or "").strip().upper() or DEFAULT_CURRENCY_CODE
-        resolved_capacity = _normalize_capacity_percent(capacity_percent)
-        organization_id = self._active_organization_id(operation_label="create resource")
-        resolved_code = self._resolve_resource_code(code, resolved_name)
+            resolved_employee_id = employee.id
+        else:
+            resolved_employee_id = None
         resource = Resource.create(
             name=resolved_name,
-            code=resolved_code,
+            code="",
             role=resolved_role,
             hourly_rate=hourly_rate,
             is_active=is_active,
             cost_type=cost_type,
-            currency_code=resolved_currency,
-            capacity_percent=resolved_capacity,
-            address=(address or "").strip(),
+            currency_code=resolve_pm_currency(
+                tenant_context_service=getattr(self, "_tenant_context_service", None),
+                operation_label="create resource",
+                explicit=currency_code,
+            ),
+            capacity_percent=capacity_percent,
+            address=address,
             contact=resolved_contact,
             worker_type=resolved_worker_type,
-            employee_id=employee_id,
+            employee_id=resolved_employee_id,
             organization_id=organization_id,
         )
+        resource.code = self._resolve_resource_code(code, resource.name)
         try:
             self._resource_repo.add(resource)
             self._session.commit()
@@ -148,10 +156,16 @@ class ResourceCommandMixin:
                 },
             )
             logger.info(f"Created resource {resource.id} - {resource.name}")
+        except IntegrityError as exc:
+            self._session.rollback()
+            if self._is_resource_code_integrity_error(exc):
+                self._raise_resource_code_duplicate(resource.code, exc)
+            logger.error(f"Error creating resource: {exc}")
+            raise
         except Exception as e:
             self._session.rollback()
             logger.error(f"Error creating resource: {e}")
-            raise 
+            raise
         domain_events.resources_changed.emit(resource.id)
         return resource
 
@@ -176,38 +190,14 @@ class ResourceCommandMixin:
         resource = self._resource_repo.get(resource_id)
         if not resource:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
-        if code is not None and code.strip():
-            resource.code = self._resolve_resource_code(code, resource.name, exclude_id=resource.id)
         if expected_version is not None and resource.version != expected_version:
             raise ConcurrencyError(
                 "Resource changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
 
-        if name is not None:
-            if not name.strip():
-                raise ValidationError("Resource name cannot be empty.")
-            resource.name = name.strip()
-        if role is not None:
-            resource.role = role.strip()
-        if hourly_rate is not None:
-            if hourly_rate < 0:
-                raise ValidationError("Hourly rate cannot be negative.")
-            resource.hourly_rate = hourly_rate
-        if is_active is not None:
-            resource.is_active = is_active
-        if cost_type is not None:
-            resource.cost_type = cost_type
-        if currency_code is not None:
-            resource.currency_code = currency_code.strip().upper() or None
-        if capacity_percent is not None:
-            resource.capacity_percent = _normalize_capacity_percent(capacity_percent)
-        if address is not None:
-            resource.address = address.strip()
-        if contact is not None:
-            resource.contact = contact.strip()
         resolved_worker_type = (
-            _normalize_worker_type(worker_type)
+            self._resolved_worker_type(worker_type)
             if worker_type is not None
             else getattr(resource, "worker_type", WorkerType.EXTERNAL)
         )
@@ -215,6 +205,28 @@ class ResourceCommandMixin:
             employee_id
             if worker_type is not None or employee_id is not None
             else getattr(resource, "employee_id", None)
+        )
+        candidate = replace(
+            resource,
+            name=resource.name if name is None else name,
+            role=resource.role if role is None else role,
+            hourly_rate=resource.hourly_rate if hourly_rate is None else hourly_rate,
+            is_active=resource.is_active if is_active is None else is_active,
+            cost_type=resource.cost_type if cost_type is None else cost_type,
+            currency_code=(
+                resource.currency_code
+                if currency_code is None
+                else resolve_pm_currency(
+                    tenant_context_service=getattr(self, "_tenant_context_service", None),
+                    operation_label="update resource currency",
+                    explicit=currency_code,
+                )
+            ),
+            capacity_percent=resource.capacity_percent if capacity_percent is None else capacity_percent,
+            address=resource.address if address is None else address,
+            contact=resource.contact if contact is None else contact,
+            worker_type=resolved_worker_type,
+            employee_id=resolved_employee_id,
         )
         if resolved_worker_type == WorkerType.EMPLOYEE:
             if not resolved_employee_id:
@@ -226,38 +238,48 @@ class ResourceCommandMixin:
                 raise ValidationError("Selected employee was not found.", code="EMPLOYEE_NOT_FOUND")
             if not getattr(employee, "is_active", True):
                 raise ValidationError("Selected employee is inactive.", code="EMPLOYEE_INACTIVE")
-            resource.name = employee.full_name
-            if employee.title:
-                resource.role = employee.title
-            resource.contact = _employee_contact(employee)
+            candidate = replace(
+                candidate,
+                name=employee.full_name,
+                role=employee.title or candidate.role,
+                contact=_employee_contact(employee) or candidate.contact,
+                employee_id=employee.id,
+            )
         else:
-            resolved_employee_id = None
-        resource.worker_type = resolved_worker_type
-        resource.employee_id = resolved_employee_id
+            candidate = replace(candidate, employee_id=None)
+        if code is not None and code.strip():
+            candidate = replace(
+                candidate,
+                code=self._resolve_resource_code(code, candidate.name, exclude_id=resource.id),
+            )
 
         try:
-            self._resource_repo.update(resource)
+            self._resource_repo.update(candidate)
             self._session.commit()
             record_activity(
                 self,
                 action="resource.update",
                 entity_type="resource",
-                entity_id=resource.id,
+                entity_id=candidate.id,
                 module="project_management",
                 details={
-                    "name": resource.name,
-                    "role": resource.role,
-                    "capacity_percent": resource.capacity_percent,
-                    "worker_type": resource.worker_type.value,
-                    "employee_id": resource.employee_id or "",
+                    "name": candidate.name,
+                    "role": candidate.role,
+                    "capacity_percent": candidate.capacity_percent,
+                    "worker_type": candidate.worker_type.value,
+                    "employee_id": candidate.employee_id or "",
                 },
             )
-            
+        except IntegrityError as exc:
+            self._session.rollback()
+            if self._is_resource_code_integrity_error(exc):
+                self._raise_resource_code_duplicate(candidate.code, exc)
+            raise
         except Exception as e:
             self._session.rollback()
             raise e
-        domain_events.resources_changed.emit(resource.id)
-        return resource
+        domain_events.resources_changed.emit(candidate.id)
+        return candidate
 
     def delete_resource(self, resource_id: str) -> None:
         require_permission(self._user_session, "resource.manage", operation_label="delete resource")

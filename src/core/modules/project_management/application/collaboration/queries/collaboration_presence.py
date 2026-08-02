@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from src.core.modules.project_management.domain.collaboration import TaskPresenceStatusItem
 from src.core.platform.access.authorization import require_project_permission
@@ -46,7 +46,7 @@ class CollaborationPresenceQueryMixin:
         task_by_id = {task.id: task for task in tasks}
         rows = self._presence_repo.list_recent_for_tasks(
             list(task_by_id.keys()),
-            since=datetime.now() - timedelta(seconds=self._presence_ttl_seconds),
+            since=datetime.now(timezone.utc) - timedelta(seconds=self._presence_ttl_seconds),
             limit=limit,
         )
         principal = self._user_session.principal if self._user_session is not None else None

@@ -147,11 +147,7 @@ AppLayouts.WorkspaceFrame {
     function openCalendarEdit(itemId) {
         const item = adminState.catalogItemById(root.calendarCatalog, itemId)
         if (item !== null) {
-            const state = item.state || {}
-            if (state.isEnterpriseCalendar === true)
-                dialogHostLoader.invoke("openCalendarEdit", state)
-            else
-                dialogHostLoader.invoke("openWorkingCalendarEdit", state)
+            dialogHostLoader.invoke("openCalendarEdit", item.state || {})
         }
     }
 
@@ -512,12 +508,6 @@ AppLayouts.WorkspaceFrame {
                         isEnterpriseCalendar: _calendarState.isEnterpriseCalendar === true
                         onBackRequested: root.closeEntityDetail()
                         onEditRequested: root.openCalendarEdit(adminState.selectedRowId)
-                        onAddHolidayRequested: {
-                            if (_calendarState.isEnterpriseCalendar === true && _calendarId.length > 0)
-                                dialogHostLoader.invoke("openCalendarExceptionCreate", _calendarId)
-                            else
-                                dialogHostLoader.invoke("openWorkingCalendarHolidayCreate")
-                        }
                         onAddExceptionRequested: dialogHostLoader.invoke("openCalendarExceptionCreate", _calendarId)
                         onAddRecurringEventRequested: dialogHostLoader.invoke("openCalendarRecurringEventCreate", _calendarId)
                         onOpenAuditRequested: root.openAdminEntitySection("audit", "")

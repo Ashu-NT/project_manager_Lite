@@ -53,6 +53,7 @@ from src.core.platform.calendar.application.enterprise_calendar_resolver import 
     EnterpriseCalendarResolver,
 )
 from src.core.platform.calendar.application.working_time_calculator import WorkingTimeCalculator
+from src.core.platform.common.exceptions import ValidationError
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import (
     EnterpriseResourceAvailabilityService,
 )
@@ -235,6 +236,24 @@ def global_cal(cal_service, org_id, rule_service):
     return cal
 
 
+def _seed_employee(db_session, tenant_context, employee_id: str) -> None:
+    from src.core.platform.infrastructure.persistence.orm.employee import EmployeeORM
+
+    ctx = tenant_context.require_organization_context()
+    if db_session.get(EmployeeORM, employee_id) is not None:
+        return
+    db_session.add(
+        EmployeeORM(
+            id=employee_id,
+            tenant_id=ctx.tenant_id,
+            organization_id=ctx.organization_id,
+            employee_code=employee_id,
+            full_name=employee_id,
+        )
+    )
+    db_session.commit()
+
+
 def _seed_resource(db_session, tenant_context, resource_id: str) -> None:
     ctx = tenant_context.require_organization_context()
     if db_session.get(ResourceORM, resource_id) is not None:
@@ -286,7 +305,7 @@ def _make_resource_repo(resource_id, worker_type="EXTERNAL", employee_id=None):
 
 
 def test_employee_backed_resource_inherits_employee_calendar(
-    global_cal, cal_service, assignment_service, resolver, rule_service
+    global_cal, cal_service, assignment_service, resolver, rule_service, db_session, tenant_context
 ):
     emp_cal = cal_service.create_calendar(
         code="EMP-SMITH",
@@ -299,6 +318,7 @@ def test_employee_backed_resource_inherits_employee_calendar(
         is_working_day=True,
         hours_override=7.5,
     )
+    _seed_employee(db_session, tenant_context, "emp-smith")
     assignment_service.assign_employee_calendar("emp-smith", emp_cal.id)
 
     resource_repo = _make_resource_repo(
@@ -313,7 +333,7 @@ def test_employee_backed_resource_inherits_employee_calendar(
 
 
 def test_employee_vacation_blocks_pm_resource(
-    global_cal, cal_service, assignment_service, exc_service, resolver, rule_service
+    global_cal, cal_service, assignment_service, exc_service, resolver, rule_service, db_session, tenant_context
 ):
     emp_cal = cal_service.create_calendar(
         code="EMP-JONES",
@@ -321,6 +341,7 @@ def test_employee_vacation_blocks_pm_resource(
         calendar_type=CalendarType.EMPLOYEE.value,
     )
     rule_service.save_rule(emp_cal.id, weekday=0, is_working_day=True, hours_override=8.0)
+    _seed_employee(db_session, tenant_context, "emp-jones")
     assignment_service.assign_employee_calendar("emp-jones", emp_cal.id)
     exc_service.add_exception(
         emp_cal.id,
@@ -341,7 +362,7 @@ def test_employee_vacation_blocks_pm_resource(
 
 
 def test_employee_training_reduces_pm_resource_capacity(
-    global_cal, cal_service, assignment_service, recurring_service, resolver, rule_service
+    global_cal, cal_service, assignment_service, recurring_service, resolver, rule_service, db_session, tenant_context
 ):
     emp_cal = cal_service.create_calendar(
         code="EMP-TRAINING",
@@ -349,6 +370,7 @@ def test_employee_training_reduces_pm_resource_capacity(
         calendar_type=CalendarType.EMPLOYEE.value,
     )
     rule_service.save_rule(emp_cal.id, weekday=0, is_working_day=True, hours_override=8.0)
+    _seed_employee(db_session, tenant_context, "emp-trainer")
     assignment_service.assign_employee_calendar("emp-trainer", emp_cal.id)
     recurring_service.add_recurring_event(
         emp_cal.id,
@@ -384,6 +406,7 @@ def test_employee_backed_resource_does_not_duplicate_employee_rules(
         calendar_type=CalendarType.EMPLOYEE.value,
     )
     rule_service.save_rule(emp_cal.id, weekday=0, is_working_day=True, hours_override=8.0)
+    _seed_employee(db_session, tenant_context, "emp-nodupe")
     assignment_service.assign_employee_calendar("emp-nodupe", emp_cal.id)
 
     # Also assign a resource calendar with different hours — should NOT be used
@@ -405,3 +428,35 @@ def test_employee_backed_resource_does_not_duplicate_employee_rules(
     )
     ctx = svc.get_availability("res-nodupe", target_date=date(2026, 6, 1))
     assert ctx.available_hours == 8.0  # employee wins, not resource calendar
+
+
+def test_resource_calendar_assignment_service_uses_dto_validation_and_normalization(
+    cal_service, assignment_service, db_session, tenant_context
+):
+    res_cal = cal_service.create_calendar(
+        code="RES-NORMALIZED",
+        name="Normalized Resource Calendar",
+        calendar_type=CalendarType.RESOURCE.value,
+    )
+    _seed_resource(db_session, tenant_context, "res-normalized")
+
+    assignment = assignment_service.assign_resource_calendar(
+        "  res-normalized  ",
+        f"  {res_cal.id}  ",
+        effective_from=date(2026, 1, 1),
+        effective_to=date(2026, 12, 31),
+        priority="3",
+    )
+
+    assert assignment.resource_id == "res-normalized"
+    assert assignment.calendar_id == res_cal.id
+    assert assignment.priority == 3
+
+    with pytest.raises(ValidationError) as exc:
+        assignment_service.assign_resource_calendar(
+            "res-normalized",
+            res_cal.id,
+            effective_from=date(2026, 12, 31),
+            effective_to=date(2026, 1, 1),
+        )
+    assert exc.value.code == "RESOURCE_CALENDAR_ASSIGNMENT_DATE_RANGE_INVALID"

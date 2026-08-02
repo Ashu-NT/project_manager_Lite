@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
@@ -75,17 +76,17 @@ class ProcurementLifecycleMixin:
             requesting_storeroom_id=requesting_storeroom_id,
             requester_user_id=getattr(principal, "user_id", None),
             requester_username=str(getattr(principal, "username", "") or ""),
-            purpose=normalize_optional_text(purpose),
-            needed_by_date=normalize_optional_date(needed_by_date, label="Needed-by date"),
-            priority=normalize_priority(priority),
-            source_reference_type=normalize_source_reference_type(source_reference_type),
-            source_reference_id=normalize_optional_text(source_reference_id),
-            source_module=source_module or "",
-            source_entity_type=source_entity_type or "",
-            source_code_snapshot=source_code_snapshot or "",
-            source_title_snapshot=source_title_snapshot or "",
-            source_status_snapshot=source_status_snapshot or "",
-            notes=normalize_optional_text(notes),
+            purpose=purpose,
+            needed_by_date=needed_by_date,
+            priority=priority,
+            source_reference_type=source_reference_type,
+            source_reference_id=source_reference_id,
+            source_module=source_module,
+            source_entity_type=source_entity_type,
+            source_code_snapshot=source_code_snapshot,
+            source_title_snapshot=source_title_snapshot,
+            source_status_snapshot=source_status_snapshot,
+            notes=notes,
         )
         try:
             self._requisition_repo.add(requisition)
@@ -143,26 +144,22 @@ class ProcurementLifecycleMixin:
                 "Requisition line item is not allowed for purchasing.",
                 code="INVENTORY_ITEM_PURCHASE_FORBIDDEN",
             )
-        normalized_uom = normalize_uom(uom or item.stock_uom, label="Requisition line UOM")
-        resolve_item_uom_factor(item, normalized_uom, label="Requisition line UOM")
         supplier_id = self._validate_supplier_reference(suggested_supplier_party_id)
         next_line_number = len(self._requisition_line_repo.list_for_requisition(requisition.id)) + 1
         line = PurchaseRequisitionLine.create(
             purchase_requisition_id=requisition.id,
             line_number=next_line_number,
             stock_item_id=item.id,
-            description=normalize_optional_text(description) or item.name,
-            quantity_requested=normalize_positive_quantity(quantity_requested, label="Requisition quantity"),
-            uom=normalized_uom,
+            description=description or item.name,
+            quantity_requested=quantity_requested,
+            uom=uom or item.stock_uom,
             needed_by_date=needed_by_date,
-            estimated_unit_cost=normalize_nonnegative_quantity(
-                estimated_unit_cost,
-                label="Estimated unit cost",
-            ),
+            estimated_unit_cost=estimated_unit_cost,
             suggested_supplier_party_id=supplier_id,
             status=PurchaseRequisitionLineStatus.DRAFT,
-            notes=normalize_optional_text(notes),
+            notes=notes,
         )
+        resolve_item_uom_factor(item, line.uom, label="Requisition line UOM")
         try:
             self._requisition_line_repo.add(line)
             self._session.commit()
@@ -222,12 +219,16 @@ class ProcurementLifecycleMixin:
             next_status=PurchaseRequisitionStatus.SUBMITTED.value,
             transitions=REQUISITION_STATUS_TRANSITIONS,
         )
-        requisition.status = PurchaseRequisitionStatus.SUBMITTED
-        requisition.approval_request_id = request.id
-        requisition.submitted_at = datetime.now(timezone.utc)
-        requisition.updated_at = requisition.submitted_at
+        effective_at = datetime.now(timezone.utc)
+        requisition = replace(
+            requisition,
+            status=PurchaseRequisitionStatus.SUBMITTED,
+            approval_request_id=request.id,
+            submitted_at=effective_at,
+            updated_at=effective_at,
+        )
         for line in lines:
-            line.status = PurchaseRequisitionLineStatus.DRAFT
+            line = replace(line, status=PurchaseRequisitionLineStatus.DRAFT)
             self._requisition_line_repo.update(line)
         self._requisition_repo.update(requisition)
         self._session.commit()
@@ -292,30 +293,47 @@ class ProcurementLifecycleMixin:
                 "Requesting storeroom must belong to the active organization.",
                 code="INVENTORY_REQUISITION_STOREROOM_SCOPE_INVALID",
             )
-        requisition.requesting_site_id = next_site_id
-        requisition.requesting_storeroom_id = next_storeroom_id
-        if purpose is not None:
-            requisition.purpose = normalize_optional_text(purpose)
-        requisition.needed_by_date = normalize_optional_date(needed_by_date, label="Needed-by date")
-        if priority is not None:
-            requisition.priority = normalize_priority(priority)
-        if source_reference_type is not None:
-            requisition.source_reference_type = normalize_source_reference_type(source_reference_type)
-        if source_reference_id is not None:
-            requisition.source_reference_id = normalize_optional_text(source_reference_id)
-        if source_module is not None:
-            requisition.source_module = source_module or ""
-        if source_entity_type is not None:
-            requisition.source_entity_type = source_entity_type or ""
-        if source_code_snapshot is not None:
-            requisition.source_code_snapshot = source_code_snapshot or ""
-        if source_title_snapshot is not None:
-            requisition.source_title_snapshot = source_title_snapshot or ""
-        if source_status_snapshot is not None:
-            requisition.source_status_snapshot = source_status_snapshot or ""
-        if notes is not None:
-            requisition.notes = normalize_optional_text(notes)
-        requisition.updated_at = datetime.now(timezone.utc)
+        requisition = replace(
+            requisition,
+            requesting_site_id=next_site_id,
+            requesting_storeroom_id=next_storeroom_id,
+            purpose=requisition.purpose if purpose is None else purpose,
+            needed_by_date=normalize_optional_date(needed_by_date, label="Needed-by date"),
+            priority=requisition.priority if priority is None else priority,
+            source_reference_type=(
+                requisition.source_reference_type
+                if source_reference_type is None
+                else source_reference_type
+            ),
+            source_reference_id=(
+                requisition.source_reference_id
+                if source_reference_id is None
+                else source_reference_id
+            ),
+            source_module=requisition.source_module if source_module is None else source_module,
+            source_entity_type=(
+                requisition.source_entity_type
+                if source_entity_type is None
+                else source_entity_type
+            ),
+            source_code_snapshot=(
+                requisition.source_code_snapshot
+                if source_code_snapshot is None
+                else source_code_snapshot
+            ),
+            source_title_snapshot=(
+                requisition.source_title_snapshot
+                if source_title_snapshot is None
+                else source_title_snapshot
+            ),
+            source_status_snapshot=(
+                requisition.source_status_snapshot
+                if source_status_snapshot is None
+                else source_status_snapshot
+            ),
+            notes=requisition.notes if notes is None else notes,
+            updated_at=datetime.now(timezone.utc),
+        )
         try:
             self._requisition_repo.update(requisition)
             self._session.commit()
@@ -358,12 +376,15 @@ class ProcurementLifecycleMixin:
             transitions=REQUISITION_STATUS_TRANSITIONS,
         )
         effective_at = datetime.now(timezone.utc)
-        requisition.status = PurchaseRequisitionStatus.CANCELLED
-        requisition.cancelled_at = effective_at
-        requisition.updated_at = effective_at
+        requisition = replace(
+            requisition,
+            status=PurchaseRequisitionStatus.CANCELLED,
+            cancelled_at=effective_at,
+            updated_at=effective_at,
+        )
         lines = self._requisition_line_repo.list_for_requisition(requisition.id)
         for line in lines:
-            line.status = PurchaseRequisitionLineStatus.CANCELLED
+            line = replace(line, status=PurchaseRequisitionLineStatus.CANCELLED)
             self._requisition_line_repo.update(line)
         try:
             self._requisition_repo.update(requisition)

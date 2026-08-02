@@ -1,19 +1,32 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 import pytest
 
 from src.core.platform.access.authorization import require_scope_permission
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
-from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.infrastructure.persistence.orm.access import ScopedAccessGrantORM
-from src.core.platform.infrastructure.persistence.repositories.access import _scoped_access_grants_from_rows
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.modules.maintenance.access import resolve_maintenance_scope_permissions
 from src.core.modules.inventory_procurement.access.policy import resolve_storeroom_scope_permissions
 from src.core.modules.project_management.access.policy import resolve_project_scope_permissions
 from src.core.platform.site.access_policy import resolve_site_scope_permissions
 from src.tests.ui_runtime_helpers import login_as
+
+
+def _register_active_tenant_user(
+    services,
+    username: str,
+    *,
+    role_names: list[str],
+):
+    tenant_id = services["tenant_context_service"].require_active_tenant_id(
+        operation_label="prepare scoped-access test user"
+    )
+    return services["auth_service"].register_user(
+        username,
+        "StrongPass123",
+        role_names=role_names,
+        tenant_id=tenant_id,
+    )
 
 
 def test_user_session_supports_generic_scoped_access_and_project_compatibility():
@@ -75,33 +88,63 @@ def test_require_scope_permission_uses_generic_scope_model():
         )
 
 
-def test_scoped_access_repository_skips_null_rows_from_identity_map():
-    row = ScopedAccessGrantORM(
-        id="grant-1",
-        scope_type="site",
-        scope_id="site-1",
-        user_id="user-1",
-        scope_role="viewer",
-        permission_codes_json='["site.read"]',
-        created_at=datetime.now(timezone.utc),
+def test_access_service_no_longer_supports_organization_scope(services):
+    target = _register_active_tenant_user(
+        services,
+        "retired-org-scope-target",
+        role_names=["viewer"],
     )
 
-    grants = _scoped_access_grants_from_rows([None, row], source="test")
+    with pytest.raises(ValidationError) as exc_info:
+        services["access_service"].assign_scope_grant(
+            scope_type="organization",
+            scope_id="anything",
+            user_id=target.id,
+            scope_role="viewer",
+        )
 
-    assert len(grants) == 1
-    assert grants[0].id == "grant-1"
-    assert grants[0].scope_type == "site"
-    assert grants[0].permission_codes == ["site.read"]
+    assert exc_info.value.code == "UNSUPPORTED_SCOPE_TYPE"
+
+
+def test_access_service_rejects_target_from_another_tenant(services):
+    project = services["project_service"].create_project(
+        "Cross Tenant Access Target"
+    )
+    other_tenant = services["tenant_admin_service"].create_tenant(
+        "ACCESS-TARGET",
+        "Access Target Tenant",
+    )
+    target = services["auth_service"].register_user(
+        "cross-tenant-membership-target",
+        "StrongPass123",
+        role_names=["viewer"],
+        tenant_id=other_tenant.id,
+    )
+
+    with pytest.raises(BusinessRuleError) as exc_info:
+        services["access_service"].assign_scope_grant(
+            scope_type="project",
+            scope_id=project.id,
+            user_id=target.id,
+            scope_role="viewer",
+        )
+
+    assert exc_info.value.code == "ACCESS_TARGET_TENANT_DENIED"
 
 
 def test_auth_build_principal_populates_generic_scoped_access_from_project_memberships(services):
     auth = services["auth_service"]
     access = services["access_service"]
     project = services["project_service"].create_project("Scoped Principal Project")
-    user = auth.register_user("scoped-principal-user", "StrongPass123", role_names=["viewer"])
+    user = _register_active_tenant_user(
+        services,
+        "scoped-principal-user",
+        role_names=["viewer"],
+    )
 
-    access.assign_project_membership(
-        project_id=project.id,
+    access.assign_scope_grant(
+        scope_type="project",
+        scope_id=project.id,
         user_id=user.id,
         scope_role="viewer",
     )
@@ -130,7 +173,11 @@ def test_access_service_supports_storeroom_scope_grants_and_principal_hydration(
         status="ACTIVE",
         storeroom_type="MAIN",
     )
-    user = auth.register_user("storeroom-scope-user", "StrongPass123", role_names=["inventory_manager"])
+    user = _register_active_tenant_user(
+        services,
+        "storeroom-scope-user",
+        role_names=["inventory_manager"],
+    )
 
     grant = access.assign_scope_grant(
         scope_type="storeroom",
@@ -145,7 +192,6 @@ def test_access_service_supports_storeroom_scope_grants_and_principal_hydration(
     assert grant.permission_codes == sorted(resolve_storeroom_scope_permissions("operator"))
     assert access.list_scope_role_choices("storeroom") == ("viewer", "operator", "manager")
     assert set(access.list_supported_scope_types()) == {
-        "organization",
         "project",
         "site",
         "storeroom",
@@ -180,7 +226,11 @@ def test_access_service_supports_site_scope_grants_and_site_filtering(services):
         city="Munich",
         currency_code="EUR",
     )
-    user = auth.register_user("site-scope-user", "StrongPass123", role_names=["inventory_manager"])
+    user = _register_active_tenant_user(
+        services,
+        "site-scope-user",
+        role_names=["inventory_manager"],
+    )
 
     grant = access.assign_scope_grant(
         scope_type="site",
@@ -220,7 +270,11 @@ def test_maintenance_scoped_access_filters_locations(services):
         name="Blocked Maintenance Location",
         description="",
     )
-    user = auth.register_user("maintenance-scope-user", "StrongPass123", role_names=["maintenance_manager"])
+    user = _register_active_tenant_user(
+        services,
+        "maintenance-scope-user",
+        role_names=["maintenance_manager"],
+    )
 
     grant = access.assign_scope_grant(
         scope_type="maintenance",
@@ -244,6 +298,17 @@ def test_maintenance_scoped_access_filters_locations(services):
     login_as(services, "maintenance-scope-user", "StrongPass123")
     visible_locations = services["maintenance_location_service"].list_locations()
     assert [location.id for location in visible_locations] == [accessible.id]
+
+    events = []
+    services["user_session"].set_security_denial_listener(events.append)
+    with pytest.raises(BusinessRuleError) as exc_info:
+        services["maintenance_task_template_service"].list_task_templates()
+
+    assert exc_info.value.code == "PERMISSION_DENIED"
+    assert len(events) == 1
+    assert events[0].operation == "authorization.resource_scope.denied"
+    assert events[0].reason_code == "PERMISSION_DENIED"
+    assert events[0].target_scope_type == "maintenance"
 
 
 def test_storeroom_scoped_access_filters_inventory_and_stock_queries(services):
@@ -287,7 +352,11 @@ def test_storeroom_scoped_access_filters_inventory_and_stock_queries(services):
         quantity=5,
         unit_cost=3.0,
     )
-    user = auth.register_user("storeroom-filter-user", "StrongPass123", role_names=["inventory_manager"])
+    user = _register_active_tenant_user(
+        services,
+        "storeroom-filter-user",
+        role_names=["inventory_manager"],
+    )
     access.assign_scope_grant(
         scope_type="storeroom",
         scope_id=accessible.id,

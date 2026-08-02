@@ -38,7 +38,6 @@ from src.core.modules.project_management.contracts.repositories.collaboration im
 )
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.task import TaskRepository
-from src.core.platform.access.contracts import ProjectMembershipRepository
 from src.core.platform.audit.contracts import AuditRepository
 from src.core.platform.auth.contracts import UserRepository
 from src.core.platform.documents import DocumentIntegrationService
@@ -66,11 +65,13 @@ class CollaborationService(
         project_repo: ProjectRepository,
         user_repo: UserRepository,
         audit_repo: AuditRepository,
-        project_membership_repo: ProjectMembershipRepository,
         document_integration_service: DocumentIntegrationService | None = None,
         user_session=None,
         module_catalog_service=None,
         tenant_context_service=None,
+        role_repo=None,
+        role_binding_repo=None,
+        notification_service=None,
     ) -> None:
         self._session = session
         self._comment_repo = comment_repo
@@ -79,11 +80,13 @@ class CollaborationService(
         self._project_repo = project_repo
         self._user_repo = user_repo
         self._audit_repo = audit_repo
-        self._project_membership_repo = project_membership_repo
         self._document_integration_service = document_integration_service
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
+        self._role_repo = role_repo
+        self._role_binding_repo = role_binding_repo
+        self._notification_service = notification_service
         self._presence_ttl_seconds = max(int(os.getenv("PM_TASK_PRESENCE_TTL_SECONDS", "900") or 900), 60)
 
 

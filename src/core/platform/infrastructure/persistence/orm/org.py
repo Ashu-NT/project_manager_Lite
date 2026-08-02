@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import Boolean, ForeignKey, Index, Integer, String
+from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infra.persistence.orm.base import Base
@@ -10,6 +10,9 @@ from src.infra.persistence.orm.base import Base
 
 class OrganizationORM(Base):
     __tablename__ = "organizations"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "id", name="uq_organizations_tenant_id"),
+    )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     tenant_id: Mapped[str] = mapped_column(

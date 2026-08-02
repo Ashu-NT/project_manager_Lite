@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -20,19 +21,14 @@ from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceSensorRepository,
     MaintenanceTaskTemplateRepository,
 )
-from src.core.modules.maintenance.application.common.support import (
-    coerce_calendar_frequency_unit,
-    coerce_optional_decimal_value,
-    coerce_optional_non_negative_int,
-    coerce_plan_task_trigger_scope,
-    coerce_sensor_direction,
-    coerce_trigger_mode,
-    normalize_optional_text,
+from src.core.modules.maintenance.application.common.support import normalize_optional_text
+from src.core.modules.maintenance.application.common.scope_authorization import (
+    deny_maintenance_scope_access,
 )
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.tenancy.tenant_context import (
     TenantContextService,
@@ -131,40 +127,29 @@ class MaintenancePreventivePlanTaskService:
             operation_label="create maintenance preventive plan task",
         )
         task_template = self._get_task_template(task_template_id, organization=organization)
-        resolved_sequence_no = self._resolve_sequence_no(plan.id, sequence_no)
-        self._ensure_unique_sequence(organization.id, plan_id=plan.id, sequence_no=resolved_sequence_no)
-        resolved_trigger_scope = coerce_plan_task_trigger_scope(trigger_scope)
-        override = self._resolve_override_configuration(
-            organization=organization,
-            plan=plan,
-            trigger_scope=resolved_trigger_scope,
+        row = MaintenancePreventivePlanTask.create(
+            organization_id=organization.id,
+            plan_id=plan.id,
+            task_template_id=task_template.id,
+            trigger_scope=trigger_scope,
             trigger_mode_override=trigger_mode_override,
             calendar_frequency_unit_override=calendar_frequency_unit_override,
             calendar_frequency_value_override=calendar_frequency_value_override,
             sensor_id_override=sensor_id_override,
             sensor_threshold_override=sensor_threshold_override,
             sensor_direction_override=sensor_direction_override,
-        )
-        row = MaintenancePreventivePlanTask.create(
-            organization_id=organization.id,
-            plan_id=plan.id,
-            task_template_id=task_template.id,
-            trigger_scope=resolved_trigger_scope,
-            trigger_mode_override=override["trigger_mode_override"],
-            calendar_frequency_unit_override=override["calendar_frequency_unit_override"],
-            calendar_frequency_value_override=override["calendar_frequency_value_override"],
-            sensor_id_override=override["sensor_id_override"],
-            sensor_threshold_override=override["sensor_threshold_override"],
-            sensor_direction_override=override["sensor_direction_override"],
-            sequence_no=resolved_sequence_no,
+            sequence_no=self._resolve_sequence_no(plan.id, sequence_no),
             is_mandatory=bool(is_mandatory),
             default_assigned_employee_id=default_assigned_employee_id,
-            default_assigned_team_id=normalize_optional_text(default_assigned_team_id) or None,
-            estimated_minutes_override=coerce_optional_non_negative_int(
-                estimated_minutes_override,
-                label="Estimated minutes override",
-            ),
-            notes=normalize_optional_text(notes),
+            default_assigned_team_id=default_assigned_team_id,
+            estimated_minutes_override=estimated_minutes_override,
+            notes=notes,
+        )
+        self._ensure_unique_sequence(organization.id, plan_id=plan.id, sequence_no=row.sequence_no)
+        self._validate_override_configuration(
+            organization=organization,
+            plan=plan,
+            row=row,
         )
         try:
             self._preventive_plan_task_repo.add(row)
@@ -214,70 +199,101 @@ class MaintenancePreventivePlanTaskService:
                 "Maintenance preventive plan task changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
-        if task_template_id is not None:
-            row.task_template_id = self._get_task_template(task_template_id, organization=organization).id
-        if sequence_no is not None:
-            resolved_sequence_no = self._resolve_sequence_no(plan.id, sequence_no)
-            self._ensure_unique_sequence(
-                organization.id,
-                plan_id=plan.id,
-                sequence_no=resolved_sequence_no,
-                exclude_id=row.id,
-            )
-            row.sequence_no = resolved_sequence_no
-        target_trigger_scope = (
-            row.trigger_scope if trigger_scope is None else coerce_plan_task_trigger_scope(trigger_scope)
-        )
-        override = self._resolve_override_configuration(
-            organization=organization,
-            plan=plan,
+        target_trigger_scope = row.trigger_scope if trigger_scope is None else trigger_scope
+        clear_overrides = self._is_inherit_plan_scope(target_trigger_scope)
+        updated = replace(
+            row,
+            task_template_id=(
+                row.task_template_id
+                if task_template_id is None
+                else self._get_task_template(task_template_id, organization=organization).id
+            ),
             trigger_scope=target_trigger_scope,
             trigger_mode_override=(
-                row.trigger_mode_override if trigger_mode_override is None else trigger_mode_override
+                None
+                if clear_overrides
+                else (
+                    row.trigger_mode_override
+                    if trigger_mode_override is None
+                    else trigger_mode_override
+                )
             ),
             calendar_frequency_unit_override=(
-                row.calendar_frequency_unit_override
-                if calendar_frequency_unit_override is None
-                else calendar_frequency_unit_override
+                None
+                if clear_overrides
+                else (
+                    row.calendar_frequency_unit_override
+                    if calendar_frequency_unit_override is None
+                    else calendar_frequency_unit_override
+                )
             ),
             calendar_frequency_value_override=(
-                row.calendar_frequency_value_override
-                if calendar_frequency_value_override is None
-                else calendar_frequency_value_override
+                None
+                if clear_overrides
+                else (
+                    row.calendar_frequency_value_override
+                    if calendar_frequency_value_override is None
+                    else calendar_frequency_value_override
+                )
             ),
-            sensor_id_override=(row.sensor_id_override if sensor_id_override is None else sensor_id_override),
+            sensor_id_override=(
+                None
+                if clear_overrides
+                else (row.sensor_id_override if sensor_id_override is None else sensor_id_override)
+            ),
             sensor_threshold_override=(
-                row.sensor_threshold_override
-                if sensor_threshold_override is None
-                else sensor_threshold_override
+                None
+                if clear_overrides
+                else (
+                    row.sensor_threshold_override
+                    if sensor_threshold_override is None
+                    else sensor_threshold_override
+                )
             ),
             sensor_direction_override=(
-                row.sensor_direction_override if sensor_direction_override is None else sensor_direction_override
+                None
+                if clear_overrides
+                else (
+                    row.sensor_direction_override
+                    if sensor_direction_override is None
+                    else sensor_direction_override
+                )
             ),
+            sequence_no=(
+                row.sequence_no if sequence_no is None else self._resolve_sequence_no(plan.id, sequence_no)
+            ),
+            is_mandatory=row.is_mandatory if is_mandatory is None else bool(is_mandatory),
+            default_assigned_employee_id=(
+                row.default_assigned_employee_id
+                if default_assigned_employee_id is None
+                else default_assigned_employee_id
+            ),
+            default_assigned_team_id=(
+                row.default_assigned_team_id
+                if default_assigned_team_id is None
+                else default_assigned_team_id
+            ),
+            estimated_minutes_override=(
+                row.estimated_minutes_override
+                if estimated_minutes_override is None
+                else estimated_minutes_override
+            ),
+            notes=row.notes if notes is None else notes,
+            updated_at=datetime.now(timezone.utc),
         )
-        row.trigger_scope = target_trigger_scope
-        row.trigger_mode_override = override["trigger_mode_override"]
-        row.calendar_frequency_unit_override = override["calendar_frequency_unit_override"]
-        row.calendar_frequency_value_override = override["calendar_frequency_value_override"]
-        row.sensor_id_override = override["sensor_id_override"]
-        row.sensor_threshold_override = override["sensor_threshold_override"]
-        row.sensor_direction_override = override["sensor_direction_override"]
-        if is_mandatory is not None:
-            row.is_mandatory = bool(is_mandatory)
-        if default_assigned_employee_id is not None:
-            row.default_assigned_employee_id = default_assigned_employee_id
-        if default_assigned_team_id is not None:
-            row.default_assigned_team_id = normalize_optional_text(default_assigned_team_id) or None
-        if estimated_minutes_override is not None:
-            row.estimated_minutes_override = coerce_optional_non_negative_int(
-                estimated_minutes_override,
-                label="Estimated minutes override",
-            )
-        if notes is not None:
-            row.notes = normalize_optional_text(notes)
-        row.updated_at = datetime.now(timezone.utc)
+        self._ensure_unique_sequence(
+            organization.id,
+            plan_id=plan.id,
+            sequence_no=updated.sequence_no,
+            exclude_id=row.id,
+        )
+        self._validate_override_configuration(
+            organization=organization,
+            plan=plan,
+            row=updated,
+        )
         try:
-            self._preventive_plan_task_repo.update(row)
+            self._preventive_plan_task_repo.update(updated)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -288,78 +304,31 @@ class MaintenancePreventivePlanTaskService:
         except Exception:
             self._session.rollback()
             raise
-        self._record_change("maintenance_preventive_plan_task.update", row)
-        return row
+        self._record_change("maintenance_preventive_plan_task.update", updated)
+        return updated
 
-    def _resolve_override_configuration(
+    def _validate_override_configuration(
         self,
         *,
         organization: Organization,
         plan: MaintenancePreventivePlan,
-        trigger_scope: MaintenancePlanTaskTriggerScope,
-        trigger_mode_override,
-        calendar_frequency_unit_override,
-        calendar_frequency_value_override,
-        sensor_id_override,
-        sensor_threshold_override,
-        sensor_direction_override,
-    ) -> dict[str, object | None]:
-        if trigger_scope == MaintenancePlanTaskTriggerScope.INHERIT_PLAN:
-            if any(
-                value not in (None, "")
-                for value in (
-                    trigger_mode_override,
-                    calendar_frequency_unit_override,
-                    calendar_frequency_value_override,
-                    sensor_id_override,
-                    sensor_threshold_override,
-                    sensor_direction_override,
-                )
-            ):
-                raise ValidationError(
-                    "Plan-task trigger overrides are only allowed when trigger scope is TASK_OVERRIDE.",
-                    code="MAINTENANCE_PREVENTIVE_PLAN_TASK_OVERRIDE_NOT_ALLOWED",
-                )
-            return {
-                "trigger_mode_override": None,
-                "calendar_frequency_unit_override": None,
-                "calendar_frequency_value_override": None,
-                "sensor_id_override": None,
-                "sensor_threshold_override": None,
-                "sensor_direction_override": None,
-            }
-        resolved_trigger_mode = coerce_trigger_mode(trigger_mode_override)
-        resolved_calendar_frequency_unit = coerce_calendar_frequency_unit(calendar_frequency_unit_override)
-        resolved_calendar_frequency_value = coerce_optional_non_negative_int(
-            calendar_frequency_value_override,
-            label="Calendar frequency value override",
-        )
-        resolved_sensor_threshold = coerce_optional_decimal_value(
-            sensor_threshold_override,
-            label="Sensor threshold override",
-        )
-        resolved_sensor_direction = coerce_sensor_direction(sensor_direction_override)
+        row: MaintenancePreventivePlanTask,
+    ) -> None:
+        if row.trigger_scope == MaintenancePlanTaskTriggerScope.INHERIT_PLAN:
+            return
         sensor = self._resolve_override_sensor(
             organization=organization,
             plan=plan,
-            sensor_id=normalize_optional_text(sensor_id_override) or None,
+            sensor_id=row.sensor_id_override,
         )
         self._validate_override_trigger_configuration(
-            trigger_mode=resolved_trigger_mode,
-            calendar_frequency_unit=resolved_calendar_frequency_unit,
-            calendar_frequency_value=resolved_calendar_frequency_value,
+            trigger_mode=row.trigger_mode_override or MaintenanceTriggerMode.CALENDAR,
+            calendar_frequency_unit=row.calendar_frequency_unit_override,
+            calendar_frequency_value=row.calendar_frequency_value_override,
             sensor=sensor,
-            sensor_threshold=resolved_sensor_threshold,
-            sensor_direction=resolved_sensor_direction,
+            sensor_threshold=row.sensor_threshold_override,
+            sensor_direction=row.sensor_direction_override,
         )
-        return {
-            "trigger_mode_override": resolved_trigger_mode,
-            "calendar_frequency_unit_override": resolved_calendar_frequency_unit,
-            "calendar_frequency_value_override": resolved_calendar_frequency_value,
-            "sensor_id_override": sensor.id if sensor is not None else None,
-            "sensor_threshold_override": resolved_sensor_threshold,
-            "sensor_direction_override": resolved_sensor_direction,
-        }
 
     def _resolve_override_sensor(
         self,
@@ -445,21 +414,23 @@ class MaintenancePreventivePlanTaskService:
                 code="MAINTENANCE_PREVENTIVE_PLAN_TASK_SENSOR_REQUIRED",
             )
 
-    def _resolve_sequence_no(self, plan_id: str, sequence_no: int | str | None) -> int:
+    def _resolve_sequence_no(self, plan_id: str, sequence_no: int | str | None) -> int | str:
         if sequence_no not in (None, ""):
-            resolved = coerce_optional_non_negative_int(sequence_no, label="Sequence number")
-            if resolved is None or resolved <= 0:
-                raise ValidationError(
-                    "Sequence number must be greater than zero.",
-                    code="MAINTENANCE_PREVENTIVE_PLAN_TASK_SEQUENCE_INVALID",
-                )
-            return resolved
+            return sequence_no
         rows = self._preventive_plan_task_repo.list_for_organization(
             self._active_organization().id,
             plan_id=plan_id,
         )
         highest = max((row.sequence_no for row in rows), default=0)
         return highest + 1
+
+    def _is_inherit_plan_scope(self, value: object) -> bool:
+        if isinstance(value, MaintenancePlanTaskTriggerScope):
+            return value == MaintenancePlanTaskTriggerScope.INHERIT_PLAN
+        return (
+            normalize_optional_text(value).upper()
+            == MaintenancePlanTaskTriggerScope.INHERIT_PLAN.value
+        )
 
     def _ensure_unique_sequence(
         self,
@@ -536,9 +507,13 @@ class MaintenancePreventivePlanTaskService:
             )
             return
         if self._user_session is not None and self._user_session.is_scope_restricted("maintenance"):
-            raise BusinessRuleError(
-                f"Permission denied for {operation_label}. The record is not anchored to a maintenance scope grant.",
-                code="PERMISSION_DENIED",
+            deny_maintenance_scope_access(
+                self._user_session,
+                operation_label=operation_label,
+                message=(
+                    f"Permission denied for {operation_label}. The record is "
+                    "not anchored to a maintenance scope grant."
+                ),
             )
 
     def _require_scope_manage(self, scope_id: str, *, operation_label: str) -> None:
@@ -552,9 +527,13 @@ class MaintenancePreventivePlanTaskService:
             )
             return
         if self._user_session is not None and self._user_session.is_scope_restricted("maintenance"):
-            raise BusinessRuleError(
-                f"Permission denied for {operation_label}. The record is not anchored to a maintenance scope grant.",
-                code="PERMISSION_DENIED",
+            deny_maintenance_scope_access(
+                self._user_session,
+                operation_label=operation_label,
+                message=(
+                    f"Permission denied for {operation_label}. The record is "
+                    "not anchored to a maintenance scope grant."
+                ),
             )
 
     def _record_change(self, action: str, row: MaintenancePreventivePlanTask) -> None:

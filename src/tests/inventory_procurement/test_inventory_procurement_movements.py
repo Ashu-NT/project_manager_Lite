@@ -51,8 +51,11 @@ def test_issue_and_return_update_stock_positions(services):
         stock_item_id=item.id,
         storeroom_id=source.id,
         quantity=3,
-        reference_type="task_issue",
-        reference_id="TASK-10",
+        reference_type="  task_issue  ",
+        reference_id="  TASK-10  ",
+        notes="  issued to task  ",
+        lot_number="  lot-7  ",
+        serial_number="  sn-3  ",
     )
     returned = stock.return_stock(
         stock_item_id=item.id,
@@ -65,6 +68,11 @@ def test_issue_and_return_update_stock_positions(services):
 
     assert issued.transaction_type.value == "ISSUE"
     assert returned.transaction_type.value == "RETURN"
+    assert issued.reference_type == "task_issue"
+    assert issued.reference_id == "TASK-10"
+    assert issued.notes == "issued to task"
+    assert issued.lot_number == "lot-7"
+    assert issued.serial_number == "sn-3"
     assert balance is not None
     assert balance.on_hand_qty == pytest.approx(9.0)
     assert balance.available_qty == pytest.approx(9.0)

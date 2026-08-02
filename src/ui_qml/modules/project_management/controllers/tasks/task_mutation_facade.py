@@ -13,6 +13,10 @@ def update_task(controller, payload: dict[str, object]) -> dict[str, object]:
     return controller._task_list.updateTask(payload)
 
 
+def move_task_in_wbs(controller, payload: dict[str, object]) -> dict[str, object]:
+    return controller._task_list.moveTaskInWbs(payload)
+
+
 def update_progress(controller, payload: dict[str, object]) -> dict[str, object]:
     return controller._task_list.updateProgress(payload)
 
@@ -51,6 +55,14 @@ def set_assignment_hours(controller, payload: dict[str, object]) -> dict[str, ob
 
 def delete_assignment(controller, assignment_id: str) -> dict[str, object]:
     return controller._assignments_ctrl.deleteAssignment(assignment_id)
+
+
+def accept_assignment(controller, assignment_id: str) -> dict[str, object]:
+    return controller._assignments_ctrl.acceptAssignment(assignment_id)
+
+
+def decline_assignment(controller, payload: dict[str, object]) -> dict[str, object]:
+    return controller._assignments_ctrl.declineAssignment(payload)
 
 
 def validate_assignment(controller, payload: dict[str, object]) -> dict[str, object]:
@@ -97,6 +109,25 @@ def post_task_comment(controller, payload: dict[str, object]) -> dict[str, objec
     return controller._collab_ctrl.postTaskComment(payload)
 
 
+def edit_task_comment(controller, payload: dict[str, object]) -> dict[str, object]:
+    return controller._collab_ctrl.editTaskComment(payload)
+
+
+def delete_task_comment(controller, payload: dict[str, object]) -> dict[str, object]:
+    return controller._collab_ctrl.deleteTaskComment(payload)
+
+
+def react_to_task_comment(controller, payload: dict[str, object]) -> dict[str, object]:
+    return controller._collab_ctrl.reactToTaskComment(payload)
+
+
+def remove_task_comment_reaction(
+    controller,
+    payload: dict[str, object],
+) -> dict[str, object]:
+    return controller._collab_ctrl.removeTaskCommentReaction(payload)
+
+
 def mark_task_collaboration_read(controller, task_id: str) -> dict[str, object]:
     return controller._collab_ctrl.markTaskCollaborationRead(task_id)
 
@@ -110,6 +141,7 @@ def end_task_presence(controller, task_id: str) -> dict[str, object]:
 
 
 __all__ = [
+    "accept_assignment",
     "add_task_time_entry",
     "apply_bulk_status",
     "begin_task_presence",
@@ -117,16 +149,22 @@ __all__ = [
     "create_assignment",
     "create_dependency",
     "create_task",
+    "delete_task_comment",
     "delete_assignment",
+    "decline_assignment",
     "delete_dependency",
     "delete_task",
     "delete_task_time_entry",
     "end_task_presence",
+    "edit_task_comment",
     "generate_entity_code",
     "lock_task_period",
     "mark_task_collaboration_read",
+    "move_task_in_wbs",
     "post_task_comment",
+    "react_to_task_comment",
     "redo_last_task_action",
+    "remove_task_comment_reaction",
     "set_assignment_hours",
     "submit_task_period",
     "undo_last_task_action",

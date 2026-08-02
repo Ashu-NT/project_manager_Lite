@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -24,26 +25,20 @@ from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceSystemRepository,
 )
 from src.core.modules.maintenance.application.common.support import (
-    coerce_calendar_frequency_unit,
-    coerce_generation_lead_unit,
-    coerce_optional_datetime,
-    coerce_optional_decimal_value,
-    coerce_optional_non_negative_int,
     coerce_plan_status,
     coerce_plan_type,
-    coerce_priority,
-    coerce_schedule_policy,
-    coerce_sensor_direction,
     coerce_trigger_mode,
     normalize_maintenance_code,
-    normalize_maintenance_name,
     normalize_optional_text,
+)
+from src.core.modules.maintenance.application.common.scope_authorization import (
+    deny_maintenance_scope_access,
 )
 from src.core.modules.maintenance.application.preventive.utils.date_utils import advance_calendar_due
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.site.contracts import SiteRepository
 from src.core.platform.tenancy.tenant_context import (
@@ -225,76 +220,72 @@ class MaintenancePreventivePlanService:
         self._require_manage("create maintenance preventive plan")
         organization = self._active_organization()
         site = self._get_site(site_id, organization=organization)
-        normalized_code = normalize_maintenance_code(plan_code, label="Preventive plan code")
-        if self._preventive_plan_repo.get_by_code(organization.id, normalized_code) is not None:
-            raise ValidationError(
-                "Preventive plan code already exists in the active organization.",
-                code="MAINTENANCE_PREVENTIVE_PLAN_CODE_EXISTS",
-            )
         asset, component, system = self._resolve_context(
             organization=organization, site=site,
             asset_id=asset_id, component_id=component_id, system_id=system_id,
         )
-        resolved_trigger_mode = coerce_trigger_mode(trigger_mode)
-        resolved_calendar_unit = coerce_calendar_frequency_unit(calendar_frequency_unit)
-        resolved_calendar_value = coerce_optional_non_negative_int(calendar_frequency_value, label="Calendar frequency value")
-        resolved_sensor_threshold = coerce_optional_decimal_value(sensor_threshold, label="Sensor threshold")
-        resolved_sensor_direction = coerce_sensor_direction(sensor_direction)
         sensor = self._resolve_sensor(
             organization=organization, site=site, asset=asset, component=component, system=system,
             sensor_id=normalize_optional_text(sensor_id) or None,
         )
+        row = MaintenancePreventivePlan.create(
+            organization_id=organization.id,
+            site_id=site.id,
+            plan_code=plan_code,
+            name=name,
+            asset_id=asset.id if asset is not None else None,
+            component_id=component.id if component is not None else None,
+            system_id=system.id if system is not None else None,
+            description=description,
+            status=status,
+            plan_type=plan_type,
+            priority=priority,
+            trigger_mode=trigger_mode,
+            schedule_policy=schedule_policy,
+            calendar_frequency_unit=calendar_frequency_unit,
+            calendar_frequency_value=calendar_frequency_value,
+            generation_horizon_count=generation_horizon_count,
+            generation_lead_value=generation_lead_value,
+            generation_lead_unit=generation_lead_unit,
+            sensor_id=sensor.id if sensor is not None else None,
+            sensor_threshold=sensor_threshold,
+            sensor_direction=sensor_direction,
+            sensor_reset_rule=sensor_reset_rule,
+            last_generated_at=last_generated_at,
+            last_completed_at=last_completed_at,
+            next_due_at=next_due_at,
+            next_due_counter=next_due_counter,
+            requires_shutdown=bool(requires_shutdown),
+            approval_required=bool(approval_required),
+            auto_generate_work_order=bool(auto_generate_work_order),
+            is_active=bool(is_active),
+            notes=notes,
+        )
+        if self._preventive_plan_repo.get_by_code(organization.id, row.plan_code) is not None:
+            raise ValidationError(
+                "Preventive plan code already exists in the active organization.",
+                code="MAINTENANCE_PREVENTIVE_PLAN_CODE_EXISTS",
+            )
         self._validate_trigger_configuration(
-            trigger_mode=resolved_trigger_mode,
-            calendar_frequency_unit=resolved_calendar_unit,
-            calendar_frequency_value=resolved_calendar_value,
-            sensor=sensor, sensor_threshold=resolved_sensor_threshold,
-            sensor_direction=resolved_sensor_direction,
+            trigger_mode=row.trigger_mode,
+            calendar_frequency_unit=row.calendar_frequency_unit,
+            calendar_frequency_value=row.calendar_frequency_value,
+            sensor=sensor,
+            sensor_threshold=row.sensor_threshold,
+            sensor_direction=row.sensor_direction,
         )
         self._require_scope_manage(
             self._scope_anchor_from_context(asset=asset, component=component, system=system),
             operation_label="create maintenance preventive plan",
         )
-        resolved_next_due_at = coerce_optional_datetime(next_due_at, label="Next due at")
-        if resolved_next_due_at is None:
-            resolved_next_due_at = self._derive_initial_next_due_at(
-                trigger_mode=resolved_trigger_mode,
-                calendar_frequency_unit=resolved_calendar_unit,
-                calendar_frequency_value=resolved_calendar_value,
+        if row.next_due_at is None:
+            derived_next_due_at = self._derive_initial_next_due_at(
+                trigger_mode=row.trigger_mode,
+                calendar_frequency_unit=row.calendar_frequency_unit,
+                calendar_frequency_value=row.calendar_frequency_value,
             )
-        row = MaintenancePreventivePlan.create(
-            organization_id=organization.id,
-            site_id=site.id,
-            plan_code=normalized_code,
-            name=normalize_maintenance_name(name, label="Preventive plan name"),
-            asset_id=asset.id if asset is not None else None,
-            component_id=component.id if component is not None else None,
-            system_id=system.id if system is not None else None,
-            description=normalize_optional_text(description),
-            status=coerce_plan_status(status),
-            plan_type=coerce_plan_type(plan_type),
-            priority=coerce_priority(priority),
-            trigger_mode=resolved_trigger_mode,
-            schedule_policy=coerce_schedule_policy(schedule_policy),
-            calendar_frequency_unit=resolved_calendar_unit,
-            calendar_frequency_value=resolved_calendar_value,
-            generation_horizon_count=self._normalize_generation_horizon_count(generation_horizon_count),
-            generation_lead_value=self._normalize_generation_lead_value(generation_lead_value),
-            generation_lead_unit=coerce_generation_lead_unit(generation_lead_unit),
-            sensor_id=sensor.id if sensor is not None else None,
-            sensor_threshold=resolved_sensor_threshold,
-            sensor_direction=resolved_sensor_direction,
-            sensor_reset_rule=normalize_optional_text(sensor_reset_rule),
-            last_generated_at=coerce_optional_datetime(last_generated_at, label="Last generated at"),
-            last_completed_at=coerce_optional_datetime(last_completed_at, label="Last completed at"),
-            next_due_at=resolved_next_due_at,
-            next_due_counter=coerce_optional_decimal_value(next_due_counter, label="Next due counter"),
-            requires_shutdown=bool(requires_shutdown),
-            approval_required=bool(approval_required),
-            auto_generate_work_order=bool(auto_generate_work_order),
-            is_active=bool(is_active),
-            notes=normalize_optional_text(notes),
-        )
+            if derived_next_due_at is not None:
+                row = replace(row, next_due_at=derived_next_due_at)
         try:
             self._preventive_plan_repo.add(row)
             self._session.commit()
@@ -365,94 +356,113 @@ class MaintenancePreventivePlanService:
             component_id=row.component_id if component_id is None else (normalize_optional_text(component_id) or None),
             system_id=row.system_id if system_id is None else (normalize_optional_text(system_id) or None),
         )
-        resolved_trigger_mode = row.trigger_mode if trigger_mode is None else coerce_trigger_mode(trigger_mode)
-        resolved_schedule_policy = row.schedule_policy if schedule_policy is None else coerce_schedule_policy(schedule_policy)
-        resolved_calendar_unit = row.calendar_frequency_unit if calendar_frequency_unit is None else coerce_calendar_frequency_unit(calendar_frequency_unit)
-        resolved_calendar_value = row.calendar_frequency_value if calendar_frequency_value is None else coerce_optional_non_negative_int(calendar_frequency_value, label="Calendar frequency value")
-        resolved_sensor_threshold = row.sensor_threshold if sensor_threshold is None else coerce_optional_decimal_value(sensor_threshold, label="Sensor threshold")
-        resolved_sensor_direction = row.sensor_direction if sensor_direction is None else coerce_sensor_direction(sensor_direction)
         sensor = self._resolve_sensor(
             organization=organization, site=target_site, asset=asset, component=component, system=system,
             sensor_id=row.sensor_id if sensor_id is None else (normalize_optional_text(sensor_id) or None),
         )
+        updated = replace(
+            row,
+            site_id=target_site.id,
+            plan_code=row.plan_code if plan_code is None else plan_code,
+            name=row.name if name is None else name,
+            asset_id=asset.id if asset is not None else None,
+            component_id=component.id if component is not None else None,
+            system_id=system.id if system is not None else None,
+            description=row.description if description is None else description,
+            status=row.status if status is None else status,
+            plan_type=row.plan_type if plan_type is None else plan_type,
+            priority=row.priority if priority is None else priority,
+            trigger_mode=row.trigger_mode if trigger_mode is None else trigger_mode,
+            schedule_policy=row.schedule_policy if schedule_policy is None else schedule_policy,
+            calendar_frequency_unit=(
+                row.calendar_frequency_unit
+                if calendar_frequency_unit is None
+                else calendar_frequency_unit
+            ),
+            calendar_frequency_value=(
+                row.calendar_frequency_value
+                if calendar_frequency_value is None
+                else calendar_frequency_value
+            ),
+            generation_horizon_count=(
+                row.generation_horizon_count
+                if generation_horizon_count is None
+                else generation_horizon_count
+            ),
+            generation_lead_value=(
+                row.generation_lead_value
+                if generation_lead_value is None
+                else generation_lead_value
+            ),
+            generation_lead_unit=(
+                row.generation_lead_unit
+                if generation_lead_unit is None
+                else generation_lead_unit
+            ),
+            sensor_id=sensor.id if sensor is not None else None,
+            sensor_threshold=row.sensor_threshold if sensor_threshold is None else sensor_threshold,
+            sensor_direction=row.sensor_direction if sensor_direction is None else sensor_direction,
+            sensor_reset_rule=row.sensor_reset_rule if sensor_reset_rule is None else sensor_reset_rule,
+            last_generated_at=(
+                row.last_generated_at if last_generated_at is None else last_generated_at
+            ),
+            last_completed_at=(
+                row.last_completed_at if last_completed_at is None else last_completed_at
+            ),
+            next_due_at=row.next_due_at if next_due_at is None else next_due_at,
+            next_due_counter=(
+                row.next_due_counter if next_due_counter is None else next_due_counter
+            ),
+            requires_shutdown=(
+                row.requires_shutdown if requires_shutdown is None else bool(requires_shutdown)
+            ),
+            approval_required=(
+                row.approval_required if approval_required is None else bool(approval_required)
+            ),
+            auto_generate_work_order=(
+                row.auto_generate_work_order
+                if auto_generate_work_order is None
+                else bool(auto_generate_work_order)
+            ),
+            is_active=row.is_active if is_active is None else bool(is_active),
+            notes=row.notes if notes is None else notes,
+            updated_at=datetime.now(timezone.utc),
+        )
         self._validate_trigger_configuration(
-            trigger_mode=resolved_trigger_mode,
-            calendar_frequency_unit=resolved_calendar_unit,
-            calendar_frequency_value=resolved_calendar_value,
-            sensor=sensor, sensor_threshold=resolved_sensor_threshold,
-            sensor_direction=resolved_sensor_direction,
+            trigger_mode=updated.trigger_mode,
+            calendar_frequency_unit=updated.calendar_frequency_unit,
+            calendar_frequency_value=updated.calendar_frequency_value,
+            sensor=sensor,
+            sensor_threshold=updated.sensor_threshold,
+            sensor_direction=updated.sensor_direction,
         )
         self._require_scope_manage(
             self._scope_anchor_from_context(asset=asset, component=component, system=system),
             operation_label="update maintenance preventive plan",
         )
-        if plan_code is not None:
-            normalized_code = normalize_maintenance_code(plan_code, label="Preventive plan code")
-            existing = self._preventive_plan_repo.get_by_code(organization.id, normalized_code)
-            if existing is not None and existing.id != row.id:
-                raise ValidationError("Preventive plan code already exists in the active organization.", code="MAINTENANCE_PREVENTIVE_PLAN_CODE_EXISTS")
-            row.plan_code = normalized_code
-        if name is not None:
-            row.name = normalize_maintenance_name(name, label="Preventive plan name")
-        if description is not None:
-            row.description = normalize_optional_text(description)
-        if status is not None:
-            row.status = coerce_plan_status(status)
-        if plan_type is not None:
-            row.plan_type = coerce_plan_type(plan_type)
-        if priority is not None:
-            row.priority = coerce_priority(priority)
-        if generation_horizon_count is not None:
-            row.generation_horizon_count = self._normalize_generation_horizon_count(generation_horizon_count)
-        if generation_lead_value is not None:
-            row.generation_lead_value = self._normalize_generation_lead_value(generation_lead_value)
-        if generation_lead_unit is not None:
-            row.generation_lead_unit = coerce_generation_lead_unit(generation_lead_unit)
-        row.site_id = target_site.id
-        row.asset_id = asset.id if asset is not None else None
-        row.component_id = component.id if component is not None else None
-        row.system_id = system.id if system is not None else None
-        row.trigger_mode = resolved_trigger_mode
-        row.schedule_policy = resolved_schedule_policy
-        row.calendar_frequency_unit = resolved_calendar_unit
-        row.calendar_frequency_value = resolved_calendar_value
-        row.sensor_id = sensor.id if sensor is not None else None
-        row.sensor_threshold = resolved_sensor_threshold
-        row.sensor_direction = resolved_sensor_direction
-        if sensor_reset_rule is not None:
-            row.sensor_reset_rule = normalize_optional_text(sensor_reset_rule)
-        if last_generated_at is not None:
-            row.last_generated_at = coerce_optional_datetime(last_generated_at, label="Last generated at")
-        if last_completed_at is not None:
-            row.last_completed_at = coerce_optional_datetime(last_completed_at, label="Last completed at")
-        if next_due_at is not None:
-            row.next_due_at = coerce_optional_datetime(next_due_at, label="Next due at")
-        elif (
-            row.next_due_at is None
-            and row.trigger_mode in (MaintenanceTriggerMode.CALENDAR, MaintenanceTriggerMode.HYBRID)
-            and row.calendar_frequency_unit is not None
-            and row.calendar_frequency_value not in (None, 0)
-        ):
-            row.next_due_at = self._derive_initial_next_due_at(
-                trigger_mode=row.trigger_mode,
-                calendar_frequency_unit=row.calendar_frequency_unit,
-                calendar_frequency_value=row.calendar_frequency_value,
+        existing = self._preventive_plan_repo.get_by_code(organization.id, updated.plan_code)
+        if existing is not None and existing.id != row.id:
+            raise ValidationError(
+                "Preventive plan code already exists in the active organization.",
+                code="MAINTENANCE_PREVENTIVE_PLAN_CODE_EXISTS",
             )
-        if next_due_counter is not None:
-            row.next_due_counter = coerce_optional_decimal_value(next_due_counter, label="Next due counter")
-        if requires_shutdown is not None:
-            row.requires_shutdown = bool(requires_shutdown)
-        if approval_required is not None:
-            row.approval_required = bool(approval_required)
-        if auto_generate_work_order is not None:
-            row.auto_generate_work_order = bool(auto_generate_work_order)
-        if is_active is not None:
-            row.is_active = bool(is_active)
-        if notes is not None:
-            row.notes = normalize_optional_text(notes)
-        row.updated_at = datetime.now(timezone.utc)
+        if (
+            next_due_at is None
+            and updated.next_due_at is None
+            and updated.trigger_mode in (MaintenanceTriggerMode.CALENDAR, MaintenanceTriggerMode.HYBRID)
+            and updated.calendar_frequency_unit is not None
+            and updated.calendar_frequency_value not in (None, 0)
+        ):
+            updated = replace(
+                updated,
+                next_due_at=self._derive_initial_next_due_at(
+                    trigger_mode=updated.trigger_mode,
+                    calendar_frequency_unit=updated.calendar_frequency_unit,
+                    calendar_frequency_value=updated.calendar_frequency_value,
+                ),
+            )
         try:
-            self._preventive_plan_repo.update(row)
+            self._preventive_plan_repo.update(updated)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -460,8 +470,8 @@ class MaintenancePreventivePlanService:
         except Exception:
             self._session.rollback()
             raise
-        self._record_change("maintenance_preventive_plan.update", row)
-        return row
+        self._record_change("maintenance_preventive_plan.update", updated)
+        return updated
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -522,14 +532,6 @@ class MaintenancePreventivePlanService:
             raise ValidationError("Hybrid preventive plans require calendar frequency unit and value.", code="MAINTENANCE_PREVENTIVE_PLAN_CALENDAR_REQUIRED")
         if not has_sensor:
             raise ValidationError("Hybrid preventive plans require sensor, threshold, and direction.", code="MAINTENANCE_PREVENTIVE_PLAN_SENSOR_REQUIRED")
-
-    def _normalize_generation_horizon_count(self, value) -> int:
-        resolved = coerce_optional_non_negative_int(value, label="Generation horizon count")
-        return resolved if resolved not in (None, 0) else 13
-
-    def _normalize_generation_lead_value(self, value) -> int:
-        resolved = coerce_optional_non_negative_int(value, label="Generation lead value")
-        return resolved if resolved is not None else 0
 
     def _derive_initial_next_due_at(self, *, trigger_mode, calendar_frequency_unit, calendar_frequency_value) -> datetime | None:
         if trigger_mode not in (MaintenanceTriggerMode.CALENDAR, MaintenanceTriggerMode.HYBRID):
@@ -604,14 +606,28 @@ class MaintenancePreventivePlanService:
             require_scope_permission(self._user_session, "maintenance", scope_id, "maintenance.read", operation_label=operation_label)
             return
         if self._user_session is not None and self._user_session.is_scope_restricted("maintenance"):
-            raise BusinessRuleError(f"Permission denied for {operation_label}. The record is not anchored to a maintenance scope grant.", code="PERMISSION_DENIED")
+            deny_maintenance_scope_access(
+                self._user_session,
+                operation_label=operation_label,
+                message=(
+                    f"Permission denied for {operation_label}. The record is "
+                    "not anchored to a maintenance scope grant."
+                ),
+            )
 
     def _require_scope_manage(self, scope_id: str, *, operation_label: str) -> None:
         if scope_id:
             require_scope_permission(self._user_session, "maintenance", scope_id, "maintenance.manage", operation_label=operation_label)
             return
         if self._user_session is not None and self._user_session.is_scope_restricted("maintenance"):
-            raise BusinessRuleError(f"Permission denied for {operation_label}. The record is not anchored to a maintenance scope grant.", code="PERMISSION_DENIED")
+            deny_maintenance_scope_access(
+                self._user_session,
+                operation_label=operation_label,
+                message=(
+                    f"Permission denied for {operation_label}. The record is "
+                    "not anchored to a maintenance scope grant."
+                ),
+            )
 
     def _record_change(self, action: str, row: MaintenancePreventivePlan) -> None:
         record_activity(self, action=action, entity_type="maintenance_preventive_plan", entity_id=row.id,

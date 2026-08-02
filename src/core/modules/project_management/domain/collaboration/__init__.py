@@ -1,6 +1,9 @@
 """Collaboration domain — entities, value objects, and mention utilities."""
 
-from src.core.modules.project_management.domain.collaboration.comments.comment import TaskComment
+from src.core.modules.project_management.domain.collaboration.comments.comment import (
+    TaskComment,
+    normalize_task_comment_body,
+)
 from src.core.modules.project_management.domain.collaboration.mentions.mention import (
     CollaborationMentionCandidate,
     MENTION_RE,
@@ -31,5 +34,6 @@ __all__ = [
     "TaskPresenceStatusItem",
     "candidate_handles",
     "extract_mention_tokens",
+    "normalize_task_comment_body",
     "resolve_mentions",
 ]

@@ -114,7 +114,7 @@ def test_maintenance_sensors_and_readings_persist_via_service_graph(services):
     assert reloaded_sensor is not None
     assert reloaded_sensor.id == sensor.id
     assert reloaded_sensor.current_value == reading.reading_value
-    assert reloaded_sensor.last_read_at == reading.reading_timestamp.replace(tzinfo=None)
+    assert reloaded_sensor.last_read_at == reading.reading_timestamp
     assert listed_readings[0].id == reading.id
     assert listed_readings[0].source_batch_id == "SYNC-100"
 

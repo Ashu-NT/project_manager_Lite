@@ -17,14 +17,19 @@ def to_assignment_record_view_model(assignment) -> TaskRecordViewModel:
         "allocationPercent": f"{allocation_percent:.1f}",
         "hoursLogged": f"{hours_logged:.2f}",
         "projectResourceId": assignment.project_resource_id or "",
+        "responseStatus": assignment.response_status,
+        "responseStatusLabel": assignment.response_status_label,
+        "canManage": bool(assignment.can_manage),
+        "canAccept": bool(assignment.can_accept),
+        "canDecline": bool(assignment.can_decline),
     }
     return TaskRecordViewModel(
         id=assignment.id,
         title=assignment.resource_name,
-        status_label=f"{allocation_percent:.1f}%",
-        subtitle="Current allocation commitment",
-        supporting_text=f"Hours logged: {hours_logged:.2f}",
-        meta_text=f"Resource ID: {assignment.resource_id}",
+        status_label=assignment.response_status_label,
+        subtitle="Resource assignment",
+        supporting_text=f"{hours_logged:.2f} h logged",
+        meta_text=f"{allocation_percent:.1f}%",
         state=state,
     )
 

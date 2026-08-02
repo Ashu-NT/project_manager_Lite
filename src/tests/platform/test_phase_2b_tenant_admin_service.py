@@ -3,10 +3,10 @@
 Covers:
   1. Tenant.is_active is a derived property from tenant_status
   2. platform admin can create a tenant
-  3. tenant_admin role (has tenant.create) can create a tenant
+  3. tenant_admin cannot create a tenant
   4. viewer (no tenant.create) is denied create_tenant
   5. duplicate tenant_code is rejected
-  6. create_tenant seeds the caller's membership in the new tenant
+  6. create_tenant does not seed a platform operator customer membership
   7. suspend_tenant: active → suspended
   8. cannot suspend an already-suspended tenant
   9. cannot suspend own active tenant (self-lockout guard)
@@ -19,7 +19,7 @@ Covers:
   16. restore fails if tenant is not archived
   17. suspended tenant cannot be selected via set_active_tenant
   18. archived tenant cannot be selected via set_active_tenant
-  19. list_tenants returns all tenants to tenant_admin
+  19. list_tenants is denied to tenant_admin
   20. list_tenants denied for viewer
 """
 from __future__ import annotations
@@ -55,9 +55,15 @@ def _make_svc(services, *, role_names=None, permissions=None) -> TenantAdminServ
         # Use the bootstrapped admin session directly
         return services["tenant_admin_service"]
 
+    main_tenant_id = services["tenant_context_service"].get_active_tenant_id()
     username = f"p2b-user-{''.join(sorted(role_names or []))}"
     try:
-        user = auth.register_user(username, "StrongPass123!", role_names=list(role_names or []))
+        user = auth.register_user(
+            username,
+            "StrongPass123!",
+            role_names=list(role_names or []),
+            tenant_id=main_tenant_id,
+        )
     except Exception:
         user = auth.authenticate(username, "StrongPass123!")
 
@@ -66,7 +72,6 @@ def _make_svc(services, *, role_names=None, permissions=None) -> TenantAdminServ
     ctx.set_principal(principal)
 
     # Copy active tenant/org from main session so context is valid
-    main_tenant_id = services["tenant_context_service"].get_active_tenant_id()
     if main_tenant_id:
         ctx.set_active_tenant_id(main_tenant_id)
 
@@ -126,10 +131,11 @@ def test_admin_can_create_tenant(services):
     assert tenant.is_active is True
 
 
-def test_tenant_admin_role_can_create_tenant(services):
+def test_tenant_admin_role_cannot_create_tenant(services):
     svc = _make_tenant_admin_svc(services)
-    tenant = svc.create_tenant("P2B-TADMIN", "Tenant Admin Created")
-    assert tenant.tenant_status == TENANT_STATUS_ACTIVE
+    with pytest.raises(BusinessRuleError) as exc:
+        svc.create_tenant("P2B-TADMIN", "Tenant Admin Created")
+    assert exc.value.code == "PERMISSION_DENIED"
 
 
 def test_viewer_cannot_create_tenant(services):
@@ -153,28 +159,15 @@ def test_create_tenant_code_normalized_to_uppercase(services):
     assert tenant.tenant_code == "P2B-LOWER"
 
 
-def test_create_tenant_seeds_caller_membership(services):
-    session = services["session"]
-    auth = services["auth_service"]
-    user = auth.register_user("p2b-create-member", "StrongPass123!", role_names=["tenant_admin"])
-    principal = auth.build_principal(user)
-    ctx = UserSessionContext()
-    ctx.set_principal(principal)
+def test_create_tenant_does_not_seed_platform_operator_membership(services):
+    svc = services["tenant_admin_service"]
+    actor_id = services["user_session"].principal.user_id
+    tenant = svc.create_tenant("P2B-NO-SEED", "No Implicit Membership")
 
-    main_tenant_id = services["tenant_context_service"].get_active_tenant_id()
-    if main_tenant_id:
-        ctx.set_active_tenant_id(main_tenant_id)
-
-    svc = TenantAdminService(
-        session=session,
-        tenant_repo=SqlAlchemyTenantRepository(session),
-        user_tenant_repo=SqlAlchemyUserTenantMembershipRepository(session),
-        user_session=ctx,
-    )
-    tenant = svc.create_tenant("P2B-SEEDMBR", "Seed Membership Test")
-
-    ut_repo = SqlAlchemyUserTenantMembershipRepository(session)
-    assert ut_repo.is_active_member(user.id, tenant.id) is True
+    assert services["auth_service"]._user_tenant_repo.is_active_member(
+        actor_id,
+        tenant.id,
+    ) is False
 
 
 # ---------------------------------------------------------------------------
@@ -320,14 +313,15 @@ def test_archived_tenant_cannot_be_selected(services):
 # 19–20. list_tenants
 # ---------------------------------------------------------------------------
 
-def test_tenant_admin_can_list_tenants(services):
+def test_tenant_admin_cannot_list_tenants(services):
     svc_admin = services["tenant_admin_service"]
     svc_admin.create_tenant("P2B-LIST1", "List Test 1")
     svc_admin.create_tenant("P2B-LIST2", "List Test 2")
 
     svc_tadmin = _make_tenant_admin_svc(services)
-    tenants = svc_tadmin.list_tenants()
-    assert len(tenants) >= 2
+    with pytest.raises(BusinessRuleError) as exc:
+        svc_tadmin.list_tenants()
+    assert exc.value.code == "PERMISSION_DENIED"
 
 
 def test_viewer_cannot_list_tenants(services):

@@ -36,7 +36,22 @@ class _FakeTaskService:
         duration_days: int | None = None,
         priority: int = 0,
         deadline: date | None = None,
+        parent_task_id: str | None = None,
+        wbs_code: str = "",
+        sort_order: int | None = None,
     ) -> Task:
+        resolved_sort_order = (
+            sort_order
+            if sort_order is not None
+            else len(
+                [
+                    task
+                    for task in self._tasks.values()
+                    if task.project_id == project_id
+                    and task.parent_task_id == parent_task_id
+                ]
+            )
+        )
         task = Task(
             id=f"task-{self._next_id}",
             project_id=project_id,
@@ -48,9 +63,32 @@ class _FakeTaskService:
             duration_days=duration_days,
             priority=priority,
             deadline=deadline,
+            parent_task_id=parent_task_id,
+            wbs_code=wbs_code or str(self._next_id),
+            sort_order=resolved_sort_order,
         )
         self._next_id += 1
         self._tasks[task.id] = task
+        return task
+
+    def move_task(
+        self,
+        task_id: str,
+        *,
+        parent_task_id: str | None,
+        wbs_code: str | None = None,
+        sort_order: int | None = None,
+        expected_version: int | None = None,
+    ) -> Task:
+        task = self._tasks[task_id]
+        if expected_version is not None and task.version != expected_version:
+            raise ValueError("Task version is stale.")
+        task.parent_task_id = parent_task_id
+        if wbs_code:
+            task.wbs_code = wbs_code
+        if sort_order is not None:
+            task.sort_order = sort_order
+        task.version += 1
         return task
 
     def create_assignment(
@@ -177,6 +215,26 @@ class _FakeTaskService:
         task.status = status
         task.version += 1
 
+    def set_tasks_status(
+        self,
+        task_ids: tuple[str, ...],
+        status: TaskStatus,
+        *,
+        reopen_percent_complete: float | None = None,
+    ) -> list[Task]:
+        changed: list[Task] = []
+        for task_id in task_ids:
+            task = self._tasks.get(task_id)
+            if task is None:
+                continue
+            if task.status == status:
+                continue
+            if reopen_percent_complete is not None and status == TaskStatus.IN_PROGRESS:
+                task.percent_complete = reopen_percent_complete
+            self.set_status(task_id, status)
+            changed.append(task)
+        return changed
+
     def update_progress(
         self,
         task_id: str,
@@ -201,6 +259,14 @@ class _FakeTaskService:
 
     def delete_task(self, task_id: str) -> None:
         del self._tasks[task_id]
+
+    def delete_tasks(self, task_ids: tuple[str, ...]) -> tuple[str, ...]:
+        deleted: list[str] = []
+        for task_id in task_ids:
+            if task_id in self._tasks:
+                self.delete_task(task_id)
+                deleted.append(task_id)
+        return tuple(deleted)
 
     def get_task(self, task_id: str) -> Task | None:
         return self._tasks.get(task_id)

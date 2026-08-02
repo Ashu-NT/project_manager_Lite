@@ -1,14 +1,13 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.shared.audit import record_audit_entry
-from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_permission
+from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.department.contracts import DepartmentRepository
 from src.core.platform.employee.application.employee_support import (
     build_employee_audit_details,
@@ -21,14 +20,11 @@ from src.core.platform.employee.contracts import (
     LinkedEmployeeResourceRepository,
 )
 from src.core.platform.employee.domain import Employee, EmploymentType
-from src.core.platform.employee.support import (
-    coerce_employment_type,
-    normalize_email,
-    normalize_phone,
-)
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.site.contracts import SiteRepository
 from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.shared.audit import record_audit_entry
+from src.core.shared.events.domain_events import domain_events
 
 if TYPE_CHECKING:
     from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
@@ -80,45 +76,40 @@ class EmployeeService:
         email: str | None = None,
         phone: str | None = None,
         is_active: bool = True,
+        user_id: str | None = None,
     ) -> Employee:
         require_permission(self._user_session, "employee.manage", operation_label="create employee")
         organization_id = self._active_organization_id(operation_label="create employee")
-        normalized_code = (employee_code or "").strip().upper()
-        normalized_name = (full_name or "").strip()
-        if not normalized_code:
-            raise ValidationError("Employee code is required.", code="EMPLOYEE_CODE_REQUIRED")
-        if not normalized_name:
-            raise ValidationError("Employee name is required.", code="EMPLOYEE_NAME_REQUIRED")
-        if self._employee_repo.get_by_code_for_organization(normalized_code, organization_id) is not None:
+        employee = Employee.create(
+            employee_code=employee_code,
+            full_name=full_name,
+            organization_id=organization_id,
+            department_id=department_id,
+            department=department,
+            site_id=site_id,
+            site_name=site_name,
+            title=title,
+            employment_type=employment_type,
+            email=email,
+            phone=phone,
+            is_active=bool(is_active),
+            user_id=user_id,
+        )
+        if self._employee_repo.get_by_code_for_organization(employee.employee_code, organization_id) is not None:
             raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS")
-        resolved_department_id, resolved_department_name = resolve_employee_department_reference(
+        employee.department_id, employee.department = resolve_employee_department_reference(
             department_repo=self._department_repo,
             organization_repo=self._organization_repo,
             active_organization_id=organization_id,
-            department_id=department_id,
-            department_name=department or "",
+            department_id=employee.department_id,
+            department_name=employee.department,
         )
-        resolved_site_id, resolved_site_name = resolve_employee_site_reference(
+        employee.site_id, employee.site_name = resolve_employee_site_reference(
             site_repo=self._site_repo,
             organization_repo=self._organization_repo,
             active_organization_id=organization_id,
-            site_id=site_id,
-            site_name=site_name,
-        )
-
-        employee = Employee.create(
-            employee_code=normalized_code,
-            full_name=normalized_name,
-            organization_id=organization_id,
-            department_id=resolved_department_id,
-            department=resolved_department_name,
-            site_id=resolved_site_id,
-            site_name=resolved_site_name,
-            title=(title or "").strip(),
-            employment_type=coerce_employment_type(employment_type),
-            email=normalize_email(email),
-            phone=normalize_phone(phone),
-            is_active=bool(is_active),
+            site_id=employee.site_id,
+            site_name=employee.site_name,
         )
         try:
             self._employee_repo.add(employee)
@@ -156,6 +147,7 @@ class EmployeeService:
         email: str | None = None,
         phone: str | None = None,
         is_active: bool | None = None,
+        user_id: str | None = None,
         expected_version: int | None = None,
     ) -> Employee:
         require_permission(self._user_session, "employee.manage", operation_label="update employee")
@@ -169,52 +161,54 @@ class EmployeeService:
                 code="STALE_WRITE",
             )
 
-        if employee_code is not None:
-            normalized_code = (employee_code or "").strip().upper()
-            if not normalized_code:
-                raise ValidationError("Employee code is required.", code="EMPLOYEE_CODE_REQUIRED")
-            existing = self._employee_repo.get_by_code_for_organization(
-                normalized_code,
-                organization_id,
-            )
-            if existing is not None and existing.id != employee.id:
-                raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS")
-            employee.employee_code = normalized_code
-        if full_name is not None:
-            normalized_name = (full_name or "").strip()
-            if not normalized_name:
-                raise ValidationError("Employee name is required.", code="EMPLOYEE_NAME_REQUIRED")
-            employee.full_name = normalized_name
+        resolved_department_id = employee.department_id
+        resolved_department_name = employee.department
         if department_id is not None or department is not None:
-            employee.department_id, employee.department = resolve_employee_department_reference(
+            resolved_department_id, resolved_department_name = resolve_employee_department_reference(
                 department_repo=self._department_repo,
                 organization_repo=self._organization_repo,
                 active_organization_id=organization_id,
                 department_id=department_id if department_id is not None else None,
                 department_name=department if department is not None else employee.department,
             )
+
+        resolved_site_id = employee.site_id
+        resolved_site_name = employee.site_name
         if site_id is not None or site_name is not None:
-            employee.site_id, employee.site_name = resolve_employee_site_reference(
+            resolved_site_id, resolved_site_name = resolve_employee_site_reference(
                 site_repo=self._site_repo,
                 organization_repo=self._organization_repo,
                 active_organization_id=organization_id,
                 site_id=site_id if site_id is not None else None,
                 site_name=site_name if site_name is not None else employee.site_name,
             )
-        if title is not None:
-            employee.title = (title or "").strip()
-        if employment_type is not None:
-            employee.employment_type = coerce_employment_type(employment_type)
-        if email is not None:
-            employee.email = normalize_email(email)
-        if phone is not None:
-            employee.phone = normalize_phone(phone)
-        if is_active is not None:
-            employee.is_active = bool(is_active)
+
+        candidate = replace(
+            employee,
+            employee_code=employee_code if employee_code is not None else employee.employee_code,
+            full_name=full_name if full_name is not None else employee.full_name,
+            department_id=resolved_department_id,
+            department=resolved_department_name,
+            site_id=resolved_site_id,
+            site_name=resolved_site_name,
+            title=title if title is not None else employee.title,
+            employment_type=employment_type if employment_type is not None else employee.employment_type,
+            email=email if email is not None else employee.email,
+            phone=phone if phone is not None else employee.phone,
+            is_active=bool(is_active) if is_active is not None else employee.is_active,
+            user_id=user_id if user_id is not None else employee.user_id,
+        )
+        if employee_code is not None:
+            existing = self._employee_repo.get_by_code_for_organization(
+                candidate.employee_code,
+                organization_id,
+            )
+            if existing is not None and existing.id != employee.id:
+                raise ValidationError("Employee code already exists.", code="EMPLOYEE_CODE_EXISTS")
 
         try:
-            self._employee_repo.update(employee)
-            sync_linked_employee_resources(employee, self._resource_repo)
+            self._employee_repo.update(candidate)
+            sync_linked_employee_resources(candidate, self._resource_repo)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -226,13 +220,13 @@ class EmployeeService:
             self,
             operation="update",
             entity_type="employee",
-            entity_id=employee.id,
+            entity_id=candidate.id,
             module="platform",
             severity="low",
-            metadata={"action": "employee.update", **build_employee_audit_details(employee)},
+            metadata={"action": "employee.update", **build_employee_audit_details(candidate)},
         )
-        domain_events.employees_changed.emit(employee.id)
-        return employee
+        domain_events.employees_changed.emit(candidate.id)
+        return candidate
 
     def list_employees(self, *, active_only: bool | None = None) -> list[Employee]:
         require_permission(self._user_session, "employee.read", operation_label="list employees")

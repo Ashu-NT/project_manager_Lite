@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, datetime, time, timezone
 from typing import Any
 
@@ -14,15 +15,9 @@ from src.core.platform.calendar.contracts import (
 )
 from src.core.platform.calendar.domain.enterprise_calendar import (
     CalendarException,
-    ExceptionType,
-    ImpactType,
 )
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.calendar.application.enterprise_calendar_service import _resolve_username
-
-
-_VALID_EXCEPTION_TYPES = {t.value for t in ExceptionType}
-_VALID_IMPACT_TYPES = {t.value for t in ImpactType}
 
 
 class CalendarExceptionService:
@@ -70,18 +65,13 @@ class CalendarExceptionService:
             self._user_session, "task.manage", operation_label="add calendar exception"
         )
         self._require_calendar(calendar_id)
-        self._validate_types(exception_type, impact_type)
-        if start_time and end_time and end_time <= start_time:
-            raise ValidationError("Exception end_time must be after start_time.")
-        if hours_override is not None and hours_override < 0:
-            raise ValidationError("hours_override must be non-negative.")
 
         username = _resolve_username(self._user_session)
         exc = CalendarException.create(
             calendar_id=calendar_id,
             exception_date=exception_date,
             exception_type=exception_type,
-            name=name.strip(),
+            name=name,
             impact_type=impact_type,
             scope_type=scope_type,
             scope_id=scope_id,
@@ -119,35 +109,25 @@ class CalendarExceptionService:
         if exc is None:
             raise NotFoundError(f"Exception '{exception_id}' not found.")
 
-        if name is not None:
-            exc.name = name.strip()
-        if description is not None:
-            exc.description = description
-        if exception_type is not None:
-            self._validate_types(exception_type, exc.impact_type)
-            exc.exception_type = exception_type
-        if impact_type is not None:
-            self._validate_types(exc.exception_type, impact_type)
-            exc.impact_type = impact_type
-        if start_time is not None:
-            exc.start_time = start_time
-        if end_time is not None:
-            exc.end_time = end_time
-        if hours_override is not None:
-            exc.hours_override = hours_override
-        if priority is not None:
-            exc.priority = priority
-        if approval_status is not None:
-            exc.approval_status = approval_status
-        if approved_by is not None:
-            exc.approved_by = approved_by
-
         username = _resolve_username(self._user_session)
-        exc.updated_by = username
-        exc.updated_at = datetime.now(timezone.utc)
-        self._exception_repo.update(exc)
+        updated = replace(
+            exc,
+            name=exc.name if name is None else name,
+            description=exc.description if description is None else description,
+            exception_type=exc.exception_type if exception_type is None else exception_type,
+            impact_type=exc.impact_type if impact_type is None else impact_type,
+            start_time=exc.start_time if start_time is None else start_time,
+            end_time=exc.end_time if end_time is None else end_time,
+            hours_override=exc.hours_override if hours_override is None else hours_override,
+            priority=exc.priority if priority is None else priority,
+            approval_status=exc.approval_status if approval_status is None else approval_status,
+            approved_by=exc.approved_by if approved_by is None else approved_by,
+            updated_by=username,
+            updated_at=datetime.now(timezone.utc),
+        )
+        self._exception_repo.update(updated)
         self._session.commit()
-        return exc
+        return updated
 
     def delete_exception(self, exception_id: str) -> None:
         require_permission(
@@ -192,18 +172,6 @@ class CalendarExceptionService:
     def _require_calendar(self, calendar_id: str) -> None:
         if self._calendar_repo.get(calendar_id) is None:
             raise NotFoundError(f"Calendar '{calendar_id}' not found.")
-
-    def _validate_types(self, exception_type: str, impact_type: str) -> None:
-        if exception_type not in _VALID_EXCEPTION_TYPES:
-            raise ValidationError(
-                f"Invalid exception_type '{exception_type}'. "
-                f"Valid: {sorted(_VALID_EXCEPTION_TYPES)}"
-            )
-        if impact_type not in _VALID_IMPACT_TYPES:
-            raise ValidationError(
-                f"Invalid impact_type '{impact_type}'. "
-                f"Valid: {sorted(_VALID_IMPACT_TYPES)}"
-            )
 
 
 __all__ = ["CalendarExceptionService"]

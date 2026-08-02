@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.domain.identifiers import generate_id
 from src.core.modules.project_management.contracts.repositories.collaboration import (
     TaskCommentRepository,
     TaskPresenceRepository,
@@ -17,10 +16,12 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.coll
     task_comment_from_orm,
     task_comment_to_orm,
     task_presence_from_orm,
+    task_presence_to_orm,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.collaboration import TaskCommentORM, TaskPresenceORM
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.tenancy.tenant_context import TenantContext, TenantContextService
+from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyTaskCommentRepository(TaskCommentRepository):
@@ -69,25 +70,38 @@ class SqlAlchemyTaskCommentRepository(TaskCommentRepository):
         self.session.add(task_comment_to_orm(comment))
 
     def update(self, comment: TaskComment) -> None:
-        row = (
-            self.session.execute(
-                self._project_scoped_stmt().where(TaskCommentORM.id == comment.id)
-            ).scalar_one_or_none()
-        )
-        if row is None:
+        existing = self.get(comment.id)
+        if existing is None:
             raise NotFoundError("Task comment not found.")
         self._ensure_task_in_scope(comment.task_id)
         mapped = task_comment_to_orm(comment)
-        row.task_id = mapped.task_id
-        row.author_user_id = mapped.author_user_id
-        row.author_username = mapped.author_username
-        row.body = mapped.body
-        row.mentions_json = mapped.mentions_json
-        row.mentioned_user_ids_json = mapped.mentioned_user_ids_json
-        row.attachments_json = mapped.attachments_json
-        row.read_by_json = mapped.read_by_json
-        row.read_by_user_ids_json = mapped.read_by_user_ids_json
-        row.created_at = mapped.created_at
+        comment.version = update_with_version_check(
+            self.session,
+            TaskCommentORM,
+            comment.id,
+            comment.version,
+            {
+                "task_id": mapped.task_id,
+                "author_user_id": mapped.author_user_id,
+                "author_username": mapped.author_username,
+                "body": mapped.body,
+                "mentions_json": mapped.mentions_json,
+                "mentioned_user_ids_json": mapped.mentioned_user_ids_json,
+                "attachments_json": mapped.attachments_json,
+                "read_by_json": mapped.read_by_json,
+                "read_by_user_ids_json": mapped.read_by_user_ids_json,
+                "created_at": mapped.created_at,
+                "parent_comment_id": mapped.parent_comment_id,
+                "updated_at": mapped.updated_at,
+                "deleted_at": mapped.deleted_at,
+                "deleted_by_user_id": mapped.deleted_by_user_id,
+                "deletion_reason": mapped.deletion_reason,
+                "reactions_json": mapped.reactions_json,
+            },
+            extra_filters={"task_id": comment.task_id},
+            not_found_message="Task comment not found.",
+            stale_message="This comment changed after it was loaded. Refresh the discussion and try again.",
+        )
 
     def get(self, comment_id: str) -> TaskComment | None:
         stmt = self._project_scoped_stmt().where(TaskCommentORM.id == comment_id)
@@ -165,39 +179,47 @@ class SqlAlchemyTaskPresenceRepository(TaskPresenceRepository):
         display_name: str | None,
         activity: str,
     ) -> TaskPresence:
-        normalized_username = str(username or "").strip().lower()
-        self._ensure_task_in_scope(task_id)
+        candidate = TaskPresence.create(
+            task_id=task_id,
+            user_id=user_id,
+            username=username,
+            display_name=display_name,
+            activity=activity,
+        )
+        self._ensure_task_in_scope(candidate.task_id)
         stmt = select(TaskPresenceORM).where(
-            TaskPresenceORM.task_id == task_id,
-            TaskPresenceORM.username == normalized_username,
+            TaskPresenceORM.task_id == candidate.task_id,
+            TaskPresenceORM.username == candidate.username,
             TaskPresenceORM.task_id.in_(self._scoped_task_ids()),
         )
         obj = self.session.execute(stmt).scalar_one_or_none()
-        now = datetime.now()
         if obj is None:
-            obj = TaskPresenceORM(
-                id=generate_id(),
-                task_id=task_id,
-                user_id=user_id,
-                username=normalized_username,
-                display_name=(display_name or "").strip() or None,
-                activity=(activity or "reviewing").strip().lower(),
-                started_at=now,
-                last_seen_at=now,
-            )
-            self.session.add(obj)
-        else:
-            obj.user_id = user_id
-            obj.display_name = (display_name or "").strip() or None
-            obj.activity = (activity or "reviewing").strip().lower()
-            obj.last_seen_at = now
-        return task_presence_from_orm(obj)
+            self.session.add(task_presence_to_orm(candidate))
+            return candidate
+        presence = TaskPresence(
+            id=obj.id,
+            task_id=obj.task_id,
+            user_id=user_id,
+            username=candidate.username,
+            display_name=display_name,
+            activity=activity,
+            started_at=obj.started_at,
+            last_seen_at=datetime.now(timezone.utc),
+        )
+        mapped = task_presence_to_orm(presence)
+        obj.user_id = mapped.user_id
+        obj.username = mapped.username
+        obj.display_name = mapped.display_name
+        obj.activity = mapped.activity
+        obj.started_at = mapped.started_at
+        obj.last_seen_at = mapped.last_seen_at
+        return presence
 
     def clear(self, *, task_id: str, username: str) -> None:
-        normalized_username = str(username or "").strip().lower()
+        probe = TaskPresence.create(task_id=task_id, user_id=None, username=username)
         stmt = select(TaskPresenceORM).where(
-            TaskPresenceORM.task_id == task_id,
-            TaskPresenceORM.username == normalized_username,
+            TaskPresenceORM.task_id == probe.task_id,
+            TaskPresenceORM.username == probe.username,
             TaskPresenceORM.task_id.in_(self._scoped_task_ids()),
         )
         obj = self.session.execute(stmt).scalar_one_or_none()

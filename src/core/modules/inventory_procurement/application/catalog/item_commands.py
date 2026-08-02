@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any
 
@@ -20,20 +21,13 @@ from src.core.modules.inventory_procurement.application.catalog.item_category_re
 )
 from src.core.modules.inventory_procurement.application.catalog.item_validation import (
     _validate_party_reference,
-    _validate_reorder_quantities,
-    _validate_uom_configuration,
 )
 from src.core.modules.inventory_procurement.application.common.support import (
     ITEM_STATUS_TRANSITIONS,
     normalize_inventory_code,
-    normalize_inventory_name,
-    normalize_nonnegative_days,
-    normalize_nonnegative_quantity,
     normalize_optional_text,
     normalize_status,
     normalize_uom,
-    resolve_active_flag_from_status,
-    resolve_configured_uom_ratio,
     resolve_status_from_active,
     validate_transition,
 )
@@ -90,56 +84,34 @@ def create_item(
     normalized_item_type = normalize_optional_text(item_type).upper()
     if not normalized_item_type and category is not None:
         normalized_item_type = category.category_type
-    resolved_status = normalize_status(
-        status,
-        default_status="DRAFT",
-        allowed_statuses=set(ITEM_STATUS_TRANSITIONS.keys()),
-        label="Inventory item status",
-    )
     item = StockItem.create(
         organization_id=organization.id,
         item_code=normalized_code,
-        name=normalize_inventory_name(name, label="Item name"),
-        description=normalize_optional_text(description),
+        name=name,
+        description=description,
         item_type=normalized_item_type,
-        status=resolved_status,
+        status=status,
         stock_uom=normalized_stock_uom,
-        order_uom=normalized_order_uom,
-        issue_uom=normalized_issue_uom,
-        order_uom_ratio=resolve_configured_uom_ratio(
-            uom=normalized_order_uom,
-            stock_uom=normalized_stock_uom,
-            ratio=order_uom_ratio,
-            label="Order",
-        ),
-        issue_uom_ratio=resolve_configured_uom_ratio(
-            uom=normalized_issue_uom,
-            stock_uom=normalized_stock_uom,
-            ratio=issue_uom_ratio,
-            label="Issue",
-        ),
+        order_uom=order_uom or normalized_order_uom,
+        issue_uom=issue_uom or normalized_issue_uom,
+        order_uom_ratio=order_uom_ratio,
+        issue_uom_ratio=issue_uom_ratio,
         category_code=resolved_category_code,
-        commodity_code=normalize_optional_text(commodity_code).upper(),
+        commodity_code=commodity_code,
         is_stocked=bool(is_stocked),
         is_purchase_allowed=bool(is_purchase_allowed),
-        is_active=resolve_active_flag_from_status(resolved_status),
-        default_reorder_policy=normalize_optional_text(default_reorder_policy).upper(),
-        min_qty=normalize_nonnegative_quantity(min_qty, label="Minimum quantity"),
-        max_qty=normalize_nonnegative_quantity(max_qty, label="Maximum quantity"),
-        reorder_point=normalize_nonnegative_quantity(reorder_point, label="Reorder point"),
-        reorder_qty=normalize_nonnegative_quantity(reorder_qty, label="Reorder quantity"),
-        lead_time_days=normalize_nonnegative_days(lead_time_days, label="Lead time days"),
+        default_reorder_policy=default_reorder_policy,
+        min_qty=min_qty,
+        max_qty=max_qty,
+        reorder_point=reorder_point,
+        reorder_qty=reorder_qty,
+        lead_time_days=lead_time_days,
         is_lot_tracked=bool(is_lot_tracked),
         is_serial_tracked=bool(is_serial_tracked),
-        shelf_life_days=normalize_nonnegative_days(
-            shelf_life_days,
-            label="Shelf life days",
-        ),
+        shelf_life_days=shelf_life_days,
         preferred_party_id=_validate_party_reference(owner, preferred_party_id),
-        notes=normalize_optional_text(notes),
+        notes=notes,
     )
-    _validate_uom_configuration(item)
-    _validate_reorder_quantities(item)
     try:
         owner._item_repo.add(item)
         owner._session.commit()
@@ -207,112 +179,46 @@ def update_item(
             code="STALE_WRITE",
         )
     previous_stock_uom = item.stock_uom
+    next_item_code = item.item_code
     if item_code is not None:
-        normalized_code = normalize_inventory_code(item_code, label="Item code")
-        existing = owner._item_repo.get_by_code(organization.id, normalized_code)
+        next_item_code = normalize_inventory_code(item_code, label="Item code")
+        existing = owner._item_repo.get_by_code(organization.id, next_item_code)
         if existing is not None and existing.id != item.id:
             raise ValidationError(
                 "Item code already exists in the active organization.",
                 code="INVENTORY_ITEM_CODE_EXISTS",
             )
-        item.item_code = normalized_code
-    if name is not None:
-        item.name = normalize_inventory_name(name, label="Item name")
-    if description is not None:
-        item.description = normalize_optional_text(description)
-    if item_type is not None:
-        item.item_type = normalize_optional_text(item_type).upper()
-    if stock_uom is not None:
-        item.stock_uom = normalize_uom(stock_uom, label="Stock UOM")
+    next_stock_uom = item.stock_uom if stock_uom is None else normalize_uom(stock_uom, label="Stock UOM")
+    next_order_uom = item.order_uom
     if order_uom is not None:
-        item.order_uom = normalize_uom(order_uom, label="Order UOM")
-    elif (
-        stock_uom is not None
-        and normalize_optional_text(item.order_uom).upper() == previous_stock_uom
-    ):
-        item.order_uom = item.stock_uom
+        next_order_uom = normalize_uom(order_uom, label="Order UOM")
+    elif stock_uom is not None and item.order_uom == previous_stock_uom:
+        next_order_uom = next_stock_uom
+    next_issue_uom = item.issue_uom
     if issue_uom is not None:
-        item.issue_uom = normalize_uom(issue_uom, label="Issue UOM")
-    elif (
-        stock_uom is not None
-        and normalize_optional_text(item.issue_uom).upper() == previous_stock_uom
-    ):
-        item.issue_uom = item.stock_uom
-    if stock_uom is not None and item.order_uom != item.stock_uom and order_uom_ratio is None:
+        next_issue_uom = normalize_uom(issue_uom, label="Issue UOM")
+    elif stock_uom is not None and item.issue_uom == previous_stock_uom:
+        next_issue_uom = next_stock_uom
+    if stock_uom is not None and next_order_uom != next_stock_uom and order_uom_ratio is None:
         raise ValidationError(
             "Order UOM factor must be provided when stock UOM changes and order UOM remains different.",
             code="INVENTORY_UOM_FACTOR_REQUIRED",
         )
-    if stock_uom is not None and item.issue_uom != item.stock_uom and issue_uom_ratio is None:
+    if stock_uom is not None and next_issue_uom != next_stock_uom and issue_uom_ratio is None:
         raise ValidationError(
             "Issue UOM factor must be provided when stock UOM changes and issue UOM remains different.",
             code="INVENTORY_UOM_FACTOR_REQUIRED",
         )
-    item.order_uom_ratio = resolve_configured_uom_ratio(
-        uom=item.order_uom,
-        stock_uom=item.stock_uom,
-        ratio=(
-            order_uom_ratio
-            if order_uom_ratio is not None
-            else item.order_uom_ratio
-        ),
-        label="Order",
-    )
-    item.issue_uom_ratio = resolve_configured_uom_ratio(
-        uom=item.issue_uom,
-        stock_uom=item.stock_uom,
-        ratio=(
-            issue_uom_ratio
-            if issue_uom_ratio is not None
-            else item.issue_uom_ratio
-        ),
-        label="Issue",
-    )
+    next_category_code = item.category_code
     if category_code is not None:
-        resolved_category_code, _category = _resolve_category_reference(
+        next_category_code, _category = _resolve_category_reference(
             owner,
             category_code,
             allow_existing_code=item.category_code,
         )
-        item.category_code = resolved_category_code
-    if commodity_code is not None:
-        item.commodity_code = normalize_optional_text(commodity_code).upper()
-    if is_stocked is not None:
-        item.is_stocked = bool(is_stocked)
-    if is_purchase_allowed is not None:
-        item.is_purchase_allowed = bool(is_purchase_allowed)
-    if default_reorder_policy is not None:
-        item.default_reorder_policy = normalize_optional_text(default_reorder_policy).upper()
-    if min_qty is not None:
-        item.min_qty = normalize_nonnegative_quantity(min_qty, label="Minimum quantity")
-    if max_qty is not None:
-        item.max_qty = normalize_nonnegative_quantity(max_qty, label="Maximum quantity")
-    if reorder_point is not None:
-        item.reorder_point = normalize_nonnegative_quantity(
-            reorder_point,
-            label="Reorder point",
-        )
-    if reorder_qty is not None:
-        item.reorder_qty = normalize_nonnegative_quantity(
-            reorder_qty,
-            label="Reorder quantity",
-        )
-    if lead_time_days is not None:
-        item.lead_time_days = normalize_nonnegative_days(
-            lead_time_days,
-            label="Lead time days",
-        )
-    if is_lot_tracked is not None:
-        item.is_lot_tracked = bool(is_lot_tracked)
-    if is_serial_tracked is not None:
-        item.is_serial_tracked = bool(is_serial_tracked)
-    if shelf_life_days is not None:
-        item.shelf_life_days = normalize_nonnegative_days(
-            shelf_life_days,
-            label="Shelf life days",
-        )
+    next_preferred_party_id = item.preferred_party_id
     if preferred_party_id is not None:
-        item.preferred_party_id = _validate_party_reference(owner, preferred_party_id)
+        next_preferred_party_id = _validate_party_reference(owner, preferred_party_id)
     next_status = item.status
     if status is not None:
         next_status = normalize_status(
@@ -332,13 +238,51 @@ def update_item(
             is_active=bool(is_active),
             transitions=ITEM_STATUS_TRANSITIONS,
         )
-    item.status = next_status
-    item.is_active = resolve_active_flag_from_status(item.status)
-    if notes is not None:
-        item.notes = normalize_optional_text(notes)
-    _validate_uom_configuration(item)
-    _validate_reorder_quantities(item)
-    item.updated_at = datetime.now(timezone.utc)
+    item = replace(
+        item,
+        item_code=next_item_code,
+        name=item.name if name is None else name,
+        description=item.description if description is None else description,
+        item_type=item.item_type if item_type is None else item_type,
+        status=next_status,
+        stock_uom=next_stock_uom,
+        order_uom=next_order_uom,
+        issue_uom=next_issue_uom,
+        order_uom_ratio=(
+            item.order_uom_ratio if order_uom_ratio is None else order_uom_ratio
+        ),
+        issue_uom_ratio=(
+            item.issue_uom_ratio if issue_uom_ratio is None else issue_uom_ratio
+        ),
+        category_code=next_category_code,
+        commodity_code=item.commodity_code if commodity_code is None else commodity_code,
+        is_stocked=item.is_stocked if is_stocked is None else bool(is_stocked),
+        is_purchase_allowed=(
+            item.is_purchase_allowed
+            if is_purchase_allowed is None
+            else bool(is_purchase_allowed)
+        ),
+        default_reorder_policy=(
+            item.default_reorder_policy
+            if default_reorder_policy is None
+            else default_reorder_policy
+        ),
+        min_qty=item.min_qty if min_qty is None else min_qty,
+        max_qty=item.max_qty if max_qty is None else max_qty,
+        reorder_point=item.reorder_point if reorder_point is None else reorder_point,
+        reorder_qty=item.reorder_qty if reorder_qty is None else reorder_qty,
+        lead_time_days=item.lead_time_days if lead_time_days is None else lead_time_days,
+        is_lot_tracked=item.is_lot_tracked if is_lot_tracked is None else bool(is_lot_tracked),
+        is_serial_tracked=(
+            item.is_serial_tracked if is_serial_tracked is None else bool(is_serial_tracked)
+        ),
+        shelf_life_days=(
+            item.shelf_life_days if shelf_life_days is None else shelf_life_days
+        ),
+        preferred_party_id=next_preferred_party_id,
+        notes=item.notes if notes is None else notes,
+        updated_at=datetime.now(timezone.utc),
+    )
     try:
         owner._item_repo.update(item)
         owner._session.commit()

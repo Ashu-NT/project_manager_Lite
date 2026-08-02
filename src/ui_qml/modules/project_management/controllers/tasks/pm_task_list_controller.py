@@ -60,6 +60,7 @@ class PMTaskListController(QObject):
         self._bulk_status_options: list[dict[str, str]] = []
         self._priority_options: list[dict[str, str]] = []
         self._schedule_options: list[dict[str, str]] = []
+        self._wbs_parent_options: list[dict[str, str]] = []
         self._tasks: dict[str, object] = {
             "title": "", "subtitle": "", "emptyState": "", "items": []
         }
@@ -91,6 +92,9 @@ class PMTaskListController(QObject):
         )
         self._set_schedule_options(
             serialize_selector_options(workspace_state.schedule_options)
+        )
+        self._wbs_parent_options = serialize_selector_options(
+            workspace_state.wbs_parent_options
         )
         items = serialize_task_record_view_models(workspace_state.tasks)
         self._reconcile_task_bulk_selection(items)
@@ -149,6 +153,10 @@ class PMTaskListController(QObject):
     @Property("QVariantMap", notify=tasksChanged)
     def tasks(self) -> dict[str, object]:
         return self._tasks
+
+    @Property("QVariantList", notify=tasksChanged)
+    def wbsParentOptions(self) -> list[dict[str, str]]:
+        return self._wbs_parent_options
 
     @Property(QObject, constant=True)
     def tasksTableModel(self) -> DynamicTableModel:
@@ -249,6 +257,17 @@ class PMTaskListController(QObject):
         return run_mutation(
             operation=lambda: self._presenter.update_task(dict(payload)),
             success_message="Task updated.",
+            on_success=self._facade_refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def moveTaskInWbs(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._presenter.move_task_in_wbs(dict(payload)),
+            success_message="Task WBS position updated.",
             on_success=self._facade_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,

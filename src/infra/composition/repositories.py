@@ -17,9 +17,12 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     SqlAlchemyPortfolioScenarioRepository,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.baseline import SqlAlchemyBaselineRepository
-from src.core.modules.project_management.infrastructure.persistence.repositories.cost_calendar import (
-    SqlAlchemyCalendarEventRepository,
+from src.core.modules.project_management.infrastructure.persistence.repositories.cost import (
     SqlAlchemyCostRepository,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.financial_configuration import (
+    SqlAlchemyProjectCostCodeRepository,
+    SqlAlchemyProjectFinancialProfileRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
@@ -49,21 +52,20 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     SqlAlchemyDependencyRepository,
     SqlAlchemyTaskRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.access import (
-    SqlAlchemyProjectMembershipRepository,
-    SqlAlchemyScopedAccessGrantRepository,
-)
 from src.core.platform.infrastructure.persistence.repositories.activity import SqlAlchemyActivityRepository
 from src.core.platform.infrastructure.persistence.repositories.approval import SqlAlchemyApprovalRepository
 from src.core.platform.infrastructure.persistence.repositories.audit_entry import SqlAlchemyAuditRepository
+from src.core.platform.infrastructure.persistence.repositories.notification import SqlAlchemyNotificationRepository
 from src.core.platform.infrastructure.persistence.repositories.platform_events import SqlAlchemyPlatformEventRepository
 from src.core.platform.infrastructure.persistence.repositories.auth import (
+    SqlAlchemyAuthPolicyReconciliationRepository,
     SqlAlchemyAuthSessionRepository,
     SqlAlchemyPermissionRepository,
+    SqlAlchemyRoleBindingRepository,
+    SqlAlchemyRoleDelegationPolicyRepository,
     SqlAlchemyRolePermissionRepository,
     SqlAlchemyRoleRepository,
     SqlAlchemyUserRepository,
-    SqlAlchemyUserRoleRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.documents import (
     SqlAlchemyDocumentLinkRepository,
@@ -80,6 +82,10 @@ from src.core.platform.infrastructure.persistence.repositories.sites import SqlA
 from src.core.platform.infrastructure.persistence.repositories.time import (
     SqlAlchemyTimeEntryRepository,
     SqlAlchemyTimesheetPeriodRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.identity import (
+    SqlAlchemyApiKeyCredentialRepository,
+    SqlAlchemyServicePrincipalRepository,
 )
 
 
@@ -106,7 +112,8 @@ class RepositoryBundle:
     timesheet_period_repo: SqlAlchemyTimesheetPeriodRepository
     dependency_repo: SqlAlchemyDependencyRepository
     cost_repo: SqlAlchemyCostRepository
-    calendar_repo: SqlAlchemyCalendarEventRepository
+    project_financial_profile_repo: SqlAlchemyProjectFinancialProfileRepository
+    project_cost_code_repo: SqlAlchemyProjectCostCodeRepository
     platform_calendar_repo: SqlAlchemyPlatformCalendarRepository
     calendar_working_rule_repo: SqlAlchemyCalendarWorkingRuleRepository
     calendar_exception_repo: SqlAlchemyCalendarExceptionRepository
@@ -119,14 +126,15 @@ class RepositoryBundle:
     project_resource_repo: SqlAlchemyProjectResourceRepository
     user_repo: SqlAlchemyUserRepository
     auth_session_repo: SqlAlchemyAuthSessionRepository
+    auth_policy_reconciliation_repo: SqlAlchemyAuthPolicyReconciliationRepository
     role_repo: SqlAlchemyRoleRepository
+    role_binding_repo: SqlAlchemyRoleBindingRepository
+    role_delegation_policy_repo: SqlAlchemyRoleDelegationPolicyRepository
     permission_repo: SqlAlchemyPermissionRepository
-    user_role_repo: SqlAlchemyUserRoleRepository
     role_permission_repo: SqlAlchemyRolePermissionRepository
-    project_membership_repo: SqlAlchemyProjectMembershipRepository
-    scoped_access_repo: SqlAlchemyScopedAccessGrantRepository
     activity_repo: SqlAlchemyActivityRepository
     audit_entry_repo: SqlAlchemyAuditRepository
+    notification_repo: SqlAlchemyNotificationRepository
     platform_event_repo: SqlAlchemyPlatformEventRepository
     approval_repo: SqlAlchemyApprovalRepository
     register_repo: SqlAlchemyRegisterEntryRepository
@@ -139,6 +147,8 @@ class RepositoryBundle:
     resource_skill_repo: SqlAlchemyResourceSkillRepository
     resource_cert_repo: SqlAlchemyResourceCertificationRepository
     task_skill_req_repo: SqlAlchemyTaskSkillRequirementRepository
+    service_principal_repo: SqlAlchemyServicePrincipalRepository
+    api_key_credential_repo: SqlAlchemyApiKeyCredentialRepository
 
 
 def build_repository_bundle(session: Session) -> RepositoryBundle:
@@ -163,7 +173,8 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         timesheet_period_repo=SqlAlchemyTimesheetPeriodRepository(session),
         dependency_repo=SqlAlchemyDependencyRepository(session),
         cost_repo=SqlAlchemyCostRepository(session),
-        calendar_repo=SqlAlchemyCalendarEventRepository(session),
+        project_financial_profile_repo=SqlAlchemyProjectFinancialProfileRepository(session),
+        project_cost_code_repo=SqlAlchemyProjectCostCodeRepository(session),
         platform_calendar_repo=SqlAlchemyPlatformCalendarRepository(session),
         calendar_working_rule_repo=SqlAlchemyCalendarWorkingRuleRepository(session),
         calendar_exception_repo=SqlAlchemyCalendarExceptionRepository(session),
@@ -176,14 +187,19 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         project_resource_repo=SqlAlchemyProjectResourceRepository(session),
         user_repo=SqlAlchemyUserRepository(session),
         auth_session_repo=SqlAlchemyAuthSessionRepository(session),
+        auth_policy_reconciliation_repo=SqlAlchemyAuthPolicyReconciliationRepository(
+            session
+        ),
         role_repo=SqlAlchemyRoleRepository(session),
+        role_binding_repo=SqlAlchemyRoleBindingRepository(session),
+        role_delegation_policy_repo=SqlAlchemyRoleDelegationPolicyRepository(
+            session
+        ),
         permission_repo=SqlAlchemyPermissionRepository(session),
-        user_role_repo=SqlAlchemyUserRoleRepository(session),
         role_permission_repo=SqlAlchemyRolePermissionRepository(session),
-        project_membership_repo=SqlAlchemyProjectMembershipRepository(session),
-        scoped_access_repo=SqlAlchemyScopedAccessGrantRepository(session),
         activity_repo=SqlAlchemyActivityRepository(session),
         audit_entry_repo=SqlAlchemyAuditRepository(session),
+        notification_repo=SqlAlchemyNotificationRepository(session),
         platform_event_repo=SqlAlchemyPlatformEventRepository(session),
         approval_repo=SqlAlchemyApprovalRepository(session),
         register_repo=SqlAlchemyRegisterEntryRepository(session),
@@ -196,6 +212,14 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         resource_skill_repo=SqlAlchemyResourceSkillRepository(session),
         resource_cert_repo=SqlAlchemyResourceCertificationRepository(session),
         task_skill_req_repo=SqlAlchemyTaskSkillRequirementRepository(session),
+        service_principal_repo=SqlAlchemyServicePrincipalRepository(
+            session,
+            tenant_context_service=None,
+        ),
+        api_key_credential_repo=SqlAlchemyApiKeyCredentialRepository(
+            session,
+            tenant_context_service=None,
+        ),
     )
     logger.debug(
         "Repository bundle build complete duration_ms=%.1f repository_count=%s",

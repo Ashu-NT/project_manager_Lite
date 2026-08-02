@@ -46,10 +46,6 @@ class CalendarAssignmentService:
         if not cal.is_active:
             raise ValidationError(f"Calendar '{cal.name}' is not active.")
 
-    def _validate_dates(self, effective_from: date | None, effective_to: date | None) -> None:
-        if effective_from and effective_to and effective_from > effective_to:
-            raise ValidationError("effective_from must be before effective_to.")
-
     # --- Site ---
 
     def assign_site_calendar(
@@ -65,8 +61,6 @@ class CalendarAssignmentService:
         require_permission(
             self._user_session, "task.manage", operation_label="assign site calendar"
         )
-        self._require_calendar(calendar_id)
-        self._validate_dates(effective_from, effective_to)
         assignment = SiteCalendarAssignment.create(
             site_id=site_id,
             calendar_id=calendar_id,
@@ -75,6 +69,7 @@ class CalendarAssignmentService:
             is_default=is_default,
             priority=priority,
         )
+        self._require_calendar(assignment.calendar_id)
         self._assignment_repo.save_site_assignment(assignment)
         self._session.commit()
         return assignment
@@ -109,8 +104,6 @@ class CalendarAssignmentService:
         require_permission(
             self._user_session, "task.manage", operation_label="assign department calendar"
         )
-        self._require_calendar(calendar_id)
-        self._validate_dates(effective_from, effective_to)
         assignment = DepartmentCalendarAssignment.create(
             department_id=department_id,
             calendar_id=calendar_id,
@@ -119,6 +112,7 @@ class CalendarAssignmentService:
             is_default=is_default,
             priority=priority,
         )
+        self._require_calendar(assignment.calendar_id)
         self._assignment_repo.save_department_assignment(assignment)
         self._session.commit()
         return assignment
@@ -159,8 +153,6 @@ class CalendarAssignmentService:
         require_permission(
             self._user_session, "task.manage", operation_label="assign employee calendar"
         )
-        self._require_calendar(calendar_id)
-        self._validate_dates(effective_from, effective_to)
         assignment = EmployeeCalendarAssignment.create(
             employee_id=employee_id,
             calendar_id=calendar_id,
@@ -169,6 +161,7 @@ class CalendarAssignmentService:
             is_default=is_default,
             priority=priority,
         )
+        self._require_calendar(assignment.calendar_id)
         self._assignment_repo.save_employee_assignment(assignment)
         self._session.commit()
         return assignment
@@ -209,8 +202,6 @@ class CalendarAssignmentService:
         require_permission(
             self._user_session, "task.manage", operation_label="assign project calendar"
         )
-        self._require_calendar(calendar_id)
-        self._validate_dates(effective_from, effective_to)
         from src.core.modules.project_management.domain.calendar.assignment import (
             ProjectCalendarAssignment,
         )
@@ -222,6 +213,7 @@ class CalendarAssignmentService:
             is_default=is_default,
             priority=priority,
         )
+        self._require_calendar(assignment.calendar_id)
         self._project_assignment_repo.save(assignment)
         self._session.commit()
         return assignment
@@ -253,8 +245,6 @@ class CalendarAssignmentService:
         require_permission(
             self._user_session, "task.manage", operation_label="assign resource calendar"
         )
-        self._require_calendar(calendar_id)
-        self._validate_dates(effective_from, effective_to)
         from src.core.modules.project_management.domain.calendar.assignment import (
             ResourceCalendarAssignment,
         )
@@ -266,6 +256,7 @@ class CalendarAssignmentService:
             is_default=is_default,
             priority=priority,
         )
+        self._require_calendar(assignment.calendar_id)
         self._resource_assignment_repo.save(assignment)
         self._session.commit()
         return assignment

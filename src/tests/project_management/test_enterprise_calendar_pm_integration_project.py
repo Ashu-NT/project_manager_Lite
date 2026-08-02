@@ -53,6 +53,7 @@ from src.core.platform.calendar.application.enterprise_calendar_resolver import 
     EnterpriseCalendarResolver,
 )
 from src.core.platform.calendar.application.working_time_calculator import WorkingTimeCalculator
+from src.core.platform.common.exceptions import ValidationError
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import (
     EnterpriseResourceAvailabilityService,
 )
@@ -340,6 +341,38 @@ def test_project_calendar_enables_weekend_work(
         target_date=date(2026, 6, 6),  # Saturday
     )
     assert ctx.available_hours > 0  # Saturday is now working via project override
+
+
+def test_project_calendar_assignment_service_uses_dto_validation_and_normalization(
+    cal_service, assignment_service, db_session, tenant_context
+):
+    project_cal = cal_service.create_calendar(
+        code="PRJ-NORMALIZED",
+        name="Normalized Project Calendar",
+        calendar_type=CalendarType.PROJECT.value,
+    )
+    _seed_project(db_session, tenant_context, "proj-normalized")
+
+    assignment = assignment_service.assign_project_calendar(
+        "  proj-normalized  ",
+        f"  {project_cal.id}  ",
+        effective_from=date(2026, 1, 1),
+        effective_to=date(2026, 12, 31),
+        priority="2",
+    )
+
+    assert assignment.project_id == "proj-normalized"
+    assert assignment.calendar_id == project_cal.id
+    assert assignment.priority == 2
+
+    with pytest.raises(ValidationError) as exc:
+        assignment_service.assign_project_calendar(
+            "proj-normalized",
+            project_cal.id,
+            effective_from=date(2026, 12, 31),
+            effective_to=date(2026, 1, 1),
+        )
+    assert exc.value.code == "PROJECT_CALENDAR_ASSIGNMENT_DATE_RANGE_INVALID"
 
 
 def test_project_calendar_adapter_working_days(

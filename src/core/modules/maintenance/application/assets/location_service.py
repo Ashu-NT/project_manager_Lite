@@ -1,17 +1,15 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from src.core.modules.maintenance.domain._validation import normalize_maintenance_code
 from src.core.modules.maintenance.domain import MaintenanceLocation
 from src.core.modules.maintenance.contracts.repositories import MaintenanceLocationRepository
 from src.core.modules.maintenance.application.common.support import (
-    coerce_criticality,
-    coerce_lifecycle_status,
-    normalize_maintenance_code,
-    normalize_maintenance_name,
     normalize_optional_text,
 )
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
@@ -163,16 +161,18 @@ class MaintenanceLocationService:
         location = MaintenanceLocation.create(
             organization_id=organization.id,
             site_id=site.id,
-            location_code=normalized_code,
-            name=normalize_maintenance_name(name, label="Location name"),
-            description=normalize_optional_text(description),
+            location_code=location_code,
+            name=name,
+            description=description,
             parent_location_id=parent.id if parent is not None else None,
-            location_type=normalize_optional_text(location_type),
-            criticality=coerce_criticality(criticality),
-            status=coerce_lifecycle_status(status, is_active=bool(is_active)),
-            is_active=bool(is_active),
-            notes=normalize_optional_text(notes),
+            location_type=location_type,
+            criticality=criticality,
+            status=status,
+            is_active=is_active,
+            notes=notes,
         )
+        if self._location_repo.get_by_code(organization.id, location.location_code) is not None:
+            raise ValidationError("Location code already exists in the active organization.", code="MAINTENANCE_LOCATION_CODE_EXISTS")
         try:
             self._location_repo.add(location)
             self._session.commit()
@@ -212,34 +212,37 @@ class MaintenanceLocationService:
         target_site_id = location.site_id
         if site_id is not None:
             target_site_id = self._get_site(site_id, organization=organization).id
+        requested_parent_id = (
+            location.parent_location_id
+            if parent_location_id is None
+            else normalize_optional_text(parent_location_id) or None
+        )
+        parent = self._resolve_parent(
+            requested_parent_id,
+            site_id=target_site_id,
+            organization=organization,
+            self_id=location.id,
+        )
+        updated = replace(
+            location,
+            site_id=target_site_id,
+            location_code=location.location_code if location_code is None else location_code,
+            name=location.name if name is None else name,
+            description=location.description if description is None else description,
+            parent_location_id=parent.id if parent is not None else None,
+            location_type=location.location_type if location_type is None else location_type,
+            criticality=location.criticality if criticality is None else criticality,
+            status=location.status if status is None and is_active is None else status,
+            is_active=location.is_active if is_active is None else is_active,
+            notes=location.notes if notes is None else notes,
+            updated_at=datetime.now(timezone.utc),
+        )
         if location_code is not None:
-            normalized_code = normalize_maintenance_code(location_code, label="Location code")
-            existing = self._location_repo.get_by_code(organization.id, normalized_code)
+            existing = self._location_repo.get_by_code(organization.id, updated.location_code)
             if existing is not None and existing.id != location.id:
                 raise ValidationError("Location code already exists in the active organization.", code="MAINTENANCE_LOCATION_CODE_EXISTS")
-            location.location_code = normalized_code
-        if name is not None:
-            location.name = normalize_maintenance_name(name, label="Location name")
-        if description is not None:
-            location.description = normalize_optional_text(description)
-        if location_type is not None:
-            location.location_type = normalize_optional_text(location_type)
-        if criticality is not None:
-            location.criticality = coerce_criticality(criticality)
-        if is_active is not None:
-            location.is_active = bool(is_active)
-        if status is not None or is_active is not None:
-            location.status = coerce_lifecycle_status(status, is_active=location.is_active)
-        if notes is not None:
-            location.notes = normalize_optional_text(notes)
-        if target_site_id != location.site_id:
-            location.site_id = target_site_id
-        if parent_location_id is not None:
-            parent = self._resolve_parent(parent_location_id, site_id=location.site_id, organization=organization, self_id=location.id)
-            location.parent_location_id = parent.id if parent is not None else None
-        location.updated_at = datetime.now(timezone.utc)
         try:
-            self._location_repo.update(location)
+            self._location_repo.update(updated)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -247,8 +250,8 @@ class MaintenanceLocationService:
         except Exception:
             self._session.rollback()
             raise
-        self._record_change("maintenance_location.update", location)
-        return location
+        self._record_change("maintenance_location.update", updated)
+        return updated
 
     def _resolve_parent(
         self,

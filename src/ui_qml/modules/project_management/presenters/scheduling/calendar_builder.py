@@ -9,6 +9,7 @@ from src.ui_qml.modules.project_management.view_models.scheduling import (
 )
 
 def build_calendar_view_model(calendar_snapshot: Any) -> SchedulingCalendarViewModel:
+    calendar_name = str(getattr(calendar_snapshot, "calendar_name", "") or "Default Calendar")
     holidays = tuple(
         SchedulingRecordViewModel(
             id=holiday.id,
@@ -20,7 +21,7 @@ def build_calendar_view_model(calendar_snapshot: Any) -> SchedulingCalendarViewM
             can_tertiary_action=True,
             state={
                 "holidayId": holiday.id,
-                "calendar": "Default Calendar",
+                "calendar": calendar_name,
                 "workingDays": "",
                 "shiftPattern": "Holiday",
                 "hoursPerDay": "-",
@@ -48,6 +49,8 @@ def build_calendar_view_model(calendar_snapshot: Any) -> SchedulingCalendarViewM
         hours_per_day=f"{float(calendar_snapshot.hours_per_day or 0.0):g}",
         holidays=holidays,
         empty_state="No non-working day exceptions have been configured yet.",
+        calendar_id=str(getattr(calendar_snapshot, "calendar_id", "") or ""),
+        calendar_name=calendar_name,
     )
 
 __all__ = ["build_calendar_view_model"]

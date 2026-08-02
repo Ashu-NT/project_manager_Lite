@@ -18,6 +18,7 @@ class EmployeeDto:
     phone: str | None
     is_active: bool
     version: int
+    user_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -33,6 +34,7 @@ class EmployeeCreateCommand:
     email: str | None = None
     phone: str | None = None
     is_active: bool = True
+    user_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -49,4 +51,5 @@ class EmployeeUpdateCommand:
     email: str | None = None
     phone: str | None = None
     is_active: bool | None = None
+    user_id: str | None = None
     expected_version: int | None = None

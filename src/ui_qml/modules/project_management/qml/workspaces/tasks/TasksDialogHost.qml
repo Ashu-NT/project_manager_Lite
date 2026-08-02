@@ -13,16 +13,19 @@ Item {
     property var statusOptions: []
     property var assignmentOptions: []
     property var dependencyTaskOptions: []
+    property var wbsParentOptions: []
     property var dependencyTypeOptions: []
     property var collaborationMentionOptions: []
     property var collaborationDocumentOptions: []
     property var selectedTaskIds: []
     property var editTarget: ({})
+    property var wbsMoveTarget: ({})
     property var progressTarget: ({})
     property var deleteTarget: ({})
     property var assignmentTarget: ({})
     property var dependencyTarget: ({})
     property var collaborationTarget: ({})
+    property var collaborationCommentTarget: ({})
     property var bulkDeleteTargetIds: []
 
     signal deleteRequested(string taskId)
@@ -64,6 +67,19 @@ Item {
         editorDialog.taskData = root.editTarget
         editorDialog.errorMessage = ""
         editorDialog.open()
+    }
+
+    function openWbsMoveDialog(taskData) {
+        root.wbsMoveTarget = taskData || ({})
+        const state = root.wbsMoveTarget && root.wbsMoveTarget.state
+            ? root.wbsMoveTarget.state
+            : (root.wbsMoveTarget || {})
+        if (state.taskId) {
+            root.taskPresenceStarted(String(state.taskId), "updating WBS")
+        }
+        wbsMoveDialog.taskData = root.wbsMoveTarget
+        wbsMoveDialog.errorMessage = ""
+        wbsMoveDialog.open()
     }
 
     function openProgressDialog(taskData) {
@@ -126,13 +142,63 @@ Item {
 
     function openTaskCollaborationDialog(taskData) {
         root.collaborationTarget = taskData || root.selectedTaskData || ({})
+        root.collaborationCommentTarget = ({})
         const state = root.collaborationTarget && root.collaborationTarget.state ? root.collaborationTarget.state : (root.collaborationTarget || {})
         if (state.taskId || state.id) {
             root.taskPresenceStarted(String(state.taskId || state.id), "commenting")
         }
+        collaborationComposerDialog.mode = "create"
         collaborationComposerDialog.taskData = root.collaborationTarget
+        collaborationComposerDialog.commentData = ({})
         collaborationComposerDialog.errorMessage = ""
         collaborationComposerDialog.open()
+    }
+
+    function openAssignmentResponseDialog(mode, assignmentData) {
+        root.assignmentTarget = assignmentData || ({})
+        assignmentResponseDialog.mode = String(mode || "accept")
+        assignmentResponseDialog.assignmentData = root.assignmentTarget
+        assignmentResponseDialog.errorMessage = ""
+        assignmentResponseDialog.open()
+    }
+
+    function openTaskCommentReplyDialog(commentData, taskData) {
+        root.collaborationTarget = taskData || root.selectedTaskData || ({})
+        root.collaborationCommentTarget = commentData || ({})
+        const state = root.collaborationTarget && root.collaborationTarget.state
+            ? root.collaborationTarget.state
+            : (root.collaborationTarget || {})
+        if (state.taskId || state.id) {
+            root.taskPresenceStarted(String(state.taskId || state.id), "commenting")
+        }
+        collaborationComposerDialog.mode = "reply"
+        collaborationComposerDialog.taskData = root.collaborationTarget
+        collaborationComposerDialog.commentData = root.collaborationCommentTarget
+        collaborationComposerDialog.errorMessage = ""
+        collaborationComposerDialog.open()
+    }
+
+    function openTaskCommentEditDialog(commentData, taskData) {
+        root.collaborationTarget = taskData || root.selectedTaskData || ({})
+        root.collaborationCommentTarget = commentData || ({})
+        const state = root.collaborationTarget && root.collaborationTarget.state
+            ? root.collaborationTarget.state
+            : (root.collaborationTarget || {})
+        if (state.taskId || state.id) {
+            root.taskPresenceStarted(String(state.taskId || state.id), "editing comment")
+        }
+        collaborationComposerDialog.mode = "edit"
+        collaborationComposerDialog.taskData = root.collaborationTarget
+        collaborationComposerDialog.commentData = root.collaborationCommentTarget
+        collaborationComposerDialog.errorMessage = ""
+        collaborationComposerDialog.open()
+    }
+
+    function openTaskCommentDeleteDialog(commentData) {
+        root.collaborationCommentTarget = commentData || ({})
+        deleteCommentDialog.commentData = root.collaborationCommentTarget
+        deleteCommentDialog.errorMessage = ""
+        deleteCommentDialog.open()
     }
 
     function openBulkDeleteDialog(taskIds) {
@@ -147,6 +213,7 @@ Item {
         projectOptions: root.projectOptions
         selectedProjectId: root.selectedProjectId
         statusOptions: root.statusOptions
+        parentTaskOptions: root.wbsParentOptions
         workspaceController: root.workspaceController
         busy: root.workspaceController ? root.workspaceController.isBusy : false
 
@@ -267,8 +334,60 @@ Item {
 
         onSubmitted: function(payload) {
             if (root.workspaceController === null) return
-            const result = root.workspaceController.postTaskComment(payload)
+            const result = collaborationComposerDialog.mode === "edit"
+                ? root.workspaceController.editTaskComment(payload)
+                : root.workspaceController.postTaskComment(payload)
             root._handleResult(collaborationComposerDialog, result)
+        }
+    }
+
+    ProjectManagementDialogs.TaskWbsMoveDialog {
+        id: wbsMoveDialog
+        objectName: "taskWbsMoveDialog"
+
+        parentTaskOptions: root.wbsParentOptions
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+
+        onClosed: {
+            const state = root.wbsMoveTarget && root.wbsMoveTarget.state
+                ? root.wbsMoveTarget.state
+                : (root.wbsMoveTarget || {})
+            if (state.taskId) {
+                root.taskPresenceEnded(String(state.taskId))
+            }
+        }
+
+        onSubmitted: function(payload) {
+            if (root.workspaceController === null) return
+            const result = root.workspaceController.moveTaskInWbs(payload)
+            root._handleResult(wbsMoveDialog, result)
+        }
+    }
+
+    ProjectManagementDialogs.TaskAssignmentResponseDialog {
+        id: assignmentResponseDialog
+        objectName: "taskAssignmentResponseDialog"
+
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+
+        onSubmitted: function(payload) {
+            if (root.workspaceController === null) return
+            const result = assignmentResponseDialog.mode === "decline"
+                ? root.workspaceController.declineAssignment(payload)
+                : root.workspaceController.acceptAssignment(String(payload.assignmentId || ""))
+            root._handleResult(assignmentResponseDialog, result)
+        }
+    }
+
+    ProjectManagementDialogs.TaskCommentDeleteDialog {
+        id: deleteCommentDialog
+        objectName: "taskCommentDeleteDialog"
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+
+        onSubmitted: function(payload) {
+            if (root.workspaceController === null) return
+            const result = root.workspaceController.deleteTaskComment(payload)
+            root._handleResult(deleteCommentDialog, result)
         }
     }
 

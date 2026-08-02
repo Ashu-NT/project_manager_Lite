@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
-
+from dataclasses import replace
 from datetime import date
+
+from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
 
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
@@ -24,10 +25,13 @@ def build_schedule_result(
         lst = ls[task_id]
         lft = lf[task_id]
 
-        if getattr(task, "actual_start", None) is None:
-            task.start_date = est
-        if getattr(task, "actual_end", None) is None:
-            task.end_date = eft
+        if getattr(task, "actual_start", None) is None or getattr(task, "actual_end", None) is None:
+            task = replace(
+                task,
+                start_date=est if getattr(task, "actual_start", None) is None else task.start_date,
+                end_date=eft if getattr(task, "actual_end", None) is None else task.end_date,
+            )
+            tasks_by_id[task_id] = task
 
         if est is not None and lst is not None:
             if lst < est:

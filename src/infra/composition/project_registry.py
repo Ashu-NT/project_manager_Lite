@@ -11,6 +11,10 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from src.core.platform.access import ScopedRolePolicy
+from src.core.platform.approval.contracts import (
+    ApprovalHandlerResult,
+    ApprovalPostCommitEvent,
+)
 from src.core.modules.project_management.domain.enums import CostType, DependencyType
 from src.core.modules.project_management.access.policy import (
     PROJECT_SCOPE_ROLE_CHOICES,
@@ -22,7 +26,12 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
     BaselineService,
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
-from src.core.modules.project_management.application.financials import CostService, FinanceService
+from src.core.modules.project_management.application.financials import (
+    CostService,
+    FinancialConfigurationService,
+    FinanceService,
+    ForecastCostService,
+)
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import (
@@ -31,7 +40,6 @@ from src.core.modules.project_management.application.resources import (
 )
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import (
-    CalendarService,
     SchedulingEngine,
 )
 from src.core.modules.project_management.infrastructure.importers import DataImportService
@@ -45,7 +53,6 @@ from src.core.modules.project_management.application.resources.assignment_valida
 from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import ProjectCalendarAdapter
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
 from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
-from src.core.modules.project_management.infrastructure.collaboration_store import TaskCollaborationStore
 from src.infra.composition.platform_registry import PlatformServiceBundle
 from src.infra.composition.repositories import RepositoryBundle
 
@@ -82,9 +89,10 @@ class ProjectManagementServiceBundle:
     project_service: ProjectService
     task_service: TaskService
     timesheet_service: TimesheetService
-    calendar_service: CalendarService
     resource_service: ResourceService
     cost_service: CostService
+    financial_configuration_service: FinancialConfigurationService
+    forecast_service: ForecastCostService
     finance_service: FinanceService
     work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
     scheduling_engine: SchedulingEngine
@@ -95,7 +103,6 @@ class ProjectManagementServiceBundle:
     register_service: RegisterService
     project_resource_service: ProjectResourceService
     data_import_service: DataImportService
-    task_collaboration_store: TaskCollaborationStore
     assignment_skill_validator: AssignmentSkillValidator
     project_calendar_adapter: ProjectCalendarAdapter
     enterprise_resource_availability: EnterpriseResourceAvailabilityService
@@ -118,9 +125,26 @@ def build_project_management_service_bundle(
             resolve_permissions=resolve_project_scope_permissions,
         )
     )
+    def _project_belongs_to_tenant(tenant_id: str, project_id: str) -> bool:
+        return (
+            platform_services.tenant_context_service.require_active_tenant_id(
+                operation_label="validate project access scope"
+            )
+            == tenant_id
+            and repositories.project_repo.get(project_id) is not None
+        )
+
     platform_services.access_service.register_scope_exists_resolver(
         "project",
-        lambda project_id: repositories.project_repo.get(project_id) is not None,
+        _project_belongs_to_tenant,
+    )
+    platform_services.role_governance_service.register_scope_exists_resolver(
+        "project",
+        _project_belongs_to_tenant,
+    )
+    platform_services.auth_service.register_canonical_scope_tenant_resolver(
+        "project",
+        _project_belongs_to_tenant,
     )
     logger.debug("Project Management platform registrations complete")
     logger.debug("Project Management core services build begin")
@@ -133,10 +157,11 @@ def build_project_management_service_bundle(
         repositories.dependency_repo,
         repositories.assignment_repo,
         repositories.time_entry_repo,
-        repositories.calendar_repo,
         repositories.cost_repo,
+        repositories.project_financial_profile_repo,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_runtime_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
@@ -172,10 +197,12 @@ def build_project_management_service_bundle(
     project_resource_service = ProjectResourceService(
         project_resource_repo=repositories.project_resource_repo,
         resource_repo=repositories.resource_repo,
+        project_repo=repositories.project_repo,
         session=session,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
         module_catalog_service=platform_services.module_runtime_service,
+        tenant_context_service=platform_services.tenant_context_service,
     )
     register_service = RegisterService(
         session=session,
@@ -201,6 +228,11 @@ def build_project_management_service_bundle(
         project_calendar_adapter=_pre_project_calendar_adapter,
     )
     logger.debug("Project Management scheduling foundation built")
+    assignment_skill_validator = AssignmentSkillValidator(
+        skill_repo=repositories.resource_skill_repo,
+        cert_repo=repositories.resource_cert_repo,
+        requirement_repo=repositories.task_skill_req_repo,
+    )
     task_service = TaskService(
         session,
         repositories.task_repo,
@@ -211,7 +243,6 @@ def build_project_management_service_bundle(
         timesheet_service,
         repositories.resource_repo,
         repositories.cost_repo,
-        repositories.calendar_repo,
         work_calendar_engine,
         scheduling_engine,
         repositories.project_resource_repo,
@@ -220,13 +251,9 @@ def build_project_management_service_bundle(
         activity_service=platform_services.activity_service,
         approval_service=platform_services.approval_service,
         module_catalog_service=platform_services.module_runtime_service,
-    )
-    calendar_service = CalendarService(
-        session,
-        repositories.calendar_repo,
-        repositories.task_repo,
-        user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_runtime_service,
+        notification_service=platform_services.notification_service,
+        employee_repo=repositories.employee_repo,
+        assignment_skill_validator=assignment_skill_validator,
     )
     resource_service = ResourceService(
         session,
@@ -250,6 +277,24 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
         approval_service=platform_services.approval_service,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
+        module_catalog_service=platform_services.module_runtime_service,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    financial_configuration_service = FinancialConfigurationService(
+        session=session,
+        profile_repo=repositories.project_financial_profile_repo,
+        cost_code_repo=repositories.project_cost_code_repo,
+        project_repo=repositories.project_repo,
+        user_session=platform_services.user_session,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
+        module_catalog_service=platform_services.module_runtime_service,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    forecast_service = ForecastCostService(
+        repositories.cost_repo,
+        repositories.project_repo,
+        user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_runtime_service,
     )
     reporting_service = ReportingService(
@@ -272,7 +317,7 @@ def build_project_management_service_bundle(
         resource_repo=repositories.resource_repo,
         cost_repo=repositories.cost_repo,
         project_resource_repo=repositories.project_resource_repo,
-        reporting_service=reporting_service,
+        assignment_repo=repositories.assignment_repo,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_runtime_service,
     )
@@ -284,11 +329,13 @@ def build_project_management_service_bundle(
         project_repo=repositories.project_repo,
         user_repo=repositories.user_repo,
         audit_repo=repositories.audit_entry_repo,
-        project_membership_repo=repositories.project_membership_repo,
         document_integration_service=platform_services.document_integration_service,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_runtime_service,
         tenant_context_service=platform_services.tenant_context_service,
+        role_repo=repositories.role_repo,
+        role_binding_repo=repositories.role_binding_repo,
+        notification_service=platform_services.notification_service,
     )
     portfolio_service = PortfolioService(
         session=session,
@@ -338,12 +385,6 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_runtime_service,
     )
-    task_collaboration_store = TaskCollaborationStore(session_factory=lambda: session)
-    assignment_skill_validator = AssignmentSkillValidator(
-        skill_repo=repositories.resource_skill_repo,
-        cert_repo=repositories.resource_cert_repo,
-        requirement_repo=repositories.task_skill_req_repo,
-    )
     project_calendar_adapter = _pre_project_calendar_adapter  # reuse the instance wired into SchedulingEngine
     enterprise_resource_availability = EnterpriseResourceAvailabilityService(
         resolver=platform_services.enterprise_calendar_resolver,
@@ -370,9 +411,10 @@ def build_project_management_service_bundle(
         project_service=project_service,
         task_service=task_service,
         timesheet_service=timesheet_service,
-        calendar_service=calendar_service,
         resource_service=resource_service,
         cost_service=cost_service,
+        financial_configuration_service=financial_configuration_service,
+        forecast_service=forecast_service,
         finance_service=finance_service,
         work_calendar_engine=work_calendar_engine,
         scheduling_engine=scheduling_engine,
@@ -383,7 +425,6 @@ def build_project_management_service_bundle(
         register_service=register_service,
         project_resource_service=project_resource_service,
         data_import_service=data_import_service,
-        task_collaboration_store=task_collaboration_store,
         assignment_skill_validator=assignment_skill_validator,
         project_calendar_adapter=project_calendar_adapter,
         enterprise_resource_availability=enterprise_resource_availability,
@@ -398,35 +439,46 @@ def _register_project_management_approval_handlers(
     task_service: TaskService,
     cost_service: CostService,
 ) -> None:
-    approval_service.register_apply_handler(
-        "baseline.create",
-        lambda req: baseline_service.create_baseline(
-            project_id=req.payload["project_id"],
+    # TRANSITION(PF-A0-UOW-BRIDGE): These handlers stage legacy service writes with
+    # commit=False/bypass_approval=True. Remove both switches at the Phase C command cutover.
+    def _result(signal_name: str, payload: str) -> ApprovalHandlerResult:
+        return ApprovalHandlerResult(
+            post_commit_events=(ApprovalPostCommitEvent(signal_name, payload),)
+        )
+
+    def _apply_baseline(req) -> ApprovalHandlerResult:
+        project_id = req.payload["project_id"]
+        baseline_service.create_baseline(
+            project_id=project_id,
             name=req.payload.get("name") or "Baseline",
             bypass_approval=True,
-        ),
-    )
-    approval_service.register_apply_handler(
-        "dependency.add",
-        lambda req: task_service.add_dependency(
+            commit=False,
+        )
+        return _result("baseline_changed", project_id)
+
+    def _apply_dependency_add(req) -> ApprovalHandlerResult:
+        task_service.add_dependency(
             predecessor_id=req.payload["predecessor_id"],
             successor_id=req.payload["successor_id"],
             dependency_type=_as_dependency_type(req.payload.get("dependency_type", "FS")),
             lag_days=int(req.payload.get("lag_days", 0) or 0),
             bypass_approval=True,
-        ),
-    )
-    approval_service.register_apply_handler(
-        "dependency.remove",
-        lambda req: task_service.remove_dependency(
+            commit=False,
+        )
+        return _result("tasks_changed", req.project_id or "")
+
+    def _apply_dependency_remove(req) -> ApprovalHandlerResult:
+        task_service.remove_dependency(
             dep_id=req.payload["dependency_id"],
             bypass_approval=True,
-        ),
-    )
-    approval_service.register_apply_handler(
-        "cost.add",
-        lambda req: cost_service.add_cost_item(
-            project_id=req.payload["project_id"],
+            commit=False,
+        )
+        return _result("tasks_changed", req.project_id or "")
+
+    def _apply_cost_add(req) -> ApprovalHandlerResult:
+        project_id = req.payload["project_id"]
+        cost_service.add_cost_item(
+            project_id=project_id,
             description=req.payload.get("description", ""),
             planned_amount=float(req.payload.get("planned_amount", 0.0) or 0.0),
             task_id=req.payload.get("task_id"),
@@ -435,12 +487,15 @@ def _register_project_management_approval_handlers(
             actual_amount=float(req.payload.get("actual_amount", 0.0) or 0.0),
             incurred_date=_parse_date(req.payload.get("incurred_date")),
             currency_code=req.payload.get("currency_code"),
+            code=req.payload.get("code", ""),
             bypass_approval=True,
-        ),
-    )
-    approval_service.register_apply_handler(
-        "cost.update",
-        lambda req: cost_service.update_cost_item(
+            commit=False,
+            approval_request_id=req.id,
+        )
+        return _result("costs_changed", project_id)
+
+    def _apply_cost_update(req) -> ApprovalHandlerResult:
+        cost_service.update_cost_item(
             cost_id=req.payload["cost_id"],
             description=req.payload.get("description"),
             planned_amount=req.payload.get("planned_amount"),
@@ -454,15 +509,45 @@ def _register_project_management_approval_handlers(
             incurred_date=_parse_date(req.payload.get("incurred_date")),
             currency_code=req.payload.get("currency_code"),
             expected_version=req.payload.get("expected_version"),
+            code=req.payload.get("code"),
             bypass_approval=True,
-        ),
+            commit=False,
+            approval_request_id=req.id,
+        )
+        return _result("costs_changed", req.project_id or "")
+
+    def _apply_cost_delete(req) -> ApprovalHandlerResult:
+        cost_service.delete_cost_item(
+            cost_id=req.payload["cost_id"],
+            bypass_approval=True,
+            commit=False,
+            approval_request_id=req.id,
+        )
+        return _result("costs_changed", req.project_id or "")
+
+    approval_service.register_apply_handler(
+        "baseline.create",
+        _apply_baseline,
+    )
+    approval_service.register_apply_handler(
+        "dependency.add",
+        _apply_dependency_add,
+    )
+    approval_service.register_apply_handler(
+        "dependency.remove",
+        _apply_dependency_remove,
+    )
+    approval_service.register_apply_handler(
+        "cost.add",
+        _apply_cost_add,
+    )
+    approval_service.register_apply_handler(
+        "cost.update",
+        _apply_cost_update,
     )
     approval_service.register_apply_handler(
         "cost.delete",
-        lambda req: cost_service.delete_cost_item(
-            cost_id=req.payload["cost_id"],
-            bypass_approval=True,
-        ),
+        _apply_cost_delete,
     )
 
 

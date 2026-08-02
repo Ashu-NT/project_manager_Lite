@@ -91,7 +91,9 @@ def test_export_runtime_records_artifact_metadata_in_execution_history(services,
     assert execution.output_path == str(artifact_path)
     assert execution.output_file_name == "runtime-export.csv"
     assert execution.output_media_type == "text/csv"
-    assert execution.output_metadata == {}
+    assert execution.output_metadata["tenant_id"] == execution.tenant_id
+    assert execution.output_metadata["organization_id"] == execution.organization_id
+    assert artifact.metadata["runtime_execution_id"] == execution.id
 
 
 def test_report_runtime_records_artifact_metadata_and_list_filters(services, tmp_path):
@@ -124,5 +126,6 @@ def test_report_runtime_records_artifact_metadata_and_list_filters(services, tmp
     assert execution.output_path == str(output_path)
     assert execution.output_file_name == "runtime-report.pdf"
     assert execution.output_media_type == "application/pdf"
+    assert rendered.metadata["tenant_id"] == execution.tenant_id
     assert running == []
 

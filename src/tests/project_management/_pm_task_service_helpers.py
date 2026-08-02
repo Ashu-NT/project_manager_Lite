@@ -39,6 +39,10 @@ class _FakeCollaborationService:
     def __init__(self) -> None:
         self.marked_task_ids: list[str] = []
         self.posted_comments: list[dict[str, object]] = []
+        self.edited_comment_ids: list[str] = []
+        self.deleted_comment_ids: list[str] = []
+        self.added_reactions: list[tuple[str, str]] = []
+        self.removed_reactions: list[tuple[str, str]] = []
         self.touched_presence: list[tuple[str, str]] = []
         self.cleared_presence: list[str] = []
         self._comments: list[SimpleNamespace] = [
@@ -50,6 +54,7 @@ class _FakeCollaborationService:
                 mentions=["planner"],
                 attachments=["handover.txt"],
                 created_at=datetime(2026, 5, 1, 8, 45),
+                version=1,
             )
         ]
         self._comment_documents: dict[str, list[SimpleNamespace]] = {
@@ -131,8 +136,15 @@ class _FakeCollaborationService:
     def clear_task_presence(self, task_id: str) -> None:
         self.cleared_presence.append(task_id)
 
+    def get_task_comment_action_context(self, task_id: str) -> SimpleNamespace:
+        return SimpleNamespace(
+            principal_user_id="user-alex",
+            can_read=bool(task_id),
+            can_manage=bool(task_id),
+        )
+
     def post_comment(
-        self, *, task_id: str, body: str, attachments=(), linked_document_ids=()
+        self, *, task_id: str, body: str, attachments=(), linked_document_ids=(), parent_comment_id=None
     ) -> SimpleNamespace:
         self.posted_comments.append(
             {
@@ -140,6 +152,7 @@ class _FakeCollaborationService:
                 "body": body,
                 "attachments": tuple(attachments),
                 "linked_document_ids": tuple(linked_document_ids),
+                "parent_comment_id": parent_comment_id,
             }
         )
         comment = SimpleNamespace(
@@ -150,6 +163,7 @@ class _FakeCollaborationService:
             mentions=["planner"],
             attachments=list(attachments),
             created_at=datetime(2026, 5, 1, 10, 15),
+            version=1,
         )
         self._comments.append(comment)
         self._comment_documents[comment.id] = [
@@ -163,6 +177,55 @@ class _FakeCollaborationService:
                 file_name="",
             )
         ]
+        return comment
+
+    def edit_comment(
+        self,
+        comment_id: str,
+        body: str,
+        *,
+        expected_revision: int | None = None,
+    ) -> SimpleNamespace:
+        comment = next(comment for comment in self._comments if comment.id == comment_id)
+        assert expected_revision == comment.version
+        comment.body = body
+        comment.updated_at = datetime(2026, 5, 1, 11, 0)
+        comment.version += 1
+        self.edited_comment_ids.append(comment_id)
+        return comment
+
+    def delete_comment(
+        self,
+        comment_id: str,
+        *,
+        expected_revision: int | None = None,
+        reason: str | None = None,
+    ) -> SimpleNamespace:
+        comment = next(comment for comment in self._comments if comment.id == comment_id)
+        assert expected_revision == comment.version
+        comment.deleted_at = datetime(2026, 5, 1, 11, 5)
+        comment.deleted_by_user_id = "user-alex"
+        comment.deletion_reason = reason
+        comment.version += 1
+        self.deleted_comment_ids.append(comment_id)
+        return comment
+
+    def react_to_comment(self, comment_id: str, emoji: str) -> SimpleNamespace:
+        comment = next(comment for comment in self._comments if comment.id == comment_id)
+        reactions = dict(getattr(comment, "reactions", {}) or {})
+        reactions[emoji] = ["user-alex"]
+        comment.reactions = reactions
+        comment.version += 1
+        self.added_reactions.append((comment_id, emoji))
+        return comment
+
+    def remove_reaction(self, comment_id: str, emoji: str) -> SimpleNamespace:
+        comment = next(comment for comment in self._comments if comment.id == comment_id)
+        reactions = dict(getattr(comment, "reactions", {}) or {})
+        reactions.pop(emoji, None)
+        comment.reactions = reactions
+        comment.version += 1
+        self.removed_reactions.append((comment_id, emoji))
         return comment
 
 
@@ -179,10 +242,50 @@ class _FakeTaskService:
     def get_task(self, task_id: str) -> SimpleNamespace | None:
         return self._tasks.get(task_id)
 
+    def move_task(
+        self,
+        task_id: str,
+        *,
+        parent_task_id: str | None,
+        wbs_code: str | None = None,
+        sort_order: int | None = None,
+        expected_version: int | None = None,
+    ) -> SimpleNamespace:
+        task = self._tasks[task_id]
+        if expected_version is not None and task.version != expected_version:
+            raise ValueError("Task version is stale.")
+        task.parent_task_id = parent_task_id
+        if wbs_code:
+            task.wbs_code = wbs_code
+        if sort_order is not None:
+            task.sort_order = sort_order
+        task.version += 1
+        return task
+
     def set_status(self, task_id: str, status: TaskStatus) -> None:
         task = self._tasks[task_id]
         task.status = status
         task.version += 1
+
+    def set_tasks_status(
+        self,
+        task_ids: tuple[str, ...],
+        status: TaskStatus,
+        *,
+        reopen_percent_complete: float | None = None,
+    ) -> list[SimpleNamespace]:
+        changed: list[SimpleNamespace] = []
+        for task_id in task_ids:
+            task = self._tasks.get(task_id)
+            if task is None:
+                continue
+            if task.status == status:
+                continue
+            if reopen_percent_complete is not None and status == TaskStatus.IN_PROGRESS:
+                task.percent_complete = reopen_percent_complete
+            self.set_status(task_id, status)
+            changed.append(task)
+        return changed
 
     def update_progress(
         self,
@@ -209,6 +312,14 @@ class _FakeTaskService:
     def delete_task(self, task_id: str) -> None:
         del self._tasks[task_id]
 
+    def delete_tasks(self, task_ids: tuple[str, ...]) -> tuple[str, ...]:
+        deleted: list[str] = []
+        for task_id in task_ids:
+            if task_id in self._tasks:
+                self.delete_task(task_id)
+                deleted.append(task_id)
+        return tuple(deleted)
+
     def register_project_resource(self, project_resource_id: str, resource_id: str) -> None:
         self._project_resource_lookup[project_resource_id] = resource_id
 
@@ -229,8 +340,36 @@ class _FakeTaskService:
             allocation_percent=allocation_percent,
             hours_logged=0.0,
             project_resource_id=project_resource_id,
+            response_status="pending",
+            responded_at=None,
         )
         self._assignments[assignment.id] = assignment
+        return assignment
+
+    def get_assignment_action_context(self, assignment_id: str) -> SimpleNamespace:
+        assignment = self._assignments[assignment_id]
+        can_respond = assignment.response_status == "pending"
+        return SimpleNamespace(
+            can_manage=True,
+            can_accept=can_respond,
+            can_decline=can_respond,
+        )
+
+    def accept_assignment(self, assignment_id: str) -> SimpleNamespace:
+        assignment = self._assignments[assignment_id]
+        assignment.response_status = "accepted"
+        assignment.responded_at = datetime(2026, 5, 1, 12, 0)
+        return assignment
+
+    def decline_assignment(
+        self,
+        assignment_id: str,
+        reason: str | None = None,
+    ) -> SimpleNamespace:
+        assignment = self._assignments[assignment_id]
+        assignment.response_status = "declined"
+        assignment.responded_at = datetime(2026, 5, 1, 12, 0)
+        assignment.decline_reason = reason
         return assignment
 
     def add_dependency(

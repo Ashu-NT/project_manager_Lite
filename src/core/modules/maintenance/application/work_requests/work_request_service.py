@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
@@ -13,6 +14,8 @@ from src.core.modules.maintenance.domain import (
     MaintenancePriority,
     MaintenanceSystem,
     MaintenanceWorkRequest,
+    MaintenanceWorkRequestSourceType,
+    MaintenanceWorkRequestStatus,
 )
 from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceAssetComponentRepository,
@@ -23,12 +26,11 @@ from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceWorkRequestRepository,
 )
 from src.core.modules.maintenance.application.common.support import (
-    coerce_priority,
-    coerce_work_request_source_type,
-    coerce_work_request_status,
     normalize_maintenance_code,
-    normalize_maintenance_name,
     normalize_optional_text,
+)
+from src.core.modules.maintenance.application.common.scope_authorization import (
+    deny_maintenance_scope_access,
 )
 from src.core.modules.maintenance.application.work_requests.validation import (
     MaintenanceWorkRequestValidationMixin,
@@ -37,7 +39,7 @@ from src.core.platform.access.authorization import filter_scope_rows, require_sc
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.contracts import UserRepository
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.site.contracts import SiteRepository
 from src.core.platform.tenancy.tenant_context import (
@@ -212,18 +214,6 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
         self._require_manage("create maintenance work request")
         organization = self._active_organization()
         site = self._get_site(site_id, organization=organization)
-        normalized_code = normalize_maintenance_code(work_request_code, label="Work request code")
-        normalized_source_type = coerce_work_request_source_type(source_type)
-        normalized_request_type = normalize_maintenance_name(request_type, label="Request type").upper()
-        normalized_source_id = (str(source_id or "").strip() or None)
-        if self._work_request_repo.get_by_code(organization.id, normalized_code) is not None:
-            raise ValidationError("Work request code already exists in the active organization.", code="MAINTENANCE_WORK_REQUEST_CODE_EXISTS")
-        if normalized_source_type.value == "PREVENTIVE_PLAN" and not normalized_source_id:
-            raise ValidationError(
-                "Preventive maintenance work requests must retain their source plan id.",
-                code="MAINTENANCE_WORK_REQUEST_SOURCE_REQUIRED",
-            )
-
         asset_id, component_id, system_id, location_id = self._resolve_context_references(
             organization=organization,
             site=site,
@@ -244,27 +234,41 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
         work_request = MaintenanceWorkRequest.create(
             organization_id=organization.id,
             site_id=site.id,
-            work_request_code=normalized_code,
-            source_type=normalized_source_type,
-            source_id=normalized_source_id,
-            source_plan_task_ids=tuple(str(value).strip() for value in source_plan_task_ids if str(value).strip()),
-            request_type=normalized_request_type,
+            work_request_code=work_request_code,
+            source_type=source_type,
+            source_id=source_id,
+            source_plan_task_ids=source_plan_task_ids,
+            request_type=request_type,
             asset_id=asset_id,
             component_id=component_id,
             system_id=system_id,
             location_id=location_id,
-            title=normalize_optional_text(title),
-            description=normalize_optional_text(description),
-            priority=coerce_priority(priority),
+            title=title,
+            description=description,
+            priority=priority,
             requested_by_user_id=requested_by_user_id,
             requested_by_name_snapshot=requested_by_name_snapshot,
+            failure_symptom_code=failure_symptom_code,
+            safety_risk_level=safety_risk_level,
+            production_impact_level=production_impact_level,
+            notes=notes,
+        )
+        if self._work_request_repo.get_by_code(organization.id, work_request.work_request_code) is not None:
+            raise ValidationError("Work request code already exists in the active organization.", code="MAINTENANCE_WORK_REQUEST_CODE_EXISTS")
+        if (
+            work_request.source_type == MaintenanceWorkRequestSourceType.PREVENTIVE_PLAN
+            and not work_request.source_id
+        ):
+            raise ValidationError(
+                "Preventive maintenance work requests must retain their source plan id.",
+                code="MAINTENANCE_WORK_REQUEST_SOURCE_REQUIRED",
+            )
+        work_request = replace(
+            work_request,
             failure_symptom_code=self._normalize_failure_symptom_code(
-                failure_symptom_code,
+                work_request.failure_symptom_code,
                 organization=organization,
             ),
-            safety_risk_level=normalize_optional_text(safety_risk_level),
-            production_impact_level=normalize_optional_text(production_impact_level),
-            notes=normalize_optional_text(notes),
         )
         try:
             self._work_request_repo.add(work_request)
@@ -300,6 +304,7 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
     ) -> MaintenanceWorkRequest:
         self._require_manage("update maintenance work request")
         work_request = self.get_work_request(work_request_id)
+        organization = self._active_organization()
 
         if expected_version is not None and work_request.version != expected_version:
             raise ConcurrencyError(
@@ -307,31 +312,6 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
                 code="STALE_WRITE",
             )
 
-        # Validate status transition
-        if status is not None:
-            from src.core.modules.maintenance.domain import MaintenanceWorkRequestStatus
-            new_status = coerce_work_request_status(status)
-            self._validate_work_request_status_transition(work_request.status, new_status)
-            work_request.status = new_status
-
-            # Set triaged timestamp if moving to triaged
-            if new_status == MaintenanceWorkRequestStatus.TRIAGED and work_request.triaged_at is None:
-                work_request.triaged_at = datetime.now(timezone.utc)
-                current_user_id = self._current_user_id()
-                if current_user_id:
-                    work_request.triaged_by_user_id = current_user_id
-
-        if work_request_code is not None:
-            normalized_code = normalize_maintenance_code(work_request_code, label="Work request code")
-            existing = self._work_request_repo.get_by_code(work_request.organization_id, normalized_code)
-            if existing is not None and existing.id != work_request.id:
-                raise ValidationError("Work request code already exists in the active organization.", code="MAINTENANCE_WORK_REQUEST_CODE_EXISTS")
-            work_request.work_request_code = normalized_code
-
-        if request_type is not None:
-            work_request.request_type = normalize_maintenance_name(request_type, label="Request type").upper()
-
-        organization = self._active_organization()
         site = self._get_site(work_request.site_id, organization=organization)
         resolved_asset_id, resolved_component_id, resolved_system_id, resolved_location_id = self._resolve_context_references(
             organization=organization,
@@ -341,33 +321,68 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
             system_id=system_id if system_id is not None else work_request.system_id,
             location_id=location_id if location_id is not None else work_request.location_id,
         )
-        work_request.asset_id = resolved_asset_id
-        work_request.component_id = resolved_component_id
-        work_request.system_id = resolved_system_id
-        work_request.location_id = resolved_location_id
-
-        if title is not None:
-            work_request.title = normalize_optional_text(title)
-        if description is not None:
-            work_request.description = normalize_optional_text(description)
-        if priority is not None:
-            work_request.priority = coerce_priority(priority)
-        if failure_symptom_code is not None:
-            work_request.failure_symptom_code = self._normalize_failure_symptom_code(
-                failure_symptom_code,
-                organization=organization,
+        now = datetime.now(timezone.utc)
+        updated = replace(
+            work_request,
+            work_request_code=work_request.work_request_code if work_request_code is None else work_request_code,
+            request_type=work_request.request_type if request_type is None else request_type,
+            asset_id=resolved_asset_id,
+            component_id=resolved_component_id,
+            system_id=resolved_system_id,
+            location_id=resolved_location_id,
+            title=work_request.title if title is None else title,
+            description=work_request.description if description is None else description,
+            priority=work_request.priority if priority is None else priority,
+            status=work_request.status if status is None else status,
+            failure_symptom_code=(
+                work_request.failure_symptom_code
+                if failure_symptom_code is None
+                else failure_symptom_code
+            ),
+            safety_risk_level=(
+                work_request.safety_risk_level
+                if safety_risk_level is None
+                else safety_risk_level
+            ),
+            production_impact_level=(
+                work_request.production_impact_level
+                if production_impact_level is None
+                else production_impact_level
+            ),
+            notes=work_request.notes if notes is None else notes,
+            updated_at=now,
+        )
+        if (
+            updated.source_type == MaintenanceWorkRequestSourceType.PREVENTIVE_PLAN
+            and not updated.source_id
+        ):
+            raise ValidationError(
+                "Preventive maintenance work requests must retain their source plan id.",
+                code="MAINTENANCE_WORK_REQUEST_SOURCE_REQUIRED",
             )
-        if safety_risk_level is not None:
-            work_request.safety_risk_level = normalize_optional_text(safety_risk_level)
-        if production_impact_level is not None:
-            work_request.production_impact_level = normalize_optional_text(production_impact_level)
-        if notes is not None:
-            work_request.notes = normalize_optional_text(notes)
-
-        work_request.updated_at = datetime.now(timezone.utc)
+        if status is not None:
+            self._validate_work_request_status_transition(work_request.status, updated.status)
+            if updated.status == MaintenanceWorkRequestStatus.TRIAGED and work_request.triaged_at is None:
+                current_user_id = self._current_user_id()
+                updated = replace(
+                    updated,
+                    triaged_at=now,
+                    triaged_by_user_id=current_user_id or updated.triaged_by_user_id,
+                )
+        updated = replace(
+            updated,
+            failure_symptom_code=self._normalize_failure_symptom_code(
+                updated.failure_symptom_code,
+                organization=organization,
+            ),
+        )
+        if work_request_code is not None:
+            existing = self._work_request_repo.get_by_code(updated.organization_id, updated.work_request_code)
+            if existing is not None and existing.id != updated.id:
+                raise ValidationError("Work request code already exists in the active organization.", code="MAINTENANCE_WORK_REQUEST_CODE_EXISTS")
 
         try:
-            self._work_request_repo.update(work_request)
+            self._work_request_repo.update(updated)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -375,8 +390,8 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
         except Exception:
             self._session.rollback()
             raise
-        self._record_change("maintenance_work_request.update", work_request)
-        return work_request
+        self._record_change("maintenance_work_request.update", updated)
+        return updated
 
     def _get_asset(self, asset_id: str, *, organization: Organization) -> MaintenanceAsset:
         asset = self._asset_repo.get(asset_id)
@@ -496,9 +511,13 @@ class MaintenanceWorkRequestService(MaintenanceWorkRequestValidationMixin):
             )
             return
         if self._user_session is not None and self._user_session.is_scope_restricted("maintenance"):
-            raise BusinessRuleError(
-                f"Permission denied for {operation_label}. The record is not anchored to a maintenance scope grant.",
-                code="PERMISSION_DENIED",
+            deny_maintenance_scope_access(
+                self._user_session,
+                operation_label=operation_label,
+                message=(
+                    f"Permission denied for {operation_label}. The record is "
+                    "not anchored to a maintenance scope grant."
+                ),
             )
 
     def _resolve_context_references(

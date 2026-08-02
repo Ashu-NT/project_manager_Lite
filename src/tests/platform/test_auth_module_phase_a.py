@@ -33,7 +33,7 @@ def test_bootstrap_requires_explicit_admin_password(session, monkeypatch):
         build_service_dict(session)
 
 
-def test_register_user_uses_default_viewer_role(services):
+def test_register_user_creates_identity_without_customer_authority(services):
     auth = services["auth_service"]
 
     user = auth.register_user("alice", "StrongPass123")
@@ -41,13 +41,21 @@ def test_register_user_uses_default_viewer_role(services):
     permissions = auth.get_user_permissions(user.id)
 
     assert authenticated.id == user.id
-    assert "project.read" in permissions
+    assert "project.read" not in permissions
     assert "project.manage" not in permissions
 
 
 def test_assign_role_elevates_permissions(services):
     auth = services["auth_service"]
-    user = auth.register_user("planner-user", "StrongPass123")
+    tenant_id = services["tenant_context_service"].require_active_tenant_id(
+        operation_label="test canonical role assignment"
+    )
+    user = auth.register_user(
+        "planner-user",
+        "StrongPass123",
+        role_names=[],
+        tenant_id=tenant_id,
+    )
 
     auth.assign_role(user.id, "planner")
     permissions = auth.get_user_permissions(user.id)

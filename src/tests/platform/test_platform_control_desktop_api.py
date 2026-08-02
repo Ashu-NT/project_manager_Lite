@@ -23,7 +23,15 @@ def _approval_api(services) -> PlatformApprovalDesktopApi:
 def test_platform_access_desktop_api_manages_project_scope_grants(services):
     api = _access_api(services)
     project = services["project_service"].create_project("Desktop Access Project")
-    user = services["auth_service"].register_user("desktop-access", "StrongPass123", role_names=["viewer"])
+    tenant_id = services["tenant_context_service"].require_active_tenant_id(
+        operation_label="prepare desktop access test user"
+    )
+    user = services["auth_service"].register_user(
+        "desktop-access",
+        "StrongPass123",
+        role_names=["viewer"],
+        tenant_id=tenant_id,
+    )
 
     role_choices_result = api.list_scope_role_choices("project")
     assign_result = api.assign_scope_grant(
@@ -72,7 +80,7 @@ def test_platform_approval_desktop_api_lists_and_approves_requests(services):
     services["auth_service"].register_user(
         "approval-approver-desktop",
         "StrongPass123",
-        role_names=["admin"],
+        role_names=["approver"],
     )
 
     login_as(services, "approval-requester-desktop", "StrongPass123")

@@ -61,6 +61,16 @@ class ReportRuntime:
             rendered = definition.render(request)
             if execution is not None:
                 artifact = self._extract_artifact(rendered)
+                if artifact is not None:
+                    artifact = ExportArtifact(
+                        file_path=artifact.file_path,
+                        file_name=artifact.file_name,
+                        media_type=artifact.media_type,
+                        metadata=self._runtime_execution_service.artifact_metadata(
+                            execution,
+                            dict(artifact.metadata or {}),
+                        ),
+                    )
                 self._runtime_execution_service.complete_execution(
                     execution,
                     output_path=getattr(artifact, "file_path", None) if artifact is not None else getattr(rendered, "file_path", None),
@@ -68,6 +78,8 @@ class ReportRuntime:
                     output_media_type=getattr(artifact, "media_type", None) if artifact is not None else None,
                     output_metadata=dict(getattr(artifact, "metadata", {}) or {}) if artifact is not None else None,
                 )
+                if artifact is not None:
+                    rendered = artifact
             return rendered
         except Exception as exc:
             if execution is not None:

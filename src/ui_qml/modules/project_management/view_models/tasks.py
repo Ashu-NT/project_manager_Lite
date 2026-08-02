@@ -27,6 +27,7 @@ class TaskCatalogOverviewViewModel:
 class TaskSelectorOptionViewModel:
     value: str
     label: str
+    disabled_for_task_ids: tuple[str, ...] = field(default_factory=tuple)
 
 @dataclass(frozen=True)
 class TaskRecordViewModel:
@@ -79,6 +80,7 @@ class TaskCatalogWorkspaceViewModel:
     selected_schedule_filter: str = "all"
     search_text: str = ""
     tasks: tuple[TaskRecordViewModel, ...] = field(default_factory=tuple)
+    wbs_parent_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
     selected_task_id: str = ""
     selected_task_detail: TaskDetailViewModel = field(default_factory=TaskDetailViewModel)
     assignment_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)

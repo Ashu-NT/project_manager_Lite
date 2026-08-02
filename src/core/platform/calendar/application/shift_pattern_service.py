@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import time
+from dataclasses import replace
+from datetime import date, time
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -10,15 +11,11 @@ from sqlalchemy.orm import Session
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.calendar.contracts import ShiftPatternRepository
 from src.core.platform.calendar.domain.enterprise_calendar import (
-    PatternType,
     ShiftPattern,
     ShiftPatternDay,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.tenancy import TenantContextService
-
-
-_VALID_PATTERN_TYPES = {t.value for t in PatternType}
 
 
 class ShiftPatternService:
@@ -70,28 +67,25 @@ class ShiftPatternService:
         timezone: str = "UTC",
         description: str | None = None,
         rotation_cycle_days: int | None = None,
+        anchor_date: date | None = None,
     ) -> ShiftPattern:
         require_permission(
             self._user_session, "task.manage", operation_label="create shift pattern"
         )
-        if pattern_type not in _VALID_PATTERN_TYPES:
-            raise ValidationError(
-                f"Invalid pattern_type '{pattern_type}'. Valid: {sorted(_VALID_PATTERN_TYPES)}"
-            )
         org_id = self._active_org_id()
-        existing = self._pattern_repo.get_by_code(org_id, code.strip())
-        if existing is not None:
-            raise ValidationError(f"Shift pattern code '{code}' already exists.")
-
         pattern = ShiftPattern.create(
             organization_id=org_id,
-            code=code.strip(),
-            name=name.strip(),
+            code=code,
+            name=name,
             pattern_type=pattern_type,
-            timezone=timezone or "UTC",
+            timezone=timezone,
             description=description,
             rotation_cycle_days=rotation_cycle_days,
+            anchor_date=anchor_date,
         )
+        existing = self._pattern_repo.get_by_code(org_id, pattern.code)
+        if existing is not None:
+            raise ValidationError(f"Shift pattern code '{pattern.code}' already exists.")
         self._pattern_repo.add(pattern)
         self._session.commit()
         return pattern
@@ -105,6 +99,7 @@ class ShiftPatternService:
         pattern_type: str | None = None,
         timezone: str | None = None,
         rotation_cycle_days: int | None = None,
+        anchor_date: date | None = None,
         is_active: bool | None = None,
     ) -> ShiftPattern:
         require_permission(
@@ -112,24 +107,24 @@ class ShiftPatternService:
         )
         pattern = self._require_pattern_in_active_organization(pattern_id)
 
-        if name is not None:
-            pattern.name = name.strip()
-        if description is not None:
-            pattern.description = description
-        if pattern_type is not None:
-            if pattern_type not in _VALID_PATTERN_TYPES:
-                raise ValidationError(f"Invalid pattern_type '{pattern_type}'.")
-            pattern.pattern_type = pattern_type
-        if timezone is not None:
-            pattern.timezone = timezone
-        if rotation_cycle_days is not None:
-            pattern.rotation_cycle_days = rotation_cycle_days
-        if is_active is not None:
-            pattern.is_active = is_active
+        updated = replace(
+            pattern,
+            name=pattern.name if name is None else name,
+            description=pattern.description if description is None else description,
+            pattern_type=pattern.pattern_type if pattern_type is None else pattern_type,
+            timezone=pattern.timezone if timezone is None else timezone,
+            rotation_cycle_days=(
+                pattern.rotation_cycle_days
+                if rotation_cycle_days is None
+                else rotation_cycle_days
+            ),
+            anchor_date=pattern.anchor_date if anchor_date is None else anchor_date,
+            is_active=pattern.is_active if is_active is None else is_active,
+        )
 
-        self._pattern_repo.update(pattern)
+        self._pattern_repo.update(updated)
         self._session.commit()
-        return pattern
+        return updated
 
     def delete_shift_pattern(self, pattern_id: str) -> None:
         require_permission(
@@ -162,13 +157,6 @@ class ShiftPatternService:
             self._user_session, "task.manage", operation_label="set shift pattern day"
         )
         self._require_pattern_in_active_organization(pattern_id)
-        if day_offset < 0:
-            raise ValidationError("day_offset must be >= 0.")
-        if is_working_day and start_time and end_time:
-            s = start_time.hour * 60 + start_time.minute
-            e = end_time.hour * 60 + end_time.minute
-            if e <= s:
-                raise ValidationError("start_time must be before end_time.")
 
         day = ShiftPatternDay.create(
             shift_pattern_id=pattern_id,

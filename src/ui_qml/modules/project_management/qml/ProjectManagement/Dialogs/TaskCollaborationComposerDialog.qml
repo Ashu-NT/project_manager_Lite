@@ -10,6 +10,8 @@ AppWidgets.EntityDialog {
     id: root
 
     property var taskData: ({})
+    property var commentData: ({})
+    property string mode: "create"
     property var mentionOptions: []
     property var documentOptions: []
     property var pendingAttachments: []
@@ -21,22 +23,43 @@ AppWidgets.EntityDialog {
     width: 640
     closePolicy: Popup.CloseOnEscape
 
-    title: "Post Task Update"
+    title: root.mode === "edit"
+        ? "Edit Comment"
+        : root.mode === "reply"
+            ? "Reply to Comment"
+            : "Post Task Update"
     subtitle: {
         const state = root.selectedTaskState()
         const taskName = String(state.name || root.taskData.title || "selected task")
-        return "Post a collaboration update for " + taskName + ", mention collaborators with @handle, and queue attachment or shared-document references."
+        if (root.mode === "edit") {
+            return "Update your comment on " + taskName + ". Existing attachments and linked documents are preserved."
+        }
+        if (root.mode === "reply") {
+            return "Reply to " + String(root.commentData.title || "this comment") + " on " + taskName + "."
+        }
+        return "Post a collaboration update for " + taskName + ", mention collaborators with @handle, and add supporting references."
     }
-    primaryText: "Post Update"
+    primaryText: root.mode === "edit" ? "Save Comment" : root.mode === "reply" ? "Post Reply" : "Post Update"
     primaryIcon: "collaboration"
     primaryEnabled: String(root.selectedTaskState().taskId || root.selectedTaskState().id || "").length > 0
         && String(commentArea.text || "").trim().length > 0
+        && (root.mode === "create" || String(
+            root.selectedCommentState().commentId
+                || root.selectedCommentState().id
+                || ""
+        ).length > 0)
 
     onAccepted: root.submitted(root.buildPayload())
     onRejected: root.close()
 
     function selectedTaskState() {
         return root.taskData && root.taskData.state ? root.taskData.state : (root.taskData || {})
+    }
+
+    function selectedCommentState() {
+        return root.commentData && root.commentData.state
+            ? root.commentData.state
+            : (root.commentData || {})
     }
 
     function localPathFromUrl(urlValue) {
@@ -54,7 +77,9 @@ AppWidgets.EntityDialog {
     }
 
     function resetDraft() {
-        commentArea.text = ""
+        commentArea.text = root.mode === "edit"
+            ? String(root.commentData.subtitle || "")
+            : ""
         mentionCombo.currentIndex = 0
         documentCombo.currentIndex = 0
         root.pendingAttachments = []
@@ -97,12 +122,20 @@ AppWidgets.EntityDialog {
 
     function buildPayload() {
         const state = root.selectedTaskState()
-        return {
+        const commentState = root.selectedCommentState()
+        const payload = {
             "taskId": String(state.taskId || state.id || ""),
             "body": commentArea.text,
             "attachments": root.pendingAttachments.slice(),
             "linkedDocumentIds": root.pendingDocuments.map(function(item) { return String(item.id || "") })
         }
+        if (root.mode === "edit") {
+            payload.commentId = String(commentState.commentId || root.commentData.id || "")
+            payload.expectedRevision = Number(commentState.revision || 0)
+        } else if (root.mode === "reply") {
+            payload.parentCommentId = String(commentState.commentId || root.commentData.id || "")
+        }
+        return payload
     }
 
     onOpened: root.resetDraft()
@@ -129,7 +162,7 @@ AppWidgets.EntityDialog {
 
     GridLayout {
         Layout.fillWidth: true
-        columns: root.width > 540 ? 2 : 1
+        columns: root.mode === "edit" ? 1 : (root.width > 540 ? 2 : 1)
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
@@ -160,6 +193,7 @@ AppWidgets.EntityDialog {
         AppWidgets.FormField {
             Layout.fillWidth: true
             label: "Link shared document"
+            visible: root.mode !== "edit"
 
             RowLayout {
                 Layout.fillWidth: true
@@ -203,6 +237,7 @@ AppWidgets.EntityDialog {
         AppControls.PrimaryButton {
             text: "Attach File"
             iconName: "upload"
+            visible: root.mode !== "edit"
             onClicked: attachmentDialog.open()
         }
 
@@ -211,6 +246,7 @@ AppWidgets.EntityDialog {
 
     AppControls.Label {
         Layout.fillWidth: true
+        visible: root.mode !== "edit"
         text: root.pendingAttachments.length > 0
             ? "Attachments: " + root.pendingAttachments.join(", ")
             : "Attachments: none"
@@ -222,6 +258,7 @@ AppWidgets.EntityDialog {
 
     AppControls.Label {
         Layout.fillWidth: true
+        visible: root.mode !== "edit"
         text: root.pendingDocuments.length > 0
             ? "Linked documents: " + root.pendingDocuments.map(function(item) { return String(item.label || "") }).join(", ")
             : "Linked documents: none"

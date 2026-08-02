@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.core.platform.common.exceptions import BusinessRuleError
+
 
 def record_audit_entry(
     owner: object,
@@ -25,9 +27,16 @@ def record_audit_entry(
     severity: str = "low",
     compliance_tag: str = "none",
     metadata: dict[str, Any] | None = None,
+    commit: bool = True,
+    fail_closed: bool = False,
 ) -> None:
     enterprise_audit_service = getattr(owner, "_enterprise_audit_service", None)
     if enterprise_audit_service is None:
+        if fail_closed:
+            raise BusinessRuleError(
+                "Enterprise audit service is required for this operation.",
+                code="ENTERPRISE_AUDIT_REQUIRED",
+            )
         return
     try:
         enterprise_audit_service.record(
@@ -50,10 +59,11 @@ def record_audit_entry(
             severity=severity,
             compliance_tag=compliance_tag,
             metadata=metadata,
-            commit=True,
+            commit=commit,
         )
     except Exception:
-        pass
+        if fail_closed:
+            raise
 
 
 __all__ = ["record_audit_entry"]

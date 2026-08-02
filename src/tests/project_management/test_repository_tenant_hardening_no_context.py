@@ -15,6 +15,10 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.modules.project_management.infrastructure.persistence.repositories.project import (
     SqlAlchemyProjectResourceRepository,
 )
+from src.core.modules.project_management.infrastructure.persistence.repositories.financial_configuration import (
+    SqlAlchemyProjectCostCodeRepository,
+    SqlAlchemyProjectFinancialProfileRepository,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.skills import (
     SqlAlchemyResourceCertificationRepository,
     SqlAlchemyResourceSkillRepository,
@@ -34,6 +38,8 @@ def test_remaining_pm_secondary_repositories_require_tenant_context_service(sess
     requirement_repo = SqlAlchemyTaskSkillRequirementRepository(session)
     project_assignment_repo = SqlAlchemyProjectCalendarAssignmentRepository(session)
     resource_assignment_repo = SqlAlchemyResourceCalendarAssignmentRepository(session)
+    financial_profile_repo = SqlAlchemyProjectFinancialProfileRepository(session)
+    project_cost_code_repo = SqlAlchemyProjectCostCodeRepository(session)
     with pytest.raises(BusinessRuleError, match="TenantContextService"):
         project_resource_repo.list_by_project("project-x")
     with pytest.raises(BusinessRuleError, match="TenantContextService"):
@@ -54,3 +60,7 @@ def test_remaining_pm_secondary_repositories_require_tenant_context_service(sess
         project_assignment_repo.get("project-x")
     with pytest.raises(BusinessRuleError, match="TenantContextService"):
         resource_assignment_repo.get("resource-x")
+    with pytest.raises(BusinessRuleError, match="TenantContextService"):
+        financial_profile_repo.get_by_project("project-x")
+    with pytest.raises(BusinessRuleError, match="TenantContextService"):
+        project_cost_code_repo.list()

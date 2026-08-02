@@ -230,6 +230,7 @@ class ShiftPatternORM(Base):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     pattern_type: Mapped[str] = mapped_column(String(64), nullable=False)
     rotation_cycle_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    anchor_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     timezone: Mapped[str] = mapped_column(
         String(128), nullable=False, default="UTC", server_default="UTC"
     )

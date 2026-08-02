@@ -15,8 +15,23 @@ from src.core.modules.project_management.application.tasks.commands.assignment_b
 from src.core.modules.project_management.application.tasks.commands.dependency import (
     TaskDependencyMixin,
 )
+from src.core.modules.project_management.application.tasks.commands.deletion import (
+    TaskDeletionMixin,
+)
 from src.core.modules.project_management.application.tasks.commands.lifecycle import (
     TaskLifecycleMixin,
+)
+from src.core.modules.project_management.application.tasks.commands.hierarchy import (
+    TaskHierarchyMixin,
+)
+from src.core.modules.project_management.application.tasks.commands.hierarchy_support import (
+    TaskHierarchySupportMixin,
+)
+from src.core.modules.project_management.application.tasks.commands.identity import (
+    TaskIdentityMixin,
+)
+from src.core.modules.project_management.application.tasks.commands.progress import (
+    TaskProgressMixin,
 )
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
     TaskScheduleSyncMixin,
@@ -33,8 +48,10 @@ from src.core.modules.project_management.application.tasks.queries.dependency_di
 from src.core.modules.project_management.application.tasks.queries.task_query import (
     TaskQueryMixin,
 )
-from src.core.modules.project_management.contracts.repositories.cost_calendar import (
-    CalendarEventRepository,
+from src.core.modules.project_management.application.tasks.queries.hierarchy_query import (
+    TaskHierarchyQueryMixin,
+)
+from src.core.modules.project_management.contracts.repositories.cost import (
     CostRepository,
 )
 from src.core.modules.project_management.contracts.repositories.project import (
@@ -60,6 +77,12 @@ from src.core.platform.calendar.application.calendar_protocol import CalendarPro
 class TaskService(
     ProjectManagementModuleGuardMixin,
     TaskScheduleSyncMixin,
+    TaskHierarchySupportMixin,
+    TaskHierarchyQueryMixin,
+    TaskHierarchyMixin,
+    TaskIdentityMixin,
+    TaskProgressMixin,
+    TaskDeletionMixin,
     TaskLifecycleMixin,
     TaskDependencyDiagnosticsMixin,
     TaskDependencyMixin,
@@ -82,7 +105,6 @@ class TaskService(
         timesheet_service: TimesheetService | None,
         resource_repo: ResourceRepository,
         cost_repo: CostRepository,
-        calendar_repo: CalendarEventRepository,
         work_calendar_engine: CalendarProtocol,
         scheduling_engine: SchedulingEngine | None = None,
         project_resource_repo: ProjectResourceRepository | None = None,
@@ -91,6 +113,9 @@ class TaskService(
         activity_service: ActivityService | None = None,
         approval_service: ApprovalService | None = None,
         module_catalog_service=None,
+        notification_service=None,
+        employee_repo=None,
+        assignment_skill_validator=None,
     ):
         self._session: Session = session
         self._task_repo: TaskRepository = task_repo
@@ -101,7 +126,6 @@ class TaskService(
         self._timesheet_service = timesheet_service
         self._resource_repo: ResourceRepository = resource_repo
         self._cost_repo: CostRepository = cost_repo
-        self._calendar_repo: CalendarEventRepository = calendar_repo
         self._work_calendar_engine: CalendarProtocol = work_calendar_engine
         self._scheduling_engine: SchedulingEngine | None = scheduling_engine
         self._project_resource_repo: ProjectResourceRepository | None = project_resource_repo
@@ -110,13 +134,22 @@ class TaskService(
         self._activity_service: ActivityService | None = activity_service
         self._approval_service: ApprovalService | None = approval_service
         self._module_catalog_service = module_catalog_service
+        self._notification_service = notification_service
+        self._employee_repo = employee_repo
+        self._assignment_skill_validator = assignment_skill_validator
         policy = os.getenv("PM_OVERALLOCATION_POLICY", "warn").strip().lower()
         self._overallocation_policy: str = "strict" if policy == "strict" else "warn"
         self._last_overallocation_warning: str | None = None
+        self._last_skill_violation_warning: str | None = None
 
     def consume_last_overallocation_warning(self) -> str | None:
         warning = self._last_overallocation_warning
         self._last_overallocation_warning = None
+        return warning
+
+    def consume_last_skill_violation_warning(self) -> str | None:
+        warning = self._last_skill_violation_warning
+        self._last_skill_violation_warning = None
         return warning
 
 

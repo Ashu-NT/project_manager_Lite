@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from src.core.modules.project_management.contracts.repositories.project import ProjectResourceRepository
+from src.core.modules.project_management.contracts.repositories.project import (
+    ProjectRepository,
+    ProjectResourceRepository,
+)
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.domain.projects.project import ProjectResource
 from src.core.platform.access.authorization import require_project_permission
@@ -8,13 +11,15 @@ from src.core.shared.activity import record_activity
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.shared.events.domain_events import domain_events
-
-DEFAULT_CURRENCY_CODE = "EUR"
+from src.core.modules.project_management.application.common.currency_policy import (
+    resolve_pm_currency,
+)
 
 
 class ProjectResourceCommandMixin:
     _project_resource_repo: ProjectResourceRepository
     _resource_repo: ResourceRepository
+    _project_repo: ProjectRepository
 
     def add_to_project(
         self,
@@ -45,6 +50,9 @@ class ProjectResourceCommandMixin:
                 "Inactive resource cannot be added to a project.",
                 code="RESOURCE_INACTIVE",
             )
+        project = self._project_repo.get(project_id)
+        if not project:
+            raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
 
         existing = self._project_resource_repo.get_for_project(project_id, resource_id)
         if existing:
@@ -52,15 +60,13 @@ class ProjectResourceCommandMixin:
                 "Resource is already added to this project.",
                 code="PROJECT_RESOURCE_EXISTS",
             )
-        if planned_hours < 0:
-            raise BusinessRuleError(
-                "planned_hours cannot be negative.",
-                code="PROJECT_RESOURCE_PLANNED_HOURS_INVALID",
-            )
 
-        resolved_currency = (currency_code or getattr(resource, "currency_code", None) or "").strip().upper()
-        if not resolved_currency:
-            resolved_currency = DEFAULT_CURRENCY_CODE
+        resolved_currency = resolve_pm_currency(
+            tenant_context_service=getattr(self, "_tenant_context_service", None),
+            operation_label="add project resource",
+            explicit=currency_code,
+            project_default=getattr(project, "currency", None),
+        )
 
         project_resource = ProjectResource.create(
             project_id=project_id,
@@ -118,13 +124,16 @@ class ProjectResourceCommandMixin:
             "project.manage",
             operation_label="update project resource",
         )
-        if planned_hours < 0:
-            raise BusinessRuleError(
-                "planned_hours cannot be negative.",
-                code="PROJECT_RESOURCE_PLANNED_HOURS_INVALID",
-            )
 
-        resolved_currency = (currency_code or "").strip().upper() or DEFAULT_CURRENCY_CODE
+        project = self._project_repo.get(project_resource.project_id)
+        if not project:
+            raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
+        resolved_currency = resolve_pm_currency(
+            tenant_context_service=getattr(self, "_tenant_context_service", None),
+            operation_label="update project resource",
+            explicit=currency_code,
+            project_default=getattr(project, "currency", None),
+        )
         project_resource.hourly_rate = hourly_rate
         project_resource.currency_code = resolved_currency
         project_resource.planned_hours = planned_hours
@@ -229,4 +238,4 @@ class ProjectResourceCommandMixin:
         domain_events.project_changed.emit(project_resource.project_id)
 
 
-__all__ = ["DEFAULT_CURRENCY_CODE", "ProjectResourceCommandMixin"]
+__all__ = ["ProjectResourceCommandMixin"]

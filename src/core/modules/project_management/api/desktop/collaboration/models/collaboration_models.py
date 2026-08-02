@@ -67,6 +67,14 @@ class TaskCollaborationDocumentOptionDescriptor:
 
 
 @dataclass(frozen=True)
+class TaskCollaborationReactionSummaryDto:
+    emoji: str
+    count: int
+    reactor_user_ids: tuple[str, ...]
+    reacted_by_current_user: bool = False
+
+
+@dataclass(frozen=True)
 class TaskCollaborationCommentDesktopDto:
     comment_id: str
     task_id: str
@@ -80,6 +88,24 @@ class TaskCollaborationCommentDesktopDto:
     linked_documents_label: str
     created_at: datetime
     created_at_label: str
+    author_user_id: str | None = None
+    parent_comment_id: str | None = None
+    is_reply: bool = False
+    updated_at: datetime | None = None
+    updated_at_label: str = ""
+    is_edited: bool = False
+    is_deleted: bool = False
+    reactions: tuple[TaskCollaborationReactionSummaryDto, ...] = ()
+    reactions_label: str = ""
+    parent_author_username: str = ""
+    thread_depth: int = 0
+    reply_count: int = 0
+    can_reply: bool = False
+    can_edit: bool = False
+    can_delete: bool = False
+    can_react: bool = False
+    revision: int = 1
+    deletion_reason: str = ""
 
 
 @dataclass(frozen=True)
@@ -106,5 +132,6 @@ __all__ = [
     "TaskCollaborationCommentDesktopDto",
     "TaskCollaborationDocumentOptionDescriptor",
     "TaskCollaborationMentionOptionDescriptor",
+    "TaskCollaborationReactionSummaryDto",
     "TaskCollaborationSnapshotDto",
 ]

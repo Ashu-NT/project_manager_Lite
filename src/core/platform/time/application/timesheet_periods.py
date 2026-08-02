@@ -34,7 +34,7 @@ class TimesheetPeriodsMixin:
         period.decided_at = None
         period.decided_by_user_id = None
         period.decided_by_username = None
-        period.decision_note = (note or "").strip() or None
+        period.decision_note = note
         period.locked_at = None
         self._timesheet_period_repo.update(period)  # type: ignore[union-attr]
         self._session.commit()
@@ -71,7 +71,7 @@ class TimesheetPeriodsMixin:
         period.decided_at = datetime.now(timezone.utc)
         period.decided_by_user_id = getattr(principal, "user_id", None)
         period.decided_by_username = getattr(principal, "username", None)
-        period.decision_note = (note or "").strip() or None
+        period.decision_note = note
         period.locked_at = period.decided_at
         self._timesheet_period_repo.update(period)  # type: ignore[union-attr]
         self._session.commit()
@@ -108,7 +108,7 @@ class TimesheetPeriodsMixin:
         period.decided_at = datetime.now(timezone.utc)
         period.decided_by_user_id = getattr(principal, "user_id", None)
         period.decided_by_username = getattr(principal, "username", None)
-        period.decision_note = (note or "").strip() or None
+        period.decision_note = note
         period.locked_at = None
         self._timesheet_period_repo.update(period)  # type: ignore[union-attr]
         self._session.commit()
@@ -147,7 +147,7 @@ class TimesheetPeriodsMixin:
             raise ValidationError("Approved timesheet periods are already locked.")
         period.status = TimesheetPeriodStatus.LOCKED
         period.locked_at = datetime.now(timezone.utc)
-        period.decision_note = (note or "").strip() or None
+        period.decision_note = note
         self._timesheet_period_repo.update(period)  # type: ignore[union-attr]
         self._session.commit()
         entries = self.list_time_entries_for_resource_period(resource_id, period_start=period.period_start)
@@ -181,7 +181,7 @@ class TimesheetPeriodsMixin:
         entries = self.list_time_entries_for_resource_period(period.resource_id, period_start=period.period_start)
         period.status = TimesheetPeriodStatus.OPEN
         period.locked_at = None
-        period.decision_note = (note or "").strip() or None
+        period.decision_note = note
         self._timesheet_period_repo.update(period)  # type: ignore[union-attr]
         self._session.commit()
         project_ids = self._project_ids_for_entries(entries)

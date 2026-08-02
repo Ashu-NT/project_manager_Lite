@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, time
+from datetime import date, time, timedelta
 from src.api.desktop.platform._support import execute_desktop_operation
 from src.api.desktop.platform.models import DesktopApiResult
 from src.api.desktop.platform.models.enterprise_calendar import (
@@ -25,6 +25,7 @@ from src.api.desktop.platform.models.enterprise_calendar import (
     ResourceCapacityCommand,
     ResourceCapacityDto,
     ShiftPatternCreateCommand,
+    ShiftPatternDaySetCommand,
     ShiftPatternDayDto,
     ShiftPatternDto,
     ShiftPatternUpdateCommand,
@@ -180,6 +181,7 @@ def _serialize_shift_pattern(p: ShiftPattern) -> ShiftPatternDto:
         is_active=p.is_active,
         description=p.description or "",
         rotation_cycle_days=p.rotation_cycle_days or 0,
+        anchor_date=_fmt_date(p.anchor_date),
     )
 
 
@@ -476,6 +478,7 @@ class EnterpriseCalendarDesktopApi:
                     timezone=command.timezone or "UTC",
                     description=command.description or None,
                     rotation_cycle_days=command.rotation_cycle_days or None,
+                    anchor_date=_parse_date(command.anchor_date),
                 )
             )
         )
@@ -490,6 +493,7 @@ class EnterpriseCalendarDesktopApi:
                     pattern_type=command.pattern_type or None,
                     timezone=command.timezone or None,
                     rotation_cycle_days=command.rotation_cycle_days or None,
+                    anchor_date=_parse_date(command.anchor_date) if command.anchor_date else None,
                     is_active=command.is_active,
                 )
             )
@@ -498,6 +502,27 @@ class EnterpriseCalendarDesktopApi:
     def delete_shift_pattern(self, pattern_id: str) -> DesktopApiResult:
         return execute_desktop_operation(
             lambda: self._shift_pattern_service.delete_shift_pattern(pattern_id) or None
+        )
+
+    def set_shift_pattern_day(self, command: ShiftPatternDaySetCommand) -> DesktopApiResult:
+        return execute_desktop_operation(
+            lambda: _serialize_shift_day(
+                self._shift_pattern_service.set_day(
+                    command.pattern_id,
+                    command.day_offset,
+                    is_working_day=command.is_working_day,
+                    start_time=_parse_time(command.start_time),
+                    end_time=_parse_time(command.end_time),
+                    break_minutes=command.break_minutes,
+                    hours=command.hours if command.hours else None,
+                    shift_label=command.shift_label or None,
+                )
+            )
+        )
+
+    def delete_shift_pattern_day(self, day_id: str) -> DesktopApiResult:
+        return execute_desktop_operation(
+            lambda: self._shift_pattern_service.delete_day(day_id) or None
         )
 
     # --- Assignments ---
@@ -695,6 +720,50 @@ class EnterpriseCalendarDesktopApi:
             )
 
         return execute_desktop_operation(_resolve)
+
+    def calculate_working_days(self, command: WorkingDaysCommand) -> DesktopApiResult:
+        def _is_available(target_date: date) -> bool:
+            ctx = self._resolver.resolve_calendar_context(
+                project_id=command.project_id or None,
+                resource_id=command.resource_id or None,
+                target_date=target_date,
+            )
+            return ctx.available_hours > 0
+
+        def _calculate():
+            start = date.fromisoformat(command.start_date)
+            working_days = max(command.working_days, 0)
+            if working_days == 0:
+                return WorkingDaysResultDto(
+                    start_date=command.start_date,
+                    end_date=str(start),
+                    working_days=0,
+                )
+
+            # Bounded like ProjectCalendarAdapter.add_working_days: small moves
+            # fail fast, large moves are capped so bad data can't scan forever.
+            max_iterations = min(max(working_days * 7, 730), 365 * 40)
+            iterations = 0
+
+            current = start
+            while not _is_available(current) and iterations < max_iterations:
+                current += timedelta(days=1)
+                iterations += 1
+
+            remaining = working_days - 1
+            while remaining > 0 and iterations < max_iterations:
+                current += timedelta(days=1)
+                iterations += 1
+                if _is_available(current):
+                    remaining -= 1
+
+            return WorkingDaysResultDto(
+                start_date=command.start_date,
+                end_date=str(current),
+                working_days=working_days,
+            )
+
+        return execute_desktop_operation(_calculate)
 
     def get_source_chain(
         self,

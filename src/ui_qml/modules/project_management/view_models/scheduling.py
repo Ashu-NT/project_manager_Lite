@@ -72,6 +72,8 @@ class SchedulingCalendarViewModel:
     )
     hours_per_day: str = "8"
     holidays: tuple[SchedulingRecordViewModel, ...] = field(default_factory=tuple)
+    calendar_id: str = ""
+    calendar_name: str = ""
     empty_state: str = ""
 
 @dataclass(frozen=True)

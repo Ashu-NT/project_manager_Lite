@@ -225,6 +225,7 @@ class ShiftPatternDto:
     is_active: bool
     description: str = ""
     rotation_cycle_days: int = 0
+    anchor_date: str = ""
 
 
 @dataclass(frozen=True)
@@ -248,6 +249,7 @@ class ShiftPatternCreateCommand:
     timezone: str = "UTC"
     description: str = ""
     rotation_cycle_days: int = 0
+    anchor_date: str = ""
 
 
 @dataclass(frozen=True)
@@ -258,7 +260,20 @@ class ShiftPatternUpdateCommand:
     pattern_type: str = ""
     timezone: str = ""
     rotation_cycle_days: int = 0
+    anchor_date: str = ""
     is_active: bool | None = None
+
+
+@dataclass(frozen=True)
+class ShiftPatternDaySetCommand:
+    pattern_id: str
+    day_offset: int
+    is_working_day: bool = True
+    start_time: str = ""
+    end_time: str = ""
+    break_minutes: int = 0
+    hours: float = 0.0
+    shift_label: str = ""
 
 
 # ---------------------------------------------------------------------------

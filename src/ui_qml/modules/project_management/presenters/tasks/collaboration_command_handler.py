@@ -3,7 +3,10 @@ from __future__ import annotations
 from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
+    TaskCollaborationDeleteCommand,
+    TaskCollaborationEditCommand,
     TaskCollaborationPostCommand,
+    TaskCollaborationReactionCommand,
 )
 
 from .validation import coerce_string_list, require_text
@@ -20,8 +23,63 @@ def post_task_comment(collaboration_desktop_api, payload: dict[str, Any]) -> Non
         linked_document_ids=tuple(
             coerce_string_list(payload.get("linkedDocumentIds"))
         ),
+        parent_comment_id=(str(payload.get("parentCommentId") or "").strip() or None),
     )
     collaboration_desktop_api.post_task_comment(command)
+
+def edit_task_comment(collaboration_desktop_api, payload: dict[str, Any]) -> None:
+    try:
+        expected_revision = int(payload.get("expectedRevision"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Comment revision is required. Refresh the discussion and try again.") from exc
+    if expected_revision < 1:
+        raise ValueError("Comment revision is invalid. Refresh the discussion and try again.")
+    command = TaskCollaborationEditCommand(
+        comment_id=require_text(
+            payload, "commentId", "Select a comment before editing it."
+        ),
+        body=require_text(payload, "body", "Comment text is required."),
+        expected_revision=expected_revision,
+    )
+    collaboration_desktop_api.edit_task_comment(command)
+
+def delete_task_comment(collaboration_desktop_api, payload: dict[str, Any]) -> None:
+    normalized_comment_id = require_text(
+        payload,
+        "commentId",
+        "Select a comment before deleting it.",
+    )
+    try:
+        expected_revision = int(payload.get("expectedRevision"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Comment revision is required. Refresh the discussion and try again.") from exc
+    if expected_revision < 1:
+        raise ValueError("Comment revision is invalid. Refresh the discussion and try again.")
+    collaboration_desktop_api.delete_task_comment(
+        TaskCollaborationDeleteCommand(
+            comment_id=normalized_comment_id,
+            expected_revision=expected_revision,
+            reason=(str(payload.get("reason") or "").strip() or None),
+        )
+    )
+
+def react_to_task_comment(collaboration_desktop_api, payload: dict[str, Any]) -> None:
+    command = TaskCollaborationReactionCommand(
+        comment_id=require_text(
+            payload, "commentId", "Select a comment before reacting to it."
+        ),
+        emoji=require_text(payload, "emoji", "A reaction emoji is required."),
+    )
+    collaboration_desktop_api.react_to_task_comment(command)
+
+def remove_task_comment_reaction(collaboration_desktop_api, payload: dict[str, Any]) -> None:
+    command = TaskCollaborationReactionCommand(
+        comment_id=require_text(
+            payload, "commentId", "Select a comment before removing a reaction."
+        ),
+        emoji=require_text(payload, "emoji", "A reaction emoji is required."),
+    )
+    collaboration_desktop_api.remove_task_comment_reaction(command)
 
 def mark_task_collaboration_read(collaboration_desktop_api, task_id: str) -> None:
     normalized_task_id = (task_id or "").strip()

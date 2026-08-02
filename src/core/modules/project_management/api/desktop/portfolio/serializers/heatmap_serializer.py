@@ -1,5 +1,5 @@
 from src.core.modules.project_management.api.desktop.portfolio.models.heatmap import PortfolioHeatmapDesktopDto
-from src.core.modules.project_management.api.desktop.portfolio.formatters.money_formatter import format_signed_money
+from src.core.modules.project_management.api.desktop.common.financial_formatting import format_signed_money
 from src.core.modules.project_management.api.desktop.portfolio.formatters.percent_formatter import format_percent
 
 

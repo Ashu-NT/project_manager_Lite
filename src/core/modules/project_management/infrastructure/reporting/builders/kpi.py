@@ -14,9 +14,10 @@ from src.core.modules.project_management.contracts.repositories.task import (
     TaskRepository,
 )
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
+from src.core.modules.project_management.contracts.repositories.cost import CostRepository
 from src.core.modules.project_management.application.scheduling.services.scheduling_engine import SchedulingEngine
 from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
+from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.modules.project_management.infrastructure.reporting.builders.cost_policy import (
     ReportingCostPolicyMixin,
 )
@@ -60,10 +61,14 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
                     is_critical=info.is_critical,
                     percent_complete=t.percent_complete or 0.0,
                     status=t.status.value if hasattr(t.status, "value") else str(t.status),
+                    wbs_code=t.wbs_code,
                 )
             )
         # Also include unscheduled tasks (no ES/EF)
-        all_tasks = {t.id: t for t in self._task_repo.list_by_project(project_id)}
+        all_tasks = {
+            task.id: task
+            for task in select_leaf_tasks(self._task_repo.list_by_project(project_id))
+        }
         for tid, t in all_tasks.items():
             if tid not in cpm_result:
                 bars.append(
@@ -75,6 +80,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
                         is_critical=False,
                         percent_complete=t.percent_complete or 0.0,
                         status=t.status.value if hasattr(t.status, "value") else str(t.status),
+                        wbs_code=t.wbs_code,
                     )
                 )
         return bars
@@ -90,7 +96,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
         if not project:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
 
-        tasks = self._task_repo.list_by_project(project_id)
+        tasks = select_leaf_tasks(self._task_repo.list_by_project(project_id))
         tasks_total = len(tasks)
         tasks_completed = sum(1 for t in tasks if str(t.status) in ("TaskStatus.DONE", "DONE"))
         tasks_in_progress = sum(1 for t in tasks if str(t.status) in ("TaskStatus.IN_PROGRESS", "IN_PROGRESS"))
@@ -175,7 +181,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
         """
         Capacity-aware load summary by resource using peak concurrent allocation.
         """
-        tasks = self._task_repo.list_by_project(project_id)
+        tasks = select_leaf_tasks(self._task_repo.list_by_project(project_id))
         task_ids = [t.id for t in tasks]
         if not task_ids:
             return []

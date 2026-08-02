@@ -5,20 +5,28 @@ import json
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.runtime_tracking.contracts import RuntimeExecutionRepository
 from src.core.platform.runtime_tracking.domain import RuntimeExecution
 from src.core.platform.infrastructure.persistence.orm.runtime_tracking import RuntimeExecutionORM
+from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
+    TenantScopedRepositorySupport,
+)
+from src.core.platform.tenancy.tenant_context import TenantContextService
 
 
 def _from_orm(obj: RuntimeExecutionORM) -> RuntimeExecution:
     return RuntimeExecution(
         id=obj.id,
+        tenant_id=obj.tenant_id,
+        organization_id=obj.organization_id,
         operation_type=obj.operation_type,
         operation_key=obj.operation_key,
         module_code=obj.module_code,
         status=obj.status,
         requested_by_user_id=obj.requested_by_user_id,
         requested_by_username=obj.requested_by_username,
+        authorization_context_id=obj.authorization_context_id,
         input_path=obj.input_path,
         output_path=obj.output_path,
         output_file_name=obj.output_file_name,
@@ -43,12 +51,15 @@ def _from_orm(obj: RuntimeExecutionORM) -> RuntimeExecution:
 def _to_orm(execution: RuntimeExecution) -> RuntimeExecutionORM:
     return RuntimeExecutionORM(
         id=execution.id,
+        tenant_id=execution.tenant_id,
+        organization_id=execution.organization_id,
         operation_type=execution.operation_type,
         operation_key=execution.operation_key,
         module_code=execution.module_code,
         status=execution.status,
         requested_by_user_id=execution.requested_by_user_id,
         requested_by_username=execution.requested_by_username,
+        authorization_context_id=execution.authorization_context_id,
         input_path=execution.input_path,
         output_path=execution.output_path,
         output_file_name=execution.output_file_name,
@@ -70,28 +81,46 @@ def _to_orm(execution: RuntimeExecution) -> RuntimeExecutionORM:
     )
 
 
-class SqlAlchemyRuntimeExecutionRepository(RuntimeExecutionRepository):
+class SqlAlchemyRuntimeExecutionRepository(
+    TenantScopedRepositorySupport,
+    RuntimeExecutionRepository,
+):
+    _repository_label = "RuntimeExecutionRepository"
     session: Session
 
-    def __init__(self, session: Session) -> None:
+    def __init__(
+        self,
+        session: Session,
+        *,
+        tenant_context_service: TenantContextService,
+    ) -> None:
         self.session = session
+        self._tenant_context_service = tenant_context_service
 
     def add(self, execution: RuntimeExecution) -> None:
+        self._require_matching_scope(execution, operation_label="start runtime execution")
         self.session.add(_to_orm(execution))
         self.session.flush()
 
     def update(self, execution: RuntimeExecution) -> None:
-        obj = self.session.get(RuntimeExecutionORM, execution.id)
+        self._require_matching_scope(execution, operation_label="update runtime execution")
+        obj = self._get_in_scope(
+            RuntimeExecutionORM,
+            execution.id,
+            operation_label="update runtime execution",
+        )
         if obj is None:
-            self.session.add(_to_orm(execution))
-            self.session.flush()
-            return
+            raise NotFoundError(
+                "Runtime execution not found.",
+                code="RUNTIME_EXECUTION_NOT_FOUND",
+            )
         obj.operation_type = execution.operation_type
         obj.operation_key = execution.operation_key
         obj.module_code = execution.module_code
         obj.status = execution.status
         obj.requested_by_user_id = execution.requested_by_user_id
         obj.requested_by_username = execution.requested_by_username
+        obj.authorization_context_id = execution.authorization_context_id
         obj.input_path = execution.input_path
         obj.output_path = execution.output_path
         obj.output_file_name = execution.output_file_name
@@ -113,7 +142,11 @@ class SqlAlchemyRuntimeExecutionRepository(RuntimeExecutionRepository):
         self.session.flush()
 
     def get(self, execution_id: str) -> RuntimeExecution | None:
-        obj = self.session.get(RuntimeExecutionORM, execution_id)
+        obj = self._get_in_scope(
+            RuntimeExecutionORM,
+            execution_id,
+            operation_label="view runtime execution",
+        )
         return _from_orm(obj) if obj else None
 
     def list_recent(
@@ -123,7 +156,8 @@ class SqlAlchemyRuntimeExecutionRepository(RuntimeExecutionRepository):
         module_code: str | None = None,
         status: str | None = None,
     ) -> list[RuntimeExecution]:
-        query = select(RuntimeExecutionORM)
+        ctx = self._context(operation_label="list runtime executions")
+        query = self._apply_scope(select(RuntimeExecutionORM), RuntimeExecutionORM, ctx)
         if module_code:
             query = query.where(RuntimeExecutionORM.module_code == str(module_code).strip())
         if status:
@@ -132,6 +166,22 @@ class SqlAlchemyRuntimeExecutionRepository(RuntimeExecutionRepository):
             query.order_by(RuntimeExecutionORM.started_at.desc()).limit(max(1, int(limit or 200)))
         ).scalars().all()
         return [_from_orm(row) for row in rows]
+
+    def _require_matching_scope(
+        self,
+        execution: RuntimeExecution,
+        *,
+        operation_label: str,
+    ) -> None:
+        ctx = self._context(operation_label=operation_label)
+        if (
+            execution.tenant_id != ctx.tenant_id
+            or execution.organization_id != ctx.organization_id
+        ):
+            raise BusinessRuleError(
+                "Runtime execution is outside the active tenant scope.",
+                code="RUNTIME_EXECUTION_SCOPE_VIOLATION",
+            )
 
 
 __all__ = ["SqlAlchemyRuntimeExecutionRepository"]

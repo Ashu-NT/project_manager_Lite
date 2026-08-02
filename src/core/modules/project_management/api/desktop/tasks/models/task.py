@@ -23,6 +23,13 @@ class TaskDesktopDto:
     actual_end: date | None
     deadline: date | None
     version: int
+    parent_task_id: str | None = None
+    wbs_code: str = ""
+    sort_order: int = 0
+    is_summary: bool = False
+    hierarchy_depth: int = 0
+    child_count: int = 0
+    ancestor_ids: tuple[str, ...] = ()
 
 
 __all__ = ["TaskDesktopDto"]

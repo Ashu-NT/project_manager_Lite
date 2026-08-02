@@ -305,16 +305,28 @@ def build_inventory_procurement_service_bundle(
     )
     logger.debug("Inventory/Procurement core services built")
 
-    def _storeroom_exists(storeroom_id: str) -> bool:
+    def _storeroom_exists(tenant_id: str, storeroom_id: str) -> bool:
         storeroom = storeroom_repo.get(storeroom_id)
         organization_id = platform_services.tenant_context_service.get_active_organization_id()
         return bool(
             storeroom is not None
+            and (
+                platform_services.tenant_context_service.require_active_tenant_id(
+                    operation_label="validate storeroom access scope"
+                )
+                == tenant_id
+            )
             and organization_id
             and storeroom.organization_id == organization_id
         )
 
     platform_services.access_service.register_scope_exists_resolver("storeroom", _storeroom_exists)
+    platform_services.role_governance_service.register_scope_exists_resolver(
+        "storeroom", _storeroom_exists
+    )
+    platform_services.auth_service.register_canonical_scope_tenant_resolver(
+        "storeroom", _storeroom_exists
+    )
 
     logger.debug(
         "Inventory/Procurement service bundle build complete duration_ms=%.1f",

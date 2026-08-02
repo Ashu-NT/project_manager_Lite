@@ -11,6 +11,32 @@ class TaskCollaborationPostCommand:
     body: str
     attachments: tuple[str, ...] = ()
     linked_document_ids: tuple[str, ...] = ()
+    parent_comment_id: str | None = None
 
 
-__all__ = ["TaskCollaborationPostCommand"]
+@dataclass(frozen=True)
+class TaskCollaborationEditCommand:
+    comment_id: str
+    body: str
+    expected_revision: int
+
+
+@dataclass(frozen=True)
+class TaskCollaborationDeleteCommand:
+    comment_id: str
+    expected_revision: int
+    reason: str | None = None
+
+
+@dataclass(frozen=True)
+class TaskCollaborationReactionCommand:
+    comment_id: str
+    emoji: str
+
+
+__all__ = [
+    "TaskCollaborationDeleteCommand",
+    "TaskCollaborationEditCommand",
+    "TaskCollaborationPostCommand",
+    "TaskCollaborationReactionCommand",
+]

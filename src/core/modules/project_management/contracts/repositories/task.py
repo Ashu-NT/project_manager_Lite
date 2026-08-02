@@ -21,6 +21,9 @@ class TaskRepository(ABC):
     @abstractmethod
     def list_by_project(self, project_id: str) -> list[Task]: ...
 
+    @abstractmethod
+    def list_children(self, project_id: str, parent_task_id: str | None) -> list[Task]: ...
+
 
 class AssignmentRepository(ABC):
     @abstractmethod

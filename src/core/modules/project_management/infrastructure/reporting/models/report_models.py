@@ -26,6 +26,7 @@ class GanttTaskBar:
     is_critical: bool
     percent_complete: float
     status: str
+    wbs_code: str = ""
 
 @dataclass
 class ProjectKPI:

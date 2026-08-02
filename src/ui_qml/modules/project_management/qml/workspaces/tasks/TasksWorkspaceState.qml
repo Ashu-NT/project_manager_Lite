@@ -227,10 +227,13 @@ Item {
     function detailActionsForSection(sectionIndex, selectionContext) {
         const sectionName = detailSections[sectionIndex] || ""
         const selection = selectionContext || {}
+        const selectedState = root.selectedTaskModel ? (root.selectedTaskModel.state || {}) : {}
+        const isSummary = Boolean(selectedState.isSummary)
         if (sectionName === "Details") {
             const actions = [
                 { "id": "edit",     "label": "Edit",     "icon": "edit",    "enabled": true, "danger": false },
-                { "id": "progress", "label": "Progress", "icon": "approve", "enabled": true, "danger": false },
+                { "id": "move_wbs", "label": "Move / Recode WBS", "icon": "edit", "enabled": true, "danger": false },
+                { "id": "progress", "label": "Progress", "icon": "approve", "enabled": !isSummary, "danger": false },
                 { "id": "delete",   "label": "Delete",   "icon": "delete",  "enabled": true, "danger": true  }
             ]
             if (root.hasInvReservationsCapability) {
@@ -238,7 +241,7 @@ Item {
                     "id": "reserve_material",
                     "label": "Reserve Material",
                     "icon": "storage",
-                    "enabled": root.selectedTaskModel && root.selectedTaskModel.id ? true : false,
+                    "enabled": root.selectedTaskModel && root.selectedTaskModel.id && !isSummary ? true : false,
                     "danger": false
                 })
             }

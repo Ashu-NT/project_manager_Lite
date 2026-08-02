@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from src.core.modules.project_management.domain.tasks.task import TaskDependency
@@ -21,6 +22,8 @@ if TYPE_CHECKING:
 
 
 class TaskDependencyMixin:
+    # TRANSITION(PF-A0-UOW-BRIDGE): commit=False lets an approval use case own the
+    # transaction. Remove this switch with dedicated approved commands in Phase C.
     _session: Session
     _task_repo: TaskRepository
     _dependency_repo: DependencyRepository
@@ -48,6 +51,7 @@ class TaskDependencyMixin:
         dependency_type: DependencyType = DependencyType.FINISH_TO_START,
         lag_days: int = 0,
         bypass_approval: bool = False,
+        commit: bool = True,
     ) -> TaskDependency:
         predecessor = self._task_repo.get(predecessor_id)
         if not predecessor:
@@ -55,6 +59,8 @@ class TaskDependencyMixin:
         successor = self._task_repo.get(successor_id)
         if not successor:
             raise NotFoundError("Successor task not found", code="TASK_NOT_FOUND")
+        self._require_leaf_task(predecessor, operation_label="participate in dependencies")
+        self._require_leaf_task(successor, operation_label="participate in dependencies")
         governed = (
             not bypass_approval
             and self._approval_service is not None
@@ -115,8 +121,7 @@ class TaskDependencyMixin:
         dependency = TaskDependency.create(predecessor_id, successor_id, dependency_type, lag_days)
         try:
             self._dependency_repo.add(dependency)
-            self._session.commit()
-            self._sync_project_schedule(predecessor.project_id)
+            self._sync_project_schedule(predecessor.project_id, commit=False)
             record_activity(
                 self,
                 action="dependency.add",
@@ -130,14 +135,27 @@ class TaskDependencyMixin:
                     "type": dependency.dependency_type.value,
                     "lag_days": dependency.lag_days,
                 },
+                commit=False,
             )
+            if commit:
+                self._session.commit()
+            else:
+                self._session.flush()
         except Exception as exc:
-            self._session.rollback()
+            if commit:
+                self._session.rollback()
             raise exc
-        domain_events.tasks_changed.emit(predecessor.project_id)
+        if commit:
+            domain_events.tasks_changed.emit(predecessor.project_id)
         return dependency
 
-    def remove_dependency(self, dep_id: str, bypass_approval: bool = False) -> None:
+    def remove_dependency(
+        self,
+        dep_id: str,
+        bypass_approval: bool = False,
+        *,
+        commit: bool = True,
+    ) -> None:
         governed = (
             not bypass_approval
             and self._approval_service is not None
@@ -181,9 +199,8 @@ class TaskDependencyMixin:
             )
         try:
             self._dependency_repo.delete(dep_id)
-            self._session.commit()
             project_id = predecessor.project_id if predecessor else (successor.project_id if successor else None)
-            self._sync_project_schedule(project_id)
+            self._sync_project_schedule(project_id, commit=False)
             record_activity(
                 self,
                 action="dependency.remove",
@@ -195,11 +212,17 @@ class TaskDependencyMixin:
                     "predecessor_name": predecessor.name if predecessor else None,
                     "successor_name": successor.name if successor else None,
                 },
+                commit=False,
             )
+            if commit:
+                self._session.commit()
+            else:
+                self._session.flush()
         except Exception as exc:
-            self._session.rollback()
+            if commit:
+                self._session.rollback()
             raise exc
-        if project_id:
+        if commit and project_id:
             domain_events.tasks_changed.emit(project_id)
 
     def list_dependencies_for_task(self, task_id: str) -> list[TaskDependency]:
@@ -248,13 +271,16 @@ class TaskDependencyMixin:
                 operation_label="request dependency update" if governed else "update dependency",
             )
 
-        next_dependency_type = dependency_type or dependency.dependency_type
-        next_lag_days = int(dependency.lag_days if lag_days is None else lag_days)
+        candidate = replace(
+            dependency,
+            dependency_type=dependency.dependency_type if dependency_type is None else dependency_type,
+            lag_days=dependency.lag_days if lag_days is None else lag_days,
+        )
         diagnostic = self.get_dependency_diagnostics(
             predecessor_id=dependency.predecessor_task_id,
             successor_id=dependency.successor_task_id,
-            dependency_type=next_dependency_type,
-            lag_days=next_lag_days,
+            dependency_type=candidate.dependency_type,
+            lag_days=candidate.lag_days,
             include_impact=False,
         )
         if not diagnostic.is_valid and diagnostic.code not in {"DEPENDENCY_DUPLICATE"}:
@@ -277,8 +303,8 @@ class TaskDependencyMixin:
                     "predecessor_name": predecessor.name if predecessor else None,
                     "successor_id": dependency.successor_task_id,
                     "successor_name": successor.name if successor else None,
-                    "dependency_type": next_dependency_type.value,
-                    "lag_days": next_lag_days,
+                    "dependency_type": candidate.dependency_type.value,
+                    "lag_days": candidate.lag_days,
                 },
             )
             raise BusinessRuleError(
@@ -286,10 +312,8 @@ class TaskDependencyMixin:
                 code="APPROVAL_REQUIRED",
             )
 
-        dependency.dependency_type = next_dependency_type
-        dependency.lag_days = next_lag_days
         try:
-            self._dependency_repo.update(dependency)
+            self._dependency_repo.update(candidate)
             self._session.commit()
             if project_id:
                 self._sync_project_schedule(project_id)
@@ -297,14 +321,14 @@ class TaskDependencyMixin:
                 self,
                 action="dependency.update",
                 entity_type="task_dependency",
-                entity_id=dependency.id,
+                entity_id=candidate.id,
                 module="project_management",
                 workspace_id=project_id,
                 details={
                     "predecessor_name": predecessor.name if predecessor else None,
                     "successor_name": successor.name if successor else None,
-                    "type": dependency.dependency_type.value,
-                    "lag_days": dependency.lag_days,
+                    "type": candidate.dependency_type.value,
+                    "lag_days": candidate.lag_days,
                 },
             )
         except Exception as exc:
@@ -312,7 +336,7 @@ class TaskDependencyMixin:
             raise exc
         if project_id:
             domain_events.tasks_changed.emit(project_id)
-        return dependency
+        return candidate
 
 
 __all__ = ["TaskDependencyMixin"]

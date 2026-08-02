@@ -23,6 +23,7 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "cost.read": "View costs",
     "cost.manage": "Create and edit costs",
     "finance.read": "View finance snapshots and ledgers",
+    "finance.read_sensitive": "View sensitive finance rates and labor details",
     "finance.manage": "Manage finance controls and adjustments",
     "finance.export": "Export finance analytics and ledgers",
     "payroll.read": "View payroll periods and summaries",
@@ -51,6 +52,7 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "settings.manage": "Manage app settings",
     "auth.read": "View user and role directory data",
     "auth.manage": "Manage users and roles",
+    "auth.role.assign": "Assign reviewed roles through explicit delegation policy",
     "security.manage": "Manage login security, lockouts, and session controls",
     "organization.access": "Access tenant organization context",
     "org.create": "Create organizations within a tenant",
@@ -127,6 +129,7 @@ _FINANCE_CONTROLLER = {
     "report.view",
     "report.export",
     "finance.read",
+    "finance.read_sensitive",
     "finance.manage",
     "finance.export",
     "payroll.read",
@@ -188,6 +191,7 @@ _PORTFOLIO_MANAGER = {
     "report.export",
     "portfolio.read",
     "portfolio.manage",
+    "finance.read",
     "collaboration.read",
     "approval.request",
 }
@@ -214,6 +218,7 @@ _AUDITOR = {
     "resource.read",
     "cost.read",
     "finance.read",
+    "finance.read_sensitive",
     "payroll.read",
     "register.read",
     "report.view",
@@ -249,15 +254,13 @@ _SUPPORT_ADMIN = {
 }
 
 _TENANT_ADMIN = {
-    "tenant.create",
-    "tenant.manage",
-    "tenant.read",
     "org.create",
     "org.manage",
     "organization.access",
     "settings.manage",
     "auth.read",
     "auth.manage",
+    "auth.role.assign",
 }
 
 _ORG_ADMIN = {
@@ -268,6 +271,79 @@ _ORG_ADMIN = {
     "settings.manage",
     "auth.read",
     "auth.manage",
+    "auth.role.assign",
+}
+
+_ORG_VIEWER = set(_VIEWER)
+_ORG_MEMBER = set(_TEAM_MEMBER)
+
+_PROJECT_VIEWER = {
+    "project.read",
+    "task.read",
+    "cost.read",
+    "register.read",
+    "report.view",
+    "collaboration.read",
+}
+
+_PROJECT_CONTRIBUTOR = _PROJECT_VIEWER | {
+    "task.manage",
+    "collaboration.manage",
+    "timesheet.submit",
+}
+
+_PROJECT_LEAD = _PROJECT_CONTRIBUTOR | {
+    "cost.manage",
+    "baseline.manage",
+    "register.manage",
+    "report.export",
+    "approval.request",
+    "finance.read",
+}
+
+_PROJECT_OWNER = _PROJECT_LEAD | {
+    "project.manage",
+    "timesheet.approve",
+    "timesheet.lock",
+}
+
+_SITE_VIEWER = {
+    "site.read",
+}
+
+_SITE_OPERATOR = _SITE_VIEWER | {
+    "inventory.read",
+    "report.view",
+}
+
+_SITE_MANAGER = _SITE_OPERATOR | {
+    "inventory.manage",
+    "import.manage",
+    "report.export",
+}
+
+_STOREROOM_VIEWER = {
+    "inventory.read",
+}
+
+_STOREROOM_OPERATOR = _STOREROOM_VIEWER | {
+    "inventory.manage",
+}
+
+_STOREROOM_MANAGER = _STOREROOM_OPERATOR | {
+    "report.view",
+}
+
+_MAINTENANCE_VIEWER = {
+    "maintenance.read",
+}
+
+_MAINTENANCE_OPERATOR = _MAINTENANCE_VIEWER | {
+    "maintenance.manage",
+}
+
+_MAINTENANCE_SCOPE_MANAGER = _MAINTENANCE_OPERATOR | {
+    "report.view",
 }
 
 DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
@@ -290,8 +366,26 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
     "support_admin": set(_SUPPORT_ADMIN),
     "tenant_admin": set(_TENANT_ADMIN),
     "org_admin": set(_ORG_ADMIN),
+    "org_viewer": set(_ORG_VIEWER),
+    "org_member": set(_ORG_MEMBER),
+    "project_viewer": set(_PROJECT_VIEWER),
+    "project_contributor": set(_PROJECT_CONTRIBUTOR),
+    "project_lead": set(_PROJECT_LEAD),
+    "project_owner": set(_PROJECT_OWNER),
+    "site_viewer": set(_SITE_VIEWER),
+    "site_operator": set(_SITE_OPERATOR),
+    "site_manager": set(_SITE_MANAGER),
+    "storeroom_viewer": set(_STOREROOM_VIEWER),
+    "storeroom_operator": set(_STOREROOM_OPERATOR),
+    "storeroom_manager": set(_STOREROOM_MANAGER),
+    "maintenance_viewer": set(_MAINTENANCE_VIEWER),
+    "maintenance_operator": set(_MAINTENANCE_OPERATOR),
+    "maintenance_scope_manager": set(_MAINTENANCE_SCOPE_MANAGER),
     "admin": set(DEFAULT_PERMISSIONS.keys()),
 }
+
+SYSTEM_ROLE_POLICY_NAME = "system-role-permissions"
+SYSTEM_ROLE_POLICY_VERSION = 7
 
 
 def login_lockout_threshold() -> int:

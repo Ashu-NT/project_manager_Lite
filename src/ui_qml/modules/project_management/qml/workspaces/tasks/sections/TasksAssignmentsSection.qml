@@ -21,6 +21,8 @@ Item {
     signal editAllocationRequested(var assignmentData)
     signal setHoursRequested(var assignmentData)
     signal deleteRequested(var assignmentData)
+    signal acceptRequested(var assignmentData)
+    signal declineRequested(var assignmentData)
     signal previewRequested(string projectResourceId, string taskId)
     signal retryRequested()
 
@@ -68,6 +70,25 @@ Item {
         return null
     }
 
+    readonly property var _selectedItem: root._itemForId(root.selectedAssignmentId)
+    readonly property var _selectedState: root._selectedItem
+        ? (root._selectedItem.state || {})
+        : ({})
+    readonly property var _selectedActions: {
+        if (!root._selectedItem) return []
+        const actions = []
+        if (root._selectedState.canAccept)
+            actions.push({ "id": "accept", "label": "Accept", "icon": "approve" })
+        if (root._selectedState.canDecline)
+            actions.push({ "id": "decline", "label": "Decline", "icon": "close", "danger": true })
+        if (actions.length === 0 && root._selectedState.canManage) {
+            actions.push({ "id": "allocation", "label": "Edit Allocation", "icon": "edit" })
+            actions.push({ "id": "hours", "label": "Set Hours", "icon": "time" })
+            actions.push({ "id": "remove", "label": "Remove", "icon": "delete", "danger": true })
+        }
+        return actions
+    }
+
     readonly property int _tableH: {
         const n = root._items.length
         const rH = Theme.AppTheme.compactRowHeight
@@ -77,10 +98,10 @@ Item {
     }
 
     readonly property var _columns: [
-        { key: "title",       label: "Resource",   flex: 2,   sortable: false },
-        { key: "subtitle",    label: "Role",       flex: 1.5, sortable: false },
-        { key: "metaText",    label: "Allocation", flex: 1.5, sortable: false },
-        { key: "statusLabel", label: "Status",     flex: 0,   minWidth: 90, type: "status" }
+        { key: "title",          label: "Resource",   flex: 2,   sortable: false },
+        { key: "metaText",       label: "Allocation", flex: 1,   sortable: false },
+        { key: "supportingText", label: "Effort",     flex: 1.2, sortable: false },
+        { key: "statusLabel",    label: "Response",   flex: 0,   minWidth: 100, type: "status" }
     ]
 
     implicitHeight: _col.implicitHeight
@@ -98,8 +119,16 @@ Item {
             subtitle: root._items.length > 0 ? String(root._items.length) : ""
             busy: root.isBusy
             createLabel: root.canCreate ? "Assign Resource" : ""
-            actions: []
+            actions: root._selectedActions
             onCreateRequested: root.createRequested()
+            onActionTriggered: function(actionId) {
+                if (!root._selectedItem) return
+                if (actionId === "accept") root.acceptRequested(root._selectedItem)
+                else if (actionId === "decline") root.declineRequested(root._selectedItem)
+                else if (actionId === "allocation") root.editAllocationRequested(root._selectedItem)
+                else if (actionId === "hours") root.setHoursRequested(root._selectedItem)
+                else if (actionId === "remove") root.deleteRequested(root._selectedItem)
+            }
         }
 
         AppWidgets.InlineMessage {
@@ -120,7 +149,7 @@ Item {
 
         Item {
             Layout.fillWidth: true
-            height: root._tableH
+            Layout.preferredHeight: root._tableH
 
             AppWidgets.DataTable {
                 anchors.fill: parent

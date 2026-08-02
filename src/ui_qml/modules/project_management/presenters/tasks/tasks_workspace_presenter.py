@@ -15,7 +15,9 @@ from src.ui_qml.modules.project_management.view_models.tasks import (
 )
 
 from .assignment_command_handler import (
+    accept_assignment,
     create_assignment,
+    decline_assignment,
     delete_assignment,
     preview_assignment,
     set_assignment_hours,
@@ -26,8 +28,12 @@ from .assignments_builder import build_task_assignments_state
 from .collaboration_builder import build_task_collaboration_state
 from .collaboration_command_handler import (
     clear_task_collaboration_presence,
+    delete_task_comment,
+    edit_task_comment,
     mark_task_collaboration_read,
     post_task_comment,
+    react_to_task_comment,
+    remove_task_comment_reaction,
     touch_task_collaboration_presence,
 )
 from .dependency_command_handler import (
@@ -43,6 +49,7 @@ from .task_command_handler import (
     apply_bulk_status,
     bulk_delete_tasks,
     create_task,
+    move_task_in_wbs,
     suggest_code,
     update_progress,
     update_task,
@@ -231,6 +238,9 @@ class ProjectTasksWorkspacePresenter:
     def update_task(self, payload: dict[str, Any]) -> None:
         update_task(self._desktop_api, payload)
 
+    def move_task_in_wbs(self, payload: dict[str, Any]) -> None:
+        move_task_in_wbs(self._desktop_api, payload)
+
     def update_progress(self, payload: dict[str, Any]) -> None:
         update_progress(self._desktop_api, payload)
 
@@ -264,6 +274,12 @@ class ProjectTasksWorkspacePresenter:
     def delete_assignment(self, assignment_id: str) -> None:
         delete_assignment(self._desktop_api, assignment_id)
 
+    def accept_assignment(self, assignment_id: str) -> None:
+        accept_assignment(self._desktop_api, assignment_id)
+
+    def decline_assignment(self, payload: dict[str, Any]) -> None:
+        decline_assignment(self._desktop_api, payload)
+
     def apply_bulk_status(self, payload: dict[str, Any]) -> None:
         apply_bulk_status(self._desktop_api, payload)
 
@@ -281,6 +297,18 @@ class ProjectTasksWorkspacePresenter:
 
     def post_task_comment(self, payload: dict[str, Any]) -> None:
         post_task_comment(self._collaboration_desktop_api, payload)
+
+    def edit_task_comment(self, payload: dict[str, Any]) -> None:
+        edit_task_comment(self._collaboration_desktop_api, payload)
+
+    def delete_task_comment(self, payload: dict[str, Any]) -> None:
+        delete_task_comment(self._collaboration_desktop_api, payload)
+
+    def react_to_task_comment(self, payload: dict[str, Any]) -> None:
+        react_to_task_comment(self._collaboration_desktop_api, payload)
+
+    def remove_task_comment_reaction(self, payload: dict[str, Any]) -> None:
+        remove_task_comment_reaction(self._collaboration_desktop_api, payload)
 
     def mark_task_collaboration_read(self, task_id: str) -> None:
         mark_task_collaboration_read(self._collaboration_desktop_api, task_id)

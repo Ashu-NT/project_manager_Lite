@@ -1,39 +1,30 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.shared.audit import record_audit_entry
-from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from src.core.shared.events.domain_events import domain_events
 from src.core.platform.auth.authorization import require_any_permission, require_permission
+from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization
-from src.core.platform.org.support import normalize_code, normalize_email, normalize_name, normalize_phone
 from src.core.platform.party.contracts import PartyRepository
-from src.core.platform.party.domain import Party, PartyType
+from src.core.platform.party.domain import (
+    Party,
+    PartyType,
+    coerce_party_type,
+    normalize_party_code,
+)
 from src.core.platform.tenancy import TenantContextService
+from src.core.shared.audit import record_audit_entry
+from src.core.shared.events.domain_events import domain_events
 
 if TYPE_CHECKING:
     from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.auth.domain.session import UserSessionContext
-
-
-def _normalize_optional_text(value: str | None) -> str:
-    return (value or "").strip()
-
-
-def _coerce_party_type(value: PartyType | str | None) -> PartyType:
-    if isinstance(value, PartyType):
-        return value
-    raw = str(value or PartyType.GENERAL.value).strip().upper()
-    try:
-        return PartyType(raw)
-    except ValueError as exc:
-        raise ValidationError("Party type is invalid.", code="PARTY_TYPE_INVALID") from exc
 
 
 class PartyService:
@@ -67,8 +58,8 @@ class PartyService:
         party_type: PartyType | str | None = None,
     ) -> list[Party]:
         self._require_party_read_access("search parties")
-        normalized_search = _normalize_optional_text(search_text).lower()
-        resolved_type = _coerce_party_type(party_type) if party_type is not None else None
+        normalized_search = (search_text or "").strip().lower()
+        resolved_type = coerce_party_type(party_type) if party_type is not None else None
         rows = self._party_repo.list_for_organization(self._active_organization().id, active_only=active_only)
         filtered = [party for party in rows if resolved_type is None or party.party_type == resolved_type]
         if not normalized_search:
@@ -103,7 +94,7 @@ class PartyService:
 
     def find_party_by_code(self, party_code: str) -> Party | None:
         self._require_party_read_access("resolve party")
-        normalized_code = normalize_code(party_code, label="Party code")
+        normalized_code = normalize_party_code(party_code)
         return self._party_repo.get_by_code(self._active_organization().id, normalized_code)
 
     def get_context_organization(self) -> Organization:
@@ -134,30 +125,28 @@ class PartyService:
     ) -> Party:
         require_permission(self._user_session, "settings.manage", operation_label="create party")
         organization = self._active_organization()
-        normalized_code = normalize_code(party_code, label="Party code")
-        normalized_name = normalize_name(party_name if party_name is not None else name, label="Party name")
-        if self._party_repo.get_by_code(organization.id, normalized_code) is not None:
-            raise ValidationError("Party code already exists in the active organization.", code="PARTY_CODE_EXISTS")
         party = Party.create(
             organization_id=organization.id,
-            party_code=normalized_code,
-            party_name=normalized_name,
-            party_type=_coerce_party_type(party_type),
-            legal_name=_normalize_optional_text(legal_name),
-            contact_name=_normalize_optional_text(contact_name),
-            email=normalize_email(email) or "",
-            phone=normalize_phone(phone) or "",
-            country=_normalize_optional_text(country),
-            city=_normalize_optional_text(city),
-            address_line_1=_normalize_optional_text(address_line_1),
-            address_line_2=_normalize_optional_text(address_line_2),
-            postal_code=_normalize_optional_text(postal_code),
-            website=_normalize_optional_text(website),
-            tax_registration_number=_normalize_optional_text(tax_registration_number),
-            external_reference=_normalize_optional_text(external_reference),
+            party_code=party_code,
+            party_name=party_name if party_name is not None else name,
+            party_type=party_type,
+            legal_name=legal_name,
+            contact_name=contact_name,
+            email=email or "",
+            phone=phone or "",
+            country=country,
+            city=city,
+            address_line_1=address_line_1,
+            address_line_2=address_line_2,
+            postal_code=postal_code,
+            website=website,
+            tax_registration_number=tax_registration_number,
+            external_reference=external_reference,
             is_active=bool(is_active),
-            notes=_normalize_optional_text(notes),
+            notes=notes,
         )
+        if self._party_repo.get_by_code(organization.id, party.party_code) is not None:
+            raise ValidationError("Party code already exists in the active organization.", code="PARTY_CODE_EXISTS")
         try:
             self._party_repo.add(party)
             self._session.commit()
@@ -220,50 +209,43 @@ class PartyService:
                 "Party changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
+
+        candidate = replace(
+            party,
+            party_code=party_code if party_code is not None else party.party_code,
+            party_name=(
+                party_name if party_name is not None else name
+                if party_name is not None or name is not None
+                else party.party_name
+            ),
+            party_type=party_type if party_type is not None else party.party_type,
+            legal_name=legal_name if legal_name is not None else party.legal_name,
+            contact_name=contact_name if contact_name is not None else party.contact_name,
+            email=email if email is not None else party.email,
+            phone=phone if phone is not None else party.phone,
+            country=country if country is not None else party.country,
+            city=city if city is not None else party.city,
+            address_line_1=address_line_1 if address_line_1 is not None else party.address_line_1,
+            address_line_2=address_line_2 if address_line_2 is not None else party.address_line_2,
+            postal_code=postal_code if postal_code is not None else party.postal_code,
+            website=website if website is not None else party.website,
+            tax_registration_number=(
+                tax_registration_number
+                if tax_registration_number is not None
+                else party.tax_registration_number
+            ),
+            external_reference=external_reference if external_reference is not None else party.external_reference,
+            is_active=bool(is_active) if is_active is not None else party.is_active,
+            notes=notes if notes is not None else party.notes,
+            updated_at=datetime.now(timezone.utc),
+        )
         if party_code is not None:
-            normalized_code = normalize_code(party_code, label="Party code")
-            existing = self._party_repo.get_by_code(organization.id, normalized_code)
+            existing = self._party_repo.get_by_code(organization.id, candidate.party_code)
             if existing is not None and existing.id != party.id:
                 raise ValidationError("Party code already exists in the active organization.", code="PARTY_CODE_EXISTS")
-            party.party_code = normalized_code
-        if party_name is not None or name is not None:
-            party.party_name = normalize_name(
-                party_name if party_name is not None else name,
-                label="Party name",
-            )
-        if party_type is not None:
-            party.party_type = _coerce_party_type(party_type)
-        if legal_name is not None:
-            party.legal_name = _normalize_optional_text(legal_name)
-        if contact_name is not None:
-            party.contact_name = _normalize_optional_text(contact_name)
-        if email is not None:
-            party.email = normalize_email(email) or ""
-        if phone is not None:
-            party.phone = normalize_phone(phone) or ""
-        if country is not None:
-            party.country = _normalize_optional_text(country)
-        if city is not None:
-            party.city = _normalize_optional_text(city)
-        if address_line_1 is not None:
-            party.address_line_1 = _normalize_optional_text(address_line_1)
-        if address_line_2 is not None:
-            party.address_line_2 = _normalize_optional_text(address_line_2)
-        if postal_code is not None:
-            party.postal_code = _normalize_optional_text(postal_code)
-        if website is not None:
-            party.website = _normalize_optional_text(website)
-        if tax_registration_number is not None:
-            party.tax_registration_number = _normalize_optional_text(tax_registration_number)
-        if external_reference is not None:
-            party.external_reference = _normalize_optional_text(external_reference)
-        if is_active is not None:
-            party.is_active = bool(is_active)
-        if notes is not None:
-            party.notes = _normalize_optional_text(notes)
-        party.updated_at = datetime.now(timezone.utc)
+
         try:
-            self._party_repo.update(party)
+            self._party_repo.update(candidate)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -275,20 +257,20 @@ class PartyService:
             self,
             operation="update",
             entity_type="party",
-            entity_id=party.id,
+            entity_id=candidate.id,
             module="platform",
             severity="low",
             metadata={
                 "action": "party.update",
                 "organization_id": organization.id,
-                "party_code": party.party_code,
-                "party_name": party.party_name,
-                "party_type": party.party_type.value,
-                "is_active": str(party.is_active),
+                "party_code": candidate.party_code,
+                "party_name": candidate.party_name,
+                "party_type": candidate.party_type.value,
+                "is_active": str(candidate.is_active),
             },
         )
-        domain_events.parties_changed.emit(party.id)
-        return party
+        domain_events.parties_changed.emit(candidate.id)
+        return candidate
 
     def _active_organization(self) -> Organization:
         if self._tenant_context_service is None:

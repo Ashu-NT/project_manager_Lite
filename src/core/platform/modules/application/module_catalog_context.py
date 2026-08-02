@@ -18,13 +18,8 @@ class ModuleCatalogContextMixin:
     _entitlement_repo: ModuleEntitlementRepository
 
     def _persist_state(self, record: ModuleEntitlementRecord) -> None:
-        module_code = normalize_module_code(record.module_code)
-        normalized_record = ModuleEntitlementRecord(
-            module_code=module_code,
-            licensed=record.licensed,
-            enabled=record.enabled,
-            lifecycle_status=record.lifecycle_status,
-        )
+        module_code = record.module_code
+        normalized_record = record
         if self._entitlement_repo is None:
             if normalized_record.licensed:
                 self._licensed_codes.add(module_code)

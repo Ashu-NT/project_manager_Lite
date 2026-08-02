@@ -73,6 +73,7 @@ def build_project_management_desktop_runtime_apis(
                 else None
             ),
             finance_service=resolved.finance_service,
+            forecast_service=resolved.forecast_service,
             procurement_service=procurement_service,
             baseline_service=resolved.baseline_service,
         ),
@@ -102,7 +103,7 @@ def build_project_management_desktop_runtime_apis(
             project_service=resolved.project_service,
             task_service=resolved.task_service,
             scheduling_engine=resolved.scheduling_engine,
-            platform_calendar_api=None,
+            platform_calendar_api=platform_dependencies.enterprise_calendar_api,
             work_calendar_service=None,
             work_calendar_engine=resolved.work_calendar_engine,
             baseline_service=resolved.baseline_service,

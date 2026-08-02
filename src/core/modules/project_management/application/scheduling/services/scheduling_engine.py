@@ -15,6 +15,7 @@ from src.core.modules.project_management.contracts.repositories.task import (
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
+from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_dependencies, select_leaf_tasks
 # CalendarResolver removed — enterprise CalendarResolver handles hierarchy resolution
 CalendarResolver = None  # type: ignore[assignment]  # kept for isinstance checks
 from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
@@ -44,6 +45,8 @@ from src.core.modules.project_management.application.scheduling.calendars.projec
 
 
 class SchedulingEngine(ResourceLevelingMixin):
+    # TRANSITION(PF-A0-UOW-BRIDGE): commit=False supports approval-owned transactions.
+    # Remove the switch when approved mutations use dedicated Unit-of-Work commands.
     """
     CPM-style scheduling engine:
     - Forward pass: ES/EF
@@ -83,6 +86,7 @@ class SchedulingEngine(ResourceLevelingMixin):
         project_id: str,
         *,
         persist: bool = True,
+        commit: bool = True,
     ) -> dict[str, CPMTaskInfo]:
         """
         Full CPM calculation for a project:
@@ -92,7 +96,7 @@ class SchedulingEngine(ResourceLevelingMixin):
         - updates Task.start_date / Task.end_date from ES/EF
         - returns CPMTaskInfo per task
         """
-        tasks = self._task_repo.list_by_project(project_id)
+        tasks = select_leaf_tasks(self._task_repo.list_by_project(project_id))
         if not tasks:
             return {}
 
@@ -108,7 +112,7 @@ class SchedulingEngine(ResourceLevelingMixin):
                 pass  # fall back to default WorkCalendarEngine
 
         tasks_by_id: dict[str, Task] = {t.id: t for t in tasks}
-        deps: list[TaskDependency] = self._dependency_repo.list_by_project(project_id)
+        deps = select_leaf_dependencies(self._dependency_repo.list_by_project(project_id), tasks)
 
         # Pre-load task→primary_resource for per-task calendar resolution
         if self._calendar_resolver and self._assignment_repo and self._resource_calendar_map:
@@ -159,9 +163,13 @@ class SchedulingEngine(ResourceLevelingMixin):
             try:
                 for info in result.values():
                     self._task_repo.update(info.task)
-                self._session.commit()
+                if commit:
+                    self._session.commit()
+                else:
+                    self._session.flush()
             except Exception:
-                self._session.rollback()
+                if commit:
+                    self._session.rollback()
                 raise
 
         return result

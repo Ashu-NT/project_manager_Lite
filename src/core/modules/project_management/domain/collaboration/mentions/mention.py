@@ -8,6 +8,8 @@ from dataclasses import dataclass
 
 MENTION_RE = re.compile(r"@([A-Za-z0-9_.-]+)")
 
+BROADCAST_MENTION_TOKENS = frozenset({"everyone", "team"})
+
 
 @dataclass(frozen=True)
 class CollaborationMentionCandidate:
@@ -60,6 +62,10 @@ def resolve_mentions(
     mentioned_user_ids: set[str] = set()
     unresolved: set[str] = set()
     for token in extract_mention_tokens(text):
+        if token in BROADCAST_MENTION_TOKENS:
+            canonical_mentions.add(token)
+            mentioned_user_ids.update(candidate.user_id for candidate in candidates)
+            continue
         candidate = handle_map.get(token)
         if candidate is None:
             unresolved.add(token)
@@ -71,6 +77,7 @@ def resolve_mentions(
 
 
 __all__ = [
+    "BROADCAST_MENTION_TOKENS",
     "CollaborationMentionCandidate",
     "MENTION_RE",
     "candidate_handles",

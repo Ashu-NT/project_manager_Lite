@@ -6,7 +6,6 @@ from src.core.modules.project_management.contracts.repositories.project import P
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.task import (
     AssignmentRepository,
-    DependencyRepository,
     TaskRepository,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
@@ -14,19 +13,11 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
 class TaskValidationMixin:
     _task_repo: TaskRepository
-    _dependency_repo: DependencyRepository
     _assignment_repo: AssignmentRepository
     _resource_repo: ResourceRepository | None
     _project_repo: ProjectRepository | None
     _overallocation_policy: str
     _last_overallocation_warning: str | None
-
-    def _validate_dates(self, start_date, end_date, duration_days):
-        if start_date and end_date and end_date < start_date:
-            raise ValidationError("Task deadline cannot be before start_date.")
-
-        if duration_days is not None and duration_days < 0:
-            raise ValidationError("Task duration_days cannot be negative.")
 
     def _validate_task_within_project_dates(
         self, project_id: str, task_start: date | None, task_end: date | None
@@ -60,57 +51,6 @@ class TaskValidationMixin:
                 f"Task end date ({task_end}) can not be after project end ({project_end})",
                 code="TASK_INVALID_DATE",
             )
-
-    def _validate_not_self_dependency(self, predecessor_id: str, successor_id: str):
-        if predecessor_id == successor_id:
-            raise ValidationError("A task cannot depend on itself.")
-
-    def _validate_task_name(self, name: str) -> None:
-        if not name.strip():
-            raise ValidationError("Task name cannot be empty.", code="TASK_NAME_EMPTY")
-        if len(name.strip()) < 3:
-            raise ValidationError(
-                "Task name must be at least 3 characters.", code="TASK_NAME_TOO_SHORT"
-            )
-        if any(char in name for char in ["/", "\\", "?", "%", "*", ":", "|", '"', "<", ">"]):
-            raise ValidationError(
-                "Task name contains invalid characters.", code="TASK_NAME_INVALID_CHARS"
-            )
-
-    def _check_no_circular_dependency(
-        self, project_id: str, predecessor_id: str, successor_id: str
-    ) -> None:
-        dependencies = self._dependency_repo.list_by_project(project_id)
-        project_task_ids = {task.id for task in self._task_repo.list_by_project(project_id)}
-        dependencies = [
-            dependency
-            for dependency in dependencies
-            if dependency.predecessor_task_id in project_task_ids
-            and dependency.successor_task_id in project_task_ids
-        ]
-
-        graph: dict[str, list[str]] = {}
-        for dependency in dependencies:
-            graph.setdefault(dependency.predecessor_task_id, []).append(dependency.successor_task_id)
-        graph.setdefault(predecessor_id, []).append(successor_id)
-
-        target = predecessor_id
-        stack = [successor_id]
-        visited = set()
-
-        while stack:
-            current = stack.pop()
-            if current == target:
-                raise BusinessRuleError(
-                    "Adding this dependency would create a circular dependency.",
-                    code="DEPENDENCY_CYCLE",
-                )
-            if current in visited:
-                continue
-            visited.add(current)
-            for nxt in graph.get(current, []):
-                if nxt not in visited:
-                    stack.append(nxt)
 
     def _iter_workdays(self, start: date, end: date):
         if not start or not end:

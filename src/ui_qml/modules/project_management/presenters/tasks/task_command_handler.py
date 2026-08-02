@@ -7,6 +7,7 @@ from src.core.modules.project_management.api.desktop import (
     TaskCreateCommand,
     TaskProgressCommand,
     TaskUpdateCommand,
+    TaskWbsMoveCommand,
 )
 
 from .validation import (
@@ -47,6 +48,9 @@ def create_task(desktop_api, payload: dict[str, Any]) -> None:
         status=optional_text(payload, "status") or "TODO",
         priority=optional_int(payload, "priority"),
         deadline=optional_date(payload, "deadline"),
+        parent_task_id=optional_text(payload, "parentTaskId") or None,
+        wbs_code=optional_text(payload, "wbsCode"),
+        sort_order=optional_int(payload, "sortOrder"),
     )
     desktop_api.create_task(command)
 
@@ -64,6 +68,19 @@ def update_task(desktop_api, payload: dict[str, Any]) -> None:
         expected_version=optional_int(payload, "expectedVersion"),
     )
     desktop_api.update_task(command)
+
+
+def move_task_in_wbs(desktop_api, payload: dict[str, Any]) -> None:
+    desktop_api.move_task(
+        TaskWbsMoveCommand(
+            task_id=require_text(payload, "taskId", "Task ID is required for WBS moves."),
+            parent_task_id=optional_text(payload, "parentTaskId") or None,
+            wbs_code=optional_text(payload, "wbsCode") or None,
+            sort_order=optional_int(payload, "sortOrder"),
+            expected_version=optional_int(payload, "expectedVersion"),
+        )
+    )
+
 
 def update_progress(desktop_api, payload: dict[str, Any]) -> None:
     command = TaskProgressCommand(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Any, Callable
 
@@ -8,13 +9,17 @@ from sqlalchemy.orm import Session
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.shared.events.domain_events import domain_events
 from src.core.shared.audit import record_audit_entry
-from src.core.platform.approval.contracts import ApprovalRepository
+from src.core.platform.approval.contracts import ApprovalHandlerResult, ApprovalRepository
 from src.core.platform.approval.domain import ApprovalRequest, ApprovalStatus
 from src.core.platform.auth.authorization import require_any_permission, require_permission
+from src.core.platform.auth.domain.role_binding import ROLE_PRINCIPAL_USER
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.tenancy import TenantContextService
+from src.core.shared.notifications import safe_dispatch_notification
 
-ApplyHandler = Callable[[ApprovalRequest], None]
+logger = logging.getLogger(__name__)
+
+ApplyHandler = Callable[[ApprovalRequest], ApprovalHandlerResult | None]
 
 
 class ApprovalService:
@@ -25,12 +30,22 @@ class ApprovalService:
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: Any = None,
         tenant_context_service: TenantContextService | None = None,
+        notification_service: Any = None,
+        role_repo: Any = None,
+        role_permission_repo: Any = None,
+        permission_repo: Any = None,
+        role_binding_repo: Any = None,
     ):
         self._session = session
         self._approval_repo = approval_repo
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
+        self._notification_service = notification_service
+        self._role_repo = role_repo
+        self._role_permission_repo = role_permission_repo
+        self._permission_repo = permission_repo
+        self._role_binding_repo = role_binding_repo
         self._apply_handlers: dict[str, ApplyHandler] = {}
         self._reject_handlers: dict[str, ApplyHandler] = {}
 
@@ -75,30 +90,39 @@ class ApprovalService:
             )
         principal = self._user_session.principal if self._user_session else None
         request = ApprovalRequest.create(
-            request_type=request_type.strip().lower(),
+            request_type=request_type,
             entity_type=entity_type,
             entity_id=entity_id,
             project_id=project_id,
             organization_id=organization_id,
-            payload=payload or {},
+            payload=payload,
             requested_by_user_id=principal.user_id if principal else None,
             requested_by_username=principal.username if principal else None,
         )
-        self._approval_repo.add(request)
-        record_audit_entry(
-            self,
-            operation="create",
-            entity_type="approval_request",
-            entity_id=request.id,
-            module="platform",
-            severity="medium",
-            metadata={"action": "governance.request", **self._build_request_audit_details(request)},
-        )
+        try:
+            self._approval_repo.add(request)
+            record_audit_entry(
+                self,
+                operation="create",
+                entity_type="approval_request",
+                entity_id=request.id,
+                module="platform",
+                severity="medium",
+                metadata={"action": "governance.request", **self._build_request_audit_details(request)},
+                commit=False,
+                fail_closed=True,
+            )
+            if commit:
+                self._session.commit()
+            else:
+                self._session.flush()
+        except Exception:
+            if commit:
+                self._session.rollback()
+            raise
         if commit:
-            self._session.commit()
-            domain_events.approvals_changed.emit(request.id)
-        else:
-            self._session.flush()
+            self._emit_signal_safely("approvals_changed", request.id)
+            self._notify_approval_requested(request)
         return request
 
     def list_requests(
@@ -153,22 +177,31 @@ class ApprovalService:
         request.decided_at = datetime.now(timezone.utc)
         request.decided_by_user_id = principal.user_id if principal else None
         request.decided_by_username = principal.username if principal else None
-        request.decision_note = (note or "").strip() or None
-        reject_handler = self._reject_handlers.get(request.request_type)
-        if reject_handler is not None:
-            reject_handler(request)
-        self._approval_repo.update(request)
-        record_audit_entry(
-            self,
-            operation="update",
-            entity_type="approval_request",
-            entity_id=request.id,
-            module="platform",
-            severity="high",
-            metadata={"action": "governance.reject", **self._build_request_audit_details(request, decision_note=request.decision_note)},
-        )
-        self._session.commit()
-        domain_events.approvals_changed.emit(request.id)
+        request.decision_note = note
+        handler_result = ApprovalHandlerResult()
+        try:
+            reject_handler = self._reject_handlers.get(request.request_type)
+            if reject_handler is not None:
+                handler_result = self._normalize_handler_result(reject_handler(request))
+            self._approval_repo.update(request)
+            record_audit_entry(
+                self,
+                operation="update",
+                entity_type="approval_request",
+                entity_id=request.id,
+                module="platform",
+                severity="high",
+                metadata={"action": "governance.reject", **self._build_request_audit_details(request, decision_note=request.decision_note)},
+                commit=False,
+                fail_closed=True,
+            )
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
+        self._emit_handler_events(handler_result)
+        self._emit_signal_safely("approvals_changed", request.id)
+        self._notify_approval_decided(request, decided="rejected")
         return request
 
     def approve_and_apply(self, request_id: str, note: str | None = None) -> ApprovalRequest:
@@ -186,27 +219,33 @@ class ApprovalService:
                 code="APPROVAL_HANDLER_MISSING",
             )
 
-        handler(request)
-        self._emit_post_apply_domain_events(request)
-
-        principal = self._user_session.principal if self._user_session else None
-        request.status = ApprovalStatus.APPROVED
-        request.decided_at = datetime.now(timezone.utc)
-        request.decided_by_user_id = principal.user_id if principal else None
-        request.decided_by_username = principal.username if principal else None
-        request.decision_note = (note or "").strip() or None
-        self._approval_repo.update(request)
-        record_audit_entry(
-            self,
-            operation="update",
-            entity_type="approval_request",
-            entity_id=request.id,
-            module="platform",
-            severity="high",
-            metadata={"action": "governance.approve", **self._build_request_audit_details(request, decision_note=request.decision_note)},
-        )
-        self._session.commit()
-        domain_events.approvals_changed.emit(request.id)
+        try:
+            handler_result = self._normalize_handler_result(handler(request))
+            principal = self._user_session.principal if self._user_session else None
+            request.status = ApprovalStatus.APPROVED
+            request.decided_at = datetime.now(timezone.utc)
+            request.decided_by_user_id = principal.user_id if principal else None
+            request.decided_by_username = principal.username if principal else None
+            request.decision_note = note
+            self._approval_repo.update(request)
+            record_audit_entry(
+                self,
+                operation="update",
+                entity_type="approval_request",
+                entity_id=request.id,
+                module="platform",
+                severity="high",
+                metadata={"action": "governance.approve", **self._build_request_audit_details(request, decision_note=request.decision_note)},
+                commit=False,
+                fail_closed=True,
+            )
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
+        self._emit_handler_events(handler_result)
+        self._emit_signal_safely("approvals_changed", request.id)
+        self._notify_approval_decided(request, decided="approved")
         return request
 
     def _require_pending(self, request_id: str) -> ApprovalRequest:
@@ -235,9 +274,104 @@ class ApprovalService:
             )
 
     @staticmethod
-    def _emit_post_apply_domain_events(request: ApprovalRequest) -> None:
-        if request.request_type == "baseline.create" and request.project_id:
-            domain_events.baseline_changed.emit(request.project_id)
+    def _normalize_handler_result(
+        result: ApprovalHandlerResult | None,
+    ) -> ApprovalHandlerResult:
+        if result is None:
+            return ApprovalHandlerResult()
+        if not isinstance(result, ApprovalHandlerResult):
+            raise BusinessRuleError(
+                "Approval apply handler returned an unsupported result.",
+                code="APPROVAL_HANDLER_RESULT_INVALID",
+            )
+        return result
+
+    @classmethod
+    def _emit_handler_events(cls, result: ApprovalHandlerResult) -> None:
+        for event in result.post_commit_events:
+            cls._emit_signal_safely(event.signal_name, event.payload)
+
+    @staticmethod
+    def _emit_signal_safely(signal_name: str, payload: str) -> None:
+        signal = getattr(domain_events, signal_name, None)
+        if signal is None:
+            logger.error("Approval post-commit signal is not registered: %s", signal_name)
+            return
+        try:
+            signal.emit(payload)
+        except Exception:
+            logger.exception(
+                "Approval post-commit signal failed signal=%s payload=%s",
+                signal_name,
+                payload,
+            )
+
+    def _active_tenant_id(self) -> str | None:
+        tenant_context = getattr(self, "_tenant_context_service", None)
+        if tenant_context is None:
+            return None
+        return tenant_context.get_active_tenant_id()
+
+    def _list_users_with_permission(self, permission_code: str, *, tenant_id: str | None) -> set[str]:
+        if (
+            self._permission_repo is None
+            or self._role_repo is None
+            or self._role_permission_repo is None
+            or self._role_binding_repo is None
+        ):
+            return set()
+        permission = self._permission_repo.get_by_code(permission_code)
+        if permission is None:
+            return set()
+        user_ids: set[str] = set()
+        for role in self._role_repo.list_all():
+            if permission.id not in self._role_permission_repo.list_permission_ids(role.id):
+                continue
+            bindings = list(self._role_binding_repo.list_active_for_role_across_tenants(role.id))
+            if tenant_id:
+                bindings.extend(self._role_binding_repo.list_active_for_role(role.id, tenant_id=tenant_id))
+            for binding in bindings:
+                if binding.principal_type == ROLE_PRINCIPAL_USER:
+                    user_ids.add(binding.principal_id)
+        return user_ids
+
+    def _notify_approval_requested(self, request: ApprovalRequest) -> None:
+        tenant_id = self._active_tenant_id()
+        recipients = self._list_users_with_permission("approval.decide", tenant_id=tenant_id)
+        recipients.discard(request.requested_by_user_id)
+        entity_label = request.entity_type.replace("_", " ")
+        for user_id in recipients:
+            safe_dispatch_notification(
+                self,
+                recipient_user_id=user_id,
+                category="approval.requested.v1",
+                title="Approval requested",
+                body=f"{request.requested_by_username or 'Someone'} requested approval for a {entity_label}.",
+                tenant_id=tenant_id,
+                metadata={
+                    "request_id": request.id,
+                    "request_type": request.request_type,
+                    "entity_type": request.entity_type,
+                    "entity_id": request.entity_id,
+                },
+            )
+
+    def _notify_approval_decided(self, request: ApprovalRequest, *, decided: str) -> None:
+        if not request.requested_by_user_id:
+            return
+        entity_label = request.entity_type.replace("_", " ")
+        body = f"Your {entity_label} request was {decided}."
+        if request.decision_note:
+            body = f"{body} Note: {request.decision_note}"
+        safe_dispatch_notification(
+            self,
+            recipient_user_id=request.requested_by_user_id,
+            category=f"approval.{decided}.v1",
+            title=f"Your approval request was {decided}",
+            body=body,
+            tenant_id=self._active_tenant_id(),
+            metadata={"request_id": request.id, "request_type": request.request_type},
+        )
 
     @staticmethod
     def _build_request_audit_details(

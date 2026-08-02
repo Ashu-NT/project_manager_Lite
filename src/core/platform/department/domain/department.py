@@ -1,12 +1,20 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import datetime, timezone as dt_timezone
 
+from pydantic import field_validator
+
+from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.ids import generate_id
+from src.core.platform.common.pydantic import (
+    normalize_optional_identifier,
+    normalize_optional_text,
+    normalize_required_text,
+    validated_dataclass,
+)
 
 
-@dataclass
+@validated_dataclass
 class Department:
     id: str
     organization_id: str
@@ -24,6 +32,77 @@ class Department:
     updated_at: datetime | None = None
     notes: str = ""
     version: int = 1
+
+    @field_validator("organization_id", mode="before")
+    @classmethod
+    def _validate_organization_id(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Organization ID is required.",
+            code="DEPARTMENT_ORGANIZATION_REQUIRED",
+        )
+
+    @field_validator("department_code", mode="before")
+    @classmethod
+    def _validate_department_code(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Department code is required.",
+            code="DEPARTMENT_CODE_REQUIRED",
+        ).upper()
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def _validate_name(cls, value: object) -> str:
+        return normalize_required_text(
+            value,
+            message="Department name is required.",
+            code="DEPARTMENT_NAME_REQUIRED",
+        )
+
+    @field_validator(
+        "site_id",
+        "default_location_id",
+        "parent_department_id",
+        "manager_employee_id",
+        mode="before",
+    )
+    @classmethod
+    def _normalize_optional_ids(cls, value: object) -> str | None:
+        return normalize_optional_identifier(value)
+
+    @field_validator("description", "department_type", "notes", mode="before")
+    @classmethod
+    def _normalize_text_fields(cls, value: object) -> str:
+        return normalize_optional_text(value)
+
+    @field_validator("cost_center_code", mode="before")
+    @classmethod
+    def _normalize_cost_center_code(cls, value: object) -> str:
+        return normalize_optional_text(value).upper()
+
+    @field_validator("created_at", "updated_at", mode="before")
+    @classmethod
+    def _validate_datetimes(cls, value: object) -> datetime | None:
+        if value in (None, ""):
+            return None
+        if not isinstance(value, datetime):
+            raise ValidationError(
+                "Department timestamps must be valid datetimes.",
+                code="DEPARTMENT_TIMESTAMP_INVALID",
+            )
+        return value
+
+    @field_validator("version", mode="before")
+    @classmethod
+    def _validate_version(cls, value: object) -> int:
+        resolved = int(value if value not in (None, "") else 1)
+        if resolved < 1:
+            raise ValidationError(
+                "Department version must be positive.",
+                code="DEPARTMENT_VERSION_INVALID",
+            )
+        return resolved
 
     @staticmethod
     def create(

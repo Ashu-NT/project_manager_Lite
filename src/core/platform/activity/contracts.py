@@ -20,6 +20,8 @@ class ActivityRepository(ABC):
         entity_id: str | None = None,
         module: str | None = None,
         workspace_id: str | None = None,
+        parent_entity_id: str | None = None,
+        action_prefix: str | None = None,
     ) -> list[ActivityEntry]: ...
 
 

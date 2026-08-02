@@ -11,12 +11,17 @@ AppWidgets.EntityDialog {
     property var projectOptions: []
     property string selectedProjectId: ""
     property var statusOptions: []
+    property var parentTaskOptions: []
     property var taskData: ({})
     property var workspaceController: null
     property string taskCode: ""
     readonly property bool editingExistingTask: {
         var state = root.taskData && root.taskData.state ? root.taskData.state : (root.taskData || {})
         return String(state.taskId || "").length > 0
+    }
+    readonly property bool editingSummaryTask: {
+        var state = root.taskData && root.taskData.state ? root.taskData.state : (root.taskData || {})
+        return root.editingExistingTask && Boolean(state.isSummary)
     }
     readonly property var editableProjectOptions: (root.projectOptions || []).filter(function(option) {
         return String(option.value || "").toLowerCase() !== "all"
@@ -60,6 +65,8 @@ AppWidgets.EntityDialog {
         priorityField.text = String(state.priority || "")
         descriptionField.text = String(state.description || "")
         statusCombo.currentIndex = root.statusIndexForValue(state.status || "TODO")
+        parentTaskCombo.currentIndex = root.indexForValue(root.parentTaskOptions, state.parentTaskId || "")
+        wbsCodeField.text = String(state.wbsCode || "")
         root.errorMessage = ""
     }
 
@@ -69,6 +76,8 @@ AppWidgets.EntityDialog {
             "projectId": String((root.editableProjectOptions[projectCombo.currentIndex] || { "value": "" }).value || ""),
             "name": nameField.text,
             "taskCode": root.taskCode,
+            "parentTaskId": String((root.parentTaskOptions[parentTaskCombo.currentIndex] || { "value": "" }).value || ""),
+            "wbsCode": wbsCodeField.text,
             "startDate": startDateField.text,
             "durationDays": durationField.text,
             "deadline": deadlineField.text,
@@ -156,19 +165,42 @@ AppWidgets.EntityDialog {
         AppWidgets.FormField {
             Layout.fillWidth: true
             label: "Status"
-            AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.workflowStatusOptions; textRole: "label" }
+            AppControls.ComboBox { id: statusCombo; Layout.fillWidth: true; model: root.workflowStatusOptions; textRole: "label"; enabled: !root.editingSummaryTask }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "WBS parent"
+            AppControls.ComboBox {
+                id: parentTaskCombo
+                Layout.fillWidth: true
+                model: root.parentTaskOptions
+                textRole: "label"
+                enabled: !root.editingExistingTask
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "WBS code"
+            AppControls.TextField {
+                id: wbsCodeField
+                Layout.fillWidth: true
+                placeholderText: "Auto-numbered if empty"
+                enabled: !root.editingExistingTask
+            }
         }
 
         AppWidgets.FormField {
             Layout.fillWidth: true
             label: "Start date"
-            AppControls.DateField { id: startDateField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+            AppControls.DateField { id: startDateField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD"; enabled: !root.editingSummaryTask }
         }
 
         AppWidgets.FormField {
             Layout.fillWidth: true
             label: "Duration"
-            AppControls.TextField { id: durationField; Layout.fillWidth: true; placeholderText: "Working days" }
+            AppControls.TextField { id: durationField; Layout.fillWidth: true; placeholderText: "Working days"; enabled: !root.editingSummaryTask }
         }
 
         AppWidgets.FormField {

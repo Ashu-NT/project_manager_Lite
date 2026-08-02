@@ -156,7 +156,7 @@ def test_project_management_persistence_imports_project_management_orm_models():
         ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "task.py",
         ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "resource.py",
         ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "baseline.py",
-        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "cost_calendar.py",
+        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "cost.py",
         ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "portfolio.py",
         ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "collaboration.py",
     ]
@@ -198,11 +198,11 @@ def test_orm_package_root_loads_all_model_packages():
     assert "import src.core.modules.maintenance.infrastructure.persistence.orm.preventive_runtime_models" in package_text
     platform_orm_modules = (
         "org", "employee", "sites", "departments", "documents", "party",
-        "modules", "time", "auth", "access", "audit", "approval", "runtime_tracking",
+        "modules", "time", "auth", "notification", "audit", "approval", "runtime_tracking",
     )
     for module in platform_orm_modules:
         assert f"import src.core.platform.infrastructure.persistence.orm.{module}" in package_text
-    for module in ("project", "resource", "task", "cost_calendar", "baseline", "register", "collaboration", "portfolio"):
+    for module in ("project", "resource", "task", "cost", "baseline", "register", "collaboration", "portfolio"):
         assert f"import src.core.modules.project_management.infrastructure.persistence.orm.{module}" in package_text
     for module in ("catalog", "inventory", "procurement"):
         assert f"import src.core.modules.inventory_procurement.infrastructure.persistence.orm.{module}" in package_text
@@ -292,6 +292,50 @@ def test_platform_common_interfaces_are_platform_only():
     assert "class AuditLogRepository" not in text
 
 
+def test_legacy_rbac_runtime_dependencies_are_removed():
+    runtime_roots = (
+        ROOT / "src" / "core",
+        ROOT / "src" / "api",
+        ROOT / "src" / "ui_qml",
+        ROOT / "src" / "infra" / "composition",
+        ROOT / "src" / "infra" / "platform",
+        ROOT / "tools",
+    )
+    forbidden_tokens = (
+        "AuthorizationMigrationMode",
+        "authorization_migration_mode",
+        "PM_AUTHORIZATION_MIGRATION_MODE",
+        "RBAC-TRANSITION-ONLY",
+        "UserRoleORM",
+        "UserRoleRepository",
+        "ProjectMembershipRepository",
+        "ScopedAccessGrantRepository",
+        "project_membership_repo",
+        "scoped_access_repo",
+    )
+    violations: list[tuple[str, str]] = []
+
+    for root in runtime_roots:
+        for path in root.rglob("*.py"):
+            source = path.read_text(encoding="utf-8", errors="ignore")
+            for token in forbidden_tokens:
+                if token in source:
+                    violations.append((str(path.relative_to(ROOT)), token))
+
+    env_path = ROOT / ".env"
+    if env_path.exists():
+        env_text = env_path.read_text(encoding="utf-8", errors="ignore")
+        if "PM_AUTHORIZATION_MIGRATION_MODE" in env_text:
+            violations.append((".env", "PM_AUTHORIZATION_MIGRATION_MODE"))
+
+    assert not violations, f"Legacy RBAC runtime dependencies remain: {violations}"
+
+
+def test_dormant_http_transport_is_removed_for_desktop_only_product():
+    http_root = ROOT / "src" / "api" / "http"
+    assert not http_root.exists() or not list(http_root.rglob("*.py"))
+
+
 def test_core_platform_does_not_import_module_contracts():
     platform_root = ROOT / "core" / "platform"
     violations: list[tuple[str, str]] = []
@@ -311,3 +355,35 @@ def test_core_platform_does_not_import_module_contracts():
                     violations.append((str(path.relative_to(ROOT)), mod))
 
     assert not violations, f"Core platform layer imports module code directly: {violations}"
+
+
+def test_platform_calendar_does_not_import_project_management_at_module_scope():
+    """
+    The Enterprise Calendar resolver/assignment service intentionally take
+    PM-owned repositories as `Any`-typed constructor params and import the
+    concrete PM types *inside* method bodies (not at module scope) so the
+    platform module never gains a hard, top-level dependency on
+    project_management. This guards that boundary as the codebase evolves.
+    """
+    calendar_root = ROOT / "src" / "core" / "platform" / "calendar"
+    violations: list[tuple[str, str]] = []
+
+    for path in _python_files(calendar_root):
+        source = path.read_text(encoding="utf-8", errors="ignore")
+        tree = ast.parse(source)
+        for node in tree.body:
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    name = alias.name
+                    if name == "src.core.modules.project_management" or name.startswith(
+                        "src.core.modules.project_management."
+                    ):
+                        violations.append((str(path.relative_to(ROOT)), name))
+            elif isinstance(node, ast.ImportFrom):
+                mod = node.module or ""
+                if mod == "src.core.modules.project_management" or mod.startswith(
+                    "src.core.modules.project_management."
+                ):
+                    violations.append((str(path.relative_to(ROOT)), mod))
+
+    assert not violations, f"Platform calendar module imports project_management at module scope: {violations}"

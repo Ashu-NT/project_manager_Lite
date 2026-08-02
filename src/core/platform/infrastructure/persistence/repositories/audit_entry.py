@@ -30,6 +30,19 @@ class SqlAlchemyAuditRepository(TenantScopedRepositorySupport, AuditRepository):
         orm.organization_id = orm.organization_id or ctx.organization_id
         self.session.add(orm)
 
+    def add_for_tenant(self, entry: AuditEntry, tenant_id: str) -> None:
+        normalized_tenant_id = str(tenant_id or "").strip()
+        if not normalized_tenant_id:
+            raise ValueError("Explicit tenant audit scope is required.")
+        if entry.tenant_id != normalized_tenant_id:
+            raise ValueError("Audit entry tenant does not match its explicit scope.")
+        self.session.add(audit_entry_to_orm(entry))
+
+    def add_platform(self, entry: AuditEntry) -> None:
+        if entry.tenant_id is not None or entry.organization_id is not None:
+            raise ValueError("Platform audit entries cannot carry customer tenant context.")
+        self.session.add(audit_entry_to_orm(entry))
+
     def list_recent(
         self,
         limit: int = 100,

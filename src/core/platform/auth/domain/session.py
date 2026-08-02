@@ -3,13 +3,70 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
+
+from pydantic import field_validator
 
 from src.core.platform.common.ids import generate_id
 from src.core.platform.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.auth.domain.user import (
+    normalize_auth_device_label,
+    normalize_auth_session_revision,
+)
+from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.pydantic import (
+    normalize_optional_identifier,
+    normalize_optional_text,
+    normalize_required_text,
+    validated_dataclass,
+)
+
+if TYPE_CHECKING:
+    from src.core.platform.authorization import SecurityDenialEvent
 
 
-@dataclass
+def normalize_auth_session_user_id(value: object) -> str:
+    return normalize_required_text(
+        value,
+        message="User id is required.",
+        code="USER_ID_REQUIRED",
+    )
+
+
+def normalize_auth_session_auth_method(value: object) -> str:
+    return normalize_required_text(
+        value,
+        message="Authentication method is required.",
+        code="AUTH_SESSION_AUTH_METHOD_REQUIRED",
+    ).lower()
+
+
+def normalize_auth_session_context_id(value: object) -> str | None:
+    return normalize_optional_identifier(value)
+
+
+def normalize_auth_session_datetime(
+    value: object,
+    *,
+    code: str,
+    required: bool = False,
+) -> datetime | None:
+    if value in (None, ""):
+        if required:
+            raise ValidationError(
+                "Auth session expiry is required.",
+                code=code,
+            )
+        return None
+    if not isinstance(value, datetime):
+        raise ValidationError(
+            "Auth session timestamps must be valid datetimes.",
+            code=code,
+        )
+    return ensure_utc_datetime(value)
+
+
+@validated_dataclass
 class AuthSession:
     id: str
     user_id: str
@@ -24,6 +81,48 @@ class AuthSession:
     revoked_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+    @field_validator("user_id", mode="before")
+    @classmethod
+    def _validate_user_id(cls, value: object) -> str:
+        return normalize_auth_session_user_id(value)
+
+    @field_validator("session_revision", mode="before")
+    @classmethod
+    def _validate_session_revision(cls, value: object) -> int:
+        return normalize_auth_session_revision(value)
+
+    @field_validator("auth_method", mode="before")
+    @classmethod
+    def _validate_auth_method(cls, value: object) -> str:
+        return normalize_auth_session_auth_method(value)
+
+    @field_validator("device_label", mode="before")
+    @classmethod
+    def _normalize_device_label(cls, value: object) -> str | None:
+        return normalize_auth_device_label(value)
+
+    @field_validator("last_active_tenant_id", "last_active_organization_id", mode="before")
+    @classmethod
+    def _normalize_context_ids(cls, value: object) -> str | None:
+        return normalize_auth_session_context_id(value)
+
+    @field_validator("issued_at", "last_validated_at", "revoked_at", "created_at", "updated_at", mode="before")
+    @classmethod
+    def _validate_optional_datetimes(cls, value: object) -> datetime | None:
+        return normalize_auth_session_datetime(
+            value,
+            code="AUTH_SESSION_TIMESTAMP_INVALID",
+        )
+
+    @field_validator("expires_at", mode="before")
+    @classmethod
+    def _validate_expires_at(cls, value: object) -> datetime | None:
+        return normalize_auth_session_datetime(
+            value,
+            code="AUTH_SESSION_EXPIRES_AT_INVALID",
+            required=True,
+        )
 
     @staticmethod
     def create(
@@ -40,11 +139,11 @@ class AuthSession:
         return AuthSession(
             id=generate_id(),
             user_id=user_id,
-            session_revision=max(1, int(session_revision or 1)),
-            auth_method=str(auth_method or "").strip() or "password",
-            device_label=(str(device_label or "").strip() or None),
-            last_active_tenant_id=(str(last_active_tenant_id or "").strip() or None),
-            last_active_organization_id=(str(last_active_organization_id or "").strip() or None),
+            session_revision=session_revision,
+            auth_method=auth_method,
+            device_label=device_label,
+            last_active_tenant_id=last_active_tenant_id,
+            last_active_organization_id=last_active_organization_id,
             issued_at=now,
             expires_at=expires_at,
             last_validated_at=now,
@@ -118,12 +217,18 @@ class UserSessionContext:
     def __init__(
         self,
         *,
-        principal_validator: Callable[[UserSessionPrincipal], UserSessionPrincipal | None] | None = None,
+        principal_validator: (
+            Callable[[UserSessionPrincipal], UserSessionPrincipal | None] | None
+        ) = None,
         context_listener: Callable[["UserSessionContext"], None] | None = None,
+        security_denial_listener: (
+            Callable[["SecurityDenialEvent"], None] | None
+        ) = None,
     ):
         self._principal: UserSessionPrincipal | None = None
         self._principal_validator = principal_validator
         self._context_listener = context_listener
+        self._security_denial_listener = security_denial_listener
         self._active_tenant_id: str | None = None
         self._active_organization_id: str | None = None
 
@@ -148,6 +253,19 @@ class UserSessionContext:
         listener: Callable[["UserSessionContext"], None] | None,
     ) -> None:
         self._context_listener = listener
+
+    def set_security_denial_listener(
+        self,
+        listener: Callable[["SecurityDenialEvent"], None] | None,
+    ) -> None:
+        self._security_denial_listener = listener
+
+    def record_security_denial(self, event: "SecurityDenialEvent") -> bool:
+        listener = self._security_denial_listener
+        if listener is None:
+            return False
+        listener(event)
+        return True
 
     def _normalize_principal(self, principal: UserSessionPrincipal) -> UserSessionPrincipal:
         normalized_scoped_access = _normalize_scoped_access(
@@ -305,8 +423,7 @@ class UserSessionContext:
             current_tenant_id = str(self._active_tenant_id or "").strip() or None
             if current_tenant_id is None or current_tenant_id == principal_tenant_id:
                 return principal_organization_id
-        organization_ids = sorted(self.organization_ids())
-        return organization_ids[0] if len(organization_ids) == 1 else None
+        return None
 
     def stored_active_organization_id(self) -> str | None:
         return str(self._active_organization_id or "").strip() or None
@@ -353,22 +470,14 @@ class UserSessionContext:
     ) -> None:
         if principal is None:
             return
-        principal_tenant_id = str(
+        tenant_id = str(
             getattr(principal, "active_tenant_id", "") or ""
         ).strip() or None
-        principal_organization_id = str(
+        organization_id = str(
             getattr(principal, "active_organization_id", "") or ""
         ).strip() or None
-        if principal_tenant_id is not None:
-            self._active_tenant_id = principal_tenant_id
-        if principal_organization_id is not None:
-            # H-3: only restore org when the tenant context is consistent.
-            # After switch_to_tenant(), _active_tenant_id is updated before this runs.
-            # If the stored tenant differs from the principal's tenant, skipping the org
-            # restore prevents a stale cross-tenant org reference being reinstated.
-            current_tenant = str(self._active_tenant_id or "").strip() or None
-            if current_tenant is None or current_tenant == principal_tenant_id:
-                self._active_organization_id = principal_organization_id
+        self._active_tenant_id = tenant_id
+        self._active_organization_id = organization_id if tenant_id else None
 
     def _notify_context_changed(self) -> None:
         listener = self._context_listener
@@ -386,4 +495,12 @@ class UserSessionContext:
         return dict((principal.scoped_access or {}).get(normalized_scope_type, {}))
 
 
-__all__ = ["AuthSession", "UserSessionContext", "UserSessionPrincipal"]
+__all__ = [
+    "AuthSession",
+    "UserSessionContext",
+    "UserSessionPrincipal",
+    "normalize_auth_session_auth_method",
+    "normalize_auth_session_context_id",
+    "normalize_auth_session_datetime",
+    "normalize_auth_session_user_id",
+]

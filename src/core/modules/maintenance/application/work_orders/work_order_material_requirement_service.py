@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -24,7 +25,9 @@ from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceWorkOrderMaterialRequirementRepository,
     MaintenanceWorkOrderRepository,
 )
-from src.core.modules.maintenance.application.common.support import coerce_optional_decimal, normalize_optional_text
+from src.core.modules.maintenance.application.common.scope_authorization import (
+    deny_maintenance_scope_access,
+)
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
@@ -129,73 +132,50 @@ class MaintenanceWorkOrderMaterialRequirementService:
         organization = self._active_organization()
         work_order = self._get_work_order(work_order_id, organization=organization)
         self._ensure_work_order_is_mutable(work_order)
-        normalized_stock_item_id = (str(stock_item_id or "").strip() or None)
-        normalized_storeroom_id = (str(preferred_storeroom_id or "").strip() or None)
-        resolved_required_qty = self._coerce_positive_decimal(required_qty, label="Required quantity")
-        resolved_issued_qty = coerce_optional_decimal(issued_qty, label="Issued quantity") or Decimal("0")
-        normalized_uom = self._normalize_required_uom(required_uom)
-        normalized_description = normalize_optional_text(description)
+        requirement = MaintenanceWorkOrderMaterialRequirement.create(
+            organization_id=organization.id,
+            work_order_id=work_order.id,
+            stock_item_id=stock_item_id,
+            description=description,
+            required_qty=required_qty,
+            issued_qty=issued_qty,
+            required_uom=required_uom,
+            is_stock_item=is_stock_item,
+            preferred_storeroom_id=preferred_storeroom_id,
+            notes=notes,
+        )
 
-        item = None
-        if is_stock_item:
-            if normalized_stock_item_id is None:
-                raise ValidationError(
-                    "Stock item is required for stock-based maintenance material demand.",
-                    code="MAINTENANCE_MATERIAL_STOCK_ITEM_REQUIRED",
-                )
-            if normalized_storeroom_id is None:
-                raise ValidationError(
-                    "Preferred storeroom is required for stock-based maintenance material demand.",
-                    code="MAINTENANCE_MATERIAL_STOREROOM_REQUIRED",
-                )
-            item = self._get_item_for_internal_use(normalized_stock_item_id)
-            storeroom = self._get_storeroom_for_internal_use(normalized_storeroom_id)
+        next_description = requirement.description
+        next_required_uom = requirement.required_uom
+        next_stock_item_id = requirement.stock_item_id
+        next_storeroom_id = requirement.preferred_storeroom_id
+        if requirement.is_stock_item:
+            item = self._get_item_for_internal_use(requirement.stock_item_id)
+            storeroom = self._get_storeroom_for_internal_use(requirement.preferred_storeroom_id)
             if storeroom.site_id != work_order.site_id:
                 raise ValidationError(
                     "Preferred storeroom must belong to the same site as the work order.",
                     code="MAINTENANCE_MATERIAL_STOREROOM_SITE_MISMATCH",
                 )
-            if not normalized_uom:
-                normalized_uom = (item.issue_uom or item.stock_uom or "").strip().upper()
-            if not normalized_description:
-                normalized_description = item.name
+            if not next_required_uom:
+                next_required_uom = item.issue_uom or item.stock_uom or ""
+            if not next_description:
+                next_description = item.name
         else:
-            normalized_stock_item_id = None
-            normalized_storeroom_id = None
-
-        if not normalized_uom:
-            raise ValidationError(
-                "Required UOM is required for maintenance material demand.",
-                code="MAINTENANCE_MATERIAL_REQUIRED_UOM_REQUIRED",
-            )
-        if not normalized_description:
-            raise ValidationError(
-                "Description is required for maintenance material demand.",
-                code="MAINTENANCE_MATERIAL_DESCRIPTION_REQUIRED",
-            )
-        if resolved_issued_qty > resolved_required_qty:
-            raise ValidationError(
-                "Issued quantity cannot exceed required quantity.",
-                code="MAINTENANCE_MATERIAL_ISSUED_QTY_EXCEEDS_REQUIRED",
-            )
-
-        requirement = MaintenanceWorkOrderMaterialRequirement.create(
-            organization_id=organization.id,
-            work_order_id=work_order.id,
-            stock_item_id=normalized_stock_item_id,
-            description=normalized_description,
-            required_qty=resolved_required_qty,
-            issued_qty=resolved_issued_qty,
-            required_uom=normalized_uom,
-            is_stock_item=bool(is_stock_item),
-            preferred_storeroom_id=normalized_storeroom_id,
+            next_stock_item_id = None
+            next_storeroom_id = None
+        requirement = replace(
+            requirement,
+            stock_item_id=next_stock_item_id,
+            description=next_description,
+            required_uom=next_required_uom,
+            preferred_storeroom_id=next_storeroom_id,
             procurement_status=self._derive_base_procurement_status(
-                is_stock_item=bool(is_stock_item),
-                required_qty=resolved_required_qty,
-                issued_qty=resolved_issued_qty,
+                is_stock_item=requirement.is_stock_item,
+                required_qty=requirement.required_qty,
+                issued_qty=requirement.issued_qty,
                 linked_requisition_id=None,
             ),
-            notes=normalize_optional_text(notes),
         )
         try:
             self._material_requirement_repo.add(requirement)
@@ -237,85 +217,67 @@ class MaintenanceWorkOrderMaterialRequirementService:
                 code="STALE_WRITE",
             )
         next_is_stock_item = requirement.is_stock_item if is_stock_item is None else bool(is_stock_item)
-        next_stock_item_id = requirement.stock_item_id
-        next_storeroom_id = requirement.preferred_storeroom_id
-        next_required_uom = requirement.required_uom
-        next_description = requirement.description
+        now = datetime.now(timezone.utc)
+        updated = replace(
+            requirement,
+            stock_item_id=requirement.stock_item_id if stock_item_id is None else stock_item_id,
+            description=requirement.description if description is None else description,
+            required_qty=requirement.required_qty if required_qty is None else required_qty,
+            required_uom=requirement.required_uom if required_uom is None else required_uom,
+            issued_qty=requirement.issued_qty if issued_qty is None else issued_qty,
+            is_stock_item=next_is_stock_item,
+            preferred_storeroom_id=(
+                requirement.preferred_storeroom_id
+                if preferred_storeroom_id is None
+                else preferred_storeroom_id
+            ),
+            notes=requirement.notes if notes is None else notes,
+            updated_at=now,
+        )
 
-        if stock_item_id is not None:
-            next_stock_item_id = (str(stock_item_id or "").strip() or None)
-        if preferred_storeroom_id is not None:
-            next_storeroom_id = (str(preferred_storeroom_id or "").strip() or None)
-        if required_uom is not None:
-            next_required_uom = self._normalize_required_uom(required_uom)
-        if description is not None:
-            next_description = normalize_optional_text(description)
-        if required_qty is not None:
-            requirement.required_qty = self._coerce_positive_decimal(required_qty, label="Required quantity")
-        if issued_qty is not None:
-            requirement.issued_qty = coerce_optional_decimal(issued_qty, label="Issued quantity") or Decimal("0")
-        if requirement.issued_qty > requirement.required_qty:
-            raise ValidationError(
-                "Issued quantity cannot exceed required quantity.",
-                code="MAINTENANCE_MATERIAL_ISSUED_QTY_EXCEEDS_REQUIRED",
-            )
-
-        if next_is_stock_item:
-            if next_stock_item_id is None:
-                raise ValidationError(
-                    "Stock item is required for stock-based maintenance material demand.",
-                    code="MAINTENANCE_MATERIAL_STOCK_ITEM_REQUIRED",
-                )
-            if next_storeroom_id is None:
-                raise ValidationError(
-                    "Preferred storeroom is required for stock-based maintenance material demand.",
-                    code="MAINTENANCE_MATERIAL_STOREROOM_REQUIRED",
-                )
-            item = self._get_item_for_internal_use(next_stock_item_id)
-            storeroom = self._get_storeroom_for_internal_use(next_storeroom_id)
+        next_description = updated.description
+        next_required_uom = updated.required_uom
+        next_stock_item_id = updated.stock_item_id
+        next_storeroom_id = updated.preferred_storeroom_id
+        next_last_availability_status = updated.last_availability_status
+        next_last_missing_qty = updated.last_missing_qty
+        next_linked_requisition_id = updated.linked_requisition_id
+        if updated.is_stock_item:
+            item = self._get_item_for_internal_use(updated.stock_item_id)
+            storeroom = self._get_storeroom_for_internal_use(updated.preferred_storeroom_id)
             if storeroom.site_id != work_order.site_id:
                 raise ValidationError(
                     "Preferred storeroom must belong to the same site as the work order.",
                     code="MAINTENANCE_MATERIAL_STOREROOM_SITE_MISMATCH",
                 )
             if not next_required_uom:
-                next_required_uom = (item.issue_uom or item.stock_uom or "").strip().upper()
+                next_required_uom = item.issue_uom or item.stock_uom or ""
             if not next_description:
                 next_description = item.name
         else:
             next_stock_item_id = None
             next_storeroom_id = None
-            requirement.last_availability_status = ""
-            requirement.last_missing_qty = None
-            requirement.linked_requisition_id = None
-
-        if not next_required_uom:
-            raise ValidationError(
-                "Required UOM is required for maintenance material demand.",
-                code="MAINTENANCE_MATERIAL_REQUIRED_UOM_REQUIRED",
-            )
-        if not next_description:
-            raise ValidationError(
-                "Description is required for maintenance material demand.",
-                code="MAINTENANCE_MATERIAL_DESCRIPTION_REQUIRED",
-            )
-
-        requirement.stock_item_id = next_stock_item_id
-        requirement.description = next_description
-        requirement.required_uom = next_required_uom
-        requirement.is_stock_item = next_is_stock_item
-        requirement.preferred_storeroom_id = next_storeroom_id
-        if notes is not None:
-            requirement.notes = normalize_optional_text(notes)
-        requirement.procurement_status = self._derive_base_procurement_status(
-            is_stock_item=requirement.is_stock_item,
-            required_qty=requirement.required_qty,
-            issued_qty=requirement.issued_qty,
-            linked_requisition_id=requirement.linked_requisition_id,
+            next_last_availability_status = ""
+            next_last_missing_qty = None
+            next_linked_requisition_id = None
+        updated = replace(
+            updated,
+            stock_item_id=next_stock_item_id,
+            description=next_description,
+            required_uom=next_required_uom,
+            preferred_storeroom_id=next_storeroom_id,
+            last_availability_status=next_last_availability_status,
+            last_missing_qty=next_last_missing_qty,
+            linked_requisition_id=next_linked_requisition_id,
+            procurement_status=self._derive_base_procurement_status(
+                is_stock_item=updated.is_stock_item,
+                required_qty=updated.required_qty,
+                issued_qty=updated.issued_qty,
+                linked_requisition_id=next_linked_requisition_id,
+            ),
         )
-        requirement.updated_at = datetime.now(timezone.utc)
         try:
-            self._material_requirement_repo.update(requirement)
+            self._material_requirement_repo.update(updated)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -326,8 +288,8 @@ class MaintenanceWorkOrderMaterialRequirementService:
         except Exception:
             self._session.rollback()
             raise
-        self._record_change("maintenance_material_requirement.update", requirement)
-        return requirement
+        self._record_change("maintenance_material_requirement.update", updated)
+        return updated
 
     def get_requirement_availability(self, material_requirement_id: str) -> MaintenanceMaterialAvailability:
         self._require_read("view maintenance material availability")
@@ -475,18 +437,6 @@ class MaintenanceWorkOrderMaterialRequirementService:
             return getter(storeroom_id)
         return self._inventory_service.get_storeroom(storeroom_id)
 
-    def _normalize_required_uom(self, required_uom: str | None) -> str:
-        return normalize_optional_text(required_uom).upper()
-
-    def _coerce_positive_decimal(self, value, *, label: str) -> Decimal:
-        resolved = coerce_optional_decimal(value, label=label)
-        if resolved is None or resolved <= 0:
-            raise ValidationError(
-                f"{label} must be greater than zero.",
-                code=f"{label.upper().replace(' ', '_')}_POSITIVE_REQUIRED",
-            )
-        return resolved
-
     def _resolve_availability(
         self,
         requirement: MaintenanceWorkOrderMaterialRequirement,
@@ -573,9 +523,13 @@ class MaintenanceWorkOrderMaterialRequirementService:
             )
             return
         if self._user_session is not None and self._user_session.is_scope_restricted("maintenance"):
-            raise BusinessRuleError(
-                f"Permission denied for {operation_label}. The record is not anchored to a maintenance scope grant.",
-                code="PERMISSION_DENIED",
+            deny_maintenance_scope_access(
+                self._user_session,
+                operation_label=operation_label,
+                message=(
+                    f"Permission denied for {operation_label}. The record is "
+                    "not anchored to a maintenance scope grant."
+                ),
             )
 
     def _record_change(self, action: str, requirement: MaintenanceWorkOrderMaterialRequirement) -> None:

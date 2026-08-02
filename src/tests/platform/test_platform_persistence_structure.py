@@ -5,7 +5,6 @@ from src.tests.path_rewrites import REPO_ROOT
 ROOT = REPO_ROOT
 PERSISTENCE_ROOT = ROOT / "src" / "core" / "platform" / "infrastructure" / "persistence"
 EXPECTED_AREAS = {
-    "access",
     "activity",
     "approval",
     "audit_entry",
@@ -14,7 +13,9 @@ EXPECTED_AREAS = {
     "documents",
     "employee",
     "enterprise_calendar",
+    "identity",
     "modules",
+    "notification",
     "org",
     "party",
     "platform_events",
@@ -41,6 +42,7 @@ def test_platform_persistence_uses_module_style_layout() -> None:
     assert _source_file_stems(PERSISTENCE_ROOT / "orm") == EXPECTED_AREAS
     assert _source_file_stems(PERSISTENCE_ROOT / "repositories") == EXPECTED_AREAS
     assert _source_file_stems(PERSISTENCE_ROOT / "mappers") == EXPECTED_AREAS - {
+        "identity",
         "modules",
         "runtime_tracking",
     } | {"enterprise_calendar"}

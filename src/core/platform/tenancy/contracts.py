@@ -33,7 +33,16 @@ class UserTenantMembershipRepository(ABC):
     def add(self, membership: UserTenantMembership) -> None: ...
 
     @abstractmethod
+    def update(self, membership: UserTenantMembership) -> None: ...
+
+    @abstractmethod
     def get(self, user_id: str, tenant_id: str) -> UserTenantMembership | None: ...
+
+    @abstractmethod
+    def get_by_invitation_token_hash(
+        self,
+        invitation_token_hash: str,
+    ) -> UserTenantMembership | None: ...
 
     @abstractmethod
     def is_active_member(self, user_id: str, tenant_id: str) -> bool: ...
@@ -43,6 +52,9 @@ class UserTenantMembershipRepository(ABC):
 
     @abstractmethod
     def list_users_for_tenant(self, tenant_id: str) -> list[UserTenantMembership]: ...
+
+    @abstractmethod
+    def list_memberships_for_user(self, user_id: str) -> list[UserTenantMembership]: ...
 
     @abstractmethod
     def deactivate(self, user_id: str, tenant_id: str) -> None: ...

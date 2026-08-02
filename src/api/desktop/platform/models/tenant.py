@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 
 
 @dataclass(frozen=True)
@@ -12,4 +13,14 @@ class TenantDto:
     is_active: bool
 
 
-__all__ = ["TenantDto"]
+@dataclass(frozen=True)
+class TenantInvitationDto:
+    membership_id: str
+    tenant_id: str
+    status: str
+    invited_by_user_id: str | None
+    invited_at: datetime
+    expires_at: datetime
+
+
+__all__ = ["TenantDto", "TenantInvitationDto"]

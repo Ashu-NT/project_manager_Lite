@@ -3,34 +3,22 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
+from src.core.platform.auth.domain import (
+    normalize_auth_device_label,
+    normalize_auth_session_timeout_override,
+)
 from src.core.platform.auth.policy import session_timeout_minutes
-from src.core.platform.common.exceptions import ValidationError
 
 if TYPE_CHECKING:
     from src.core.platform.auth.domain import UserAccount
 
 
 def normalize_device_label(device_label: str | None) -> str | None:
-    value = str(device_label or "").strip()
-    return value or None
+    return normalize_auth_device_label(device_label)
 
 
 def validate_session_timeout_override(value: int | None) -> int | None:
-    if value is None:
-        return None
-    try:
-        normalized = int(value)
-    except (TypeError, ValueError) as exc:
-        raise ValidationError(
-            "Session timeout override must be an integer number of minutes.",
-            code="AUTH_SESSION_TIMEOUT_INVALID",
-        ) from exc
-    if normalized < 5 or normalized > 1_440:
-        raise ValidationError(
-            "Session timeout override must be between 5 and 1440 minutes.",
-            code="AUTH_SESSION_TIMEOUT_INVALID",
-        )
-    return normalized
+    return normalize_auth_session_timeout_override(value)
 
 
 def next_session_expiry(now: datetime, *, user: UserAccount | None = None) -> datetime:

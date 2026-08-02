@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
@@ -17,19 +18,16 @@ from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceWorkOrderTaskRepository,
     MaintenanceWorkOrderTaskStepRepository,
 )
+from src.core.modules.maintenance.application.common.scope_authorization import (
+    deny_maintenance_scope_access,
+)
 from src.core.modules.maintenance.application.work_orders.work_order_task_validation import (
     MaintenanceWorkOrderTaskValidationMixin,
 )
 from src.core.modules.maintenance.application.work_orders.work_order_task_step_service import (
     task_steps_satisfy_completion_rule,
 )
-from src.core.modules.maintenance.application.common.support import (
-    coerce_optional_non_negative_int,
-    coerce_task_completion_rule,
-    coerce_work_order_task_status,
-    normalize_maintenance_name,
-    normalize_optional_text,
-)
+from src.core.modules.maintenance.domain._validation import normalize_positive_int
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.auth.authorization import require_permission
@@ -139,18 +137,18 @@ class MaintenanceWorkOrderTaskService(MaintenanceWorkOrderTaskValidationMixin):
         task = MaintenanceWorkOrderTask.create(
             organization_id=organization.id,
             work_order_id=work_order.id,
-            task_template_id=(str(task_template_id or "").strip() or None),
-            task_name=normalize_maintenance_name(task_name, label="Task name"),
-            description=normalize_optional_text(description),
+            task_template_id=task_template_id,
+            task_name=task_name,
+            description=description,
             assigned_employee_id=assigned_employee_id,
-            assigned_team_id=(str(assigned_team_id or "").strip() or None),
-            estimated_minutes=coerce_optional_non_negative_int(estimated_minutes, label="Estimated minutes"),
-            actual_minutes=coerce_optional_non_negative_int(actual_minutes, label="Actual minutes"),
-            required_skill=normalize_optional_text(required_skill),
+            assigned_team_id=assigned_team_id,
+            estimated_minutes=estimated_minutes,
+            actual_minutes=actual_minutes,
+            required_skill=required_skill,
             sequence_no=resolved_sequence_no,
-            is_mandatory=bool(is_mandatory),
-            completion_rule=coerce_task_completion_rule(completion_rule),
-            notes=normalize_optional_text(notes),
+            is_mandatory=is_mandatory,
+            completion_rule=completion_rule,
+            notes=notes,
         )
         try:
             self._work_order_task_repo.add(task)
@@ -197,29 +195,7 @@ class MaintenanceWorkOrderTaskService(MaintenanceWorkOrderTaskValidationMixin):
                 code="STALE_WRITE",
             )
 
-        if task_name is not None:
-            task.task_name = normalize_maintenance_name(task_name, label="Task name")
-        if task_template_id is not None:
-            task.task_template_id = (str(task_template_id or "").strip() or None)
-        if description is not None:
-            task.description = normalize_optional_text(description)
-        if assigned_employee_id is not None:
-            task.assigned_employee_id = assigned_employee_id
-        if assigned_team_id is not None:
-            task.assigned_team_id = (str(assigned_team_id or "").strip() or None)
-        if estimated_minutes is not None:
-            task.estimated_minutes = coerce_optional_non_negative_int(estimated_minutes, label="Estimated minutes")
-        if actual_minutes is not None:
-            task.actual_minutes = coerce_optional_non_negative_int(actual_minutes, label="Actual minutes")
-        if required_skill is not None:
-            task.required_skill = normalize_optional_text(required_skill)
-        if is_mandatory is not None:
-            task.is_mandatory = bool(is_mandatory)
-        if completion_rule is not None:
-            task.completion_rule = coerce_task_completion_rule(completion_rule)
-        if notes is not None:
-            task.notes = normalize_optional_text(notes)
-
+        next_sequence_no = task.sequence_no
         if sequence_no is not None:
             resolved_sequence_no = self._resolve_sequence_no(task.work_order_id, sequence_no)
             sibling_rows = self._work_order_task_repo.list_for_organization(
@@ -231,27 +207,44 @@ class MaintenanceWorkOrderTaskService(MaintenanceWorkOrderTaskValidationMixin):
                     "Sequence number already exists on the selected work order.",
                     code="MAINTENANCE_WORK_ORDER_TASK_SEQUENCE_EXISTS",
                 )
-            task.sequence_no = resolved_sequence_no
+            next_sequence_no = resolved_sequence_no
 
+        now = datetime.now(timezone.utc)
+        updated = replace(
+            task,
+            task_name=task.task_name if task_name is None else task_name,
+            task_template_id=task.task_template_id if task_template_id is None else task_template_id,
+            description=task.description if description is None else description,
+            assigned_employee_id=(
+                task.assigned_employee_id if assigned_employee_id is None else assigned_employee_id
+            ),
+            assigned_team_id=task.assigned_team_id if assigned_team_id is None else assigned_team_id,
+            estimated_minutes=(
+                task.estimated_minutes if estimated_minutes is None else estimated_minutes
+            ),
+            actual_minutes=task.actual_minutes if actual_minutes is None else actual_minutes,
+            required_skill=task.required_skill if required_skill is None else required_skill,
+            status=task.status if status is None else status,
+            sequence_no=next_sequence_no,
+            is_mandatory=task.is_mandatory if is_mandatory is None else is_mandatory,
+            completion_rule=task.completion_rule if completion_rule is None else completion_rule,
+            notes=task.notes if notes is None else notes,
+            updated_at=now,
+        )
         if status is not None:
-            new_status = coerce_work_order_task_status(status)
-            self._validate_work_order_task_status_transition(task.status, new_status)
-            if new_status == MaintenanceWorkOrderTaskStatus.COMPLETED:
-                self._validate_task_completion(task)
-            task.status = new_status
-            now = datetime.now(timezone.utc)
-            if new_status == MaintenanceWorkOrderTaskStatus.IN_PROGRESS and task.started_at is None:
-                task.started_at = now
-            if new_status in {
+            self._validate_work_order_task_status_transition(task.status, updated.status)
+            if updated.status == MaintenanceWorkOrderTaskStatus.COMPLETED:
+                self._validate_task_completion(updated)
+            if updated.status == MaintenanceWorkOrderTaskStatus.IN_PROGRESS and task.started_at is None:
+                updated = replace(updated, started_at=now)
+            if updated.status in {
                 MaintenanceWorkOrderTaskStatus.COMPLETED,
                 MaintenanceWorkOrderTaskStatus.SKIPPED,
             } and task.completed_at is None:
-                task.completed_at = now
-
-        task.updated_at = datetime.now(timezone.utc)
+                updated = replace(updated, completed_at=now)
 
         try:
-            self._work_order_task_repo.update(task)
+            self._work_order_task_repo.update(updated)
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -262,8 +255,8 @@ class MaintenanceWorkOrderTaskService(MaintenanceWorkOrderTaskValidationMixin):
         except Exception:
             self._session.rollback()
             raise
-        self._record_change("maintenance_work_order_task.update", task)
-        return task
+        self._record_change("maintenance_work_order_task.update", updated)
+        return updated
 
     def _active_organization(self) -> Organization:
         return self._tenant_context_service.require_context(
@@ -281,13 +274,11 @@ class MaintenanceWorkOrderTaskService(MaintenanceWorkOrderTaskValidationMixin):
 
     def _resolve_sequence_no(self, work_order_id: str, sequence_no: int | str | None) -> int:
         if sequence_no not in (None, ""):
-            resolved = int(sequence_no)
-            if resolved <= 0:
-                raise ValidationError(
-                    "Sequence number must be greater than zero.",
-                    code="MAINTENANCE_WORK_ORDER_TASK_SEQUENCE_INVALID",
-                )
-            return resolved
+            return normalize_positive_int(
+                sequence_no,
+                message="Sequence number must be greater than zero.",
+                code="MAINTENANCE_WORK_ORDER_TASK_SEQUENCE_INVALID",
+            )
         existing_rows = self._work_order_task_repo.list_for_organization(
             self._active_organization().id,
             work_order_id=work_order_id,
@@ -344,9 +335,13 @@ class MaintenanceWorkOrderTaskService(MaintenanceWorkOrderTaskValidationMixin):
             )
             return
         if self._user_session is not None and self._user_session.is_scope_restricted("maintenance"):
-            raise BusinessRuleError(
-                f"Permission denied for {operation_label}. The record is not anchored to a maintenance scope grant.",
-                code="PERMISSION_DENIED",
+            deny_maintenance_scope_access(
+                self._user_session,
+                operation_label=operation_label,
+                message=(
+                    f"Permission denied for {operation_label}. The record is "
+                    "not anchored to a maintenance scope grant."
+                ),
             )
 
     def _record_change(self, action: str, task: MaintenanceWorkOrderTask) -> None:

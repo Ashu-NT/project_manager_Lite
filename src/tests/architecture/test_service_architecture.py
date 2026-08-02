@@ -80,7 +80,6 @@ from src.core.modules.project_management.application.resources import (
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import (
     CPMTaskInfo,
-    CalendarService,
     CalendarProtocol,
     GlobalCalendarShim,
     SchedulingEngine,
@@ -153,7 +152,6 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.task_service, TaskService)
     assert isinstance(graph.timesheet_service, TimesheetService)
     assert isinstance(graph.resource_service, ResourceService)
-    assert isinstance(graph.calendar_service, CalendarService)
     assert isinstance(graph.cost_service, CostService)
     assert isinstance(graph.finance_service, FinanceService)
     # work_calendar_engine is now GlobalCalendarShim (enterprise-backed)

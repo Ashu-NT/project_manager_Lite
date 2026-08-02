@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
-
 from src.core.modules.project_management.domain.scheduling.baseline import (
-    BaselineStatus,
     BaselineTask,
     BaselineVarianceRecord,
     ProjectBaseline,
@@ -14,27 +11,19 @@ from src.core.modules.project_management.infrastructure.persistence.orm.baseline
     ProjectBaselineORM,
 )
 
-
-def _as_date(value):
-    if isinstance(value, datetime):
-        return value.date()
-    return value
-
-
 def baseline_from_orm(obj: ProjectBaselineORM) -> ProjectBaseline:
-    status_raw = obj.status or BaselineStatus.DRAFT.value
     return ProjectBaseline(
         id=obj.id,
         project_id=obj.project_id,
         name=obj.name,
-        created_at=_as_date(obj.created_at),
-        status=BaselineStatus(status_raw),
-        version=int(obj.version or 1),
+        created_at=obj.created_at,
+        status=obj.status,
+        version=obj.version,
         submitted_by=obj.submitted_by,
         submitted_at=obj.submitted_at,
         approved_by=obj.approved_by,
         approved_at=obj.approved_at,
-        notes=obj.notes or "",
+        notes=obj.notes,
     )
 
 

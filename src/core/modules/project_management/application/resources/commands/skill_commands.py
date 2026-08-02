@@ -11,7 +11,6 @@ from src.core.modules.project_management.contracts.repositories.skills import (
 from src.core.modules.project_management.domain.resources.skills import (
     ResourceCertification,
     ResourceSkill,
-    SkillProficiencyLevel,
 )
 from src.core.platform.common.exceptions import NotFoundError
 
@@ -30,15 +29,11 @@ class SkillCommandMixin:
     ) -> ResourceSkill:
         if self._skill_repo is None:
             raise RuntimeError("Skill repository is not configured.")
-        try:
-            prof = SkillProficiencyLevel(proficiency.lower())
-        except ValueError:
-            prof = SkillProficiencyLevel.INTERMEDIATE
         skill = ResourceSkill.create(
             resource_id=resource_id,
             skill_code=skill_code,
             skill_name=skill_name,
-            proficiency=prof,
+            proficiency=proficiency,
             notes=notes,
         )
         return self._skill_repo.add(skill)

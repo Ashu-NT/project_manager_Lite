@@ -252,6 +252,10 @@ class ProjectManagementTasksWorkspaceController(
     def selectedTask(self) -> dict[str, object]:
         return self._task_list.selectedTask
 
+    @Property("QVariantList", notify=tasksChanged)
+    def wbsParentOptions(self) -> list[dict[str, str]]:
+        return self._task_list.wbsParentOptions
+
     @Property(str, notify=selectedTaskIdChanged)
     def selectedTaskId(self) -> str:
         return self._selected_task_id
@@ -565,6 +569,10 @@ class ProjectManagementTasksWorkspaceController(
         return _mut.update_task(self, payload)
 
     @Slot("QVariantMap", result="QVariantMap")
+    def moveTaskInWbs(self, payload: dict[str, object]) -> dict[str, object]:
+        return _mut.move_task_in_wbs(self, payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
     def updateProgress(self, payload: dict[str, object]) -> dict[str, object]:
         return _mut.update_progress(self, payload)
 
@@ -603,6 +611,14 @@ class ProjectManagementTasksWorkspaceController(
     @Slot(str, result="QVariantMap")
     def deleteAssignment(self, assignment_id: str) -> dict[str, object]:
         return _mut.delete_assignment(self, assignment_id)
+
+    @Slot(str, result="QVariantMap")
+    def acceptAssignment(self, assignment_id: str) -> dict[str, object]:
+        return _mut.accept_assignment(self, assignment_id)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def declineAssignment(self, payload: dict[str, object]) -> dict[str, object]:
+        return _mut.decline_assignment(self, payload)
 
     @Slot("QVariantMap", result="QVariantMap")
     def validateAssignment(self, payload: dict[str, object]) -> dict[str, object]:
@@ -647,6 +663,25 @@ class ProjectManagementTasksWorkspaceController(
     @Slot("QVariantMap", result="QVariantMap")
     def postTaskComment(self, payload: dict[str, object]) -> dict[str, object]:
         return _mut.post_task_comment(self, payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def editTaskComment(self, payload: dict[str, object]) -> dict[str, object]:
+        return _mut.edit_task_comment(self, payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def deleteTaskComment(self, payload: dict[str, object]) -> dict[str, object]:
+        return _mut.delete_task_comment(self, payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def reactToTaskComment(self, payload: dict[str, object]) -> dict[str, object]:
+        return _mut.react_to_task_comment(self, payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def removeTaskCommentReaction(
+        self,
+        payload: dict[str, object],
+    ) -> dict[str, object]:
+        return _mut.remove_task_comment_reaction(self, payload)
 
     @Slot(str, result="QVariantMap")
     def markTaskCollaborationRead(self, task_id: str) -> dict[str, object]:

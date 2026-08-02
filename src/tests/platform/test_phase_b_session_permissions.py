@@ -45,13 +45,11 @@ def test_cleared_session_denies_core_read_models(services):
     dashboard = services["dashboard_service"]
     approvals = services["approval_service"]
     audit = services["enterprise_audit_service"]
-    calendar = services["calendar_service"]
 
     project = ps.create_project("Read Permission Project")
     task = ts.create_task(project.id, "Read Permission Task", start_date=date(2026, 5, 1), duration_days=2)
     resource = rs.create_resource("Read Permission Resource", hourly_rate=120.0)
     cs.add_cost_item(project.id, "Read Permission Cost", planned_amount=100.0)
-    calendar.sync_task_to_calendar(task)
 
     services["user_session"].clear()
 
@@ -73,8 +71,6 @@ def test_cleared_session_denies_core_read_models(services):
         approvals.list_requests(project_id=project.id)
     with pytest.raises(BusinessRuleError, match="audit.read"):
         audit.list_recent()
-    with pytest.raises(BusinessRuleError):
-        calendar.list_events_for_project(project.id)
 
 
 def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
@@ -267,6 +263,8 @@ def test_shared_time_permission_aliases_allow_time_queries_and_edits(services):
         hours=2.0,
         note="Admin seed entry",
     )
+    active_tenant_id = user_session.active_tenant_id()
+    active_organization_id = user_session.active_organization_id()
 
     user_session.set_validator(None)
     user_session.set_principal(
@@ -276,6 +274,8 @@ def test_shared_time_permission_aliases_allow_time_queries_and_edits(services):
             display_name="Time Reader",
             role_names=frozenset({"time_reader"}),
             permissions=frozenset({"time.read"}),
+            active_tenant_id=active_tenant_id,
+            active_organization_id=active_organization_id,
         )
     )
     visible = timesheet_service.list_time_entries_for_assignment(assignment.id)
@@ -288,6 +288,8 @@ def test_shared_time_permission_aliases_allow_time_queries_and_edits(services):
             display_name="Time Manager",
             role_names=frozenset({"time_manager"}),
             permissions=frozenset({"time.manage", "time.read"}),
+            active_tenant_id=active_tenant_id,
+            active_organization_id=active_organization_id,
         )
     )
     second = timesheet_service.add_work_entry(

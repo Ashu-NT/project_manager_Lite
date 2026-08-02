@@ -41,6 +41,13 @@ from src.api.desktop.platform.models.employee import (
     EmployeeDto,
     EmployeeUpdateCommand,
 )
+from src.api.desktop.platform.models.identity import (
+    ApiKeyCredentialDto,
+    ApiKeyIssueCommand,
+    IssuedApiKeyDto,
+    ServicePrincipalCreateCommand,
+    ServicePrincipalDto,
+)
 from src.api.desktop.platform.models.organization import (
     OrganizationDto,
     OrganizationProvisionCommand,
@@ -71,10 +78,12 @@ from src.api.desktop.platform.models.user import (
     UserPasswordResetCommand,
     UserUpdateCommand,
 )
-from src.api.desktop.platform.models.tenant import TenantDto
+from src.api.desktop.platform.models.tenant import TenantDto, TenantInvitationDto
 from src.core.platform.approval.domain import ApprovalStatus
 
 __all__ = [
+    "ApiKeyCredentialDto",
+    "ApiKeyIssueCommand",
     "ApprovalDecisionCommand",
     "ApprovalRequestDto",
     "ApprovalStatus",
@@ -103,6 +112,7 @@ __all__ = [
     "EmployeeCreateCommand",
     "EmployeeDto",
     "EmployeeUpdateCommand",
+    "IssuedApiKeyDto",
     "ModuleDto",
     "ModuleEntitlementDto",
     "ModuleStatePatchCommand",
@@ -123,6 +133,8 @@ __all__ = [
     "SiteCreateCommand",
     "SiteDto",
     "SiteUpdateCommand",
+    "ServicePrincipalCreateCommand",
+    "ServicePrincipalDto",
     "SupportBundleDto",
     "SupportEventDto",
     "SupportInstallLaunchDto",
@@ -135,4 +147,5 @@ __all__ = [
     "UserPasswordResetCommand",
     "UserUpdateCommand",
     "TenantDto",
+    "TenantInvitationDto",
 ]

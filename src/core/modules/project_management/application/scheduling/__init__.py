@@ -8,7 +8,6 @@ from src.core.modules.project_management.application.scheduling.baselines import
 )
 from src.core.modules.project_management.application.scheduling.calendars import (
     BoundProjectCalendar,
-    CalendarService,
     ProjectCalendarAdapter,
 )
 from src.core.modules.project_management.application.scheduling.cpm import (
@@ -73,7 +72,6 @@ __all__ = [
     "ResourceLevelingMixin",
     # Calendars
     "BoundProjectCalendar",
-    "CalendarService",
     "ProjectCalendarAdapter",
     # Baselines
     "BaselineComparisonReport",

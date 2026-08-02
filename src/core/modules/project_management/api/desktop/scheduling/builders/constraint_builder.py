@@ -3,6 +3,7 @@
 from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import ConstraintValidator
 from src.core.modules.project_management.api.desktop.scheduling.models.constraints import SchedulingConstraintViolationDto
 from src.core.modules.project_management.api.desktop.scheduling.serializers.constraint_serializer import serialize_constraint_violation
+from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 
 
 def build_constraint_violations(
@@ -16,7 +17,7 @@ def build_constraint_violations(
         return ()
     try:
         schedule = scheduling_engine.recalculate_project_schedule(project_id, persist=False)
-        tasks = task_service.list_tasks_for_project(project_id)
+        tasks = select_leaf_tasks(task_service.list_tasks_for_project(project_id))
         tasks_by_id = {t.id: t for t in tasks}
         validator = ConstraintValidator(calendar=work_calendar_engine)
         result = validator.validate(tasks_by_id, schedule)

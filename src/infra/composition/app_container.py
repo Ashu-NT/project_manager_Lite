@@ -18,7 +18,12 @@ from src.core.platform.integration.resolver import IntegrationResolver
 from src.core.platform.activity.application.activity_service import ActivityService
 from src.core.platform.approval import ApprovalService
 from src.core.platform.audit import EnterpriseAuditService
-from src.core.platform.auth import AuthService
+from src.core.platform.notifications import NotificationService
+from src.core.platform.auth import (
+    AuthService,
+    RoleGovernanceService,
+    TenantRoleAdministrationService,
+)
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.data_exchange import MasterDataExchangeService
 from src.core.platform.documents import DocumentService
@@ -29,8 +34,13 @@ from src.core.platform.org import OrganizationService
 from src.core.platform.site import SiteService
 from src.core.platform.party import PartyService
 from src.core.platform.time.application import TimeService
-from src.core.platform.tenancy import TenantAdminService, TenantContextService
+from src.core.platform.tenancy import (
+    TenantAdminService,
+    TenantContextService,
+    TenantMembershipService,
+)
 from src.core.platform.runtime_tracking import RuntimeExecutionService
+from src.core.platform.identity import ServicePrincipalService
 from src.core.modules.inventory_procurement import (
     ProcurementService,
     InventoryDataExchangeService,
@@ -85,7 +95,12 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
     BaselineService,
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
-from src.core.modules.project_management.application.financials import CostService, FinanceService
+from src.core.modules.project_management.application.financials import (
+    CostService,
+    FinancialConfigurationService,
+    FinanceService,
+    ForecastCostService,
+)
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import (
@@ -94,7 +109,6 @@ from src.core.modules.project_management.application.resources import (
 )
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.scheduling import (
-    CalendarService,
     SchedulingEngine,
 )
 from src.core.modules.project_management.infrastructure.importers import DataImportService
@@ -115,7 +129,6 @@ from src.core.platform.calendar.application.enterprise_calendar_resolver import 
 from src.core.platform.calendar.application.working_time_calculator import WorkingTimeCalculator
 from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
-from src.core.modules.project_management.infrastructure.collaboration_store import TaskCollaborationStore
 from src.infra.composition.inventory_registry import build_inventory_procurement_service_bundle
 from src.infra.composition.maintenance_registry import build_maintenance_service_bundle
 from src.infra.composition.platform_registry import build_platform_service_bundle
@@ -137,9 +150,13 @@ class ServiceGraph:
     integration_resolver: IntegrationResolver
     time_service: TimeService
     auth_service: AuthService
+    role_governance_service: RoleGovernanceService
+    tenant_role_administration_service: TenantRoleAdministrationService
     organization_service: OrganizationService
     tenant_context_service: TenantContextService
     tenant_admin_service: TenantAdminService
+    tenant_membership_service: TenantMembershipService
+    service_principal_service: ServicePrincipalService
     document_service: DocumentService
     party_service: PartyService
     department_service: DepartmentService
@@ -188,14 +205,16 @@ class ServiceGraph:
     access_service: AccessControlService
     activity_service: ActivityService
     enterprise_audit_service: EnterpriseAuditService
+    notification_service: NotificationService
     approval_service: ApprovalService
     collaboration_service: CollaborationService
     project_service: ProjectService
     task_service: TaskService
     timesheet_service: TimesheetService
-    calendar_service: CalendarService
     resource_service: ResourceService
     cost_service: CostService
+    financial_configuration_service: FinancialConfigurationService
+    forecast_service: ForecastCostService
     finance_service: FinanceService
     work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
     scheduling_engine: SchedulingEngine
@@ -206,7 +225,6 @@ class ServiceGraph:
     register_service: RegisterService
     project_resource_service: ProjectResourceService
     data_import_service: DataImportService
-    task_collaboration_store: TaskCollaborationStore
     assignment_skill_validator: AssignmentSkillValidator
     enterprise_calendar_service: EnterpriseCalendarService | None
     working_rule_service: WorkingRuleService | None
@@ -230,9 +248,15 @@ class ServiceGraph:
             "integration_resolver": self.integration_resolver,
             "time_service": self.time_service,
             "auth_service": self.auth_service,
+            "role_governance_service": self.role_governance_service,
+            "tenant_role_administration_service": (
+                self.tenant_role_administration_service
+            ),
             "organization_service": self.organization_service,
             "tenant_context_service": self.tenant_context_service,
             "tenant_admin_service": self.tenant_admin_service,
+            "tenant_membership_service": self.tenant_membership_service,
+            "service_principal_service": self.service_principal_service,
             "document_service": self.document_service,
             "party_service": self.party_service,
             "department_service": self.department_service,
@@ -281,14 +305,16 @@ class ServiceGraph:
             "access_service": self.access_service,
             "activity_service": self.activity_service,
             "enterprise_audit_service": self.enterprise_audit_service,
+            "notification_service": self.notification_service,
             "approval_service": self.approval_service,
             "collaboration_service": self.collaboration_service,
             "project_service": self.project_service,
             "task_service": self.task_service,
             "timesheet_service": self.timesheet_service,
-            "calendar_service": self.calendar_service,
             "resource_service": self.resource_service,
             "cost_service": self.cost_service,
+            "financial_configuration_service": self.financial_configuration_service,
+            "forecast_service": self.forecast_service,
             "finance_service": self.finance_service,
             "work_calendar_engine": self.work_calendar_engine,
             "scheduling_engine": self.scheduling_engine,
@@ -299,7 +325,6 @@ class ServiceGraph:
             "register_service": self.register_service,
             "project_resource_service": self.project_resource_service,
             "data_import_service": self.data_import_service,
-            "task_collaboration_store": self.task_collaboration_store,
             "assignment_skill_validator": self.assignment_skill_validator,
             "enterprise_calendar_service": self.enterprise_calendar_service,
             "working_rule_service": self.working_rule_service,
@@ -363,9 +388,15 @@ def build_service_graph(session: Session) -> ServiceGraph:
         integration_resolver=_integration_resolver,
         time_service=project_management_services.time_service,
         auth_service=platform_services.auth_service,
+        role_governance_service=platform_services.role_governance_service,
+        tenant_role_administration_service=(
+            platform_services.tenant_role_administration_service
+        ),
         organization_service=platform_services.organization_service,
         tenant_context_service=platform_services.tenant_context_service,
         tenant_admin_service=platform_services.tenant_admin_service,
+        tenant_membership_service=platform_services.tenant_membership_service,
+        service_principal_service=platform_services.service_principal_service,
         document_service=platform_services.document_service,
         party_service=platform_services.party_service,
         department_service=platform_services.department_service,
@@ -414,14 +445,18 @@ def build_service_graph(session: Session) -> ServiceGraph:
         access_service=platform_services.access_service,
         activity_service=platform_services.activity_service,
         enterprise_audit_service=platform_services.enterprise_audit_service,
+        notification_service=platform_services.notification_service,
         approval_service=platform_services.approval_service,
         collaboration_service=project_management_services.collaboration_service,
         project_service=project_management_services.project_service,
         task_service=project_management_services.task_service,
         timesheet_service=project_management_services.timesheet_service,
-        calendar_service=project_management_services.calendar_service,
         resource_service=project_management_services.resource_service,
         cost_service=project_management_services.cost_service,
+        financial_configuration_service=(
+            project_management_services.financial_configuration_service
+        ),
+        forecast_service=project_management_services.forecast_service,
         finance_service=project_management_services.finance_service,
         work_calendar_engine=project_management_services.work_calendar_engine,
         scheduling_engine=project_management_services.scheduling_engine,
@@ -432,7 +467,6 @@ def build_service_graph(session: Session) -> ServiceGraph:
         register_service=project_management_services.register_service,
         project_resource_service=project_management_services.project_resource_service,
         data_import_service=project_management_services.data_import_service,
-        task_collaboration_store=project_management_services.task_collaboration_store,
         assignment_skill_validator=project_management_services.assignment_skill_validator,
         enterprise_calendar_service=platform_services.enterprise_calendar_service,
         working_rule_service=platform_services.working_rule_service,

@@ -16,8 +16,9 @@ from src.core.modules.project_management.contracts.repositories.project import (
 )
 from src.core.modules.project_management.contracts.repositories.task import TaskRepository
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from src.core.modules.project_management.contracts.repositories.cost_calendar import CostRepository
+from src.core.modules.project_management.contracts.repositories.cost import CostRepository
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
+from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.approval.policy import is_governance_required
 from src.core.platform.access.authorization import require_project_permission
@@ -28,6 +29,8 @@ from src.core.modules.project_management.application.common.module_guard import 
 
 
 class BaselineService(ProjectManagementModuleGuardMixin):
+    # TRANSITION(PF-A0-UOW-BRIDGE): commit=False lets an approval use case own the
+    # transaction. Remove this switch with the dedicated approved command in Phase C.
     def __init__(
         self,
         session: Session,
@@ -63,6 +66,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         project_id: str,
         name: str = "Baseline",
         bypass_approval: bool = False,
+        commit: bool = True,
     ) -> ProjectBaseline:
         governed = (
             not bypass_approval
@@ -115,9 +119,9 @@ class BaselineService(ProjectManagementModuleGuardMixin):
             )
 
         # Ensure we have a computed schedule (CPM provides earliest_start/finish)
-        schedule = self._sched.recalculate_project_schedule(project_id)
+        schedule = self._sched.recalculate_project_schedule(project_id, commit=False)
 
-        tasks = self._tasks.list_by_project(project_id)
+        tasks = select_leaf_tasks(self._tasks.list_by_project(project_id))
         if not tasks:
             raise ValidationError("Cannot baseline: project has no tasks.")
         task_name_by_id = {task.id: task.name for task in tasks}
@@ -279,7 +283,6 @@ class BaselineService(ProjectManagementModuleGuardMixin):
             self._baselines.add_baseline(baseline)
             self._session.flush()
             self._baselines.add_baseline_tasks(baseline_tasks)
-            self._session.commit()
             record_activity(
                 self,
                 action="baseline.create",
@@ -288,9 +291,15 @@ class BaselineService(ProjectManagementModuleGuardMixin):
                 module="project_management",
                 workspace_id=project_id,
                 details={"name": baseline.name},
+                commit=False,
             )
+            if commit:
+                self._session.commit()
+            else:
+                self._session.flush()
         except Exception:
-            self._session.rollback()
+            if commit:
+                self._session.rollback()
             raise
 
         return baseline

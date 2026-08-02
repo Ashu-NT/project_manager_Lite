@@ -19,7 +19,12 @@ from src.core.platform.access import AccessControlService, ScopedRolePolicy, Sco
 from src.core.platform.activity import ActivityService
 from src.core.platform.approval import ApprovalService
 from src.core.platform.audit import EnterpriseAuditService
-from src.core.platform.auth import AuthService
+from src.core.platform.notifications import NotificationService
+from src.core.platform.auth import (
+    AuthService,
+    RoleGovernanceService,
+    TenantRoleAdministrationService,
+)
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.documents import DocumentIntegrationService, DocumentService
 from src.core.platform.data_exchange import MasterDataExchangeService
@@ -33,15 +38,18 @@ from src.core.platform.site.access_policy import (
     resolve_site_scope_permissions,
 )
 from src.core.platform.tenancy import (
-    ORGANIZATION_SCOPE_ROLE_CHOICES,
     TenantAdminService,
+    TenantMembershipService,
     TenantContextService,
-    normalize_organization_scope_role,
-    resolve_organization_scope_permissions,
+    TenancyMode,
+    Tenant,
+    UserTenantMembership,
+    build_tenant_context_policy,
 )
 from src.core.platform.party import PartyService
 from src.core.platform.party.contracts import PartyRepository
 from src.core.platform.runtime_tracking import RuntimeExecutionService
+from src.core.platform.identity import ServicePrincipalService
 from src.core.platform.calendar.application.enterprise_calendar_service import EnterpriseCalendarService
 from src.core.platform.calendar.application.working_rule_service import WorkingRuleService
 from src.core.platform.calendar.application.calendar_exception_service import CalendarExceptionService
@@ -54,9 +62,87 @@ from src.core.platform.calendar.application.global_calendar_shim import GlobalCa
 from src.core.platform.infrastructure.persistence.repositories.modules import SqlAlchemyModuleEntitlementRepository
 from src.core.platform.infrastructure.persistence.repositories.runtime_tracking import SqlAlchemyRuntimeExecutionRepository
 from src.infra.composition.repositories import RepositoryBundle
+from src.infra.platform.operational_support import current_trace_id
+from src.infra.platform.security_audit_recorder import (
+    DurableSecurityDenialRecorder,
+)
+from src.infra.platform.security_config import (
+    RuntimeSecurityConfiguration,
+    load_runtime_security_configuration,
+)
+from src.infra.persistence.db.postgresql_rls import (
+    configure_session_rls_context,
+    validate_postgresql_execution_role,
+)
 
 
 logger = logging.getLogger(__name__)
+
+
+def _bootstrap_local_single_tenant_context(
+    *,
+    session: Session,
+    repositories: RepositoryBundle,
+    user_session: UserSessionContext,
+    organization_service: OrganizationService,
+) -> None:
+    """Preserve explicit local-desktop defaults outside hosted SaaS mode."""
+    default_tenant = repositories.tenant_repo.get_default()
+    if default_tenant is None:
+        existing_organizations = repositories.organization_repo.list_all()
+        tenant_code = (
+            existing_organizations[0].organization_code
+            if existing_organizations
+            else "DEFAULT"
+        )
+        tenant_name = (
+            existing_organizations[0].display_name
+            if existing_organizations
+            else "Default Tenant"
+        )
+        default_tenant = Tenant.create(
+            tenant_code=tenant_code,
+            display_name=tenant_name,
+        )
+        repositories.tenant_repo.add(default_tenant)
+        session.flush()
+        for organization in existing_organizations:
+            if not organization.tenant_id:
+                organization.tenant_id = default_tenant.id
+                repositories.organization_repo.update(organization)
+        session.commit()
+        logger.debug(
+            "Platform local default tenant bootstrapped tenant_id=%s",
+            default_tenant.id,
+        )
+
+    user_session.set_active_tenant_id(default_tenant.id)
+    organization_service.bootstrap_defaults()
+
+    organizations = repositories.organization_repo.list_for_tenant(
+        default_tenant.id,
+        active_only=True,
+    )
+    if not organizations:
+        organizations = repositories.organization_repo.list_for_tenant(
+            default_tenant.id
+        )
+    if organizations:
+        user_session.set_active_organization_id(organizations[0].id)
+
+    for user in repositories.user_repo.list_all():
+        if repositories.user_tenant_repo.get(
+            user.id,
+            default_tenant.id,
+        ) is not None:
+            continue
+        repositories.user_tenant_repo.add(
+            UserTenantMembership.create(
+                user_id=user.id,
+                tenant_id=default_tenant.id,
+            )
+        )
+    session.commit()
 
 
 @dataclass(frozen=True)
@@ -71,6 +157,8 @@ class PlatformServiceBundle:
     module_runtime_service: ModuleRuntimeService
     module_catalog_service: ModuleCatalogService
     auth_service: AuthService
+    role_governance_service: RoleGovernanceService
+    tenant_role_administration_service: TenantRoleAdministrationService
     organization_service: OrganizationService
     document_service: DocumentService
     document_integration_service: DocumentIntegrationService
@@ -83,6 +171,7 @@ class PlatformServiceBundle:
     access_service: AccessControlService
     activity_service: ActivityService
     enterprise_audit_service: EnterpriseAuditService
+    notification_service: NotificationService
     approval_service: ApprovalService
     enterprise_calendar_service: EnterpriseCalendarService
     working_rule_service: WorkingRuleService
@@ -93,21 +182,44 @@ class PlatformServiceBundle:
     enterprise_calendar_resolver: EnterpriseCalendarResolver
     working_time_calculator: WorkingTimeCalculator
     tenant_admin_service: TenantAdminService
+    tenant_membership_service: TenantMembershipService
+    service_principal_service: ServicePrincipalService
     global_calendar_shim: GlobalCalendarShim
+    runtime_security_configuration: RuntimeSecurityConfiguration
 
 
 def build_platform_service_bundle(
     session: Session,
     repositories: RepositoryBundle,
+    *,
+    runtime_security_configuration: RuntimeSecurityConfiguration | None = None,
 ) -> PlatformServiceBundle:
     started = perf_counter()
     logger.debug("Platform service bundle build begin")
+    security_configuration = (
+        runtime_security_configuration or load_runtime_security_configuration()
+    )
+    logger.info(
+        "Runtime security configuration deployment_environment=%s tenancy_mode=%s",
+        security_configuration.deployment_environment.value,
+        security_configuration.tenancy_mode.value,
+    )
     user_session = UserSessionContext()
+    security_denial_recorder = DurableSecurityDenialRecorder.for_session(
+        session,
+        trace_id_provider=current_trace_id,
+    )
+    user_session.set_security_denial_listener(
+        security_denial_recorder.record
+    )
     tenant_context_service = TenantContextService(
         tenant_repo=repositories.tenant_repo,
         organization_repo=repositories.organization_repo,
         user_session=user_session,
         user_tenant_repo=repositories.user_tenant_repo,
+        context_policy=build_tenant_context_policy(
+            security_configuration.tenancy_mode
+        ),
     )
     # Wire _tenant_context_service on all repos that support it.
     for _field_name in repositories.__dataclass_fields__:
@@ -119,6 +231,11 @@ def build_platform_service_bundle(
         audit_repo=repositories.audit_entry_repo,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
+    )
+    notification_service = NotificationService(
+        session=session,
+        notification_repo=repositories.notification_repo,
+        user_session=user_session,
     )
     activity_service = ActivityService(
         session=session,
@@ -132,27 +249,62 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
+        notification_service=notification_service,
+        role_repo=repositories.role_repo,
+        role_permission_repo=repositories.role_permission_repo,
+        permission_repo=repositories.permission_repo,
+        role_binding_repo=repositories.role_binding_repo,
     )
     auth_service = AuthService(
         session=session,
         user_repo=repositories.user_repo,
         role_repo=repositories.role_repo,
         permission_repo=repositories.permission_repo,
-        user_role_repo=repositories.user_role_repo,
         role_permission_repo=repositories.role_permission_repo,
         auth_session_repo=repositories.auth_session_repo,
-        scoped_access_repo=repositories.scoped_access_repo,
-        project_membership_repo=repositories.project_membership_repo,
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
+        security_audit_repo=repositories.audit_entry_repo,
         user_tenant_repo=repositories.user_tenant_repo,
+        tenant_context_service=tenant_context_service,
+        request_id_provider=current_trace_id,
+        role_binding_repo=repositories.role_binding_repo,
+        canonical_scope_tenant_resolvers={
+            "organization": lambda tenant_id, organization_id: (
+                repositories.organization_repo.get_for_tenant(
+                    organization_id,
+                    tenant_id,
+                )
+                is not None
+            ),
+            "site": lambda tenant_id, site_id: (
+                tenant_context_service.require_active_tenant_id(
+                    operation_label="validate site access scope"
+                )
+                == tenant_id
+                and repositories.site_repo.get(site_id) is not None
+            ),
+        },
+        allow_platform_customer_context=(
+            security_configuration.tenancy_mode
+            is TenancyMode.LOCAL_SINGLE_TENANT
+        ),
+    )
+    tenant_context_service.set_principal_rebuilder(
+        auth_service.rebuild_current_principal_for_context
+    )
+    tenant_context_service.set_context_switch_committer(
+        auth_service.commit_context_switch
     )
     user_session.set_validator(auth_service.validate_session_principal)
     user_session.set_context_listener(auth_service.persist_session_context)
-    logger.debug("Platform auth service created; bootstrapping defaults")
-    auth_service.bootstrap_defaults()
+    logger.debug("Platform auth service created; bootstrapping policy catalog")
+    if security_configuration.tenancy_mode is TenancyMode.LOCAL_SINGLE_TENANT:
+        auth_service.bootstrap_defaults()
+    else:
+        auth_service.bootstrap_policy_catalog()
     logger.debug(
-        "Platform auth defaults bootstrapped duration_ms=%.1f",
+        "Platform auth policy catalog bootstrapped duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
 
@@ -161,59 +313,22 @@ def build_platform_service_bundle(
         organization_repo=repositories.organization_repo,
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
+        tenant_context_service=tenant_context_service,
     )
 
-    # H-6: Bootstrap default tenant BEFORE org so that the org is always created
-    # with a non-null tenant_id. organizations.tenant_id is now NOT NULL.
-    if repositories.tenant_repo.get_default() is None:
-        from src.core.platform.tenancy.domain.tenant import Tenant as _Tenant
-        _existing_orgs = repositories.organization_repo.list_all()
-        _tenant_code = _existing_orgs[0].organization_code if _existing_orgs else "DEFAULT"
-        _tenant_name = _existing_orgs[0].display_name if _existing_orgs else "Default Tenant"
-        _default_tenant = _Tenant.create(tenant_code=_tenant_code, display_name=_tenant_name)
-        repositories.tenant_repo.add(_default_tenant)
-        session.flush()
-        # Backfill any existing orgs that pre-date this run (e.g. live DB upgrade path)
-        for _org in _existing_orgs:
-            if not _org.tenant_id:
-                _org.tenant_id = _default_tenant.id
-                repositories.organization_repo.update(_org)
-        session.commit()
-        user_session.set_active_tenant_id(_default_tenant.id)
-        logger.debug("Platform default tenant bootstrapped tenant_id=%s", _default_tenant.id)
-
-    # Set active tenant in the session before org bootstrap so that
-    # organization_service.bootstrap_defaults() creates the org with the correct tenant_id.
-    if user_session.active_tenant_id() is None:
-        _dt = repositories.tenant_repo.get_default()
-        if _dt is not None:
-            user_session.set_active_tenant_id(_dt.id)
-
-    logger.debug("Platform organization service created; bootstrapping defaults")
-    organization_service.bootstrap_defaults()
-
-    if user_session.active_organization_id() is None:
-        # Bootstrap the local/session tenant explicitly after organization
-        # defaults exist. This does not make Organization.is_active a runtime
-        # selector for repositories; it seeds UserSession -> TenantContext.
-        organizations = repositories.organization_repo.list_all(active_only=True)
-        if not organizations:
-            organizations = repositories.organization_repo.list_all()
-        if organizations:
-            user_session.set_active_organization_id(organizations[0].id)
-
-    # Backfill all existing users into the default tenant if they have no membership.
-    # Admin is exempt from the membership check by role, but backfilling ensures
-    # list_for_tenant() returns admin users consistently.
-    _backfill_tenant = repositories.tenant_repo.get_default()
-    if _backfill_tenant is not None:
-        from src.core.platform.tenancy.domain.user_tenant_membership import UserTenantMembership as _UTM
-        for _u in repositories.user_repo.list_all():
-            if not repositories.user_tenant_repo.is_active_member(_u.id, _backfill_tenant.id):
-                repositories.user_tenant_repo.add(
-                    _UTM.create(user_id=_u.id, tenant_id=_backfill_tenant.id, tenant_role="member")
-                )
-        session.flush()
+    if security_configuration.tenancy_mode is TenancyMode.LOCAL_SINGLE_TENANT:
+        logger.debug("Bootstrapping explicit local single-tenant defaults")
+        _bootstrap_local_single_tenant_context(
+            session=session,
+            repositories=repositories,
+            user_session=user_session,
+            organization_service=organization_service,
+        )
+    else:
+        logger.info(
+            "SaaS startup skipped default tenant, organization, context, and "
+            "user-membership bootstrap"
+        )
 
     logger.debug(
         "Platform organization defaults bootstrapped duration_ms=%.1f",
@@ -225,6 +340,19 @@ def build_platform_service_bundle(
         user_tenant_repo=repositories.user_tenant_repo,
         user_session=user_session,
         platform_event_repo=repositories.platform_event_repo,
+    )
+    tenant_membership_service = TenantMembershipService(
+        session=session,
+        tenant_repo=repositories.tenant_repo,
+        membership_repo=repositories.user_tenant_repo,
+        user_repo=repositories.user_repo,
+        role_repo=repositories.role_repo,
+        role_binding_repo=repositories.role_binding_repo,
+        auth_session_repo=repositories.auth_session_repo,
+        audit_repo=repositories.audit_entry_repo,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+        notification_service=notification_service,
     )
     document_service = DocumentService(
         session=session,
@@ -276,13 +404,12 @@ def build_platform_service_bundle(
     def _active_organization() -> Organization | None:
         return tenant_context_service.get_active_organization()
 
-    def _active_organization_id() -> str | None:
-        return tenant_context_service.get_active_organization_id()
-
     module_entitlement_repo = SqlAlchemyModuleEntitlementRepository(
         session,
-        organization_id_provider=_active_organization_id,
+        tenant_context_service=tenant_context_service,
     )
+    configure_session_rls_context(session, user_session=user_session)
+    validate_postgresql_execution_role(session)
     module_catalog_service = ModuleCatalogService(
         modules=DEFAULT_ENTERPRISE_MODULES,
         enabled_codes=parse_enabled_module_codes(os.getenv("PM_ENABLED_MODULES")),
@@ -311,22 +438,68 @@ def build_platform_service_bundle(
         user_session=user_session,
     )
     runtime_execution_service = RuntimeExecutionService(
-        runtime_execution_repo=SqlAlchemyRuntimeExecutionRepository(session),
+        runtime_execution_repo=SqlAlchemyRuntimeExecutionRepository(
+            session,
+            tenant_context_service=tenant_context_service,
+        ),
+        tenant_context_service=tenant_context_service,
         user_session=user_session,
+    )
+    scope_exists_resolvers = {
+        "organization": lambda tenant_id, organization_id: (
+            repositories.organization_repo.get_for_tenant(
+                organization_id,
+                tenant_id,
+            )
+            is not None
+        ),
+        "site": lambda tenant_id, site_id: (
+            tenant_context_service.require_active_tenant_id(
+                operation_label="validate site access scope"
+            )
+            == tenant_id
+            and repositories.site_repo.get(site_id) is not None
+        ),
+    }
+    role_governance_service = RoleGovernanceService(
+        session=session,
+        role_repo=repositories.role_repo,
+        role_binding_repo=repositories.role_binding_repo,
+        delegation_repo=repositories.role_delegation_policy_repo,
+        role_permission_repo=repositories.role_permission_repo,
+        permission_repo=repositories.permission_repo,
+        user_repo=repositories.user_repo,
+        tenant_repo=repositories.tenant_repo,
+        membership_repo=repositories.user_tenant_repo,
+        audit_repo=repositories.audit_entry_repo,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+        scope_exists_resolvers=scope_exists_resolvers,
+        allow_platform_customer_context=(
+            security_configuration.tenancy_mode
+            is TenancyMode.LOCAL_SINGLE_TENANT
+        ),
+    )
+    auth_service.set_role_governance_service(role_governance_service)
+    service_principal_service = ServicePrincipalService(
+        session=session,
+        principal_repo=repositories.service_principal_repo,
+        api_key_repo=repositories.api_key_credential_repo,
+        user_repo=repositories.user_repo,
+        tenant_repo=repositories.tenant_repo,
+        organization_repo=repositories.organization_repo,
+        membership_repo=repositories.user_tenant_repo,
+        audit_repo=repositories.audit_entry_repo,
+        auth_service=auth_service,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
     )
     access_service = AccessControlService(
         session=session,
-        membership_repo=repositories.project_membership_repo,
         user_repo=repositories.user_repo,
         auth_service=auth_service,
         policy_registry=ScopedRolePolicyRegistry(
             (
-                ScopedRolePolicy(
-                    scope_type="organization",
-                    role_choices=ORGANIZATION_SCOPE_ROLE_CHOICES,
-                    normalize_role=normalize_organization_scope_role,
-                    resolve_permissions=resolve_organization_scope_permissions,
-                ),
                 ScopedRolePolicy(
                     scope_type="site",
                     role_choices=SITE_SCOPE_ROLE_CHOICES,
@@ -335,13 +508,27 @@ def build_platform_service_bundle(
                 ),
             )
         ),
-        scoped_access_repo=repositories.scoped_access_repo,
-        scope_exists_resolvers={
-            "organization": lambda organization_id: repositories.organization_repo.get(organization_id) is not None,
-            "site": lambda site_id: repositories.site_repo.get(site_id) is not None,
-        },
+        scope_exists_resolvers=scope_exists_resolvers,
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
+        user_tenant_repo=repositories.user_tenant_repo,
+        tenant_context_service=tenant_context_service,
+        role_governance_service=role_governance_service,
+        role_repo=repositories.role_repo,
+        role_binding_repo=repositories.role_binding_repo,
+    )
+    tenant_role_administration_service = TenantRoleAdministrationService(
+        session=session,
+        role_repo=repositories.role_repo,
+        role_binding_repo=repositories.role_binding_repo,
+        role_permission_repo=repositories.role_permission_repo,
+        permission_repo=repositories.permission_repo,
+        auth_session_repo=repositories.auth_session_repo,
+        tenant_repo=repositories.tenant_repo,
+        membership_repo=repositories.user_tenant_repo,
+        audit_repo=repositories.audit_entry_repo,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
     )
     employee_service = EmployeeService(
         session=session,
@@ -419,6 +606,7 @@ def build_platform_service_bundle(
         project_assignment_repo=repositories.project_calendar_assignment_repo,
         resource_assignment_repo=repositories.resource_calendar_assignment_repo,
         calculator=working_time_calculator,
+        shift_pattern_repo=repositories.shift_pattern_repo,
     )
     global_calendar_shim = GlobalCalendarShim(resolver=enterprise_calendar_resolver)
     # Bootstrap global calendar. After the Alembic migration drops legacy tables,
@@ -443,6 +631,10 @@ def build_platform_service_bundle(
         module_runtime_service=module_runtime_service,
         module_catalog_service=module_catalog_service,
         auth_service=auth_service,
+        role_governance_service=role_governance_service,
+        tenant_role_administration_service=(
+            tenant_role_administration_service
+        ),
         organization_service=organization_service,
         document_service=document_service,
         document_integration_service=document_integration_service,
@@ -455,6 +647,7 @@ def build_platform_service_bundle(
         access_service=access_service,
         activity_service=activity_service,
         enterprise_audit_service=enterprise_audit_service,
+        notification_service=notification_service,
         approval_service=approval_service,
         enterprise_calendar_service=enterprise_calendar_service,
         working_rule_service=working_rule_service,
@@ -465,7 +658,10 @@ def build_platform_service_bundle(
         enterprise_calendar_resolver=enterprise_calendar_resolver,
         working_time_calculator=working_time_calculator,
         tenant_admin_service=tenant_admin_service,
+        tenant_membership_service=tenant_membership_service,
+        service_principal_service=service_principal_service,
         global_calendar_shim=global_calendar_shim,
+        runtime_security_configuration=security_configuration,
     )
     logger.debug(
         "Platform service bundle build complete duration_ms=%.1f",

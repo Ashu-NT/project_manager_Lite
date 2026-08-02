@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from src.core.modules.inventory_procurement.application.common.support import (
@@ -11,13 +12,19 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing import
     PurchaseRequisitionStatus,
 )
 from src.core.platform.approval.domain import ApprovalRequest
+from src.core.platform.approval.contracts import (
+    ApprovalHandlerResult,
+    ApprovalPostCommitEvent,
+)
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.shared.events.domain_events import domain_events
 
 
 class ProcurementApprovalMixin:
-    def apply_submitted_requisition_approval(self, request: ApprovalRequest) -> None:
+    def apply_submitted_requisition_approval(
+        self,
+        request: ApprovalRequest,
+    ) -> ApprovalHandlerResult:
         requisition = self._requisition_repo.get(request.entity_id)
         if requisition is None:
             raise NotFoundError("Purchase requisition not found.", code="INVENTORY_REQUISITION_NOT_FOUND")
@@ -40,12 +47,16 @@ class ProcurementApprovalMixin:
             next_status=PurchaseRequisitionStatus.APPROVED.value,
             transitions=REQUISITION_STATUS_TRANSITIONS,
         )
-        requisition.status = PurchaseRequisitionStatus.APPROVED
-        requisition.approved_at = datetime.now(timezone.utc)
-        requisition.updated_at = requisition.approved_at
+        effective_at = datetime.now(timezone.utc)
+        requisition = replace(
+            requisition,
+            status=PurchaseRequisitionStatus.APPROVED,
+            approved_at=effective_at,
+            updated_at=effective_at,
+        )
         self._requisition_repo.update(requisition)
         for line in self._requisition_line_repo.list_for_requisition(requisition.id):
-            line.status = PurchaseRequisitionLineStatus.OPEN
+            line = replace(line, status=PurchaseRequisitionLineStatus.OPEN)
             self._requisition_line_repo.update(line)
         record_activity(
             self,
@@ -57,10 +68,21 @@ class ProcurementApprovalMixin:
                 "requisition_number": requisition.requisition_number,
                 "approval_request_id": request.id,
             },
+            commit=False,
         )
-        domain_events.inventory_requisitions_changed.emit(requisition.id)
+        return ApprovalHandlerResult(
+            post_commit_events=(
+                ApprovalPostCommitEvent(
+                    "inventory_requisitions_changed",
+                    requisition.id,
+                ),
+            )
+        )
 
-    def apply_submitted_requisition_rejection(self, request: ApprovalRequest) -> None:
+    def apply_submitted_requisition_rejection(
+        self,
+        request: ApprovalRequest,
+    ) -> ApprovalHandlerResult:
         requisition = self._requisition_repo.get(request.entity_id)
         if requisition is None:
             raise NotFoundError("Purchase requisition not found.", code="INVENTORY_REQUISITION_NOT_FOUND")
@@ -83,11 +105,14 @@ class ProcurementApprovalMixin:
             next_status=PurchaseRequisitionStatus.REJECTED.value,
             transitions=REQUISITION_STATUS_TRANSITIONS,
         )
-        requisition.status = PurchaseRequisitionStatus.REJECTED
-        requisition.updated_at = datetime.now(timezone.utc)
+        requisition = replace(
+            requisition,
+            status=PurchaseRequisitionStatus.REJECTED,
+            updated_at=datetime.now(timezone.utc),
+        )
         self._requisition_repo.update(requisition)
         for line in self._requisition_line_repo.list_for_requisition(requisition.id):
-            line.status = PurchaseRequisitionLineStatus.REJECTED
+            line = replace(line, status=PurchaseRequisitionLineStatus.REJECTED)
             self._requisition_line_repo.update(line)
         record_activity(
             self,
@@ -99,8 +124,16 @@ class ProcurementApprovalMixin:
                 "requisition_number": requisition.requisition_number,
                 "approval_request_id": request.id,
             },
+            commit=False,
         )
-        domain_events.inventory_requisitions_changed.emit(requisition.id)
+        return ApprovalHandlerResult(
+            post_commit_events=(
+                ApprovalPostCommitEvent(
+                    "inventory_requisitions_changed",
+                    requisition.id,
+                ),
+            )
+        )
 
 
 __all__ = ["ProcurementApprovalMixin"]

@@ -19,17 +19,18 @@ class PortfolioDependencyCommandMixin:
     ) -> PortfolioProjectDependency:
         require_permission(self._user_session, "portfolio.manage", operation_label="create portfolio dependency")
         accessible_projects = {project.id: project for project in self._accessible_projects()}
-        predecessor = accessible_projects.get(str(predecessor_project_id or "").strip())
-        successor = accessible_projects.get(str(successor_project_id or "").strip())
+        dependency = PortfolioProjectDependency.create(
+            predecessor_project_id=predecessor_project_id,
+            successor_project_id=successor_project_id,
+            dependency_type=dependency_type,
+            summary=summary,
+        )
+        predecessor = accessible_projects.get(dependency.predecessor_project_id)
+        successor = accessible_projects.get(dependency.successor_project_id)
         if predecessor is None or successor is None:
             raise ValidationError(
                 "Choose two accessible projects for the portfolio dependency.",
                 code="PORTFOLIO_DEPENDENCY_PROJECT_REQUIRED",
-            )
-        if predecessor.id == successor.id:
-            raise ValidationError(
-                "Portfolio dependency must link two different projects.",
-                code="PORTFOLIO_DEPENDENCY_SAME_PROJECT",
             )
         self._active_portfolio_organization_id(operation_label="create portfolio dependency")
         for existing in self._dependency_repo.list():
@@ -41,17 +42,6 @@ class PortfolioDependencyCommandMixin:
                     "That portfolio dependency already exists.",
                     code="PORTFOLIO_DEPENDENCY_DUPLICATE",
                 )
-        normalized_type = (
-            dependency_type
-            if isinstance(dependency_type, DependencyType)
-            else DependencyType(str(dependency_type or DependencyType.FINISH_TO_START.value))
-        )
-        dependency = PortfolioProjectDependency.create(
-            predecessor_project_id=predecessor.id,
-            successor_project_id=successor.id,
-            dependency_type=normalized_type,
-            summary=(summary or "").strip(),
-        )
         self._dependency_repo.add(dependency)
         self._session.commit()
         record_activity(
@@ -66,7 +56,7 @@ class PortfolioDependencyCommandMixin:
                 "predecessor_project_name": predecessor.name,
                 "successor_project_id": successor.id,
                 "successor_project_name": successor.name,
-                "dependency_type": normalized_type.value,
+                "dependency_type": dependency.dependency_type.value,
                 "summary": dependency.summary,
             },
         )

@@ -1,6 +1,11 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import select
+
+from src.core.platform.infrastructure.persistence.orm.audit_entry import (
+    AuditEntryORM,
+)
 
 
 def _login_admin(services):
@@ -53,11 +58,21 @@ def test_auth_actions_produce_audit_entries(services):
 def test_role_assignment_produces_audit_entry(services):
     _login_admin(services)
     auth = services["auth_service"]
-    eas = services["enterprise_audit_service"]
-    user = auth.register_user("rbac_audit_user", "TestPass123!")
+    tenant_id = services[
+        "tenant_context_service"
+    ].require_active_tenant_id(operation_label="test canonical role audit")
+    user = auth.register_user(
+        "rbac_audit_user",
+        "TestPass123!",
+        role_names=[],
+        tenant_id=tenant_id,
+    )
     auth.assign_role(user.id, "team_member")
-    entries = eas.list_recent(limit=50)
-    operations = {e.operation for e in entries}
+    operations = set(
+        services["session"].execute(
+            select(AuditEntryORM.operation)
+        ).scalars()
+    )
     assert "permission_change" in operations
 
 

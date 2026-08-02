@@ -8,7 +8,10 @@ from src.core.modules.project_management.application.collaboration import (
     CollaborationService,
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
-from src.core.modules.project_management.application.financials import FinanceService
+from src.core.modules.project_management.application.financials import (
+    FinanceService,
+    ForecastCostService,
+)
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import (
@@ -52,6 +55,7 @@ class ProjectManagementDesktopRuntimeServices:
     work_calendar_engine: CalendarProtocol | None
     dashboard_service: DashboardService | None
     finance_service: FinanceService | None
+    forecast_service: ForecastCostService | None
     baseline_service: BaselineService | None
     reporting_service: ReportingService | None
     cost_service: object | None
@@ -75,6 +79,7 @@ def resolve_project_management_desktop_runtime_services(
     work_calendar_engine = services.get("work_calendar_engine")
     dashboard_service = services.get("dashboard_service")
     finance_service = services.get("finance_service")
+    forecast_service = services.get("forecast_service")
     baseline_service = services.get("baseline_service")
     reporting_service = services.get("reporting_service")
 
@@ -148,6 +153,11 @@ def resolve_project_management_desktop_runtime_services(
         ),
         finance_service=(
             finance_service if isinstance(finance_service, FinanceService) else None
+        ),
+        forecast_service=(
+            forecast_service
+            if isinstance(forecast_service, ForecastCostService)
+            else None
         ),
         baseline_service=(
             baseline_service

@@ -71,6 +71,7 @@ class SqlAlchemyRegisterEntryRepository(RegisterEntryRepository):
             getattr(entry, "version", 1),
             {
                 "project_id": entry.project_id,
+                "entry_code": getattr(entry, "code", "") or None,
                 "entry_type": entry.entry_type,
                 "title": entry.title,
                 "description": entry.description,
