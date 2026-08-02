@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Mock 1.0 as AppMock
 import App.Widgets 1.0 as AppWidgets
@@ -88,6 +87,11 @@ Item {
     signal timeUnlockRequested(var payload)
 
     signal composeRequested()
+    signal commentReplyRequested(var commentData)
+    signal commentEditRequested(var commentData)
+    signal commentDeleteRequested(var commentData)
+    signal commentReactionRequested(var payload)
+    signal commentReactionRemovalRequested(var payload)
     signal markReadRequested(string taskId)
     signal collaborationRefreshRequested()
     signal openReservationsRequested()
@@ -341,6 +345,15 @@ Item {
                     errorText: String(root.sectionErrors["activity"] || "")
 
                     onComposeRequested: root.composeRequested()
+                    onReplyRequested: function(item) { root.commentReplyRequested(item) }
+                    onEditRequested: function(item) { root.commentEditRequested(item) }
+                    onDeleteRequested: function(item) { root.commentDeleteRequested(item) }
+                    onReactionRequested: function(payload) {
+                        root.commentReactionRequested(payload)
+                    }
+                    onReactionRemovalRequested: function(payload) {
+                        root.commentReactionRemovalRequested(payload)
+                    }
                     onMarkReadRequested: function(id) { root.markReadRequested(id) }
                     onRefreshRequested: root.collaborationRefreshRequested()
                 }

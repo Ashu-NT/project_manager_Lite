@@ -1,15 +1,17 @@
 # Team Collaboration Upgrade Plan — For Team Evaluation
 
-Date: 2026-08-01
-Status: **Phase 1 implemented and verified (2026-08-01).** **Phase 0 (both
-items) and Phase 4 (all items except document version history, which stays
-out of scope per this plan's own README-ownership note) implemented and
-verified (2026-08-01)** — see "Phase 0 implementation notes" and "Phase 4
-implementation notes" at the end of their respective sections. Phase 2 and
-Phase 3 (cross-session delivery and real notification channels) remain
-proposals for the team to review — nothing in this pass touched them, since
-both explicitly require a team decision this plan cannot make on its own
-(see Phase 2's "Open question" and Phase 3's channel-scope question).
+Date: 2026-08-02
+Status: **Phase 0 complete. Phase 4 comment modernization is complete
+end-to-end through the task workspace QML.** The assignment-response UI,
+document version history, and approval delegation remain open.
+
+**Notification scope decision (2026-08-02): Phases 1 through 3 are deferred
+as one future app notification workstream.** The addressed-row dispatch code
+implemented on 2026-08-01 is retained as tested platform foundation, but it
+is not a completed or shipped notification system. There is no desktop
+consumer, shell unread lifecycle, cross-session refresh, or channel
+implementation. This plan must not describe persisted rows alone as an
+in-app notification feature.
 Grounded in: `docs/pm_modernization/TEAM_COLLABORATION_AUDIT_FINDINGS.md`
 (read that first — every phase below cites a specific finding).
 Consistent with: `docs/pm_modernization/README.md`'s existing ownership
@@ -114,13 +116,19 @@ were otherwise unaffected and remain green.
 
 ---
 
-## Phase 1 — Wire PM into the real NotificationService (closes the core gap)
+## Phase 1 — App notification system (deferred; persistence foundation only)
 
-**Finding:** §2 of the audit — this is the headline gap. Assignment,
-mentions, and approval requests are completely silent; the `NotificationService`
-that could fix this already exists and is unused by PM.
+**Current decision:** do not continue notification implementation in the
+comments/mentions modernization. Treat the implementation notes below as
+foundation history and resume this phase only with an approved product scope
+covering the desktop consumer, read lifecycle, refresh/delivery model, and
+channel policy together.
 
-**What this phase delivers:** an addressed, persisted, in-app notification
+**Finding:** §2 of the audit — addressed persistence exists for assignment,
+mentions, and approval requests, but the `NotificationService` has no desktop
+consumer or delivery channel and therefore does not yet notify an app user.
+
+**Target outcome for the resumed phase:** an addressed, persisted notification
 row (`recipient_user_id` set) for:
 - task assignment → the assignee
 - @mention in a comment → the mentioned user(s)
@@ -171,9 +179,9 @@ does this need a real assignable-approver concept first? Recommend starting
 with "notify everyone who currently holds the deciding permission for that
 scope" — simplest, no schema change, and correct enough for a first version.
 
-### Phase 1 implementation notes (2026-08-01)
+### Phase 1 foundation notes (2026-08-01; reclassified 2026-08-02)
 
-Implemented as scoped above, with two decisions resolved during
+The persistence foundation was implemented with two decisions resolved during
 implementation (both confirmed by the team before coding):
 
 1. **Resource → user recipient gap (discovered during implementation, not
@@ -191,7 +199,7 @@ implementation (both confirmed by the team before coding):
    `ApprovalService` (not PM-only), per the team's choice — every module
    using platform approvals benefits immediately.
 
-What shipped:
+Foundation implemented:
 - `src/core/shared/notifications/safe_dispatch.py` — a `safe_dispatch_notification(owner, ...)`
   helper mirroring the existing `record_activity(owner, ...)` convention,
   pulling `owner._notification_service` and swallowing/logging delivery
@@ -220,10 +228,11 @@ What shipped:
   Full repo test suite re-run clean (same pre-existing, unrelated baseline
   failures as before this work; zero regressions).
 
-Not done in this pass (intentionally, matches the plan's own scope): no
-delivery channels (Phase 3), no cross-session real-time delivery (Phase 2) —
-these remain in-app-only, pull-refreshed notifications for now, exactly as
-Phase 1 was scoped to deliver.
+Not shipped as an app feature: no desktop surface calls
+`list_my_notifications()`, no shell badge/read lifecycle exists, no delivery
+channel exists, and no cross-session refresh exists. The persisted rows are
+therefore not called "in-app notifications" in current product status. All
+remaining notification work is deferred by the 2026-08-02 scope decision.
 
 ---
 
@@ -348,7 +357,7 @@ since it turns a one-directional push into an actual collaborative
 handoff). Reactions and @everyone are genuinely optional polish — defer
 freely.
 
-### Phase 4 implementation notes (2026-08-01)
+### Phase 4 implementation notes (2026-08-01 to 2026-08-02)
 
 Shipped: comment edit, comment soft-delete, comment threading, comment
 reactions, @everyone/@team mentions, assignee accept/decline, and the
@@ -381,15 +390,34 @@ Controller/presenter/command-handler plumbing
 (`editTaskComment`/`deleteTaskComment`/`reactToTaskComment`/
 `removeTaskCommentReaction` slots, and the view-model now carries
 `authorUserId`/`parentCommentId`/`isEdited`/`isDeleted`/`reactions` in each
-row's `state`) is fully wired end-to-end so QML can call these today.
-**Not done in this pass:** the actual QML buttons/reply-composer/reaction-
-picker UI. The audit already noted the shared `ActivityFeed` widget used for
-the comment list doesn't even render the comment body/subtitle today — building
-real edit/delete/reply/react affordances needs either a dedicated comment-row
-component or a meaningfully extended `ActivityFeed`, which is a genuine UI
-task in its own right, not a mechanical follow-on. Recommend scoping that as
-a focused "Collaboration workspace comment UI" ticket now that every API it
-would call already exists and is tested.
+row's `state`) is fully wired end-to-end.
+
+**QML completion update (2026-08-02):** the task Activity section now uses a
+dedicated `TaskCommentCard` instead of the generic `ActivityFeed`. It renders
+full bodies, attachment/document context, edited/deleted state, reply nesting,
+parent-author context, reply counts, reaction chips, and an anchored reaction
+picker. The existing composer now has create/reply/edit modes, deletion uses
+a soft-delete confirmation, and the public task workspace controller exposes
+all mutations in QML type metadata. Action visibility is computed from the
+current principal's global/project permissions and comment ownership in the
+application/API path. Roots are newest-first and replies are chronological,
+which keeps active discussions discoverable without breaking thread context.
+
+Verification on 2026-08-02:
+- focused collaboration/controller/architecture tests: **21 passed**;
+- changed-file QML lint: **clean with no warnings**;
+- complete `src/tests/project_management` run: **309 passed, 3 failed**. The
+  remaining failures are not collaboration regressions: two dashboard trend
+  tests use fixed May 2026 timestamps against rolling current-date windows,
+  and one import test expects an RBAC denial before the now-earlier module
+  entitlement denial.
+
+Remaining comment hardening, tracked separately from the completed UI path:
+- add true optimistic concurrency for simultaneous comment edits (a persisted
+  revision checked atomically by the repository, not a UI-only timestamp);
+- add explicit moderation evidence (`deleted_by_user_id` and optional reason)
+  if compliance requirements demand more than the preserved soft-deleted body
+  and general activity/audit facilities.
 
 **@everyone / @team mentions:** `resolve_mentions()` special-cases the
 literal tokens `everyone`/`team` to expand to every candidate's `user_id`
@@ -454,16 +482,17 @@ now remains accurate — nothing about their disabled state changed.
   explicitly left for the team, since it depends on production deployment
   facts (which DB engine tenants actually run) that aren't visible from the
   codebase alone.
+- The notification persistence foundation is not expanded during comment UI
+  modernization. Desktop notification UX, background refresh, delivery
+  channels, retention, and operational monitoring belong to the deferred
+  notification workstream.
 
 ## Suggested evaluation order for the team
 
-1. Approve Phase 0 (low-risk correctness fixes) — should be uncontroversial.
-2. Decide the Phase 2 tier (A only, or A+B, or commit to scoping C
-   separately) — this shapes how ambitious Phase 1's "real-time-ish" framing
-   can honestly be marketed internally.
-3. Approve Phase 1 (addressed in-app notifications) — the highest-leverage
-   single change in this plan.
-4. Decide Phase 3 scope (OS toast yes/no, email yes/no) — can be deferred
-   entirely without blocking anything else.
-5. Prioritize Phase 4 items into the normal backlog, independent of the
-   above.
+1. Verify the completed Phase 4 task comment UX with real seeded users and
+   project-scoped roles.
+2. Add the assignment accept/decline desktop actions or remove any remaining
+   disabled affordances until that UI is ready.
+3. Keep Phases 1 through 3 deferred until the team approves one complete app
+   notification scope; do not ship only another partial delivery mechanism.
+4. Track document versioning as a separate platform-owned initiative.

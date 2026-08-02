@@ -23,6 +23,7 @@ Item {
     property var assignmentTarget: ({})
     property var dependencyTarget: ({})
     property var collaborationTarget: ({})
+    property var collaborationCommentTarget: ({})
     property var bulkDeleteTargetIds: []
 
     signal deleteRequested(string taskId)
@@ -126,13 +127,53 @@ Item {
 
     function openTaskCollaborationDialog(taskData) {
         root.collaborationTarget = taskData || root.selectedTaskData || ({})
+        root.collaborationCommentTarget = ({})
         const state = root.collaborationTarget && root.collaborationTarget.state ? root.collaborationTarget.state : (root.collaborationTarget || {})
         if (state.taskId || state.id) {
             root.taskPresenceStarted(String(state.taskId || state.id), "commenting")
         }
+        collaborationComposerDialog.mode = "create"
         collaborationComposerDialog.taskData = root.collaborationTarget
+        collaborationComposerDialog.commentData = ({})
         collaborationComposerDialog.errorMessage = ""
         collaborationComposerDialog.open()
+    }
+
+    function openTaskCommentReplyDialog(commentData, taskData) {
+        root.collaborationTarget = taskData || root.selectedTaskData || ({})
+        root.collaborationCommentTarget = commentData || ({})
+        const state = root.collaborationTarget && root.collaborationTarget.state
+            ? root.collaborationTarget.state
+            : (root.collaborationTarget || {})
+        if (state.taskId || state.id) {
+            root.taskPresenceStarted(String(state.taskId || state.id), "commenting")
+        }
+        collaborationComposerDialog.mode = "reply"
+        collaborationComposerDialog.taskData = root.collaborationTarget
+        collaborationComposerDialog.commentData = root.collaborationCommentTarget
+        collaborationComposerDialog.errorMessage = ""
+        collaborationComposerDialog.open()
+    }
+
+    function openTaskCommentEditDialog(commentData, taskData) {
+        root.collaborationTarget = taskData || root.selectedTaskData || ({})
+        root.collaborationCommentTarget = commentData || ({})
+        const state = root.collaborationTarget && root.collaborationTarget.state
+            ? root.collaborationTarget.state
+            : (root.collaborationTarget || {})
+        if (state.taskId || state.id) {
+            root.taskPresenceStarted(String(state.taskId || state.id), "editing comment")
+        }
+        collaborationComposerDialog.mode = "edit"
+        collaborationComposerDialog.taskData = root.collaborationTarget
+        collaborationComposerDialog.commentData = root.collaborationCommentTarget
+        collaborationComposerDialog.errorMessage = ""
+        collaborationComposerDialog.open()
+    }
+
+    function openTaskCommentDeleteDialog(commentData) {
+        root.collaborationCommentTarget = commentData || ({})
+        deleteCommentDialog.open()
     }
 
     function openBulkDeleteDialog(taskIds) {
@@ -267,8 +308,32 @@ Item {
 
         onSubmitted: function(payload) {
             if (root.workspaceController === null) return
-            const result = root.workspaceController.postTaskComment(payload)
+            const result = collaborationComposerDialog.mode === "edit"
+                ? root.workspaceController.editTaskComment(payload)
+                : root.workspaceController.postTaskComment(payload)
             root._handleResult(collaborationComposerDialog, result)
+        }
+    }
+
+    AppControls.ConfirmationDialog {
+        id: deleteCommentDialog
+        objectName: "taskCommentDeleteDialog"
+        title: "Delete Comment"
+        closePolicy: Popup.CloseOnEscape
+        confirmLabel: "Delete Comment"
+        confirmIcon: "delete"
+        confirmDanger: true
+        message: "Delete this comment from the task discussion?"
+        supportingText: "The comment will be replaced with a deletion marker so replies and the historical record remain intact."
+
+        onConfirmed: {
+            if (root.workspaceController === null) return
+            const state = root.collaborationCommentTarget && root.collaborationCommentTarget.state
+                ? root.collaborationCommentTarget.state
+                : (root.collaborationCommentTarget || {})
+            root.workspaceController.deleteTaskComment(
+                String(state.commentId || root.collaborationCommentTarget.id || "")
+            )
         }
     }
 

@@ -9,5 +9,6 @@ Component {
     Property { name: "errorMessage"; type: "QString"; isReadonly: true }
     Property { name: "feedbackMessage"; type: "QString"; isReadonly: true }
     Property { name: "emptyState"; type: "QString"; isReadonly: true }
+    Property { name: "sectionErrors"; type: "QVariantMap"; isReadonly: true }
     Method { name: "clearMessages" }
 }

@@ -1,18 +1,20 @@
 # Team Collaboration Audit — Project Management Module
 
-Date: 2026-08-01
-Status: investigation complete. **Update (2026-08-01): the core gap
-described in §2 ("nothing notifies anyone") has been closed for task
-assignment, @mentions, and approval request/decision** — see
-`TEAM_COLLABORATION_UPGRADE_PLAN.md`'s "Phase 1 implementation notes."
-**Further update (2026-08-01): Phase 0 (both integrity gaps) and Phase 4
-(comment edit/soft-delete/threading/reactions, @everyone/@team mentions,
-assignee accept/decline, and the dedicated audit-trail query) are also now
-implemented** — see that same plan doc's "Phase 0/Phase 4 implementation
-notes." The §3.3 checklist below is updated accordingly. Presence heartbeat,
-document versioning, and the "Delegate" approval-handoff concept remain open
-— the last of those was scoped and deliberately deferred as a separate,
-larger piece of work (see the Phase 4 notes for why).
+Date: 2026-08-02
+Status: investigation complete and implementation in progress. Phase 0 is
+complete. The task comment stack now supports permission-derived actions,
+full-body rendering, deterministic threaded replies, author-only editing,
+moderated soft deletion, and current-user reaction toggles from QML through
+the desktop adapter to the service/repository path.
+
+**Scope decision (2026-08-02): an app notification system is deferred.** The
+existing assignment, mention, and approval dispatch calls are persistence
+foundations only. They are not a shipped notification feature because no
+desktop surface reads the addressed rows, no unread lifecycle is integrated
+into the shell, no cross-session refresh exists, and no delivery channel is
+implemented. Phase 1 through Phase 3 must therefore remain open as one future
+cross-platform notification workstream. Presence heartbeat, document
+versioning, assignment-response QML, and approval delegation also remain open.
 Relationship to `docs/pm_modernization/README.md`: that document's Workstream 8
 ("Portfolio, Collaboration, and Governance") and its Collaboration Workspace
 section (§9 of the detailed plan) describe collaboration at an aspirational,
@@ -24,18 +26,19 @@ the live code, not by restating the target model.
 
 ## TL;DR
 
-The collaboration layer has real, working infrastructure for comments,
-permission-checked @mentions, presence, and mention-scoped read tracking. But
-measured against enterprise expectations (Jira/Asana/MS Project-level), it has
-one structural gap that undermines everything else: **nothing in Project
-Management ever notifies anyone of anything.** Task assignment, @mentions,
-comments, and approval requests are all silent — the only trace they leave is
-an audit-log row recording who did it, not who it's for. The addressee finds
-out only by manually opening the exact task or workspace tab and looking. This
-is true even though a real `NotificationService` with `dispatch()`/
-`list_my_notifications()`/`mark_read()` already exists in the platform module
-(currently used only for tenant invitations) — Project Management simply never
-calls it.
+The task collaboration layer now has a complete desktop interaction path for
+comments and permission-checked @mentions: full comment bodies, nested reply
+context, edit/delete controls, reaction controls, attachment/document context,
+presence, and mention-scoped read tracking. Action visibility is computed from
+the signed-in principal and project permissions in the application/API layer,
+not inferred by QML.
+
+The major remaining collaboration gap is notification delivery. PM currently
+writes addressed platform notification rows for selected assignment, mention,
+and approval events, but no app notification product consumes or delivers
+them. Until the later notification workstream supplies a desktop inbox, unread
+lifecycle, cross-session refresh, and channel policy, users still discover
+other users' work through manual refresh/navigation.
 
 A second structural issue: the in-process `domain_events` signal bus
 (`tasks_changed`, `collaboration_changed`, `approvals_changed`, etc.) only
@@ -104,26 +107,20 @@ row. Every attachment is "latest wins."
 
 ---
 
-## 2. The core gap: nothing notifies anyone
+## 2. The deferred notification system
 
-### 2.1 `NotificationService` exists and is real, but PM never calls it
+### 2.1 Addressed persistence exists, but there is no notification product
 
 A ports-and-adapters `NotificationService` (`dispatch()`/
-`list_my_notifications()`/`mark_read()`) already exists in the platform
-module. Grepping the entire repository for `notification_service.dispatch`
-finds **exactly one call site**: tenant invitation issued/revoked, in
-`src/core/platform/tenancy/application/tenant_membership_service.py`.
-`src/infra/composition/project_registry.py` — which builds `TaskService`,
-`CollaborationService`, and every PM application service — has **zero**
-occurrences of "notification" in it. It is structurally impossible for any
-PM service to call `NotificationService` today; the reference was never
-threaded through composition.
+`list_my_notifications()`/`mark_read()`) is composed for tenant invitations,
+task assignment, @mentions, and platform approvals. The PM command paths use
+best-effort dispatch so notification persistence cannot fail the business
+transaction.
 
-(Separately: even the one real caller only ever writes an in-app row, since
-`NotificationService` is constructed with no `channels` — `contracts.py`'s
-`NotificationChannel` Protocol has zero implementations anywhere. So "wire PM
-into NotificationService" gets you an in-app inbox item, not an email/push —
-see the Upgrade Plan for how this interacts with sequencing.)
+This is intentionally classified as foundation, not a completed feature.
+`list_my_notifications()` has no desktop consumer, `NotificationChannel` has
+no implementation, and the PM Collaboration workspace still displays a
+synthetic computed feed rather than persisted addressed notifications.
 
 ### 2.2 Two things that look like notifications but aren't
 
@@ -137,29 +134,27 @@ see the Upgrade Plan for how this interacts with sequencing.)
   and relabeling audit rows into `CollaborationNotificationItem`s. It's a
   synthetic, computed-on-read feed, not a delivered notification.
 
-### 2.3 Traced end-to-end: three collaboration events, zero addressed notifications
+### 2.3 Traced end-to-end: addressed rows without user delivery
 
 **Task assignment** (`TaskAssignmentMixin.assign_project_resource`): creates
-the assignment → `record_activity(actor=assigner, action="assignment.add")`
-→ `domain_events.tasks_changed.emit(...)`. Nothing addresses the assignee.
-They find out only by opening the task/project themselves.
+the assignment, records activity, emits the local process signal, and writes
+`pm.task.assigned.v1` when the resource resolves to an employee-linked user.
+No desktop notification consumer surfaces that row.
 
 **@Mention / comment** (`CollaborationCommentCommandMixin.post_comment`):
-resolves and stores mentions → `domain_events.collaboration_changed.emit(...)`.
-No dispatch to `NotificationService`, no per-user push. The mentioned user
-finds out only if they separately open the Collaboration → Mentions tab.
+resolves and stores mentions, emits the local process signal, and writes
+`pm.comment.mentioned.v1` for resolved users other than the author. The task
+discussion is complete, but notification delivery is not.
 
-**Approval request** (`ApprovalService.request_change`): creates the
-`ApprovalRequest` (note: it has no `approver_user_id` concept at all — it's
-role/permission-gated, not addressed to a person) → audit entry →
-`domain_events.approvals_changed.emit(...)`. The same pattern repeats for
-`approve_and_apply`/`reject`. An approver only learns of a pending request by
-opening the Approvals panel and looking through everything visible to their
-role.
+**Approval request** (`ApprovalService.request_change`): creates and audits
+the request, emits the local process signal, and fans out an addressed row to
+current `approval.decide` holders. Approval decisions write back to the
+requester. Those records also have no desktop notification consumer.
 
-This same pattern (audit row + in-process signal, no addressed notification)
-applies to baseline submission/approval, timesheet submit/approve/reject, and
-every other governed PM action.
+Other governed PM actions such as baseline and timesheet transitions still
+rely on audit rows plus in-process signals unless explicitly wired. Coverage
+must be defined as part of the future notification event catalog rather than
+expanded ad hoc from individual command handlers.
 
 ### 2.4 Why the in-process signal bus can't fix this even for same-tenant users
 
@@ -241,12 +236,12 @@ as broken, not "coming soon."
 | Multiple assignees per task | **Present** |
 | Overallocation check at assignment | **Present**, enforced server-side |
 | Document attach/link on comments | **Present**, no versioning |
-| Addressed notifications (assignment/mention/approval) | **Present** (2026-08-01, Phase 1) |
+| App notification system | **Deferred**; addressed persistence foundation exists, but there is no desktop consumer, cross-session refresh, or channel |
 | Cross-session real-time refresh | **Absent** (Phase 2, needs a team decision) |
 | Comment edit | **Present** (2026-08-01, Phase 4) — author-only, sets an "edited" marker |
 | Comment delete (soft or hard) | **Present** (2026-08-01, Phase 4) — soft, moderation-permission gated |
-| Comment threading / reply-to | **Present** (2026-08-01, Phase 4), backend + API; QML reply UI not yet built |
-| Comment reactions | **Present** (2026-08-01, Phase 4), backend + API; QML reaction UI not yet built |
+| Comment threading / reply-to | **Present end-to-end** (2026-08-02), with deterministic thread ordering and nested QML presentation |
+| Comment reactions | **Present end-to-end** (2026-08-02), including current-user toggle state and anchored picker |
 | @everyone / @team mentions | **Present** (2026-08-01, Phase 4) |
 | Assignee accept/decline of a handoff | **Present** (2026-08-01, Phase 4), backend + desktop API; no QML action yet |
 | Skill/certification check enforced server-side | **Present** (2026-08-01, Phase 0) |
@@ -258,12 +253,9 @@ as broken, not "coming soon."
 
 ## 4. Why this matters for an "enterprise standard" bar
 
-An enterprise team collaboration surface is judged on one question above all
-others: **when something relevant happens, does the right person find out
-without having to go looking for it?** Today, the answer is no, for every
-event type in Project Management. This is the single highest-leverage gap —
-higher-leverage than comment threading or reactions — because it affects
-whether the tool is actually used for real-time teamwork or degrades into
-"a database you refresh," which is precisely the failure mode enterprise
-buyers screen for. See `TEAM_COLLABORATION_UPGRADE_PLAN.md` for a phased,
-evaluable plan to close it.
+The comment interaction itself now meets a credible enterprise desktop bar:
+one guarded write path, server-resolved mentions, tenant/project scoping,
+server-computed action capabilities, soft deletion, thread context, and clear
+ownership/moderation behavior. The app still must not claim real-time or
+notification behavior. That remains a later, separately funded platform
+feature described in `TEAM_COLLABORATION_UPGRADE_PLAN.md`.

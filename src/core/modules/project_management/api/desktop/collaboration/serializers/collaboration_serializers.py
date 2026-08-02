@@ -78,7 +78,17 @@ def serialize_presence_item(item) -> CollaborationPresenceDesktopDto:
     )
 
 
-def serialize_task_comment(comment, *, linked_documents) -> TaskCollaborationCommentDesktopDto:
+def serialize_task_comment(
+    comment,
+    *,
+    linked_documents,
+    principal_user_id: str = "",
+    can_manage: bool = False,
+    can_read: bool = False,
+    parent_author_username: str = "",
+    thread_depth: int = 0,
+    reply_count: int = 0,
+) -> TaskCollaborationCommentDesktopDto:
     mentions = tuple(
         str(m).strip()
         for m in getattr(comment, "mentions", ())
@@ -100,6 +110,9 @@ def serialize_task_comment(comment, *, linked_documents) -> TaskCollaborationCom
             emoji=emoji,
             count=len(user_ids),
             reactor_user_ids=tuple(user_ids),
+            reacted_by_current_user=bool(
+                principal_user_id and principal_user_id in user_ids
+            ),
         )
         for emoji, user_ids in sorted(reactions_map.items())
         if user_ids
@@ -137,6 +150,18 @@ def serialize_task_comment(comment, *, linked_documents) -> TaskCollaborationCom
         is_deleted=is_deleted,
         reactions=reactions,
         reactions_label=reactions_label,
+        parent_author_username=parent_author_username,
+        thread_depth=max(int(thread_depth), 0),
+        reply_count=max(int(reply_count), 0),
+        can_reply=bool(can_manage and not is_deleted),
+        can_edit=bool(
+            can_manage
+            and not is_deleted
+            and principal_user_id
+            and principal_user_id == getattr(comment, "author_user_id", None)
+        ),
+        can_delete=bool(can_manage and not is_deleted),
+        can_react=bool(can_read and principal_user_id and not is_deleted),
     )
 
 

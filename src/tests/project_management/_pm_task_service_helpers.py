@@ -39,6 +39,10 @@ class _FakeCollaborationService:
     def __init__(self) -> None:
         self.marked_task_ids: list[str] = []
         self.posted_comments: list[dict[str, object]] = []
+        self.edited_comment_ids: list[str] = []
+        self.deleted_comment_ids: list[str] = []
+        self.added_reactions: list[tuple[str, str]] = []
+        self.removed_reactions: list[tuple[str, str]] = []
         self.touched_presence: list[tuple[str, str]] = []
         self.cleared_presence: list[str] = []
         self._comments: list[SimpleNamespace] = [
@@ -131,6 +135,13 @@ class _FakeCollaborationService:
     def clear_task_presence(self, task_id: str) -> None:
         self.cleared_presence.append(task_id)
 
+    def get_task_comment_action_context(self, task_id: str) -> SimpleNamespace:
+        return SimpleNamespace(
+            principal_user_id="user-alex",
+            can_read=bool(task_id),
+            can_manage=bool(task_id),
+        )
+
     def post_comment(
         self, *, task_id: str, body: str, attachments=(), linked_document_ids=(), parent_comment_id=None
     ) -> SimpleNamespace:
@@ -140,6 +151,7 @@ class _FakeCollaborationService:
                 "body": body,
                 "attachments": tuple(attachments),
                 "linked_document_ids": tuple(linked_document_ids),
+                "parent_comment_id": parent_comment_id,
             }
         )
         comment = SimpleNamespace(
@@ -163,6 +175,35 @@ class _FakeCollaborationService:
                 file_name="",
             )
         ]
+        return comment
+
+    def edit_comment(self, comment_id: str, body: str) -> SimpleNamespace:
+        comment = next(comment for comment in self._comments if comment.id == comment_id)
+        comment.body = body
+        comment.updated_at = datetime(2026, 5, 1, 11, 0)
+        self.edited_comment_ids.append(comment_id)
+        return comment
+
+    def delete_comment(self, comment_id: str) -> SimpleNamespace:
+        comment = next(comment for comment in self._comments if comment.id == comment_id)
+        comment.deleted_at = datetime(2026, 5, 1, 11, 5)
+        self.deleted_comment_ids.append(comment_id)
+        return comment
+
+    def react_to_comment(self, comment_id: str, emoji: str) -> SimpleNamespace:
+        comment = next(comment for comment in self._comments if comment.id == comment_id)
+        reactions = dict(getattr(comment, "reactions", {}) or {})
+        reactions[emoji] = ["user-alex"]
+        comment.reactions = reactions
+        self.added_reactions.append((comment_id, emoji))
+        return comment
+
+    def remove_reaction(self, comment_id: str, emoji: str) -> SimpleNamespace:
+        comment = next(comment for comment in self._comments if comment.id == comment_id)
+        reactions = dict(getattr(comment, "reactions", {}) or {})
+        reactions.pop(emoji, None)
+        comment.reactions = reactions
+        self.removed_reactions.append((comment_id, emoji))
         return comment
 
 

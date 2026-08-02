@@ -15,8 +15,6 @@ def to_collaboration_comment_record_view_model(comment) -> CollaborationRecordVi
         meta_parts.append(f"Linked: {comment.linked_documents_label}")
     elif comment.attachments:
         meta_parts.append(f"Attachments: {comment.attachments_label}")
-    if getattr(comment, "reactions_label", ""):
-        meta_parts.append(comment.reactions_label)
     status_label = "Deleted" if getattr(comment, "is_deleted", False) else ("Mentions" if comment.mentions else "Comment")
     return CollaborationRecordViewModel(
         id=comment.comment_id,
@@ -29,6 +27,9 @@ def to_collaboration_comment_record_view_model(comment) -> CollaborationRecordVi
             else "No attachment references recorded."
         ),
         meta_text=" | ".join(part for part in meta_parts if part),
+        can_primary_action=bool(getattr(comment, "can_reply", False)),
+        can_secondary_action=bool(getattr(comment, "can_edit", False)),
+        can_tertiary_action=bool(getattr(comment, "can_delete", False)),
         state={
             "taskId": comment.task_id,
             "commentId": comment.comment_id,
@@ -40,8 +41,22 @@ def to_collaboration_comment_record_view_model(comment) -> CollaborationRecordVi
             "isReply": bool(getattr(comment, "is_reply", False)),
             "isEdited": bool(getattr(comment, "is_edited", False)),
             "isDeleted": bool(getattr(comment, "is_deleted", False)),
+            "parentAuthorUsername": getattr(comment, "parent_author_username", ""),
+            "threadDepth": int(getattr(comment, "thread_depth", 0) or 0),
+            "replyCount": int(getattr(comment, "reply_count", 0) or 0),
+            "canReply": bool(getattr(comment, "can_reply", False)),
+            "canEdit": bool(getattr(comment, "can_edit", False)),
+            "canDelete": bool(getattr(comment, "can_delete", False)),
+            "canReact": bool(getattr(comment, "can_react", False)),
             "reactions": [
-                {"emoji": reaction.emoji, "count": reaction.count, "reactorUserIds": list(reaction.reactor_user_ids)}
+                {
+                    "emoji": reaction.emoji,
+                    "count": reaction.count,
+                    "reactorUserIds": list(reaction.reactor_user_ids),
+                    "reactedByCurrentUser": bool(
+                        getattr(reaction, "reacted_by_current_user", False)
+                    ),
+                }
                 for reaction in getattr(comment, "reactions", ())
             ],
         },

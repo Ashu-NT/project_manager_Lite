@@ -69,6 +69,16 @@ def test_project_management_collaboration_desktop_api_builds_snapshot_and_marks_
     assert task_snapshot.comments[0].linked_documents_label == (
         "procedure.pdf [General | File], ticket-123 [General | Reference]"
     )
+    assert [comment.comment_id for comment in task_snapshot.comments] == [
+        "comment-1",
+        "comment-reply-1",
+    ]
+    assert task_snapshot.comments[0].reply_count == 1
+    assert task_snapshot.comments[0].can_edit is True
+    assert task_snapshot.comments[0].reactions[0].reacted_by_current_user is True
+    assert task_snapshot.comments[1].thread_depth == 1
+    assert task_snapshot.comments[1].parent_author_username == "jamie"
+    assert task_snapshot.comments[1].can_edit is False
     assert task_snapshot.mention_options[0].value == "everyone"
     assert task_snapshot.mention_options[1].value == "planner"
     assert task_snapshot.document_options[0].label == "PM-LINK-001 - Shared Method Statement"
@@ -104,12 +114,27 @@ class _FakeCollaborationService:
             SimpleNamespace(
                 id="comment-1",
                 task_id="task-1",
+                author_user_id="user-alex",
                 author_username="jamie",
                 body="Please review the updated execution window.",
                 mentions=["planner"],
                 attachments=["handover.txt"],
                 created_at=datetime(2026, 5, 1, 8, 45),
-            )
+                parent_comment_id=None,
+                reactions={"\N{THUMBS UP SIGN}": ["user-alex"]},
+            ),
+            SimpleNamespace(
+                id="comment-reply-1",
+                task_id="task-1",
+                author_user_id="user-jordan",
+                author_username="jordan",
+                body="The revised window works for operations.",
+                mentions=[],
+                attachments=[],
+                created_at=datetime(2026, 5, 1, 9, 15),
+                parent_comment_id="comment-1",
+                reactions={},
+            ),
         ]
         self._comment_documents: dict[str, list[SimpleNamespace]] = {
             "comment-1": [
@@ -253,6 +278,13 @@ class _FakeCollaborationService:
 
     def clear_task_presence(self, task_id: str) -> None:
         self.cleared_presence.append(task_id)
+
+    def get_task_comment_action_context(self, task_id: str) -> SimpleNamespace:
+        return SimpleNamespace(
+            principal_user_id="user-alex",
+            can_read=bool(task_id),
+            can_manage=bool(task_id),
+        )
 
     def post_comment(
         self,

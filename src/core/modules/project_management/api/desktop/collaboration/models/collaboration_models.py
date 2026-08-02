@@ -71,6 +71,7 @@ class TaskCollaborationReactionSummaryDto:
     emoji: str
     count: int
     reactor_user_ids: tuple[str, ...]
+    reacted_by_current_user: bool = False
 
 
 @dataclass(frozen=True)
@@ -96,6 +97,13 @@ class TaskCollaborationCommentDesktopDto:
     is_deleted: bool = False
     reactions: tuple[TaskCollaborationReactionSummaryDto, ...] = ()
     reactions_label: str = ""
+    parent_author_username: str = ""
+    thread_depth: int = 0
+    reply_count: int = 0
+    can_reply: bool = False
+    can_edit: bool = False
+    can_delete: bool = False
+    can_react: bool = False
 
 
 @dataclass(frozen=True)

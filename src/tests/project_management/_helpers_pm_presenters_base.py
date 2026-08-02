@@ -257,6 +257,13 @@ class _FakeCollaborationService:
     def clear_task_presence(self, task_id: str) -> None:
         self.cleared_presence.append(task_id)
 
+    def get_task_comment_action_context(self, task_id: str) -> SimpleNamespace:
+        return SimpleNamespace(
+            principal_user_id="user-alex",
+            can_read=bool(task_id),
+            can_manage=bool(task_id),
+        )
+
     def post_comment(
         self,
         *,

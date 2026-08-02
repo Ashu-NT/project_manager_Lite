@@ -140,6 +140,20 @@ class _FakeUserSession:
     def has_project_permission(self, _project_id: str, _permission_code: str) -> bool:
         return True
 
+    def has_permission(self, _permission_code: str) -> bool:
+        return True
+
+    def has_scope_permission(
+        self,
+        scope_type: str,
+        scope_id: str,
+        permission_code: str,
+    ) -> bool:
+        return scope_type == "project" and self.has_project_permission(
+            scope_id,
+            permission_code,
+        )
+
 
 def _make_service(
     monkeypatch: pytest.MonkeyPatch,
@@ -308,6 +322,18 @@ def test_collaboration_service_marks_mentions_read_idempotently(
 
     service.mark_task_mentions_read("task-1")
     assert service._session.commit_calls == 1
+
+
+def test_comment_action_context_is_computed_from_authenticated_scope(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    service = _make_service(monkeypatch)
+
+    action_context = service.get_task_comment_action_context("task-1")
+
+    assert action_context.principal_user_id == "user-1"
+    assert action_context.can_read is True
+    assert action_context.can_manage is True
 
 
 # ---------------------------------------------------------------------------

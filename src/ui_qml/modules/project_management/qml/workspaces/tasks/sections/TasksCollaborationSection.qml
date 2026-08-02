@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -18,6 +17,11 @@ Item {
     property string errorText:     ""
 
     signal composeRequested()
+    signal replyRequested(var commentData)
+    signal editRequested(var commentData)
+    signal deleteRequested(var commentData)
+    signal reactionRequested(var payload)
+    signal reactionRemovalRequested(var payload)
     signal markReadRequested(string taskId)
     signal refreshRequested()
 
@@ -36,12 +40,12 @@ Item {
         // ── Section toolbar ───────────────────────────────────────────
         AppWidgets.ContextualActionToolbar {
             Layout.fillWidth: true
-            title:    "Activity"
+            title:    "Discussion"
             subtitle: root._feedItems.length > 0 ? String(root._feedItems.length) : ""
             busy:     root.isBusy
             createLabel: root.canCompose ? "Post Update" : ""
             actions: [
-                { id: "read",    label: "Mark Read", icon: "approve", enabled: root.selectedTaskId.length > 0, danger: false },
+                { id: "read",    label: "Mark Mentions Read", icon: "approve", enabled: root.selectedTaskId.length > 0, danger: false },
                 { id: "refresh", label: "Refresh",   icon: "refresh", enabled: true,                          danger: false }
             ]
             onCreateRequested: root.composeRequested()
@@ -61,18 +65,49 @@ Item {
         // ── Activity timeline ─────────────────────────────────────────
         Item {
             Layout.fillWidth: true
-            implicitHeight: _feed.implicitHeight + Theme.AppTheme.spacingMd * 2
+            implicitHeight: threadContent.implicitHeight + Theme.AppTheme.spacingMd * 2
 
-            AppWidgets.ActivityFeed {
-                id: _feed
-                anchors.left:        parent.left
-                anchors.right:       parent.right
-                anchors.top:         parent.top
-                anchors.topMargin:   Theme.AppTheme.spacingMd
-                anchors.leftMargin:  Theme.AppTheme.marginMd
+            ColumnLayout {
+                id: threadContent
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.topMargin: Theme.AppTheme.spacingMd
+                anchors.leftMargin: Theme.AppTheme.marginMd
                 anchors.rightMargin: Theme.AppTheme.marginMd
-                items:     root._feedItems
-                emptyText: root.commentsModel.emptyState || "No activity for this task."
+                spacing: Theme.AppTheme.spacingSm
+
+                AppWidgets.EmptyState {
+                    Layout.alignment: Qt.AlignHCenter
+                    Layout.preferredWidth: Math.min(threadContent.width, 360)
+                    visible: root._feedItems.length === 0
+                    title: root.commentsModel.emptyState || "No discussion for this task."
+                }
+
+                Repeater {
+                    model: root._feedItems
+
+                    delegate: TaskCommentCard {
+                        id: commentCard
+                        required property var modelData
+
+                        Layout.fillWidth: true
+                        Layout.leftMargin: Math.min(
+                            Number((commentCard.modelData.state || {}).threadDepth || 0),
+                            3
+                        ) * 24
+                        commentData: commentCard.modelData
+                        isBusy: root.isBusy
+
+                        onReplyRequested: function(item) { root.replyRequested(item) }
+                        onEditRequested: function(item) { root.editRequested(item) }
+                        onDeleteRequested: function(item) { root.deleteRequested(item) }
+                        onReactionRequested: function(payload) { root.reactionRequested(payload) }
+                        onReactionRemovalRequested: function(payload) {
+                            root.reactionRemovalRequested(payload)
+                        }
+                    }
+                }
             }
         }
 
@@ -116,7 +151,9 @@ Item {
                         spacing: Theme.AppTheme.spacingXs
 
                         Rectangle {
-                            width: 6; height: 6; radius: 3
+                            Layout.preferredWidth: 6
+                            Layout.preferredHeight: 6
+                            radius: 3
                             color: Theme.AppTheme.success
                         }
 

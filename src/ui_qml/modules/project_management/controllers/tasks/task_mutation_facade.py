@@ -97,6 +97,25 @@ def post_task_comment(controller, payload: dict[str, object]) -> dict[str, objec
     return controller._collab_ctrl.postTaskComment(payload)
 
 
+def edit_task_comment(controller, payload: dict[str, object]) -> dict[str, object]:
+    return controller._collab_ctrl.editTaskComment(payload)
+
+
+def delete_task_comment(controller, comment_id: str) -> dict[str, object]:
+    return controller._collab_ctrl.deleteTaskComment(comment_id)
+
+
+def react_to_task_comment(controller, payload: dict[str, object]) -> dict[str, object]:
+    return controller._collab_ctrl.reactToTaskComment(payload)
+
+
+def remove_task_comment_reaction(
+    controller,
+    payload: dict[str, object],
+) -> dict[str, object]:
+    return controller._collab_ctrl.removeTaskCommentReaction(payload)
+
+
 def mark_task_collaboration_read(controller, task_id: str) -> dict[str, object]:
     return controller._collab_ctrl.markTaskCollaborationRead(task_id)
 
@@ -117,16 +136,20 @@ __all__ = [
     "create_assignment",
     "create_dependency",
     "create_task",
+    "delete_task_comment",
     "delete_assignment",
     "delete_dependency",
     "delete_task",
     "delete_task_time_entry",
     "end_task_presence",
+    "edit_task_comment",
     "generate_entity_code",
     "lock_task_period",
     "mark_task_collaboration_read",
     "post_task_comment",
+    "react_to_task_comment",
     "redo_last_task_action",
+    "remove_task_comment_reaction",
     "set_assignment_hours",
     "submit_task_period",
     "undo_last_task_action",

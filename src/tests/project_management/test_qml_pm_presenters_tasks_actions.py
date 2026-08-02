@@ -134,6 +134,33 @@ def test_pm_tasks_time_entries_collaboration_and_bulk_delete(tmp_path: Path, qap
     assert post_result == {"ok": True, "message": "Task collaboration update posted."}
     assert collaboration_service.posted_comments[-1]["linked_document_ids"] == ("doc-2",)
 
+    reply_result = controller.postTaskComment(
+        {
+            "taskId": "task-1",
+            "body": "Replying to the update.",
+            "parentCommentId": "comment-1",
+        }
+    )
+    edit_result = controller.editTaskComment(
+        {"commentId": "comment-1", "body": "Updated execution window."}
+    )
+    reaction_result = controller.reactToTaskComment(
+        {"commentId": "comment-1", "emoji": "\N{THUMBS UP SIGN}"}
+    )
+    removal_result = controller.removeTaskCommentReaction(
+        {"commentId": "comment-1", "emoji": "\N{THUMBS UP SIGN}"}
+    )
+    delete_result = controller.deleteTaskComment("comment-1")
+
+    assert reply_result["ok"] is True
+    assert collaboration_service.posted_comments[-1]["parent_comment_id"] == "comment-1"
+    assert edit_result == {"ok": True, "message": "Comment updated."}
+    assert reaction_result == {"ok": True, "message": "Reaction added."}
+    assert removal_result == {"ok": True, "message": "Reaction removed."}
+    assert delete_result == {"ok": True, "message": "Comment deleted."}
+    assert collaboration_service.edited_comment_ids == ["comment-1"]
+    assert collaboration_service.deleted_comment_ids == ["comment-1"]
+
     begin_presence_result = controller.beginTaskPresence("task-1", "editing")
     assert begin_presence_result["ok"] is True
 

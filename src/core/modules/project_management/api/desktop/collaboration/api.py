@@ -12,10 +12,10 @@ from src.core.modules.project_management.api.desktop.collaboration.commands.task
 )
 from src.core.modules.project_management.api.desktop.collaboration.models.collaboration_models import (
     CollaborationWorkspaceSnapshotDto,
+    TaskCollaborationCommentDesktopDto,
     TaskCollaborationDocumentOptionDescriptor,
     TaskCollaborationMentionOptionDescriptor,
     TaskCollaborationSnapshotDto,
-    TaskCollaborationCommentDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.collaboration.serializers.collaboration_serializers import (
     serialize_inbox_item,
@@ -26,6 +26,49 @@ from src.core.modules.project_management.api.desktop.collaboration.serializers.c
 from src.core.modules.project_management.api.desktop.collaboration.utils.formatting import (
     format_document_option_label,
 )
+
+
+def _threaded_comments(comments) -> list[tuple[object, int, str, int]]:
+    """Keep roots newest-first while rendering each reply chain chronologically."""
+    comments_by_id = {comment.id: comment for comment in comments}
+    children_by_parent: dict[str, list[object]] = {}
+    roots: list[object] = []
+    for comment in comments:
+        parent_id = str(getattr(comment, "parent_comment_id", "") or "").strip()
+        if parent_id and parent_id in comments_by_id:
+            children_by_parent.setdefault(parent_id, []).append(comment)
+        else:
+            roots.append(comment)
+
+    roots.sort(key=lambda item: item.created_at, reverse=True)
+    for children in children_by_parent.values():
+        children.sort(key=lambda item: item.created_at)
+
+    ordered: list[tuple[object, int, str, int]] = []
+    visited: set[str] = set()
+
+    def append_branch(comment, depth: int) -> None:
+        if comment.id in visited:
+            return
+        visited.add(comment.id)
+        parent_id = str(getattr(comment, "parent_comment_id", "") or "").strip()
+        parent = comments_by_id.get(parent_id)
+        ordered.append(
+            (
+                comment,
+                depth,
+                str(getattr(parent, "author_username", "") or "").strip(),
+                len(children_by_parent.get(comment.id, ())),
+            )
+        )
+        for child in children_by_parent.get(comment.id, ()):
+            append_branch(child, depth + 1)
+
+    for root in roots:
+        append_branch(root, 0)
+    for comment in comments:
+        append_branch(comment, 0)
+    return ordered
 
 
 class ProjectManagementCollaborationDesktopApi:
@@ -83,19 +126,24 @@ class ProjectManagementCollaborationDesktopApi:
                 document_options=(),
             )
         service = self._require_collaboration_service()
-        comments = sorted(
-            service.list_comments(normalized_task_id),
-            key=lambda comment: comment.created_at,
-            reverse=True,
-        )
+        comments = service.list_comments(normalized_task_id)
+        action_context = service.get_task_comment_action_context(normalized_task_id)
         documents_by_comment = service.list_comment_documents(normalized_task_id)
         return TaskCollaborationSnapshotDto(
             comments=tuple(
                 serialize_task_comment(
                     comment,
                     linked_documents=documents_by_comment.get(comment.id, ()),
+                    principal_user_id=action_context.principal_user_id,
+                    can_manage=action_context.can_manage,
+                    can_read=action_context.can_read,
+                    parent_author_username=parent_author_username,
+                    thread_depth=thread_depth,
+                    reply_count=reply_count,
                 )
-                for comment in comments
+                for comment, thread_depth, parent_author_username, reply_count in (
+                    _threaded_comments(comments)
+                )
             ),
             active_presence=tuple(
                 serialize_presence_item(item)
@@ -104,7 +152,7 @@ class ProjectManagementCollaborationDesktopApi:
             mention_options=(
                 TaskCollaborationMentionOptionDescriptor(
                     value="everyone",
-                    label="@everyone  Notify everyone with access to this task",
+                    label="@everyone  Mention everyone with access to this task",
                 ),
             )
             + tuple(

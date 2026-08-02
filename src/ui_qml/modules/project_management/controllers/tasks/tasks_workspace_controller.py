@@ -648,6 +648,25 @@ class ProjectManagementTasksWorkspaceController(
     def postTaskComment(self, payload: dict[str, object]) -> dict[str, object]:
         return _mut.post_task_comment(self, payload)
 
+    @Slot("QVariantMap", result="QVariantMap")
+    def editTaskComment(self, payload: dict[str, object]) -> dict[str, object]:
+        return _mut.edit_task_comment(self, payload)
+
+    @Slot(str, result="QVariantMap")
+    def deleteTaskComment(self, comment_id: str) -> dict[str, object]:
+        return _mut.delete_task_comment(self, comment_id)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def reactToTaskComment(self, payload: dict[str, object]) -> dict[str, object]:
+        return _mut.react_to_task_comment(self, payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def removeTaskCommentReaction(
+        self,
+        payload: dict[str, object],
+    ) -> dict[str, object]:
+        return _mut.remove_task_comment_reaction(self, payload)
+
     @Slot(str, result="QVariantMap")
     def markTaskCollaborationRead(self, task_id: str) -> dict[str, object]:
         return _mut.mark_task_collaboration_read(self, task_id)

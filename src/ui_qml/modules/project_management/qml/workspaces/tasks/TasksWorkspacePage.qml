@@ -1,17 +1,11 @@
 ﻿pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls
-import QtQuick.Layouts
-import QtQuick.Dialogs
 import Shell.Context 1.0 as ShellContexts
-import App.Controls 1.0 as AppControls
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
-import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "components" as Components
-import "sections" as Sections
 import "panels" as Panels
 
 AppLayouts.WorkspaceFrame {
@@ -535,6 +529,33 @@ AppLayouts.WorkspaceFrame {
                     }
 
                     onComposeRequested: dialogHostLoader.invoke("openTaskCollaborationDialog", root.selectedTaskModel)
+                    onCommentReplyRequested: function(commentData) {
+                        dialogHostLoader.invoke(
+                            "openTaskCommentReplyDialog",
+                            commentData,
+                            root.selectedTaskModel
+                        )
+                    }
+                    onCommentEditRequested: function(commentData) {
+                        dialogHostLoader.invoke(
+                            "openTaskCommentEditDialog",
+                            commentData,
+                            root.selectedTaskModel
+                        )
+                    }
+                    onCommentDeleteRequested: function(commentData) {
+                        dialogHostLoader.invoke("openTaskCommentDeleteDialog", commentData)
+                    }
+                    onCommentReactionRequested: function(payload) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.reactToTaskComment(payload)
+                        }
+                    }
+                    onCommentReactionRemovalRequested: function(payload) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.removeTaskCommentReaction(payload)
+                        }
+                    }
                     onMarkReadRequested: function(taskId) {
                         if (root.workspaceController !== null) {
                             root.workspaceController.markTaskCollaborationRead(taskId)
