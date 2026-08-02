@@ -11,6 +11,7 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
+from src.core.platform.finance.money.currency import CurrencyCode
 
 
 def _validate_optional_datetime(value: object, *, code: str) -> datetime | None:
@@ -101,7 +102,18 @@ class Site:
     @field_validator("currency_code", mode="before")
     @classmethod
     def _normalize_currency_code(cls, value: object) -> str:
-        return normalize_optional_text(value).upper()
+        normalized = normalize_optional_text(value).upper()
+        if not normalized:
+            return ""
+        try:
+            currency = CurrencyCode(normalized)
+            currency.minor_unit_quantum()
+        except ValidationError as exc:
+            raise ValidationError(
+                "Site currency must be an active ISO 4217 currency with defined minor units.",
+                code="SITE_CURRENCY_INVALID",
+            ) from exc
+        return currency.code
 
     @field_validator("opened_at", "closed_at", mode="before")
     @classmethod

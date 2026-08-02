@@ -3,7 +3,7 @@ from src.core.modules.project_management.api.desktop.portfolio.models.scenarios 
     PortfolioScenarioDesktopDto,
     PortfolioScenarioEvaluationDesktopDto,
 )
-from src.core.modules.project_management.api.desktop.portfolio.formatters.money_formatter import (
+from src.core.modules.project_management.api.desktop.common.financial_formatting import (
     format_money,
     format_signed_money,
 )

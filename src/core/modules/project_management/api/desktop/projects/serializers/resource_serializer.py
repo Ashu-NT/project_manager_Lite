@@ -1,7 +1,7 @@
 """Project resource and assignable resource serializers."""
 
 from src.core.modules.project_management.api.desktop.projects.models.resources import ProjectResourceDesktopDto
-from src.core.modules.project_management.api.desktop.projects.formatters.resource_formatters import (
+from src.core.modules.project_management.api.desktop.common.financial_formatting import (
     format_hourly_rate,
     format_hours,
 )

@@ -13,6 +13,7 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
+from src.core.platform.finance.money.currency import CurrencyCode
 
 
 @validated_dataclass
@@ -71,7 +72,17 @@ class Project:
     @classmethod
     def _normalize_currency(cls, value: object) -> str | None:
         normalized = normalize_optional_identifier(value)
-        return normalized.upper() if normalized else None
+        if not normalized:
+            return None
+        try:
+            currency = CurrencyCode(normalized)
+            currency.minor_unit_quantum()
+        except ValidationError as exc:
+            raise ValidationError(
+                "Project currency must be an active ISO 4217 currency with defined minor units.",
+                code="PROJECT_CURRENCY_INVALID",
+            ) from exc
+        return currency.code
 
     @field_validator("planned_budget", mode="before")
     @classmethod
@@ -137,7 +148,17 @@ class ProjectResource:
     @classmethod
     def _normalize_currency_code(cls, value: object) -> str | None:
         normalized = normalize_optional_identifier(value)
-        return normalized.upper() if normalized else None
+        if not normalized:
+            return None
+        try:
+            currency = CurrencyCode(normalized)
+            currency.minor_unit_quantum()
+        except ValidationError as exc:
+            raise ValidationError(
+                "Project resource currency must be an active ISO 4217 currency with defined minor units.",
+                code="PROJECT_RESOURCE_CURRENCY_INVALID",
+            ) from exc
+        return currency.code
 
     @field_validator("hourly_rate", mode="before")
     @classmethod

@@ -17,11 +17,11 @@ from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyEr
 from src.core.platform.auth.authorization import require_permission
 from src.core.shared.activity import record_activity
 from src.core.shared.events.domain_events import domain_events
+from src.core.modules.project_management.application.common.currency_policy import (
+    resolve_pm_currency,
+)
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_CURRENCY_CODE = "EUR"
-
 
 def _employee_contact(employee) -> str:
     return (getattr(employee, "email", None) or getattr(employee, "phone", None) or "").strip()
@@ -125,7 +125,11 @@ class ResourceCommandMixin:
             hourly_rate=hourly_rate,
             is_active=is_active,
             cost_type=cost_type,
-            currency_code=(currency_code or "").strip().upper() or DEFAULT_CURRENCY_CODE,
+            currency_code=resolve_pm_currency(
+                tenant_context_service=getattr(self, "_tenant_context_service", None),
+                operation_label="create resource",
+                explicit=currency_code,
+            ),
             capacity_percent=capacity_percent,
             address=address,
             contact=resolved_contact,
@@ -209,7 +213,15 @@ class ResourceCommandMixin:
             hourly_rate=resource.hourly_rate if hourly_rate is None else hourly_rate,
             is_active=resource.is_active if is_active is None else is_active,
             cost_type=resource.cost_type if cost_type is None else cost_type,
-            currency_code=resource.currency_code if currency_code is None else currency_code,
+            currency_code=(
+                resource.currency_code
+                if currency_code is None
+                else resolve_pm_currency(
+                    tenant_context_service=getattr(self, "_tenant_context_service", None),
+                    operation_label="update resource currency",
+                    explicit=currency_code,
+                )
+            ),
             capacity_percent=resource.capacity_percent if capacity_percent is None else capacity_percent,
             address=resource.address if address is None else address,
             contact=resource.contact if contact is None else contact,

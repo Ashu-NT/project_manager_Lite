@@ -100,7 +100,7 @@ class CostLifecycleMixin:
             committed_amount=committed_amount,
             actual_amount=actual_amount,
             incurred_date=incurred_date,
-            currency_code=self._normalize_currency(currency_code),
+            currency_code=self._resolve_cost_currency(currency_code, project),
         )
 
         if governed:
@@ -224,7 +224,10 @@ class CostLifecycleMixin:
         resolved_currency_code = (
             item.currency_code
             if currency_code is None
-            else self._normalize_currency(currency_code)
+            else self._resolve_cost_currency(
+                currency_code,
+                self._require_project(item.project_id),
+            )
         )
         resolved_code = item.code
         if code is not None and code.strip():

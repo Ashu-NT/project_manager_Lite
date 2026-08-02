@@ -8,7 +8,10 @@ from src.core.modules.project_management.application.resources.commands.project_
 from src.core.modules.project_management.application.resources.queries.project_resource_queries import (
     ProjectResourceQueryMixin,
 )
-from src.core.modules.project_management.contracts.repositories.project import ProjectResourceRepository
+from src.core.modules.project_management.contracts.repositories.project import (
+    ProjectRepository,
+    ProjectResourceRepository,
+)
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 
@@ -24,17 +27,21 @@ class ProjectResourceService(
         self,
         project_resource_repo: ProjectResourceRepository,
         resource_repo: ResourceRepository,
+        project_repo: ProjectRepository,
         session: Session,
         user_session=None,
         activity_service=None,
         module_catalog_service=None,
+        tenant_context_service=None,
     ):
         self._project_resource_repo: ProjectResourceRepository = project_resource_repo
         self._resource_repo: ResourceRepository = resource_repo
+        self._project_repo: ProjectRepository = project_repo
         self._session: Session = session
         self._user_session = user_session
         self._activity_service = activity_service
         self._module_catalog_service = module_catalog_service
+        self._tenant_context_service = tenant_context_service
 
 
 __all__ = ["ProjectResourceService"]

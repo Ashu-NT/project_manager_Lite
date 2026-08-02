@@ -1,9 +1,9 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: audit complete; Phase A0 code complete, hosted PostgreSQL validation pending
+Status: audit complete; Phase A0 and A1 code complete, hosted PostgreSQL A0 validation pending
 Last updated: 2026-08-02  
 Scope: Project Management finance plus reusable platform financial foundations  
-Current increment: Phase A0 verification and Phase A1 decision gate
+Current increment: Phase A1 verification complete; Phase A2 decision gate next
 
 ## 1. Executive Summary
 
@@ -216,7 +216,7 @@ Coverage does not currently prove safe money arithmetic, ISO currency validity, 
 
 ### 11.1 Project Financial Profile
 
-**Status: MINIMAL.** Responsibility is project-level financial policy and defaults. Existing data is only `Project.planned_budget`, `Project.currency`, client, site, and organization. Creation independently defaults currency to `EUR`; there is no billing method, financial status/dates, funding/billable flags, budget-control/overrun policy, rate-card/cost-code defaults, or financial period policy. Project permissions and tests cover the basic fields, not a financial lifecycle. Create `ProjectFinancialProfile` inside PM finance with a one-to-one Project relation and optimistic version; derive its initial currency from organization configuration. Keep operational Project lean. Backfill from Project fields and retain temporary read compatibility.
+**Status: MINIMAL; A1 currency default remediated.** Responsibility is project-level financial policy and defaults. Existing data is only `Project.planned_budget`, `Project.currency`, client, site, and organization. A1 removed the independent service `EUR` fallback and now resolves project currency from explicit input then authorized Organization base currency. There is still no billing method, financial status/dates, funding/billable flags, budget-control/overrun policy, rate-card/cost-code defaults, or financial period policy. Project permissions and tests cover the basic fields, not a financial lifecycle. Create `ProjectFinancialProfile` inside PM finance with a one-to-one Project relation and optimistic version; derive its initial currency from organization configuration. Keep operational Project lean. Backfill from Project fields and retain temporary read compatibility.
 
 ### 11.2 Cost Codes
 
@@ -653,6 +653,18 @@ Exit gate: primitive/domain/property tests pass; no new finance amount/rate/quan
 
 QML impact: adapters convert canonical decimal strings for display/input; QML never performs financial arithmetic.
 
+Implementation progress (2026-08-02):
+
+- Added dependency-light platform `CurrencyCode`, signed `Money`, `RoundingPolicy`, `DecimalQuantity`, and `MonetaryRate` primitives with cross-currency and unit-mismatch rejection, deterministic allocation, and named half-even rounding boundaries.
+- Vendored the official SIX ISO 4217 List One published 2026-01-01, including active-code and minor-unit metadata; Organization, Site, Project, ProjectResource, Resource, and CostItem Pydantic write models now reject invalid or unsuitable transaction currencies.
+- Added strict immutable Pydantic payloads for Money, quantities, and rates. JSON/desktop values use canonical decimal strings, reject binary floats, forbid unknown fields, and round-trip exactly.
+- Added reviewed Numeric precision conventions and SQLAlchemy `Numeric(..., asdecimal=True)` factories. Architecture tests require every future `project_finance_*` Numeric column to declare and match its financial precision kind.
+- Removed all PM command-layer `EUR` constants. Project/Resource resolve explicit -> active Organization; Cost/ProjectResource resolve explicit -> Project -> active Organization. The explicit installation bootstrap currency remains an Organization policy default, not a transaction fallback.
+- Deleted four duplicate PM desktop formatter implementations and routed financial/resource/project/portfolio labels through one Decimal-aware boundary that respects ISO currency minor units.
+- Temporary conversion is limited to `TRANSITION(PF-A1-LEGACY-FLOAT)` and `TRANSITION(PF-A1-DESKTOP-FLOAT)`, both registered below for Phase D deletion. No unmarked A1 transition code was introduced.
+- Verification: 40 focused domain/service/platform tests pass; the final primitives/formatting/architecture set has 26 passes; PM has 327 passes with 3 unrelated existing date/entitlement-order failures; Platform has 701 passes with 3 unrelated existing Site datetime/QML-route failures.
+- All A1 code gates are met. Existing float columns and float legacy read DTOs remain governed migration inputs until their additive Numeric backfill and Phase D cutover; no new finance amount, rate, or quantity field uses float.
+
 #### Phase A2 - Canonical application foundations
 
 Ownership: **PLATFORM INTEGRATION + PROJECT FINANCE**
@@ -810,8 +822,8 @@ This register is mandatory implementation scope. A phase cannot close while its 
 | `report.view` finance authorization | Pre-existing | A0 finance permission grants and policy tests pass | Platform Security / PM Finance | CLOSED; replaced by `finance.read` on 2026-08-02 |
 | Admin-session cost-governance bypass | Pre-existing | A0 removal tests pass | Platform Security | CLOSED; removed 2026-08-02 |
 | `cost.manage` umbrella/alias | Pre-existing; transitional mapping in A0 | Target command permissions active across desktop/services | Platform Security / PM Finance | OPEN |
-| Hard-coded PM `EUR` defaults | Pre-existing | A1 Organization/Profile currency resolution cutover | Platform Foundation / PM | OPEN |
-| Duplicate PM money formatters | Pre-existing | A1 canonical serialization/formatting adopted | Desktop UI / PM | OPEN |
+| Hard-coded PM `EUR` defaults | Pre-existing | A1 Organization/Profile currency resolution cutover | Platform Foundation / PM | CLOSED; command constants removed and Organization resolution active 2026-08-02 |
+| Duplicate PM money formatters | Pre-existing | A1 canonical serialization/formatting adopted | Desktop UI / PM | CLOSED; four implementations replaced by one Decimal-aware boundary 2026-08-02 |
 | Legacy combined CostItem write API | Pre-existing | C distinct planned/commitment/manual-actual commands and QML cutover | PM Finance / Desktop UI | OPEN |
 | Legacy CostItem reader/projection | Pre-existing; retained in B/C | D ledger/report reconciliation complete | PM Finance | OPEN |
 | `Project.planned_budget` compatibility projection | Pre-existing; retained in B | B budget read cutover and reconciliation complete | PM Finance | OPEN |
@@ -824,6 +836,8 @@ This register is mandatory implementation scope. A phase cannot close while its 
 | Approval `commit=False` transaction switches in legacy cost/baseline/dependency/scheduling services | A0 | C dedicated approved commands own the shared Unit of Work | Platform Workflow / PM | OPEN; marked `TRANSITION(PF-A0-UOW-BRIDGE)` |
 | Approved-handler `bypass_approval=True` switches | Pre-existing; constrained in A0 handlers | C handlers call dedicated internal approved commands with no public bypass flag | Platform Workflow / PM | OPEN; marked `TRANSITION(PF-A0-UOW-BRIDGE)` |
 | Unused FinanceService ReportingService compatibility argument | A0 candidate | Remove before A0 merge | PM Finance | CLOSED; deleted 2026-08-02 |
+| `Money.from_legacy_float` and `decimal_from_legacy_float` converters | A1 | D legacy CostItem reconciliation, float DTO, and float-column retirement complete | Platform Finance / Data Migration | OPEN; marked `TRANSITION(PF-A1-LEGACY-FLOAT)` |
+| PM desktop formatter legacy-float branch | A1 | D canonical decimal-string read DTO cutover complete | Desktop UI / PM Finance | OPEN; marked `TRANSITION(PF-A1-DESKTOP-FLOAT)` |
 
 ## 21. Permission Migration Plan
 
@@ -922,10 +936,10 @@ The repository already uses global ADR-001 through ADR-004, so Project Finance d
 
 | ADR | Decision | Current status | Required before |
 | --- | --- | --- | --- |
-| [ADR-PF-001](../architecture_decisions/ADR-PF-001-money-currency-precision-rounding.md) | Money, currency, precision, quantities, rates, and rounding | PROPOSED | A1 implementation |
+| [ADR-PF-001](../architecture_decisions/ADR-PF-001-money-currency-precision-rounding.md) | Money, currency, precision, quantities, rates, and rounding | ACCEPTED; PHASE A1 FOUNDATION IMPLEMENTED | A1 implementation |
 | [ADR-PF-002](../architecture_decisions/ADR-PF-002-project-finance-bounded-context.md) | Project Finance bounded-context and module ownership | PROPOSED | A2/B contracts |
 | [ADR-PF-003](../architecture_decisions/ADR-PF-003-wbs-and-hierarchical-tasks.md) | WBS versus hierarchical Tasks | PROPOSED | B WBS/planned-cost dimensions |
-| [ADR-PF-004](../architecture_decisions/ADR-PF-004-financial-posting-and-reversal.md) | Posting and signed reversal model | PROPOSED | A1/C ledger schema |
+| [ADR-PF-004](../architecture_decisions/ADR-PF-004-financial-posting-and-reversal.md) | Posting and signed reversal model | ACCEPTED; LEDGER IMPLEMENTATION DEFERRED TO C | A1/C ledger schema |
 | [ADR-PF-005](../architecture_decisions/ADR-PF-005-rate-card-precedence.md) | Rate-card precedence | PROPOSED | B rate-card implementation |
 | [ADR-PF-006](../architecture_decisions/ADR-PF-006-approved-time-posting-trigger.md) | Approved-time posting trigger | PROPOSED | A2 contract/C consumer |
 | [ADR-PF-007](../architecture_decisions/ADR-PF-007-procurement-financial-triggers.md) | Procurement commitment and actual triggers | PROPOSED | A2 contract/C consumer |

@@ -1,6 +1,6 @@
 # ADR-PF-004: Financial Posting and Reversal
 
-- Status: proposed
+- Status: accepted; ledger implementation deferred to Phase C
 - Date: 2026-08-02
 - Implementation gate: Phase A1 conventions and Phase C ledger
 

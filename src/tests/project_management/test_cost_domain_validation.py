@@ -108,6 +108,15 @@ def test_cost_item_dto_rejects_invalid_local_fields():
         )
     assert exc_date.value.code == "COST_INCURRED_DATE_INVALID"
 
+    with pytest.raises(ValidationError) as exc_currency:
+        CostItem.create(
+            project_id="proj-1",
+            description="Invalid",
+            planned_amount=10.0,
+            currency_code="ZZZ",
+        )
+    assert exc_currency.value.code == "COST_CURRENCY_INVALID"
+
 def test_cost_item_forecast_and_commitment_helpers_use_validated_fields():
     item = CostItem.create(
         project_id="proj-1",

@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 
 from src.core.modules.project_management.api.desktop.projects.models.project import ProjectDesktopDto
-from src.core.modules.project_management.api.desktop.projects.formatters.resource_formatters import format_budget
+from src.core.modules.project_management.api.desktop.common.financial_formatting import format_budget
 
 
 def serialize_project(

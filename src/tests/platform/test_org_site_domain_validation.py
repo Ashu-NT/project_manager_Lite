@@ -236,6 +236,15 @@ def test_organization_dto_normalizes_and_validates_fields():
         )
     assert exc_currency.value.code == "BASE_CURRENCY_REQUIRED"
 
+    with pytest.raises(ValidationError) as exc_historical_currency:
+        Organization.create(
+            organization_code="OPS",
+            display_name="Valid",
+            timezone_name="UTC",
+            base_currency="BGN",
+        )
+    assert exc_historical_currency.value.code == "BASE_CURRENCY_INVALID"
+
 
 def test_organization_service_uses_entity_validation_and_final_state(monkeypatch: pytest.MonkeyPatch):
     service = _make_organization_service(monkeypatch)
@@ -323,6 +332,10 @@ def test_site_dto_normalizes_and_validates_fields():
     with pytest.raises(ValidationError) as exc_name:
         Site.create("org-1", "HQ", " ")
     assert exc_name.value.code == "SITE_NAME_REQUIRED"
+
+    with pytest.raises(ValidationError) as exc_currency:
+        Site.create("org-1", "HQ", "Headquarters", currency_code="ZZZ")
+    assert exc_currency.value.code == "SITE_CURRENCY_INVALID"
 
     with pytest.raises(ValidationError) as exc_range:
         Site.create(

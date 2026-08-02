@@ -17,6 +17,9 @@ from src.core.modules.project_management.contracts.repositories.task import (
     TaskRepository,
 )
 from src.core.modules.project_management.domain.projects.project import Project
+from src.core.modules.project_management.application.common.currency_policy import (
+    resolve_pm_currency,
+)
 from src.core.platform.access.authorization import require_project_permission
 from src.core.shared.activity import record_activity
 from src.core.platform.auth.authorization import require_permission
@@ -27,7 +30,6 @@ from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.platform.auth.domain.session import UserSessionContext
 
 logger = logging.getLogger(__name__)
-DEFAULT_CURRENCY_CODE = "EUR"
 
 
 class ProjectLifecycleMixin:
@@ -136,7 +138,11 @@ class ProjectLifecycleMixin:
             organization_id,
             operation_label="create project",
         )
-        resolved_currency = (currency or "").strip().upper() or DEFAULT_CURRENCY_CODE
+        resolved_currency = resolve_pm_currency(
+            tenant_context_service=getattr(self, "_tenant_context_service", None),
+            operation_label="create project",
+            explicit=currency,
+        )
         project = Project.create(
             name=name,
             description=description,
@@ -284,7 +290,15 @@ class ProjectLifecycleMixin:
             client_name=project.client_name if client_name is None else client_name,
             client_contact=project.client_contact if client_contact is None else client_contact,
             planned_budget=project.planned_budget if planned_budget is None else planned_budget,
-            currency=project.currency if currency is None else currency,
+            currency=(
+                project.currency
+                if currency is None
+                else resolve_pm_currency(
+                    tenant_context_service=getattr(self, "_tenant_context_service", None),
+                    operation_label="update project currency",
+                    explicit=currency,
+                )
+            ),
             organization_id=resolved_organization_id,
             site_id=project.site_id if site_id is None else site_id,
             client_party_id=project.client_party_id if client_party_id is None else client_party_id,
@@ -395,4 +409,4 @@ class ProjectLifecycleMixin:
         return active_organization_id
 
 
-__all__ = ["DEFAULT_CURRENCY_CODE", "ProjectLifecycleMixin"]
+__all__ = ["ProjectLifecycleMixin"]

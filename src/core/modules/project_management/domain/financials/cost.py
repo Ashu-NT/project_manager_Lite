@@ -14,6 +14,7 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
+from src.core.platform.finance.money.currency import CurrencyCode
 
 
 class CommitmentStatus(str, Enum):
@@ -160,7 +161,17 @@ class CostItem:
     @classmethod
     def _normalize_currency_code(cls, value: object) -> str | None:
         normalized = normalize_optional_text(value)
-        return normalized.upper() if normalized else None
+        if not normalized:
+            return None
+        try:
+            currency = CurrencyCode(normalized)
+            currency.minor_unit_quantum()
+        except ValidationError as exc:
+            raise ValidationError(
+                "Cost currency must be an active ISO 4217 currency with defined minor units.",
+                code="COST_CURRENCY_INVALID",
+            ) from exc
+        return currency.code
 
     @staticmethod
     def create(

@@ -49,6 +49,20 @@ def test_project_dto_rejects_invalid_date_range():
     assert exc.value.code == "PROJECT_DATE_RANGE_INVALID"
 
 
+def test_project_dtos_reject_invalid_financial_currencies():
+    with pytest.raises(ValidationError) as exc_project:
+        Project.create(name="Invalid Currency", currency="BGN")
+    assert exc_project.value.code == "PROJECT_CURRENCY_INVALID"
+
+    with pytest.raises(ValidationError) as exc_resource:
+        ProjectResource.create(
+            project_id="project-1",
+            resource_id="resource-1",
+            currency_code="ZZZ",
+        )
+    assert exc_resource.value.code == "PROJECT_RESOURCE_CURRENCY_INVALID"
+
+
 def test_project_replace_validates_final_state():
     project = Project.create(
         name="Sequenced Move",

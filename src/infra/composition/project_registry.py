@@ -188,10 +188,12 @@ def build_project_management_service_bundle(
     project_resource_service = ProjectResourceService(
         project_resource_repo=repositories.project_resource_repo,
         resource_repo=repositories.resource_repo,
+        project_repo=repositories.project_repo,
         session=session,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
         module_catalog_service=platform_services.module_runtime_service,
+        tenant_context_service=platform_services.tenant_context_service,
     )
     register_service = RegisterService(
         session=session,
@@ -268,6 +270,7 @@ def build_project_management_service_bundle(
         approval_service=platform_services.approval_service,
         enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_runtime_service,
+        tenant_context_service=platform_services.tenant_context_service,
     )
     reporting_service = ReportingService(
         session=session,

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from src.core.modules.project_management.api.desktop.financials.models.cost_items import FinancialCostItemDto
-from src.core.modules.project_management.api.desktop.financials.formatters.money_formatter import format_money
+from src.core.modules.project_management.api.desktop.common.financial_formatting import format_money
 from src.core.modules.project_management.api.desktop.financials.formatters.date_formatter import format_date
 from src.core.modules.project_management.api.desktop.financials.formatters.enum_formatter import format_enum_label
 from src.core.modules.project_management.api.desktop.financials.utils.cost_type_utils import coerce_cost_type

@@ -3,7 +3,7 @@ from __future__ import annotations
 from src.core.modules.project_management.api.desktop.resources.formatters.enum_formatter import (
     format_enum_label,
 )
-from src.core.modules.project_management.api.desktop.resources.formatters.money_formatter import (
+from src.core.modules.project_management.api.desktop.common.financial_formatting import (
     format_money,
 )
 from src.core.modules.project_management.api.desktop.resources.models.options import (

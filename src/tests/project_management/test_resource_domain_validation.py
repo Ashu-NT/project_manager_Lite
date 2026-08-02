@@ -58,6 +58,10 @@ def test_resource_dto_rejects_invalid_local_fields():
         Resource.create(name="Worker Type Check", worker_type="bad-worker-type")
     assert exc_worker_type.value.code == "RESOURCE_WORKER_TYPE_INVALID"
 
+    with pytest.raises(ValidationError) as exc_currency:
+        Resource.create(name="Currency Check", currency_code="ZZZ")
+    assert exc_currency.value.code == "RESOURCE_CURRENCY_INVALID"
+
 
 def test_resource_service_update_validates_final_state_and_persists_code(services):
     resource_service = services["resource_service"]

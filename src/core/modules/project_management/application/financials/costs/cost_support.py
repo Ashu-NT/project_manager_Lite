@@ -7,9 +7,9 @@ from src.core.platform.approval.policy import is_governance_required
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
 from src.core.shared.audit import record_audit_entry
-
-DEFAULT_CURRENCY_CODE = "EUR"
-
+from src.core.modules.project_management.application.common.currency_policy import (
+    resolve_pm_currency,
+)
 
 class CostSupportMixin:
     def _is_governed(self, *, operation_code: str, bypass_approval: bool) -> bool:
@@ -74,9 +74,13 @@ class CostSupportMixin:
             )
         return task
 
-    @staticmethod
-    def _normalize_currency(currency_code: str | None) -> str:
-        return (currency_code or "").strip().upper() or DEFAULT_CURRENCY_CODE
+    def _resolve_cost_currency(self, currency_code: str | None, project) -> str:
+        return resolve_pm_currency(
+            tenant_context_service=getattr(self, "_tenant_context_service", None),
+            operation_label="resolve cost currency",
+            explicit=currency_code,
+            project_default=getattr(project, "currency", None),
+        )
 
     @staticmethod
     def _cost_audit_value(item) -> str:

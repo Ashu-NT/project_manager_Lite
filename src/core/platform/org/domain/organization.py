@@ -9,6 +9,7 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
+from src.core.platform.finance.money.currency import CurrencyCode
 
 
 @validated_dataclass
@@ -52,11 +53,20 @@ class Organization:
     @field_validator("base_currency", mode="before")
     @classmethod
     def _validate_base_currency(cls, value: object) -> str:
-        return normalize_required_text(
+        normalized = normalize_required_text(
             value,
             message="Base currency is required.",
             code="BASE_CURRENCY_REQUIRED",
         ).upper()
+        try:
+            currency = CurrencyCode(normalized)
+            currency.minor_unit_quantum()
+        except ValidationError as exc:
+            raise ValidationError(
+                "Base currency must be an active ISO 4217 currency with defined minor units.",
+                code="BASE_CURRENCY_INVALID",
+            ) from exc
+        return currency.code
 
     @field_validator("tenant_id", mode="before")
     @classmethod

@@ -1,7 +1,16 @@
 from __future__ import annotations
 
-import pytest
+from pathlib import Path
 
+import pytest
+from sqlalchemy import Numeric
+
+from src.infra.persistence.db.financial_numeric import (
+    FinancialNumericKind,
+    financial_numeric,
+    financial_numeric_info,
+    precision_for,
+)
 from src.infra.persistence.orm import Base
 from src.infra.persistence.migrations.helpers import (
     build_tenant_organization_rls_disable_statements,
@@ -11,10 +20,22 @@ from src.infra.persistence.migrations.helpers import (
 
 PROJECT_FINANCE_TABLE_PREFIX = "project_finance_"
 PROJECT_FINANCE_RLS_SCOPE = "tenant_organization"
+FINANCE_PRIMITIVES_ROOT = Path("src/core/platform/finance")
 
 
 def _quote(identifier: str) -> str:
     return f'"{identifier}"'
+
+
+def test_platform_finance_primitives_do_not_import_business_modules_or_sql_float() -> None:
+    source = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in FINANCE_PRIMITIVES_ROOT.rglob("*.py")
+    )
+
+    assert "src.core.modules" not in source
+    assert "sqlalchemy" not in source.lower()
+    assert "Float(" not in source
 
 
 def test_project_finance_rls_template_is_forced_and_default_deny() -> None:
@@ -50,6 +71,20 @@ def test_project_finance_rls_template_rejects_unsafe_identifiers() -> None:
         )
 
 
+@pytest.mark.parametrize("kind", list(FinancialNumericKind))
+def test_financial_numeric_factory_is_decimal_and_matches_domain_precision(
+    kind: FinancialNumericKind,
+) -> None:
+    sql_type = financial_numeric(kind)
+    convention = precision_for(kind)
+
+    assert isinstance(sql_type, Numeric)
+    assert sql_type.asdecimal is True
+    assert sql_type.precision == convention.precision
+    assert sql_type.scale == convention.scale
+    assert financial_numeric_info(kind) == {"financial_numeric": kind.value}
+
+
 def test_every_project_finance_table_has_direct_scope_and_rls_marker() -> None:
     finance_tables = {
         name: table
@@ -69,3 +104,14 @@ def test_every_project_finance_table_has_direct_scope_and_rls_marker() -> None:
         assert table.info.get("rls_scope") == PROJECT_FINANCE_RLS_SCOPE, (
             f"{table_name} must declare info['rls_scope']='tenant_organization'"
         )
+        for column in table.c:
+            if not isinstance(column.type, Numeric):
+                continue
+            kind_value = column.info.get("financial_numeric")
+            assert kind_value, (
+                f"{table_name}.{column.name} must declare info['financial_numeric']"
+            )
+            convention = precision_for(kind_value)
+            assert column.type.asdecimal is True
+            assert column.type.precision == convention.precision
+            assert column.type.scale == convention.scale

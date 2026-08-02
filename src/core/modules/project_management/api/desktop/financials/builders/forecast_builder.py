@@ -8,7 +8,7 @@ backward compatibility with legacy wiring.
 from __future__ import annotations
 
 from src.core.modules.project_management.api.desktop.financials.models.forecasts import FinancialForecastDto
-from src.core.modules.project_management.api.desktop.financials.formatters.money_formatter import format_money
+from src.core.modules.project_management.api.desktop.common.financial_formatting import format_money
 
 
 def build_forecast_dto(
