@@ -2,6 +2,10 @@
 
 Status: authoritative follow-up plan for the live PM module inside the modular SaaS platform
 
+## Focused Upgrade Plans
+
+- [Project Finance existing-state audit and implementation plan](project_finance_existing_state_and_implementation_plan.md) - authoritative backend-first plan for upgrading the Financials workspace and its shared monetary foundations.
+
 ## Purpose
 
 This document replaces the older "planning complete / execution in progress"
