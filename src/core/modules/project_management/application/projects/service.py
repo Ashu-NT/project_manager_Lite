@@ -6,6 +6,9 @@ from src.core.modules.project_management.contracts.repositories.cost import (
     CostRepository,
 )
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.financial_configuration import (
+    ProjectFinancialProfileRepository,
+)
 from src.core.modules.project_management.contracts.repositories.task import (
     AssignmentRepository,
     DependencyRepository,
@@ -35,8 +38,10 @@ class ProjectService(ProjectManagementModuleGuardMixin, ProjectLifecycleMixin, P
         assignment_repo: AssignmentRepository,
         time_entry_repo: TimeEntryRepository | None,
         cost_repo: CostRepository,
+        financial_profile_repo: ProjectFinancialProfileRepository,
         user_session: UserSessionContext | None = None,
         activity_service: ActivityService | None = None,
+        enterprise_audit_service=None,
         module_catalog_service=None,
         tenant_context_service=None,
     ):
@@ -47,8 +52,10 @@ class ProjectService(ProjectManagementModuleGuardMixin, ProjectLifecycleMixin, P
         self._assignment_repo: AssignmentRepository = assignment_repo
         self._time_entry_repo = time_entry_repo
         self._cost_repo: CostRepository = cost_repo
+        self._financial_profile_repo = financial_profile_repo
         self._user_session: UserSessionContext | None = user_session
         self._activity_service: ActivityService | None = activity_service
+        self._enterprise_audit_service = enterprise_audit_service
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
 

@@ -28,6 +28,7 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import (
     CostService,
+    FinancialConfigurationService,
     FinanceService,
     ForecastCostService,
 )
@@ -90,6 +91,7 @@ class ProjectManagementServiceBundle:
     timesheet_service: TimesheetService
     resource_service: ResourceService
     cost_service: CostService
+    financial_configuration_service: FinancialConfigurationService
     forecast_service: ForecastCostService
     finance_service: FinanceService
     work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
@@ -156,8 +158,10 @@ def build_project_management_service_bundle(
         repositories.assignment_repo,
         repositories.time_entry_repo,
         repositories.cost_repo,
+        repositories.project_financial_profile_repo,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_runtime_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
@@ -273,6 +277,16 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
         approval_service=platform_services.approval_service,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
+        module_catalog_service=platform_services.module_runtime_service,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    financial_configuration_service = FinancialConfigurationService(
+        session=session,
+        profile_repo=repositories.project_financial_profile_repo,
+        cost_code_repo=repositories.project_cost_code_repo,
+        project_repo=repositories.project_repo,
+        user_session=platform_services.user_session,
         enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_runtime_service,
         tenant_context_service=platform_services.tenant_context_service,
@@ -399,6 +413,7 @@ def build_project_management_service_bundle(
         timesheet_service=timesheet_service,
         resource_service=resource_service,
         cost_service=cost_service,
+        financial_configuration_service=financial_configuration_service,
         forecast_service=forecast_service,
         finance_service=finance_service,
         work_calendar_engine=work_calendar_engine,

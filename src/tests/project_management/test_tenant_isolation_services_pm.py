@@ -206,6 +206,7 @@ def test_project_service_lists_only_active_tenant_projects() -> None:
         assignment_repo=object(),
         time_entry_repo=None,
         cost_repo=object(),
+        financial_profile_repo=object(),
         user_session=user_session,
         tenant_context_service=tenant_context,
     )

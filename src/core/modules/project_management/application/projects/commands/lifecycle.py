@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
+import json
 from dataclasses import replace
-from datetime import date
+from datetime import date, datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -11,17 +12,24 @@ from src.core.modules.project_management.contracts.repositories.cost import (
     CostRepository,
 )
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.financial_configuration import (
+    ProjectFinancialProfileRepository,
+)
 from src.core.modules.project_management.contracts.repositories.task import (
     AssignmentRepository,
     DependencyRepository,
     TaskRepository,
 )
 from src.core.modules.project_management.domain.projects.project import Project
+from src.core.modules.project_management.domain.financials.configuration import (
+    ProjectFinancialProfile,
+)
 from src.core.modules.project_management.application.common.currency_policy import (
     resolve_pm_currency,
 )
 from src.core.platform.access.authorization import require_project_permission
 from src.core.shared.activity import record_activity
+from src.core.shared.audit import record_audit_entry
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.common.interfaces import TimeEntryRepository
@@ -40,6 +48,7 @@ class ProjectLifecycleMixin:
     _assignment_repo: AssignmentRepository
     _time_entry_repo: TimeEntryRepository | None
     _cost_repo: CostRepository
+    _financial_profile_repo: ProjectFinancialProfileRepository
     _user_session:UserSessionContext
 
     def _validate_project_name(
@@ -166,6 +175,20 @@ class ProjectLifecycleMixin:
 
         try:
             self._project_repo.add(project)
+            self._session.flush()
+            context = self._tenant_context_service.require_organization_context(
+                operation_label="create project financial profile"
+            )
+            profile = ProjectFinancialProfile.create(
+                tenant_id=context.tenant_id,
+                organization_id=context.organization_id,
+                project_id=project.id,
+                currency_code=resolved_currency,
+                financial_start_date=project.start_date,
+                financial_end_date=project.end_date,
+            )
+            self._financial_profile_repo.add(profile)
+            self._record_financial_profile_audit("create", profile)
             self._session.commit()
             record_activity(
                 self,
@@ -267,6 +290,18 @@ class ProjectLifecycleMixin:
             "project.manage",
             operation_label="update project",
         )
+        if currency is not None:
+            require_permission(
+                self._user_session,
+                "finance.manage",
+                operation_label="update project currency",
+            )
+            require_project_permission(
+                self._user_session,
+                project.id,
+                "finance.manage",
+                operation_label="update project currency",
+            )
         if expected_version is not None and project.version != expected_version:
             raise ConcurrencyError(
                 "Project changed since you opened it. Refresh and try again.",
@@ -321,6 +356,27 @@ class ProjectLifecycleMixin:
 
         try:
             self._project_repo.update(project)
+            if currency is not None:
+                profile = self._financial_profile_repo.get_by_project(project.id)
+                if profile is None:
+                    raise NotFoundError(
+                        "Project financial profile not found.",
+                        code="FINANCIAL_PROFILE_NOT_FOUND",
+                    )
+                old_profile = replace(profile)
+                profile = replace(
+                    profile,
+                    currency_code=project.currency,
+                    updated_at=datetime.now(timezone.utc),
+                )
+                self._financial_profile_repo.update(profile)
+                # PROJECT-FINANCE-TRANSITION-ONLY(PF-B1-CURRENCY-DUAL-WRITE):
+                # Delete when all desktop/read-model currency access uses the profile.
+                self._record_financial_profile_audit(
+                    "currency_projection_update",
+                    profile,
+                    old=old_profile,
+                )
             self._session.commit()
             record_activity(
                 self,
@@ -342,6 +398,46 @@ class ProjectLifecycleMixin:
 
         domain_events.project_changed.emit(project_id)
         return project
+
+    def _record_financial_profile_audit(
+        self,
+        operation: str,
+        profile: ProjectFinancialProfile,
+        *,
+        old: ProjectFinancialProfile | None = None,
+    ) -> None:
+        def _value(item: ProjectFinancialProfile | None) -> str | None:
+            if item is None:
+                return None
+            return json.dumps(
+                {
+                    "billing_method": item.billing_method.value,
+                    "budget_control_mode": item.budget_control_mode.value,
+                    "cost_code_policy": item.cost_code_policy.value,
+                    "currency_code": item.currency_code,
+                    "status": item.status.value,
+                    "version": item.version,
+                },
+                sort_keys=True,
+            )
+
+        record_audit_entry(
+            self,
+            operation=f"financial_profile.{operation}",
+            entity_type="project_financial_profile",
+            entity_id=profile.id,
+            entity_parent_id=profile.project_id,
+            module="project_management",
+            old_value=_value(old),
+            new_value=_value(profile),
+            workspace_id=profile.project_id,
+            source="application",
+            severity="high",
+            compliance_tag="financial",
+            metadata={"action": f"financial_profile.{operation}"},
+            commit=False,
+            fail_closed=True,
+        )
 
     def delete_project(self, project_id: str) -> None:
         require_permission(self._user_session, "project.manage", operation_label="delete project")

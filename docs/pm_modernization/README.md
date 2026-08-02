@@ -6,6 +6,8 @@ Status: authoritative follow-up plan for the live PM module inside the modular S
 
 - [Project Finance existing-state audit and implementation plan](project_finance_existing_state_and_implementation_plan.md) - authoritative backend-first plan for upgrading the Financials workspace and its shared monetary foundations.
 
+Project Finance progress (2026-08-02): Phase A0-A2 and Phase B1 configuration are implemented. The accepted Task-owned WBS slice is next; effective-dated rate cards and versioned budgets follow. Temporary currency synchronization is registered under `PF-B1-CURRENCY-DUAL-WRITE` and must be deleted at profile read-model/QML cutover.
+
 ## Purpose
 
 This document replaces the older "planning complete / execution in progress"

@@ -1,6 +1,6 @@
 # ADR-PF-003: WBS and Hierarchical Tasks
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-08-02
 - Implementation gate: Phase B planned-cost and budget dimensions
 
@@ -10,7 +10,7 @@ Current Tasks belong to Projects but have no parent/child hierarchy, WBS code, w
 
 ## Decision
 
-- Recommended first implementation: PM Tasks own the WBS hierarchy through optional parent Task, project-unique WBS code, cycle prevention, ordering, and summary/leaf semantics.
+- PM Tasks own the WBS hierarchy through optional parent Task, project-unique WBS code, cycle prevention, ordering, and summary/leaf semantics.
 - A summary Task acts as a work package; schedulable leaf Tasks remain execution units.
 - Project Finance references Task/WBS IDs and rolls up descendants but does not own hierarchy mutations.
 - Cost codes remain a separate classification dimension.
@@ -33,3 +33,7 @@ Existing Tasks become root/leaf nodes. WBS codes are assigned deterministically 
 ## Test Impact
 
 Add hierarchy cycle, cross-tenant/project parent, ordering, move/recode, descendant rollup, deletion/archive, and finance-dimension tests.
+
+## Acceptance Evidence
+
+The repository-wide Phase B gate found one existing Scheduling-owned Task aggregate and no independent financial work-package consumer. Accepting Task-owned WBS avoids two mutable hierarchies while preserving an explicit reopening condition if a later product requirement needs non-schedulable financial work packages. Schema implementation remains the next Phase B slice.

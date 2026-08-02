@@ -1,6 +1,6 @@
 # ADR-PF-005: Rate-Card Precedence
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-08-02
 - Implementation gate: Phase B rate cards
 
@@ -11,7 +11,7 @@ Current labor costing chooses a ProjectResource override or Resource current hou
 ## Decision
 
 - Cost and billing rates are separate rate types and never fall back across type.
-- Recommended specificity order is: customer-contract/project resource override; project resource override; project role/skill/department line; organization resource line; organization role/skill/department line; legacy Resource default during transition; otherwise fail with no applicable rate.
+- Specificity order is: customer-contract/project resource override; project resource override; project role/skill/department line; organization resource line; organization role/skill/department line; legacy Resource default during transition; otherwise fail with no applicable rate.
 - Selection filters by effective date, currency policy, unit, overtime/holiday context, and active version before applying precedence.
 - Equal-specificity overlapping matches are configuration errors, not arbitrary first-match choices.
 - A selected `MonetaryRate`, rate-line ID, rate-card version, basis, and effective date are snapshotted on planned/posting lines.
@@ -34,3 +34,7 @@ Resource and ProjectResource rates seed transitional effective-dated lines with 
 ## Test Impact
 
 Test every precedence level, ambiguity, effective boundaries, unit mismatch, cost/billing separation, modifier application, missing rate, and historical snapshot stability.
+
+## Acceptance Evidence
+
+The Phase B gate reverified that current costing has only Resource and ProjectResource current-rate defaults and no competing rate-card implementation. The accepted order is deterministic, keeps cost and billing rates separate, fails on ambiguity, and requires immutable selection snapshots. Rate-card schema and selection implementation remain a subsequent Phase B slice.

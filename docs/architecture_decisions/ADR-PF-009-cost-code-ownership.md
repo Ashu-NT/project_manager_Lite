@@ -1,6 +1,6 @@
 # ADR-PF-009: Cost-Code Ownership
 
-- Status: proposed
+- Status: accepted; Phase B1 foundation implemented
 - Date: 2026-08-02
 - Implementation gate: Phase B cost-code schema
 
@@ -10,10 +10,10 @@ Legacy `CostType` and `CostItem.code` do not form a true cost-code catalog. The 
 
 ## Decision
 
-- Recommended current owner: Project Finance, using tenant/organization-scoped `ProjectCostCode` definitions plus project restrictions/mappings.
+- Project Finance owns tenant/organization-scoped `ProjectCostCode` definitions plus project restrictions/mappings.
 - Codes may be hierarchical, effective/active, and mapped to external accounting references.
 - Procurement and other modules may carry a stable reference supplied by PM but do not mutate the catalog.
-- Before schema acceptance, product must confirm whether one organization taxonomy is required across PM, Procurement, Inventory, and accounting. If proven, reopen this ADR and use organization-owned `OrganizationCostCode`; PM then owns project restrictions and mappings.
+- Repository evidence at acceptance shows no independent Procurement, Inventory, or accounting catalog owner. Reopen this ADR only if a genuine organization-wide taxonomy with a second semantic owner is introduced; do not generalize based on a possible future consumer.
 - Legacy `CostItem.code` is a line/legacy reference and never automatically becomes the new cost-code identity.
 
 ## Alternatives Rejected
@@ -33,3 +33,7 @@ Legacy type/code values require a reviewed mapping table. Unmapped values retain
 ## Test Impact
 
 Test hierarchy/cycles, scoped uniqueness, effective/active behavior, project restrictions, cross-tenant references, external mappings, and legacy mapping determinism.
+
+## Acceptance Evidence
+
+Phase B1 implements the accepted boundary as `project_finance_cost_codes` and `project_finance_cost_code_restrictions`, both with direct non-null tenant/organization ownership, scoped foreign keys, forced PostgreSQL RLS policy setup, service-level cycle/effective-state rules, global plus project-scoped RBAC, optimistic updates, and fail-closed financial audit. Legacy `CostItem.code` and `CostType` remain outside the canonical catalog; no automatic identity mapping or temporary catalog adapter was added.

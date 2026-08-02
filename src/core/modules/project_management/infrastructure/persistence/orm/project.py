@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Optional
 
-from sqlalchemy import Boolean, Date, Enum as SAEnum, Float, ForeignKey, Index, Integer, String
+from sqlalchemy import Boolean, Date, Enum as SAEnum, Float, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.core.modules.project_management.domain.enums import ProjectStatus
@@ -14,6 +14,14 @@ from src.infra.persistence.orm.base import Base
 
 class ProjectORM(Base):
     __tablename__ = "projects"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "organization_id",
+            "id",
+            name="uq_projects_tenant_organization_id",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     tenant_id: Mapped[Optional[str]] = mapped_column(

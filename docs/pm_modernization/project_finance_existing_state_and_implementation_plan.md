@@ -1,9 +1,9 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: audit complete; Phase A0, A1, and A2 code gates complete, hosted PostgreSQL A0 validation pending
+Status: audit complete; Phase A0, A1, A2, and Phase B1 configuration code gates complete; hosted PostgreSQL validation pending
 Last updated: 2026-08-02  
 Scope: Project Management finance plus reusable platform financial foundations  
-Current increment: Phase A2 canonical application foundations complete; Phase B decision gate next
+Current increment: Phase B1 financial profile and cost-code foundation complete; Task-owned WBS implementation next
 
 ## 1. Executive Summary
 
@@ -160,7 +160,7 @@ Relevant migration evidence includes:
 - PM version and cost-code migrations: optimistic versions and line code additions.
 - `h6i7j8k9l0m1_enable_postgresql_tenant_rls.py`: RLS on directly tenant-owned tables, not `cost_items`.
 
-No migration is created by this audit.
+At audit time no migration existed. Phase B1 implementation has since added revision `j8k9l0m1n2o3`; Section 20 is the authoritative migration tracker.
 
 ## 8. Existing API, Commands, Queries, and Workflows
 
@@ -216,19 +216,19 @@ Coverage does not currently prove safe money arithmetic, ISO currency validity, 
 
 ### 11.1 Project Financial Profile
 
-**Status: MINIMAL; A1 currency default remediated.** Responsibility is project-level financial policy and defaults. Existing data is only `Project.planned_budget`, `Project.currency`, client, site, and organization. A1 removed the independent service `EUR` fallback and now resolves project currency from explicit input then authorized Organization base currency. There is still no billing method, financial status/dates, funding/billable flags, budget-control/overrun policy, rate-card/cost-code defaults, or financial period policy. Project permissions and tests cover the basic fields, not a financial lifecycle. Create `ProjectFinancialProfile` inside PM finance with a one-to-one Project relation and optimistic version; derive its initial currency from organization configuration. Keep operational Project lean. Backfill from Project fields and retain temporary read compatibility.
+**Status: Phase B1 foundation implemented.** `ProjectFinancialProfile` now owns currency, financial lifecycle/dates, billable/funded state, billing method, budget-control mode, cost-code policy, and default cost-code reference with one profile per scoped Project and optimistic concurrency. New projects create the profile atomically; revision `j8k9l0m1n2o3` backfills existing profile currency from valid Project data or Organization base currency. Mutations require global and project-scoped finance permission and fail-closed Enterprise Audit. `Project.currency` remains a marked synchronized compatibility projection until desktop/read-model cutover. Rate-card default, period policy, overrun tolerance, and the proper versioned Budget aggregate remain later Phase B/C work; legacy planned budget was intentionally not copied into a second temporary total.
 
 ### 11.2 Cost Codes
 
-**Status: MINIMAL and conceptually ambiguous.** `CostType` is a fixed enum and `CostItem.code` is a project-unique line identifier. Neither is a hierarchical, tenant-configurable cost-code catalog with active/effective dates, project restrictions, rollups, or accounting mappings. Create PM-owned `ProjectCostCode` configuration scoped to tenant/org, optionally linked to parent and external accounting references. Cost code is "what"; it must remain separate from WBS "where." Preserve legacy line codes as external/legacy references during migration.
+**Status: Phase B1 foundation implemented.** PM-owned `ProjectCostCode` now provides scoped unique identity, hierarchy/cycle guards, effective/active state, external-system mappings, optimistic concurrency, project restrictions, default-code safeguards, direct tenant/organization ownership, scoped foreign keys, and PostgreSQL RLS policy setup. `CostType` and `CostItem.code` remain legacy classification/line references and are not silently converted into canonical identities. Their reviewed migration mapping remains future reconciliation work. Cost code is "what" and remains separate from WBS "where."
 
 ### 11.3 Work Breakdown Structure
 
-**Status: MISSING.** Tasks are project-related but no parent-task, work-package, WBS code, phase hierarchy, or rollup entity was found. A generic task cannot be assumed to be a WBS node. Product must decide whether to add task hierarchy plus financial work-package flags or a separate lightweight `WorkPackage`. PM Scheduling owns structure; Project Finance references stable WBS IDs and never owns Task. Migration is additive because existing costs may remain project/task-only.
+**Status: DECISION ACCEPTED; implementation next.** ADR-PF-003 assigns the WBS hierarchy to PM Tasks through optional parent, project-unique WBS code, ordering, cycle prevention, and summary/leaf semantics. Project Finance references stable Task/WBS IDs and never owns hierarchy mutation. A separate WorkPackage aggregate remains deferred unless a proven non-schedulable financial-node requirement appears.
 
 ### 11.4 Rate Cards
 
-**Status: MINIMAL.** `Resource.hourly_rate` and `ProjectResource.hourly_rate/currency/planned_hours` provide a current default/override only. There are no internal versus billing rates, role/skill/team fallback, effective intervals, overtime/weekend policy, customer contract overrides, priority rules, or snapshots. Create PM-owned versioned `ProjectRateCard` and effective-dated rate lines; retain Resource/ProjectResource values as transitional defaults. Every generated planned/actual/billable entry must record rate amount, currency, source rate-line ID, and effective date.
+**Status: DECISION ACCEPTED; implementation pending.** ADR-PF-005 fixes separate cost/billing rate types, deterministic specificity, effective/unit/context filtering, ambiguity failure, explicit modifiers, and immutable selection snapshots. `Resource.hourly_rate` and `ProjectResource.hourly_rate/currency/planned_hours` remain current defaults until the rate-card slice implements and reconciles versioned effective-dated lines.
 
 ### 11.5 Budgeting
 
@@ -450,7 +450,7 @@ Existing paths may be evolved incrementally instead of immediately creating ever
 
 | Aggregate root | Owns | References only | Mutation boundary |
 | --- | --- | --- | --- |
-| `ProjectFinancialProfile` | Project finance configuration and defaults | Project, Organization, default cost-code/rate-card/calendar IDs | Mutates only its profile; never mutates Project or configuration catalogs directly |
+| `ProjectFinancialProfile` | Project finance configuration and defaults | Project, Organization, default cost-code/rate-card/calendar IDs | Canonically mutates only its profile; the application layer temporarily synchronizes legacy `Project.currency` under deletion marker `PF-B1-CURRENCY-DUAL-WRITE` |
 | `ProjectCostCode` | Code identity, hierarchy position, effective/active state, mappings | Organization, optional parent code | Mutates one code hierarchy under a catalog policy; projects carry restrictions/references |
 | `ProjectRateCard` | Version/effective-dated rate lines and precedence metadata | Project, Resource, Role/Skill/Department/Customer references | Selects/snapshots rates; never rewrites Resource or posted entries |
 | `ProjectBudget` | Budget version, lifecycle, and budget lines | Project, CostCode, WBS/Task, Period, approval | One version is the consistency boundary; approval/supersede creates state/version transitions |
@@ -695,10 +695,10 @@ Implementation progress (2026-08-02):
 
 Ownership: **PROJECT FINANCE**, with one Scheduling product decision
 
-ADR gate: ADR-PF-003, ADR-PF-005, and ADR-PF-009 must be accepted before their WBS, rate-card, and cost-code schemas are implemented.
+ADR gate: complete. ADR-PF-003, ADR-PF-005, and ADR-PF-009 are accepted.
 
-1. Add ProjectFinancialProfile and backfill project currency/budget defaults without yet deleting legacy fields.
-2. Add ProjectCostCode catalog and project restrictions; retain legacy `CostType` only as a compatibility category/mapping.
+1. Complete: add ProjectFinancialProfile and backfill project currency without deleting legacy fields. Planned-budget conversion is intentionally reserved for the versioned Budget aggregate rather than copied into another mutable profile field.
+2. Complete: add ProjectCostCode catalog and project restrictions. Legacy `CostType` remains only on legacy cost records until explicit reviewed mapping/reconciliation.
 3. Decide WBS representation. Implement task hierarchy/work package in PM Scheduling, not finance, if approved.
 4. Add versioned effective-dated rate cards for internal cost and billing rates; formalize priority/fallback and snapshot selection.
 5. Add Budget/BudgetLine lifecycle and approval integration. Approved versions become immutable and supersede rather than update.
@@ -707,6 +707,17 @@ ADR gate: ADR-PF-003, ADR-PF-005, and ADR-PF-009 must be accepted before their W
 8. Replace the QML combined "Budget" cost-line section with separate Profile, Budget Versions, Budget Lines, Rate Cards, and Planned Costs views. Current QML may be broken/replaced as contracts move; do not preserve false semantics.
 
 Exit gate: approved budgets cannot mutate; rate selection is deterministic; historical snapshots remain stable after rate changes; plan totals reconcile by cost code/WBS/period; cross-tenant references fail.
+
+Implementation progress (Phase B1, 2026-08-02):
+
+- Accepted ADR-PF-003 (Task-owned WBS), ADR-PF-005 (rate-card precedence), and ADR-PF-009 (PM-owned cost-code catalog) after revalidating the complete Scheduling, Finance, Inventory, and Procurement ownership evidence.
+- Added Pydantic-validated `ProjectFinancialProfile`, `ProjectCostCode`, and `ProjectCostCodeRestriction` domain models. Profile transitions and billing invariants, cost-code syntax/effective dates/external mappings, hierarchy cycles, active ancestors/children, and default restrictions are explicit.
+- Added canonical repository contracts, mappers, fail-closed scoped SQLAlchemy repositories, optimistic updates, and service composition through `RepositoryBundle`, `ProjectManagementServiceBundle`, and `ServiceGraph`.
+- Added `project_finance_profiles`, `project_finance_cost_codes`, and `project_finance_cost_code_restrictions` in revision `j8k9l0m1n2o3`. Every table has non-null tenant/organization scope, scoped uniqueness/foreign keys, check constraints, RLS metadata, and forced PostgreSQL tenant/organization policy setup.
+- New Project creation flushes and inserts its financial profile before the same commit. Existing profiles backfill deterministically from a supported Project currency then a supported Organization base currency; migration fails with a repair message if neither is valid. No write-on-read repair path exists.
+- Added global plus project-scoped `finance.read`/`finance.manage` enforcement, owner-only project financial configuration, mandatory optimistic versions, and fail-closed Enterprise Audit in the mutation transaction.
+- Verification: 23 focused B1 domain, service, repository, RBAC, architecture, transition-register, migration upgrade/backfill/downgrade, and audit rollback tests pass. The pre-existing Phase A0 finance/RBAC integration set also passes (14 tests in the combined check). The broader PM suite passes 345 tests with only the three known unrelated dashboard date-relative/entitlement-order cases deselected; Architecture passes 113 tests with only its two pre-existing size-budget breaches.
+- No temporary B1 files or in-memory adapters were added. The only B1 transition code is the two-way legacy `Project.currency` projection, marked `PROJECT-FINANCE-TRANSITION-ONLY(PF-B1-CURRENCY-DUAL-WRITE)` at both write paths and registered below for deletion.
 
 ### Phase C - Actual ledger, commitments, time, procurement, and periods
 
@@ -757,13 +768,13 @@ Exit gate: duplicate billing/export is impossible under retry; external acknowle
 
 ## 20. Database and Migration Plan
 
-No migration is created in this audit. Implementation migrations should be small, additive, reversible where feasible, and independently deployable.
+The audit itself created no migration. Implementation revision `j8k9l0m1n2o3` now delivers the independently reversible Phase B1 configuration schema and deterministic profile-currency backfill. Later persistence groups remain additive and independently gated.
 
 ### Proposed persistence groups
 
 | Group | Candidate tables | Essential constraints |
 | --- | --- | --- |
-| Profile/config | `project_financial_profiles`, `project_cost_codes` | tenant/org/project scope; one profile per project; scoped unique code; parent in same org |
+| Profile/config | `project_finance_profiles`, `project_finance_cost_codes`, `project_finance_cost_code_restrictions` | IMPLEMENTED in B1: direct tenant/org/project scope; one profile per project; scoped unique code; scoped parent/project/default references; forced RLS |
 | Rates | `project_rate_cards`, `project_rate_card_lines` | version/effective interval; rate type; Money currency; no invalid overlap for same selection key |
 | Budgets/plans | `project_budgets`, `project_budget_lines`, `project_planned_cost_versions`, `project_planned_cost_lines` | immutable approved/superseded versions; dimension scope; version uniqueness |
 | Commitments | `project_commitments`, `project_commitment_lines`, `project_commitment_matches` | unique source type/system/id/line; matched amount cannot exceed committed amount |
@@ -839,6 +850,7 @@ This register is mandatory implementation scope. A phase cannot close while its 
 | Legacy CostItem reader/projection | Pre-existing; retained in B/C | D ledger/report reconciliation complete | PM Finance | OPEN |
 | `Project.planned_budget` compatibility projection | Pre-existing; retained in B | B budget read cutover and reconciliation complete | PM Finance | OPEN |
 | `Project.currency` compatibility projection | Pre-existing; retained in B | Profile currency cutover and all consumers migrated | PM Finance | OPEN |
+| Profile-to-Project and Project-to-profile currency synchronization | B1; `PF-B1-CURRENCY-DUAL-WRITE` | Desktop APIs, presenters, reports, imports, and Project DTOs read profile currency exclusively; parity test passes; then delete both marked branches and legacy field writer | PM Finance / Desktop UI | OPEN; both branches marked and covered by B1 tests |
 | Float monetary/rate/quantity persistence | Pre-existing | Relevant Numeric backfill, read cutover, and reconciliation complete | Platform/Data/Module owners | OPEN |
 | Planned dual-read comparison | C | D canonical report reconciliation complete | PM Finance | NOT CREATED |
 | Planned dual-write adapter, only if required | C | New writes and reports reconcile; legacy writes disabled | PM Finance | NOT CREATED |
@@ -949,13 +961,13 @@ The repository already uses global ADR-001 through ADR-004, so Project Finance d
 | --- | --- | --- | --- |
 | [ADR-PF-001](../architecture_decisions/ADR-PF-001-money-currency-precision-rounding.md) | Money, currency, precision, quantities, rates, and rounding | ACCEPTED; PHASE A1 FOUNDATION IMPLEMENTED | A1 implementation |
 | [ADR-PF-002](../architecture_decisions/ADR-PF-002-project-finance-bounded-context.md) | Project Finance bounded-context and module ownership | ACCEPTED; PHASE A2 BOUNDARY CONTRACTS IMPLEMENTED | A2/B contracts |
-| [ADR-PF-003](../architecture_decisions/ADR-PF-003-wbs-and-hierarchical-tasks.md) | WBS versus hierarchical Tasks | PROPOSED | B WBS/planned-cost dimensions |
+| [ADR-PF-003](../architecture_decisions/ADR-PF-003-wbs-and-hierarchical-tasks.md) | WBS versus hierarchical Tasks | ACCEPTED; TASK-OWNED WBS IMPLEMENTATION NEXT | B WBS/planned-cost dimensions |
 | [ADR-PF-004](../architecture_decisions/ADR-PF-004-financial-posting-and-reversal.md) | Posting and signed reversal model | ACCEPTED; LEDGER IMPLEMENTATION DEFERRED TO C | A1/C ledger schema |
-| [ADR-PF-005](../architecture_decisions/ADR-PF-005-rate-card-precedence.md) | Rate-card precedence | PROPOSED | B rate-card implementation |
+| [ADR-PF-005](../architecture_decisions/ADR-PF-005-rate-card-precedence.md) | Rate-card precedence | ACCEPTED; RATE-CARD IMPLEMENTATION PENDING | B rate-card implementation |
 | [ADR-PF-006](../architecture_decisions/ADR-PF-006-approved-time-posting-trigger.md) | Approved-time posting trigger | ACCEPTED; PHASE A2 SOURCE CONTRACT IMPLEMENTED | A2 contract/C consumer |
 | [ADR-PF-007](../architecture_decisions/ADR-PF-007-procurement-financial-triggers.md) | Procurement commitment and actual triggers | ACCEPTED; PHASE A2 SOURCE CONTRACTS IMPLEMENTED | A2 contract/C consumer |
 | [ADR-PF-008](../architecture_decisions/ADR-PF-008-approval-unit-of-work.md) | Approval and unit-of-work transaction model | ACCEPTED; INITIAL TRANSACTION CUTOVER IMPLEMENTED | A0 approval refactor |
-| [ADR-PF-009](../architecture_decisions/ADR-PF-009-cost-code-ownership.md) | Cost-code ownership and hierarchy | PROPOSED | B cost-code schema |
+| [ADR-PF-009](../architecture_decisions/ADR-PF-009-cost-code-ownership.md) | Cost-code ownership and hierarchy | ACCEPTED; PHASE B1 FOUNDATION IMPLEMENTED | B cost-code schema |
 | [ADR-PF-010](../architecture_decisions/ADR-PF-010-billing-and-accounting-boundary.md) | Billing versus external accounting ownership | PROPOSED | E implementation |
 | [ADR-PF-011](../architecture_decisions/ADR-PF-011-durable-integration-outbox-inbox.md) | Durable outbox/inbox ownership and delivery semantics | ACCEPTED; ENVELOPE CONTRACT IMPLEMENTED, STORES DEFERRED TO C | A2 decision/C consumers |
 
@@ -963,11 +975,11 @@ The repository already uses global ADR-001 through ADR-004, so Project Finance d
 
 These are genuine product/ownership decisions. Questions mapped to A0/A1/A2 ADRs are blockers for those subphases; later questions do not block A0 security analysis:
 
-1. Is WBS represented by hierarchical Tasks, a separate WorkPackage aggregate, or both with explicit mapping?
+1. Resolved by ADR-PF-003: hierarchical Tasks own WBS; a separate WorkPackage is deferred until a proven non-schedulable financial-node requirement exists.
 2. Which budget dimensions are mandatory in the first release: cost code, WBS/task, department, period, funding source?
 3. Are projects single transaction-currency, multi-currency with one reporting currency, or unrestricted multi-currency?
 4. What monetary precision, rounding mode, and line-versus-total rounding rules are contractual?
-5. Which rate precedence is required among resource, role, skill, department, project, and customer contract? Are overtime/holiday rates in scope?
+5. Resolved by ADR-PF-005: cost and billing are separate; deterministic customer/project/resource/role-skill-department/organization precedence applies; overtime/holiday behavior is an explicit snapshotted modifier.
 6. Resolved by ADR-PF-006: labor cost originates from an APPROVED period snapshot; LOCKED is an idempotent administrative control.
 7. Resolved by ADR-PF-007: PO SENT creates commitment and receipt POSTED creates accrual actual; a later invoice reclassifies that accrual.
 8. Are manual actual costs allowed, and who may post or reverse them?
@@ -981,7 +993,7 @@ These are genuine product/ownership decisions. Questions mapped to A0/A1/A2 ADRs
 
 ## 25. Final Recommendation
 
-Proceed with the upgrade, but do not extend the current combined CostItem/QML model. Phase A0 security/transaction correctness, A1 monetary foundations, and A2 canonical application foundations are implemented; proceed through the Phase B product/ADR gate before expanding financial write workflows. This keeps security, Decimal Money/rate/quantity work, integration composition, and configuration aggregates independently testable.
+Proceed with the upgrade, but do not extend the current combined CostItem/QML model. Phase A0 security/transaction correctness, A1 monetary foundations, A2 canonical application foundations, and the Phase B1 configuration foundation are implemented. Continue with the accepted Task-owned WBS slice, then effective-dated rate cards and versioned Budgets. This keeps security, Decimal Money/rate/quantity work, integration composition, and configuration aggregates independently testable.
 
 Then build Project Finance as explicit PM-owned aggregates while preserving valid module ownership: Time supplies approved hours, Procurement supplies PO/receipt facts, Party supplies identities, Approval and Audit remain platform services, and external accounting owns official ledger/payment behavior. Use additive persistence and temporary compatibility only to migrate verified data; delete every fallback, dual-write, alias, and transition adapter at its named phase gate.
 

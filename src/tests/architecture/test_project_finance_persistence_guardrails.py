@@ -21,6 +21,20 @@ from src.infra.persistence.migrations.helpers import (
 PROJECT_FINANCE_TABLE_PREFIX = "project_finance_"
 PROJECT_FINANCE_RLS_SCOPE = "tenant_organization"
 FINANCE_PRIMITIVES_ROOT = Path("src/core/platform/finance")
+PROJECT_FINANCE_TRANSITION_MARKER = "PF-B1-CURRENCY-DUAL-WRITE"
+PROJECT_FINANCE_TRANSITION_FILES = (
+    Path(
+        "src/core/modules/project_management/application/financials/"
+        "configuration_service.py"
+    ),
+    Path(
+        "src/core/modules/project_management/application/projects/commands/"
+        "lifecycle.py"
+    ),
+)
+PROJECT_FINANCE_PLAN = Path(
+    "docs/pm_modernization/project_finance_existing_state_and_implementation_plan.md"
+)
 
 
 def _quote(identifier: str) -> str:
@@ -115,3 +129,15 @@ def test_every_project_finance_table_has_direct_scope_and_rls_marker() -> None:
             assert column.type.asdecimal is True
             assert column.type.precision == convention.precision
             assert column.type.scale == convention.scale
+
+
+def test_phase_b1_currency_transition_is_marked_once_per_path_and_registered() -> None:
+    source_occurrences = sum(
+        path.read_text(encoding="utf-8").count(PROJECT_FINANCE_TRANSITION_MARKER)
+        for path in PROJECT_FINANCE_TRANSITION_FILES
+    )
+    plan = PROJECT_FINANCE_PLAN.read_text(encoding="utf-8")
+
+    assert source_occurrences == 2
+    assert PROJECT_FINANCE_TRANSITION_MARKER in plan
+    assert "Profile-to-Project and Project-to-profile currency synchronization" in plan

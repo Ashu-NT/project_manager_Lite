@@ -97,6 +97,7 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import (
     CostService,
+    FinancialConfigurationService,
     FinanceService,
     ForecastCostService,
 )
@@ -212,6 +213,7 @@ class ServiceGraph:
     timesheet_service: TimesheetService
     resource_service: ResourceService
     cost_service: CostService
+    financial_configuration_service: FinancialConfigurationService
     forecast_service: ForecastCostService
     finance_service: FinanceService
     work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
@@ -311,6 +313,7 @@ class ServiceGraph:
             "timesheet_service": self.timesheet_service,
             "resource_service": self.resource_service,
             "cost_service": self.cost_service,
+            "financial_configuration_service": self.financial_configuration_service,
             "forecast_service": self.forecast_service,
             "finance_service": self.finance_service,
             "work_calendar_engine": self.work_calendar_engine,
@@ -450,6 +453,9 @@ def build_service_graph(session: Session) -> ServiceGraph:
         timesheet_service=project_management_services.timesheet_service,
         resource_service=project_management_services.resource_service,
         cost_service=project_management_services.cost_service,
+        financial_configuration_service=(
+            project_management_services.financial_configuration_service
+        ),
         forecast_service=project_management_services.forecast_service,
         finance_service=project_management_services.finance_service,
         work_calendar_engine=project_management_services.work_calendar_engine,
