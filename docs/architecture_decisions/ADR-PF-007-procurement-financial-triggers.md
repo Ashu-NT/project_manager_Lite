@@ -1,6 +1,6 @@
 # ADR-PF-007: Procurement Financial Triggers
 
-- Status: proposed
+- Status: accepted; Phase A2 source contracts implemented
 - Date: 2026-08-02
 - Implementation gate: Phase A2 contract and Phase C consumer
 
@@ -26,7 +26,7 @@ Procurement owns requisitions, POs, lines, receipts, and statuses including PO A
 
 ## Consequences
 
-The product must confirm whether SENT creates legal/operational commitment and whether receipt accrual is desired before accepting this ADR. Typed contracts/events and quantity/price snapshots are required.
+The accepted product rule is that SENT creates operational committed exposure and POSTED receipt creates the first accrual actual. Typed contracts/events and quantity/price snapshots are required. A future supplier invoice must replace/reclassify the accrual rather than create an independent duplicate actual.
 
 ## Migration Impact
 
@@ -35,3 +35,9 @@ Existing linked requisitions are visibility data only. Historical commitments/re
 ## Test Impact
 
 Test each PO/receipt transition, partial receipt/matching, cancellation, price/quantity changes, retries, source ordering, currency, cross-tenant supplier/project references, and future invoice accrual replacement.
+
+## Implementation Evidence
+
+- `ProcurementCommitmentFinancialSource` carries scoped PO/line revision identity, SENT and later lifecycle state, canonical ordered quantity/unit price, supplier/site, dates, and source requisition links.
+- `ProcurementReceiptAccrualFinancialSource` requires POSTED receipt/line identity, linked PO/line, canonical accepted quantity/unit cost, supplier/site, and an aware posting timestamp.
+- Quantity/rate units and source document/line IDs are validated at the contract boundary. Provider adapters and PM commitment/actual consumers remain Phase C work.

@@ -1,9 +1,9 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: audit complete; Phase A0 and A1 code complete, hosted PostgreSQL A0 validation pending
+Status: audit complete; Phase A0, A1, and A2 code gates complete, hosted PostgreSQL A0 validation pending
 Last updated: 2026-08-02  
 Scope: Project Management finance plus reusable platform financial foundations  
-Current increment: Phase A1 verification complete; Phase A2 decision gate next
+Current increment: Phase A2 canonical application foundations complete; Phase B decision gate next
 
 ## 1. Executive Summary
 
@@ -680,6 +680,17 @@ Exit gate: service composition is the production path; fallback formula deletion
 
 QML impact: forecast/commitment presenters consume only canonical application DTOs; no fallback calculations remain.
 
+Implementation progress (2026-08-02):
+
+- Added immutable PM-owned financial source contracts with tenant/organization/project scope, source document/line/revision, canonical content hash, and deterministic semantic idempotency keys for approved Time, Procurement PO commitments, Procurement receipt accruals, manual entries, and imports.
+- Added approved-Time and Procurement source snapshots plus cursor-paginated provider protocols. Contracts use canonical Decimal quantity/rate payloads and import no Time, Procurement, desktop, or QML types.
+- Accepted ADR-PF-002, ADR-PF-006, and ADR-PF-007. The approved trigger rules are TimesheetPeriod APPROVED, PO SENT, and receipt POSTED; LOCKED does not duplicate labor posting and a future invoice must reclassify the receipt accrual.
+- Accepted ADR-PF-011: source-owned transactional outbox, consumer-owned durable inbox, at-least-once delivery, separate transport and financial semantic deduplication, conflict quarantine, per-aggregate ordering, and retry/dead-letter operations. The permanent transport-neutral integration envelope is implemented; durable stores/consumers remain Phase C.
+- Composed one `ForecastCostService` in `project_registry.py`, exposed it through `ServiceGraph`, resolved it in the desktop runtime, and injected it into the financial desktop API.
+- Deleted all desktop forecast/commitment fallback calculations and empty compatibility builders. Desktop code now maps only canonical application results; missing production composition fails explicitly rather than calculating a divergent result.
+- Verification at the A2 phase gate: 31 focused source-contract, event-envelope, architecture, desktop-delegation, QML financial-workspace, financial desktop API, and canonical forecast-service tests pass. PM has 335 passes with only 3 unrelated existing date-relative dashboard/entitlement-order failures. Architecture has 112 passes with 2 unrelated existing size-budget breaches deselected. The full Platform run reached 61% with no failures before the 240-second command limit; the affected focused Platform contract tests pass.
+- No temporary A2 code or files were introduced. Phase C persistence/consumer work is deferred explicitly rather than represented by an in-memory outbox, direct repository adapter, or compatibility shim.
+
 ### Phase B - Configuration, budget, rates, and planned cost
 
 Ownership: **PROJECT FINANCE**, with one Scheduling product decision
@@ -818,7 +829,7 @@ This register is mandatory implementation scope. A phase cannot close while its 
 
 | Transitional component | Origin/added in | Removal gate | Owner | Status |
 | --- | --- | --- | --- | --- |
-| Desktop forecast/commitment fallback builders | Pre-existing | A2 canonical service composition and parity tests pass | PM Finance | OPEN |
+| Desktop forecast/commitment fallback builders | Pre-existing | A2 canonical service composition and parity tests pass | PM Finance | CLOSED; formulas and empty compatibility paths deleted 2026-08-02 |
 | `report.view` finance authorization | Pre-existing | A0 finance permission grants and policy tests pass | Platform Security / PM Finance | CLOSED; replaced by `finance.read` on 2026-08-02 |
 | Admin-session cost-governance bypass | Pre-existing | A0 removal tests pass | Platform Security | CLOSED; removed 2026-08-02 |
 | `cost.manage` umbrella/alias | Pre-existing; transitional mapping in A0 | Target command permissions active across desktop/services | Platform Security / PM Finance | OPEN |
@@ -937,15 +948,16 @@ The repository already uses global ADR-001 through ADR-004, so Project Finance d
 | ADR | Decision | Current status | Required before |
 | --- | --- | --- | --- |
 | [ADR-PF-001](../architecture_decisions/ADR-PF-001-money-currency-precision-rounding.md) | Money, currency, precision, quantities, rates, and rounding | ACCEPTED; PHASE A1 FOUNDATION IMPLEMENTED | A1 implementation |
-| [ADR-PF-002](../architecture_decisions/ADR-PF-002-project-finance-bounded-context.md) | Project Finance bounded-context and module ownership | PROPOSED | A2/B contracts |
+| [ADR-PF-002](../architecture_decisions/ADR-PF-002-project-finance-bounded-context.md) | Project Finance bounded-context and module ownership | ACCEPTED; PHASE A2 BOUNDARY CONTRACTS IMPLEMENTED | A2/B contracts |
 | [ADR-PF-003](../architecture_decisions/ADR-PF-003-wbs-and-hierarchical-tasks.md) | WBS versus hierarchical Tasks | PROPOSED | B WBS/planned-cost dimensions |
 | [ADR-PF-004](../architecture_decisions/ADR-PF-004-financial-posting-and-reversal.md) | Posting and signed reversal model | ACCEPTED; LEDGER IMPLEMENTATION DEFERRED TO C | A1/C ledger schema |
 | [ADR-PF-005](../architecture_decisions/ADR-PF-005-rate-card-precedence.md) | Rate-card precedence | PROPOSED | B rate-card implementation |
-| [ADR-PF-006](../architecture_decisions/ADR-PF-006-approved-time-posting-trigger.md) | Approved-time posting trigger | PROPOSED | A2 contract/C consumer |
-| [ADR-PF-007](../architecture_decisions/ADR-PF-007-procurement-financial-triggers.md) | Procurement commitment and actual triggers | PROPOSED | A2 contract/C consumer |
+| [ADR-PF-006](../architecture_decisions/ADR-PF-006-approved-time-posting-trigger.md) | Approved-time posting trigger | ACCEPTED; PHASE A2 SOURCE CONTRACT IMPLEMENTED | A2 contract/C consumer |
+| [ADR-PF-007](../architecture_decisions/ADR-PF-007-procurement-financial-triggers.md) | Procurement commitment and actual triggers | ACCEPTED; PHASE A2 SOURCE CONTRACTS IMPLEMENTED | A2 contract/C consumer |
 | [ADR-PF-008](../architecture_decisions/ADR-PF-008-approval-unit-of-work.md) | Approval and unit-of-work transaction model | ACCEPTED; INITIAL TRANSACTION CUTOVER IMPLEMENTED | A0 approval refactor |
 | [ADR-PF-009](../architecture_decisions/ADR-PF-009-cost-code-ownership.md) | Cost-code ownership and hierarchy | PROPOSED | B cost-code schema |
 | [ADR-PF-010](../architecture_decisions/ADR-PF-010-billing-and-accounting-boundary.md) | Billing versus external accounting ownership | PROPOSED | E implementation |
+| [ADR-PF-011](../architecture_decisions/ADR-PF-011-durable-integration-outbox-inbox.md) | Durable outbox/inbox ownership and delivery semantics | ACCEPTED; ENVELOPE CONTRACT IMPLEMENTED, STORES DEFERRED TO C | A2 decision/C consumers |
 
 ### Product questions
 
@@ -956,8 +968,8 @@ These are genuine product/ownership decisions. Questions mapped to A0/A1/A2 ADRs
 3. Are projects single transaction-currency, multi-currency with one reporting currency, or unrestricted multi-currency?
 4. What monetary precision, rounding mode, and line-versus-total rounding rules are contractual?
 5. Which rate precedence is required among resource, role, skill, department, project, and customer contract? Are overtime/holiday rates in scope?
-6. At what Time state is labor cost posted: approved period, locked period, or separate finance acceptance?
-7. Which Procurement transition creates a commitment: approved requisition, issued PO, accepted PO, or another state? Which receipt/invoice state creates actual cost?
+6. Resolved by ADR-PF-006: labor cost originates from an APPROVED period snapshot; LOCKED is an idempotent administrative control.
+7. Resolved by ADR-PF-007: PO SENT creates commitment and receipt POSTED creates accrual actual; a later invoice reclassifies that accrual.
 8. Are manual actual costs allowed, and who may post or reverse them?
 9. Which approval thresholds and separation-of-duties rules vary by tenant, organization, department, project, amount, and currency?
 10. Are expense claims in this product, a future Expenses module, or external-only?
@@ -969,7 +981,7 @@ These are genuine product/ownership decisions. Questions mapped to A0/A1/A2 ADRs
 
 ## 25. Final Recommendation
 
-Proceed with the upgrade, but do not extend the current combined CostItem/QML model. Begin with Phase A0 security and transaction correctness, continue through A1 monetary foundations, and complete A2 canonical application foundations before expanding financial write workflows. This separates security, Decimal Money/rate/quantity work, and integration composition into independently testable gates.
+Proceed with the upgrade, but do not extend the current combined CostItem/QML model. Phase A0 security/transaction correctness, A1 monetary foundations, and A2 canonical application foundations are implemented; proceed through the Phase B product/ADR gate before expanding financial write workflows. This keeps security, Decimal Money/rate/quantity work, integration composition, and configuration aggregates independently testable.
 
 Then build Project Finance as explicit PM-owned aggregates while preserving valid module ownership: Time supplies approved hours, Procurement supplies PO/receipt facts, Party supplies identities, Approval and Audit remain platform services, and external accounting owns official ledger/payment behavior. Use additive persistence and temporary compatibility only to migrate verified data; delete every fallback, dual-write, alias, and transition adapter at its named phase gate.
 

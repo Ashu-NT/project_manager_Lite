@@ -73,6 +73,7 @@ def build_project_management_desktop_runtime_apis(
                 else None
             ),
             finance_service=resolved.finance_service,
+            forecast_service=resolved.forecast_service,
             procurement_service=procurement_service,
             baseline_service=resolved.baseline_service,
         ),

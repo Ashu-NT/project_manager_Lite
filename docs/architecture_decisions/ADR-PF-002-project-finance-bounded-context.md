@@ -1,6 +1,6 @@
 # ADR-PF-002: Project Finance Bounded Context
 
-- Status: proposed
+- Status: accepted; Phase A2 boundary contracts implemented
 - Date: 2026-08-02
 - Implementation gate: Phase A2 and Phase B
 
@@ -35,3 +35,9 @@ Existing PM finance paths evolve in place. Source references replace direct cros
 ## Test Impact
 
 Add architecture/import-boundary tests, contract tests for Time/Procurement integrations, and tests proving external modules cannot mutate PM finance aggregates.
+
+## Implementation Evidence
+
+- Shared financial primitives remain under `src/core/platform/finance` and import no PM business code.
+- PM-owned source contracts under `src/core/modules/project_management/contracts/financial_sources.py` consume stable Time and Procurement facts without importing either module's domain or repository.
+- Forecast ownership remains in the PM application layer; desktop builders map canonical results and contain no financial formulas.

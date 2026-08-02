@@ -17,3 +17,4 @@
 - [ADR-PF-008: Approval Unit of Work](ADR-PF-008-approval-unit-of-work.md)
 - [ADR-PF-009: Cost-Code Ownership](ADR-PF-009-cost-code-ownership.md)
 - [ADR-PF-010: Billing and Accounting Boundary](ADR-PF-010-billing-and-accounting-boundary.md)
+- [ADR-PF-011: Durable Integration Outbox and Inbox](ADR-PF-011-durable-integration-outbox-inbox.md)

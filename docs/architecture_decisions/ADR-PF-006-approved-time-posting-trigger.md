@@ -1,6 +1,6 @@
 # ADR-PF-006: Approved-Time Posting Trigger
 
-- Status: proposed
+- Status: accepted; Phase A2 source contract implemented
 - Date: 2026-08-02
 - Implementation gate: Phase A2 contract and Phase C consumer
 
@@ -34,3 +34,9 @@ Existing assignment-hour totals are not migrated as postings without approved so
 ## Test Impact
 
 Test approved-only generation, LOCKED no-op, retry/out-of-order handling, source versioning, correction reversal/replacement, cross-tenant references, rate snapshots, and period closure.
+
+## Implementation Evidence
+
+- `ApprovedTimeFinancialSource` requires an APPROVED snapshot ID, source revision/content hash, tenant/organization/project scope, TimeEntry and period identity, work allocation/resource dimensions, work date, and canonical Decimal hours.
+- The contract intentionally contains no labor rate or amount. Time owns the approved quantity; PM Finance selects and snapshots the financial rate when the Phase C consumer posts it.
+- The provider protocol is tenant/organization/project scoped and cursor paginated. The adapter and durable consumer remain Phase C work.

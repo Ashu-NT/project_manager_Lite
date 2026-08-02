@@ -3,7 +3,11 @@
 from __future__ import annotations
 from datetime import date
 
-from src.core.modules.project_management.application.financials import CostService, FinanceService
+from src.core.modules.project_management.application.financials import (
+    CostService,
+    FinanceService,
+    ForecastCostService,
+)
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import BaselineService
 from src.core.modules.project_management.application.tasks import TaskService
@@ -55,7 +59,7 @@ class ProjectManagementFinancialsDesktopApi:
         task_service: TaskService | None = None,
         cost_service: CostService | None = None,
         finance_service: FinanceService | None = None,
-        forecast_service=None,
+        forecast_service: ForecastCostService | None = None,
         procurement_service: object | None = None,
         baseline_service: BaselineService | None = None,
     ) -> None:
@@ -143,8 +147,7 @@ class ProjectManagementFinancialsDesktopApi:
         currency = self._project_currency(project_id)
         return build_forecast_dto(
             project_id, percent_complete, method, threshold_percent,
-            cost_service=self._cost_service,
-            forecast_service=self._forecast_service,
+            forecast_service=self._require_forecast_service(),
             currency=currency,
         )
 
@@ -152,8 +155,7 @@ class ProjectManagementFinancialsDesktopApi:
         currency = self._project_currency(project_id)
         return build_commitment_summary_dto(
             project_id,
-            cost_service=self._cost_service,
-            forecast_service=self._forecast_service,
+            forecast_service=self._require_forecast_service(),
             currency=currency,
         )
 
@@ -207,6 +209,11 @@ class ProjectManagementFinancialsDesktopApi:
         if self._cost_service is None:
             raise RuntimeError("Project management financials desktop API is not connected.")
         return self._cost_service
+
+    def _require_forecast_service(self) -> ForecastCostService:
+        if self._forecast_service is None:
+            raise RuntimeError("Project management forecast service is not connected.")
+        return self._forecast_service
 
 
 __all__ = ["ProjectManagementFinancialsDesktopApi"]

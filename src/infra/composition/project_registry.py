@@ -26,7 +26,11 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
     BaselineService,
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
-from src.core.modules.project_management.application.financials import CostService, FinanceService
+from src.core.modules.project_management.application.financials import (
+    CostService,
+    FinanceService,
+    ForecastCostService,
+)
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import (
@@ -86,6 +90,7 @@ class ProjectManagementServiceBundle:
     timesheet_service: TimesheetService
     resource_service: ResourceService
     cost_service: CostService
+    forecast_service: ForecastCostService
     finance_service: FinanceService
     work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
     scheduling_engine: SchedulingEngine
@@ -272,6 +277,12 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_runtime_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
+    forecast_service = ForecastCostService(
+        repositories.cost_repo,
+        repositories.project_repo,
+        user_session=platform_services.user_session,
+        module_catalog_service=platform_services.module_runtime_service,
+    )
     reporting_service = ReportingService(
         session=session,
         project_repo=repositories.project_repo,
@@ -388,6 +399,7 @@ def build_project_management_service_bundle(
         timesheet_service=timesheet_service,
         resource_service=resource_service,
         cost_service=cost_service,
+        forecast_service=forecast_service,
         finance_service=finance_service,
         work_calendar_engine=work_calendar_engine,
         scheduling_engine=scheduling_engine,

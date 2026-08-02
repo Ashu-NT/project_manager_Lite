@@ -43,4 +43,4 @@ Add failure injection before/after handler staging, audit, outbox, and decision 
 - Failure-injection tests prove cost state remains unchanged when decision persistence or required audit fails, and no cost success signal escapes a rolled-back transaction.
 - Temporary legacy service switches are marked `TRANSITION(PF-A0-UOW-BRIDGE)` and are registered for deletion at the Phase C dedicated-command cutover.
 
-Durable outbox/inbox selection remains a Phase A2 decision. The current post-commit process-local signals are UI refresh notifications, not a substitute for durable integration delivery.
+ADR-PF-011 now governs durable outbox/inbox ownership. The current post-commit process-local signals remain UI refresh notifications and are not a substitute for durable integration delivery.
