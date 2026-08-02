@@ -331,7 +331,7 @@ policy so users aren't spammed one email per mention).
 
 ---
 
-## Phase 4 — Collaboration depth features (backlog, prioritize freely)
+## Phase 4 - Collaboration depth features (implemented scope and backlog)
 
 These are the "present vs. absent" gaps from audit §3.3 that are about
 richness of interaction, not silence/visibility. None of them are
@@ -361,16 +361,22 @@ freely.
 
 Shipped: comment edit, comment soft-delete, comment threading, comment
 reactions, @everyone/@team mentions, assignee accept/decline, and the
-dedicated-audit-trail query enhancement. Deferred: document version history
-(unchanged from this doc's original scoping — platform-owned) and the
+dedicated-audit-trail query enhancement. The desktop assignment response UI,
+atomic comment revision checking, moderation evidence, and platform runtime
+presence heartbeat are also complete. Deferred: document version history
+(unchanged from this doc's original scoping - platform-owned) and the
 "Delegate" approval quick-action (see below).
 
 **Comment edit + soft-delete + threading + reactions** (one combined pass,
 since they touch the same domain/ORM/repository/DTO files): `TaskComment`
-gained `parent_comment_id`, `updated_at`, `deleted_at`, and a
+gained `parent_comment_id`, `updated_at`, `deleted_at`,
+`deleted_by_user_id`, `deletion_reason`, a persisted `version`, and a
 `reactions: dict[emoji, [user_id, ...]]` field (domain, ORM columns +
 index, migration `7a1b2c3d4e5f`, mapper, and explicit field-copies in
-`SqlAlchemyTaskCommentRepository.update()`). New `CollaborationService`
+`SqlAlchemyTaskCommentRepository.update()`). Migration `i7j8k9l0m1n2` adds
+the revision and moderation columns. Repository updates now use a
+`WHERE id = ... AND version = ...` predicate and raise `STALE_WRITE` when
+another writer wins. New `CollaborationService`
 methods: `edit_comment` (author-only — enforced by comparing the current
 principal's `user_id` against `comment.author_user_id`, raising
 `OperationNotPermittedError` otherwise; re-resolves mentions against the
@@ -396,28 +402,30 @@ row's `state`) is fully wired end-to-end.
 dedicated `TaskCommentCard` instead of the generic `ActivityFeed`. It renders
 full bodies, attachment/document context, edited/deleted state, reply nesting,
 parent-author context, reply counts, reaction chips, and an anchored reaction
-picker. The existing composer now has create/reply/edit modes, deletion uses
-a soft-delete confirmation, and the public task workspace controller exposes
+picker. The existing composer now has create/reply/edit modes and carries the
+loaded revision on edit. Deletion uses a moderation dialog that carries the
+revision and optional reason, and the public task workspace controller exposes
 all mutations in QML type metadata. Action visibility is computed from the
 current principal's global/project permissions and comment ownership in the
 application/API path. Roots are newest-first and replies are chronological,
 which keeps active discussions discoverable without breaking thread context.
 
 Verification on 2026-08-02:
-- focused collaboration/controller/architecture tests: **21 passed**;
+- focused collaboration/controller/runtime and QML architecture tests:
+  **68 passed**;
 - changed-file QML lint: **clean with no warnings**;
-- complete `src/tests/project_management` run: **309 passed, 3 failed**. The
+- complete in-memory Alembic upgrade: **passed**, single head
+  `i7j8k9l0m1n2`;
+- complete `src/tests/project_management` run: **314 passed, 3 failed**. The
   remaining failures are not collaboration regressions: two dashboard trend
   tests use fixed May 2026 timestamps against rolling current-date windows,
   and one import test expects an RBAC denial before the now-earlier module
   entitlement denial.
 
-Remaining comment hardening, tracked separately from the completed UI path:
-- add true optimistic concurrency for simultaneous comment edits (a persisted
-  revision checked atomically by the repository, not a UI-only timestamp);
-- add explicit moderation evidence (`deleted_by_user_id` and optional reason)
-  if compliance requirements demand more than the preserved soft-deleted body
-  and general activity/audit facilities.
+Comment hardening is complete for the approved scope: simultaneous stale
+edits/deletes are rejected using a persisted atomic revision, and soft-delete
+records the deleting principal plus an optional reason while preserving the
+original body.
 
 **@everyone / @team mentions:** `resolve_mentions()` special-cases the
 literal tokens `everyone`/`team` to expand to every candidate's `user_id`
@@ -427,15 +435,27 @@ were untouched. The mention-picker option list
 entry first.
 
 **Assignee accept/decline:** `TaskAssignment` gained `response_status`
-(`pending`/`accepted`/`declined`, default `pending` so existing assignments
-and every test that creates one are unaffected — nothing today reads or
-gates on this field) and `responded_at` (migration `8b2c3d4e5f6a`).
+(`pending`/`accepted`/`declined`, default `pending`) and `responded_at`
+(migration `8b2c3d4e5f6a`).
 `TaskAssignmentMixin.accept_assignment`/`decline_assignment` resolve the
 assignment → resource → `Employee.user_id` chain (the same link Phase 1
 added) and only allow the assignee's own linked user account to respond
 (`OperationNotPermittedError` otherwise; `BusinessRuleError` if the resource
 has no linked user at all, since there's no one to ask). Desktop API:
 `ProjectManagementTasksDesktopApi.accept_assignment`/`decline_assignment`.
+The task Assignments section now displays response status and server-derived
+capabilities. Selecting a pending assignment shows Accept/Decline only to the
+linked assignee; manager-only allocation, hours, and removal actions are shown
+from the same capability context. Accept uses a confirmation dialog, decline
+requires a reason, and completed responses cannot be reversed without a new
+assignment handoff.
+
+**Presence heartbeat:** `ShellRuntimeSessionController` now emits a generic
+authenticated `runtimeHeartbeat` while the application is active. The PM
+collaboration controller subscribes to that platform lifecycle signal, touches
+the active task presence row, and refreshes only the presence collection. This
+avoids a task-specific timer and keeps the TTL as the abnormal-exit fallback.
+It remains polling against the shared database, not cross-session push.
 
 **Dedicated assignment/status audit trail:** rather than a new table (the
 generic `activity_entries` table + `record_activity` plumbing already had
@@ -491,8 +511,8 @@ now remains accurate — nothing about their disabled state changed.
 
 1. Verify the completed Phase 4 task comment UX with real seeded users and
    project-scoped roles.
-2. Add the assignment accept/decline desktop actions or remove any remaining
-   disabled affordances until that UI is ready.
+2. Verify assignment accept/decline with linked employee user accounts and
+   project-scoped roles; the desktop action path is now complete.
 3. Keep Phases 1 through 3 deferred until the team approves one complete app
    notification scope; do not ship only another partial delivery mechanism.
 4. Track document versioning as a separate platform-owned initiative.

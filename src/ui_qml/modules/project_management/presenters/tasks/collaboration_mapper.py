@@ -48,6 +48,8 @@ def to_collaboration_comment_record_view_model(comment) -> CollaborationRecordVi
             "canEdit": bool(getattr(comment, "can_edit", False)),
             "canDelete": bool(getattr(comment, "can_delete", False)),
             "canReact": bool(getattr(comment, "can_react", False)),
+            "revision": int(getattr(comment, "revision", 1) or 1),
+            "deletionReason": str(getattr(comment, "deletion_reason", "") or ""),
             "reactions": [
                 {
                     "emoji": reaction.emoji,

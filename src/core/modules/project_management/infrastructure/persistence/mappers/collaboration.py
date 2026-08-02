@@ -29,7 +29,10 @@ def task_comment_to_orm(comment: TaskComment) -> TaskCommentORM:
         parent_comment_id=comment.parent_comment_id,
         updated_at=comment.updated_at,
         deleted_at=comment.deleted_at,
+        deleted_by_user_id=comment.deleted_by_user_id,
+        deletion_reason=comment.deletion_reason,
         reactions_json=json.dumps(dict(comment.reactions or {})),
+        version=comment.version,
     )
 
 
@@ -58,7 +61,10 @@ def task_comment_from_orm(obj: TaskCommentORM) -> TaskComment:
         parent_comment_id=obj.parent_comment_id,
         updated_at=_coerce_utc_datetime(obj.updated_at) if obj.updated_at is not None else None,
         deleted_at=_coerce_utc_datetime(obj.deleted_at) if obj.deleted_at is not None else None,
+        deleted_by_user_id=obj.deleted_by_user_id,
+        deletion_reason=obj.deletion_reason,
         reactions=_decode_reactions(obj.reactions_json),
+        version=obj.version,
     )
 
 

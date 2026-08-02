@@ -104,6 +104,8 @@ class TaskCollaborationCommentDesktopDto:
     can_edit: bool = False
     can_delete: bool = False
     can_react: bool = False
+    revision: int = 1
+    deletion_reason: str = ""
 
 
 @dataclass(frozen=True)

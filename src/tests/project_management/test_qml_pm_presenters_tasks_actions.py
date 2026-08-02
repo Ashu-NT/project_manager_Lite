@@ -142,7 +142,11 @@ def test_pm_tasks_time_entries_collaboration_and_bulk_delete(tmp_path: Path, qap
         }
     )
     edit_result = controller.editTaskComment(
-        {"commentId": "comment-1", "body": "Updated execution window."}
+        {
+            "commentId": "comment-1",
+            "body": "Updated execution window.",
+            "expectedRevision": 1,
+        }
     )
     reaction_result = controller.reactToTaskComment(
         {"commentId": "comment-1", "emoji": "\N{THUMBS UP SIGN}"}
@@ -150,7 +154,13 @@ def test_pm_tasks_time_entries_collaboration_and_bulk_delete(tmp_path: Path, qap
     removal_result = controller.removeTaskCommentReaction(
         {"commentId": "comment-1", "emoji": "\N{THUMBS UP SIGN}"}
     )
-    delete_result = controller.deleteTaskComment("comment-1")
+    delete_result = controller.deleteTaskComment(
+        {
+            "commentId": "comment-1",
+            "expectedRevision": 4,
+            "reason": "Superseded guidance",
+        }
+    )
 
     assert reply_result["ok"] is True
     assert collaboration_service.posted_comments[-1]["parent_comment_id"] == "comment-1"
@@ -160,9 +170,15 @@ def test_pm_tasks_time_entries_collaboration_and_bulk_delete(tmp_path: Path, qap
     assert delete_result == {"ok": True, "message": "Comment deleted."}
     assert collaboration_service.edited_comment_ids == ["comment-1"]
     assert collaboration_service.deleted_comment_ids == ["comment-1"]
+    assert collaboration_service._comments[0].deletion_reason == "Superseded guidance"
 
     begin_presence_result = controller.beginTaskPresence("task-1", "editing")
     assert begin_presence_result["ok"] is True
+
+    heartbeat_count = len(collaboration_service.touched_presence)
+    controller._collab_ctrl._on_runtime_heartbeat()
+    assert len(collaboration_service.touched_presence) == heartbeat_count + 1
+    assert collaboration_service.touched_presence[-1] == ("task-1", "editing")
 
     end_presence_result = controller.endTaskPresence("task-1")
     assert end_presence_result["ok"] is True
@@ -189,4 +205,38 @@ def test_pm_tasks_time_entries_collaboration_and_bulk_delete(tmp_path: Path, qap
     assert bulk_delete_result == {"ok": True, "message": "Selected tasks deleted."}
     assert [item["id"] for item in controller.tasks["items"]] == ["task-2", "task-3"]
     assert controller.selectedTaskIds == []
+
+
+def test_pm_assignment_response_actions_are_exposed_and_executed(tmp_path: Path, qapp) -> None:
+    bundle = build_task_controller_bundle(tmp_path)
+    controller = bundle["controller"]
+    task_service = bundle["task_service"]
+
+    controller.activateTask("task-1")
+    controller.loadSelectedTaskAssignments()
+    wait_until(qapp, lambda: len(controller.assignments["items"]) == 1)
+
+    assignment_item = controller.assignments["items"][0]
+    assert assignment_item["state"]["canAccept"] is True
+    assert assignment_item["state"]["canDecline"] is True
+
+    accepted = controller.acceptAssignment("assign-1")
+    assert accepted == {"ok": True, "message": "Assignment accepted."}
+    assert task_service._assignments["assign-1"].response_status == "accepted"
+
+    task_service._assignments["assign-1"].response_status = "pending"
+    controller.refresh()
+    wait_until(
+        qapp,
+        lambda: controller.assignments["items"][0]["state"]["responseStatus"] == "pending",
+    )
+    declined = controller.declineAssignment(
+        {
+            "assignmentId": "assign-1",
+            "reason": "Capacity committed to commissioning",
+        }
+    )
+    assert declined == {"ok": True, "message": "Assignment declined."}
+    assert task_service._assignments["assign-1"].response_status == "declined"
+    assert task_service._assignments["assign-1"].decline_reason == "Capacity committed to commissioning"
     assert controller.selectedTaskCount == 0

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, datetime, timezone
 
 import pytest
@@ -72,7 +73,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
     TaskDependencyORM,
     TaskORM,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError
 from src.core.platform.infrastructure.persistence.orm.enterprise_calendar import PlatformCalendarORM
 
 
@@ -228,3 +229,26 @@ def test_pm_secondary_repositories_reject_cross_organization_writes(services):
         scoring_repo.update(PortfolioScoringTemplate(id=seeded["template_b"], organization_id=seeded["other_org"].id, name="Blocked"))
     with pytest.raises(NotFoundError):
         dependency_repo.add(PortfolioProjectDependency(id="portfolio-dependency-blocked", predecessor_project_id=seeded["project_b"], successor_project_id=seeded["project_b_secondary"]))
+
+
+def test_task_comment_repository_rejects_stale_atomic_update(services):
+    seeded = _seed_priority_pm_rows(services)
+    services["organization_service"].set_active_organization(seeded["default_org"].id)
+    repository = services["collaboration_service"]._comment_repo
+    session = services["session"]
+
+    current = repository.get(seeded["comment_a"])
+    assert current is not None
+    stale = replace(current)
+
+    current.body = "Current revision"
+    repository.update(current)
+    session.commit()
+    assert current.version == 2
+
+    stale.body = "Stale revision"
+    with pytest.raises(ConcurrencyError) as exc:
+        repository.update(stale)
+    session.rollback()
+
+    assert exc.value.code == "STALE_WRITE"

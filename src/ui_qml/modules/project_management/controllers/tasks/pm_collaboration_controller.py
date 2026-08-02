@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import logging
 from typing import Callable
 
-from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtCore import Property, QCoreApplication, QObject, Signal, Slot
 
 from src.ui_qml.modules.project_management.controllers.common import (
     run_mutation,
@@ -12,6 +13,9 @@ from src.ui_qml.modules.project_management.controllers.common import (
 from src.ui_qml.modules.project_management.presenters import (
     ProjectTasksWorkspacePresenter,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class PMCollaborationController(QObject):
@@ -42,6 +46,7 @@ class PMCollaborationController(QObject):
         self._presence_session_activity = ""
         self._presence_override_task_id = ""
         self._last_selected_task_id = ""
+        self._runtime_heartbeat_connected = False
         self._collaboration_mention_options: list[dict[str, str]] = []
         self._collaboration_document_options: list[dict[str, str]] = []
         self._collaboration_comments: dict[str, object] = {
@@ -76,6 +81,7 @@ class PMCollaborationController(QObject):
         )
 
     def sync_review_presence(self, selected_task_id: str) -> None:
+        self._ensure_runtime_heartbeat_connection()
         self._last_selected_task_id = (selected_task_id or "").strip()
         if self._presence_override_task_id:
             return
@@ -109,6 +115,7 @@ class PMCollaborationController(QObject):
 
     @Slot(str, str, result="QVariantMap")
     def beginTaskPresence(self, task_id: str, activity: str) -> dict[str, object]:
+        self._ensure_runtime_heartbeat_connection()
         normalized_task_id = (task_id or "").strip()
         if not normalized_task_id:
             return {
@@ -164,10 +171,10 @@ class PMCollaborationController(QObject):
             set_feedback_message=self._set_feedback_message,
         )
 
-    @Slot(str, result="QVariantMap")
-    def deleteTaskComment(self, comment_id: str) -> dict[str, object]:
+    @Slot("QVariantMap", result="QVariantMap")
+    def deleteTaskComment(self, payload: dict[str, object]) -> dict[str, object]:
         return run_mutation(
-            operation=lambda: self._presenter.delete_task_comment(comment_id),
+            operation=lambda: self._presenter.delete_task_comment(dict(payload)),
             success_message="Comment deleted.",
             on_success=self._facade_refresh,
             set_is_busy=self._set_is_busy,
@@ -243,6 +250,46 @@ class PMCollaborationController(QObject):
         self._presence_session_task_id = ""
         self._presence_session_activity = ""
         self._presenter.clear_task_collaboration_presence(clear_id)
+
+    def _ensure_runtime_heartbeat_connection(self) -> None:
+        if self._runtime_heartbeat_connected:
+            return
+        app = QCoreApplication.instance()
+        runtime_controller = (
+            app.property("runtimeSessionController")
+            if app is not None and hasattr(app, "property")
+            else None
+        )
+        heartbeat_signal = getattr(runtime_controller, "runtimeHeartbeat", None)
+        if heartbeat_signal is None:
+            return
+        heartbeat_signal.connect(self._on_runtime_heartbeat)
+        self._runtime_heartbeat_connected = True
+
+    @Slot()
+    def _on_runtime_heartbeat(self) -> None:
+        task_id = self._presence_session_task_id
+        if not task_id:
+            return
+        try:
+            self._presenter.touch_task_collaboration_presence(
+                task_id,
+                activity=self._presence_session_activity or "reviewing",
+            )
+            workspace_state = self._presenter.build_task_collaboration_state(
+                task_id=task_id,
+            )
+            self._set_collaboration_presence(
+                serialize_collaboration_collection_view_model(
+                    workspace_state.collaboration_presence
+                )
+            )
+        except Exception:
+            logger.warning(
+                "Task presence heartbeat failed task_id=%s",
+                task_id,
+                exc_info=True,
+            )
 
     def _set_collaboration_mention_options(self, v: list) -> None:
         if v == self._collaboration_mention_options:

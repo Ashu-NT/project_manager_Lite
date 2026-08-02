@@ -53,6 +53,14 @@ def delete_assignment(controller, assignment_id: str) -> dict[str, object]:
     return controller._assignments_ctrl.deleteAssignment(assignment_id)
 
 
+def accept_assignment(controller, assignment_id: str) -> dict[str, object]:
+    return controller._assignments_ctrl.acceptAssignment(assignment_id)
+
+
+def decline_assignment(controller, payload: dict[str, object]) -> dict[str, object]:
+    return controller._assignments_ctrl.declineAssignment(payload)
+
+
 def validate_assignment(controller, payload: dict[str, object]) -> dict[str, object]:
     return controller._assignments_ctrl.validateAssignment(payload)
 
@@ -101,8 +109,8 @@ def edit_task_comment(controller, payload: dict[str, object]) -> dict[str, objec
     return controller._collab_ctrl.editTaskComment(payload)
 
 
-def delete_task_comment(controller, comment_id: str) -> dict[str, object]:
-    return controller._collab_ctrl.deleteTaskComment(comment_id)
+def delete_task_comment(controller, payload: dict[str, object]) -> dict[str, object]:
+    return controller._collab_ctrl.deleteTaskComment(payload)
 
 
 def react_to_task_comment(controller, payload: dict[str, object]) -> dict[str, object]:
@@ -129,6 +137,7 @@ def end_task_presence(controller, task_id: str) -> dict[str, object]:
 
 
 __all__ = [
+    "accept_assignment",
     "add_task_time_entry",
     "apply_bulk_status",
     "begin_task_presence",
@@ -138,6 +147,7 @@ __all__ = [
     "create_task",
     "delete_task_comment",
     "delete_assignment",
+    "decline_assignment",
     "delete_dependency",
     "delete_task",
     "delete_task_time_entry",

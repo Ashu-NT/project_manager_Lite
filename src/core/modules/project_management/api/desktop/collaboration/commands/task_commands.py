@@ -18,11 +18,14 @@ class TaskCollaborationPostCommand:
 class TaskCollaborationEditCommand:
     comment_id: str
     body: str
+    expected_revision: int
 
 
 @dataclass(frozen=True)
 class TaskCollaborationDeleteCommand:
     comment_id: str
+    expected_revision: int
+    reason: str | None = None
 
 
 @dataclass(frozen=True)

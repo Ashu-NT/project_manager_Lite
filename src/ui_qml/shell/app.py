@@ -194,20 +194,6 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
         desktop_api_registry=desktop_api_registry,
     )
     logger.debug("Maintenance workspace catalog created.")
-    engine = create_qml_engine()
-    shell_route = registry.get("shell.app")
-    logger.info("Loading shell QML path=%s", shell_route.qml_path)
-    load_qml(
-        engine,
-        shell_route.qml_path,
-        initial_properties={
-            "shellModel": shell_context,
-            "platformCatalog": platform_workspace_catalog,
-            "pmCatalog": pm_workspace_catalog,
-            "inventoryCatalog": inventory_workspace_catalog,
-            "maintenanceCatalog": maintenance_workspace_catalog,
-        },
-    )
     runtime_session_controller = None
     if services is not None:
         try:
@@ -235,9 +221,24 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
             app=app,
             parent=app,
         )
-        runtime_session_controller.start()
         if hasattr(app, "setProperty"):
-            app.setProperty("pmRuntimeSessionController", runtime_session_controller)
+            app.setProperty("runtimeSessionController", runtime_session_controller)
+    engine = create_qml_engine()
+    shell_route = registry.get("shell.app")
+    logger.info("Loading shell QML path=%s", shell_route.qml_path)
+    load_qml(
+        engine,
+        shell_route.qml_path,
+        initial_properties={
+            "shellModel": shell_context,
+            "platformCatalog": platform_workspace_catalog,
+            "pmCatalog": pm_workspace_catalog,
+            "inventoryCatalog": inventory_workspace_catalog,
+            "maintenanceCatalog": maintenance_workspace_catalog,
+        },
+    )
+    if runtime_session_controller is not None:
+        runtime_session_controller.start()
     logger.info("Shell QML loaded; entering Qt event loop.")
     if hasattr(app, "setProperty"):
         app.setProperty("pmEventLoopRunning", True)

@@ -131,6 +131,7 @@ AppWidgets.EntityDialog {
         }
         if (root.mode === "edit") {
             payload.commentId = String(commentState.commentId || root.commentData.id || "")
+            payload.expectedRevision = Number(commentState.revision || 0)
         } else if (root.mode === "reply") {
             payload.parentCommentId = String(commentState.commentId || root.commentData.id || "")
         }

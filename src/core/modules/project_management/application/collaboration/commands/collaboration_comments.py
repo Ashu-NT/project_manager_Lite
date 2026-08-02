@@ -13,6 +13,7 @@ from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
+    ConcurrencyError,
     NotFoundError,
     OperationNotPermittedError,
     ValidationError,
@@ -23,6 +24,16 @@ from src.core.shared.notifications import safe_dispatch_notification
 
 
 class CollaborationCommentCommandMixin:
+    @staticmethod
+    def _require_comment_revision(comment: TaskComment, expected_revision: int | None) -> None:
+        if expected_revision is None:
+            return
+        if comment.version != int(expected_revision):
+            raise ConcurrencyError(
+                "This comment changed after it was loaded. Refresh the discussion and try again.",
+                code="STALE_WRITE",
+            )
+
     def post_comment(
         self,
         *,
@@ -152,7 +163,13 @@ class CollaborationCommentCommandMixin:
             self._session.commit()
             domain_events.collaboration_changed.emit(task_id)
 
-    def edit_comment(self, comment_id: str, body: str) -> TaskComment:
+    def edit_comment(
+        self,
+        comment_id: str,
+        body: str,
+        *,
+        expected_revision: int | None = None,
+    ) -> TaskComment:
         comment = self._comment_repo.get(comment_id)
         if comment is None:
             raise NotFoundError("Comment not found.", code="COLLABORATION_COMMENT_NOT_FOUND")
@@ -160,6 +177,7 @@ class CollaborationCommentCommandMixin:
             raise BusinessRuleError(
                 "A deleted comment cannot be edited.", code="COLLABORATION_COMMENT_DELETED"
             )
+        self._require_comment_revision(comment, expected_revision)
         task = self._require_task(comment.task_id)
         require_permission(self._user_session, "collaboration.manage", operation_label="edit task collaboration update")
         require_project_permission(
@@ -192,7 +210,13 @@ class CollaborationCommentCommandMixin:
         domain_events.collaboration_changed.emit(task.id)
         return comment
 
-    def delete_comment(self, comment_id: str) -> TaskComment:
+    def delete_comment(
+        self,
+        comment_id: str,
+        *,
+        expected_revision: int | None = None,
+        reason: str | None = None,
+    ) -> TaskComment:
         comment = self._comment_repo.get(comment_id)
         if comment is None:
             raise NotFoundError("Comment not found.", code="COLLABORATION_COMMENT_NOT_FOUND")
@@ -205,7 +229,11 @@ class CollaborationCommentCommandMixin:
             operation_label="delete task collaboration update",
         )
         if not comment.is_deleted:
+            self._require_comment_revision(comment, expected_revision)
+            principal = self._user_session.principal if self._user_session is not None else None
             comment.deleted_at = datetime.now(timezone.utc)
+            comment.deleted_by_user_id = getattr(principal, "user_id", None)
+            comment.deletion_reason = reason
             self._comment_repo.update(comment)
             self._session.commit()
             domain_events.collaboration_changed.emit(task.id)

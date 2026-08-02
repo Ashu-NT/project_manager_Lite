@@ -139,6 +139,14 @@ Item {
         collaborationComposerDialog.open()
     }
 
+    function openAssignmentResponseDialog(mode, assignmentData) {
+        root.assignmentTarget = assignmentData || ({})
+        assignmentResponseDialog.mode = String(mode || "accept")
+        assignmentResponseDialog.assignmentData = root.assignmentTarget
+        assignmentResponseDialog.errorMessage = ""
+        assignmentResponseDialog.open()
+    }
+
     function openTaskCommentReplyDialog(commentData, taskData) {
         root.collaborationTarget = taskData || root.selectedTaskData || ({})
         root.collaborationCommentTarget = commentData || ({})
@@ -173,6 +181,8 @@ Item {
 
     function openTaskCommentDeleteDialog(commentData) {
         root.collaborationCommentTarget = commentData || ({})
+        deleteCommentDialog.commentData = root.collaborationCommentTarget
+        deleteCommentDialog.errorMessage = ""
         deleteCommentDialog.open()
     }
 
@@ -315,25 +325,30 @@ Item {
         }
     }
 
-    AppControls.ConfirmationDialog {
+    ProjectManagementDialogs.TaskAssignmentResponseDialog {
+        id: assignmentResponseDialog
+        objectName: "taskAssignmentResponseDialog"
+
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+
+        onSubmitted: function(payload) {
+            if (root.workspaceController === null) return
+            const result = assignmentResponseDialog.mode === "decline"
+                ? root.workspaceController.declineAssignment(payload)
+                : root.workspaceController.acceptAssignment(String(payload.assignmentId || ""))
+            root._handleResult(assignmentResponseDialog, result)
+        }
+    }
+
+    ProjectManagementDialogs.TaskCommentDeleteDialog {
         id: deleteCommentDialog
         objectName: "taskCommentDeleteDialog"
-        title: "Delete Comment"
-        closePolicy: Popup.CloseOnEscape
-        confirmLabel: "Delete Comment"
-        confirmIcon: "delete"
-        confirmDanger: true
-        message: "Delete this comment from the task discussion?"
-        supportingText: "The comment will be replaced with a deletion marker so replies and the historical record remain intact."
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
 
-        onConfirmed: {
+        onSubmitted: function(payload) {
             if (root.workspaceController === null) return
-            const state = root.collaborationCommentTarget && root.collaborationCommentTarget.state
-                ? root.collaborationCommentTarget.state
-                : (root.collaborationCommentTarget || {})
-            root.workspaceController.deleteTaskComment(
-                String(state.commentId || root.collaborationCommentTarget.id || "")
-            )
+            const result = root.workspaceController.deleteTaskComment(payload)
+            root._handleResult(deleteCommentDialog, result)
         }
     }
 

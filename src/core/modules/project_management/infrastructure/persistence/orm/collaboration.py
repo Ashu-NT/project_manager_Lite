@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infra.persistence.orm.base import Base
@@ -36,7 +36,10 @@ class TaskCommentORM(Base):
     )
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    deleted_by_user_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    deletion_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     reactions_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}", server_default="{}")
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
 Index("idx_task_comments_task", TaskCommentORM.task_id)

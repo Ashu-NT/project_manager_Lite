@@ -54,6 +54,7 @@ class _FakeCollaborationService:
                 mentions=["planner"],
                 attachments=["handover.txt"],
                 created_at=datetime(2026, 5, 1, 8, 45),
+                version=1,
             )
         ]
         self._comment_documents: dict[str, list[SimpleNamespace]] = {
@@ -162,6 +163,7 @@ class _FakeCollaborationService:
             mentions=["planner"],
             attachments=list(attachments),
             created_at=datetime(2026, 5, 1, 10, 15),
+            version=1,
         )
         self._comments.append(comment)
         self._comment_documents[comment.id] = [
@@ -177,16 +179,34 @@ class _FakeCollaborationService:
         ]
         return comment
 
-    def edit_comment(self, comment_id: str, body: str) -> SimpleNamespace:
+    def edit_comment(
+        self,
+        comment_id: str,
+        body: str,
+        *,
+        expected_revision: int | None = None,
+    ) -> SimpleNamespace:
         comment = next(comment for comment in self._comments if comment.id == comment_id)
+        assert expected_revision == comment.version
         comment.body = body
         comment.updated_at = datetime(2026, 5, 1, 11, 0)
+        comment.version += 1
         self.edited_comment_ids.append(comment_id)
         return comment
 
-    def delete_comment(self, comment_id: str) -> SimpleNamespace:
+    def delete_comment(
+        self,
+        comment_id: str,
+        *,
+        expected_revision: int | None = None,
+        reason: str | None = None,
+    ) -> SimpleNamespace:
         comment = next(comment for comment in self._comments if comment.id == comment_id)
+        assert expected_revision == comment.version
         comment.deleted_at = datetime(2026, 5, 1, 11, 5)
+        comment.deleted_by_user_id = "user-alex"
+        comment.deletion_reason = reason
+        comment.version += 1
         self.deleted_comment_ids.append(comment_id)
         return comment
 
@@ -195,6 +215,7 @@ class _FakeCollaborationService:
         reactions = dict(getattr(comment, "reactions", {}) or {})
         reactions[emoji] = ["user-alex"]
         comment.reactions = reactions
+        comment.version += 1
         self.added_reactions.append((comment_id, emoji))
         return comment
 
@@ -203,6 +224,7 @@ class _FakeCollaborationService:
         reactions = dict(getattr(comment, "reactions", {}) or {})
         reactions.pop(emoji, None)
         comment.reactions = reactions
+        comment.version += 1
         self.removed_reactions.append((comment_id, emoji))
         return comment
 
@@ -270,8 +292,36 @@ class _FakeTaskService:
             allocation_percent=allocation_percent,
             hours_logged=0.0,
             project_resource_id=project_resource_id,
+            response_status="pending",
+            responded_at=None,
         )
         self._assignments[assignment.id] = assignment
+        return assignment
+
+    def get_assignment_action_context(self, assignment_id: str) -> SimpleNamespace:
+        assignment = self._assignments[assignment_id]
+        can_respond = assignment.response_status == "pending"
+        return SimpleNamespace(
+            can_manage=True,
+            can_accept=can_respond,
+            can_decline=can_respond,
+        )
+
+    def accept_assignment(self, assignment_id: str) -> SimpleNamespace:
+        assignment = self._assignments[assignment_id]
+        assignment.response_status = "accepted"
+        assignment.responded_at = datetime(2026, 5, 1, 12, 0)
+        return assignment
+
+    def decline_assignment(
+        self,
+        assignment_id: str,
+        reason: str | None = None,
+    ) -> SimpleNamespace:
+        assignment = self._assignments[assignment_id]
+        assignment.response_status = "declined"
+        assignment.responded_at = datetime(2026, 5, 1, 12, 0)
+        assignment.decline_reason = reason
         return assignment
 
     def add_dependency(

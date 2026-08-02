@@ -15,7 +15,9 @@ from src.ui_qml.modules.project_management.view_models.tasks import (
 )
 
 from .assignment_command_handler import (
+    accept_assignment,
     create_assignment,
+    decline_assignment,
     delete_assignment,
     preview_assignment,
     set_assignment_hours,
@@ -268,6 +270,12 @@ class ProjectTasksWorkspacePresenter:
     def delete_assignment(self, assignment_id: str) -> None:
         delete_assignment(self._desktop_api, assignment_id)
 
+    def accept_assignment(self, assignment_id: str) -> None:
+        accept_assignment(self._desktop_api, assignment_id)
+
+    def decline_assignment(self, payload: dict[str, Any]) -> None:
+        decline_assignment(self._desktop_api, payload)
+
     def apply_bulk_status(self, payload: dict[str, Any]) -> None:
         apply_bulk_status(self._desktop_api, payload)
 
@@ -289,8 +297,8 @@ class ProjectTasksWorkspacePresenter:
     def edit_task_comment(self, payload: dict[str, Any]) -> None:
         edit_task_comment(self._collaboration_desktop_api, payload)
 
-    def delete_task_comment(self, comment_id: str) -> None:
-        delete_task_comment(self._collaboration_desktop_api, comment_id)
+    def delete_task_comment(self, payload: dict[str, Any]) -> None:
+        delete_task_comment(self._collaboration_desktop_api, payload)
 
     def react_to_task_comment(self, payload: dict[str, Any]) -> None:
         react_to_task_comment(self._collaboration_desktop_api, payload)

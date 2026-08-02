@@ -162,6 +162,8 @@ def serialize_task_comment(
         ),
         can_delete=bool(can_manage and not is_deleted),
         can_react=bool(can_read and principal_user_id and not is_deleted),
+        revision=int(getattr(comment, "version", 1) or 1),
+        deletion_reason=str(getattr(comment, "deletion_reason", "") or ""),
     )
 
 

@@ -604,6 +604,14 @@ class ProjectManagementTasksWorkspaceController(
     def deleteAssignment(self, assignment_id: str) -> dict[str, object]:
         return _mut.delete_assignment(self, assignment_id)
 
+    @Slot(str, result="QVariantMap")
+    def acceptAssignment(self, assignment_id: str) -> dict[str, object]:
+        return _mut.accept_assignment(self, assignment_id)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def declineAssignment(self, payload: dict[str, object]) -> dict[str, object]:
+        return _mut.decline_assignment(self, payload)
+
     @Slot("QVariantMap", result="QVariantMap")
     def validateAssignment(self, payload: dict[str, object]) -> dict[str, object]:
         return _mut.validate_assignment(self, payload)
@@ -652,9 +660,9 @@ class ProjectManagementTasksWorkspaceController(
     def editTaskComment(self, payload: dict[str, object]) -> dict[str, object]:
         return _mut.edit_task_comment(self, payload)
 
-    @Slot(str, result="QVariantMap")
-    def deleteTaskComment(self, comment_id: str) -> dict[str, object]:
-        return _mut.delete_task_comment(self, comment_id)
+    @Slot("QVariantMap", result="QVariantMap")
+    def deleteTaskComment(self, payload: dict[str, object]) -> dict[str, object]:
+        return _mut.delete_task_comment(self, payload)
 
     @Slot("QVariantMap", result="QVariantMap")
     def reactToTaskComment(self, payload: dict[str, object]) -> dict[str, object]:

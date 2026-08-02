@@ -70,6 +70,8 @@ Item {
     signal editAllocationRequested(var assignmentData)
     signal setHoursRequested(var assignmentData)
     signal deleteAssignmentRequested(var assignmentData)
+    signal acceptAssignmentRequested(var assignmentData)
+    signal declineAssignmentRequested(var assignmentData)
 
     signal createDependencyRequested()
     signal editDependencyRequested(var payload)
@@ -270,6 +272,8 @@ Item {
                     onEditAllocationRequested: function(d) { root.editAllocationRequested(d) }
                     onSetHoursRequested: function(d) { root.setHoursRequested(d) }
                     onDeleteRequested: function(d) { root.deleteAssignmentRequested(d) }
+                    onAcceptRequested: function(d) { root.acceptAssignmentRequested(d) }
+                    onDeclineRequested: function(d) { root.declineAssignmentRequested(d) }
                 }
             }
         }

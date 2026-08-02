@@ -468,6 +468,12 @@ AppLayouts.WorkspaceFrame {
                     onDeleteAssignmentRequested: function(assignmentData) {
                         dialogHostLoader.invoke("openDeleteAssignmentDialog", assignmentData)
                     }
+                    onAcceptAssignmentRequested: function(assignmentData) {
+                        dialogHostLoader.invoke("openAssignmentResponseDialog", "accept", assignmentData)
+                    }
+                    onDeclineAssignmentRequested: function(assignmentData) {
+                        dialogHostLoader.invoke("openAssignmentResponseDialog", "decline", assignmentData)
+                    }
 
                     onCreateDependencyRequested: dialogHostLoader.invoke("openCreateDependencyDialog", root.selectedTaskModel)
                     onDependencySelectionChanged: function(dependencyData) {

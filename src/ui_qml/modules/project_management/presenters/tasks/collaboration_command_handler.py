@@ -28,20 +28,39 @@ def post_task_comment(collaboration_desktop_api, payload: dict[str, Any]) -> Non
     collaboration_desktop_api.post_task_comment(command)
 
 def edit_task_comment(collaboration_desktop_api, payload: dict[str, Any]) -> None:
+    try:
+        expected_revision = int(payload.get("expectedRevision"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Comment revision is required. Refresh the discussion and try again.") from exc
+    if expected_revision < 1:
+        raise ValueError("Comment revision is invalid. Refresh the discussion and try again.")
     command = TaskCollaborationEditCommand(
         comment_id=require_text(
             payload, "commentId", "Select a comment before editing it."
         ),
         body=require_text(payload, "body", "Comment text is required."),
+        expected_revision=expected_revision,
     )
     collaboration_desktop_api.edit_task_comment(command)
 
-def delete_task_comment(collaboration_desktop_api, comment_id: str) -> None:
-    normalized_comment_id = (comment_id or "").strip()
-    if not normalized_comment_id:
-        raise ValueError("Select a comment before deleting it.")
+def delete_task_comment(collaboration_desktop_api, payload: dict[str, Any]) -> None:
+    normalized_comment_id = require_text(
+        payload,
+        "commentId",
+        "Select a comment before deleting it.",
+    )
+    try:
+        expected_revision = int(payload.get("expectedRevision"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Comment revision is required. Refresh the discussion and try again.") from exc
+    if expected_revision < 1:
+        raise ValueError("Comment revision is invalid. Refresh the discussion and try again.")
     collaboration_desktop_api.delete_task_comment(
-        TaskCollaborationDeleteCommand(comment_id=normalized_comment_id)
+        TaskCollaborationDeleteCommand(
+            comment_id=normalized_comment_id,
+            expected_revision=expected_revision,
+            reason=(str(payload.get("reason") or "").strip() or None),
+        )
     )
 
 def react_to_task_comment(collaboration_desktop_api, payload: dict[str, Any]) -> None:

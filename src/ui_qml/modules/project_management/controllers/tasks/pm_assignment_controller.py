@@ -145,6 +145,28 @@ class PMAssignmentController(QObject):
             set_feedback_message=self._set_feedback_message,
         )
 
+    @Slot(str, result="QVariantMap")
+    def acceptAssignment(self, assignment_id: str) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._presenter.accept_assignment(assignment_id),
+            success_message="Assignment accepted.",
+            on_success=self._facade_refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def declineAssignment(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._presenter.decline_assignment(dict(payload)),
+            success_message="Assignment declined.",
+            on_success=self._facade_refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
     @Slot("QVariantMap", result="QVariantMap")
     def validateAssignment(self, payload: dict[str, object]) -> dict[str, object]:
         try:

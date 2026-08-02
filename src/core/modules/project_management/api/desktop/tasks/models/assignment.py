@@ -14,6 +14,9 @@ class TaskAssignmentDesktopDto:
     project_resource_id: str | None
     response_status: str = "pending"
     response_status_label: str = "Pending"
+    can_manage: bool = False
+    can_accept: bool = False
+    can_decline: bool = False
 
 
 __all__ = ["TaskAssignmentDesktopDto"]

@@ -9,7 +9,9 @@ ResourceEditorDialog 1.0 ResourceEditorDialog.qml
 ResourceSkillEditorDialog 1.0 ResourceSkillEditorDialog.qml
 TaskAssignmentEditorDialog 1.0 TaskAssignmentEditorDialog.qml
 TaskAssignmentHoursDialog 1.0 TaskAssignmentHoursDialog.qml
+TaskAssignmentResponseDialog 1.0 TaskAssignmentResponseDialog.qml
 TaskCollaborationComposerDialog 1.0 TaskCollaborationComposerDialog.qml
+TaskCommentDeleteDialog 1.0 TaskCommentDeleteDialog.qml
 TaskDependencyEditorDialog 1.0 TaskDependencyEditorDialog.qml
 TaskEditorDialog 1.0 TaskEditorDialog.qml
 TaskProgressDialog 1.0 TaskProgressDialog.qml

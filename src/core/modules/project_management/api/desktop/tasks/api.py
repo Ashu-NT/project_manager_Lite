@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import date
 
 from src.core.modules.project_management.api.desktop.scheduling.builders.change_impact_builder import (
@@ -121,6 +122,9 @@ from src.core.modules.project_management.application.scheduling.forecasting.sche
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
 from src.core.platform.common.exceptions import BusinessRuleError
+
+
+logger = logging.getLogger(__name__)
 
 
 class ProjectManagementTasksDesktopApi:
@@ -316,10 +320,30 @@ class ProjectManagementTasksDesktopApi:
                 -float(getattr(assignment, "allocation_percent", 0.0) or 0.0),
             ),
         )
-        return tuple(
-            serialize_assignment(assignment, resources_by_id=resources_by_id)
-            for assignment in assignments
-        )
+        action_context_method = getattr(service, "get_assignment_action_context", None)
+        rows: list[TaskAssignmentDesktopDto] = []
+        for assignment in assignments:
+            action_context = None
+            if callable(action_context_method):
+                try:
+                    action_context = action_context_method(assignment.id)
+                except Exception:
+                    logger.warning(
+                        "Assignment capabilities could not be resolved assignment_id=%s",
+                        assignment.id,
+                        exc_info=True,
+                    )
+                    action_context = None
+            rows.append(
+                serialize_assignment(
+                    assignment,
+                    resources_by_id=resources_by_id,
+                    can_manage=bool(getattr(action_context, "can_manage", False)),
+                    can_accept=bool(getattr(action_context, "can_accept", False)),
+                    can_decline=bool(getattr(action_context, "can_decline", False)),
+                )
+            )
+        return tuple(rows)
 
     def create_assignment(
         self,

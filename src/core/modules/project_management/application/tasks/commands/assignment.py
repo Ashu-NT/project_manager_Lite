@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
@@ -17,6 +17,7 @@ from src.core.modules.project_management.contracts.repositories.task import (
 from src.core.modules.project_management.domain.tasks.task import TaskAssignment
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
+from src.core.platform.authorization import get_authorization_engine
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     NotFoundError,
@@ -25,6 +26,13 @@ from src.core.platform.common.exceptions import (
 )
 from src.core.shared.events.domain_events import domain_events
 from src.core.shared.notifications import safe_dispatch_notification
+
+
+@dataclass(frozen=True)
+class TaskAssignmentActionContext:
+    can_manage: bool
+    can_accept: bool
+    can_decline: bool
 
 
 class TaskAssignmentMixin:
@@ -298,8 +306,75 @@ class TaskAssignmentMixin:
             )
         return assignment, task, resource
 
+    def get_assignment_action_context(
+        self,
+        assignment_id: str,
+    ) -> TaskAssignmentActionContext:
+        """Return fail-closed assignment capabilities for desktop presentation."""
+        assignment = self._assignment_repo.get(assignment_id)
+        if assignment is None:
+            raise NotFoundError("Assignment not found.", code="ASSIGNMENT_NOT_FOUND")
+        task = self._task_repo.get(assignment.task_id)
+        if task is None:
+            raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+
+        engine = get_authorization_engine()
+        can_read = engine.has_permission(
+            self._user_session,
+            "task.read",
+        ) and engine.has_scope_permission(
+            self._user_session,
+            "project",
+            task.project_id,
+            "task.read",
+        )
+        can_manage = engine.has_permission(
+            self._user_session,
+            "task.manage",
+        ) and engine.has_scope_permission(
+            self._user_session,
+            "project",
+            task.project_id,
+            "task.manage",
+        )
+
+        principal = (
+            self._user_session.principal
+            if self._user_session is not None
+            else None
+        )
+        principal_user_id = str(getattr(principal, "user_id", "") or "").strip()
+        resource = self._resource_repo.get(assignment.resource_id)
+        employee_repo = getattr(self, "_employee_repo", None)
+        employee = None
+        if (
+            resource is not None
+            and employee_repo is not None
+            and getattr(resource, "employee_id", None)
+        ):
+            employee = employee_repo.get(resource.employee_id)
+        assignee_user_id = str(getattr(employee, "user_id", "") or "").strip()
+        can_respond = bool(
+            can_read
+            and principal_user_id
+            and principal_user_id == assignee_user_id
+            and assignment.response_status == "pending"
+        )
+        return TaskAssignmentActionContext(
+            can_manage=bool(can_manage),
+            can_accept=can_respond,
+            can_decline=can_respond,
+        )
+
     def accept_assignment(self, assignment_id: str) -> TaskAssignment:
         assignment, task, resource = self._resolve_assignment_for_response(assignment_id)
+        if assignment.response_status == "accepted":
+            return assignment
+        if assignment.response_status != "pending":
+            raise BusinessRuleError(
+                "This assignment has already been declined and must be reassigned before it can be accepted.",
+                code="ASSIGNMENT_ALREADY_RESPONDED",
+            )
         candidate = replace(
             assignment,
             response_status="accepted",
@@ -323,8 +398,19 @@ class TaskAssignmentMixin:
         domain_events.tasks_changed.emit(task.project_id)
         return candidate
 
-    def decline_assignment(self, assignment_id: str, reason: str | None = None) -> TaskAssignment:
+    def decline_assignment(
+        self,
+        assignment_id: str,
+        reason: str | None = None,
+    ) -> TaskAssignment:
         assignment, task, resource = self._resolve_assignment_for_response(assignment_id)
+        if assignment.response_status == "declined":
+            return assignment
+        if assignment.response_status != "pending":
+            raise BusinessRuleError(
+                "This assignment has already been accepted and must be reassigned before it can be declined.",
+                code="ASSIGNMENT_ALREADY_RESPONDED",
+            )
         candidate = replace(
             assignment,
             response_status="declined",
@@ -369,4 +455,4 @@ class TaskAssignmentMixin:
         )
 
 
-__all__ = ["TaskAssignmentMixin"]
+__all__ = ["TaskAssignmentActionContext", "TaskAssignmentMixin"]

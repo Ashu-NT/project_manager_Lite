@@ -206,7 +206,11 @@ class ProjectManagementCollaborationDesktopApi:
         if not normalized_comment_id:
             raise ValueError("Comment ID is required to edit a collaboration update.")
         service = self._require_collaboration_service()
-        comment = service.edit_comment(normalized_comment_id, command.body)
+        comment = service.edit_comment(
+            normalized_comment_id,
+            command.body,
+            expected_revision=command.expected_revision,
+        )
         linked_documents = service.list_comment_documents(comment.task_id).get(comment.id, ())
         return serialize_task_comment(comment, linked_documents=linked_documents)
 
@@ -218,7 +222,11 @@ class ProjectManagementCollaborationDesktopApi:
         if not normalized_comment_id:
             raise ValueError("Comment ID is required to delete a collaboration update.")
         service = self._require_collaboration_service()
-        comment = service.delete_comment(normalized_comment_id)
+        comment = service.delete_comment(
+            normalized_comment_id,
+            expected_revision=command.expected_revision,
+            reason=command.reason,
+        )
         linked_documents = service.list_comment_documents(comment.task_id).get(comment.id, ())
         return serialize_task_comment(comment, linked_documents=linked_documents)
 

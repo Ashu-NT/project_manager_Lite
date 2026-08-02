@@ -4,6 +4,8 @@ Component {
     prototype: "QObject"
     Property { name: "assignmentPreview"; type: "QVariantMap"; isReadonly: true }
     Method { name: "previewAssignment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "acceptAssignment"; type: "QVariantMap"; Parameter { name: "assignmentId"; type: "QString" } }
+    Method { name: "declineAssignment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
 }
 
 
@@ -99,12 +101,14 @@ Component {
     Method { name: "lockTaskPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "unlockTaskPeriod"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "deleteAssignment"; type: "QVariantMap"; Parameter { name: "assignmentId"; type: "QString" } }
+    Method { name: "acceptAssignment"; type: "QVariantMap"; Parameter { name: "assignmentId"; type: "QString" } }
+    Method { name: "declineAssignment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "createDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "updateDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "deleteDependency"; type: "QVariantMap"; Parameter { name: "dependencyId"; type: "QString" } }
     Method { name: "postTaskComment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "editTaskComment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
-    Method { name: "deleteTaskComment"; type: "QVariantMap"; Parameter { name: "commentId"; type: "QString" } }
+    Method { name: "deleteTaskComment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "reactToTaskComment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "removeTaskCommentReaction"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "activateTask"; Parameter { name: "task_id"; type: "QString" } }

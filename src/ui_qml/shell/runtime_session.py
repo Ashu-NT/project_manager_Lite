@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 class ShellRuntimeSessionController(QObject):
     sessionExpired = Signal()
     reauthenticated = Signal()
+    runtimeHeartbeat = Signal()
 
     def __init__(
         self,
@@ -68,6 +69,8 @@ class ShellRuntimeSessionController(QObject):
         if is_authenticated:
             self._last_authenticated = True
             self._sync_shell_identity()
+            if self._application_is_active():
+                self.runtimeHeartbeat.emit()
             return
         if not self._last_authenticated:
             return
@@ -121,6 +124,17 @@ class ShellRuntimeSessionController(QObject):
         if principal is None:
             return ""
         return str(principal.username or "").strip()
+
+    def _application_is_active(self) -> bool:
+        if self._app is None or not hasattr(self._app, "applicationState"):
+            return True
+        state = self._app.applicationState()
+        active_state = Qt.ApplicationState.ApplicationActive
+        return state == active_state or getattr(state, "value", state) == getattr(
+            active_state,
+            "value",
+            active_state,
+        )
 
     @staticmethod
     def _default_quit_application() -> None:

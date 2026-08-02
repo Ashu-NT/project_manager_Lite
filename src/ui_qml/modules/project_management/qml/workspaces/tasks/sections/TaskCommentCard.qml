@@ -113,6 +113,13 @@ Rectangle {
             wrapMode: Text.WordWrap
         }
 
+        AppWidgets.InlineMessage {
+            Layout.fillWidth: true
+            visible: root._isDeleted && String(root._state.deletionReason || "").length > 0
+            tone: "neutral"
+            message: "Removal reason: " + String(root._state.deletionReason || "")
+        }
+
         Flow {
             Layout.fillWidth: true
             spacing: Theme.AppTheme.spacingXs

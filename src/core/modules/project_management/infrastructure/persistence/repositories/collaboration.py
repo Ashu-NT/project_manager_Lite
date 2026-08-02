@@ -21,6 +21,7 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.coll
 from src.core.modules.project_management.infrastructure.persistence.orm.collaboration import TaskCommentORM, TaskPresenceORM
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.tenancy.tenant_context import TenantContext, TenantContextService
+from src.infra.persistence.db.optimistic import update_with_version_check
 
 
 class SqlAlchemyTaskCommentRepository(TaskCommentRepository):
@@ -69,29 +70,38 @@ class SqlAlchemyTaskCommentRepository(TaskCommentRepository):
         self.session.add(task_comment_to_orm(comment))
 
     def update(self, comment: TaskComment) -> None:
-        row = (
-            self.session.execute(
-                self._project_scoped_stmt().where(TaskCommentORM.id == comment.id)
-            ).scalar_one_or_none()
-        )
-        if row is None:
+        existing = self.get(comment.id)
+        if existing is None:
             raise NotFoundError("Task comment not found.")
         self._ensure_task_in_scope(comment.task_id)
         mapped = task_comment_to_orm(comment)
-        row.task_id = mapped.task_id
-        row.author_user_id = mapped.author_user_id
-        row.author_username = mapped.author_username
-        row.body = mapped.body
-        row.mentions_json = mapped.mentions_json
-        row.mentioned_user_ids_json = mapped.mentioned_user_ids_json
-        row.attachments_json = mapped.attachments_json
-        row.read_by_json = mapped.read_by_json
-        row.read_by_user_ids_json = mapped.read_by_user_ids_json
-        row.created_at = mapped.created_at
-        row.parent_comment_id = mapped.parent_comment_id
-        row.updated_at = mapped.updated_at
-        row.deleted_at = mapped.deleted_at
-        row.reactions_json = mapped.reactions_json
+        comment.version = update_with_version_check(
+            self.session,
+            TaskCommentORM,
+            comment.id,
+            comment.version,
+            {
+                "task_id": mapped.task_id,
+                "author_user_id": mapped.author_user_id,
+                "author_username": mapped.author_username,
+                "body": mapped.body,
+                "mentions_json": mapped.mentions_json,
+                "mentioned_user_ids_json": mapped.mentioned_user_ids_json,
+                "attachments_json": mapped.attachments_json,
+                "read_by_json": mapped.read_by_json,
+                "read_by_user_ids_json": mapped.read_by_user_ids_json,
+                "created_at": mapped.created_at,
+                "parent_comment_id": mapped.parent_comment_id,
+                "updated_at": mapped.updated_at,
+                "deleted_at": mapped.deleted_at,
+                "deleted_by_user_id": mapped.deleted_by_user_id,
+                "deletion_reason": mapped.deletion_reason,
+                "reactions_json": mapped.reactions_json,
+            },
+            extra_filters={"task_id": comment.task_id},
+            not_found_message="Task comment not found.",
+            stale_message="This comment changed after it was loaded. Refresh the discussion and try again.",
+        )
 
     def get(self, comment_id: str) -> TaskComment | None:
         stmt = self._project_scoped_stmt().where(TaskCommentORM.id == comment_id)

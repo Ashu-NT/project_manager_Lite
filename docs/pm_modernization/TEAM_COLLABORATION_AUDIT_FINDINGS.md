@@ -5,7 +5,9 @@ Status: investigation complete and implementation in progress. Phase 0 is
 complete. The task comment stack now supports permission-derived actions,
 full-body rendering, deterministic threaded replies, author-only editing,
 moderated soft deletion, and current-user reaction toggles from QML through
-the desktop adapter to the service/repository path.
+the desktop adapter to the service/repository path. Assignment response QML,
+atomic comment revisions, moderation attribution, and a platform-owned
+presence heartbeat were completed on 2026-08-02.
 
 **Scope decision (2026-08-02): an app notification system is deferred.** The
 existing assignment, mention, and approval dispatch calls are persistence
@@ -13,8 +15,8 @@ foundations only. They are not a shipped notification feature because no
 desktop surface reads the addressed rows, no unread lifecycle is integrated
 into the shell, no cross-session refresh exists, and no delivery channel is
 implemented. Phase 1 through Phase 3 must therefore remain open as one future
-cross-platform notification workstream. Presence heartbeat, document
-versioning, assignment-response QML, and approval delegation also remain open.
+cross-platform notification workstream. Document versioning and approval
+delegation also remain open.
 Relationship to `docs/pm_modernization/README.md`: that document's Workstream 8
 ("Portfolio, Collaboration, and Governance") and its Collaboration Workspace
 section (§9 of the detailed plan) describe collaboration at an aspirational,
@@ -70,17 +72,17 @@ counts. Scope is narrow: it only tracks "have I read comments that mention
 me," not general comment-seen state, and it's manual (the user or UI must
 call it — nothing marks things read automatically on view).
 
-### 1.3 Presence — half-real
+### 1.3 Presence - runtime-heartbeated, not real-time
 
 `touch_task_presence`/`clear_task_presence` do a genuine upsert with a
 configurable TTL (`PM_TASK_PRESENCE_TTL_SECONDS`, default 900s), and the
 active-presence list is real (queried and rendered, not dead code). But there
-is **no heartbeat** — grep for `QTimer`/`Timer {`/`interval:` in the entire PM
-QML tree returns zero matches related to presence. `last_seen_at` is set once
-on a state transition (selecting a task, opening/closing the comment
-composer) and then goes stale for up to 15 minutes if the user just leaves
-the task open. "Who's viewing this task" is accurate immediately after
-navigation and increasingly wrong the longer someone stays.
+is now also a heartbeat while the desktop application is active. The existing
+`ShellRuntimeSessionController` owns the timer and emits a generic authenticated
+`runtimeHeartbeat`; `PMCollaborationController` subscribes and refreshes only
+the selected task's presence snapshot. No task-only timer or QML `Timer` was
+introduced. The TTL remains the crash/disconnect fallback. This is periodic
+database-backed presence, not cross-process push or real-time delivery.
 
 ### 1.4 Assignment safety — overallocation and skills are both enforced server-side
 
@@ -232,18 +234,18 @@ as broken, not "coming soon."
 |---|---|
 | Permission-gated @mention resolution | **Present**, solid |
 | Mention-scoped read/unread tracking | **Present**, narrow scope |
-| Presence (who's viewing) | **Present**, no heartbeat, TTL-decays |
+| Presence (who's viewing) | **Present with platform heartbeat** (2026-08-02); database-polled, not real-time push |
 | Multiple assignees per task | **Present** |
 | Overallocation check at assignment | **Present**, enforced server-side |
 | Document attach/link on comments | **Present**, no versioning |
 | App notification system | **Deferred**; addressed persistence foundation exists, but there is no desktop consumer, cross-session refresh, or channel |
 | Cross-session real-time refresh | **Absent** (Phase 2, needs a team decision) |
-| Comment edit | **Present** (2026-08-01, Phase 4) — author-only, sets an "edited" marker |
-| Comment delete (soft or hard) | **Present** (2026-08-01, Phase 4) — soft, moderation-permission gated |
+| Comment edit | **Present and concurrency-safe** (2026-08-02) - author-only, edited marker, persisted atomic revision |
+| Comment delete (soft or hard) | **Present with moderation evidence** (2026-08-02) - soft, permission-gated, actor + optional reason |
 | Comment threading / reply-to | **Present end-to-end** (2026-08-02), with deterministic thread ordering and nested QML presentation |
 | Comment reactions | **Present end-to-end** (2026-08-02), including current-user toggle state and anchored picker |
 | @everyone / @team mentions | **Present** (2026-08-01, Phase 4) |
-| Assignee accept/decline of a handoff | **Present** (2026-08-01, Phase 4), backend + desktop API; no QML action yet |
+| Assignee accept/decline of a handoff | **Present end-to-end** (2026-08-02), including server-derived QML actions and decline-reason dialog |
 | Skill/certification check enforced server-side | **Present** (2026-08-01, Phase 0) |
 | Task-level checklists/subtasks | **Absent** |
 | Document version history | **Absent** ("latest wins") — platform-owned, out of this plan's scope |

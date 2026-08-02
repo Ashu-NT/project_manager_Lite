@@ -12,6 +12,9 @@ def serialize_assignment(
     assignment,
     *,
     resources_by_id: dict[str, object],
+    can_manage: bool = False,
+    can_accept: bool = False,
+    can_decline: bool = False,
 ) -> TaskAssignmentDesktopDto:
     return TaskAssignmentDesktopDto(
         id=assignment.id,
@@ -26,6 +29,9 @@ def serialize_assignment(
         project_resource_id=getattr(assignment, "project_resource_id", None),
         response_status=getattr(assignment, "response_status", "pending") or "pending",
         response_status_label=(getattr(assignment, "response_status", "pending") or "pending").title(),
+        can_manage=bool(can_manage),
+        can_accept=bool(can_accept),
+        can_decline=bool(can_decline),
     )
 
 

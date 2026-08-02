@@ -99,7 +99,10 @@ class TaskComment:
     parent_comment_id: str | None = None
     updated_at: datetime | None = None
     deleted_at: datetime | None = None
+    deleted_by_user_id: str | None = None
+    deletion_reason: str | None = None
     reactions: dict[str, list[str]] = field(default_factory=dict)
+    version: int = 1
 
     @field_validator("task_id", mode="before")
     @classmethod
@@ -176,10 +179,43 @@ class TaskComment:
     def _validate_deleted_at(cls, value: object) -> datetime | None:
         return _normalize_optional_datetime(value, code="COLLABORATION_TIMESTAMP_INVALID")
 
+    @field_validator("deleted_by_user_id", mode="before")
+    @classmethod
+    def _normalize_deleted_by_user_id(cls, value: object) -> str | None:
+        return normalize_optional_identifier(value)
+
+    @field_validator("deletion_reason", mode="before")
+    @classmethod
+    def _normalize_deletion_reason(cls, value: object) -> str | None:
+        normalized = normalize_optional_text(value)
+        if len(normalized) > 1000:
+            raise ValidationError(
+                "Comment deletion reason cannot exceed 1000 characters.",
+                code="COLLABORATION_DELETION_REASON_TOO_LONG",
+            )
+        return normalized or None
+
     @field_validator("reactions", mode="before")
     @classmethod
     def _normalize_reactions_field(cls, value: object) -> dict[str, list[str]]:
         return _normalize_reactions(value)
+
+    @field_validator("version", mode="before")
+    @classmethod
+    def _validate_version(cls, value: object) -> int:
+        try:
+            normalized = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError(
+                "Comment revision must be a positive whole number.",
+                code="COLLABORATION_REVISION_INVALID",
+            ) from exc
+        if normalized < 1:
+            raise ValidationError(
+                "Comment revision must be a positive whole number.",
+                code="COLLABORATION_REVISION_INVALID",
+            )
+        return normalized
 
     @property
     def is_deleted(self) -> bool:

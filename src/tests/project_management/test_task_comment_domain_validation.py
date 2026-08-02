@@ -9,7 +9,7 @@ from src.core.modules.project_management.application.collaboration.services.coll
     CollaborationService,
 )
 from src.core.modules.project_management.domain.collaboration import TaskComment
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 
 
 class _FakeSession:
@@ -33,6 +33,7 @@ class _FakeCommentRepo:
     def update(self, comment: TaskComment) -> None:
         if comment.id not in self._comments:
             raise NotFoundError("Task comment not found.")
+        comment.version += 1
         self._comments[comment.id] = comment
 
     def get(self, comment_id: str) -> TaskComment | None:
@@ -346,11 +347,30 @@ def test_edit_comment_updates_body_and_sets_updated_at(monkeypatch: pytest.Monke
     comment = service.post_comment(task_id="task-1", body="Original text")
     assert comment.updated_at is None
 
-    edited = service.edit_comment(comment.id, "Revised text @planner")
+    edited = service.edit_comment(
+        comment.id,
+        "Revised text @planner",
+        expected_revision=1,
+    )
 
     assert edited.body == "Revised text @planner"
     assert edited.mentioned_user_ids == ["user-2"]
     assert edited.updated_at is not None
+    assert edited.version == 2
+
+
+def test_edit_comment_rejects_stale_revision(monkeypatch: pytest.MonkeyPatch):
+    service = _make_service(monkeypatch)
+    comment = service.post_comment(task_id="task-1", body="Original text")
+
+    with pytest.raises(ConcurrencyError) as exc:
+        service.edit_comment(
+            comment.id,
+            "Stale edit",
+            expected_revision=comment.version + 1,
+        )
+
+    assert exc.value.code == "STALE_WRITE"
 
 
 def test_edit_comment_rejects_non_author(monkeypatch: pytest.MonkeyPatch):
@@ -381,10 +401,16 @@ def test_delete_comment_is_soft_and_idempotent(monkeypatch: pytest.MonkeyPatch):
     service = _make_service(monkeypatch)
     comment = service.post_comment(task_id="task-1", body="Will be removed")
 
-    deleted = service.delete_comment(comment.id)
+    deleted = service.delete_comment(
+        comment.id,
+        expected_revision=comment.version,
+        reason="Contains superseded instructions",
+    )
     assert deleted.is_deleted is True
     assert deleted.deleted_at is not None
     assert deleted.body == "Will be removed"  # original text preserved for audit, masked only at serialization
+    assert deleted.deleted_by_user_id == "user-1"
+    assert deleted.deletion_reason == "Contains superseded instructions"
 
     deleted_again = service.delete_comment(comment.id)
     assert deleted_again.deleted_at == deleted.deleted_at

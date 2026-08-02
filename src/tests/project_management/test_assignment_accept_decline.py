@@ -100,6 +100,47 @@ def test_decline_assignment_sets_status_and_timestamp():
     assert result.responded_at is not None
 
 
+def test_assignment_action_context_is_server_derived_for_assignee(monkeypatch: pytest.MonkeyPatch):
+    assignment, task, resource, employee = _seed()
+    fake_self = _make_fake_self(
+        principal_user_id="user-employee",
+        assignment=assignment,
+        task=task,
+        resource=resource,
+        employee=employee,
+    )
+    monkeypatch.setattr(
+        "src.core.modules.project_management.application.tasks.commands.assignment.get_authorization_engine",
+        lambda: SimpleNamespace(
+            has_permission=lambda *args, **kwargs: True,
+            has_scope_permission=lambda *args, **kwargs: True,
+        ),
+    )
+
+    context = fake_self.get_assignment_action_context("assign-1")
+
+    assert context.can_manage is True
+    assert context.can_accept is True
+    assert context.can_decline is True
+
+
+def test_assignment_response_cannot_reverse_a_completed_handoff():
+    assignment, task, resource, employee = _seed()
+    fake_self = _make_fake_self(
+        principal_user_id="user-employee",
+        assignment=assignment,
+        task=task,
+        resource=resource,
+        employee=employee,
+    )
+    fake_self.accept_assignment("assign-1")
+
+    with pytest.raises(BusinessRuleError) as exc:
+        fake_self.decline_assignment("assign-1", reason="Changed my mind")
+
+    assert exc.value.code == "ASSIGNMENT_ALREADY_RESPONDED"
+
+
 def test_accept_assignment_rejects_non_assignee():
     assignment, task, resource, employee = _seed()
     fake_self = _make_fake_self(
