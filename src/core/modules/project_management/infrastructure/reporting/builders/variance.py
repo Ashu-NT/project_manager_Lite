@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from src.core.modules.project_management.contracts.repositories.task import TaskRepository
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
+from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
     TaskVarianceRow,
 )
@@ -28,7 +29,7 @@ class ReportingVarianceMixin:
             b_tasks = self._baseline_repo.list_tasks(latest.id) if latest else []
 
         # Map current tasks
-        tasks = self._task_repo.list_by_project(project_id)
+        tasks = select_leaf_tasks(self._task_repo.list_by_project(project_id))
         tasks_by_id = {t.id: t for t in tasks}
 
         # Critical tasks (optional – you already have get_critical_path)

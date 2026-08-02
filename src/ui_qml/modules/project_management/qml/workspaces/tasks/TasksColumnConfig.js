@@ -2,6 +2,7 @@
 
 function baseColumns(hasInvStockCap) {
     const cols = [
+        { "key": "wbsCode",        "label": "WBS",       "flex": 0,   "minWidth": 86, "sortable": true, "required": true, "visibleByDefault": true },
         { "key": "title",          "label": "Task",      "flex": 2,   "sortable": true, "required": true, "visibleByDefault": true },
         { "key": "statusLabel",    "label": "Status",    "flex": 0,   "minWidth": 100, "type": "status",  "required": true, "visibleByDefault": true },
         { "key": "projectName",    "label": "Project",   "flex": 1.5, "sortable": true,                   "visibleByDefault": true },

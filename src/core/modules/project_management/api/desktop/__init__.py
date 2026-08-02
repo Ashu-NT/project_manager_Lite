@@ -165,6 +165,7 @@ from src.core.modules.project_management.api.desktop.tasks import (
     TaskSkillRequirementDesktopDto,
     TaskStatusDescriptor,
     TaskUpdateCommand,
+    TaskWbsMoveCommand,
     build_project_management_tasks_desktop_api,
 )
 from src.core.modules.project_management.api.desktop.timesheets import (
@@ -338,6 +339,7 @@ __all__ = [
     "TaskProjectResourceOptionDescriptor",
     "TaskStatusDescriptor",
     "TaskUpdateCommand",
+    "TaskWbsMoveCommand",
     "TimesheetAssignmentOptionDescriptor",
     "TimesheetAssignmentSnapshotDesktopDto",
     "TimesheetEntryCreateCommand",

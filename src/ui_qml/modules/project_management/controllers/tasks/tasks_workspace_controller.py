@@ -252,6 +252,10 @@ class ProjectManagementTasksWorkspaceController(
     def selectedTask(self) -> dict[str, object]:
         return self._task_list.selectedTask
 
+    @Property("QVariantList", notify=tasksChanged)
+    def wbsParentOptions(self) -> list[dict[str, str]]:
+        return self._task_list.wbsParentOptions
+
     @Property(str, notify=selectedTaskIdChanged)
     def selectedTaskId(self) -> str:
         return self._selected_task_id
@@ -563,6 +567,10 @@ class ProjectManagementTasksWorkspaceController(
     @Slot("QVariantMap", result="QVariantMap")
     def updateTask(self, payload: dict[str, object]) -> dict[str, object]:
         return _mut.update_task(self, payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def moveTaskInWbs(self, payload: dict[str, object]) -> dict[str, object]:
+        return _mut.move_task_in_wbs(self, payload)
 
     @Slot("QVariantMap", result="QVariantMap")
     def updateProgress(self, payload: dict[str, object]) -> dict[str, object]:

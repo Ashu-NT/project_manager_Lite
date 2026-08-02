@@ -15,3 +15,4 @@ TaskCommentDeleteDialog 1.0 TaskCommentDeleteDialog.qml
 TaskDependencyEditorDialog 1.0 TaskDependencyEditorDialog.qml
 TaskEditorDialog 1.0 TaskEditorDialog.qml
 TaskProgressDialog 1.0 TaskProgressDialog.qml
+TaskWbsMoveDialog 1.0 TaskWbsMoveDialog.qml

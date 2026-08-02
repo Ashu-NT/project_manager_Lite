@@ -108,6 +108,7 @@ Item {
         return String(s.percentCompleteLabel || "")
     }
     readonly property bool _hasTask: String(root.taskDetail.id || "").length > 0
+    readonly property bool _isSummary: Boolean((root.taskDetail.state || {}).isSummary)
     readonly property int _idx: root.detailPage ? root.detailPage.activeSectionIndex : 0
     readonly property var _sections: root.detailPage ? (root.detailPage.sections || []) : []
 
@@ -260,7 +261,7 @@ Item {
                     selectedAssignmentId: root.selectedAssignmentId
                     assignmentPreview: root.assignmentPreview
                     isBusy: root.isBusy
-                    canCreate: root._hasTask && root.assignmentOptions.length > 0
+                    canCreate: root._hasTask && !root._isSummary && root.assignmentOptions.length > 0
                     errorText: String(root.sectionErrors["assignments"] || "")
 
                     onCreateRequested: root.createAssignmentRequested()
@@ -288,7 +289,7 @@ Item {
                     dependenciesModel: root.dependenciesModel
                     dependenciesTableModel: root.dependenciesTableModel
                     isBusy: root.isBusy
-                    canCreate: root._hasTask && root.dependencyTaskOptions.length > 0
+                    canCreate: root._hasTask && !root._isSummary && root.dependencyTaskOptions.length > 0
                     errorText: String(root.sectionErrors["dependencies"] || "")
                     dependencyTypeOptions: root.dependencyTypeOptions || []
 

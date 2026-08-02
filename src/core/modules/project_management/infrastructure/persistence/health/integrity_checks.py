@@ -115,6 +115,35 @@ def _row_to_id(row) -> str:
     return ":".join("" if value is None else str(value) for value in row)
 
 
+def _wbs_cycle_finding(session: Session, *, sample_limit: int) -> IntegrityFinding:
+    parents = {
+        str(task_id): (str(parent_id) if parent_id is not None else None)
+        for task_id, parent_id in session.execute(
+            select(TaskORM.id, TaskORM.parent_task_id)
+        ).all()
+    }
+    cycle_ids: set[str] = set()
+    for start_id in parents:
+        path: list[str] = []
+        positions: dict[str, int] = {}
+        current: str | None = start_id
+        while current is not None and current in parents:
+            if current in positions:
+                cycle_ids.update(path[positions[current] :])
+                break
+            positions[current] = len(path)
+            path.append(current)
+            current = parents[current]
+    ordered = tuple(sorted(cycle_ids))
+    return IntegrityFinding(
+        category="task_wbs_cycle",
+        severity=ERROR,
+        message="task WBS parent chain contains a cycle",
+        count=len(ordered),
+        sample_ids=ordered[:sample_limit],
+    )
+
+
 def run_pm_data_integrity_checks(session: Session, *, sample_limit: int = 20) -> IntegrityReport:
     """Run every PM integrity check and return a structured report.
 
@@ -122,6 +151,7 @@ def run_pm_data_integrity_checks(session: Session, *, sample_limit: int = 20) ->
     """
     pred = aliased(TaskORM)
     succ = aliased(TaskORM)
+    wbs_parent = aliased(TaskORM)
 
     checks = [
         # 1. Orphan tasks — task pointing at a non-existent project.
@@ -132,6 +162,30 @@ def run_pm_data_integrity_checks(session: Session, *, sample_limit: int = 20) ->
             message="task references a project that does not exist",
             id_stmt=select(TaskORM.id).where(
                 TaskORM.project_id.notin_(select(ProjectORM.id))
+            ),
+            sample_limit=sample_limit,
+        ),
+        _finding(
+            session,
+            category="task_wbs_cross_project_parent",
+            severity=ERROR,
+            message="task WBS parent belongs to another project",
+            id_stmt=(
+                select(TaskORM.id)
+                .join(wbs_parent, TaskORM.parent_task_id == wbs_parent.id)
+                .where(TaskORM.project_id != wbs_parent.project_id)
+            ),
+            sample_limit=sample_limit,
+        ),
+        _finding(
+            session,
+            category="task_wbs_duplicate_code",
+            severity=ERROR,
+            message="project contains duplicate WBS codes",
+            id_stmt=(
+                select(TaskORM.project_id, TaskORM.wbs_code)
+                .group_by(TaskORM.project_id, TaskORM.wbs_code)
+                .having(func.count() > 1)
             ),
             sample_limit=sample_limit,
         ),
@@ -294,6 +348,7 @@ def run_pm_data_integrity_checks(session: Session, *, sample_limit: int = 20) ->
             ),
             sample_limit=sample_limit,
         ),
+        _wbs_cycle_finding(session, sample_limit=sample_limit),
     ]
     return IntegrityReport(tuple(checks))
 

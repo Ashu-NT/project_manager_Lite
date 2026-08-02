@@ -21,6 +21,10 @@ from src.core.modules.project_management.contracts.repositories.task import (
     TaskRepository,
 )
 from src.core.modules.project_management.domain.projects.project import Project
+from src.core.modules.project_management.domain.tasks.hierarchy import (
+    order_tasks_children_first,
+    select_leaf_tasks,
+)
 from src.core.modules.project_management.domain.financials.configuration import (
     ProjectFinancialProfile,
 )
@@ -247,7 +251,7 @@ class ProjectLifecycleMixin:
         if not project:
             raise NotFoundError("Project not found")
 
-        tasks = self._task_repo.list_by_project(project_id)
+        tasks = select_leaf_tasks(self._task_repo.list_by_project(project_id))
         if not tasks:
             return
 
@@ -452,7 +456,7 @@ class ProjectLifecycleMixin:
         )
 
         try:
-            tasks = self._task_repo.list_by_project(project_id)
+            tasks = order_tasks_children_first(self._task_repo.list_by_project(project_id))
             for task in tasks:
                 self._dependency_repo.delete_for_task(task.id)
                 assignments = self._assignment_repo.list_by_task(task.id)

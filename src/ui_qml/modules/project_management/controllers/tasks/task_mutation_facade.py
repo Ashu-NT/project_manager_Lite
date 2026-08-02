@@ -13,6 +13,10 @@ def update_task(controller, payload: dict[str, object]) -> dict[str, object]:
     return controller._task_list.updateTask(payload)
 
 
+def move_task_in_wbs(controller, payload: dict[str, object]) -> dict[str, object]:
+    return controller._task_list.moveTaskInWbs(payload)
+
+
 def update_progress(controller, payload: dict[str, object]) -> dict[str, object]:
     return controller._task_list.updateProgress(payload)
 
@@ -156,6 +160,7 @@ __all__ = [
     "generate_entity_code",
     "lock_task_period",
     "mark_task_collaboration_read",
+    "move_task_in_wbs",
     "post_task_comment",
     "react_to_task_comment",
     "redo_last_task_action",

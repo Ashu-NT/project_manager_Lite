@@ -4,6 +4,7 @@ from datetime import date
 
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.modules.project_management.infrastructure.reporting import (
     ProjectKPI,
     ResourceLoadRow,
@@ -43,7 +44,7 @@ class DashboardAlertsMixin:
                     f"across {row.tasks_count} tasks)."
                 )
 
-        tasks = self._tasks.list_tasks_for_project(project_id)
+        tasks = select_leaf_tasks(self._tasks.list_tasks_for_project(project_id))
         def _status_value(task) -> str:
             raw = getattr(task, "status", "")
             value = getattr(raw, "value", raw)

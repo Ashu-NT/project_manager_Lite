@@ -79,6 +79,9 @@ class SqlAlchemyTaskRepository(TaskRepository):
             {
                 "project_id": task.project_id,
                 "task_code": getattr(task, "code", "") or None,
+                "parent_task_id": task.parent_task_id,
+                "wbs_code": task.wbs_code,
+                "sort_order": task.sort_order,
                 "name": task.name,
                 "description": task.description,
                 "start_date": task.start_date,
@@ -116,7 +119,23 @@ class SqlAlchemyTaskRepository(TaskRepository):
         return task_from_orm(row) if row else None
 
     def list_by_project(self, project_id: str) -> list[Task]:
-        stmt = self._project_scoped_stmt().where(TaskORM.project_id == project_id)
+        stmt = (
+            self._project_scoped_stmt()
+            .where(TaskORM.project_id == project_id)
+            .order_by(TaskORM.sort_order, TaskORM.wbs_code, TaskORM.id)
+        )
+        rows = self.session.execute(stmt).scalars().all()
+        return [task_from_orm(row) for row in rows]
+
+    def list_children(self, project_id: str, parent_task_id: str | None) -> list[Task]:
+        stmt = (
+            self._project_scoped_stmt()
+            .where(
+                TaskORM.project_id == project_id,
+                TaskORM.parent_task_id == parent_task_id,
+            )
+            .order_by(TaskORM.sort_order, TaskORM.wbs_code, TaskORM.id)
+        )
         rows = self.session.execute(stmt).scalars().all()
         return [task_from_orm(row) for row in rows]
 

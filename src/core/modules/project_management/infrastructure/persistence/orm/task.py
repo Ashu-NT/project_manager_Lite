@@ -5,7 +5,19 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import Date, DateTime, Enum as SAEnum, Float, ForeignKey, Index, Integer, String
+from sqlalchemy import (
+    CheckConstraint,
+    Date,
+    DateTime,
+    Enum as SAEnum,
+    Float,
+    ForeignKey,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
@@ -14,6 +26,25 @@ from src.infra.persistence.orm.base import Base
 
 class TaskORM(Base):
     __tablename__ = "tasks"
+    __table_args__ = (
+        CheckConstraint(
+            "parent_task_id IS NULL OR parent_task_id <> id",
+            name="ck_tasks_wbs_parent_not_self",
+        ),
+        CheckConstraint("sort_order >= 0", name="ck_tasks_wbs_sort_order"),
+        CheckConstraint(
+            "length(wbs_code) >= 1 AND length(wbs_code) <= 64",
+            name="ck_tasks_wbs_code_length",
+        ),
+        ForeignKeyConstraint(
+            ["project_id", "parent_task_id"],
+            ["tasks.project_id", "tasks.id"],
+            name="fk_tasks_wbs_same_project_parent",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("project_id", "id", name="uq_tasks_project_id"),
+        UniqueConstraint("project_id", "wbs_code", name="uq_tasks_project_wbs_code"),
+    )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     project_id: Mapped[str] = mapped_column(
@@ -22,6 +53,14 @@ class TaskORM(Base):
         nullable=False,
     )
     task_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    parent_task_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    wbs_code: Mapped[str] = mapped_column(String(64), nullable=False)
+    sort_order: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
     name: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str] = mapped_column(String, default="")
     start_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
@@ -42,6 +81,7 @@ class TaskORM(Base):
 
 Index("idx_tasks_project_id", TaskORM.project_id)
 Index("ux_tasks_project_code", TaskORM.project_id, TaskORM.task_code, unique=True)
+Index("idx_tasks_wbs_parent_order", TaskORM.project_id, TaskORM.parent_task_id, TaskORM.sort_order)
 
 
 class TaskAssignmentORM(Base):

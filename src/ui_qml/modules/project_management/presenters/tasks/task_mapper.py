@@ -15,6 +15,12 @@ def build_task_state(task: Any) -> dict[str, object]:
         "projectName": task.project_name or "",
         "name": task.name,
         "taskCode": getattr(task, "code", "") or "",
+        "parentTaskId": getattr(task, "parent_task_id", None) or "",
+        "wbsCode": getattr(task, "wbs_code", "") or "",
+        "sortOrder": int(getattr(task, "sort_order", 0) or 0),
+        "isSummary": bool(getattr(task, "is_summary", False)),
+        "hierarchyDepth": int(getattr(task, "hierarchy_depth", 0) or 0),
+        "childCount": int(getattr(task, "child_count", 0) or 0),
         "description": task.description or "",
         "status": task.status,
         "statusLabel": task.status_label,
@@ -45,10 +51,10 @@ def to_task_record_view_model(task: Any) -> TaskRecordViewModel:
     state = build_task_state(task)
     return TaskRecordViewModel(
         id=task.id,
-        title=task.name,
+        title=f"{'    ' * state['hierarchyDepth']}{task.name}",
         status_label=task.status_label,
         subtitle=(
-            f"{state['projectName']} | Start {state['startDateLabel']} | "
+            f"WBS {state['wbsCode']} | {state['projectName']} | Start {state['startDateLabel']} | "
             f"Finish {state['endDateLabel']}"
         ),
         supporting_text=(

@@ -34,7 +34,10 @@ def to_schedule_record(
         id=item.id,
         title=item.name,
         status_label=item.status_label,
-        subtitle=f"Activity {activity_code} | {format_date(item.start_date)} -> {format_date(item.finish_date)}",
+        subtitle=(
+            f"WBS {item.wbs_code or '-'} | Activity {activity_code} | "
+            f"{format_date(item.start_date)} -> {format_date(item.finish_date)}"
+        ),
         supporting_text=(
             f"Duration {int_label(item.duration_days)} | Remaining {int_label(remaining_duration)} | "
             f"Float {int_label(item.total_float_days)}"
@@ -43,7 +46,7 @@ def to_schedule_record(
         state={
             "activityId": item.id,
             "activityCode": activity_code,
-            "wbs": f"1.{row_index:02d}",
+            "wbs": item.wbs_code or "-",
             "taskName": item.name,
             "startDateLabel": format_date(item.start_date),
             "finishDateLabel": format_date(item.finish_date),

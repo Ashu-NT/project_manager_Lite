@@ -73,6 +73,15 @@ def build_detail_view_model(
         subtitle=task.project_name or "Project task",
         description=task.description or "No task description has been added yet.",
         fields=(
+            TaskDetailFieldViewModel(
+                label="WBS",
+                value=state["wbsCode"],
+                supporting_text=(
+                    f"Summary task with {state['childCount']} direct child task(s)."
+                    if state["isSummary"]
+                    else "Schedulable execution leaf."
+                ),
+            ),
             TaskDetailFieldViewModel(label="Start", value=state["startDateLabel"]),
             TaskDetailFieldViewModel(label="Finish", value=state["endDateLabel"]),
             TaskDetailFieldViewModel(label="Duration", value=state["durationLabel"]),

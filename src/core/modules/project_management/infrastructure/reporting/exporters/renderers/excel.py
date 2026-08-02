@@ -71,7 +71,17 @@ class ExcelReportRenderer:
 
         # ---------------- Tasks ----------------
         ws_tasks = wb.create_sheet("Tasks")
-        headers = ["Task ID", "Name", "Start", "End", "Duration (days)", "Critical", "% complete", "Status"]
+        headers = [
+            "Task ID",
+            "WBS",
+            "Name",
+            "Start",
+            "End",
+            "Duration (days)",
+            "Critical",
+            "% complete",
+            "Status",
+        ]
         for col_index, h in enumerate(headers, start=1):
             cell = ws_tasks.cell(row=1, column=col_index, value=h)
             cell.font = header_font
@@ -81,18 +91,20 @@ class ExcelReportRenderer:
 
         for row_index, b in enumerate(ctx.gantt, start=2):
             ws_tasks.cell(row=row_index, column=1, value=b.task_id).border = thin_border
-            ws_tasks.cell(row=row_index, column=2, value=b.name).border = thin_border
-            ws_tasks.cell(row=row_index, column=3, value=b.start.isoformat() if b.start else "").border = thin_border
-            ws_tasks.cell(row=row_index, column=4, value=b.end.isoformat() if b.end else "").border = thin_border
+            ws_tasks.cell(row=row_index, column=2, value=b.wbs_code).border = thin_border
+            ws_tasks.cell(row=row_index, column=3, value=b.name).border = thin_border
+            ws_tasks.cell(row=row_index, column=4, value=b.start.isoformat() if b.start else "").border = thin_border
+            ws_tasks.cell(row=row_index, column=5, value=b.end.isoformat() if b.end else "").border = thin_border
             dur = (b.end - b.start).days + 1 if (b.start and b.end) else None
-            ws_tasks.cell(row=row_index, column=5, value=dur).border = thin_border
-            ws_tasks.cell(row=row_index, column=6, value="Yes" if b.is_critical else "No").border = thin_border
-            ws_tasks.cell(row=row_index, column=7, value=b.percent_complete).border = thin_border
-            ws_tasks.cell(row=row_index, column=8, value=getattr(b.status, "value", str(b.status))).border = thin_border
+            ws_tasks.cell(row=row_index, column=6, value=dur).border = thin_border
+            ws_tasks.cell(row=row_index, column=7, value="Yes" if b.is_critical else "No").border = thin_border
+            ws_tasks.cell(row=row_index, column=8, value=b.percent_complete).border = thin_border
+            ws_tasks.cell(row=row_index, column=9, value=getattr(b.status, "value", str(b.status))).border = thin_border
 
         ws_tasks.column_dimensions["A"].width = 36
-        ws_tasks.column_dimensions["B"].width = 30
-        for col_letter in ("C", "D", "E", "F", "G", "H"):
+        ws_tasks.column_dimensions["B"].width = 14
+        ws_tasks.column_dimensions["C"].width = 30
+        for col_letter in ("D", "E", "F", "G", "H", "I"):
             ws_tasks.column_dimensions[col_letter].width = 15
 
         # ---------------- Resources ----------------

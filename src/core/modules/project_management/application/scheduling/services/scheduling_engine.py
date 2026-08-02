@@ -15,6 +15,7 @@ from src.core.modules.project_management.contracts.repositories.task import (
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
+from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_dependencies, select_leaf_tasks
 # CalendarResolver removed — enterprise CalendarResolver handles hierarchy resolution
 CalendarResolver = None  # type: ignore[assignment]  # kept for isinstance checks
 from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
@@ -95,7 +96,7 @@ class SchedulingEngine(ResourceLevelingMixin):
         - updates Task.start_date / Task.end_date from ES/EF
         - returns CPMTaskInfo per task
         """
-        tasks = self._task_repo.list_by_project(project_id)
+        tasks = select_leaf_tasks(self._task_repo.list_by_project(project_id))
         if not tasks:
             return {}
 
@@ -111,7 +112,7 @@ class SchedulingEngine(ResourceLevelingMixin):
                 pass  # fall back to default WorkCalendarEngine
 
         tasks_by_id: dict[str, Task] = {t.id: t for t in tasks}
-        deps: list[TaskDependency] = self._dependency_repo.list_by_project(project_id)
+        deps = select_leaf_dependencies(self._dependency_repo.list_by_project(project_id), tasks)
 
         # Pre-load task→primary_resource for per-task calendar resolution
         if self._calendar_resolver and self._assignment_repo and self._resource_calendar_map:

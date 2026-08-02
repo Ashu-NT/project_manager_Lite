@@ -21,6 +21,7 @@ from src.core.modules.project_management.application.scheduling.leveling.levelin
     choose_auto_level_task,
 )
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
+from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 
 
@@ -68,7 +69,7 @@ class ResourceLevelingEngine:
                 "threshold_percent must be greater than zero.",
                 code="RESOURCE_LEVELING_INVALID_THRESHOLD",
             )
-        tasks = self._task_repo.list_by_project(project_id)
+        tasks = select_leaf_tasks(self._task_repo.list_by_project(project_id))
         if not tasks:
             return []
         assignments = self._list_assignments(tasks)
@@ -104,7 +105,7 @@ class ResourceLevelingEngine:
             )
 
         initial_conflicts = self.preview_conflicts(project_id, threshold_percent)
-        tasks = self._task_repo.list_by_project(project_id)
+        tasks = select_leaf_tasks(self._task_repo.list_by_project(project_id))
         # Work on in-memory copies so the simulation never mutates stored state
         from dataclasses import replace
         tasks_by_id: dict[str, Task] = {t.id: replace(t) for t in tasks}

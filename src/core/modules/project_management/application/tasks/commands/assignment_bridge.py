@@ -13,6 +13,8 @@ class TaskAssignmentBridgeMixin:
         task = self._task_repo.get(task_id)
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+        self._require_manage("add assignment", project_id=task.project_id)
+        self._require_leaf_task(task, operation_label="receive resource assignments")
 
         resource = self._resource_repo.get(resource_id)
         if not resource:

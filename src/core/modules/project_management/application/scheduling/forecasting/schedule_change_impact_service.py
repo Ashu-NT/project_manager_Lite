@@ -10,6 +10,10 @@ from src.core.modules.project_management.contracts.repositories.task import (
     TaskRepository,
 )
 from src.core.modules.project_management.domain.tasks.task import Task
+from src.core.modules.project_management.domain.tasks.hierarchy import (
+    select_leaf_dependencies,
+    select_leaf_tasks,
+)
 from src.core.modules.project_management.application.scheduling.cpm.cpm_calculator import (
     CPMCalculator,
     CPMResult,
@@ -91,8 +95,11 @@ class ScheduleChangeImpactService:
         At least one of proposed_start / proposed_finish / proposed_duration_days
         must be supplied.
         """
-        tasks = self._task_repo.list_by_project(project_id)
-        deps = self._dependency_repo.list_by_project(project_id)
+        tasks = select_leaf_tasks(self._task_repo.list_by_project(project_id))
+        deps = select_leaf_dependencies(
+            self._dependency_repo.list_by_project(project_id),
+            tasks,
+        )
 
         tasks_by_id: dict[str, Task] = {t.id: t for t in tasks}
 

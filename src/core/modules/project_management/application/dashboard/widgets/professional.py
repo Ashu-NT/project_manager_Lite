@@ -8,6 +8,7 @@ from src.core.modules.project_management.application.dashboard.models.dashboard_
 )
 from src.core.modules.project_management.application.scheduling import CPMTaskInfo
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 
 
 class DashboardProfessionalMixin:
@@ -19,7 +20,7 @@ class DashboardProfessionalMixin:
         *,
         schedule: dict[str, CPMTaskInfo] | None = None,
     ) -> list[MilestoneHealthRow]:
-        tasks = self._tasks.list_tasks_for_project(project_id)
+        tasks = select_leaf_tasks(self._tasks.list_tasks_for_project(project_id))
         if not tasks:
             return []
         info_by_id = schedule or self._sched.recalculate_project_schedule(project_id, persist=False)
@@ -59,7 +60,7 @@ class DashboardProfessionalMixin:
         *,
         schedule: dict[str, CPMTaskInfo] | None = None,
     ) -> list[CriticalPathRow]:
-        tasks = self._tasks.list_tasks_for_project(project_id)
+        tasks = select_leaf_tasks(self._tasks.list_tasks_for_project(project_id))
         if not tasks:
             return []
         info_by_id = schedule or self._sched.recalculate_project_schedule(project_id, persist=False)

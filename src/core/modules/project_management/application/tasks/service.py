@@ -15,8 +15,23 @@ from src.core.modules.project_management.application.tasks.commands.assignment_b
 from src.core.modules.project_management.application.tasks.commands.dependency import (
     TaskDependencyMixin,
 )
+from src.core.modules.project_management.application.tasks.commands.deletion import (
+    TaskDeletionMixin,
+)
 from src.core.modules.project_management.application.tasks.commands.lifecycle import (
     TaskLifecycleMixin,
+)
+from src.core.modules.project_management.application.tasks.commands.hierarchy import (
+    TaskHierarchyMixin,
+)
+from src.core.modules.project_management.application.tasks.commands.hierarchy_support import (
+    TaskHierarchySupportMixin,
+)
+from src.core.modules.project_management.application.tasks.commands.identity import (
+    TaskIdentityMixin,
+)
+from src.core.modules.project_management.application.tasks.commands.progress import (
+    TaskProgressMixin,
 )
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
     TaskScheduleSyncMixin,
@@ -32,6 +47,9 @@ from src.core.modules.project_management.application.tasks.queries.dependency_di
 )
 from src.core.modules.project_management.application.tasks.queries.task_query import (
     TaskQueryMixin,
+)
+from src.core.modules.project_management.application.tasks.queries.hierarchy_query import (
+    TaskHierarchyQueryMixin,
 )
 from src.core.modules.project_management.contracts.repositories.cost import (
     CostRepository,
@@ -59,6 +77,12 @@ from src.core.platform.calendar.application.calendar_protocol import CalendarPro
 class TaskService(
     ProjectManagementModuleGuardMixin,
     TaskScheduleSyncMixin,
+    TaskHierarchySupportMixin,
+    TaskHierarchyQueryMixin,
+    TaskHierarchyMixin,
+    TaskIdentityMixin,
+    TaskProgressMixin,
+    TaskDeletionMixin,
     TaskLifecycleMixin,
     TaskDependencyDiagnosticsMixin,
     TaskDependencyMixin,

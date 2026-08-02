@@ -49,6 +49,7 @@ from .task_command_handler import (
     apply_bulk_status,
     bulk_delete_tasks,
     create_task,
+    move_task_in_wbs,
     suggest_code,
     update_progress,
     update_task,
@@ -236,6 +237,9 @@ class ProjectTasksWorkspacePresenter:
 
     def update_task(self, payload: dict[str, Any]) -> None:
         update_task(self._desktop_api, payload)
+
+    def move_task_in_wbs(self, payload: dict[str, Any]) -> None:
+        move_task_in_wbs(self._desktop_api, payload)
 
     def update_progress(self, payload: dict[str, Any]) -> None:
         update_progress(self._desktop_api, payload)

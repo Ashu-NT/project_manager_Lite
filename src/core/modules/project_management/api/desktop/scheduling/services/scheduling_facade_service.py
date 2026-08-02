@@ -7,6 +7,7 @@ from src.core.modules.project_management.api.desktop.scheduling.serializers.sche
     serialize_schedule_item,
     serialize_task_as_schedule_item,
 )
+from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 
 
 def build_schedule_from_engine(project_id: str, scheduling_engine, persist: bool) -> tuple[SchedulingTaskDto, ...]:
@@ -26,7 +27,7 @@ def build_schedule_from_tasks(project_id: str, task_service) -> tuple[Scheduling
     if task_service is None:
         return ()
     tasks = sorted(
-        task_service.list_tasks_for_project(project_id),
+        select_leaf_tasks(task_service.list_tasks_for_project(project_id)),
         key=lambda t: (t.start_date or date.max, (t.name or "").casefold()),
     )
     return tuple(serialize_task_as_schedule_item(t) for t in tasks)

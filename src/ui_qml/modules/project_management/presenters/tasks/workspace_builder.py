@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskCatalogWorkspaceViewModel,
+    TaskSelectorOptionViewModel,
 )
 
 from .detail_builder import build_detail_view_model
@@ -68,6 +69,17 @@ def build_workspace_state(
         selected_schedule_filter=filters.schedule_filter,
         search_text=filters.search_text,
         tasks=tuple(to_task_record_view_model(task) for task in paged_tasks.items),
+        wbs_parent_options=(
+            TaskSelectorOptionViewModel(value="", label="Root task"),
+            *(
+                TaskSelectorOptionViewModel(
+                    value=task.id,
+                    label=f"{task.wbs_code}  {task.name}",
+                    disabled_for_task_ids=(task.id, *task.ancestor_ids),
+                )
+                for task in all_tasks
+            ),
+        ),
         total_count=paged_tasks.total_count,
         page=paged_tasks.page,
         page_size=paged_tasks.page_size,

@@ -18,6 +18,7 @@ from src.core.modules.project_management.contracts.repositories.task import Task
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.cost import CostRepository
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
+from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.approval.policy import is_governance_required
 from src.core.platform.access.authorization import require_project_permission
@@ -120,7 +121,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         # Ensure we have a computed schedule (CPM provides earliest_start/finish)
         schedule = self._sched.recalculate_project_schedule(project_id, commit=False)
 
-        tasks = self._tasks.list_by_project(project_id)
+        tasks = select_leaf_tasks(self._tasks.list_by_project(project_id))
         if not tasks:
             raise ValidationError("Cannot baseline: project has no tasks.")
         task_name_by_id = {task.id: task.name for task in tasks}

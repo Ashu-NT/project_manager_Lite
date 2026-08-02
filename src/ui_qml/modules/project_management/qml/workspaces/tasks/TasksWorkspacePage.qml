@@ -155,6 +155,7 @@ AppLayouts.WorkspaceFrame {
                 statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
                 assignmentOptions: root.workspaceController ? (root.workspaceController.assignmentOptions || []) : []
                 dependencyTaskOptions: root.workspaceController ? (root.workspaceController.dependencyTaskOptions || []) : []
+                wbsParentOptions: root.workspaceController ? (root.workspaceController.wbsParentOptions || []) : []
                 dependencyTypeOptions: root.workspaceController ? (root.workspaceController.dependencyTypeOptions || []) : []
                 collaborationMentionOptions: root.workspaceController ? (root.workspaceController.collaborationMentionOptions || []) : []
                 collaborationDocumentOptions: root.workspaceController ? (root.workspaceController.collaborationDocumentOptions || []) : []
@@ -364,6 +365,8 @@ AppLayouts.WorkspaceFrame {
                     onActionTriggered: function(actionId) {
                         if (actionId === "edit") {
                             dialogHostLoader.invoke("openEditDialog", root.selectedTaskModel)
+                        } else if (actionId === "move_wbs") {
+                            dialogHostLoader.invoke("openWbsMoveDialog", root.selectedTaskModel)
                         } else if (actionId === "progress") {
                             dialogHostLoader.invoke("openProgressDialog", root.selectedTaskModel)
                         } else if (actionId === "delete") {

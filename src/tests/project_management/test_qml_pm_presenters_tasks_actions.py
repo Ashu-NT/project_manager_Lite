@@ -100,6 +100,27 @@ def test_pm_tasks_bulk_status_undo_redo_and_select(tmp_path: Path, qapp) -> None
     assert controller.selectedTaskCount == 4
 
 
+def test_pm_tasks_move_wbs_action_uses_the_desktop_contract(tmp_path: Path, qapp) -> None:
+    bundle = build_task_controller_bundle(tmp_path)
+    controller = bundle["controller"]
+    task_service = bundle["task_service"]
+    task = task_service.get_task("task-1")
+
+    result = controller.moveTaskInWbs(
+        {
+            "taskId": task.id,
+            "parentTaskId": "",
+            "wbsCode": "9",
+            "sortOrder": 0,
+            "expectedVersion": task.version,
+        }
+    )
+    qapp.processEvents()
+
+    assert result == {"ok": True, "message": "Task WBS position updated."}
+    assert task_service.get_task("task-1").wbs_code == "9"
+
+
 def test_pm_tasks_time_entries_collaboration_and_bulk_delete(tmp_path: Path, qapp) -> None:
     bundle = build_task_controller_bundle(tmp_path)
     controller = bundle["controller"]

@@ -201,6 +201,7 @@ class TaskAssignmentMixin:
         if not task:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
         self._require_manage("add assignment", project_id=task.project_id)
+        self._require_leaf_task(task, operation_label="receive resource assignments")
 
         project_resource = self._project_resource_repo.get(project_resource_id)
         if not project_resource:

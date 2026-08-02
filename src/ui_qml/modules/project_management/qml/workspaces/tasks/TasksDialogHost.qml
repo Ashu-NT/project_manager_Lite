@@ -13,11 +13,13 @@ Item {
     property var statusOptions: []
     property var assignmentOptions: []
     property var dependencyTaskOptions: []
+    property var wbsParentOptions: []
     property var dependencyTypeOptions: []
     property var collaborationMentionOptions: []
     property var collaborationDocumentOptions: []
     property var selectedTaskIds: []
     property var editTarget: ({})
+    property var wbsMoveTarget: ({})
     property var progressTarget: ({})
     property var deleteTarget: ({})
     property var assignmentTarget: ({})
@@ -65,6 +67,19 @@ Item {
         editorDialog.taskData = root.editTarget
         editorDialog.errorMessage = ""
         editorDialog.open()
+    }
+
+    function openWbsMoveDialog(taskData) {
+        root.wbsMoveTarget = taskData || ({})
+        const state = root.wbsMoveTarget && root.wbsMoveTarget.state
+            ? root.wbsMoveTarget.state
+            : (root.wbsMoveTarget || {})
+        if (state.taskId) {
+            root.taskPresenceStarted(String(state.taskId), "updating WBS")
+        }
+        wbsMoveDialog.taskData = root.wbsMoveTarget
+        wbsMoveDialog.errorMessage = ""
+        wbsMoveDialog.open()
     }
 
     function openProgressDialog(taskData) {
@@ -198,6 +213,7 @@ Item {
         projectOptions: root.projectOptions
         selectedProjectId: root.selectedProjectId
         statusOptions: root.statusOptions
+        parentTaskOptions: root.wbsParentOptions
         workspaceController: root.workspaceController
         busy: root.workspaceController ? root.workspaceController.isBusy : false
 
@@ -322,6 +338,29 @@ Item {
                 ? root.workspaceController.editTaskComment(payload)
                 : root.workspaceController.postTaskComment(payload)
             root._handleResult(collaborationComposerDialog, result)
+        }
+    }
+
+    ProjectManagementDialogs.TaskWbsMoveDialog {
+        id: wbsMoveDialog
+        objectName: "taskWbsMoveDialog"
+
+        parentTaskOptions: root.wbsParentOptions
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+
+        onClosed: {
+            const state = root.wbsMoveTarget && root.wbsMoveTarget.state
+                ? root.wbsMoveTarget.state
+                : (root.wbsMoveTarget || {})
+            if (state.taskId) {
+                root.taskPresenceEnded(String(state.taskId))
+            }
+        }
+
+        onSubmitted: function(payload) {
+            if (root.workspaceController === null) return
+            const result = root.workspaceController.moveTaskInWbs(payload)
+            root._handleResult(wbsMoveDialog, result)
         }
     }
 

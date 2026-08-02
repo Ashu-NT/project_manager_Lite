@@ -14,6 +14,7 @@ class SchedulingTaskDto:
     id: str
     project_id: str
     name: str
+    wbs_code: str
     description: str
     status: str
     status_label: str

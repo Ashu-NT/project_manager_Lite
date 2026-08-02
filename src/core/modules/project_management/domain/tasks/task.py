@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+import re
 
 from pydantic import field_validator, model_validator
 
@@ -15,6 +16,7 @@ from src.core.platform.common.pydantic import (
 )
 
 _INVALID_TASK_NAME_CHARACTERS = {"/", "\\", "?", "%", "*", ":", "|", '"', "<", ">"}
+_WBS_CODE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
 
 @validated_dataclass
@@ -23,6 +25,9 @@ class Task:
     project_id: str
     name: str
     code: str = ""
+    parent_task_id: str | None = None
+    wbs_code: str = ""
+    sort_order: int = 0
     description: str = ""
     start_date: date | None = None
     end_date: date | None = None
@@ -45,6 +50,33 @@ class Task:
             message="Project ID is required.",
             code="TASK_PROJECT_REQUIRED",
         )
+
+    @field_validator("parent_task_id", mode="before")
+    @classmethod
+    def _normalize_parent_task_id(cls, value: object) -> str | None:
+        return normalize_optional_identifier(value)
+
+    @field_validator("wbs_code", mode="before")
+    @classmethod
+    def _validate_wbs_code(cls, value: object) -> str:
+        normalized = normalize_optional_text(value).upper()
+        if normalized and not _WBS_CODE_PATTERN.fullmatch(normalized):
+            raise ValidationError(
+                "WBS code must be 1-64 letters, numbers, dots, hyphens, or underscores.",
+                code="TASK_WBS_CODE_INVALID",
+            )
+        return normalized
+
+    @field_validator("sort_order", mode="before")
+    @classmethod
+    def _validate_sort_order(cls, value: object) -> int:
+        resolved = int(value if value not in (None, "") else 0)
+        if resolved < 0:
+            raise ValidationError(
+                "Task sort_order cannot be negative.",
+                code="TASK_SORT_ORDER_INVALID",
+            )
+        return resolved
 
     @field_validator("name", mode="before")
     @classmethod
@@ -97,6 +129,18 @@ class Task:
 
     @model_validator(mode="after")
     def _validate_date_ranges(self) -> "Task":
+        if not self.wbs_code:
+            self.wbs_code = str(self.id or "").strip().upper()
+        if not self.wbs_code or not _WBS_CODE_PATTERN.fullmatch(self.wbs_code):
+            raise ValidationError(
+                "Task requires a valid WBS code.",
+                code="TASK_WBS_CODE_INVALID",
+            )
+        if self.parent_task_id == self.id:
+            raise ValidationError(
+                "A task cannot be its own parent.",
+                code="TASK_WBS_SELF_PARENT",
+            )
         if self.start_date and self.end_date and self.end_date < self.start_date:
             raise ValidationError(
                 "Task end date cannot be before start date.",

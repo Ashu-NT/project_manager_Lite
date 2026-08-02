@@ -59,6 +59,8 @@ class TaskDependencyMixin:
         successor = self._task_repo.get(successor_id)
         if not successor:
             raise NotFoundError("Successor task not found", code="TASK_NOT_FOUND")
+        self._require_leaf_task(predecessor, operation_label="participate in dependencies")
+        self._require_leaf_task(successor, operation_label="participate in dependencies")
         governed = (
             not bypass_approval
             and self._approval_service is not None

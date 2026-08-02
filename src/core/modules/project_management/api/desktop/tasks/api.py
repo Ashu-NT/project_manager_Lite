@@ -46,6 +46,7 @@ from src.core.modules.project_management.api.desktop.tasks.commands.task_command
     TaskCreateCommand,
     TaskProgressCommand,
     TaskUpdateCommand,
+    TaskWbsMoveCommand,
 )
 from src.core.modules.project_management.api.desktop.tasks.models.assignment import (
     TaskAssignmentDesktopDto,
@@ -176,10 +177,41 @@ class ProjectManagementTasksDesktopApi:
         task = service.get_task(task_id)
         if task is None:
             return None
-        return serialize_task(
-            task,
-            project_name=self._project_name_by_id().get(task.project_id, ""),
+        rows = self._serialize_project_tasks(
+            task.project_id,
+            self._project_name_by_id().get(task.project_id, ""),
         )
+        return next((row for row in rows if row.id == task.id), None)
+
+    def _serialize_project_tasks(
+        self,
+        project_id: str,
+        project_name: str,
+    ) -> tuple[TaskDesktopDto, ...]:
+        service = self._require_task_service()
+        list_hierarchy = getattr(service, "list_task_hierarchy", None)
+        list_rollups = getattr(service, "list_task_hierarchy_rollups", None)
+        if callable(list_hierarchy) and callable(list_rollups):
+            nodes = list_hierarchy(project_id)
+            rollups = list_rollups(project_id)
+            return tuple(
+                serialize_task(
+                    node.task,
+                    project_name=project_name,
+                    hierarchy_node=node,
+                    rollup=rollups.get(node.task.id),
+                )
+                for node in nodes
+            )
+        tasks = sorted(
+            service.list_tasks_for_project(project_id),
+            key=lambda task: (
+                task.start_date or date.max,
+                -int(task.priority or 0),
+                (task.name or "").casefold(),
+            ),
+        )
+        return tuple(serialize_task(task, project_name=project_name) for task in tasks)
 
     def list_dependency_types(self) -> tuple[TaskDependencyTypeDescriptor, ...]:
         return tuple(
@@ -191,17 +223,8 @@ class ProjectManagementTasksDesktopApi:
         )
 
     def list_tasks(self, project_id: str) -> tuple[TaskDesktopDto, ...]:
-        service = self._require_task_service()
         project_name = self._project_name_by_id().get(project_id, "")
-        tasks = sorted(
-            service.list_tasks_for_project(project_id),
-            key=lambda task: (
-                task.start_date or date.max,
-                -int(task.priority or 0),
-                (task.name or "").casefold(),
-            ),
-        )
-        return tuple(serialize_task(task, project_name=project_name) for task in tasks)
+        return self._serialize_project_tasks(project_id, project_name)
 
     def list_all_tasks(self) -> tuple[TaskDesktopDto, ...]:
         service = self._require_task_service()
@@ -209,25 +232,16 @@ class ProjectManagementTasksDesktopApi:
         if not project_name_lookup:
             return ()
         all_tasks: list[TaskDesktopDto] = []
-        for project_id, project_name in project_name_lookup.items():
+        for project_id, project_name in sorted(
+            project_name_lookup.items(),
+            key=lambda item: (item[1].casefold(), item[0]),
+        ):
             try:
-                tasks = service.list_tasks_for_project(project_id)
+                tasks = self._serialize_project_tasks(project_id, project_name)
             except BusinessRuleError:
                 continue
-            all_tasks.extend(
-                serialize_task(task, project_name=project_name)
-                for task in tasks
-            )
-        return tuple(
-            sorted(
-                all_tasks,
-                key=lambda task: (
-                    task.start_date or date.max,
-                    -int(task.priority or 0),
-                    (task.name or "").casefold(),
-                ),
-            )
-        )
+            all_tasks.extend(tasks)
+        return tuple(all_tasks)
 
     def create_task(self, command: TaskCreateCommand) -> TaskDesktopDto:
         service = self._require_task_service()
@@ -240,6 +254,9 @@ class ProjectManagementTasksDesktopApi:
             duration_days=command.duration_days,
             priority=command.priority or 0,
             deadline=command.deadline,
+            parent_task_id=getattr(command, "parent_task_id", None),
+            wbs_code=getattr(command, "wbs_code", "") or "",
+            sort_order=getattr(command, "sort_order", None),
         )
         desired_status = coerce_task_status(command.status)
         if desired_status != task.status:
@@ -249,6 +266,19 @@ class ProjectManagementTasksDesktopApi:
             task,
             project_name=self._project_name_by_id().get(task.project_id, ""),
         )
+
+    def move_task(self, command: TaskWbsMoveCommand) -> TaskDesktopDto:
+        task = self._require_task_service().move_task(
+            command.task_id,
+            parent_task_id=command.parent_task_id,
+            wbs_code=command.wbs_code,
+            sort_order=command.sort_order,
+            expected_version=command.expected_version,
+        )
+        refreshed = self.get_task(task.id)
+        if refreshed is None:
+            raise RuntimeError("Task could not be loaded after the WBS move.")
+        return refreshed
 
     def update_task(self, command: TaskUpdateCommand) -> TaskDesktopDto:
         service = self._require_task_service()
@@ -524,42 +554,24 @@ class ProjectManagementTasksDesktopApi:
         service = self._require_task_service()
         desired_status = coerce_task_status(command.status)
         task_ids = normalize_task_ids(command.task_ids)
-        changed_tasks: list[TaskDesktopDto] = []
-        for task_id in task_ids:
-            task = service.get_task(task_id)
-            if task is None or task.status == desired_status:
-                continue
-            if (
-                task.status == TaskStatus.DONE
-                and desired_status == TaskStatus.IN_PROGRESS
-                and command.reopen_percent_complete is not None
-            ):
-                task = service.update_progress(
-                    task_id,
-                    status=TaskStatus.IN_PROGRESS,
-                    percent_complete=float(command.reopen_percent_complete),
-                )
-            else:
-                service.set_status(task_id, desired_status)
-                task = service.get_task(task_id) or task
-            changed_tasks.append(
-                serialize_task(
-                    task,
-                    project_name=self._project_name_by_id().get(task.project_id, ""),
-                )
+        changed = service.set_tasks_status(
+            task_ids,
+            desired_status,
+            reopen_percent_complete=command.reopen_percent_complete,
+        )
+        project_names = self._project_name_by_id()
+        return tuple(
+            serialize_task(
+                task,
+                project_name=project_names.get(task.project_id, ""),
             )
-        return tuple(changed_tasks)
+            for task in changed
+        )
 
     def delete_tasks(self, task_ids: tuple[str, ...]) -> tuple[str, ...]:
         normalized_ids = normalize_task_ids(task_ids)
-        deleted_ids: list[str] = []
-        for task_id in normalized_ids:
-            task = self._require_task_service().get_task(task_id)
-            if task is None:
-                continue
-            self._require_task_service().delete_task(task_id)
-            deleted_ids.append(task_id)
-        return tuple(deleted_ids)
+        service = self._require_task_service()
+        return tuple(service.delete_tasks(normalized_ids))
 
     def list_task_reservations(self, task_id: str) -> tuple[TaskReservationDesktopDto, ...]:
         if not task_id or self._reservation_service is None:
