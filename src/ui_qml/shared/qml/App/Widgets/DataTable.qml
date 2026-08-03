@@ -57,7 +57,7 @@ Item {
     // ── Private helpers ───────────────────────────────────────────────
     property int  _hoveredRow:        -1
     property int  _currentRow:        -1
-    property bool _layoutPending:     false   // debounce guard for forceLayout
+    //property bool _layoutPending:     false   // debounce guard for forceLayout
 
     function _rebuildSelectedLookup() {
         const map = {}
@@ -79,7 +79,7 @@ Item {
         _colCustomizer.anchorItem = root.columnCustomizerAnchorItem || _columnCustomizerAnchor
         _colCustomizer.open()
     }
-
+    /*
     function _scheduleMainViewLayout() {
         if (root._layoutPending) return
         root._layoutPending = true
@@ -90,6 +90,7 @@ Item {
             }
         })
     }
+    */
 
     function _toggleSort(key) {
         const normalizedKey = String(key || "")
@@ -316,7 +317,7 @@ Item {
     }
 
     // Notify the header's columnWidthProvider when visible-column set changes.
-    on_VisColsChanged: root._scheduleMainViewLayout()
+    //on_VisColsChanged: root._scheduleMainViewLayout()
 
     Item {
         id: _columnCustomizerAnchor
@@ -645,7 +646,7 @@ Item {
             return c ? root._colWidth(c) : 0
         }
 
-        onWidthChanged:  root._scheduleMainViewLayout()
+        //onWidthChanged:  root._scheduleMainViewLayout()
 
         ScrollBar.vertical:   ScrollBar { policy: ScrollBar.AsNeeded }
         ScrollBar.horizontal: _hScrollBar

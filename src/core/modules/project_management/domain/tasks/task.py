@@ -148,7 +148,10 @@ class Task:
             )
         if self.start_date and self.deadline and self.deadline < self.start_date:
             raise ValidationError(
-                "Task deadline cannot be before start_date.",
+                (
+                    f"Task deadline {self.deadline!s} cannot be before "
+                    f"start_date {self.start_date!s}. Task id: {self.id}"
+                ),
                 code="TASK_DEADLINE_INVALID",
             )
         if self.actual_start and self.actual_end and self.actual_end < self.actual_start:
