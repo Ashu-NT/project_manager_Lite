@@ -18,6 +18,8 @@ Item {
     property int maximumYear: new Date().getFullYear() + 15
     property var selectedDate: _parseDate(field.text)
 
+    property Item popupBoundaryItem: null
+    
     signal accepted()
     signal dateSelected(string text)
 
@@ -94,40 +96,28 @@ Item {
         _pickerDay = source.getDate()
     }
 
-    function _popupBoundaryItem() {
-        let current = root.parent
-        while (current) {
-            if (current.minimumSideMargin !== undefined
-                    && current.minimumTopMargin !== undefined
-                    && current.width !== undefined
-                    && current.height !== undefined
-                    && current.x !== undefined
-                    && current.y !== undefined) {
-                return current
-            }
-            current = current.parent
-        }
-        return null
+    function _effectivePopupBoundary() {
+        return root.popupBoundaryItem || QQC2.Overlay.overlay
     }
 
     function _popupBounds() {
-        const popupParent = datePopup.parent || root
-        const boundary = root._popupBoundaryItem()
+        const overlay = QQC2.Overlay.overlay
+        const boundary = root._effectivePopupBoundary()
         const margin = Theme.AppTheme.spacingSm
-        if (boundary) {
-            const topLeft = boundary.mapToItem(popupParent, 0, 0)
-            return {
-                "x": topLeft.x + margin,
-                "y": topLeft.y + margin,
-                "width": Math.max(180, boundary.width - margin * 2),
-                "height": Math.max(180, boundary.height - margin * 2)
-            }
-        }
+
+        const topLeft = boundary.mapToItem(overlay, 0, 0)
+
         return {
-            "x": margin,
-            "y": margin,
-            "width": Math.max(180, (popupParent.width || root.width || 280) - margin * 2),
-            "height": Math.max(180, (popupParent.height || 360) - margin * 2)
+            "x": topLeft.x + margin,
+            "y": topLeft.y + margin,
+            "width": Math.max(
+                180,
+                boundary.width - margin * 2
+            ),
+            "height": Math.max(
+                180,
+                boundary.height - margin * 2
+            )
         }
     }
 
@@ -137,28 +127,52 @@ Item {
     }
 
     function _positionPopup() {
-        const popupParent = datePopup.parent || root
+        const overlay = QQC2.Overlay.overlay
         const bounds = root._popupBounds()
+        const margin = Theme.AppTheme.spacingXs
+
         const popupWidth = datePopup.width
         const popupHeight = datePopup.implicitHeight > 0
             ? datePopup.implicitHeight
-            : (datePopup.contentItem ? (datePopup.contentItem.implicitHeight + datePopup.topPadding + datePopup.bottomPadding) : datePopup.height)
-        const topLeft = root.mapToItem(popupParent, 0, 0)
-        const bottomLeft = root.mapToItem(popupParent, 0, root.height)
-        const margin = Theme.AppTheme.spacingXs
+            : datePopup.height
 
-        let nextX = topLeft.x
-        let nextY = bottomLeft.y + margin
+        const anchorTop = root.mapToItem(
+            overlay,
+            0,
+            0
+        )
 
-        const maxX = Math.max(bounds.x, bounds.x + bounds.width - popupWidth)
-        nextX = Math.min(Math.max(nextX, bounds.x), maxX)
+        const anchorBottom = root.mapToItem(
+            overlay,
+            0,
+            root.height
+        )
 
+        // Prefer left alignment with the field.
+        let nextX = anchorTop.x
+        let nextY = anchorBottom.y + margin
+
+        // Shift left when the popup would exceed the right boundary.
+        const maximumX =
+            bounds.x + bounds.width - popupWidth
+
+        nextX = Math.max(
+            bounds.x,
+            Math.min(nextX, maximumX)
+        )
+
+        // Prefer below; move above when there is insufficient room.
         if (nextY + popupHeight > bounds.y + bounds.height) {
-            const aboveY = topLeft.y - popupHeight - margin
+            const aboveY =
+                anchorTop.y - popupHeight - margin
+
             if (aboveY >= bounds.y) {
                 nextY = aboveY
             } else {
-                nextY = Math.max(bounds.y, bounds.y + bounds.height - popupHeight)
+                nextY = Math.max(
+                    bounds.y,
+                    bounds.y + bounds.height - popupHeight
+                )
             }
         }
 
@@ -240,9 +254,14 @@ Item {
     QQC2.Popup {
         id: datePopup
 
+        parent: QQC2.Overlay.overlay
+
         width: root._popupWidth()
         padding: Theme.AppTheme.dialogPadding
-        closePolicy: QQC2.Popup.CloseOnEscape | QQC2.Popup.CloseOnPressOutside
+
+        closePolicy:
+            QQC2.Popup.CloseOnEscape
+            | QQC2.Popup.CloseOnPressOutside
 
         background: Rectangle {
             radius: Theme.AppTheme.radiusMd
@@ -255,17 +274,19 @@ Item {
             root._syncPickerState(root.selectedDate)
             Qt.callLater(root._positionPopup)
         }
+
         onWidthChanged: {
             if (visible)
                 Qt.callLater(root._positionPopup)
         }
+
         onHeightChanged: {
             if (visible)
                 Qt.callLater(root._positionPopup)
         }
 
-        ColumnLayout {
-            width: parent.width
+        contentItem: ColumnLayout {
+            width: datePopup.availableWidth
             spacing: Theme.AppTheme.spacingSm
 
             Label {
@@ -274,63 +295,111 @@ Item {
                 font.pixelSize: Theme.AppTheme.sectionTitleSize
             }
 
-            RowLayout {
+            GridLayout {
                 Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingSm
+                columns: 3
+                columnSpacing: Theme.AppTheme.spacingSm
 
                 ComboBox {
                     id: monthCombo
+
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+
                     model: root._monthOptions()
                     textRole: "label"
                     currentIndex: root._pickerMonth
+
                     onActivated: function(index) {
-                        root._pickerMonth = Number((model[index] || { "value": 0 }).value || 0)
-                        const maxDay = root._daysInMonth(root._pickerYear, root._pickerMonth)
-                        if (root._pickerDay > maxDay) {
+                        root._pickerMonth = Number(
+                            (model[index] || { "value": 0 }).value || 0
+                        )
+
+                        const maxDay = root._daysInMonth(
+                            root._pickerYear,
+                            root._pickerMonth
+                        )
+
+                        if (root._pickerDay > maxDay)
                             root._pickerDay = maxDay
-                        }
                     }
                 }
 
                 ComboBox {
                     id: dayCombo
-                    Layout.preferredWidth: 78
+
+                    Layout.preferredWidth: 72
+                    Layout.minimumWidth: 58
+                    Layout.maximumWidth: 78
+
                     model: root._dayOptions()
                     textRole: "label"
                     currentIndex: Math.max(0, root._pickerDay - 1)
+
                     onActivated: function(index) {
-                        const dayOptions = root._dayOptions()
-                        root._pickerDay = Number((dayOptions[index] || { "value": 1 }).value || 1)
+                        const options = root._dayOptions()
+
+                        root._pickerDay = Number(
+                            (options[index] || { "value": 1 }).value || 1
+                        )
                     }
                 }
 
                 ComboBox {
                     id: yearCombo
-                    Layout.preferredWidth: 96
+
+                    Layout.preferredWidth: 88
+                    Layout.minimumWidth: 74
+                    Layout.maximumWidth: 96
+
                     model: root._yearOptions()
                     textRole: "label"
-                    currentIndex: Math.max(0, root._pickerYear - root.minimumYear)
+                    currentIndex: Math.max(
+                        0,
+                        root._pickerYear - root.minimumYear
+                    )
+
                     onActivated: function(index) {
-                        root._pickerYear = Number((model[index] || { "value": new Date().getFullYear() }).value || new Date().getFullYear())
-                        const maxDay = root._daysInMonth(root._pickerYear, root._pickerMonth)
-                        if (root._pickerDay > maxDay) {
+                        root._pickerYear = Number(
+                            (
+                                model[index]
+                                || { "value": new Date().getFullYear() }
+                            ).value
+                            || new Date().getFullYear()
+                        )
+
+                        const maxDay = root._daysInMonth(
+                            root._pickerYear,
+                            root._pickerMonth
+                        )
+
+                        if (root._pickerDay > maxDay)
                             root._pickerDay = maxDay
-                        }
                     }
                 }
             }
 
-            RowLayout {
+            GridLayout {
                 Layout.fillWidth: true
-                spacing: Theme.AppTheme.spacingSm
+                columns: 3
+                columnSpacing: Theme.AppTheme.spacingSm
 
                 SecondaryButton {
                     text: "Today"
                     iconName: "calendar"
+
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+
                     onClicked: {
                         const today = new Date()
-                        root._applyDate(today.getFullYear(), today.getMonth(), today.getDate())
+
+                        root._applyDate(
+                            today.getFullYear(),
+                            today.getMonth(),
+                            today.getDate()
+                        )
+
                         datePopup.close()
                     }
                 }
@@ -338,6 +407,10 @@ Item {
                 SecondaryButton {
                     text: "Clear"
                     iconName: "close"
+
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+
                     onClicked: {
                         field.clear()
                         root.dateSelected("")
@@ -345,13 +418,20 @@ Item {
                     }
                 }
 
-                Item { Layout.fillWidth: true }
-
                 PrimaryButton {
                     text: "Apply"
                     iconName: "approve"
+
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+
                     onClicked: {
-                        root._applyDate(root._pickerYear, root._pickerMonth, root._pickerDay)
+                        root._applyDate(
+                            root._pickerYear,
+                            root._pickerMonth,
+                            root._pickerDay
+                        )
+
                         datePopup.close()
                     }
                 }
