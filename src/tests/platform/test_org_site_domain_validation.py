@@ -7,8 +7,8 @@ import pytest
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.org.application.organization_service import OrganizationService
 from src.core.platform.org.domain import Organization
-from src.core.platform.site.application.site_service import SiteService
-from src.core.platform.site.domain import Site
+from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.domain.master_data.site import Site
 
 
 class _FakeSession:
@@ -167,19 +167,19 @@ def _make_organization_service(monkeypatch: pytest.MonkeyPatch) -> OrganizationS
 
 def _make_site_service(monkeypatch: pytest.MonkeyPatch) -> tuple[SiteService, Organization]:
     monkeypatch.setattr(
-        "src.core.platform.site.application.site_service.require_permission",
+        "src.core.platform.application.master_data.site.site_service.require_permission",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.site.application.site_service.require_any_permission",
+        "src.core.platform.application.master_data.site.site_service.require_any_permission",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.site.application.site_service.require_scope_permission",
+        "src.core.platform.application.master_data.site.site_service.require_scope_permission",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.site.application.site_service.filter_scope_rows",
+        "src.core.platform.application.master_data.site.site_service.filter_scope_rows",
         lambda rows, *_args, **_kwargs: list(rows),
     )
 

@@ -337,8 +337,8 @@ def test_resolver_source_chain_correct(
 ):
     from datetime import datetime, timezone
 
-    from src.core.platform.infrastructure.persistence.orm.departments import DepartmentORM
-    from src.core.platform.infrastructure.persistence.orm.sites import SiteORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import DepartmentORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
 
     ctx = tenant_context.require_organization_context()
     now = datetime.now(timezone.utc)

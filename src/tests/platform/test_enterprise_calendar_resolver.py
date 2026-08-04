@@ -152,7 +152,7 @@ def exc_service(db_session, repos, mock_user_session):
 def seeded_assignment_entities(db_session, org_id):
     from datetime import datetime, timezone
 
-    from src.core.platform.infrastructure.persistence.orm.sites import SiteORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
 
     now = datetime.now(timezone.utc)
     db_session.add_all(

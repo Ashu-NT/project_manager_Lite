@@ -13,10 +13,10 @@ from src.core.platform.auth.domain import UserAccount
 from src.core.platform.auth.contracts import UserRepository
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.org.contracts import OrganizationRepository
-from src.core.platform.site.contracts import SiteRepository
+from src.core.platform.contract.master_data.site.contracts import SiteRepository
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.org.domain import Organization
-from src.core.platform.site.domain import Site
+from src.core.platform.domain.master_data.site import Site
 
 
 class _OrgRepo(OrganizationRepository):

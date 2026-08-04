@@ -4,16 +4,16 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.core.platform.employee.domain import EmploymentType
-from src.core.platform.infrastructure.persistence.orm.departments import DepartmentORM
+from src.core.platform.domain.master_data.employee import EmploymentType
+from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import DepartmentORM
 from src.core.platform.infrastructure.persistence.orm.documents import (
     DocumentLinkORM,
     DocumentORM,
     DocumentStructureORM,
 )
-from src.core.platform.infrastructure.persistence.orm.employee import EmployeeORM
+from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import EmployeeORM
 from src.core.platform.infrastructure.persistence.orm.party import PartyORM
-from src.core.platform.infrastructure.persistence.orm.sites import SiteORM
+from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
 
 
 def _seed_core_scope_rows(services) -> dict[str, str]:

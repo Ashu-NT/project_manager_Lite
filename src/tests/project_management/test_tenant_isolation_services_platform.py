@@ -12,15 +12,15 @@ from src.core.platform.calendar.application.enterprise_calendar_service import E
 from src.core.platform.calendar.application.shift_pattern_service import ShiftPatternService
 from src.core.platform.calendar.domain.enterprise_calendar import PlatformCalendar, ShiftPattern
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.department.application.department_service import DepartmentService
-from src.core.platform.department.domain import Department
+from src.core.platform.application.master_data.department.department_service import DepartmentService
+from src.core.platform.domain.master_data.department import Department
 from src.core.platform.documents.application.document_service import DocumentService
 from src.core.platform.documents.domain import Document
 from src.core.platform.org.domain import Organization
 from src.core.platform.party.application.party_service import PartyService
 from src.core.platform.party.domain import Party
-from src.core.platform.site.application.site_service import SiteService
-from src.core.platform.site.domain import Site
+from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.domain.master_data.site import Site
 from src.core.platform.tenancy import TenantContextService
 
 

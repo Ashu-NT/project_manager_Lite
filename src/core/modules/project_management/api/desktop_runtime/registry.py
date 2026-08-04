@@ -15,8 +15,8 @@ from src.core.modules.project_management.api.desktop import (
     ProjectManagementTimesheetsDesktopApi,
 )
 from src.core.platform.application.approval.approval_service import ApprovalService
-from src.core.platform.employee import EmployeeService
-from src.core.platform.site import SiteService
+from src.core.platform.application.master_data.employee.employee_service import EmployeeService
+from src.core.platform.application.master_data.site.site_service import SiteService
 
 
 @dataclass(frozen=True)

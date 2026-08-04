@@ -237,7 +237,7 @@ def global_cal(cal_service, org_id, rule_service):
 
 
 def _seed_employee(db_session, tenant_context, employee_id: str) -> None:
-    from src.core.platform.infrastructure.persistence.orm.employee import EmployeeORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import EmployeeORM
 
     ctx = tenant_context.require_organization_context()
     if db_session.get(EmployeeORM, employee_id) is not None:

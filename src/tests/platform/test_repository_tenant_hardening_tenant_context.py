@@ -9,7 +9,7 @@ from src.core.platform.infrastructure.persistence.repositories.approval.approval
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.departments import (
+from src.core.platform.infrastructure.persistence.repositories.master_data.department.departments import (
     SqlAlchemyDepartmentRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.documents import (
@@ -17,7 +17,7 @@ from src.core.platform.infrastructure.persistence.repositories.documents import 
     SqlAlchemyDocumentRepository,
     SqlAlchemyDocumentStructureRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.employee import (
+from src.core.platform.infrastructure.persistence.repositories.master_data.employee.employee import (
     SqlAlchemyEmployeeRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.enterprise_calendar import (
@@ -31,7 +31,7 @@ from src.core.platform.infrastructure.persistence.repositories.enterprise_calend
 from src.core.platform.infrastructure.persistence.repositories.party import (
     SqlAlchemyPartyRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.sites import (
+from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import (
     SqlAlchemySiteRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.time import (

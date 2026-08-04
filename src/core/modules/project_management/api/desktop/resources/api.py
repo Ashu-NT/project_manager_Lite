@@ -72,7 +72,7 @@ from src.core.modules.project_management.application.resources import (
 from src.core.modules.project_management.contracts.repositories.task import (
     AssignmentRepository,
 )
-from src.core.platform.employee import EmployeeService
+from src.core.platform.application.master_data.employee.employee_service import EmployeeService
 
 
 class ProjectManagementResourcesDesktopApi:

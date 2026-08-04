@@ -17,7 +17,7 @@ from src.core.platform.access.authorization import filter_scope_rows, require_sc
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
-from src.core.platform.site.contracts import SiteRepository
+from src.core.platform.contract.master_data.site.contracts import SiteRepository
 from src.core.platform.tenancy.tenant_context import (
     TenantContextService,
     require_tenant_context_service,

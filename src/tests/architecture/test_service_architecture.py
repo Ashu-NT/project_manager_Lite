@@ -7,10 +7,10 @@ from src.core.platform.auth.application.auth_service import AuthService as Legac
 from src.core.platform.application.history.audit import EnterpriseAuditService
 from src.core.platform.data_exchange import MasterDataExchangeService
 from src.core.platform.documents import DocumentService
-from src.core.platform.department import DepartmentService
-from src.core.platform.employee import EmployeeService
+from src.core.platform.application.master_data.department.department_service import DepartmentService
+from src.core.platform.application.master_data.employee.employee_service import EmployeeService
 from src.core.platform.org import OrganizationService
-from src.core.platform.site import SiteService
+from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.party import PartyService
 from src.application.runtime.entitlement_runtime import ModuleRuntimeService
 from src.core.platform.time.application import TimeService

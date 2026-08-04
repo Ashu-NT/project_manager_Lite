@@ -2423,6 +2423,65 @@ review unit, not a separate infra-only mega-phase at the end.
   entire dirs) and the four old flat infra files
   (`infrastructure/persistence/{mappers,orm,repositories}/{notification,platform_events}.py`).
 
+**Phase 4 (`data_operations`: `exporting`, `importing`, `report_runtime`,
+`runtime_tracking`) — completed 2026-08-04.**
+
+- Created 30 new files across `domain/data_operations/{exporting,importing,
+  report_runtime,runtime_tracking}/`, `contract/data_operations/
+  runtime_tracking/` (the only member with a contract layer),
+  `application/data_operations/{exporting,importing,report_runtime,
+  runtime_tracking}/`, and `infrastructure/persistence/{orm,repositories}/
+  data_operations/runtime_tracking/` (`runtime_tracking` has no mapper —
+  "no mapper exists today" per §8 — `exporting`/`importing`/`report_runtime`
+  have no infra persistence layer at all, confirmed by grep before
+  starting). No `api/desktop/data_operations/` — none of the four modules
+  have a desktop API adapter.
+- Cross-references **within this same phase** (e.g. `export_runtime.py`
+  and `csv_import_runtime.py` both depend on `RuntimeExecutionService`;
+  `report_runtime.py` depends on `exporting`'s `ExportArtifact`/
+  `finalize_artifact`) were pointed at the new locations immediately,
+  unlike cross-phase dependencies (`modules`, `tenancy`, `auth`) which stay
+  on their old paths until their own phase lands — consistent with how
+  Phase 1 handled `history`'s two members.
+- Updated every external call site found by a fresh repo-wide grep — this
+  was the largest call-site sweep so far (~38 files, vs. the ~30 estimated
+  in §13's table), spanning `src/infra/composition/`,
+  `src/infra/persistence/orm/__init__.py`, `src/core/platform/data_exchange/`,
+  and — the bulk of it — `project_management`'s, `maintenance`'s, and
+  `inventory_procurement`'s own `importers/`/`exporters/`/`reporting/`
+  infrastructure code, which imports these generic kernels heavily. Split
+  every mixed-import line into separate `application.data_operations.*`
+  and `domain.data_operations.*` imports by symbol (e.g. `ExportDefinitionRegistry`/
+  `ExportRuntime`/`finalize_artifact` are application; `ExportArtifact`/
+  `ExportArtifactDraft`/`ExportColumnSpec` are domain) — applied via a
+  one-off Python script (not `sed`) given the volume of multi-line
+  parenthesized import blocks that needed surgical splitting, with an
+  assert-old-string-found-exactly-once guard per replacement and explicit
+  CRLF-preserving I/O (this repo's `.py` files are CRLF; a naive text-mode
+  rewrite would have churned every touched file's line endings). Confirmed
+  clean afterward with a second repo-wide grep.
+- Fixed `test_orm_package_root_loads_all_model_packages` (`runtime_tracking`
+  → `data_operations.runtime_tracking.runtime_tracking`) and restructured
+  `test_platform_persistence_structure.py` to add a
+  `NESTED_AREA_FILES_NO_MAPPER` set alongside `NESTED_AREA_FILES` —
+  needed because `runtime_tracking` nests under `orm/`+`repositories/`
+  but was never present under `mappers/` at all, so it can't share the
+  same nested-file set as `approval`/`history`/`events` (which do have a
+  mapper) without the mapper-side assertion wrongly demanding a file that
+  never existed.
+- Verification: ran a five-directory suite this time (`platform`,
+  `architecture`, `project_management`, `inventory_procurement`, plus
+  `maintenance` — added because this phase's call sites reach deep into
+  maintenance's importers/exporters/reporting — and the standalone
+  `test_runtime_execution_tracking.py`), both before and after deleting
+  the old files. Before: 33 failed (32 pre-existing + the expected
+  transitional persistence-structure failure), 1439 passed. After: 32
+  failed, 1440 passed — diffed against Phase 2's confirmed 32-failure
+  baseline, **byte-for-byte identical**.
+- Deleted `src/core/platform/{exporting,importing,report_runtime,
+  runtime_tracking}/` (all four entire dirs) and the two old flat infra
+  files (`infrastructure/persistence/{orm,repositories}/runtime_tracking.py`).
+
 ### Notes on this ordering
 
 - **`security` (Phases 8a–8f) is deliberately last among the content-group

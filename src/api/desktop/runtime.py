@@ -95,13 +95,13 @@ from src.core.platform.calendar.application.shift_pattern_service import (
 from src.core.platform.calendar.application.working_rule_service import (
     WorkingRuleService,
 )
-from src.core.platform.department import DepartmentService
+from src.core.platform.application.master_data.department.department_service import DepartmentService
 from src.core.platform.documents import DocumentService
-from src.core.platform.employee import EmployeeService
+from src.core.platform.application.master_data.employee.employee_service import EmployeeService
 from src.core.platform.integration.module_registry import ModuleRegistry
 from src.core.platform.identity import ServicePrincipalService
 from src.core.platform.party import PartyService
-from src.core.platform.site import SiteService
+from src.core.platform.application.master_data.site.site_service import SiteService
 
 
 @dataclass(frozen=True)

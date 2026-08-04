@@ -47,8 +47,8 @@ from src.core.platform.infrastructure.persistence.mappers.enterprise_calendar im
     working_rule_from_orm,
     working_rule_to_orm,
 )
-from src.core.platform.infrastructure.persistence.orm.departments import DepartmentORM
-from src.core.platform.infrastructure.persistence.orm.employee import EmployeeORM
+from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import DepartmentORM
+from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import EmployeeORM
 from src.core.platform.infrastructure.persistence.orm.enterprise_calendar import (
     CalendarExceptionORM,
     CalendarRecurringEventORM,
@@ -60,7 +60,7 @@ from src.core.platform.infrastructure.persistence.orm.enterprise_calendar import
     ShiftPatternORM,
     SiteCalendarAssignmentORM,
 )
-from src.core.platform.infrastructure.persistence.orm.sites import SiteORM
+from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )

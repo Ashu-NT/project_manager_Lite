@@ -25,9 +25,9 @@ from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.org.domain import Organization
-from src.core.platform.site.domain import Site
+from src.core.platform.domain.master_data.site import Site
 from src.core.shared.events.domain_events import domain_events
-from src.core.platform.site import SiteService
+from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.party import PartyService
 from src.core.platform.tenancy.tenant_context import (
     TenantContextService,

@@ -50,7 +50,7 @@ from src.core.platform.application.data_operations.exporting import (
 from src.core.platform.domain.data_operations.exporting import ExportArtifactDraft
 from src.core.platform.application.data_operations.importing import CsvImportRuntime, ImportDefinitionRegistry
 from src.core.platform.domain.data_operations.importing import ImportPreview, ImportSummary
-from src.core.platform.site import SiteService
+from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.party import PartyService
 
 

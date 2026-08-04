@@ -6,7 +6,7 @@ from src.core.modules.maintenance.domain import MaintenanceAsset, MaintenanceLoc
 from src.core.modules.maintenance.contracts.repositories import MaintenanceSensorReadingRepository, MaintenanceSensorRepository
 from src.core.modules.maintenance import MaintenanceSensorReadingService, MaintenanceSensorService
 from src.core.platform.org.domain import Organization
-from src.core.platform.site.domain import Site
+from src.core.platform.domain.master_data.site import Site
 from .test_maintenance_foundation_asset import (
     _AssetRepo,
     _LocationRepo,

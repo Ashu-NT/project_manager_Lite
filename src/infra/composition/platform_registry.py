@@ -28,11 +28,12 @@ from src.core.platform.auth import (
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.documents import DocumentIntegrationService, DocumentService
 from src.core.platform.data_exchange import MasterDataExchangeService
-from src.core.platform.department import DepartmentService
-from src.core.platform.employee import EmployeeService
+from src.core.platform.application.master_data.department.department_service import DepartmentService
+from src.core.platform.application.master_data.employee.employee_service import EmployeeService
 from src.core.platform.org import Organization, OrganizationRepository, OrganizationService
-from src.core.platform.site import SiteRepository, SiteService
-from src.core.platform.site.access_policy import (
+from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.contract.master_data.site.contracts import SiteRepository
+from src.core.platform.domain.master_data.site.access_policy import (
     SITE_SCOPE_ROLE_CHOICES,
     normalize_site_scope_role,
     resolve_site_scope_permissions,

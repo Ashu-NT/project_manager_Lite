@@ -125,9 +125,9 @@ def cal_service(db_session, repos, mock_org_repo, mock_user_session, tenant_cont
 def seeded_assignment_entities(db_session, org_id):
     from datetime import datetime, timezone
 
-    from src.core.platform.infrastructure.persistence.orm.departments import DepartmentORM
-    from src.core.platform.infrastructure.persistence.orm.employee import EmployeeORM
-    from src.core.platform.infrastructure.persistence.orm.sites import SiteORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import DepartmentORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import EmployeeORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
 
     tenant_id = "tenant-platform-foundation"
     now = datetime.now(timezone.utc)

@@ -14,6 +14,9 @@ NESTED_AREA_FILES = {
     "approval/approval.py",
     "events/notifications/notification.py",
     "events/platform_events/platform_events.py",
+    "master_data/employee/employee.py",
+    "master_data/site/sites.py",
+    "master_data/department/departments.py",
 }
 
 # runtime_tracking has no mapper (never did — "no mapper exists today" per §8),
@@ -24,15 +27,12 @@ NESTED_AREA_FILES_NO_MAPPER = {
 
 FLAT_AREAS = {
     "auth",
-    "departments",
     "documents",
-    "employee",
     "enterprise_calendar",
     "identity",
     "modules",
     "org",
     "party",
-    "sites",
     "tenant",
     "time",
     "user_tenant",
