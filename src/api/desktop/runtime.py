@@ -99,7 +99,7 @@ from src.core.platform.application.master_data.department.department_service imp
 from src.core.platform.application.master_data.documents.document_service import DocumentService
 from src.core.platform.application.master_data.employee.employee_service import EmployeeService
 from src.core.platform.integration.module_registry import ModuleRegistry
-from src.core.platform.identity import ServicePrincipalService
+from src.core.platform.application.security.identity import ServicePrincipalService
 from src.core.platform.application.master_data.party.party_service import PartyService
 from src.core.platform.application.master_data.site.site_service import SiteService
 

@@ -2866,6 +2866,114 @@ review unit, not a separate infra-only mega-phase at the end.
   three old flat infra files
   (`infrastructure/persistence/{mappers,orm,repositories}/time.py`).
 
+**Phase 7b (`time_management`: `calendar`) — completed 2026-08-04.**
+
+- Created 20 new files, the first phase since Phase 5b to involve real
+  de-flattening: `domain/time_management/calendar/{__init__.py,
+  enterprise_calendar.py}`, `contract/time_management/calendar/
+  {__init__.py, contracts.py, calendar_protocol.py}`,
+  `application/time_management/calendar/{__init__.py,
+  enterprise_calendar_service.py, assignment/
+  calendar_assignment_service.py, definitions/{calendar_exception_service.py,
+  recurring_event_service.py, shift_pattern_service.py,
+  working_rule_service.py}, capacity/{enterprise_calendar_resolver.py,
+  global_calendar_shim.py, working_time_calculator.py}}`,
+  `infrastructure/persistence/{mappers,orm,repositories}/
+  time_management/calendar/enterprise_calendar.py`, and
+  `api/desktop/time_management/calendar/{enterprise_calendar.py,
+  models/enterprise_calendar.py}`.
+- **`calendar_protocol.py`'s layer reassignment (application/ → contract/)
+  is a real reclassification, not just a group move** — per §5b/§9c,
+  it's a structural `Protocol` other modules import as a type annotation,
+  not a service with behavior, so it belongs beside `contracts.py`. This
+  meant the substring-replacement map needed a distinct entry mapping
+  `calendar.application.calendar_protocol` → `contract.time_management.
+  calendar.calendar_protocol` (not `application.time_management.
+  calendar.calendar_protocol`, the pattern every other symbol in this
+  phase followed) — the one deliberately "wrong-looking" line in the
+  otherwise-mechanical rewrite map, worth flagging for whoever reads the
+  script later.
+- **Largest blast radius by distinct-file count of any phase so far
+  outside `org`/`tenancy`**: 59 files, 185 substring occurrences,
+  because `CalendarProtocol` is imported at module scope by roughly 30
+  files across `project_management/application/scheduling/`,
+  `.../tasks/`, `.../resources/`, and `.../infrastructure/reporting/` —
+  every one of them a simple type-annotation import with zero symbol
+  splitting needed, so still a single clean substring pass (no
+  BLOCK_REPLACEMENTS list), consistent with Phase 7a's finding that
+  `time_management`'s facades never mix layers within one import
+  statement.
+- Confirmed via grep before starting that no bare `from
+  src.core.platform.calendar import ...` (the old combined top facade)
+  exists anywhere in the repo — every caller already went through
+  `.domain`, `.application`, or `.contracts` (or a specific submodule)
+  directly. This made the new per-layer `__init__.py` facades pure
+  editorial reconstructions matching each layer's full old content
+  (domain's 15-symbol enum/dataclass set; contract's 6 repository
+  Protocols + `CalendarProtocol`; application's single remaining
+  `GlobalCalendarShim`, since `CalendarProtocol` left for contract) —
+  not something any external caller was actually exercising.
+- Gotcha class 1 (direct infra-path imports) had the largest count yet:
+  19 files (17 test files plus `src/infra/composition/repositories.py`
+  and `src/infra/persistence/orm/__init__.py`) directly importing
+  `persistence.{mappers,orm,repositories}.enterprise_calendar`,
+  fixed via a second small targeted script (excluding the old infra
+  files this time, learning Phase 7a's lesson). Gotcha class 2
+  (monkeypatch strings) and class 3 (growth-budget path): none found.
+  Gotcha class 4 (API-adapter facade re-export): none — confirmed
+  `EnterpriseCalendarDesktopApi` was never re-exported through
+  `src/api/desktop/platform/{__init__.py,models/__init__.py}`, only
+  imported directly wherever needed, so no facade fix was required.
+- **A pre-existing circular-import fragility surfaced during the
+  spot-check, investigated and confirmed NOT a regression from this
+  phase**: importing `EnterpriseCalendarDesktopApi` as the very first
+  touch of `src.api.desktop` in a fresh process raises `ImportError:
+  cannot import name '...' from partially initialized module`, because
+  `src/api/desktop/__init__.py` eagerly imports `runtime.py`, which
+  eagerly imports every desktop-API adapter (including calendar's) at
+  module scope — a cycle back into whichever adapter module triggered
+  the chain. Verified by reproducing the identical failure shape with
+  `python -c` in isolation, then confirming it resolves once
+  `src.api.desktop` is warmed first. This cycle is topologically
+  identical regardless of whether the calendar adapter lives at its old
+  flat path or its new nested one — it was only ever masked because
+  normal test collection order (or any prior import in the same
+  process) always warms up `src.api.desktop` before a calendar-specific
+  test file's own imports run. Out of scope to fix here (pre-existing,
+  applies equally to every desktop-API adapter, not calendar-specific);
+  simply avoided in this phase's own spot-check by using the standard
+  full-directory pytest invocation instead of a hand-ordered file list.
+- Extended the calendar-specific guardrail
+  `test_platform_calendar_does_not_import_project_management_at_module_scope`
+  (previously scanning only the single old `src/core/platform/calendar`
+  root) to scan all seven new distributed roots (domain, contract,
+  application, the three infra layers, and api/desktop) — the only
+  guardrail in this phase that needed a structural rewrite rather than
+  a simple path rename, since the de-flattening genuinely changed how
+  many directories need walking, not just their names.
+- Extended `test_platform_persistence_structure.py`'s `NESTED_AREA_FILES`
+  with `time_management/calendar/enterprise_calendar.py` (has a mapper,
+  so the mapper-bearing set, not the no-mapper one), removing
+  `enterprise_calendar` from `FLAT_AREAS`.
+- Verification: spot-check via the standard full `platform` and
+  `architecture` test directories (not a hand-picked file list, per the
+  circular-import lesson above) before deletion — `platform`: 6 failed,
+  700 passed (5 known baseline failures in scope + the expected
+  transitional persistence-structure failure); `architecture`: 2 failed,
+  117 passed (both pre-existing baseline failures, including the
+  line-count guardrail which was already failing due to `pmenv`
+  third-party noise plus this same 1408-line domain file at its old
+  path). Full six-target suite ran once, after deletion: 32 failed, 1440
+  passed — diffed against the baseline, **byte-for-byte identical**.
+  Also confirmed `import src.api.desktop` succeeds standalone
+  post-deletion, closing the loop on the circular-import investigation.
+- Deleted `src/core/platform/calendar/` (the entire directory), the
+  three old flat infra files (`infrastructure/persistence/{mappers,orm,
+  repositories}/enterprise_calendar.py`), and the two old
+  `src/api/desktop/platform/enterprise_calendar.py` +
+  `models/enterprise_calendar.py` files.
+- **`time_management` (Phases 7a + 7b) is now fully migrated.**
+
 ### Notes on this ordering
 
 - **`security` (Phases 8a–8f) is deliberately last among the content-group

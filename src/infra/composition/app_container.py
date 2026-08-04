@@ -40,7 +40,7 @@ from src.core.platform.application.tenant.tenancy import (
     TenantMembershipService,
 )
 from src.core.platform.application.data_operations.runtime_tracking import RuntimeExecutionService
-from src.core.platform.identity import ServicePrincipalService
+from src.core.platform.application.security.identity import ServicePrincipalService
 from src.core.modules.inventory_procurement import (
     ProcurementService,
     InventoryDataExchangeService,

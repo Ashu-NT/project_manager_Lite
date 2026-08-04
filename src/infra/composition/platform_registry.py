@@ -51,7 +51,7 @@ from src.core.platform.application.tenant.tenancy import (
 from src.core.platform.application.master_data.party.party_service import PartyService
 from src.core.platform.contract.master_data.party.contracts import PartyRepository
 from src.core.platform.application.data_operations.runtime_tracking import RuntimeExecutionService
-from src.core.platform.identity import ServicePrincipalService
+from src.core.platform.application.security.identity import ServicePrincipalService
 from src.core.platform.application.time_management.calendar.enterprise_calendar_service import EnterpriseCalendarService
 from src.core.platform.application.time_management.calendar.definitions.working_rule_service import WorkingRuleService
 from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import CalendarExceptionService

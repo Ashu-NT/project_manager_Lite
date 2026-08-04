@@ -72,7 +72,7 @@ from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesk
 from src.core.platform.api.desktop.master_data.documents.document import PlatformDocumentDesktopApi
 from src.core.platform.api.desktop.master_data.department.department import PlatformDepartmentDesktopApi
 from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
-from src.api.desktop.platform.identity import PlatformIdentityDesktopApi
+from src.core.platform.api.desktop.security.identity.identity import PlatformIdentityDesktopApi
 from src.core.platform.api.desktop.master_data.party.party import PlatformPartyDesktopApi
 from src.api.desktop.platform.runtime import PlatformRuntimeDesktopApi
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi

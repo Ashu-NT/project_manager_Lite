@@ -83,7 +83,7 @@ from src.core.platform.infrastructure.persistence.repositories.time_management.t
     SqlAlchemyTimeEntryRepository,
     SqlAlchemyTimesheetPeriodRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.identity import (
+from src.core.platform.infrastructure.persistence.repositories.security.identity.identity import (
     SqlAlchemyApiKeyCredentialRepository,
     SqlAlchemyServicePrincipalRepository,
 )

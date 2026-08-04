@@ -41,7 +41,7 @@ from src.core.platform.api.desktop.master_data.employee.models.employee import (
     EmployeeDto,
     EmployeeUpdateCommand,
 )
-from src.api.desktop.platform.models.identity import (
+from src.core.platform.api.desktop.security.identity.models.identity import (
     ApiKeyCredentialDto,
     ApiKeyIssueCommand,
     IssuedApiKeyDto,
