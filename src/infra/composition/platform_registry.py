@@ -27,7 +27,7 @@ from src.core.platform.auth import (
 )
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.application.master_data.documents import DocumentIntegrationService, DocumentService
-from src.core.platform.data_exchange import MasterDataExchangeService
+from src.core.platform.application.master_data.data_exchange import MasterDataExchangeService
 from src.core.platform.application.master_data.department.department_service import DepartmentService
 from src.core.platform.application.master_data.employee.employee_service import EmployeeService
 from src.core.platform.application.master_data.org.organization_service import OrganizationService

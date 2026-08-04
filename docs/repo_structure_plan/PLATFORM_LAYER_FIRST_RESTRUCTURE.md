@@ -2584,6 +2584,93 @@ review unit, not a separate infra-only mega-phase at the end.
   `src/api/desktop/platform/{site,department,employee}.py` +
   `models/{site,department,employee}.py` files.
 
+**Phase 5b (`master_data`: `documents`, `party`, `org`) — completed
+2026-08-04.**
+
+- Created 52 new files: `domain/master_data/{documents,org,party}/`
+  (10, including the loose `documents/support.py`/`org/support.py` files
+  mapped per §4a's `LOOSE_OVERRIDES`), `contract/master_data/{documents,
+  org,party}/` (6), `application/master_data/{documents,org,party}/` (7),
+  `infrastructure/persistence/{mappers,orm,repositories}/master_data/
+  {documents,org,party}/` (18, filenames kept as `documents.py`/`org.py`/
+  `party.py` to match the old basenames), and `api/desktop/master_data/
+  {documents,org,party}/` (11). **`org` deliberately has no dedicated
+  `PlatformOrganizationDesktopApi` adapter file** in the new tree — only
+  DTO models under `api/desktop/master_data/org/models/` — matching the
+  old structure, which never had one either.
+- **`org` has the single largest blast radius of any module tackled so
+  far** — organization context is a dependency of nearly every
+  business-module service across `maintenance`, `inventory_procurement`,
+  and `project_management`. The first rewrite pass alone touched 136
+  files (plus 2 facade blocks), versus Phase 5a's 64.
+- All four gotcha classes catalogued in Phase 5a recurred here, plus one
+  refinement worth recording for future phases:
+  1. *Direct infra-path imports*: `src/infra/persistence/orm/__init__.py`
+     (3 loader lines), `src/infra/composition/repositories.py`
+     (documents block + org line + party line),
+     `src/infra/composition/maintenance_registry.py` (documents block),
+     and — new this phase — `src/core/platform/infrastructure/
+     persistence/repositories/modules.py`, a *different*, not-yet-migrated
+     file that imported `orm.org` directly. Same fix strategy as Phase
+     5a: a second grep on
+     `persistence\.(mappers|orm|repositories)\.(org|documents|party)\b`.
+  2. *String-literal monkeypatch targets*: two occurrences in
+     `test_party_domain_validation.py` and one in
+     `test_org_site_domain_validation.py`.
+  3. *Hardcoded growth-budget path*: none found this phase (checked
+     `test_architecture_guardrails_services.py` explicitly; unlike
+     Phase 5a's `site_service.py` entry, no `documents`/`org`/`party`
+     entry existed).
+  4. *Old API-adapter facade re-exports*: `src/api/desktop/platform/
+     __init__.py` (`PlatformDocumentDesktopApi`/`PlatformPartyDesktopApi`)
+     and `models/__init__.py` (Document/Organization/Party DTOs) — plus a
+     stray reference the `__init__.py`-focused fix didn't cover:
+     `src/api/desktop/platform/models/runtime.py` imported
+     `OrganizationDto` directly from the old `models/organization.py`,
+     found only by an exhaustive follow-up grep across every
+     `api.desktop.platform.models.*` pattern once the facade fixes alone
+     didn't clear all `ModuleNotFoundError`s.
+  5. **New refinement of gotcha class #1's fix strategy**: the batch
+     rewrite script's block-replacement patterns assumed a flush-left
+     closing `)` for multi-line `from ... import (...)` statements. Three
+     occurrences — `test_phase_2a_admin_role_hierarchy.py` (one) and
+     `test_phase_2e_rbac_tenant_hardening.py` (two, inside different
+     method bodies) — had the block *indented* inside a function/method,
+     so the closing paren was `    )` or `        )`, not `)`. The script
+     didn't raise on this; it silently recorded an `OLD_NOT_FOUND` in its
+     end-of-run summary rather than an exception, so these three were
+     only caught by re-grepping the old import path after the script
+     reported success and finding it still present. A fourth variant —
+     `test_document_domain_validation.py`'s import block, which had a
+     trailing comma before the closing `)` — was also missed by both
+     scripts and caught the same way. **Lesson for future phases:**
+     multi-line import block rewrites need pattern variants for
+     indentation level and trailing-comma style, or the script's
+     "success" output must not be trusted without a follow-up grep for
+     the literal old path across the whole repo.
+- Fixed `test_orm_package_root_loads_all_model_packages` (bare `"org"`/
+  `"documents"`/`"party"` → `"master_data.org.org"`/
+  `"master_data.documents.documents"`/`"master_data.party.party"`) and
+  `test_composition_imports_focused_persistence_adapters` (same rename
+  for the `repositories.py` import-substring assertion), and extended
+  `test_platform_persistence_structure.py`'s `NESTED_AREA_FILES` with
+  `master_data/{org,documents,party}/{org,documents,party}.py`, removing
+  all three from `FLAT_AREAS`.
+- Verification: six-target suite run twice — before deletion (33 failed,
+  1439 passed: the confirmed 32-failure baseline plus the expected
+  transitional `test_platform_persistence_uses_module_style_layout`
+  failure, since the old flat dirs still existed) and after deletion
+  (32 failed, 1440 passed) — diffed against the baseline, **byte-for-byte
+  identical** both times, with the transitional failure resolving exactly
+  as expected once the old files were removed.
+- Deleted `src/core/platform/{documents,party,org}/` (all three entire
+  dirs), the six old flat infra files
+  (`infrastructure/persistence/{mappers,orm,repositories}/{documents,org,
+  party}.py`), and the five old `src/api/desktop/platform/{document,
+  party}.py` + `models/{document,organization,party}.py` files (no old
+  `organization.py` adapter existed to delete, only its `models/*.py`
+  DTO file).
+
 ### Notes on this ordering
 
 - **`security` (Phases 8a–8f) is deliberately last among the content-group

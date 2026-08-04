@@ -5,7 +5,7 @@ from src.core.platform.application.approval.approval_service import ApprovalServ
 from src.core.platform.auth import AuthService
 from src.core.platform.auth.application.auth_service import AuthService as LegacyAuthService
 from src.core.platform.application.history.audit import EnterpriseAuditService
-from src.core.platform.data_exchange import MasterDataExchangeService
+from src.core.platform.application.master_data.data_exchange import MasterDataExchangeService
 from src.core.platform.application.master_data.documents.document_service import DocumentService
 from src.core.platform.application.master_data.department.department_service import DepartmentService
 from src.core.platform.application.master_data.employee.employee_service import EmployeeService

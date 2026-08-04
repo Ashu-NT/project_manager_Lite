@@ -25,7 +25,7 @@ from src.core.platform.auth import (
     TenantRoleAdministrationService,
 )
 from src.core.platform.auth.domain.session import UserSessionContext
-from src.core.platform.data_exchange import MasterDataExchangeService
+from src.core.platform.application.master_data.data_exchange import MasterDataExchangeService
 from src.core.platform.application.master_data.documents.document_service import DocumentService
 from src.core.platform.modules import ModuleCatalogService
 from src.core.platform.application.master_data.department.department_service import DepartmentService
