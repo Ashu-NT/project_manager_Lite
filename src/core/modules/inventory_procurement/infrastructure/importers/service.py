@@ -42,18 +42,14 @@ from src.core.modules.inventory_procurement.contracts.repositories.procurement i
     PurchaseRequisitionLineRepository,
     ReceiptLineRepository,
 )
-from src.core.platform.exporting import (
-    ExportArtifactDraft,
+from src.core.platform.application.data_operations.exporting import (
     ExportDefinitionRegistry,
     ExportRuntime,
     ensure_output_path,
 )
-from src.core.platform.importing import (
-    CsvImportRuntime,
-    ImportDefinitionRegistry,
-    ImportPreview,
-    ImportSummary,
-)
+from src.core.platform.domain.data_operations.exporting import ExportArtifactDraft
+from src.core.platform.application.data_operations.importing import CsvImportRuntime, ImportDefinitionRegistry
+from src.core.platform.domain.data_operations.importing import ImportPreview, ImportSummary
 from src.core.platform.site import SiteService
 from src.core.platform.party import PartyService
 

@@ -20,14 +20,14 @@ from src.core.modules.maintenance.infrastructure.reporting import (
     MAINTENANCE_REPORT_CONTRACTS,
     register_maintenance_report_definitions,
 )
-from src.core.platform.exporting import ExportDefinitionRegistry
-from src.core.platform.importing import (
-    ImportDefinitionRegistry,
+from src.core.platform.application.data_operations.exporting import ExportDefinitionRegistry
+from src.core.platform.application.data_operations.importing import ImportDefinitionRegistry
+from src.core.platform.domain.data_operations.importing import (
     ImportPreview,
     ImportPreviewRow,
     ImportSummary,
 )
-from src.core.platform.report_runtime import ReportDefinitionRegistry
+from src.core.platform.application.data_operations.report_runtime import ReportDefinitionRegistry
 
 
 def _preview(rows):

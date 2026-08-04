@@ -9,8 +9,8 @@ import pytest
 from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.events.platform_events.platform_event import PlatformEvent
-from src.core.platform.runtime_tracking.application.runtime_execution_service import RuntimeExecutionService
-from src.core.platform.runtime_tracking.domain import RuntimeExecution
+from src.core.platform.application.data_operations.runtime_tracking.runtime_execution_service import RuntimeExecutionService
+from src.core.platform.domain.data_operations.runtime_tracking import RuntimeExecution
 from src.core.platform.tenancy.domain.tenant import (
     TENANT_STATUS_ACTIVE,
     TENANT_STATUS_SUSPENDED,

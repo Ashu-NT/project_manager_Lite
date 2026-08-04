@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from src.core.modules.project_management.domain.enums import CostType
-from src.core.platform.importing import ImportPreview, ImportPreviewRow, ImportSummary
+from src.core.platform.domain.data_operations.importing import ImportPreview, ImportPreviewRow, ImportSummary
 from src.core.modules.project_management.infrastructure.importers.utils.coercion import (
     optional_cost_type,
     optional_date,

@@ -13,7 +13,7 @@ from .models import (
     MaintenanceReliabilityDashboard,
     MaintenanceRootCauseInsight,
 )
-from src.core.platform.report_runtime import MetricBlock, MetricRow, ReportDocument, ReportSection, TableBlock, TextBlock
+from src.core.platform.domain.data_operations.report_runtime import MetricBlock, MetricRow, ReportDocument, ReportSection, TableBlock, TextBlock
 
 
 @dataclass(frozen=True)

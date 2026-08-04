@@ -48,7 +48,7 @@ from src.core.platform.tenancy import (
 )
 from src.core.platform.party import PartyService
 from src.core.platform.party.contracts import PartyRepository
-from src.core.platform.runtime_tracking import RuntimeExecutionService
+from src.core.platform.application.data_operations.runtime_tracking import RuntimeExecutionService
 from src.core.platform.identity import ServicePrincipalService
 from src.core.platform.calendar.application.enterprise_calendar_service import EnterpriseCalendarService
 from src.core.platform.calendar.application.working_rule_service import WorkingRuleService
@@ -60,7 +60,7 @@ from src.core.platform.calendar.application.enterprise_calendar_resolver import 
 from src.core.platform.calendar.application.working_time_calculator import WorkingTimeCalculator
 from src.core.platform.calendar.application.global_calendar_shim import GlobalCalendarShim
 from src.core.platform.infrastructure.persistence.repositories.modules import SqlAlchemyModuleEntitlementRepository
-from src.core.platform.infrastructure.persistence.repositories.runtime_tracking import SqlAlchemyRuntimeExecutionRepository
+from src.core.platform.infrastructure.persistence.repositories.data_operations.runtime_tracking.runtime_tracking import SqlAlchemyRuntimeExecutionRepository
 from src.infra.composition.repositories import RepositoryBundle
 from src.infra.platform.operational_support import current_trace_id
 from src.infra.platform.security_audit_recorder import (

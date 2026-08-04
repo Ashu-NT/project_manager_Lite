@@ -198,7 +198,7 @@ def test_orm_package_root_loads_all_model_packages():
     assert "import src.core.modules.maintenance.infrastructure.persistence.orm.preventive_runtime_models" in package_text
     platform_orm_modules = (
         "org", "employee", "sites", "departments", "documents", "party",
-        "modules", "time", "auth", "events.notifications.notification", "history.audit.audit_entry", "approval.approval", "runtime_tracking",
+        "modules", "time", "auth", "events.notifications.notification", "history.audit.audit_entry", "approval.approval", "data_operations.runtime_tracking.runtime_tracking",
     )
     for module in platform_orm_modules:
         assert f"import src.core.platform.infrastructure.persistence.orm.{module}" in package_text

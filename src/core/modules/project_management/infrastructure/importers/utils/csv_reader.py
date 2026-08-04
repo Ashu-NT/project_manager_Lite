@@ -6,7 +6,7 @@ import csv
 from pathlib import Path
 from typing import Any
 
-from src.core.platform.importing import ImportFieldSpec
+from src.core.platform.domain.data_operations.importing import ImportFieldSpec
 
 
 def load_csv_source(file_path: str | Path) -> tuple[list[str], list[tuple[int, dict[str, str]]]]:

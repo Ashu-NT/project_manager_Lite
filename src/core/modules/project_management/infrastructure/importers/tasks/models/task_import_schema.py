@@ -1,4 +1,4 @@
-from src.core.platform.importing import ImportFieldSpec
+from src.core.platform.domain.data_operations.importing import ImportFieldSpec
 
 TASK_IMPORT_SCHEMA: tuple[ImportFieldSpec, ...] = (
     ImportFieldSpec("id", "Task ID"),

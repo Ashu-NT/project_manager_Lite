@@ -9,8 +9,8 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from src.core.modules.maintenance.infrastructure.exporters import MAINTENANCE_EXPORT_CONTRACTS
 from src.core.modules.maintenance.infrastructure.importers import MAINTENANCE_WORKBOOK_SHEETS
 from src.core.modules.maintenance.infrastructure.reporting.contracts import MAINTENANCE_REPORT_CONTRACTS
-from src.core.platform.exporting import ensure_output_path, finalize_artifact
-from src.core.platform.report_runtime import MetricBlock, MetricRow, ReportDocument, ReportSection, TableBlock, TextBlock
+from src.core.platform.application.data_operations.exporting import ensure_output_path, finalize_artifact
+from src.core.platform.domain.data_operations.report_runtime import MetricBlock, MetricRow, ReportDocument, ReportSection, TableBlock, TextBlock
 
 
 class MaintenanceRuntimeContractCatalogService:

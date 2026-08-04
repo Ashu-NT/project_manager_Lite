@@ -4,10 +4,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Mapping, Sequence
 
-from src.core.platform.exporting import (
+from src.core.platform.application.data_operations.exporting import ExportDefinitionRegistry
+from src.core.platform.domain.data_operations.exporting import (
     ExportArtifact,
     ExportArtifactDraft,
-    ExportDefinitionRegistry,
 )
 
 from .contracts import MAINTENANCE_EXPORT_CONTRACTS, MaintenanceExportContract

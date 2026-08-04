@@ -16,6 +16,12 @@ NESTED_AREA_FILES = {
     "events/platform_events/platform_events.py",
 }
 
+# runtime_tracking has no mapper (never did — "no mapper exists today" per §8),
+# so its nested file only needs to exist under orm/ and repositories/, not mappers/.
+NESTED_AREA_FILES_NO_MAPPER = {
+    "data_operations/runtime_tracking/runtime_tracking.py",
+}
+
 FLAT_AREAS = {
     "auth",
     "departments",
@@ -26,7 +32,6 @@ FLAT_AREAS = {
     "modules",
     "org",
     "party",
-    "runtime_tracking",
     "sites",
     "tenant",
     "time",
@@ -48,9 +53,9 @@ def test_platform_persistence_uses_module_style_layout() -> None:
     assert source_dirs == {"mappers", "orm", "repositories"}
     for area in ("orm", "repositories"):
         assert _source_file_stems(PERSISTENCE_ROOT / area) == FLAT_AREAS
-        for nested_file in NESTED_AREA_FILES:
+        for nested_file in NESTED_AREA_FILES | NESTED_AREA_FILES_NO_MAPPER:
             assert (PERSISTENCE_ROOT / area / nested_file).exists()
-    mapper_flat_areas = FLAT_AREAS - {"identity", "modules", "runtime_tracking"}
+    mapper_flat_areas = FLAT_AREAS - {"identity", "modules"}
     assert _source_file_stems(PERSISTENCE_ROOT / "mappers") == mapper_flat_areas
     for nested_file in NESTED_AREA_FILES:
         assert (PERSISTENCE_ROOT / "mappers" / nested_file).exists()
