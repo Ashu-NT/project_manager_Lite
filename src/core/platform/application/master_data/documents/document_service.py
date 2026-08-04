@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.contract.master_data.documents.contracts import (
     DocumentLinkRepository,
     DocumentRepository,

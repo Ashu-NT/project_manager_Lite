@@ -16,7 +16,7 @@ from src.core.modules.project_management.contracts.repositories.resource import 
 from src.core.modules.project_management.contracts.repositories.cost import CostRepository
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
 from src.core.platform.access.authorization import require_project_permission
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.modules.project_management.application.scheduling.services.scheduling_engine import SchedulingEngine
 from src.core.platform.common.service_base import ServiceBase
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin

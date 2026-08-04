@@ -3,7 +3,7 @@ from __future__ import annotations
 from src.core.modules.project_management.contracts.repositories.project import ProjectResourceRepository
 from src.core.modules.project_management.domain.projects.project import ProjectResource
 from src.core.platform.access.authorization import require_project_permission
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 
 
 class ProjectResourceQueryMixin:

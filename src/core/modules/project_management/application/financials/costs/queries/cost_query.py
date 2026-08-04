@@ -3,7 +3,7 @@ from __future__ import annotations
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.modules.project_management.domain.financials.cost import CostItem
 from src.core.platform.access.authorization import require_project_permission
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 
 
 class CostQueryMixin:

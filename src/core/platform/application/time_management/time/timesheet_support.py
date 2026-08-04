@@ -4,7 +4,7 @@ import calendar
 from datetime import date
 from typing import Protocol
 
-from src.core.platform.auth.authorization import require_any_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.contract.master_data.employee.contracts import EmployeeRepository
 from src.core.platform.contract.time_management.time.contracts import (

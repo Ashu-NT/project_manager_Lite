@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 
 from src.core.shared.audit import record_audit_entry
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import ValidationError
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.domain.time_management.time import TimesheetPeriod, TimesheetPeriodStatus

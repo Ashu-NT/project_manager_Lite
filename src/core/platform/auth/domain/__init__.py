@@ -1,7 +1,7 @@
-from src.core.platform.auth.domain.policy_reconciliation import (
+from src.core.platform.domain.security.authorization.roles.policy_reconciliation import (
     AuthPolicyReconciliation,
 )
-from src.core.platform.auth.domain.role_binding import (
+from src.core.platform.domain.security.authorization.roles.role_binding import (
     RESOURCE_ROLE_SCOPE_TYPES,
     ROLE_PRINCIPAL_USER,
     ROLE_SCOPE_PLATFORM,
@@ -10,7 +10,7 @@ from src.core.platform.auth.domain.role_binding import (
     RoleBinding,
     normalize_role_scope_type,
 )
-from src.core.platform.auth.domain.role_delegation import RoleDelegationPolicy
+from src.core.platform.domain.security.authorization.roles.role_delegation import RoleDelegationPolicy
 from src.core.platform.auth.domain.session import (
     AuthSession,
     UserSessionContext,

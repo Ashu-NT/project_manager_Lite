@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from src.core.shared.events.domain_events import domain_events
-from src.core.platform.auth.authorization import require_any_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission
 from src.core.platform.auth.domain import (
     normalize_auth_federated_subject,
     normalize_auth_identity_provider,
@@ -13,7 +13,7 @@ from src.core.platform.auth.domain import (
 from src.core.platform.common.exceptions import ValidationError
 
 from .security_audit import add_atomic_security_audit
-from .target_user_authorization import require_target_user_in_active_tenant
+from src.core.platform.application.security.authorization.enforcement.target_user_authorization import require_target_user_in_active_tenant
 
 if TYPE_CHECKING:
     from src.core.platform.auth.domain import UserAccount

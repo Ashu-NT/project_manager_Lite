@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.platform.auth.authorization import require_any_permission, require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission, require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization

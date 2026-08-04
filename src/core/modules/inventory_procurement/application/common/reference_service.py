@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.domain.master_data.site import Site
 from src.core.platform.application.master_data.party.party_service import PartyService

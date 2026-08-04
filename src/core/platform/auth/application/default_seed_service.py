@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from src.core.platform.auth.domain import Permission, Role, RolePermissionBinding
 from src.core.platform.auth.policy import DEFAULT_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS
-from src.core.platform.auth.application.role_scope_policy import (
+from src.core.platform.application.security.authorization.roles.role_scope_policy import (
     is_platform_role,
     system_role_scope_type,
 )

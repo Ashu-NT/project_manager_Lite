@@ -10,7 +10,7 @@ from src.core.modules.maintenance.application.common.scope_authorization import 
     deny_maintenance_scope_access,
 )
 from src.core.platform.access.authorization import require_scope_permission
-from src.core.platform.auth.authorization import (
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     authorization_denied,
     require_permission,
 )

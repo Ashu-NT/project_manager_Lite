@@ -4,14 +4,14 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from src.core.shared.events.domain_events import domain_events
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.auth.passwords import hash_password, verify_password
 from src.core.platform.common.exceptions import ValidationError
 
 from .session_service import refresh_current_session_if_user, revoke_all_persisted_sessions
 from .security_audit import add_atomic_security_audit
 from .session_utils import next_session_expiry, rotate_session_revision
-from .target_user_authorization import (
+from src.core.platform.application.security.authorization.enforcement.target_user_authorization import (
     require_self_target,
     require_target_user_in_active_tenant,
 )

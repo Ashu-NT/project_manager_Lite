@@ -6,7 +6,7 @@ from src.core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
     PortfolioIntakeStatus,
 )
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.shared.events.domain_events import domain_events
 

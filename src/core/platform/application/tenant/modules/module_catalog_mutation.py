@@ -5,7 +5,7 @@ from typing import Iterable
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.domain.tenant.modules.defaults import (
     MODULE_LIFECYCLE_INACTIVE,
     MODULE_RUNTIME_ACCESS_STATUSES,

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from src.core.modules.project_management.domain.portfolio import PortfolioScoringTemplate
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.common.exceptions import ValidationError
 

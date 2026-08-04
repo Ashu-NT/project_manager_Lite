@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.core.platform.auth.authorization import require_any_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission
 
 if TYPE_CHECKING:
     from .department_service import DepartmentService

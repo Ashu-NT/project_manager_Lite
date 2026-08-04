@@ -14,7 +14,7 @@ from src.core.modules.project_management.contracts.repositories.resource import 
 from src.core.platform.common.interfaces import TimeEntryRepository
 from src.core.platform.contract.master_data.employee.contracts import EmployeeRepository
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.shared.activity import record_activity
 from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.application.common.currency_policy import (

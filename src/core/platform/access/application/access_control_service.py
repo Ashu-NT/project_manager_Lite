@@ -18,7 +18,7 @@ from src.core.platform.access.domain import (
     normalize_access_scope_type,
     normalize_access_user_id,
 )
-from src.core.platform.auth.authorization import (
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     authorization_denied,
     require_permission,
 )
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.auth import UserSessionContext
     from src.core.platform.auth.application.auth_service import AuthService
-    from src.core.platform.auth.application.role_governance_service import RoleGovernanceService
+    from src.core.platform.application.security.authorization.roles.role_governance_service import RoleGovernanceService
     from src.core.platform.auth.contracts import RoleBindingRepository, RoleRepository
     from src.core.platform.contract.tenant.tenancy.contracts import UserTenantMembershipRepository
     from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService

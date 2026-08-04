@@ -28,7 +28,7 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing import
     PurchaseRequisitionLineStatus,
     PurchaseRequisitionStatus,
 )
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.domain.master_data.org import Organization
 

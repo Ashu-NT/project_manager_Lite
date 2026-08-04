@@ -14,7 +14,7 @@ from src.core.modules.maintenance.application.common.scope_authorization import 
     deny_maintenance_scope_access,
 )
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
 from src.core.platform.contract.master_data.site.contracts import SiteRepository

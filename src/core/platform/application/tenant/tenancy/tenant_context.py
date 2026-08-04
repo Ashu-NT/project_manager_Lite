@@ -4,7 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from src.core.platform.auth.authorization import record_authorization_denial
+from src.core.platform.application.security.authorization.enforcement.permission_checks import record_authorization_denial
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.common.exceptions import (
     BusinessRuleError,

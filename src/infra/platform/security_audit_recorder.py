@@ -6,7 +6,7 @@ from typing import Any
 from sqlalchemy.orm import Session, sessionmaker
 
 from src.core.platform.domain.history.audit import AuditEntry
-from src.core.platform.authorization import SecurityDenialEvent
+from src.core.platform.domain.security.authorization import SecurityDenialEvent
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )

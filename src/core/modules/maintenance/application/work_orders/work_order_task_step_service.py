@@ -28,7 +28,7 @@ from src.core.modules.maintenance.application.work_orders.work_order_task_step_v
 from src.core.modules.maintenance.domain._validation import normalize_optional_text, normalize_positive_int
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.shared.activity.activity_recorder import record_activity
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
 from src.core.platform.application.tenant.tenancy.tenant_context import (

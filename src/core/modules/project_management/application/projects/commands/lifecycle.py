@@ -34,7 +34,7 @@ from src.core.modules.project_management.application.common.currency_policy impo
 from src.core.platform.access.authorization import require_project_permission
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.common.interfaces import TimeEntryRepository
 from src.core.shared.events.domain_events import domain_events

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from src.core.platform.auth.datetime_utils import ensure_utc_datetime
-from src.core.platform.auth.domain.role_binding import RESOURCE_ROLE_SCOPE_TYPES
+from src.core.platform.domain.security.authorization.roles.role_binding import RESOURCE_ROLE_SCOPE_TYPES
 from src.core.platform.auth.domain.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
 

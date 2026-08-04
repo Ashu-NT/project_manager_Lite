@@ -5,16 +5,15 @@ from typing import TYPE_CHECKING, Iterable
 from sqlalchemy.exc import IntegrityError
 
 from src.core.shared.events.domain_events import domain_events
-from src.core.platform.auth.authorization import (
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     authorization_denied,
     require_permission,
 )
-from src.core.platform.auth.domain import (
+from src.core.platform.auth.domain import UserAccount, normalize_auth_username
+from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_PLATFORM,
     ROLE_SCOPE_TENANT,
     RoleBinding,
-    UserAccount,
-    normalize_auth_username,
 )
 from src.core.platform.auth.passwords import hash_password
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
@@ -32,8 +31,8 @@ from .security_audit import (
     add_atomic_security_audit,
     add_atomic_system_security_audit,
 )
-from .sod_enforcer import enforce_separation_of_duties
-from .target_user_authorization import require_actor_active_tenant
+from src.core.platform.application.security.authorization.enforcement.sod_enforcer import enforce_separation_of_duties
+from src.core.platform.application.security.authorization.enforcement.target_user_authorization import require_actor_active_tenant
 
 
 def _assign_roles_for_user(

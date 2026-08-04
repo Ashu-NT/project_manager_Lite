@@ -17,7 +17,7 @@ from src.core.platform.auth.contracts import (
 )
 from src.core.platform.auth.domain import AuthSession, Role, UserAccount
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
-from src.core.platform.auth.sod import SeparationOfDutiesPolicy
+from src.core.platform.domain.security.authorization.enforcement.sod import SeparationOfDutiesPolicy
 from src.core.platform.common.exceptions import BusinessRuleError
 
 from . import authentication_service as _auth
@@ -29,10 +29,10 @@ from . import password_service as _pw
 from . import platform_owner_provisioning_service as _platform_owner
 from . import principal_builder as _principal
 from . import registration_service as _reg
-from . import role_assignment_service as _roles
+from src.core.platform.application.security.authorization.roles import role_assignment_service as _roles
 from . import session_service as _sessions
 from . import user_admin_service as _users
-from .canonical_role_resolver import CanonicalRoleResolver, ScopeTenantResolver
+from src.core.platform.application.security.authorization.roles.canonical_role_resolver import CanonicalRoleResolver, ScopeTenantResolver
 
 if TYPE_CHECKING:
     from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from src.core.platform.contract.tenant.tenancy.contracts import UserTenantMembershipRepository
     from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
-    from .role_governance_service import RoleGovernanceService
+    from src.core.platform.application.security.authorization.roles.role_governance_service import RoleGovernanceService
 
 
 class AuthService(AuthQueryMixin, AuthValidationMixin):

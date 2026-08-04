@@ -11,8 +11,8 @@ from src.core.shared.events.domain_events import domain_events
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.contract.approval.contracts import ApprovalHandlerResult, ApprovalRepository
 from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
-from src.core.platform.auth.authorization import require_any_permission, require_permission
-from src.core.platform.auth.domain.role_binding import ROLE_PRINCIPAL_USER
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission, require_permission
+from src.core.platform.domain.security.authorization.roles.role_binding import ROLE_PRINCIPAL_USER
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.shared.notifications import safe_dispatch_notification

@@ -22,7 +22,7 @@ from src.core.platform.common.pydantic import (
 )
 
 if TYPE_CHECKING:
-    from src.core.platform.authorization import SecurityDenialEvent
+    from src.core.platform.domain.security.authorization import SecurityDenialEvent
 
 
 def normalize_auth_session_user_id(value: object) -> str:

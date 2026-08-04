@@ -2974,6 +2974,68 @@ review unit, not a separate infra-only mega-phase at the end.
   `models/enterprise_calendar.py` files.
 - **`time_management` (Phases 7a + 7b) is now fully migrated.**
 
+**Phase 8a (`security`: `identity`) — completed 2026-08-04.**
+
+- Created 8 new files: `domain/security/identity/{__init__.py,
+  service_principal.py}` (the single-file `identity/domain.py` renamed
+  to `service_principal.py` on the way in, per §4a — "the bare name
+  `domain.py` reads oddly nested three levels deep"),
+  `contract/security/identity/{__init__.py, contracts.py}`,
+  `application/security/identity/{__init__.py,
+  service_principal_service.py}`,
+  `infrastructure/persistence/{orm,repositories}/security/identity/
+  identity.py` (no mapper — confirmed via the doc's own note, "orm,
+  repositories only — no mapper exists today" — matching `modules` and
+  `runtime_tracking`'s precedent), and `api/desktop/security/identity/
+  {identity.py, models/identity.py}`.
+- Smallest external blast radius of any phase so far: only 4 real call
+  sites (`src/api/desktop/runtime.py`, `src/infra/composition/
+  {app_container.py,platform_registry.py}`, all three importing only
+  `ServicePrincipalService` from the bare old facade) plus the two
+  API-adapter facade re-exports (`src/api/desktop/platform/{__init__.py,
+  models/__init__.py}`) — no rewrite script needed at all, every fix
+  applied directly via `Edit`.
+- `service_principal_service.py`'s own `auth.*` imports (`AuthService`,
+  `require_permission`, `auth.contracts.UserRepository`,
+  `auth.domain.*`) were deliberately left on their old flat paths, since
+  `auth` isn't migrated until Phase 8c/8d — the standard cross-phase
+  rule (stay on the dependency's old path until that dependency's own
+  phase lands).
+- Gotcha class 1 (direct infra-path imports): 2 real hits
+  (`src/infra/persistence/orm/__init__.py`,
+  `src/infra/composition/repositories.py`), both fixed directly. Gotcha
+  classes 2 (monkeypatch strings) and 3 (growth-budget path): none
+  found, consistent with `identity` never having been referenced by
+  either pattern in any prior phase's sweep.
+- Extended `test_platform_persistence_structure.py`'s
+  `NESTED_AREA_FILES_NO_MAPPER` with `security/identity/identity.py`
+  (no mapper, same treatment as `runtime_tracking`/`tenant/modules`),
+  removed `identity` from `FLAT_AREAS` (now just `{"auth"}`), and
+  simplified the now-redundant `mapper_flat_areas = FLAT_AREAS -
+  {"identity"}` line to a plain `FLAT_AREAS` reference. No
+  identity-specific legacy-package-removal guardrail existed to update
+  (unlike `modules`/`documents`/`party`/`org`/`data_exchange`, which
+  each had one).
+- **Verification process changed after this phase**: the full
+  six-target suite ran one final time here (32 failed, 1440 passed,
+  byte-for-byte identical to baseline) — this is the *last* phase where
+  it runs per-phase. Starting with Phase 8b, verification relies solely
+  on targeted/narrow tests (the directly-touched test files, or the
+  relevant full directories such as `platform`+`architecture` for
+  larger blast radii) plus the `compileall`/import-smoke-test pair; the
+  full six-target suite is deferred entirely to Phase 10's final
+  validation, run there exactly once. This tightens the earlier
+  "run it once per phase, not twice" change from Phase 5c further,
+  since even one ~15-25 minute run per phase was judged unnecessary
+  overhead across the ~20 phases remaining.
+- Spot-check before deletion: full `platform` + `architecture`
+  directories — 8 failed, 817 passed (7 known baseline failures in
+  scope + the expected transitional persistence-structure failure).
+- Deleted `src/core/platform/identity/` (the entire directory), the two
+  old flat infra files (`infrastructure/persistence/{orm,repositories}/
+  identity.py`), and the two old `src/api/desktop/platform/identity.py`
+  + `models/identity.py` files.
+
 ### Notes on this ordering
 
 - **`security` (Phases 8a–8f) is deliberately last among the content-group

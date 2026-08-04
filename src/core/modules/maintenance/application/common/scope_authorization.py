@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import NoReturn
 
-from src.core.platform.auth.authorization import authorization_denied
+from src.core.platform.application.security.authorization.enforcement.permission_checks import authorization_denied
 from src.core.platform.auth.domain import UserSessionContext
 
 

@@ -14,7 +14,7 @@ from src.core.platform.common.pydantic import (
     normalize_required_text,
     validated_dataclass,
 )
-from src.core.platform.auth.domain.role_binding import (
+from src.core.platform.domain.security.authorization.roles.role_binding import (
     ROLE_SCOPE_PLATFORM,
     ROLE_SCOPE_TENANT,
     normalize_role_scope_type,

@@ -7,7 +7,7 @@ from src.application.runtime.entitlement_runtime import (
     ModuleRuntimeSnapshot,
     resolve_module_runtime_service,
 )
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.application.master_data.org.organization_service import OrganizationService
 from src.core.platform.domain.master_data.org import Organization

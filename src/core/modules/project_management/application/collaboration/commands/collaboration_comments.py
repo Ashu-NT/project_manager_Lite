@@ -10,7 +10,7 @@ from src.core.modules.project_management.domain.collaboration import (
 )
 from src.core.modules.project_management.infrastructure.collaboration_attachments import store_task_comment_attachments
 from src.core.platform.access.authorization import require_project_permission
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
