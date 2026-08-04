@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from sqlalchemy.exc import IntegrityError
 
-from src.core.platform.audit.domain import AuditEntry
+from src.core.platform.domain.history.audit import AuditEntry
 from src.core.platform.auth.domain import (
     RolePermissionBinding,
     ROLE_SCOPE_PLATFORM,

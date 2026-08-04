@@ -9,7 +9,7 @@ from src.api.desktop.platform import (
     PlatformDepartmentDesktopApi,
     PlatformUserDesktopApi,
 )
-from src.api.desktop.platform.audit_enterprise import PlatformEnterpriseAuditDesktopApi
+from src.core.platform.api.desktop.history.audit.audit_enterprise import PlatformEnterpriseAuditDesktopApi
 from src.ui_qml.platform.view_models import (
     PlatformMetricViewModel,
     PlatformWorkspaceOverviewViewModel,

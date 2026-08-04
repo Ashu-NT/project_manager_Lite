@@ -20,7 +20,7 @@ from src.api.desktop.platform import (
     PlatformTenantDesktopApi,
     PlatformUserDesktopApi,
 )
-from src.api.desktop.platform.audit_enterprise import PlatformEnterpriseAuditDesktopApi
+from src.core.platform.api.desktop.history.audit.audit_enterprise import PlatformEnterpriseAuditDesktopApi
 from src.api.desktop.platform.enterprise_calendar import EnterpriseCalendarDesktopApi
 from src.application.runtime.platform_runtime import (
     PlatformRuntimeApplicationService,
@@ -71,8 +71,8 @@ from src.core.modules.project_management.api.desktop_runtime import (
 )
 from src.core.platform.access import AccessControlService
 from src.core.platform.approval import ApprovalService
-from src.core.platform.activity.application.activity_service import ActivityService
-from src.core.platform.audit import EnterpriseAuditService
+from src.core.platform.application.history.activity.activity_service import ActivityService
+from src.core.platform.application.history.audit import EnterpriseAuditService
 from src.core.platform.auth.application import AuthService
 from src.core.platform.calendar.application.calendar_assignment_service import (
     CalendarAssignmentService,

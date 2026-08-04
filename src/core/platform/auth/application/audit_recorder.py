@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.core.platform.audit.domain import AuditEntry
+from src.core.platform.domain.history.audit import AuditEntry
 from src.core.platform.common.exceptions import BusinessRuleError
 
 if TYPE_CHECKING:

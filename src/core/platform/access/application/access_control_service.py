@@ -26,7 +26,7 @@ from src.core.platform.auth.contracts import UserRepository
 from src.core.platform.tenancy.domain import MEMBERSHIP_STATUS_ACTIVE
 
 if TYPE_CHECKING:
-    from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
+    from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.auth import UserSessionContext
     from src.core.platform.auth.application.auth_service import AuthService
     from src.core.platform.auth.application.role_governance_service import RoleGovernanceService

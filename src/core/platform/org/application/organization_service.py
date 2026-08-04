@@ -25,7 +25,7 @@ from src.core.platform.org.support import (
 )
 
 if TYPE_CHECKING:
-    from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
+    from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.auth.domain.session import UserSessionContext
     from src.core.platform.tenancy.tenant_context import TenantContextService
 

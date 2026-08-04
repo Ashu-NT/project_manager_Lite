@@ -250,13 +250,29 @@ Platform infrastructure owns:
 - platform ORM row definitions
 - platform ORM mappers or mapping helpers
 
-Platform placement:
+Platform placement (updated 2026-08-04, see below):
 
 ```text
 src/core/platform/infrastructure/persistence/
-  orm/
-  <area>/
+  mappers/<group>/<module>/<file>.py
+  orm/<group>/<module>/<file>.py
+  repositories/<group>/<module>/<file>.py
 ```
+
+**Note (2026-08-04):** platform's internal layering (domain/application/
+contracts) moved from capability-first to layer-first per
+[`repo_structure_plan/PLATFORM_LAYER_FIRST_RESTRUCTURE.md`](./PLATFORM_LAYER_FIRST_RESTRUCTURE.md).
+The placement rule above was originally left unchanged by that move (a
+single flat shared tree, not re-split by content group), but a follow-up
+request reversed that: `mappers/`, `orm/`, and `repositories/` now each
+group their files the same way as `application/`/`domain/`/`contract/` —
+one file per group/module folder (e.g. `orm/master_data/department/
+departments.py`), using the identical 8-group taxonomy. See §5a of that
+document for the full per-file mapping and the one flagged asymmetry
+(`auth.py` does not split into `auth`/`authorization` at the persistence
+layer the way the code above it does — there's one combined ORM row per
+layer for users/sessions/roles/bindings, so `auth.py` moves as a single
+file into `security/auth/`).
 
 Module infrastructure owns:
 

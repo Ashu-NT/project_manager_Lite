@@ -13,7 +13,7 @@ from src.core.platform.auth.domain import (
 )
 from src.core.platform.auth.passwords import hash_password
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
-from src.core.platform.infrastructure.persistence.orm.audit_entry import AuditEntryORM
+from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import AuditEntryORM
 from src.core.platform.infrastructure.persistence.orm.auth import UserORM
 from src.infra.composition.repositories import RepositoryBundle, build_repository_bundle
 

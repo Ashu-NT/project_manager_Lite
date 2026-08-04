@@ -18,9 +18,9 @@ import src.core.platform.infrastructure.persistence.orm.time  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.auth  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.identity  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.user_tenant  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.activity  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.history.activity.activity  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.platform_events  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.audit_entry  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.notification  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.approval  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.runtime_tracking  # noqa: F401

@@ -19,7 +19,7 @@ from src.core.platform.auth.domain.session import (
     UserSessionPrincipal,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.infrastructure.persistence.orm.audit_entry import (
+from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
     AuditEntryORM,
 )
 from src.core.platform.tenancy.context_policy import SaaSTenantContextPolicy

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from src.core.modules.project_management.application.tasks.commands.assignment_activity import (
     record_assignment_action,
 )
-from src.core.platform.activity.domain.activity_entry import ActivityEntry
+from src.core.platform.domain.history.activity.activity_entry import ActivityEntry
 
 
 class _FakeActivityService:

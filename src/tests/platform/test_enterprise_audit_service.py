@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import select
 
-from src.core.platform.infrastructure.persistence.orm.audit_entry import (
+from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
     AuditEntryORM,
 )
 

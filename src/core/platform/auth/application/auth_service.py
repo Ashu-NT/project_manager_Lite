@@ -35,8 +35,8 @@ from . import user_admin_service as _users
 from .canonical_role_resolver import CanonicalRoleResolver, ScopeTenantResolver
 
 if TYPE_CHECKING:
-    from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
-    from src.core.platform.audit.contracts import AuditRepository
+    from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
+    from src.core.platform.contract.history.audit.contracts import AuditRepository
     from src.core.platform.tenancy.contracts import UserTenantMembershipRepository
     from src.core.platform.tenancy.tenant_context import TenantContextService
 

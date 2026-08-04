@@ -27,7 +27,7 @@ from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
 
 if TYPE_CHECKING:
-    from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
+    from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.auth.domain.session import UserSessionContext
 
 

@@ -20,7 +20,7 @@ from src.core.platform.site.domain import Site
 from src.core.platform.tenancy import TenantContextService
 
 if TYPE_CHECKING:
-    from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
+    from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.auth.domain.session import UserSessionContext
 
 

@@ -17,6 +17,33 @@ As of 2026-05-19, the migration/cutover is complete at the desktop-runtime level
 
 Historical notes later in this document are kept as migration trace, but if they describe QWidget paths as still active, the current status above wins.
 
+**Superseding note (2026-08-04):** the `src/core/platform/` subsection below
+("mini-module pattern": each capability owns its own `domain/application/
+contracts` internally) is superseded by
+[`PLATFORM_LAYER_FIRST_RESTRUCTURE.md`](./PLATFORM_LAYER_FIRST_RESTRUCTURE.md).
+The new target is layer-first: `application/`, `domain/`, `contract/`,
+`infrastructure/`, `access/`, `api/` become the direct children of
+`src/core/platform/`, with capabilities grouped by content into 8 groups
+(`tenant`, `master_data`, `history`, `security`, `approval`,
+`time_management`, `data_operations`, `events`) *inside* each layer (e.g.
+`application/master_data/department/`). `src/api/` and `src/application/`
+are folded down to nearly nothing: `src/api/` retires completely, and
+`src/application/` shrinks to a single cross-module orchestrator file
+(`runtime/desktop_api_registry.py`). Everything platform-owned that used to
+live in those two packages — including `entitlement_runtime.py` and
+`platform_runtime.py` — moves into `src/core/platform/`. Additional
+follow-up investigations (all in the linked doc, not restated here) found:
+the `auth`/`authorization` split (§4a), `finance` staying at the base level
+(§4b), the `src/application`/`src/api` runtime rearrangement (§4c),
+`infrastructure/persistence/{mappers,orm,repositories}` regrouped the same
+way as `application/` (§5a), and `calendar/` de-flattened plus one
+misfiled Protocol found and relocated (§5b). `src/core/modules/*`,
+`src/infra/*`, and `src/ui_qml/*` still follow the capability-first / QML
+guidance below as-is — this is scoped to `src/core/platform/`, `src/api/`,
+and `src/application/` only. See that document for the full grouping
+taxonomy, file-by-file mapping, and import-impact analysis before touching
+platform code.
+
 ## Instruction Precedence
 
 This README now follows three inputs and one local execution companion:
@@ -203,37 +230,59 @@ It contains:
 
 This holds shared business capabilities used by many modules.
 
-Examples:
+This is shared business logic, not technical infrastructure. Put here:
+permission rules, audit entry domain objects, module subscription domain
+objects, document attachment business contracts, organization/site/
+department/business-unit ownership. Do not put here: generic DB engine
+setup, logger config, SMTP connection implementation, local file storage
+code — those belong in global `src/infra/`.
 
-- auth
-- authorization
-- organization
-- documents
-- notifications
-- module entitlements
-- audit
-- approvals
-- report runtime
-- time rules
+**Internal layout (2026-08-04): layer-first, not capability-first.** Each
+capability used to own its own `domain/application/contracts` internally
+(the "mini-module pattern" — still correct for `src/core/modules/<module>/`
+below). Platform no longer works that way. The six top-level buckets are
+direct children of `src/core/platform/`:
 
-This is shared business logic, not technical infrastructure.
+```text
+src/core/platform/
+  application/    use-case orchestration, grouped by content (below)
+  domain/         entities, value objects, business rules, grouped by content
+  contract/       repository/port interfaces (Protocols), grouped by content
+  infrastructure/ ORM rows, mappers, repository implementations — ALSO
+                  grouped by content now (mappers/orm/repositories each
+                  mirror application/'s grouping)
+  access/         scoped access/feature-gating — unchanged, already here
+  api/            desktop (and future HTTP) transport adapters
+  common/         shared kernel utilities — stays flat, un-split
+  finance/        Money/Currency/Quantity value objects — stays flat, un-split
+  integration/    module_registry/resolver/cross_module_reference — stays flat
+```
 
-Put here:
+`application/`, `domain/`, `contract/`, and `infrastructure/persistence/
+{mappers,orm,repositories}/` all group their content the same way, into 8
+groups: `tenant` (tenancy, modules), `master_data` (department, site,
+employee, documents, org, party, data_exchange), `history` (audit,
+activity), `security` (auth, authorization, identity — further split into
+`credentials/session/provisioning/audit` under auth and `roles/enforcement`
+under authorization), `approval`, `time_management` (calendar — further
+split into `definitions/assignment/capacity` — and time), `data_operations`
+(exporting, importing, report_runtime, runtime_tracking), and `events`
+(notifications, platform_events). `api/desktop/` mirrors the same grouping.
 
-- permission rules
-- audit entry domain objects
-- module subscription domain objects
-- document attachment business contracts
-- organization, site, department, and business unit ownership
+`src/application/` (the top-level package, sibling to `src/core/`) shrinks
+to exactly one file — `runtime/desktop_api_registry.py`, the cross-module
+orchestrator that composes platform's own runtime with each business
+module's own runtime. `src/api/` retires completely; its platform-owned
+content (`api/desktop/platform/*`) moves into
+`src/core/platform/api/desktop/`.
 
-Do not put here:
-
-- generic DB engine setup
-- logger config
-- SMTP connection implementation
-- local file storage code
-
-Those belong in global `src/infra/`.
+Full grouping taxonomy, per-file mapping table (271 files), import-impact
+analysis, and every investigation write-up (why `auth`/`authorization`
+split the way it did, why `finance` stayed flat, the `src/application`/
+`src/api` rearrangement, the infrastructure regroup, the `calendar`
+de-flattening) live in
+[`PLATFORM_LAYER_FIRST_RESTRUCTURE.md`](./PLATFORM_LAYER_FIRST_RESTRUCTURE.md) —
+read that before touching platform code; nothing here duplicates it.
 
 #### `src/core/modules/`
 
@@ -373,16 +422,19 @@ infrastructure/
 api/
 ```
 
-Each platform capability under `src/core/platform/<capability>/` should follow the same mini-module pattern:
+**Superseded for `src/core/platform/` (2026-08-04):** see
+[`PLATFORM_LAYER_FIRST_RESTRUCTURE.md`](./PLATFORM_LAYER_FIRST_RESTRUCTURE.md) —
+platform capabilities no longer each carry their own `domain/application/
+contracts`; those layers are now shared top-level folders under
+`src/core/platform/` with capabilities grouped inside each one. This
+mini-module pattern remains correct for `src/core/modules/<module_name>/`
+below.
 
-```text
-domain/
-application/
-contracts/
-infrastructure/   # optional
-```
+Platform capabilities do **not** follow this per-capability pattern anymore
+— see the superseding note above and `#### src/core/platform/` earlier in
+this document for the actual (layer-first) target structure.
 
-Subfolder rule:
+Subfolder rule (applies to `src/core/modules/<module_name>/`):
 
 - inside `domain/`, create subfolders by business subdomain, not generic buckets like `entities/` or `models/`
 - inside `application/`, create subfolders by business subdomain and then split into `commands/`, `queries/`, `dto/`, and `mappers/`

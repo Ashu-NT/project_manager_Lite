@@ -9,8 +9,8 @@ import json
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.core.platform.audit.contracts import AuditRepository
-from src.core.platform.audit.domain import AuditEntry
+from src.core.platform.contract.history.audit.contracts import AuditRepository
+from src.core.platform.domain.history.audit import AuditEntry
 from src.core.platform.auth.authorization import (
     authorization_denied,
     record_authorization_denial,

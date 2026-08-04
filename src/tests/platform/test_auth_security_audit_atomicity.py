@@ -10,7 +10,7 @@ from src.core.platform.auth.application.security_audit import (
     add_atomic_security_audit,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.infrastructure.persistence.orm.audit_entry import (
+from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
     AuditEntryORM,
 )
 

@@ -6,7 +6,7 @@ from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.infrastructure.persistence.repositories.approval import (
     SqlAlchemyApprovalRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.audit_entry import (
+from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.departments import (

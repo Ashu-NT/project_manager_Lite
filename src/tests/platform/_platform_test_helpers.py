@@ -4,7 +4,7 @@ from dataclasses import replace
 from datetime import datetime
 from types import SimpleNamespace
 
-from src.api.desktop.platform.models.audit_entry import AuditEntryDto
+from src.core.platform.api.desktop.history.audit.models.audit_entry import AuditEntryDto
 from src.api.desktop.platform.models import (
     ApprovalRequestDto,
     ApprovalStatus,

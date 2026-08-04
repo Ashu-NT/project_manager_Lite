@@ -64,7 +64,7 @@ from src.core.modules.project_management.contracts.repositories.task import (
     DependencyRepository,
     TaskRepository,
 )
-from src.core.platform.activity.application.activity_service import ActivityService
+from src.core.platform.application.history.activity.activity_service import ActivityService
 from src.core.platform.approval.application.approval_service import ApprovalService
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.common.interfaces import TimeEntryRepository, TimesheetPeriodRepository

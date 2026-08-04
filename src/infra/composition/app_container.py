@@ -15,9 +15,9 @@ from src.application.runtime.platform_runtime import PlatformRuntimeApplicationS
 from src.core.platform.access import AccessControlService
 from src.core.platform.integration.module_registry import ModuleRegistry
 from src.core.platform.integration.resolver import IntegrationResolver
-from src.core.platform.activity.application.activity_service import ActivityService
+from src.core.platform.application.history.activity.activity_service import ActivityService
 from src.core.platform.approval import ApprovalService
-from src.core.platform.audit import EnterpriseAuditService
+from src.core.platform.application.history.audit import EnterpriseAuditService
 from src.core.platform.notifications import NotificationService
 from src.core.platform.auth import (
     AuthService,
