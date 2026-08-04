@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.core.platform.time.contracts import TimeEntryRepository, TimesheetPeriodRepository
+from src.core.platform.contract.time_management.time.contracts import TimeEntryRepository, TimesheetPeriodRepository
 
 
 __all__ = [

@@ -21,7 +21,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.core.platform.domain.master_data.employee import EmploymentType
-from src.core.platform.time.domain import TimesheetPeriodStatus
+from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 from src.infra.persistence.orm.base import Base
 
 class ModuleEntitlementORM(Base):

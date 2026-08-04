@@ -13,7 +13,7 @@ from src.core.platform.application.master_data.org.organization_service import O
 from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.application.master_data.party.party_service import PartyService
 from src.application.runtime.entitlement_runtime import ModuleRuntimeService
-from src.core.platform.time.application import TimeService
+from src.core.platform.application.time_management.time import TimeService
 from src.tests.path_rewrites import REPO_ROOT
 from src.core.modules.inventory_procurement import (
     InventoryDataExchangeService,

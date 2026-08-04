@@ -33,7 +33,7 @@ from src.core.platform.application.master_data.employee.employee_service import 
 from src.core.platform.application.master_data.org.organization_service import OrganizationService
 from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.application.master_data.party.party_service import PartyService
-from src.core.platform.time.application import TimeService
+from src.core.platform.application.time_management.time import TimeService
 from src.core.platform.application.tenant.tenancy import (
     TenantAdminService,
     TenantContextService,

@@ -51,7 +51,7 @@ from src.core.modules.project_management.application.resources import (
 )
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.timesheets import TimesheetService
-from src.core.platform.time.domain import TimesheetPeriodStatus
+from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 
 
 class ProjectManagementTimesheetsDesktopApi:

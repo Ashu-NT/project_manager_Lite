@@ -8,7 +8,7 @@ import pytest
 
 from src.core.platform.auth.domain.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.time.domain import TimesheetPeriodStatus
+from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 from src.core.platform.common.exceptions import ValidationError
 from src.core.modules.project_management.domain.enums import WorkerType
 from src.tests.temp_dirs import cleanup_test_workspace, create_test_workspace

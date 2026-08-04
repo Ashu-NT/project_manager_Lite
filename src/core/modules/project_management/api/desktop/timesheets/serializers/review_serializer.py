@@ -20,7 +20,7 @@ from src.core.modules.project_management.api.desktop.timesheets.services.project
     project_name_for_id,
     project_names_from_ids,
 )
-from src.core.platform.time.application import TimesheetReviewDetail
+from src.core.platform.application.time_management.time import TimesheetReviewDetail
 
 
 def serialize_review_summary(

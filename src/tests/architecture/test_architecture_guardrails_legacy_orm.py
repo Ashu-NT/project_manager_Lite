@@ -136,7 +136,7 @@ def test_composition_imports_focused_persistence_adapters():
     assert "from src.core.platform.infrastructure.persistence.repositories.master_data.employee.employee import" in text
     assert "from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import" in text
     assert "from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import" in text
-    assert "from src.core.platform.infrastructure.persistence.repositories.time import" in text
+    assert "from src.core.platform.infrastructure.persistence.repositories.time_management.time.time import" in text
 
 
 def test_project_management_persistence_imports_project_management_orm_models():
@@ -197,7 +197,7 @@ def test_orm_package_root_loads_all_model_packages():
     assert "import src.core.modules.maintenance.infrastructure.persistence.orm.models" in package_text
     assert "import src.core.modules.maintenance.infrastructure.persistence.orm.preventive_runtime_models" in package_text
     platform_orm_modules = (
-        "tenant.modules.modules", "time", "auth", "events.notifications.notification", "history.audit.audit_entry", "approval.approval", "data_operations.runtime_tracking.runtime_tracking",
+        "tenant.modules.modules", "time_management.time.time", "auth", "events.notifications.notification", "history.audit.audit_entry", "approval.approval", "data_operations.runtime_tracking.runtime_tracking",
         "master_data.employee.employee", "master_data.site.sites", "master_data.department.departments",
         "master_data.org.org", "master_data.documents.documents", "master_data.party.party",
     )
@@ -278,7 +278,7 @@ def test_platform_common_interfaces_are_platform_only():
     interfaces_path = ROOT / "src" / "core" / "platform" / "common" / "interfaces.py"
     text = interfaces_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "from src.core.platform.time.contracts import TimeEntryRepository, TimesheetPeriodRepository" in text
+    assert "from src.core.platform.contract.time_management.time.contracts import TimeEntryRepository, TimesheetPeriodRepository" in text
     assert "core.modules.project_management" not in text
     assert "class ProjectRepository" not in text
     assert "class TaskRepository" not in text

@@ -2716,6 +2716,85 @@ review unit, not a separate infra-only mega-phase at the end.
   directly-touched test files plus the `build_service_graph` import
   smoke test now stands in for the full run.
 
+**Phase 6 (`tenant`: `tenancy`, `modules`) — completed 2026-08-04.**
+
+- Created 33 new files across `domain/tenant/{tenancy,modules}/`,
+  `contract/tenant/{tenancy,modules}/`, `application/tenant/{tenancy,
+  modules}/`, `infrastructure/persistence/{mappers,orm,repositories}/
+  tenant/{tenancy,modules}/`, and `api/desktop/tenant/tenancy/` (no
+  dedicated desktop API adapter exists for `modules`, matching the old
+  structure). Each layer's `__init__.py` re-exports only that layer's
+  own symbols (domain/contract/application no longer share one combined
+  facade), the same split established in Phase 5a/5b.
+- `org`'s successor is now itself the largest blast-radius dependency in
+  the codebase reached by this phase: `tenancy` alone had 132 external
+  facade-import hits (largest single-module count of any phase so far,
+  exceeding even `org`'s 136 because nearly every business-module
+  service depends on `TenantContextService` for tenant-scoped queries).
+  `modules` added a further 12.
+- Applied via `phase6_rewrite.py`: a substring-replacement pass for
+  unambiguous submodule-path imports (e.g.
+  `tenancy.tenant_context` → `application.tenant.tenancy.tenant_context`)
+  plus a targeted block-replacement list for every bare facade import
+  (`from src.core.platform.tenancy import (...)` /
+  `from src.core.platform.modules import (...)`) needing a per-symbol
+  domain/contract/application split.
+- **One self-caught script error worth recording**: two test files
+  (`test_membership_lifecycle_foundation.py` and
+  `test_tenant_membership_orchestration.py`) both had a bare `from
+  src.core.platform.tenancy import (...)` block that *looked* like the
+  same shape at a glance, but one imported 5 symbols
+  (`MEMBERSHIP_STATUS_*` + `UserTenantMembership`) and the other only 4
+  (`MEMBERSHIP_STATUS_*`, no `UserTenantMembership`). The rewrite
+  script's block-replacement list had the wrong block copied into the
+  second file's entry; the script's own `MISSING BLOCKS` error output
+  (an exact-match miss, not a silent no-op this time) caught it
+  immediately, and it was fixed with a direct `Edit` before the
+  substring pass ran. Reinforces the Phase 5b lesson: multi-line
+  block-replacement scripts need the *exact* file-specific content
+  double-checked, not assumed from a visually similar neighbor.
+- All four gotcha classes recurred: (1) direct infra-path imports —
+  `infrastructure/persistence/repositories/auth.py` (a different,
+  not-yet-migrated module) imported `orm.user_tenant` directly, plus 8
+  `test_phase_*`/`test_data_integrity.py`/
+  `test_phase_0_critical_bug_fixes.py`/
+  `test_membership_lifecycle_foundation.py` files and the usual
+  composition roots (`src/infra/persistence/orm/__init__.py`,
+  `src/infra/composition/{repositories.py,platform_registry.py}`); (2)
+  no monkeypatch string literals found this phase; (3) no hardcoded
+  growth-budget path found this phase; (4) the API-adapter facades
+  (`src/api/desktop/platform/__init__.py` and `models/__init__.py`)
+  plus — new this phase — a stray direct import in
+  `src/ui_qml/platform/presenters/tenant_switcher_presenter.py`
+  (`from src.api.desktop.platform.tenant import
+  PlatformTenantDesktopApi` / `.models.tenant import TenantDto`),
+  the same class of stray-reference miss as Phase 5b's
+  `models/runtime.py`, found only by an exhaustive follow-up grep
+  across every `api.desktop.platform.(tenant|models\.tenant)` pattern.
+- Fixed `platform_orm_modules`' bare `"modules"` entry in
+  `test_architecture_guardrails_legacy_orm.py` → `"tenant.modules.modules"`.
+  Extended `test_platform_persistence_structure.py`'s `NESTED_AREA_FILES`
+  with `tenant/tenancy/{tenant,user_tenant}.py`, and — since `modules.py`
+  has no mapper (confirmed via grep, same as `runtime_tracking`) — added
+  `tenant/modules/modules.py` to `NESTED_AREA_FILES_NO_MAPPER` instead of
+  the mapper-bearing set; removed `modules`/`tenant`/`user_tenant` from
+  `FLAT_AREAS` and cleaned the now-stale `"modules"` entry out of the
+  mapper-only exclusion set (`FLAT_AREAS - {"identity", "modules"}` →
+  `FLAT_AREAS - {"identity"}`).
+- Verification: a broad spot-check (the full `platform` + `architecture`
+  directories, not just the directly-touched files) ran before deletion
+  — 8 failed, 817 passed, exactly the 7 known baseline failures within
+  that scope plus the expected transitional
+  `test_platform_persistence_uses_module_style_layout` failure. Full
+  six-target suite ran once, after deletion: 32 failed, 1440 passed —
+  diffed against the baseline, **byte-for-byte identical**.
+- Deleted `src/core/platform/{tenancy,modules}/` (both entire dirs), the
+  eight old flat infra files (`infrastructure/persistence/{mappers,orm,
+  repositories}/{tenant,user_tenant}.py` and
+  `infrastructure/persistence/{orm,repositories}/modules.py`), and the
+  two old `src/api/desktop/platform/tenant.py` +
+  `models/tenant.py` files.
+
 ### Notes on this ordering
 
 - **`security` (Phases 8a–8f) is deliberately last among the content-group

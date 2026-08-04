@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from src.core.modules.project_management.application.timesheets import TimesheetService
-from src.core.platform.time.domain import TimeEntry, TimesheetPeriod
+from src.core.platform.domain.time_management.time import TimeEntry, TimesheetPeriod
 
 
 class TaskTimeEntryMixin:

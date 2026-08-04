@@ -34,7 +34,7 @@ from src.core.platform.infrastructure.persistence.repositories.master_data.party
 from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import (
     SqlAlchemySiteRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.time import (
+from src.core.platform.infrastructure.persistence.repositories.time_management.time.time import (
     SqlAlchemyTimeEntryRepository,
     SqlAlchemyTimesheetPeriodRepository,
 )

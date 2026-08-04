@@ -21,7 +21,7 @@ from src.core.modules.project_management.access.policy import (
     normalize_project_scope_role,
     resolve_project_scope_permissions,
 )
-from src.core.platform.time.application import TimeService
+from src.core.platform.application.time_management.time import TimeService
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
 )
