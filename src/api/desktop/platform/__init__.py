@@ -70,12 +70,12 @@ from src.api.desktop.platform.access import PlatformAccessDesktopApi
 from src.core.platform.api.desktop.history.activity.activity import PlatformActivityDesktopApi
 from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
 from src.api.desktop.platform.document import PlatformDocumentDesktopApi
-from src.api.desktop.platform.department import PlatformDepartmentDesktopApi
-from src.api.desktop.platform.employee import PlatformEmployeeDesktopApi
+from src.core.platform.api.desktop.master_data.department.department import PlatformDepartmentDesktopApi
+from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
 from src.api.desktop.platform.identity import PlatformIdentityDesktopApi
 from src.api.desktop.platform.party import PlatformPartyDesktopApi
 from src.api.desktop.platform.runtime import PlatformRuntimeDesktopApi
-from src.api.desktop.platform.site import PlatformSiteDesktopApi
+from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.api.desktop.platform.support import PlatformSupportDesktopApi
 from src.api.desktop.platform.tenant import PlatformTenantDesktopApi
 from src.api.desktop.platform.user import PlatformUserDesktopApi

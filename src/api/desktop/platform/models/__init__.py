@@ -30,13 +30,13 @@ from src.api.desktop.platform.models.document import (
     DocumentStructureUpdateCommand,
     DocumentUpdateCommand,
 )
-from src.api.desktop.platform.models.department import (
+from src.core.platform.api.desktop.master_data.department.models.department import (
     DepartmentCreateCommand,
     DepartmentDto,
     DepartmentLocationReferenceDto,
     DepartmentUpdateCommand,
 )
-from src.api.desktop.platform.models.employee import (
+from src.core.platform.api.desktop.master_data.employee.models.employee import (
     EmployeeCreateCommand,
     EmployeeDto,
     EmployeeUpdateCommand,
@@ -61,7 +61,7 @@ from src.api.desktop.platform.models.runtime import (
     PlatformCapabilityDto,
     PlatformRuntimeContextDto,
 )
-from src.api.desktop.platform.models.site import SiteCreateCommand, SiteDto, SiteUpdateCommand
+from src.core.platform.api.desktop.master_data.site.models.site import SiteCreateCommand, SiteDto, SiteUpdateCommand
 from src.api.desktop.platform.models.support import (
     SupportBundleDto,
     SupportEventDto,
