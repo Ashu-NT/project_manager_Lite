@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.platform_events.contracts import PlatformEventRepository
-from src.core.platform.platform_events.domain.platform_event import PlatformEvent
+from src.core.platform.contract.events.platform_events.contracts import PlatformEventRepository
+from src.core.platform.domain.events.platform_events.platform_event import PlatformEvent
 from src.core.platform.tenancy.contracts import TenantRepository, UserTenantMembershipRepository
 from src.core.platform.tenancy.domain.tenant import (
     TENANT_STATUS_ACTIVE,

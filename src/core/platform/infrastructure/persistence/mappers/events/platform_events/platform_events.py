@@ -4,8 +4,8 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-from src.core.platform.platform_events.domain.platform_event import PlatformEvent
-from src.core.platform.infrastructure.persistence.orm.platform_events import PlatformEventORM
+from src.core.platform.domain.events.platform_events.platform_event import PlatformEvent
+from src.core.platform.infrastructure.persistence.orm.events.platform_events.platform_events import PlatformEventORM
 
 
 def _to_json(payload: dict[str, Any]) -> str:

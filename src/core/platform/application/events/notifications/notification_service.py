@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.notifications.contracts import NotificationChannel, NotificationRepository
-from src.core.platform.notifications.domain import Notification
+from src.core.platform.contract.events.notifications.contracts import NotificationChannel, NotificationRepository
+from src.core.platform.domain.events.notifications import Notification
 
 logger = logging.getLogger(__name__)
 

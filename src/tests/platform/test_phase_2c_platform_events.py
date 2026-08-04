@@ -15,14 +15,14 @@ from __future__ import annotations
 import pytest
 
 from src.core.platform.common.exceptions import OperationNotPermittedError
-from src.core.platform.infrastructure.persistence.repositories.platform_events import (
+from src.core.platform.infrastructure.persistence.repositories.events.platform_events.platform_events import (
     SqlAlchemyPlatformEventRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.tenant import SqlAlchemyTenantRepository
 from src.core.platform.infrastructure.persistence.repositories.user_tenant import (
     SqlAlchemyUserTenantMembershipRepository,
 )
-from src.core.platform.platform_events.domain.platform_event import PlatformEvent
+from src.core.platform.domain.events.platform_events.platform_event import PlatformEvent
 from src.core.platform.tenancy.application.tenant_admin_service import TenantAdminService
 from src.core.platform.tenancy.domain.tenant import (
     TENANT_STATUS_ACTIVE,

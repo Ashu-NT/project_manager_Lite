@@ -5,13 +5,13 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.core.platform.notifications.contracts import NotificationRepository
-from src.core.platform.notifications.domain import Notification
-from src.core.platform.infrastructure.persistence.mappers.notification import (
+from src.core.platform.contract.events.notifications.contracts import NotificationRepository
+from src.core.platform.domain.events.notifications import Notification
+from src.core.platform.infrastructure.persistence.mappers.events.notifications.notification import (
     notification_from_orm,
     notification_to_orm,
 )
-from src.core.platform.infrastructure.persistence.orm.notification import NotificationORM
+from src.core.platform.infrastructure.persistence.orm.events.notifications.notification import NotificationORM
 
 
 class SqlAlchemyNotificationRepository(NotificationRepository):

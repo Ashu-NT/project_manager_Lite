@@ -2380,6 +2380,49 @@ review unit, not a separate infra-only mega-phase at the end.
   and the three old `src/api/desktop/platform/{approval.py,
   _approval_labels.py, models/approval.py}` files.
 
+**Phase 3 (`events`: `notifications`, `platform_events`) — completed 2026-08-04.**
+
+- Created 21 new files across `domain/events/{notifications,platform_events}/`,
+  `contract/events/{notifications,platform_events}/`,
+  `application/events/notifications/` (single service), and
+  `infrastructure/persistence/{mappers,orm,repositories}/events/
+  {notifications,platform_events}/`. No `api/desktop/events/` — neither
+  module has any desktop API adapter (confirmed by grep before starting).
+- **Deliberate deviation from the mapping table** (§8's row for
+  `platform_events/__init__.py` → `application/events/platform_events/__init__.py`):
+  `platform_events` has no application-layer service in the old tree — its
+  old `__init__.py` only re-exported `PlatformEventRepository` (contract)
+  and `PlatformEvent` (domain), and every real caller
+  (`tenant_admin_service.py`) already imported those two directly from
+  `.contracts` / `.domain.platform_event`, never through the facade. The
+  mapping table's row was the mapping *script's* generic per-module default,
+  not a vetted decision — creating an empty `application/events/
+  platform_events/` folder with nothing to re-export would contradict the
+  same "only create what a layer actually owns" rule Phase 1/2 already
+  established for leaf `__init__.py` files. Skipped that folder entirely;
+  `notifications` still gets its `application/events/notifications/`
+  folder since `NotificationService` is real application-layer code.
+- Updated every external call site found by a fresh repo-wide grep — ~10
+  files across `src/infra/composition/`, `src/infra/persistence/orm/__init__.py`,
+  `src/core/platform/tenancy/application/`, and `src/tests/platform/`.
+  Confirmed clean afterward with a second repo-wide grep.
+- Fixed `test_orm_package_root_loads_all_model_packages` (`notification` →
+  `events.notifications.notification`; note the tuple never checked
+  `platform_events` at all — a pre-existing gap predating this phase, left
+  as-is rather than expanding the guardrail's scope beyond what this phase
+  touches) and extended `test_platform_persistence_structure.py`'s
+  `NESTED_AREA_FILES` with `events/notifications/notification.py` and
+  `events/platform_events/platform_events.py`.
+- Verification: ran the same four-directory 1300-test suite before and
+  after deleting the old files. Before: 33 failed (32 pre-existing +
+  the expected transitional persistence-structure failure), 1267 passed.
+  After: 32 failed, 1268 passed — a diff against Phase 2's confirmed
+  32-failure baseline came back **byte-for-byte identical**, confirming
+  zero regressions from this phase.
+- Deleted `src/core/platform/{notifications,platform_events}/` (both
+  entire dirs) and the four old flat infra files
+  (`infrastructure/persistence/{mappers,orm,repositories}/{notification,platform_events}.py`).
+
 ### Notes on this ordering
 
 - **`security` (Phases 8a–8f) is deliberately last among the content-group

@@ -12,6 +12,8 @@ NESTED_AREA_FILES = {
     "history/activity/activity.py",
     "history/audit/audit_entry.py",
     "approval/approval.py",
+    "events/notifications/notification.py",
+    "events/platform_events/platform_events.py",
 }
 
 FLAT_AREAS = {
@@ -22,10 +24,8 @@ FLAT_AREAS = {
     "enterprise_calendar",
     "identity",
     "modules",
-    "notification",
     "org",
     "party",
-    "platform_events",
     "runtime_tracking",
     "sites",
     "tenant",

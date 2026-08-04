@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Protocol
 
-from src.core.platform.notifications.domain import Notification
+from src.core.platform.domain.events.notifications import Notification
 
 
 class NotificationRepository(ABC):

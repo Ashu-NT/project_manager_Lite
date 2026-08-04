@@ -33,7 +33,7 @@ from src.core.platform.common.exceptions import (
     BusinessRuleError,
     NotFoundError,
 )
-from src.core.platform.notifications import NotificationService
+from src.core.platform.application.events.notifications.notification_service import NotificationService
 from src.core.platform.tenancy.contracts import (
     TenantRepository,
     UserTenantMembershipRepository,

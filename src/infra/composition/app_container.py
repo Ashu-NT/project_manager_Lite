@@ -18,7 +18,7 @@ from src.core.platform.integration.resolver import IntegrationResolver
 from src.core.platform.application.history.activity.activity_service import ActivityService
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.history.audit import EnterpriseAuditService
-from src.core.platform.notifications import NotificationService
+from src.core.platform.application.events.notifications.notification_service import NotificationService
 from src.core.platform.auth import (
     AuthService,
     RoleGovernanceService,
