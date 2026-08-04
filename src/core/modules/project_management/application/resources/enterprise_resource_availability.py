@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.platform.calendar.application.enterprise_calendar_resolver import (
+from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
     EnterpriseCalendarResolver,
     ResolvedCalendarContext,
 )

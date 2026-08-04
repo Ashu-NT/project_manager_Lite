@@ -366,25 +366,34 @@ def test_platform_calendar_does_not_import_project_management_at_module_scope():
     platform module never gains a hard, top-level dependency on
     project_management. This guards that boundary as the codebase evolves.
     """
-    calendar_root = ROOT / "src" / "core" / "platform" / "calendar"
+    calendar_roots = [
+        ROOT / "src" / "core" / "platform" / "domain" / "time_management" / "calendar",
+        ROOT / "src" / "core" / "platform" / "contract" / "time_management" / "calendar",
+        ROOT / "src" / "core" / "platform" / "application" / "time_management" / "calendar",
+        ROOT / "src" / "core" / "platform" / "infrastructure" / "persistence" / "mappers" / "time_management" / "calendar",
+        ROOT / "src" / "core" / "platform" / "infrastructure" / "persistence" / "orm" / "time_management" / "calendar",
+        ROOT / "src" / "core" / "platform" / "infrastructure" / "persistence" / "repositories" / "time_management" / "calendar",
+        ROOT / "src" / "core" / "platform" / "api" / "desktop" / "time_management" / "calendar",
+    ]
     violations: list[tuple[str, str]] = []
 
-    for path in _python_files(calendar_root):
-        source = path.read_text(encoding="utf-8", errors="ignore")
-        tree = ast.parse(source)
-        for node in tree.body:
-            if isinstance(node, ast.Import):
-                for alias in node.names:
-                    name = alias.name
-                    if name == "src.core.modules.project_management" or name.startswith(
+    for calendar_root in calendar_roots:
+        for path in _python_files(calendar_root):
+            source = path.read_text(encoding="utf-8", errors="ignore")
+            tree = ast.parse(source)
+            for node in tree.body:
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        name = alias.name
+                        if name == "src.core.modules.project_management" or name.startswith(
+                            "src.core.modules.project_management."
+                        ):
+                            violations.append((str(path.relative_to(ROOT)), name))
+                elif isinstance(node, ast.ImportFrom):
+                    mod = node.module or ""
+                    if mod == "src.core.modules.project_management" or mod.startswith(
                         "src.core.modules.project_management."
                     ):
-                        violations.append((str(path.relative_to(ROOT)), name))
-            elif isinstance(node, ast.ImportFrom):
-                mod = node.module or ""
-                if mod == "src.core.modules.project_management" or mod.startswith(
-                    "src.core.modules.project_management."
-                ):
-                    violations.append((str(path.relative_to(ROOT)), mod))
+                        violations.append((str(path.relative_to(ROOT)), mod))
 
     assert not violations, f"Platform calendar module imports project_management at module scope: {violations}"

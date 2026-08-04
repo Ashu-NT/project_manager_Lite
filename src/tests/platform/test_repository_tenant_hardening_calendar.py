@@ -5,7 +5,7 @@ from datetime import date, datetime, time, timezone
 from src.core.platform.domain.master_data.employee import EmploymentType
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import DepartmentORM
 from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import EmployeeORM
-from src.core.platform.infrastructure.persistence.orm.enterprise_calendar import (
+from src.core.platform.infrastructure.persistence.orm.time_management.calendar.enterprise_calendar import (
     CalendarExceptionORM,
     CalendarRecurringEventORM,
     CalendarWorkingRuleORM,

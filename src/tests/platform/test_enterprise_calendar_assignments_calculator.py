@@ -7,7 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.infra.persistence.orm import Base
-from src.core.platform.infrastructure.persistence.repositories.enterprise_calendar import (
+from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
     SqlAlchemyCalendarExceptionRepository,
     SqlAlchemyCalendarRecurringEventRepository,
@@ -15,18 +15,18 @@ from src.core.platform.infrastructure.persistence.repositories.enterprise_calend
     SqlAlchemyPlatformCalendarRepository,
     SqlAlchemyShiftPatternRepository,
 )
-from src.core.platform.calendar.domain.enterprise_calendar import (
+from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     CalendarType,
     ExceptionType,
     ImpactType,
 )
-from src.core.platform.calendar.application.enterprise_calendar_service import (
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
     EnterpriseCalendarService,
 )
-from src.core.platform.calendar.application.calendar_assignment_service import (
+from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
 )
-from src.core.platform.calendar.application.working_time_calculator import WorkingTimeCalculator
+from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import WorkingTimeCalculator
 
 
 @pytest.fixture
@@ -281,7 +281,7 @@ def test_platform_calendar_assignments_normalize_dto_inputs(
 
 
 def test_working_time_calculator_derived_capacity(calculator):
-    from src.core.platform.calendar.domain.enterprise_calendar import CalendarWorkingRule
+    from src.core.platform.domain.time_management.calendar.enterprise_calendar import CalendarWorkingRule
 
     rules = [
         CalendarWorkingRule.create(
@@ -306,7 +306,7 @@ def test_working_time_calculator_derived_capacity(calculator):
 
 
 def test_holiday_makes_day_unavailable(calculator):
-    from src.core.platform.calendar.domain.enterprise_calendar import (
+    from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
         CalendarException,
         CalendarWorkingRule,
     )
@@ -341,7 +341,7 @@ def test_holiday_makes_day_unavailable(calculator):
 
 
 def test_overtime_extra_capacity(calculator):
-    from src.core.platform.calendar.domain.enterprise_calendar import (
+    from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
         CalendarException,
         CalendarWorkingRule,
     )
@@ -377,7 +377,7 @@ def test_overtime_extra_capacity(calculator):
 
 
 def test_non_working_day_returns_zero(calculator):
-    from src.core.platform.calendar.domain.enterprise_calendar import CalendarWorkingRule
+    from src.core.platform.domain.time_management.calendar.enterprise_calendar import CalendarWorkingRule
 
     rules = [
         CalendarWorkingRule.create(

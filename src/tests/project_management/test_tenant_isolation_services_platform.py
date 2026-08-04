@@ -8,9 +8,9 @@ from src.core.modules.project_management.application.resources import ResourceSe
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
-from src.core.platform.calendar.application.enterprise_calendar_service import EnterpriseCalendarService
-from src.core.platform.calendar.application.shift_pattern_service import ShiftPatternService
-from src.core.platform.calendar.domain.enterprise_calendar import PlatformCalendar, ShiftPattern
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import EnterpriseCalendarService
+from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import ShiftPatternService
+from src.core.platform.domain.time_management.calendar.enterprise_calendar import PlatformCalendar, ShiftPattern
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.application.master_data.department.department_service import DepartmentService
 from src.core.platform.domain.master_data.department import Department

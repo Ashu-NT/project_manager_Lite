@@ -25,7 +25,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.skills i
     ResourceSkillORM,
     TaskSkillRequirementORM,
 )
-from src.core.platform.infrastructure.persistence.orm.enterprise_calendar import PlatformCalendarORM
+from src.core.platform.infrastructure.persistence.orm.time_management.calendar.enterprise_calendar import PlatformCalendarORM
 from src.tests.project_management._test_repository_tenant_hardening_helpers import (
     _seed_priority_pm_rows,
 )

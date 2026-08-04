@@ -23,6 +23,7 @@ NESTED_AREA_FILES = {
     "tenant/tenancy/tenant.py",
     "tenant/tenancy/user_tenant.py",
     "time_management/time/time.py",
+    "time_management/calendar/enterprise_calendar.py",
 }
 
 # runtime_tracking and modules have no mapper (never did — "no mapper exists
@@ -35,7 +36,6 @@ NESTED_AREA_FILES_NO_MAPPER = {
 
 FLAT_AREAS = {
     "auth",
-    "enterprise_calendar",
     "identity",
 }
 

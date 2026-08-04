@@ -20,7 +20,7 @@ from src.core.platform.infrastructure.persistence.repositories.master_data.docum
 from src.core.platform.infrastructure.persistence.repositories.master_data.employee.employee import (
     SqlAlchemyEmployeeRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.enterprise_calendar import (
+from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
     SqlAlchemyCalendarExceptionRepository,
     SqlAlchemyCalendarRecurringEventRepository,

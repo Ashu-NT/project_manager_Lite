@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 
 import os
 
@@ -71,7 +71,7 @@ from src.core.platform.common.interfaces import TimeEntryRepository, TimesheetPe
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.timesheets import TimesheetService
-from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 
 
 class TaskService(

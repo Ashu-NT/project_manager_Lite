@@ -24,7 +24,7 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     SqlAlchemyProjectCostCodeRepository,
     SqlAlchemyProjectFinancialProfileRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.enterprise_calendar import (
+from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
     SqlAlchemyCalendarExceptionRepository,
     SqlAlchemyCalendarRecurringEventRepository,

@@ -43,8 +43,8 @@ from src.core.modules.project_management.application.scheduling.models import (
     ResourceLevelingResult,
 )
 from src.core.modules.project_management.application.scheduling.services import SchedulingEngine
-from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
-from src.core.platform.calendar.application.global_calendar_shim import GlobalCalendarShim
+from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
+from src.core.platform.application.time_management.calendar.capacity.global_calendar_shim import GlobalCalendarShim
 
 __all__ = [
     # Models

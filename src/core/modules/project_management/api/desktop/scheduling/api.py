@@ -3,7 +3,7 @@
 from __future__ import annotations
 from datetime import date
 
-from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
@@ -159,7 +159,7 @@ class ProjectManagementSchedulingDesktopApi:
 
     def calculate_working_days(self, command: SchedulingWorkingDayCalculationCommand) -> SchedulingWorkingDayCalculationDto:
         if self._platform_calendar_api is not None:
-            from src.api.desktop.platform.models.enterprise_calendar import (
+            from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
                 WorkingDaysCommand as PlatformWorkingDaysCommand,
             )
 

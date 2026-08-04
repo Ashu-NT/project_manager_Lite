@@ -9,11 +9,11 @@ from __future__ import annotations
 import logging
 from datetime import date, timedelta
 
-from src.core.platform.calendar.application.enterprise_calendar_resolver import (
+from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
     EnterpriseCalendarResolver,
     ResolvedCalendarContext,
 )
-from src.core.platform.calendar.application.calendar_assignment_service import (
+from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
 )
 

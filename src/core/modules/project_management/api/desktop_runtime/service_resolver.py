@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 from src.core.modules.project_management.application.collaboration import (
     CollaborationService,
 )

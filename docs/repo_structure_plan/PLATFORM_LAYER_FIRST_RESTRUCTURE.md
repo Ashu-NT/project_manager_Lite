@@ -2795,6 +2795,77 @@ review unit, not a separate infra-only mega-phase at the end.
   two old `src/api/desktop/platform/tenant.py` +
   `models/tenant.py` files.
 
+**Phase 7a (`time_management`: `time`) — completed 2026-08-04.**
+
+- Created 15 new files: `domain/time_management/time/{__init__.py,
+  timesheet_models.py}`, `contract/time_management/time/{__init__.py,
+  contracts.py}`, `application/time_management/time/{__init__.py,
+  time_service.py, timesheet_entries.py, timesheet_periods.py,
+  timesheet_query.py, timesheet_review.py, timesheet_support.py}`,
+  `infrastructure/persistence/{mappers,orm,repositories}/
+  time_management/time/time.py`. No dedicated desktop API adapter
+  exists for `time` (confirmed by grep — the only `runtime.py` hits
+  belong to the unrelated platform-runtime module), matching the "no
+  de-flattening, no misfiled-symbol relocation" simplicity called out
+  for this phase in the plan.
+- **This phase's facade turned out simpler than every group since
+  Phase 4**: unlike `tenancy`/`modules`/`org`, none of `time`'s 25
+  external call sites imported the bare combined top-level facade
+  (`from src.core.platform.time import ...`) — every single one already
+  targeted `.domain`, `.application`, or `.contracts` directly, and each
+  import statement's symbols were consistently single-layer. This meant
+  the whole external rewrite was a straight unambiguous substring
+  replacement (`phase7a_rewrite.py`, 32 occurrences across 25 files, one
+  pass, zero per-symbol splitting needed) — the first phase since the
+  early small groups where no BLOCK_REPLACEMENTS list was required at
+  all.
+- **Gotcha class 2 found cheaply this time**: the four monkeypatch
+  string literals in `test_time_domain_validation.py` (targeting
+  `timesheet_support`/`timesheet_periods`/`timesheet_entries`) were
+  caught and fixed automatically by the same substring pass, since the
+  old dotted path appeared verbatim inside the quoted strings too — no
+  separate quoted-string grep pass or manual fix was needed this phase.
+- **Script-exclusion bug, caught only at deletion time**: `phase7a_rewrite.py`'s
+  `EXCLUDE_DIRS` only listed `src/core/platform/time/` (the
+  domain/application/contract source tree being replaced), and forgot
+  the three old flat infra files
+  (`infrastructure/persistence/{mappers,orm,repositories}/time.py`).
+  The substring pass consequently rewrote those old files' internal
+  imports too (harmless, since they were deleted minutes later), but it
+  meant `git rm` refused with "local modifications" until reissued with
+  `-f` — a reminder that a rewrite script's exclude list must cover
+  every old file being replaced, not just the primary package directory,
+  or the deletion step needs a forced remove.
+- Remaining gotcha class 1 hits (direct infra-path imports bypassing the
+  facade): `src/infra/persistence/orm/__init__.py`,
+  `src/infra/composition/{repositories.py,maintenance_registry.py}`,
+  and three test files
+  (`test_collaboration_import_timesheet_regressions.py`,
+  `test_repository_tenant_hardening_{time_governance,tenant_context}.py`) —
+  all fixed with direct `Edit` calls once the substring-replacement
+  script's exclusion gap was understood. Gotcha class 3 (hardcoded
+  growth-budget path) and class 4 (API-adapter facade re-export): none
+  found, consistent with `time` having no growth-budget entry and no
+  desktop API adapter.
+- Fixed the `platform_orm_modules` tuple's bare `"time"` entry in
+  `test_architecture_guardrails_legacy_orm.py` → `"time_management.time.time"`,
+  and its `test_composition_imports_focused_persistence_adapters`
+  string assertion for `repositories.py`'s `time` import substring.
+  Extended `test_platform_persistence_structure.py`'s `NESTED_AREA_FILES`
+  with `time_management/time/time.py` (time has a mapper, unlike
+  `runtime_tracking`/`modules`, so it belongs in the mapper-bearing set,
+  not `NESTED_AREA_FILES_NO_MAPPER`), removing `time` from `FLAT_AREAS`.
+- Verification: narrow spot-check on the 8 directly-touched test files
+  before deletion — 3 failed, 81 passed (the 2 known baseline failures
+  in scope plus the expected transitional persistence-structure
+  failure). Full six-target suite ran once, after deletion (first
+  attempt killed by the environment mid-run, unrelated to this phase's
+  changes; retried successfully): 32 failed, 1440 passed — diffed
+  against the baseline, **byte-for-byte identical**.
+- Deleted `src/core/platform/time/` (the entire directory) and the
+  three old flat infra files
+  (`infrastructure/persistence/{mappers,orm,repositories}/time.py`).
+
 ### Notes on this ordering
 
 - **`security` (Phases 8a–8f) is deliberately last among the content-group

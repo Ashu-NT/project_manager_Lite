@@ -1,5 +1,5 @@
 # src/core/modules/project_management/application/scheduling/baseline_service.py
-from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 
 from sqlalchemy.orm import Session
 

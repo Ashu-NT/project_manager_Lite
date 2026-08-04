@@ -7,7 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.infra.persistence.orm import Base
-from src.core.platform.infrastructure.persistence.repositories.enterprise_calendar import (
+from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
     SqlAlchemyCalendarExceptionRepository,
     SqlAlchemyCalendarRecurringEventRepository,
@@ -15,21 +15,21 @@ from src.core.platform.infrastructure.persistence.repositories.enterprise_calend
     SqlAlchemyPlatformCalendarRepository,
     SqlAlchemyShiftPatternRepository,
 )
-from src.core.platform.calendar.domain.enterprise_calendar import (
+from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     CalendarType,
     ExceptionType,
     ImpactType,
     PatternType,
     RecurringEventType,
 )
-from src.core.platform.calendar.application.enterprise_calendar_service import (
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
     EnterpriseCalendarService,
 )
-from src.core.platform.calendar.application.calendar_exception_service import (
+from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
     CalendarExceptionService,
 )
-from src.core.platform.calendar.application.recurring_event_service import RecurringEventService
-from src.core.platform.calendar.application.shift_pattern_service import ShiftPatternService
+from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import RecurringEventService
+from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import ShiftPatternService
 from src.core.platform.common.exceptions import ValidationError
 
 

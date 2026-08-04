@@ -10,7 +10,7 @@ import src.core.platform.infrastructure.persistence.orm.master_data.site.sites  
 import src.core.platform.infrastructure.persistence.orm.master_data.department.departments  # noqa: F401
 # src.core.platform.infrastructure.persistence.orm.calendar removed after Alembic migration
 # working_calendars and holidays tables are dropped by migration o8p9q0r1s2t3
-import src.core.platform.infrastructure.persistence.orm.enterprise_calendar  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.time_management.calendar.enterprise_calendar  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.master_data.documents.documents  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.master_data.party.party  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.tenant.modules.modules  # noqa: F401

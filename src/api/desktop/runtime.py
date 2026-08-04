@@ -21,7 +21,7 @@ from src.api.desktop.platform import (
     PlatformUserDesktopApi,
 )
 from src.core.platform.api.desktop.history.audit.audit_enterprise import PlatformEnterpriseAuditDesktopApi
-from src.api.desktop.platform.enterprise_calendar import EnterpriseCalendarDesktopApi
+from src.core.platform.api.desktop.time_management.calendar.enterprise_calendar import EnterpriseCalendarDesktopApi
 from src.application.runtime.platform_runtime import (
     PlatformRuntimeApplicationService,
     resolve_platform_runtime_application_service,
@@ -74,25 +74,25 @@ from src.core.platform.application.approval.approval_service import ApprovalServ
 from src.core.platform.application.history.activity.activity_service import ActivityService
 from src.core.platform.application.history.audit import EnterpriseAuditService
 from src.core.platform.auth.application import AuthService
-from src.core.platform.calendar.application.calendar_assignment_service import (
+from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
 )
-from src.core.platform.calendar.application.calendar_exception_service import (
+from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
     CalendarExceptionService,
 )
-from src.core.platform.calendar.application.enterprise_calendar_resolver import (
+from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
     EnterpriseCalendarResolver,
 )
-from src.core.platform.calendar.application.enterprise_calendar_service import (
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
     EnterpriseCalendarService,
 )
-from src.core.platform.calendar.application.recurring_event_service import (
+from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import (
     RecurringEventService,
 )
-from src.core.platform.calendar.application.shift_pattern_service import (
+from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import (
     ShiftPatternService,
 )
-from src.core.platform.calendar.application.working_rule_service import (
+from src.core.platform.application.time_management.calendar.definitions.working_rule_service import (
     WorkingRuleService,
 )
 from src.core.platform.application.master_data.department.department_service import DepartmentService

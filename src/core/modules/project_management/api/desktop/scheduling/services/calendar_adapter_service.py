@@ -134,7 +134,7 @@ def get_platform_calendar_snapshot(
 def update_platform_calendar_working_days(
     platform_calendar_api, calendar_id: str, command
 ) -> SchedulingCalendarSnapshotDto:
-    from src.api.desktop.platform.models.enterprise_calendar import WorkingRuleSaveCommand
+    from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import WorkingRuleSaveCommand
 
     resolved_id = _resolve_calendar_id(platform_calendar_api, calendar_id)
     working_days = set(command.working_days or ())
@@ -154,7 +154,7 @@ def update_platform_calendar_working_days(
 def add_platform_holiday(
     platform_calendar_api, calendar_id: str, command
 ) -> SchedulingHolidayDto:
-    from src.api.desktop.platform.models.enterprise_calendar import ExceptionCreateCommand
+    from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import ExceptionCreateCommand
 
     resolved_id = _resolve_calendar_id(platform_calendar_api, calendar_id)
     exc = unwrap_platform_calendar_result(

@@ -1,7 +1,7 @@
 """Dashboard orchestration service — assembles all dashboard sections."""
 from __future__ import annotations
 
-from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission

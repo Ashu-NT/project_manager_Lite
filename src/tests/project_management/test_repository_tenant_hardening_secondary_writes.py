@@ -74,7 +74,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
     TaskORM,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError
-from src.core.platform.infrastructure.persistence.orm.enterprise_calendar import PlatformCalendarORM
+from src.core.platform.infrastructure.persistence.orm.time_management.calendar.enterprise_calendar import PlatformCalendarORM
 
 
 def _seed_priority_pm_rows(services):
