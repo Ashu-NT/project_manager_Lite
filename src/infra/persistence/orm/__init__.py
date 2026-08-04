@@ -1,7 +1,7 @@
 """ORM metadata and model packages."""
 
 from src.infra.persistence.orm.base import Base
-import src.core.platform.infrastructure.persistence.orm.tenant  # noqa: F401  — must precede org (FK dep)
+import src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant  # noqa: F401  — must precede org (FK dep)
 import src.core.modules.maintenance.infrastructure.persistence.orm.models  # noqa: F401
 import src.core.modules.maintenance.infrastructure.persistence.orm.preventive_runtime_models  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.master_data.org.org  # noqa: F401
@@ -13,11 +13,11 @@ import src.core.platform.infrastructure.persistence.orm.master_data.department.d
 import src.core.platform.infrastructure.persistence.orm.enterprise_calendar  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.master_data.documents.documents  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.master_data.party.party  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.modules  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.tenant.modules.modules  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.time  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.auth  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.identity  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.user_tenant  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.history.activity.activity  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.events.platform_events.platform_events  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry  # noqa: F401

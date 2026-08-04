@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from src.api.desktop.platform.models import DesktopApiResult
-from src.api.desktop.platform.models.tenant import TenantDto
-from src.api.desktop.platform.tenant import PlatformTenantDesktopApi
+from src.core.platform.api.desktop.tenant.tenancy.models.tenant import TenantDto
+from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
 from src.ui_qml.platform.presenters.support import preview_error_result
 from src.ui_qml.platform.view_models.tenant import TenantSwitcherItemViewModel
 

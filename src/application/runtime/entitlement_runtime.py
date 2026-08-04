@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.core.platform.modules import (
+from src.core.platform.domain.tenant.modules import (
     EnterpriseModule,
-    ModuleCatalogService,
     ModuleEntitlement,
     PlatformCapability,
 )
+from src.core.platform.application.tenant.modules import ModuleCatalogService
 
 
 @dataclass(frozen=True)

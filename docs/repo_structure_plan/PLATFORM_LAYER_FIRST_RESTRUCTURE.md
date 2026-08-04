@@ -2671,6 +2671,51 @@ review unit, not a separate infra-only mega-phase at the end.
   `organization.py` adapter existed to delete, only its `models/*.py`
   DTO file).
 
+**Phase 5c (`master_data`: `data_exchange`) — completed 2026-08-04.**
+
+- Trivial single-file move: `data_exchange/service.py` and its
+  `__init__.py` → `application/master_data/data_exchange/`. No domain or
+  contract layer content existed for this module (its old
+  `data_exchange/service.py` was itself classified per §4a's
+  `LOOSE_OVERRIDES` as application-layer, since it orchestrates via
+  `SiteService`/`PartyService`), and no infra (mapper/orm/repository)
+  files ever existed for it either — confirmed by grep before starting,
+  matching the "~1 file" estimate exactly once its `__init__.py` is
+  counted alongside `service.py`.
+- Only 3 real external call sites (`src/infra/composition/
+  {platform_registry.py,app_container.py}`,
+  `src/tests/architecture/test_service_architecture.py`), each a single
+  facade import line, since `data_exchange` has no domain/contract
+  symbols of its own to split across layers.
+- All four gotcha classes checked and came back clean or pre-explained:
+  no direct infra-path imports exist (no infra files to import), no
+  monkeypatch string literals reference it, no hardcoded growth-budget
+  path exists for it, and no API-adapter facade re-export exists for it
+  (it was never exposed as a desktop API). The two guardrail hits that
+  did surface —
+  `test_architecture_guardrails_legacy_orm.py::test_legacy_platform_data_exchange_package_is_removed`
+  (checks `ROOT / "core" / "platform" / "data_exchange"`, missing a
+  `"src"` segment) and `path_rewrites.py`'s two `data_exchange` entries —
+  are the same class of dead, pre-`src/`-migration historical guardrail
+  already established as untouched in every prior phase (Phase 1's
+  original finding, reconfirmed for `org`/`documents`/`party` in Phase
+  5b); left alone.
+- Verification: six-target suite run once, before deletion (32 failed,
+  1440 passed — no transitional persistence-structure failure at all,
+  since `data_exchange` has no persistence-layer footprint to make that
+  test transitionally fail) — diffed against the baseline,
+  **byte-for-byte identical**. Post-deletion, ran only a narrow spot
+  check (the 4 directly-touched test files) plus an import smoke test
+  rather than a second full run — see the process note below.
+- Deleted `src/core/platform/data_exchange/` (the entire directory).
+- **Process change starting this phase**: the full six-target suite is
+  now run only once per phase (after deletion), not both before and
+  after — running it twice cost ~20-25 minutes each time for
+  confirmation that had already been established as reliable across
+  five prior phases. Before deletion, a narrow spot-check on the
+  directly-touched test files plus the `build_service_graph` import
+  smoke test now stands in for the full run.
+
 ### Notes on this ordering
 
 - **`security` (Phases 8a–8f) is deliberately last among the content-group

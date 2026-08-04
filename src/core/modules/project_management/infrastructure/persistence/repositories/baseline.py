@@ -25,7 +25,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.baseline
     ProjectBaselineORM,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.tenancy.tenant_context import TenantContext, TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContext, TenantContextService
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 

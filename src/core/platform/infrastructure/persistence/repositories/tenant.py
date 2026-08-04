@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.infrastructure.persistence.mappers.tenant import tenant_from_orm, tenant_to_orm
 from src.core.platform.infrastructure.persistence.orm.tenant import TenantORM
-from src.core.platform.tenancy.contracts import TenantRepository
-from src.core.platform.tenancy.domain.tenant import Tenant
+from src.core.platform.contract.tenant.tenancy.contracts import TenantRepository
+from src.core.platform.domain.tenant.tenancy.tenant import Tenant
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 

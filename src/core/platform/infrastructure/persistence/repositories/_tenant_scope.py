@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import select
 
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.tenancy.tenant_context import TenantContext, TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContext, TenantContextService
 
 
 class TenantScopedRepositorySupport:

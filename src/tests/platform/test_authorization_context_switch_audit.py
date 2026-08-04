@@ -22,7 +22,7 @@ from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
     AuditEntryORM,
 )
-from src.core.platform.tenancy.context_policy import SaaSTenantContextPolicy
+from src.core.platform.application.tenant.tenancy.context_policy import SaaSTenantContextPolicy
 from src.infra.platform.operational_support import bind_trace_id
 
 

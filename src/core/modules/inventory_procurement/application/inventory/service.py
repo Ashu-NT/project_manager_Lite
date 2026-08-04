@@ -29,7 +29,7 @@ from src.core.platform.domain.master_data.site import Site
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.application.master_data.party.party_service import PartyService
-from src.core.platform.tenancy.tenant_context import (
+from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
     require_tenant_context_service,
 )

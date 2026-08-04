@@ -27,14 +27,14 @@ from src.core.platform.auth import (
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.application.master_data.data_exchange import MasterDataExchangeService
 from src.core.platform.application.master_data.documents.document_service import DocumentService
-from src.core.platform.modules import ModuleCatalogService
+from src.core.platform.application.tenant.modules import ModuleCatalogService
 from src.core.platform.application.master_data.department.department_service import DepartmentService
 from src.core.platform.application.master_data.employee.employee_service import EmployeeService
 from src.core.platform.application.master_data.org.organization_service import OrganizationService
 from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.application.master_data.party.party_service import PartyService
 from src.core.platform.time.application import TimeService
-from src.core.platform.tenancy import (
+from src.core.platform.application.tenant.tenancy import (
     TenantAdminService,
     TenantContextService,
     TenantMembershipService,

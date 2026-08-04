@@ -17,7 +17,7 @@ from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.org.support import normalize_code
 from src.core.platform.contract.master_data.site.contracts import SiteRepository
 from src.core.platform.domain.master_data.site import Site
-from src.core.platform.tenancy import TenantContextService
+from src.core.platform.application.tenant.tenancy import TenantContextService
 
 if TYPE_CHECKING:
     from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService

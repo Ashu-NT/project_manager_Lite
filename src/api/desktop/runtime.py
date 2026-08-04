@@ -284,7 +284,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         from src.core.platform.integration.module_registry import (
             ModuleRegistry as _FallbackModuleRegistry,
         )
-        from src.core.platform.modules import build_default_module_catalog
+        from src.core.platform.application.tenant.modules import build_default_module_catalog
 
         fallback_catalog = build_default_module_catalog()
         fallback_registry = _FallbackModuleRegistry(
@@ -396,9 +396,9 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
 def _build_platform_tenant_api(
     services: Mapping[str, object],
 ) -> PlatformTenantDesktopApi | None:
-    from src.core.platform.tenancy.application.tenant_admin_service import TenantAdminService as _TAS
-    from src.core.platform.tenancy.application.tenant_membership_service import TenantMembershipService as _TMS
-    from src.core.platform.tenancy.tenant_context import TenantContextService as _TCS
+    from src.core.platform.application.tenant.tenancy.tenant_admin_service import TenantAdminService as _TAS
+    from src.core.platform.application.tenant.tenancy.tenant_membership_service import TenantMembershipService as _TMS
+    from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService as _TCS
 
     tenant_admin_service = services.get("tenant_admin_service")
     tenant_context_service = services.get("tenant_context_service")

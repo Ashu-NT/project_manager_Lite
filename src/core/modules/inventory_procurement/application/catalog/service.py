@@ -12,7 +12,7 @@ from src.core.platform.application.master_data.documents import DocumentIntegrat
 from src.core.platform.domain.master_data.documents import Document, DocumentLink
 from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
 from src.core.platform.application.master_data.party.party_service import PartyService
-from src.core.platform.tenancy.tenant_context import (
+from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
     require_tenant_context_service,
 )

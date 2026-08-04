@@ -18,7 +18,7 @@ from src.core.platform.domain.master_data.party import (
     coerce_party_type,
     normalize_party_code,
 )
-from src.core.platform.tenancy import TenantContextService
+from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
 

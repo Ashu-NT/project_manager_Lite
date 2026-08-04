@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from src.core.platform.contract.history.activity.contracts import ActivityRepository
 from src.core.platform.domain.history.activity.activity_entry import ActivityEntry
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.tenancy.tenant_context import TenantContext, TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContext, TenantContextService
 
 
 class ActivityService:

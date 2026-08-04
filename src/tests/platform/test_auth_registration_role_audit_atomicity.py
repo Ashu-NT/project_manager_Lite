@@ -11,7 +11,7 @@ from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry 
     AuditEntryORM,
 )
 from src.core.platform.infrastructure.persistence.orm.auth import UserORM
-from src.core.platform.tenancy.domain.tenant import Tenant
+from src.core.platform.domain.tenant.tenancy.tenant import Tenant
 from src.infra.composition.repositories import (
     RepositoryBundle,
     build_repository_bundle,

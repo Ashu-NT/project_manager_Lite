@@ -36,7 +36,7 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     ProjectManagementParentScopedRepositorySupport,
     ProjectManagementTenantScopedRepositorySupport,
 )
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 

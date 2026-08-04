@@ -22,7 +22,7 @@ from src.core.platform.calendar.domain.enterprise_calendar import (
     PlatformCalendar,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from src.core.platform.tenancy import TenantContextService
+from src.core.platform.application.tenant.tenancy import TenantContextService
 
 
 _VALID_GRANULARITIES = {5, 10, 15, 30, 60}

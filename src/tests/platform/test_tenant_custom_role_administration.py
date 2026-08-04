@@ -20,7 +20,7 @@ from src.core.platform.common.exceptions import (
 from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
     AuditEntryORM,
 )
-from src.core.platform.tenancy import Tenant
+from src.core.platform.domain.tenant.tenancy import Tenant
 
 
 _PASSWORD = "StrongPass123!"

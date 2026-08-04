@@ -32,7 +32,7 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.shared.audit import record_audit_entry
 
 

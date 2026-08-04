@@ -15,7 +15,7 @@ from src.core.platform.calendar.domain.enterprise_calendar import (
     ShiftPatternDay,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from src.core.platform.tenancy import TenantContextService
+from src.core.platform.application.tenant.tenancy import TenantContextService
 
 
 class ShiftPatternService:

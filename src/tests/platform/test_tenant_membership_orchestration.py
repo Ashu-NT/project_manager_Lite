@@ -9,7 +9,7 @@ from sqlalchemy import select
 from src.api.desktop.platform import PlatformTenantDesktopApi
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import AuditEntryORM
-from src.core.platform.tenancy import (
+from src.core.platform.domain.tenant.tenancy import (
     MEMBERSHIP_STATUS_ACTIVE,
     MEMBERSHIP_STATUS_INVITED,
     MEMBERSHIP_STATUS_REMOVED,

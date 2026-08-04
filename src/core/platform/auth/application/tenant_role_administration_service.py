@@ -36,11 +36,11 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from src.core.platform.tenancy.contracts import (
+from src.core.platform.contract.tenant.tenancy.contracts import (
     TenantRepository,
     UserTenantMembershipRepository,
 )
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.shared.events.domain_events import domain_events
 
 from .role_scope_policy import is_platform_role

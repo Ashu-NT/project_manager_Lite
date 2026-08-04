@@ -21,7 +21,7 @@ from src.core.platform.application.master_data.party.party_service import PartyS
 from src.core.platform.domain.master_data.party import Party
 from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.domain.master_data.site import Site
-from src.core.platform.tenancy import TenantContextService
+from src.core.platform.application.tenant.tenancy import TenantContextService
 
 
 class _TenantRepo:

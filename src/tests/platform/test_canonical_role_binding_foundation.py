@@ -14,7 +14,7 @@ from src.core.platform.auth.domain import (
 )
 from src.core.platform.auth.passwords import hash_password
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.tenancy import Tenant
+from src.core.platform.domain.tenant.tenancy import Tenant
 from src.infra.composition.repositories import build_repository_bundle
 
 

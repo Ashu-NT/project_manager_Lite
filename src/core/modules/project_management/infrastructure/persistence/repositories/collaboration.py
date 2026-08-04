@@ -20,7 +20,7 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.coll
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.collaboration import TaskCommentORM, TaskPresenceORM
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.tenancy.tenant_context import TenantContext, TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContext, TenantContextService
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 

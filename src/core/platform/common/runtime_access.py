@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.domain.session import UserSessionContext
-from src.core.platform.modules import SupportsModuleEntitlements, require_module_enabled
+from src.core.platform.contract.tenant.modules import SupportsModuleEntitlements
+from src.core.platform.application.tenant.modules import require_module_enabled
 
 
 def enforce_runtime_access(

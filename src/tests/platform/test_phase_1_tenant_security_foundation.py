@@ -16,19 +16,19 @@ import pytest
 
 from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
-from src.core.platform.infrastructure.persistence.orm.tenant import TenantORM
+from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
 from src.core.platform.infrastructure.persistence.repositories.auth import SqlAlchemyUserRepository
-from src.core.platform.infrastructure.persistence.repositories.tenant import SqlAlchemyTenantRepository
-from src.core.platform.infrastructure.persistence.repositories.user_tenant import (
+from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.tenant import SqlAlchemyTenantRepository
+from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.user_tenant import (
     SqlAlchemyUserTenantMembershipRepository,
 )
-from src.core.platform.tenancy.domain.tenant import Tenant
-from src.core.platform.tenancy.domain.user_tenant_membership import (
+from src.core.platform.domain.tenant.tenancy.tenant import Tenant
+from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
     MEMBERSHIP_STATUS_ACTIVE,
     MEMBERSHIP_STATUS_SUSPENDED,
     UserTenantMembership,
 )
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
 
 # ---------------------------------------------------------------------------

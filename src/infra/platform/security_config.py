@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
 
-from src.core.platform.tenancy.context_policy import TenancyMode
+from src.core.platform.application.tenant.tenancy.context_policy import TenancyMode
 
 
 class RuntimeSecurityConfigurationError(RuntimeError):

@@ -37,8 +37,8 @@ from .canonical_role_resolver import CanonicalRoleResolver, ScopeTenantResolver
 if TYPE_CHECKING:
     from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
     from src.core.platform.contract.history.audit.contracts import AuditRepository
-    from src.core.platform.tenancy.contracts import UserTenantMembershipRepository
-    from src.core.platform.tenancy.tenant_context import TenantContextService
+    from src.core.platform.contract.tenant.tenancy.contracts import UserTenantMembershipRepository
+    from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
     from .role_governance_service import RoleGovernanceService
 

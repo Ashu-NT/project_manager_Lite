@@ -18,8 +18,8 @@ from src.core.platform.infrastructure.persistence.repositories.master_data.org.o
     SqlAlchemyOrganizationRepository,
 )
 from src.core.platform.domain.master_data.org import Organization
-from src.core.platform.tenancy.domain.tenant import Tenant
-from src.core.platform.tenancy.domain.user_tenant_membership import (
+from src.core.platform.domain.tenant.tenancy.tenant import Tenant
+from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
     UserTenantMembership,
 )
 

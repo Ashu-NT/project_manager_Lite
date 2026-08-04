@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.core.platform.modules import ModuleGuardedServiceMixin
+from src.core.platform.application.tenant.modules import ModuleGuardedServiceMixin
 
 
 class ProjectManagementModuleGuardMixin(ModuleGuardedServiceMixin):

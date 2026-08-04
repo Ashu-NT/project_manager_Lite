@@ -36,11 +36,11 @@ from src.core.platform.identity.domain import (
     ServicePrincipal,
 )
 from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
-from src.core.platform.tenancy.contracts import (
+from src.core.platform.contract.tenant.tenancy.contracts import (
     TenantRepository,
     UserTenantMembershipRepository,
 )
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
 _TOKEN_PATTERN = re.compile(
     r"^pmk_([A-Za-z0-9-]{1,64})_([A-Za-z0-9]{12})_([A-Za-z0-9_-]{32,})$"

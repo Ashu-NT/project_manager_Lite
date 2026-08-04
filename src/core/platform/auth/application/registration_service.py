@@ -18,7 +18,7 @@ from src.core.platform.auth.domain import (
 )
 from src.core.platform.auth.passwords import hash_password
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
-from src.core.platform.tenancy.domain.user_tenant_membership import UserTenantMembership
+from src.core.platform.domain.tenant.tenancy.user_tenant_membership import UserTenantMembership
 
 if TYPE_CHECKING:
     from .auth_service import AuthService

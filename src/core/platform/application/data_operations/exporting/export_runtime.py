@@ -7,7 +7,7 @@ from src.core.platform.application.data_operations.exporting.export_definition_r
 )
 from src.core.platform.domain.data_operations.exporting import ExportArtifact
 from src.core.platform.auth.domain.session import UserSessionContext
-from src.core.platform.modules import SupportsModuleEntitlements
+from src.core.platform.contract.tenant.modules import SupportsModuleEntitlements
 from src.core.platform.application.data_operations.runtime_tracking.runtime_execution_service import (
     RuntimeExecutionService,
 )

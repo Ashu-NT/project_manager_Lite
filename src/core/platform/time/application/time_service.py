@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.contract.master_data.employee.contracts import EmployeeRepository
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.platform.time.application.timesheet_entries import TimesheetEntriesMixin
 from src.core.platform.time.application.timesheet_periods import TimesheetPeriodsMixin
 from src.core.platform.time.application.timesheet_query import TimesheetQueryMixin

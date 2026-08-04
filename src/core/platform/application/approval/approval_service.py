@@ -14,7 +14,7 @@ from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
 from src.core.platform.auth.authorization import require_any_permission, require_permission
 from src.core.platform.auth.domain.role_binding import ROLE_PRINCIPAL_USER
 from src.core.platform.auth.domain.session import UserSessionContext
-from src.core.platform.tenancy import TenantContextService
+from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.shared.notifications import safe_dispatch_notification
 
 logger = logging.getLogger(__name__)

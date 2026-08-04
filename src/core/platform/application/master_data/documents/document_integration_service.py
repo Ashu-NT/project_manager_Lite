@@ -33,7 +33,7 @@ from src.core.platform.domain.master_data.documents.support import (
 )
 from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
-from src.core.platform.tenancy import TenantContextService
+from src.core.platform.application.tenant.tenancy import TenantContextService
 
 
 def _build_document_code(*, module_code: str, entity_type: str) -> str:

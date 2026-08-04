@@ -6,7 +6,7 @@ from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
 from src.core.platform.auth.datetime_utils import ensure_utc_datetime
-from src.core.platform.infrastructure.persistence.orm.user_tenant import UserTenantORM
+from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import UserTenantORM
 from src.core.platform.auth.contracts import (
     AuthPolicyReconciliationRepository,
     AuthSessionRepository,
@@ -54,7 +54,7 @@ from src.core.platform.infrastructure.persistence.orm.auth import (
     RolePermissionORM,
     UserORM,
 )
-from src.core.platform.tenancy.domain.user_tenant_membership import (
+from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
     MEMBERSHIP_STATUS_ACTIVE,
 )
 from src.infra.persistence.db.optimistic import update_with_version_check

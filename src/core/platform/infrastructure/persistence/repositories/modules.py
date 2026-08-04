@@ -16,7 +16,7 @@ from src.core.platform.infrastructure.persistence.orm.master_data.org.org import
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
 
 def _utc_now_naive() -> datetime:

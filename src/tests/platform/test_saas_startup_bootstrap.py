@@ -3,7 +3,8 @@ from __future__ import annotations
 from src.core.platform.auth.domain import RolePermissionBinding, UserAccount
 from src.core.platform.auth.passwords import hash_password
 from src.core.platform.auth.policy import DEFAULT_ROLE_PERMISSIONS
-from src.core.platform.tenancy import Tenant, TenancyMode
+from src.core.platform.domain.tenant.tenancy import Tenant
+from src.core.platform.application.tenant.tenancy import TenancyMode
 from src.infra.composition.platform_registry import build_platform_service_bundle
 from src.infra.composition.repositories import build_repository_bundle
 from src.infra.platform.security_config import (

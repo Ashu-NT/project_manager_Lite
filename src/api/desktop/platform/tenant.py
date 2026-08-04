@@ -4,10 +4,10 @@ from src.api.desktop.platform._support import execute_desktop_operation
 from src.api.desktop.platform.models import DesktopApiResult
 from src.api.desktop.platform.models.tenant import TenantDto, TenantInvitationDto
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.tenancy.application.tenant_admin_service import TenantAdminService
-from src.core.platform.tenancy.application.tenant_membership_service import TenantMembershipService
-from src.core.platform.tenancy.domain import Tenant, UserTenantMembership
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_admin_service import TenantAdminService
+from src.core.platform.application.tenant.tenancy.tenant_membership_service import TenantMembershipService
+from src.core.platform.domain.tenant.tenancy import Tenant, UserTenantMembership
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
 
 class PlatformTenantDesktopApi:

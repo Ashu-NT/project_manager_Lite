@@ -20,7 +20,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.resource
 from src.core.modules.project_management.infrastructure.persistence.repositories._tenant_scope import (
     ProjectManagementParentScopedRepositorySupport,
 )
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
 
 def _project_from_orm(obj: ProjectCalendarAssignmentORM) -> ProjectCalendarAssignment:

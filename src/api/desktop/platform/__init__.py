@@ -77,7 +77,7 @@ from src.core.platform.api.desktop.master_data.party.party import PlatformPartyD
 from src.api.desktop.platform.runtime import PlatformRuntimeDesktopApi
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.api.desktop.platform.support import PlatformSupportDesktopApi
-from src.api.desktop.platform.tenant import PlatformTenantDesktopApi
+from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
 from src.api.desktop.platform.user import PlatformUserDesktopApi
 
 __all__ = [

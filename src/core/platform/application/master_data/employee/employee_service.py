@@ -22,7 +22,7 @@ from src.core.platform.contract.master_data.employee.contracts import (
 from src.core.platform.domain.master_data.employee import Employee, EmploymentType
 from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
 from src.core.platform.contract.master_data.site.contracts import SiteRepository
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
 

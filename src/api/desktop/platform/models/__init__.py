@@ -78,7 +78,7 @@ from src.api.desktop.platform.models.user import (
     UserPasswordResetCommand,
     UserUpdateCommand,
 )
-from src.api.desktop.platform.models.tenant import TenantDto, TenantInvitationDto
+from src.core.platform.api.desktop.tenant.tenancy.models.tenant import TenantDto, TenantInvitationDto
 from src.core.platform.domain.approval import ApprovalStatus
 
 __all__ = [

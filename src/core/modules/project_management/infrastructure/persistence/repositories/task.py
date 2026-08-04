@@ -13,7 +13,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.project 
 from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
 from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskAssignmentORM, TaskDependencyORM, TaskORM
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.tenancy.tenant_context import TenantContext, TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContext, TenantContextService
 from src.infra.persistence.db.optimistic import update_with_version_check
 from src.core.modules.project_management.infrastructure.persistence.mappers.task import (
     assignment_from_orm,

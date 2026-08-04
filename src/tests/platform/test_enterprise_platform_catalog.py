@@ -4,10 +4,8 @@ from pathlib import Path
 
 from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
 from src.application.runtime.entitlement_runtime import ModuleRuntimeService
-from src.core.platform.modules import (
-    DEFAULT_ENTERPRISE_MODULES,
-    build_default_module_catalog,
-)
+from src.core.platform.domain.tenant.modules import DEFAULT_ENTERPRISE_MODULES
+from src.core.platform.application.tenant.modules import build_default_module_catalog
 from src.tests.path_rewrites import REPO_ROOT
 
 

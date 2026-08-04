@@ -14,7 +14,7 @@ from src.core.platform.infrastructure.persistence.orm.data_operations.runtime_tr
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
 
 def _from_orm(obj: RuntimeExecutionORM) -> RuntimeExecution:
