@@ -10,7 +10,7 @@ from src.core.modules.maintenance.api.desktop import (
     build_maintenance_assets_desktop_api,
     build_maintenance_work_requests_desktop_api,
 )
-from src.core.platform.party.domain import PartyType
+from src.core.platform.domain.master_data.party import PartyType
 
 
 def _create_shared_maintenance_references(services):

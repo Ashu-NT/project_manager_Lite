@@ -34,7 +34,7 @@ from src.core.modules.inventory_procurement.api.desktop import (
     build_inventory_procurement_reservations_desktop_api,
     build_inventory_procurement_workspace_desktop_api,
 )
-from src.core.platform.party.domain import PartyType
+from src.core.platform.domain.master_data.party import PartyType
 from src.tests.ui_runtime_helpers import login_as
 
 

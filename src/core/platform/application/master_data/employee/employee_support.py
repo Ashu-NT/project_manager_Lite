@@ -10,7 +10,7 @@ from src.core.platform.contract.master_data.employee.contracts import (
 )
 from src.core.platform.domain.master_data.employee import Employee
 from src.core.platform.domain.master_data.employee.support import employee_contact
-from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
 from src.core.platform.contract.master_data.site.contracts import SiteRepository
 from src.core.platform.domain.master_data.site import Site
 

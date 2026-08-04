@@ -26,11 +26,13 @@ from src.core.platform.auth import (
     TenantRoleAdministrationService,
 )
 from src.core.platform.auth.domain.session import UserSessionContext
-from src.core.platform.documents import DocumentIntegrationService, DocumentService
+from src.core.platform.application.master_data.documents import DocumentIntegrationService, DocumentService
 from src.core.platform.data_exchange import MasterDataExchangeService
 from src.core.platform.application.master_data.department.department_service import DepartmentService
 from src.core.platform.application.master_data.employee.employee_service import EmployeeService
-from src.core.platform.org import Organization, OrganizationRepository, OrganizationService
+from src.core.platform.application.master_data.org.organization_service import OrganizationService
+from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.contract.master_data.site.contracts import SiteRepository
 from src.core.platform.domain.master_data.site.access_policy import (
@@ -47,8 +49,8 @@ from src.core.platform.tenancy import (
     UserTenantMembership,
     build_tenant_context_policy,
 )
-from src.core.platform.party import PartyService
-from src.core.platform.party.contracts import PartyRepository
+from src.core.platform.application.master_data.party.party_service import PartyService
+from src.core.platform.contract.master_data.party.contracts import PartyRepository
 from src.core.platform.application.data_operations.runtime_tracking import RuntimeExecutionService
 from src.core.platform.identity import ServicePrincipalService
 from src.core.platform.calendar.application.enterprise_calendar_service import EnterpriseCalendarService

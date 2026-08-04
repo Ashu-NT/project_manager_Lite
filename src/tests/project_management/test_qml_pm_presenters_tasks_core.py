@@ -39,7 +39,7 @@ from src.core.modules.project_management.domain.risk.register import (
     RegisterEntryStatus,
     RegisterEntryType,
 )
-from src.core.platform.documents import DocumentStorageKind
+from src.core.platform.domain.master_data.documents import DocumentStorageKind
 from src.tests.ui_runtime_helpers import wait_until
 from src.ui_qml.modules.project_management.presenters.collaboration import (
     ProjectCollaborationWorkspacePresenter,

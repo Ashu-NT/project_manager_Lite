@@ -20,7 +20,7 @@ from src.core.platform.contract.master_data.employee.contracts import (
     LinkedEmployeeResourceRepository,
 )
 from src.core.platform.domain.master_data.employee import Employee, EmploymentType
-from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
 from src.core.platform.contract.master_data.site.contracts import SiteRepository
 from src.core.platform.tenancy.tenant_context import TenantContextService
 from src.core.shared.audit import record_audit_entry

@@ -18,7 +18,7 @@ from src.core.modules.maintenance.contracts.repositories import (
 )
 from src.core.modules.maintenance.application.reliability import MaintenanceReliabilityService
 from src.core.platform.access.authorization import filter_scope_rows
-from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
 from src.core.platform.contract.master_data.site.contracts import SiteRepository
 from src.core.platform.tenancy.tenant_context import (
     TenantContextService,

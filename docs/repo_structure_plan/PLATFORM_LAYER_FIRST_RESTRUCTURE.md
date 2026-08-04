@@ -2482,6 +2482,108 @@ review unit, not a separate infra-only mega-phase at the end.
   runtime_tracking}/` (all four entire dirs) and the two old flat infra
   files (`infrastructure/persistence/{orm,repositories}/runtime_tracking.py`).
 
+**Phase 5a (`master_data`: `site`, `department`, `employee`) — completed
+2026-08-04.**
+
+- Created 65 new files across `domain/master_data/{site,department,
+  employee}/`, `contract/master_data/{site,department,employee}/`,
+  `application/master_data/{site,department,employee}/` (department alone
+  is 9 files — its old flat `department_access.py`/`department_commands.py`/
+  `department_context.py`/`department_location_service.py`/
+  `department_queries.py`/`department_utils.py`/`department_validation.py`
+  helper-module split was preserved as-is, just relocated), the loose
+  root-level `site/access_policy.py` and `employee/support.py` (mapped to
+  `domain/master_data/{site,employee}/` per §4a's `LOOSE_OVERRIDES`),
+  `infrastructure/persistence/{mappers,orm,repositories}/master_data/
+  {site,department,employee}/`, and `api/desktop/master_data/{site,
+  department,employee}/`.
+- Updated every external call site found by a fresh repo-wide grep — the
+  largest blast radius of any phase so far by file count (91 files
+  matched the initial facade/domain/contract grep, ~64 of them real
+  external call sites after excluding the old modules' own internals),
+  because `site`/`department`/`employee` are the most-referenced
+  directory-entity types across `maintenance`, `inventory_procurement`,
+  and `project_management`. Applied via a Python script (not `sed`) with
+  an ordered list of exact-line replacements plus one CRLF-preserving
+  write per touched file, mirroring Phase 4's approach.
+- **Two additional gotcha classes surfaced only after the first test
+  run, both worth calling out for later phases since they're easy to
+  miss with import-statement-only greps:**
+  1. **Direct infra-path imports bypassing the module facade entirely** —
+     `src/core/platform/infrastructure/persistence/repositories/
+     enterprise_calendar.py` (a *different*, not-yet-migrated module)
+     imported `orm.departments`/`orm.employee`/`orm.sites` directly, as
+     did seven test files and `src/infra/composition/{repositories.py,
+     maintenance_registry.py}`. None of these match a
+     `from src.core.platform.department import ...`-style grep because
+     they skip the facade and reach straight into
+     `infrastructure.persistence.{orm,repositories}.<old_flat_name>`.
+     Caught by re-running the guardrail tests and getting a
+     `sqlalchemy.exc.InvalidRequestError: Table already defined`
+     collection error from `enterprise_calendar.py` double-importing the
+     same ORM class from two different module paths — the kind of error
+     that only appears once you actually run the test suite, not from
+     any static grep. Fixed with a second grep pass targeting
+     `persistence\.(mappers|orm|repositories)\.(sites|departments|employee)\b`
+     specifically, which a symbol-name-only grep does not cover.
+  2. **String-literal references to old dotted module paths** — three
+     `monkeypatch.setattr("src.core.platform.<module>.application.<file>.
+     require_permission", ...)` calls in
+     `test_department_employee_domain_validation.py` and
+     `test_org_site_domain_validation.py` kept the *string* pointed at
+     the old path even though the surrounding `from ... import
+     DepartmentService` line had already been correctly rewritten to the
+     new path. The tests didn't fail with an import error — they failed
+     downstream with `AttributeError: 'object' object has no attribute
+     'has_permission'`, because the monkeypatch silently no-opped (wrong
+     target string, no exception) and the real permission check ran
+     against a bare `object()` test double. This is the same class of
+     issue as the ORM guardrail test's string-literal assertions fixed
+     in Phase 2 — grep for `["']src\.core\.platform\.(module)\.` (quoted
+     string, not `from`/`import`) whenever a phase touches modules with
+     `require_permission`/service-method mocking in their test suite.
+  3. **A hardcoded absolute path in a line-count "growth budget" map** —
+     `test_architecture_guardrails_services.py`'s
+     `test_known_large_modules_have_growth_budgets` had a literal entry
+     `"src/core/platform/site/application/site_service.py": 360` that
+     turned into a `FileNotFoundError` (not a collection `ImportError`,
+     since it's read via `Path.read_text()` at test-body time, not
+     import time) once the file moved. Updated to the new path.
+  4. **The old API-adapter facade files (`src/api/desktop/platform/
+     {site,department,employee}.py` and `models/{site,department,
+     employee}.py`) still had two upstream re-export points**:
+     `src/api/desktop/platform/__init__.py` (imported
+     `PlatformSiteDesktopApi`/`PlatformDepartmentDesktopApi`/
+     `PlatformEmployeeDesktopApi` from the old files) and
+     `src/api/desktop/platform/models/__init__.py` (imported the DTOs
+     from the old `models/*.py` files) — both missed by the
+     `core.platform.*` grep pattern since they reference
+     `api.desktop.platform.*` paths instead. Deleting the old files
+     broke collection for ~51 test files repo-wide (`ModuleNotFoundError`)
+     before these two facades were repointed at the new
+     `src.core.platform.api.desktop.master_data.*` locations.
+- Fixed `test_orm_package_root_loads_all_model_packages` (`employee`/
+  `sites`/`departments` → `master_data.{employee,site,department}.
+  {employee,sites,departments}`) and
+  `test_composition_imports_focused_persistence_adapters` (same rename,
+  for the `repositories.py` import-substring assertions) and extended
+  `test_platform_persistence_structure.py`'s `NESTED_AREA_FILES`/
+  `FLAT_AREAS` split for all three modules (all three have mappers, so
+  unlike `runtime_tracking` they go in the shared `NESTED_AREA_FILES` set,
+  not the no-mapper variant).
+- Verification: ran the same six-target suite (`platform`, `architecture`,
+  `project_management`, `inventory_procurement`, `maintenance`,
+  `test_runtime_execution_tracking.py`) repeatedly through the gotcha
+  fixes above. Final post-deletion run: 32 failed, 1440 passed — diffed
+  against Phase 2's confirmed 32-failure baseline, **byte-for-byte
+  identical**.
+- Deleted `src/core/platform/{site,department,employee}/` (all three
+  entire dirs), the six old flat infra files
+  (`infrastructure/persistence/{mappers,orm,repositories}/{sites,
+  departments,employee}.py`), and the six old
+  `src/api/desktop/platform/{site,department,employee}.py` +
+  `models/{site,department,employee}.py` files.
+
 ### Notes on this ordering
 
 - **`security` (Phases 8a–8f) is deliberately last among the content-group

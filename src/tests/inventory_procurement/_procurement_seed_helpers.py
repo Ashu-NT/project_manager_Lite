@@ -17,7 +17,7 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.orm.procu
     ReceiptHeaderORM,
     ReceiptLineORM,
 )
-from src.core.platform.party.domain import PartyType
+from src.core.platform.domain.master_data.party import PartyType
 
 
 def _seed_procurement_scope_rows(services) -> dict[str, str]:

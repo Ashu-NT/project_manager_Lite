@@ -15,8 +15,8 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing import
 )
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.org.domain import Organization
-from src.core.platform.party.domain import Party
+from src.core.platform.domain.master_data.org import Organization
+from src.core.platform.domain.master_data.party import Party
 
 
 def build_requisition_number() -> str:

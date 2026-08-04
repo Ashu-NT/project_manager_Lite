@@ -5,7 +5,7 @@ from src.core.platform.application.master_data.department.department_service imp
 from src.core.platform.domain.master_data.department import Department
 from src.core.platform.application.master_data.employee.employee_service import EmployeeService
 from src.core.platform.domain.master_data.employee import Employee, EmploymentType
-from src.core.platform.org.domain import Organization
+from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.site import Site
 
 

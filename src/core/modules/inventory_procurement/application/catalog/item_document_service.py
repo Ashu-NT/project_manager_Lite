@@ -9,7 +9,7 @@ from src.core.modules.inventory_procurement.application.catalog.catalog_activity
 from src.core.modules.inventory_procurement.application.catalog.item_queries import (
     get_item,
 )
-from src.core.platform.documents import Document, DocumentLink
+from src.core.platform.domain.master_data.documents import Document, DocumentLink
 from src.core.shared.events.domain_events import domain_events
 
 

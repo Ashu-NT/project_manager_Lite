@@ -5,7 +5,7 @@ from typing import Iterable
 from src.core.platform.access.authorization import require_project_permission
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.documents import Document
+from src.core.platform.domain.master_data.documents import Document
 
 
 class CollaborationDocumentQueryMixin:

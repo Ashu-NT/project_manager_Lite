@@ -35,7 +35,7 @@ from src.core.platform.identity.domain import (
     SERVICE_PRINCIPAL_STATUS_DISABLED,
     ServicePrincipal,
 )
-from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
 from src.core.platform.tenancy.contracts import (
     TenantRepository,
     UserTenantMembershipRepository,

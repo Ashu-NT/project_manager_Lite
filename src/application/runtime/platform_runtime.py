@@ -9,7 +9,8 @@ from src.application.runtime.entitlement_runtime import (
 )
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.auth.domain.session import UserSessionContext
-from src.core.platform.org import Organization, OrganizationService
+from src.core.platform.application.master_data.org.organization_service import OrganizationService
+from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.tenancy import TenantContextService
 
 

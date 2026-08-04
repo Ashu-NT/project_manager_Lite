@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from src.core.platform.documents import DocumentStorageKind
+from src.core.platform.domain.master_data.documents import DocumentStorageKind
 
 
 def format_enum_label(value: str) -> str:

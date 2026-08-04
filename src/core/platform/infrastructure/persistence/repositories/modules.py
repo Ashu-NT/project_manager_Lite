@@ -12,7 +12,7 @@ from src.core.platform.modules import (
     normalize_module_code,
 )
 from src.core.platform.infrastructure.persistence.orm.modules import ModuleEntitlementORM
-from src.core.platform.infrastructure.persistence.orm.org import OrganizationORM
+from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )

@@ -9,7 +9,7 @@ from src.api.desktop.platform import (
     PlatformPartyDesktopApi,
 )
 from src.api.desktop.platform.models import DesktopApiResult
-from src.core.platform.party.domain import PartyType
+from src.core.platform.domain.master_data.party import PartyType
 from src.ui_qml.platform.presenters.support import (
     bool_value,
     option_item,

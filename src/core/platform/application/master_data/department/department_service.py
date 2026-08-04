@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 from src.core.platform.contract.master_data.department.contracts import DepartmentRepository
 from src.core.platform.domain.master_data.department import Department
 from src.core.platform.contract.master_data.employee.contracts import EmployeeRepository
-from src.core.platform.org.contracts import OrganizationRepository
-from src.core.platform.org.domain import Organization
+from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.contract.master_data.site.contracts import LocationReferenceRepository, SiteRepository
 from src.core.platform.tenancy import TenantContextService
 

@@ -13,8 +13,8 @@ from src.api.desktop.platform.models import (
     DocumentUpdateCommand,
     OrganizationDto,
 )
-from src.core.platform.documents import DocumentService
-from src.core.platform.documents.domain import Document, DocumentLink, DocumentStructure
+from src.core.platform.application.master_data.documents.document_service import DocumentService
+from src.core.platform.domain.master_data.documents import Document, DocumentLink, DocumentStructure
 
 
 class PlatformDocumentDesktopApi:

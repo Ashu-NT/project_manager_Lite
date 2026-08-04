@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.domain.master_data.department import Department
-from src.core.platform.org.domain import Organization
-from src.core.platform.org.support import normalize_code
+from src.core.platform.domain.master_data.org import Organization
+from src.core.platform.domain.master_data.org.support import normalize_code
 
 from .department_access import require_department_read_access
 from .department_context import active_organization

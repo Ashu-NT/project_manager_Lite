@@ -67,17 +67,17 @@ from src.core.platform.infrastructure.persistence.repositories.auth import (
     SqlAlchemyRoleRepository,
     SqlAlchemyUserRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.documents import (
+from src.core.platform.infrastructure.persistence.repositories.master_data.documents.documents import (
     SqlAlchemyDocumentLinkRepository,
     SqlAlchemyDocumentRepository,
     SqlAlchemyDocumentStructureRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.master_data.department.departments import SqlAlchemyDepartmentRepository
 from src.core.platform.infrastructure.persistence.repositories.master_data.employee.employee import SqlAlchemyEmployeeRepository
-from src.core.platform.infrastructure.persistence.repositories.org import SqlAlchemyOrganizationRepository
+from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import SqlAlchemyOrganizationRepository
 from src.core.platform.infrastructure.persistence.repositories.tenant import SqlAlchemyTenantRepository
 from src.core.platform.infrastructure.persistence.repositories.user_tenant import SqlAlchemyUserTenantMembershipRepository
-from src.core.platform.infrastructure.persistence.repositories.party import SqlAlchemyPartyRepository
+from src.core.platform.infrastructure.persistence.repositories.master_data.party.party import SqlAlchemyPartyRepository
 from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import SqlAlchemySiteRepository
 from src.core.platform.infrastructure.persistence.repositories.time import (
     SqlAlchemyTimeEntryRepository,

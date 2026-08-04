@@ -10,7 +10,7 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from src.core.platform.org.domain import Organization
+from src.core.platform.domain.master_data.org import Organization
 
 _ResultT = TypeVar("_ResultT")
 

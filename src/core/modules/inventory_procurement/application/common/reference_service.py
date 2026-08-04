@@ -3,8 +3,8 @@ from __future__ import annotations
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.domain.master_data.site import Site
-from src.core.platform.party import PartyService
-from src.core.platform.party.domain import Party, PartyType
+from src.core.platform.application.master_data.party.party_service import PartyService
+from src.core.platform.domain.master_data.party import Party, PartyType
 
 _DEFAULT_BUSINESS_PARTY_TYPES = (
     PartyType.SUPPLIER,

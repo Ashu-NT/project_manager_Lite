@@ -40,7 +40,7 @@ from src.core.modules.project_management.contracts.repositories.project import P
 from src.core.modules.project_management.contracts.repositories.task import TaskRepository
 from src.core.platform.contract.history.audit.contracts import AuditRepository
 from src.core.platform.auth.contracts import UserRepository
-from src.core.platform.documents import DocumentIntegrationService
+from src.core.platform.application.master_data.documents import DocumentIntegrationService
 
 
 class CollaborationService(

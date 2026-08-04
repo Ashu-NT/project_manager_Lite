@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.org.domain import Organization
+from src.core.platform.domain.master_data.org import Organization
 
 if TYPE_CHECKING:
     from .department_service import DepartmentService

@@ -313,10 +313,10 @@ def test_user_assigned_org_member_gets_correct_permissions(services):
 
 
 def test_org_admin_is_effective_only_in_its_canonical_organization(services):
-    from src.core.platform.infrastructure.persistence.repositories.org import (
+    from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
         SqlAlchemyOrganizationRepository,
     )
-    from src.core.platform.org.domain.organization import Organization
+    from src.core.platform.domain.master_data.org.organization import Organization
 
     auth = services["auth_service"]
     session = services["session"]
@@ -410,8 +410,8 @@ def test_org_admin_binding_supports_organization_scope(services):
     from sqlalchemy import select
 
     from src.core.platform.infrastructure.persistence.orm.auth import RoleBindingORM
-    from src.core.platform.infrastructure.persistence.repositories.org import SqlAlchemyOrganizationRepository
-    from src.core.platform.org.domain.organization import Organization
+    from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import SqlAlchemyOrganizationRepository
+    from src.core.platform.domain.master_data.org.organization import Organization
 
     session = services["session"]
     auth = services["auth_service"]

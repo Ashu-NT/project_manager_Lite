@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from src.core.platform.modules.contracts import ModuleEntitlementRepository
 
 if TYPE_CHECKING:
-    from src.core.platform.org.domain import Organization
+    from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.modules.domain.defaults import (
     MODULE_RUNTIME_ACCESS_STATUSES,
     default_lifecycle_status,

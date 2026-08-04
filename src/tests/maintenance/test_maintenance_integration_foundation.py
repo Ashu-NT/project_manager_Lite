@@ -3,7 +3,7 @@ from __future__ import annotations
 from src.core.modules.maintenance.domain import MaintenanceIntegrationSource
 from src.core.modules.maintenance.contracts.repositories import MaintenanceIntegrationSourceRepository
 from src.core.modules.maintenance import MaintenanceIntegrationSourceService
-from src.core.platform.org.domain import Organization
+from src.core.platform.domain.master_data.org import Organization
 from .test_maintenance_foundation_asset import _OrgRepo, _TenantContext, _user_session
 
 

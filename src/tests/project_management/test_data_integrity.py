@@ -38,7 +38,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
     TaskDependencyORM,
     TaskORM,
 )
-from src.core.platform.infrastructure.persistence.orm.org import OrganizationORM
+from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
 from src.core.platform.infrastructure.persistence.orm.tenant import TenantORM
 
 _DEFAULT_ORG_ID = "test-org-integrity"

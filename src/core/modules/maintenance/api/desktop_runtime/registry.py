@@ -13,7 +13,7 @@ from src.core.modules.maintenance.api.desktop import (
     MaintenanceWorkspaceDesktopApi,
 )
 from src.core.platform.application.master_data.employee.employee_service import EmployeeService
-from src.core.platform.party import PartyService
+from src.core.platform.application.master_data.party.party_service import PartyService
 from src.core.platform.application.master_data.site.site_service import SiteService
 
 

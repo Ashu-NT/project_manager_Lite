@@ -22,7 +22,7 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from src.core.platform.org.domain import Organization
+from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.tenancy import Tenant
 from src.infra.persistence.migrations.runner import run_migrations
 

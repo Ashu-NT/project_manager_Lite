@@ -4,15 +4,15 @@ from src.infra.persistence.orm.base import Base
 import src.core.platform.infrastructure.persistence.orm.tenant  # noqa: F401  — must precede org (FK dep)
 import src.core.modules.maintenance.infrastructure.persistence.orm.models  # noqa: F401
 import src.core.modules.maintenance.infrastructure.persistence.orm.preventive_runtime_models  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.org  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.master_data.org.org  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.master_data.employee.employee  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.master_data.site.sites  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.master_data.department.departments  # noqa: F401
 # src.core.platform.infrastructure.persistence.orm.calendar removed after Alembic migration
 # working_calendars and holidays tables are dropped by migration o8p9q0r1s2t3
 import src.core.platform.infrastructure.persistence.orm.enterprise_calendar  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.documents  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.party  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.master_data.documents.documents  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.master_data.party.party  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.modules  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.time  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.auth  # noqa: F401

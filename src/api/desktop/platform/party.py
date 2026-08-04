@@ -8,8 +8,8 @@ from src.api.desktop.platform.models import (
     PartyDto,
     PartyUpdateCommand,
 )
-from src.core.platform.party import PartyService
-from src.core.platform.party.domain import Party
+from src.core.platform.application.master_data.party.party_service import PartyService
+from src.core.platform.domain.master_data.party import Party
 
 
 class PlatformPartyDesktopApi:

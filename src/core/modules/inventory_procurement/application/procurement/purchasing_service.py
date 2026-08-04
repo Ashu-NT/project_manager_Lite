@@ -32,8 +32,9 @@ from src.core.modules.inventory_procurement.contracts.repositories.procurement i
     ReceiptLineRepository,
 )
 from src.core.platform.application.approval.approval_service import ApprovalService
-from src.core.platform.org.contracts import OrganizationRepository
-from src.core.platform.documents import Document, DocumentIntegrationService, DocumentLink
+from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.application.master_data.documents import DocumentIntegrationService
+from src.core.platform.domain.master_data.documents import Document, DocumentLink
 from src.core.shared.activity.activity_recorder import record_activity
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.tenancy.tenant_context import (

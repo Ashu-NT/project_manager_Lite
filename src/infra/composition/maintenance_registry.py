@@ -39,7 +39,7 @@ from src.core.modules.maintenance.application.work_orders.labor_adapters import 
     MaintenanceTaskWorkAllocationRepository,
     MaintenanceTaskWorkOwnerRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.documents import (
+from src.core.platform.infrastructure.persistence.repositories.master_data.documents.documents import (
     SqlAlchemyDocumentLinkRepository,
     SqlAlchemyDocumentRepository,
     SqlAlchemyDocumentStructureRepository,

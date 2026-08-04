@@ -10,7 +10,7 @@ from src.core.modules.inventory_procurement.contracts.gateways import (
 )
 from src.core.platform.common.exceptions import ValidationError
 from src.core.shared.events.domain_events import domain_events
-from src.core.platform.party.domain import PartyType
+from src.core.platform.domain.master_data.party import PartyType
 
 
 def _suffix() -> str:

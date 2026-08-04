@@ -14,10 +14,10 @@ from src.core.platform.auth.domain import (
 from src.core.platform.auth.domain.session import UserSessionContext
 from src.core.platform.auth.passwords import hash_password
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.infrastructure.persistence.repositories.org import (
+from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
     SqlAlchemyOrganizationRepository,
 )
-from src.core.platform.org.domain import Organization
+from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.tenancy.domain.tenant import Tenant
 from src.core.platform.tenancy.domain.user_tenant_membership import (
     UserTenantMembership,

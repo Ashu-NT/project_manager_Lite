@@ -8,9 +8,10 @@ from src.core.modules.inventory_procurement.contracts.repositories.catalog impor
     StockItemRepository,
 )
 from src.core.modules.inventory_procurement.domain.catalog.item import StockItem
-from src.core.platform.documents import Document, DocumentIntegrationService, DocumentLink
-from src.core.platform.org.contracts import OrganizationRepository
-from src.core.platform.party import PartyService
+from src.core.platform.application.master_data.documents import DocumentIntegrationService
+from src.core.platform.domain.master_data.documents import Document, DocumentLink
+from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.application.master_data.party.party_service import PartyService
 from src.core.platform.tenancy.tenant_context import (
     TenantContextService,
     require_tenant_context_service,

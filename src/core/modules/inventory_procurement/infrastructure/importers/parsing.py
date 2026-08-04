@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.party import PartyService
+from src.core.platform.application.master_data.party.party_service import PartyService
 from src.core.modules.inventory_procurement.infrastructure.importers.support import (
     optional_text,
     parse_optional_bool,

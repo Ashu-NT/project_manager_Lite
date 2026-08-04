@@ -12,7 +12,7 @@ from src.core.platform.infrastructure.persistence.repositories.history.audit.aud
 from src.core.platform.infrastructure.persistence.repositories.master_data.department.departments import (
     SqlAlchemyDepartmentRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.documents import (
+from src.core.platform.infrastructure.persistence.repositories.master_data.documents.documents import (
     SqlAlchemyDocumentLinkRepository,
     SqlAlchemyDocumentRepository,
     SqlAlchemyDocumentStructureRepository,
@@ -28,7 +28,7 @@ from src.core.platform.infrastructure.persistence.repositories.enterprise_calend
     SqlAlchemyPlatformCalendarRepository,
     SqlAlchemyShiftPatternRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.party import (
+from src.core.platform.infrastructure.persistence.repositories.master_data.party.party import (
     SqlAlchemyPartyRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import (

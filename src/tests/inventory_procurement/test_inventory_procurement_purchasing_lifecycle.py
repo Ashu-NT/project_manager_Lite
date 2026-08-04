@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.party.domain import PartyType
+from src.core.platform.domain.master_data.party import PartyType
 from src.tests.ui_runtime_helpers import login_as
 
 

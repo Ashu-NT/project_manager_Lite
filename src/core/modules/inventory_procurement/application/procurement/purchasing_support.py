@@ -30,7 +30,7 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing import
 )
 from src.core.platform.auth.authorization import require_permission
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.org.domain import Organization
+from src.core.platform.domain.master_data.org import Organization
 
 
 def build_purchase_order_number() -> str:

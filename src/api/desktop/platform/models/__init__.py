@@ -20,7 +20,7 @@ from src.api.desktop.platform.models.calendar import (
     WorkingDayCalculationDto,
 )
 from src.api.desktop.platform.models.common import DesktopApiError, DesktopApiResult
-from src.api.desktop.platform.models.document import (
+from src.core.platform.api.desktop.master_data.documents.models.document import (
     DocumentCreateCommand,
     DocumentDto,
     DocumentLinkCreateCommand,
@@ -48,12 +48,12 @@ from src.api.desktop.platform.models.identity import (
     ServicePrincipalCreateCommand,
     ServicePrincipalDto,
 )
-from src.api.desktop.platform.models.organization import (
+from src.core.platform.api.desktop.master_data.org.models.organization import (
     OrganizationDto,
     OrganizationProvisionCommand,
     OrganizationUpdateCommand,
 )
-from src.api.desktop.platform.models.party import PartyCreateCommand, PartyDto, PartyUpdateCommand
+from src.core.platform.api.desktop.master_data.party.models.party import PartyCreateCommand, PartyDto, PartyUpdateCommand
 from src.api.desktop.platform.models.runtime import (
     ModuleDto,
     ModuleEntitlementDto,

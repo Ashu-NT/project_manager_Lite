@@ -13,7 +13,7 @@ from src.api.desktop.platform import (
     PlatformDocumentDesktopApi,
 )
 from src.api.desktop.platform.models import DesktopApiResult
-from src.core.platform.documents.domain import DocumentStorageKind, DocumentType
+from src.core.platform.domain.master_data.documents import DocumentStorageKind, DocumentType
 from src.ui_qml.platform.presenters.support import (
     bool_value,
     int_value,

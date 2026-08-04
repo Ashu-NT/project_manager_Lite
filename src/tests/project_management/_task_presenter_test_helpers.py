@@ -18,7 +18,7 @@ from src.core.modules.project_management.domain.enums import (
     DependencyType,
     TaskStatus,
 )
-from src.core.platform.documents import DocumentStorageKind
+from src.core.platform.domain.master_data.documents import DocumentStorageKind
 from src.tests.ui_runtime_helpers import wait_until
 
 

@@ -20,7 +20,7 @@ from src.core.modules.inventory_procurement.contracts.repositories.inventory imp
     StockBalanceRepository,
     StockTransactionRepository,
 )
-from src.core.platform.org.contracts import OrganizationRepository
+from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
 from src.core.platform.tenancy.tenant_context import (
     TenantContextService,
     require_tenant_context_service,

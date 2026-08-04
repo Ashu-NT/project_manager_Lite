@@ -44,7 +44,7 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.repositor
     SqlAlchemyReceiptLineRepository,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.party.domain import PartyType
+from src.core.platform.domain.master_data.party import PartyType
 
 
 def _inventory_repo(repo_factory, services):

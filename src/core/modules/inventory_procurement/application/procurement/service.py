@@ -21,8 +21,8 @@ from src.core.modules.inventory_procurement.contracts.repositories.procurement i
     PurchaseRequisitionRepository,
 )
 from src.core.platform.application.approval.approval_service import ApprovalService
-from src.core.platform.org.contracts import OrganizationRepository
-from src.core.platform.party import PartyService
+from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.application.master_data.party.party_service import PartyService
 from src.core.platform.tenancy.tenant_context import (
     TenantContextService,
     require_tenant_context_service,

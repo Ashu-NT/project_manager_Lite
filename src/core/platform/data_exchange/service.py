@@ -15,8 +15,8 @@ from src.core.platform.domain.data_operations.importing import (
     ImportSummary,
 )
 from src.core.platform.application.master_data.site.site_service import SiteService
-from src.core.platform.party import PartyService
-from src.core.platform.party.domain import PartyType
+from src.core.platform.application.master_data.party.party_service import PartyService
+from src.core.platform.domain.master_data.party import PartyType
 
 if TYPE_CHECKING:
     from src.core.platform.auth.domain.session import UserSessionContext

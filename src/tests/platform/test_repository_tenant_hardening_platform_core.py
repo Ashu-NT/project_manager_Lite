@@ -6,13 +6,13 @@ import pytest
 
 from src.core.platform.domain.master_data.employee import EmploymentType
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import DepartmentORM
-from src.core.platform.infrastructure.persistence.orm.documents import (
+from src.core.platform.infrastructure.persistence.orm.master_data.documents.documents import (
     DocumentLinkORM,
     DocumentORM,
     DocumentStructureORM,
 )
 from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import EmployeeORM
-from src.core.platform.infrastructure.persistence.orm.party import PartyORM
+from src.core.platform.infrastructure.persistence.orm.master_data.party.party import PartyORM
 from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
 
 

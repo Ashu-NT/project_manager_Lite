@@ -14,11 +14,11 @@ from src.core.platform.calendar.domain.enterprise_calendar import PlatformCalend
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.application.master_data.department.department_service import DepartmentService
 from src.core.platform.domain.master_data.department import Department
-from src.core.platform.documents.application.document_service import DocumentService
-from src.core.platform.documents.domain import Document
-from src.core.platform.org.domain import Organization
-from src.core.platform.party.application.party_service import PartyService
-from src.core.platform.party.domain import Party
+from src.core.platform.application.master_data.documents.document_service import DocumentService
+from src.core.platform.domain.master_data.documents import Document
+from src.core.platform.domain.master_data.org import Organization
+from src.core.platform.application.master_data.party.party_service import PartyService
+from src.core.platform.domain.master_data.party import Party
 from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.domain.master_data.site import Site
 from src.core.platform.tenancy import TenantContextService

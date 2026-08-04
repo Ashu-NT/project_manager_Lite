@@ -23,7 +23,7 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.infrastructure.persistence.repositories.tenant import (
     SqlAlchemyTenantRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.org import (
+from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
     SqlAlchemyOrganizationRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.user_tenant import (
@@ -306,7 +306,7 @@ class TestUserAdminTenantBoundary:
 
 class TestCanAccessNullBypass:
     def _make_ctx_svc(self, session, active_tenant_id):
-        from src.core.platform.infrastructure.persistence.repositories.org import (
+        from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
             SqlAlchemyOrganizationRepository,
         )
         ctx = UserSessionContext()
@@ -319,7 +319,7 @@ class TestCanAccessNullBypass:
 
     def test_org_with_null_tenant_id_denied_when_session_has_tenant(self, services):
         """H-5: org.tenant_id=None is rejected when active tenant is set."""
-        from src.core.platform.org.domain.organization import Organization
+        from src.core.platform.domain.master_data.org.organization import Organization
 
         active_tid = services["tenant_context_service"].get_active_tenant_id()
         svc = self._make_ctx_svc(services["session"], active_tid)
@@ -328,7 +328,7 @@ class TestCanAccessNullBypass:
 
     def test_org_with_wrong_tenant_id_denied(self, services):
         """_can_access rejects orgs that belong to a different tenant."""
-        from src.core.platform.org.domain.organization import Organization
+        from src.core.platform.domain.master_data.org.organization import Organization
 
         svc = self._make_ctx_svc(services["session"], "tenant-A")
         org = Organization.create("H5-O2", "H5 Org 2", tenant_id="tenant-B")
@@ -336,7 +336,7 @@ class TestCanAccessNullBypass:
 
     def test_org_with_matching_tenant_id_allowed(self, services):
         """_can_access allows orgs that match the active tenant (no principal check)."""
-        from src.core.platform.org.domain.organization import Organization
+        from src.core.platform.domain.master_data.org.organization import Organization
 
         active_tid = services["tenant_context_service"].get_active_tenant_id()
         svc = self._make_ctx_svc(services["session"], active_tid)
@@ -345,8 +345,8 @@ class TestCanAccessNullBypass:
 
     def test_org_tenant_check_skipped_when_no_active_tenant(self, services):
         """_can_access is not restricted when no tenant is active (single-tenant mode)."""
-        from src.core.platform.org.domain.organization import Organization
-        from src.core.platform.infrastructure.persistence.repositories.org import (
+        from src.core.platform.domain.master_data.org.organization import Organization
+        from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
             SqlAlchemyOrganizationRepository,
         )
 
@@ -525,7 +525,7 @@ class TestActiveOrganizationIdTenantGuard:
 
 def test_organization_orm_tenant_id_is_not_nullable():
     """H-6: OrganizationORM.tenant_id must be NOT NULL (DB constraint aligned with ORM)."""
-    from src.core.platform.infrastructure.persistence.orm.org import OrganizationORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
 
     col = OrganizationORM.__table__.c["tenant_id"]
     assert col.nullable is False, "tenant_id must be NOT NULL after H-6 fix"
