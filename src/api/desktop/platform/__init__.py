@@ -68,7 +68,7 @@ from src.api.desktop.platform.models import (
 # PlatformCalendarDesktopApi removed — use EnterpriseCalendarDesktopApi instead
 from src.api.desktop.platform.access import PlatformAccessDesktopApi
 from src.core.platform.api.desktop.history.activity.activity import PlatformActivityDesktopApi
-from src.api.desktop.platform.approval import PlatformApprovalDesktopApi
+from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
 from src.api.desktop.platform.document import PlatformDocumentDesktopApi
 from src.api.desktop.platform.department import PlatformDepartmentDesktopApi
 from src.api.desktop.platform.employee import PlatformEmployeeDesktopApi

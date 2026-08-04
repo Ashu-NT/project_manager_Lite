@@ -70,7 +70,7 @@ from src.core.modules.project_management.api.desktop_runtime import (
     build_project_management_desktop_runtime_apis,
 )
 from src.core.platform.access import AccessControlService
-from src.core.platform.approval import ApprovalService
+from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.history.activity.activity_service import ActivityService
 from src.core.platform.application.history.audit import EnterpriseAuditService
 from src.core.platform.auth.application import AuthService

@@ -11,7 +11,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from src.core.platform.access import ScopedRolePolicy
-from src.core.platform.approval.contracts import (
+from src.core.platform.contract.approval.contracts import (
     ApprovalHandlerResult,
     ApprovalPostCommitEvent,
 )

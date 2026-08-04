@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from src.core.platform.approval.domain import ApprovalRequest, ApprovalStatus
-from src.core.platform.infrastructure.persistence.orm.approval import ApprovalRequestORM
+from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
+from src.core.platform.infrastructure.persistence.orm.approval.approval import ApprovalRequestORM
 
 
 def _to_json(payload: dict[str, Any]) -> str:

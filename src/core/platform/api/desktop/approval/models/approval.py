@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from src.core.platform.approval.domain import ApprovalStatus
+from src.core.platform.domain.approval import ApprovalStatus
 
 
 @dataclass(frozen=True)

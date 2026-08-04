@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from src.core.platform.approval.domain import ApprovalRequest, ApprovalStatus
+from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
 
 
 @dataclass(frozen=True)

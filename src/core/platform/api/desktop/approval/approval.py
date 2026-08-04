@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-from src.api.desktop.platform._approval_labels import (
+from src.api.desktop.platform._support import execute_desktop_operation
+from src.api.desktop.platform.models import DesktopApiResult
+from src.core.platform.api.desktop.approval._approval_labels import (
     approval_context_label,
     approval_display_label,
     approval_module_label,
 )
-from src.api.desktop.platform._support import execute_desktop_operation
-from src.api.desktop.platform.models import (
+from src.core.platform.api.desktop.approval.models.approval import (
     ApprovalDecisionCommand,
     ApprovalRequestDto,
-    DesktopApiResult,
 )
-from src.core.platform.approval import ApprovalService
-from src.core.platform.approval.domain import ApprovalRequest, ApprovalStatus
+from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
 
 
 class PlatformApprovalDesktopApi:

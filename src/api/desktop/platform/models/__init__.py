@@ -5,7 +5,7 @@ from src.api.desktop.platform.models.access import (
     ScopeTargetDto,
     ScopeTypeChoiceDto,
 )
-from src.api.desktop.platform.models.approval import (
+from src.core.platform.api.desktop.approval.models.approval import (
     ApprovalDecisionCommand,
     ApprovalRequestDto,
 )
@@ -79,7 +79,7 @@ from src.api.desktop.platform.models.user import (
     UserUpdateCommand,
 )
 from src.api.desktop.platform.models.tenant import TenantDto, TenantInvitationDto
-from src.core.platform.approval.domain import ApprovalStatus
+from src.core.platform.domain.approval import ApprovalStatus
 
 __all__ = [
     "ApiKeyCredentialDto",

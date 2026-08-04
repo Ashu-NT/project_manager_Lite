@@ -14,7 +14,7 @@ from src.core.modules.project_management.api.desktop import (
     ProjectManagementTasksDesktopApi,
     ProjectManagementTimesheetsDesktopApi,
 )
-from src.core.platform.approval import ApprovalService
+from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.employee import EmployeeService
 from src.core.platform.site import SiteService
 

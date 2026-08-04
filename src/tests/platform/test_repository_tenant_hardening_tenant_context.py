@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.infrastructure.persistence.repositories.approval import (
+from src.core.platform.infrastructure.persistence.repositories.approval.approval import (
     SqlAlchemyApprovalRepository,
 )
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (

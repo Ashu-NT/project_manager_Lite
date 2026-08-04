@@ -2315,6 +2315,71 @@ review unit, not a separate infra-only mega-phase at the end.
   call-site list with a fresh grep before editing, per the mechanic at the
   top of this section.
 
+**Phase 2 (`approval`, single-member group) — completed 2026-08-04.**
+
+- Created 19 new files: `domain/approval/{__init__.py, approval_request.py,
+  approval_state.py, policy.py}`, `contract/approval/{__init__.py,
+  contracts.py}`, `application/approval/{__init__.py, approval_service.py}`,
+  `infrastructure/persistence/{mappers,orm,repositories}/approval/{__init__.py,
+  approval.py}`, and `api/desktop/approval/{__init__.py, approval.py,
+  _approval_labels.py, models/{__init__.py, approval.py}}`. Since `approval`
+  is single-member, no module-name subfolder was added under any group
+  (matches the collapsing rule) — e.g. `application/approval/approval_service.py`,
+  not `application/approval/approval/approval_service.py`.
+- Updated every external call site found by a fresh repo-wide grep — ~26
+  files across `src/api/desktop/`, `src/infra/composition/`,
+  `src/infra/persistence/orm/__init__.py`, `src/core/modules/{project_management,
+  inventory_procurement}/`, and `src/tests/{architecture,platform,
+  inventory_procurement}/`. First grep pass missed 3 sites that reference
+  `infrastructure.persistence.{repositories,orm}.approval` directly rather
+  than the `src.core.platform.approval` facade — `src/infra/composition/
+  repositories.py`, `test_repository_tenant_hardening_time_governance.py`,
+  `test_repository_tenant_hardening_tenant_context.py` — caught by the first
+  test run's collection `ImportError` and fixed before re-running. Confirmed
+  clean afterward with a second repo-wide grep.
+- Collapsed `test_service_architecture.py`'s dual facade/direct import
+  (`from src.core.platform.approval import ApprovalService` +
+  `... approval_service import ApprovalService as LegacyApprovalService`)
+  into a single import from the new canonical location, and removed the now-
+  meaningless `assert LegacyApprovalService is ApprovalService` line — same
+  treatment Phase 1 already applied to `audit`'s equivalent pair.
+- Fixed `test_orm_package_root_loads_all_model_packages` (`approval` →
+  `approval.approval`, matching the ORM loader's new
+  `orm.approval.approval` import path).
+- **Found and fixed a Phase-1-era gap, not just a Phase 2 one**:
+  `src/tests/platform/test_platform_persistence_structure.py` asserts a
+  flat `*.py` file-stem set for `orm/`, `repositories/`, and `mappers/` —
+  this had already been silently broken by Phase 1's `history/activity` +
+  `history/audit` nesting (missed because Phase 1's targeted 237-test run
+  didn't include this file) and was now also broken by Phase 2's
+  `approval/approval.py` nesting. Rewrote the test to track a
+  `NESTED_AREA_FILES` set (checked for existence at their nested path)
+  separately from a `FLAT_AREAS` set (checked via the original flat-stem
+  assertion) — update `NESTED_AREA_FILES` in the same phase that migrates
+  each remaining area, same lockstep pattern as the ORM loader test above.
+- Verification: ran the full `src/tests/{platform,architecture,
+  project_management,inventory_procurement}` suite (1300 tests, broader
+  than Phase 1's targeted subset) both before and after deleting the old
+  files. Before: 33 failed, 1267 passed. After: 32 failed, 1268 passed. A
+  line-by-line diff of the two failing-test lists showed the **only**
+  difference was `test_platform_persistence_uses_module_style_layout`
+  flipping from fail to pass (expected — it was failing solely because the
+  old flat `approval.py` files still coexisted with the new nested ones;
+  resolved once those old files were deleted). The remaining 32 failures
+  are byte-for-byte identical across both runs and, by content, entirely
+  unrelated to `approval`: SQLite `NOT NULL` constraint on `tasks.wbs_code`,
+  module-licensing-not-enabled gates, a permission-set catalog drift, an
+  RLS tenant-table classification gap for `project_finance_*` tables (from
+  the unrelated financial-profile work), an extra `platform.tenants` QML
+  route, a naive/aware datetime comparison bug in `site.py`, a stale
+  `PM_AUTHORIZATION_MIGRATION_MODE` entry in `.env`, and the line-limit
+  guardrail tripping on vendored `pmenv/Lib/site-packages/*` files — none
+  of these touch any file this phase edited.
+- Deleted `src/core/platform/approval/` (entire dir), the three old flat
+  infra files (`infrastructure/persistence/{mappers,orm,repositories}/approval.py`),
+  and the three old `src/api/desktop/platform/{approval.py,
+  _approval_labels.py, models/approval.py}` files.
+
 ### Notes on this ordering
 
 - **`security` (Phases 8a–8f) is deliberately last among the content-group

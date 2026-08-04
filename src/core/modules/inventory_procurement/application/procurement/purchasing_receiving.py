@@ -20,8 +20,8 @@ from src.core.modules.inventory_procurement.domain.procurement.purchasing import
     ReceiptHeader,
     ReceiptLine,
 )
-from src.core.platform.approval.domain import ApprovalRequest
-from src.core.platform.approval.contracts import (
+from src.core.platform.domain.approval import ApprovalRequest
+from src.core.platform.contract.approval.contracts import (
     ApprovalHandlerResult,
     ApprovalPostCommitEvent,
 )

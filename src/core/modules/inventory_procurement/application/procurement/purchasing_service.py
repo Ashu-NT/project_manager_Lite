@@ -31,7 +31,7 @@ from src.core.modules.inventory_procurement.contracts.repositories.procurement i
     ReceiptHeaderRepository,
     ReceiptLineRepository,
 )
-from src.core.platform.approval import ApprovalService
+from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.org.contracts import OrganizationRepository
 from src.core.platform.documents import Document, DocumentIntegrationService, DocumentLink
 from src.core.shared.activity.activity_recorder import record_activity

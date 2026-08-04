@@ -9,7 +9,7 @@ from pydantic import field_validator
 
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.ids import generate_id
-from src.core.platform.approval.domain.approval_state import ApprovalStatus
+from src.core.platform.domain.approval.approval_state import ApprovalStatus
 from src.core.platform.common.pydantic import (
     normalize_optional_identifier,
     normalize_optional_text,

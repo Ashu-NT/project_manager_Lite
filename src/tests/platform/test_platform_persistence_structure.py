@@ -4,10 +4,17 @@ from src.tests.path_rewrites import REPO_ROOT
 
 ROOT = REPO_ROOT
 PERSISTENCE_ROOT = ROOT / "src" / "core" / "platform" / "infrastructure" / "persistence"
-EXPECTED_AREAS = {
-    "activity",
-    "approval",
-    "audit_entry",
+
+# Areas already regrouped by content per the layer-first restructure (§5a) land as
+# nested `<group>/<file>.py` in each of orm/repositories/mappers instead of a flat
+# `<area>.py`. Update this set in lockstep as each remaining group's phase lands.
+NESTED_AREA_FILES = {
+    "history/activity/activity.py",
+    "history/audit/audit_entry.py",
+    "approval/approval.py",
+}
+
+FLAT_AREAS = {
     "auth",
     "departments",
     "documents",
@@ -39,11 +46,12 @@ def test_platform_persistence_uses_module_style_layout() -> None:
     }
 
     assert source_dirs == {"mappers", "orm", "repositories"}
-    assert _source_file_stems(PERSISTENCE_ROOT / "orm") == EXPECTED_AREAS
-    assert _source_file_stems(PERSISTENCE_ROOT / "repositories") == EXPECTED_AREAS
-    assert _source_file_stems(PERSISTENCE_ROOT / "mappers") == EXPECTED_AREAS - {
-        "identity",
-        "modules",
-        "runtime_tracking",
-    } | {"enterprise_calendar"}
+    for area in ("orm", "repositories"):
+        assert _source_file_stems(PERSISTENCE_ROOT / area) == FLAT_AREAS
+        for nested_file in NESTED_AREA_FILES:
+            assert (PERSISTENCE_ROOT / area / nested_file).exists()
+    mapper_flat_areas = FLAT_AREAS - {"identity", "modules", "runtime_tracking"}
+    assert _source_file_stems(PERSISTENCE_ROOT / "mappers") == mapper_flat_areas
+    for nested_file in NESTED_AREA_FILES:
+        assert (PERSISTENCE_ROOT / "mappers" / nested_file).exists()
 

@@ -17,7 +17,7 @@ from src.core.platform.modules import (
 )
 from src.core.platform.access import AccessControlService, ScopedRolePolicy, ScopedRolePolicyRegistry
 from src.core.platform.application.history.activity import ActivityService
-from src.core.platform.approval import ApprovalService
+from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.history.audit import EnterpriseAuditService
 from src.core.platform.notifications import NotificationService
 from src.core.platform.auth import (

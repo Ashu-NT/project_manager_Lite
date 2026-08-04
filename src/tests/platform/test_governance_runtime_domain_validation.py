@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from src.core.platform.approval.domain import ApprovalRequest, ApprovalStatus
+from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.platform_events.domain.platform_event import PlatformEvent
 from src.core.platform.runtime_tracking.application.runtime_execution_service import RuntimeExecutionService
