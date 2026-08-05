@@ -20,6 +20,7 @@ def resource_to_orm(resource: Resource) -> ResourceORM:
         worker_type=getattr(resource, "worker_type", None),
         employee_id=getattr(resource, "employee_id", None),
         organization_id=getattr(resource, "organization_id", None),
+        department_id=getattr(resource, "department_id", None),
         version=getattr(resource, "version", 1),
     )
 
@@ -41,6 +42,7 @@ def resource_from_orm(obj: ResourceORM) -> Resource:
         worker_type=getattr(obj, "worker_type", None),
         employee_id=getattr(obj, "employee_id", None),
         organization_id=getattr(obj, "organization_id", None),
+        department_id=getattr(obj, "department_id", None),
     )
 
 

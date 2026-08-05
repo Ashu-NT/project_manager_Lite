@@ -31,6 +31,8 @@ from src.core.modules.project_management.application.financials import (
     FinancialConfigurationService,
     FinanceService,
     ForecastCostService,
+    ProjectRateCardService,
+    RateCardResolver,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
@@ -93,6 +95,8 @@ class ProjectManagementServiceBundle:
     cost_service: CostService
     financial_configuration_service: FinancialConfigurationService
     forecast_service: ForecastCostService
+    rate_card_service: ProjectRateCardService
+    rate_card_resolver: RateCardResolver
     finance_service: FinanceService
     work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
     scheduling_engine: SchedulingEngine
@@ -297,6 +301,21 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
     )
+    rate_card_service = ProjectRateCardService(
+        session=session,
+        rate_card_repo=repositories.project_rate_card_repo,
+        project_repo=repositories.project_repo,
+        user_session=platform_services.user_session,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
+        module_catalog_service=platform_services.module_catalog_service,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    rate_card_resolver = RateCardResolver(
+        rate_card_repo=repositories.project_rate_card_repo,
+        resource_repo=repositories.resource_repo,
+        resource_skill_repo=repositories.resource_skill_repo,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
     reporting_service = ReportingService(
         session=session,
         project_repo=repositories.project_repo,
@@ -415,6 +434,8 @@ def build_project_management_service_bundle(
         cost_service=cost_service,
         financial_configuration_service=financial_configuration_service,
         forecast_service=forecast_service,
+        rate_card_service=rate_card_service,
+        rate_card_resolver=rate_card_resolver,
         finance_service=finance_service,
         work_calendar_engine=work_calendar_engine,
         scheduling_engine=scheduling_engine,

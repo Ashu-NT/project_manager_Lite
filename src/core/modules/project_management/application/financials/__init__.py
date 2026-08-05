@@ -32,6 +32,11 @@ from src.core.modules.project_management.application.financials.earned_value.evm
 from src.core.modules.project_management.application.financials.configuration_service import (
     FinancialConfigurationService,
 )
+from src.core.modules.project_management.application.financials.rate_cards import (
+    ProjectRateCardService,
+    RateCardResolver,
+    RateSelectionSnapshot,
+)
 
 __all__ = [
     "CommitmentSummary",
@@ -52,4 +57,7 @@ __all__ = [
     "LaborCostEngine",
     "MaterialRollup",
     "FinancialConfigurationService",
+    "ProjectRateCardService",
+    "RateCardResolver",
+    "RateSelectionSnapshot",
 ]
