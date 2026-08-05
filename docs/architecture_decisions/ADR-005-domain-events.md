@@ -212,18 +212,17 @@ src/core/shared/events/
   domain_event.py                  # DomainEvent marker protocol
   clock.py                         # Clock protocol
   aggregate_events.py              # RecordsDomainEvents mixin
-  domain_event_publisher.py        # publish-only contract
-  domain_event_subscriber.py       # subscribe-only contract
+  domain_event_publisher.py        # TransactionalEventPublisher + PostCommitEventPublisher
+  domain_event_subscriber.py       # TransactionalEventSubscriber + PostCommitEventSubscriber
   subscription.py                  # Subscription protocol (dispose)
-  failure_policy.py                # FailurePolicy enum
+  unit_of_work.py                  # UnitOfWork protocol (§2.6/§2.7)
   view_invalidation.py             # ViewInvalidationHint + channel contract
   signal.py                        # existing generic Signal[T] primitive — unchanged
 
 src/infra/events/
-  system_clock.py                  # concrete Clock implementation
-  in_process_domain_event_bus.py   # concrete bus (both transactional and
-                                    #   post-commit instances are this class,
-                                    #   constructed with different FailurePolicy)
+  system_clock.py                       # concrete Clock implementation
+  in_process_transactional_event_bus.py  # FAIL_FAST, handlers take (event, uow)
+  in_process_post_commit_event_bus.py    # ISOLATE_AND_CONTINUE, handlers take (event)
   in_process_view_invalidation_channel.py  # non-marshaling concrete channel
 
 src/ui_qml/infrastructure/events/
@@ -249,19 +248,67 @@ email receipt, an integration event — is never a bare post-commit
 callback; it's either part of the transactional phase (the outbox write,
 per §2.12) or a durably-scheduled job.
 
-### 2.5 Two contracts, not one combined bus
+### 2.5 Two *pairs* of contracts — transactional handlers need the current transaction, post-commit handlers must not have it
+
+The previous revision defined one publisher/subscriber pair with handler
+signature `Callable[[E], None]` and used it for both buses. That's a real
+gap: a transactional handler that needs to update a *different* aggregate
+as part of the same transaction (§2.4's own motivating example —
+`TaskCompleted` → update `Project`) has no way to know which repository,
+session, or transaction to use. A handler registered once, at application
+startup, closing over a repository built some other way could easily end
+up reading/writing through a different session than the aggregate that
+raised the event — silently breaking the very atomicity guarantee §2.4
+promises.
+
+**Fix: transactional and post-commit handlers have genuinely different
+signatures, not the same one reused.** A transactional handler receives
+the *current* unit of work as an explicit parameter; a post-commit
+handler deliberately does not, since by the time it runs the transaction
+is already closed and touching it further would be actively wrong.
 
 ```python
 # src/core/shared/events/domain_event_publisher.py
-class DomainEventPublisher(Protocol):
+class TransactionalEventPublisher(Protocol):
+    def publish(self, event: DomainEvent, uow: UnitOfWork) -> None: ...
+
+class PostCommitEventPublisher(Protocol):
     def publish(self, event: DomainEvent) -> None: ...
 ```
 
 ```python
 # src/core/shared/events/domain_event_subscriber.py
-class DomainEventSubscriber(Protocol):
-    def subscribe(self, event_type: type[E], handler: Callable[[E], None]) -> Subscription: ...
+class TransactionalEventSubscriber(Protocol):
+    def subscribe(
+        self, event_type: type[E], handler: Callable[[E, UnitOfWork], None]
+    ) -> Subscription: ...
+
+class PostCommitEventSubscriber(Protocol):
+    def subscribe(
+        self, event_type: type[E], handler: Callable[[E], None]
+    ) -> Subscription: ...
 ```
+
+A cross-aggregate transactional handler now has an unambiguous answer to
+"which repository and transaction":
+
+```python
+# src/core/modules/project_management/application/event_handlers/transactional.py
+def handle_task_completed(event: TaskCompleted, uow: UnitOfWork) -> None:
+    project_repo = SqlAlchemyProjectRepository(uow.session)
+    project = project_repo.get(event.project_id)
+    project.record_progress_from_task_completion(event.task_id)
+    uow.register_touched(project)  # so ITS events get drained too, per §2.7
+```
+
+`uow.session` is the *same* SQLAlchemy session the triggering `Task`
+aggregate was loaded and saved through — not a new one, not a singleton
+repository with independent lifetime. `SqlAlchemyProjectRepository(uow.session)`
+mirrors exactly how this codebase's application services already build
+their repositories today (constructor-injected `Session`, per the
+existing pattern — see §2.6's note); a transactional handler builds one
+the same way, just handed the session through `uow` instead of through
+`__init__`.
 
 ### 2.6 Who owns dispatch — the unit of work, not application services (contradiction fixed)
 
@@ -275,8 +322,8 @@ possibly not dispatching at all.**
 
 **Decision: the unit of work (or a dedicated event coordinator it owns) is
 the single place that collects, dispatches, and clears aggregate events.**
-Application services do not depend on `DomainEventPublisher` directly —
-they depend on the unit of work and a `Clock`:
+Application services do not depend on `TransactionalEventPublisher`
+directly — they depend on the unit of work and a `Clock`:
 
 ```python
 class TaskApplicationService:
@@ -291,6 +338,34 @@ class TaskApplicationService:
             uow.commit()  # event coordination happens inside commit()
 ```
 
+**`UnitOfWork` is a new abstraction this ADR introduces — it does not
+exist in this codebase today.** Checked before writing this: application
+services currently take an already-constructed SQLAlchemy `Session` plus
+already-constructed repositories directly as constructor parameters, all
+wired together at the composition root — there is no existing unit-of-work
+type to build on. This ADR's `UnitOfWork` is deliberately minimal, and
+does **not** propose replacing that existing constructor-injection
+pattern everywhere. Its only new responsibilities are event coordination
+(§2.7) and exposing the same `session` a handler needs to build a
+repository the same way services already do:
+
+```python
+class UnitOfWork(Protocol):
+    session: Session  # the same Session type already used throughout this codebase
+
+    def register_touched(self, aggregate: RecordsDomainEvents) -> None: ...
+    def tracked_aggregates(self) -> frozenset[RecordsDomainEvents]: ...
+    def commit(self) -> None: ...
+```
+
+Aggregates loaded through `uow.tasks`/`uow.projects`/etc.-style
+convenience accessors (however a given concrete `UnitOfWork` chooses to
+expose them) call `register_touched` automatically on load; a
+transactional handler building its own repository directly from
+`uow.session` (as `handle_task_completed` does above) calls
+`uow.register_touched(project)` itself, explicitly, since the UoW has no
+way to know about that repository access otherwise.
+
 The dependency shape:
 
 ```text
@@ -299,19 +374,23 @@ Application service
 └── Clock
 
 UnitOfWork / EventCoordinator (owned by the UoW, not the application service)
-├── transactional_event_bus  (DomainEventPublisher, FAIL_FAST)
-├── post_commit_event_bus    (DomainEventPublisher, ISOLATE_AND_CONTINUE)
+├── transactional_event_bus  (TransactionalEventPublisher, FAIL_FAST,
+│                             handlers receive (event, uow))
+├── post_commit_event_bus    (PostCommitEventPublisher, ISOLATE_AND_CONTINUE,
+│                             handlers receive (event) only)
 ├── integration event mapper (selects + builds IntegrationEventEnvelope rows)
 └── outbox repository
 ```
 
-Ordinary application services never need a `DomainEventPublisher`
-dependency merely to publish events an aggregate already recorded — that
-would let two different call paths dispatch the same event twice, or let
-dispatch depend on which service happened to be used. A service *would*
-take a `DomainEventPublisher` directly only if it needs to publish
-something that isn't tied to a specific aggregate's recorded events at
-all — an edge case, not the common path.
+Ordinary application services never need either publisher dependency
+merely to publish events an aggregate already recorded — that would let
+two different call paths dispatch the same event twice, or let dispatch
+depend on which service happened to be used. A service *would* take
+`PostCommitEventPublisher` directly only if it needs to publish something
+that isn't tied to a specific aggregate's recorded events at all (an edge
+case, not the common path) — it would never take
+`TransactionalEventPublisher` directly, since publishing transactionally
+without the current `uow` is exactly the gap this section closes.
 
 ### 2.7 The unit-of-work flow, with dynamic aggregate discovery (gap fixed)
 
@@ -328,6 +407,7 @@ UoW whenever one is loaded, added, or otherwise touched — including by a
 transactional handler mid-dispatch:
 
 ```python
+# extends the UnitOfWork protocol shape introduced in §2.6
 class UnitOfWork:
     def register_touched(self, aggregate: RecordsDomainEvents) -> None:
         self._tracked_aggregates.add(aggregate)  # identity-based set
@@ -369,12 +449,17 @@ UoW registers every touched aggregate as it's loaded/added
         ↓
 UoW collects pending events (collect_pending_events, above)
         ↓
-UoW dispatches those events through transactional_event_bus (FAIL_FAST)
+UoW dispatches those events through transactional_event_bus.publish(event, uow)
+   (FAIL_FAST) — the SAME uow is passed to every handler, so a handler
+   updating a different aggregate does so through uow.session, the
+   identical session/transaction the triggering aggregate is part of
         ↓
 UoW re-collects — transactional handlers may have touched MORE
-   aggregates (newly registered) or recorded MORE events; repeat until
-   a round produces nothing new, or MAX_DISPATCH_ROUNDS is hit (fail
-   loudly on the cap — a real cycle is a bug, not a hang)
+   aggregates (newly registered via uow.register_touched, called either
+   automatically by uow.<repo>.get()/add() or explicitly by a handler
+   building its own repository from uow.session) or recorded MORE events;
+   repeat until a round produces nothing new, or MAX_DISPATCH_ROUNDS is
+   hit (fail loudly on the cap — a real cycle is a bug, not a hang)
         ↓
 Selected events are mapped to IntegrationEventEnvelope rows (§2.12)
         ↓
@@ -382,8 +467,10 @@ Outbox rows + business changes are written and committed together
         ↓
 Only on successful commit: clear_domain_events() on every tracked aggregate
         ↓
-The same collected events dispatch through post_commit_event_bus
-   (ISOLATE_AND_CONTINUE)
+The same collected events dispatch through post_commit_event_bus.publish(event)
+   (ISOLATE_AND_CONTINUE) — note: no uow parameter here at all; the
+   transaction is closed, and a post-commit handler must not be able to
+   reach back into it (§2.4)
         ↓
 Post-commit adapters call ViewInvalidationChannel.notify(...) (§2.10)
 ```
@@ -408,22 +495,42 @@ those entities and the failed UoW should be closed outright. A retry means
 starting a new unit of work that re-loads fresh aggregate state from the
 database, not reusing the old in-memory objects.
 
-### 2.9 Bus internals — queued dispatch, and now explicitly thread-safe
+### 2.9 Bus internals — queued dispatch, thread-safe, and correctly atomic (race fixed)
 
-Breadth-first via an internal queue (unchanged from the prior revision),
-but the previous sketch used `self._queue`/`self._dispatching` with **no
-locking at all** — a real gap, given this same ADR already anticipates
-publishers that might not all be on one thread (§2.11). `Signal` (the
-existing primitive this is built on) already uses an `RLock` internally;
-the bus wrapping it should not be less careful:
+Breadth-first via an internal queue, and thread-safe via an `RLock`
+(unchanged in intent from the prior revision) — but the previous sketch
+had a real race between checking "is the queue empty" and flipping
+`_dispatching` back to `False`, because those two steps happened under
+**two separate** lock acquisitions:
+
+```text
+Thread A: acquire lock, see queue empty, release lock (loop `break`)
+Thread B: acquire lock, append event, see _dispatching is still True,
+          return — trusting Thread A's loop to pick it up
+Thread A: acquire lock again (in `finally`), set _dispatching = False
+```
+
+Thread B's event is now stranded — not lost forever (a future,
+unrelated `publish()` call will eventually notice the queue isn't empty
+and drain it too), but processed at some arbitrary later time instead of
+now, which for a post-commit UI-refresh bus means a silently stale view
+until something unrelated happens to trigger the next dispatch.
+
+**Fix: the emptiness check and the `_dispatching` flip must happen inside
+the same lock acquisition**, so no other thread can observe a state in
+between them. Since §2.5 now gives the transactional and post-commit
+buses genuinely different handler signatures (`(event, uow)` vs.
+`(event)`), they're two distinct public classes rather than one
+parameterized by a `FailurePolicy` flag — but they share the same
+queue/lock/drain shape, shown once here on the post-commit bus (no `uow`
+to thread through) and then noted for the transactional variant:
 
 ```python
 from collections import deque
 from threading import RLock
 
-class InProcessDomainEventBus(DomainEventPublisher, DomainEventSubscriber):
-    def __init__(self, *, failure_policy: FailurePolicy) -> None:
-        self._failure_policy = failure_policy
+class InProcessPostCommitEventBus(PostCommitEventPublisher, PostCommitEventSubscriber):
+    def __init__(self) -> None:
         self._handlers: dict[type, list[Callable]] = {}
         self._queue: deque[DomainEvent] = deque()
         self._dispatching = False
@@ -435,27 +542,74 @@ class InProcessDomainEventBus(DomainEventPublisher, DomainEventSubscriber):
             if self._dispatching:
                 return
             self._dispatching = True
+        self._drain()
+
+    def _drain(self) -> None:
+        while True:
+            with self._lock:
+                if not self._queue:
+                    # Empty-check and the "no longer dispatching" flip
+                    # happen atomically, in the SAME critical section —
+                    # this is the fix. A publish() arriving between these
+                    # two statements is now impossible; it either
+                    # completes its own append+check before this block
+                    # runs (and this block then sees a non-empty queue and
+                    # keeps looping), or it runs after this block has
+                    # already flipped _dispatching to False (and correctly
+                    # starts its own new drain).
+                    self._dispatching = False
+                    return
+                current = self._queue.popleft()
+            self._dispatch_one(current)  # never called while holding _lock
+
+    def _dispatch_one(self, event: DomainEvent) -> None:
+        for handler in self._handlers.get(type(event), ()):
+            try:
+                handler(event)
+            except Exception:
+                logger.exception("Post-commit handler failed for %r", type(event))
+```
+
+`InProcessTransactionalEventBus` has the identical queue/lock/drain
+shape — `publish(self, event, uow)` and `_dispatch_one(self, event, uow)`
+each carry the extra `uow` parameter through to `handler(event, uow)` —
+with one difference: it is `FAIL_FAST`, so `_dispatch_one` does **not**
+catch the handler's exception, and `_drain`'s loop needs its own
+`except BaseException` around the `while` loop to clear the queue and
+reset `_dispatching` before re-raising:
+
+```python
+    def _drain(self, uow: UnitOfWork) -> None:
         try:
             while True:
                 with self._lock:
                     if not self._queue:
-                        break
+                        self._dispatching = False
+                        return
                     current = self._queue.popleft()
-                self._dispatch_one(current)  # never called while holding _lock
-        finally:
+                self._dispatch_one(current, uow)
+        except BaseException:
+            # Must not leave _dispatching stuck True, and must not leave
+            # stale, half-processed-batch events for some LATER, unrelated
+            # publish() to pick up — this bus is a long-lived singleton
+            # reused across every future transaction, not created fresh
+            # per unit of work. Discarding the rest of this batch and
+            # letting the exception propagate (to abort the transaction)
+            # is the correct behavior for FAIL_FAST (§2.4).
             with self._lock:
+                self._queue.clear()
                 self._dispatching = False
+            raise
 
-    def _dispatch_one(self, event: DomainEvent) -> None:
+    def _dispatch_one(self, event: DomainEvent, uow: UnitOfWork) -> None:
         for handler in self._handlers.get(type(event), ()):
-            if self._failure_policy is FailurePolicy.FAIL_FAST:
-                handler(event)
-            else:
-                try:
-                    handler(event)
-                except Exception:
-                    logger.exception("Post-commit handler failed for %r", type(event))
+            handler(event, uow)  # propagates into _drain's except above
 ```
+
+In a real implementation these two classes should share the queue/lock/
+drain plumbing through a small private base rather than duplicating it —
+shown as two full classes here only so each one's public contract and
+failure behavior stay easy to read on their own.
 
 The lock is never held while a handler runs — only while mutating queue/
 dispatching state — so a handler that itself calls `publish()` re-entrantly
@@ -575,7 +729,7 @@ class ProjectManagementInvalidation:
     TASK = "task"
 
 def register_post_commit_handlers(
-    subscriber: DomainEventSubscriber,
+    subscriber: PostCommitEventSubscriber,
     channel: ViewInvalidationChannel,
 ) -> list[Subscription]:
     def _task_hint(e) -> ViewInvalidationHint:
@@ -591,6 +745,27 @@ def register_post_commit_handlers(
         subscriber.subscribe(TaskReassigned, lambda e: channel.notify(_task_hint(e))),
         subscriber.subscribe(TaskCompleted, lambda e: channel.notify(_task_hint(e))),
     ]
+```
+
+The transactional side registers the same way, using
+`TransactionalEventSubscriber` and handlers shaped `(event, uow)` — this
+is where `handle_task_completed` from §2.5 gets wired in:
+
+```python
+# src/core/modules/project_management/application/event_handlers/transactional.py
+def register_transactional_handlers(
+    subscriber: TransactionalEventSubscriber,
+) -> list[Subscription]:
+    return [
+        subscriber.subscribe(TaskCompleted, handle_task_completed),
+    ]
+```
+
+```python
+# composition root
+application_subscriptions.extend(
+    project_management.register_transactional_handlers(transactional_event_bus)
+)
 ```
 
 **Someone must own the returned `list[Subscription]` for the application's
@@ -644,25 +819,40 @@ ADR-PF-011; it only keeps this ADR's own description consistent with it.
   is far less surprising.
 - Polymorphic/supertype event subscription in v1 — no demonstrated need,
   creates double-dispatch ambiguity.
-- **Application services holding a `DomainEventPublisher` and dispatching
-  events themselves.** Rejected per §2.6 — two orchestration models in one
-  design risks double-dispatch or silently-skipped dispatch depending on
-  call path; the unit of work is the single owner.
+- **Application services holding a `TransactionalEventPublisher` and
+  dispatching events themselves.** Rejected per §2.6 — two orchestration
+  models in one design risks double-dispatch or silently-skipped dispatch
+  depending on call path; the unit of work is the single owner.
 - **A frozen, up-front list of "touched aggregates" for the draining
   loop.** Rejected per §2.7 — misses aggregates a transactional handler
   loads or creates mid-dispatch, exactly the scenario this ADR uses as its
   own motivating example.
 - **Reusing or retrying a rolled-back aggregate instance.** Rejected per
   §2.8 — its in-memory state may not match what's actually persisted.
+- **One publisher/subscriber pair, with one handler signature
+  (`Callable[[E], None]`), reused for both transactional and post-commit
+  dispatch.** Rejected per §2.5 — a transactional handler needs the
+  current unit of work to safely touch another aggregate in the same
+  transaction; a post-commit handler must *not* have it, since the
+  transaction is already closed by the time it runs. One shared signature
+  can't express both without either starving transactional handlers of
+  the session they need, or letting a post-commit handler reach back into
+  a closed transaction.
 
 ## Consequences
 
 - Every module gains `domain/events.py` (tenant-aware event classes),
   `application/event_handlers/view_invalidation.py` (or a UI-side
   equivalent), and module-owned constants for invalidation-hint values.
-- Application services depend on `UnitOfWork` + `Clock`, not on
-  `DomainEventPublisher` directly (§2.6) — this is now the documented
-  dependency shape, replacing the previous, contradictory migration text.
+- Application services depend on `UnitOfWork` + `Clock`, never on
+  `TransactionalEventPublisher`/`PostCommitEventPublisher` directly (§2.6)
+  — this is now the documented dependency shape, replacing the previous,
+  contradictory migration text.
+- Transactional handlers receive `(event, uow)`, never just `(event)` —
+  `uow.session` is the same session/transaction the triggering aggregate
+  used, closing the "which repository and transaction does the handler
+  use" gap (§2.5). Post-commit handlers receive `(event)` only, by design,
+  since the transaction is already closed by the time they run.
 - `UnitOfWork` gains dynamic aggregate tracking (`register_touched`,
   `tracked_aggregates`) so the draining loop can't miss aggregates touched
   by handlers mid-dispatch.
@@ -688,6 +878,15 @@ module.
 
 ## Test Impact
 
+- A transactional handler that updates a *different* aggregate
+  (`handle_task_completed` updating `Project`) does so through the same
+  `uow.session` as the triggering aggregate — verified by asserting both
+  changes are visible in the same still-open transaction before commit,
+  and that rolling back that transaction undoes both together, not just
+  the originating aggregate's change.
+- A post-commit handler's signature genuinely cannot accept a `uow`
+  parameter (a type-level guarantee, not just a runtime check) — confirms
+  the two handler kinds can't be accidentally swapped.
 - Aggregate records the correct event, with accurate previous/new state
   and `tenant_id`, using an injected fixed `Clock`.
 - No event is recorded when the operation is a no-op.
@@ -718,6 +917,18 @@ module.
   corrupt the internal queue or double-dispatch (bus-level thread safety,
   independent of whatever thread-confinement policy §2.14 eventually
   decides).
+- A `publish()` that arrives at the exact moment a drain loop is checking
+  "is the queue empty" is never stranded — it either gets picked up by the
+  in-progress drain, or `_dispatching` has genuinely already flipped back
+  to `False` and the new `publish()` starts its own drain (§2.9's race
+  fix). This needs a deliberately adversarial test — e.g. a handler that,
+  on its last invocation, blocks until a second thread's `publish()` call
+  has entered `publish()`'s own critical section, to force the exact
+  interleaving the bug required.
+- A `FAIL_FAST` handler exception clears any remaining queued events for
+  that bus, not just the one that raised — confirming a later, unrelated
+  `publish()` doesn't silently dispatch stale events left over from an
+  aborted transaction.
 - Events do not leak across a reused/rehydrated ORM entity instance.
 - Selected integration events are written to the outbox in the same
   transaction as the business change, never after.
@@ -740,11 +951,19 @@ None yet — this ADR is a design proposal, not yet implemented.
 
 ## Open Items Before This Can Move to Accepted
 
-Resolved by this revision: the missing `tenant_id` field, the
-application-service-vs-UoW ownership contradiction, dynamic aggregate
-discovery in the draining loop, the rollback-reuse hazard, `Clock`'s
-contract/implementation placement, the bus's internal thread-safety, and
-explicit subscription ownership at both lifetimes.
+Resolved across this and subsequent follow-up corrections: the missing
+`tenant_id` field, the application-service-vs-UoW ownership
+contradiction, dynamic aggregate discovery in the draining loop, the
+rollback-reuse hazard, `Clock`'s contract/implementation placement
+(and its final home in `shared/events/` + `infra/events/`, not
+`infra/platform/`), the bus's internal thread-safety, explicit
+subscription ownership at both lifetimes, structural (not
+binder-discipline) tenant enforcement on `ViewInvalidationChannel.subscribe()`,
+the empty-queue/`_dispatching`-flip race in the bus's drain loop, and —
+this round — transactional handlers receiving the current `UnitOfWork`
+so cross-aggregate updates share the triggering aggregate's own
+session/transaction instead of an ambiguous, separately-injected
+repository.
 
 **§2.14 — still genuinely open, and now broader than before:**
 
