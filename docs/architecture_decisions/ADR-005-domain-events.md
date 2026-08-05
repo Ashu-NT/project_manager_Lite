@@ -169,15 +169,18 @@ class Task(RecordsDomainEvents):
         )
 ```
 
-### 2.3 `Clock` — protocol in shared, implementation in infra (placement fixed)
+### 2.3 `Clock` — protocol in `shared/events/`, implementation in `infra/events/`
 
 The previous revision put both the `Clock` protocol *and* the concrete
-`SystemClock` in the same `src/core/shared/clock.py` file — directly
-contradicting this ADR's own rule that concrete implementations live in
-infrastructure, not in `shared/`. Split:
+`SystemClock` in the same file — directly contradicting this ADR's own
+rule that concrete implementations live in infrastructure, not in
+`shared/`. Split, and — per direction — both nested under their
+respective `events/` packages rather than at either root, since `Clock`
+exists in this ADR specifically to give domain events a testable,
+injectable `occurred_at` source:
 
 ```python
-# src/core/shared/clock.py
+# src/core/shared/events/clock.py
 from typing import Protocol
 from datetime import datetime
 
@@ -186,18 +189,51 @@ class Clock(Protocol):
 ```
 
 ```python
-# src/infra/system_clock.py
+# src/infra/events/system_clock.py
 from datetime import datetime, timezone
-from src.core.shared.clock import Clock
+from src.core.shared.events.clock import Clock
 
 class SystemClock:
     def now(self) -> datetime:
         return datetime.now(timezone.utc)
 ```
 
-`Clock` is deliberately not nested under `events/` — it's a general
-cross-cutting utility any aggregate can use, not an events-specific
-concern, so it sits at `shared/` root next to `signal.py`'s package.
+`SystemClock` sits alongside `InProcessDomainEventBus` and the other
+concrete event-infrastructure implementations in `src/infra/events/`
+(§2.14 file tree), rather than in `src/infra/platform/`'s more general,
+not-events-specific grab-bag of app-wide utilities — since here it's
+specifically serving the domain-event mixin's timestamping need, not a
+standalone general-purpose utility.
+
+### 2.3.1 File placement (full tree, corrected)
+
+```text
+src/core/shared/events/
+  domain_event.py                  # DomainEvent marker protocol
+  clock.py                         # Clock protocol
+  aggregate_events.py              # RecordsDomainEvents mixin
+  domain_event_publisher.py        # publish-only contract
+  domain_event_subscriber.py       # subscribe-only contract
+  subscription.py                  # Subscription protocol (dispose)
+  failure_policy.py                # FailurePolicy enum
+  view_invalidation.py             # ViewInvalidationHint + channel contract
+  signal.py                        # existing generic Signal[T] primitive — unchanged
+
+src/infra/events/
+  system_clock.py                  # concrete Clock implementation
+  in_process_domain_event_bus.py   # concrete bus (both transactional and
+                                    #   post-commit instances are this class,
+                                    #   constructed with different FailurePolicy)
+  in_process_view_invalidation_channel.py  # non-marshaling concrete channel
+
+src/ui_qml/infrastructure/events/
+  qt_view_invalidation_channel.py   # Qt main-thread-marshaling channel
+```
+
+Contracts and the one genuinely generic primitive (`Signal`) stay in
+`shared/events/`; every concrete implementation that isn't Qt-specific
+lives in `infra/events/`; the Qt-marshaling implementation is UI-owned
+under `ui_qml/`, keeping Qt imports out of `src/core/` and `src/infra/`.
 
 ### 2.4 Dispatch policy — transactional vs. post-commit
 
@@ -447,7 +483,12 @@ class ViewInvalidationHint:
 
 class ViewInvalidationChannel(Protocol):
     def notify(self, hint: ViewInvalidationHint) -> None: ...
-    def subscribe(self, handler: Callable[[ViewInvalidationHint], None]) -> Subscription: ...
+    def subscribe(
+        self,
+        handler: Callable[[ViewInvalidationHint], None],
+        *,
+        tenant_id: str,
+    ) -> Subscription: ...
 ```
 
 `kw_only=True`; `entity_id` optional for hints that don't correspond to
@@ -459,6 +500,49 @@ positional entity-type arguments; none currently passes `category=`, but
 `category` is a real field on today's `DomainChangeEvent` (it gates the
 `shared_master_changed` bridge internally), so it's kept rather than
 dropped on an unverified assumption.
+
+**Correction: tenant isolation is enforced by the channel, not left to
+binder discipline.** A plain `subscribe(handler)` is a broadcast — every
+subscriber receives every hint regardless of tenant, so "a hint scoped to
+tenant A does not reach a controller bound to tenant B" was never actually
+guaranteed by that shape; a forgotten `if hint.tenant_id != ...: return`
+in one binder would silently leak a cross-tenant refresh.
+
+Two ways to fix this were considered: (a) keep the broadcast contract and
+downgrade the guarantee to an *effect* claim — "a tenant-A hint must not
+cause a tenant-B controller to refresh or query data" — enforced entirely
+by binder-level `if` checks; or (b) make the channel itself refuse
+delivery to a non-matching subscriber. **(b) is the decision, but
+narrowly** — not a fully generic `predicate` parameter (which would just
+duplicate the `scope_code`/`entity_type` filtering that already works
+fine as binder-level closures), only a required `tenant_id` on
+`subscribe()`, since tenant isolation is the one dimension here that's a
+genuine security/correctness boundary rather than a business convenience
+filter — consistent with how this codebase already treats tenant
+isolation everywhere else (RLS at the DB layer, the repository
+`_tenant_scope.py` mixin, `TenantContextService`): as something the
+infrastructure guarantees structurally, never something every call site
+is trusted to remember.
+
+`tenant_id` is a **required** keyword parameter, with no default — a
+controller cannot subscribe without stating which tenant it's bound to.
+A genuinely cross-tenant subscriber (e.g. a platform-admin console) is
+not served by passing some sentinel value through the same parameter;
+it gets its own, clearly-named method:
+
+```python
+class ViewInvalidationChannel(Protocol):
+    def notify(self, hint: ViewInvalidationHint) -> None: ...
+    def subscribe(self, handler: ..., *, tenant_id: str) -> Subscription: ...
+    def subscribe_across_tenants(self, handler: ...) -> Subscription: ...
+```
+
+so a cross-tenant subscription is a deliberate, searchable, auditable
+choice at the call site — never the accidental result of a missing
+argument. `scope_code`/`entity_type` filtering stays exactly where it is
+today, as a binder-level closure over the (now tenant-safe) delivered
+hints — this correction only narrows the channel's new responsibility to
+the one dimension that actually needs to be a hard boundary.
 
 **Two separate failure-isolation responsibilities, not one:**
 
@@ -582,9 +666,10 @@ ADR-PF-011; it only keeps this ADR's own description consistent with it.
 - `UnitOfWork` gains dynamic aggregate tracking (`register_touched`,
   `tracked_aggregates`) so the draining loop can't miss aggregates touched
   by handlers mid-dispatch.
-- `src/core/shared/events/` holds contracts + `Signal`; concrete buses
-  live in `src/infra/events/`; `SystemClock` lives in `src/infra/`; the
-  Qt-marshaling channel lives in `src/ui_qml/infrastructure/events/`.
+- `src/core/shared/events/` holds contracts + `Signal` + the `Clock`
+  protocol; concrete buses and `SystemClock` live together in
+  `src/infra/events/`; the Qt-marshaling channel lives in
+  `src/ui_qml/infrastructure/events/`.
 - Subscription ownership is explicit at both the module (composition-root
   registry, app-shutdown disposal) and controller (self-owned,
   teardown-time disposal) level.
@@ -636,8 +721,15 @@ module.
 - Events do not leak across a reused/rehydrated ORM entity instance.
 - Selected integration events are written to the outbox in the same
   transaction as the business change, never after.
-- A `ViewInvalidationHint` scoped to tenant A does not reach a controller
-  bound to tenant B.
+- A `ViewInvalidationHint` scoped to tenant A does not reach a handler
+  subscribed via `subscribe(handler, tenant_id="B")` — enforced by the
+  channel itself, not by a binder-level `if` check (§2.10's correction).
+- A handler registered via `subscribe_across_tenants(...)` does receive
+  hints for every tenant — confirming the two methods are genuinely
+  distinct, not the same broadcast behavior under two names.
+- `subscribe()` with no `tenant_id` argument is a `TypeError` at the call
+  site (there is no default to silently fall back to), not a runtime
+  cross-tenant leak discovered later.
 - Re-entrant publish during a dispatch pass is processed breadth-first.
 - Old and new mechanisms emit equivalent invalidation behavior for any
   event migrated during the transition, verified per-module.
