@@ -7,7 +7,7 @@ Create Date: 2026-08-05
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 import sqlalchemy as sa
 from alembic import op
@@ -46,6 +46,14 @@ _SUPPORTED_CURRENCY_CODES = frozenset(
     """.split()
 )
 
+# Resource.hourly_rate was always read with no date-scoping at all — any
+# historical as_of date could see it. Seeding the backfilled legacy line's
+# effective_from as this migration's own run date would make every report
+# as_of before that date suddenly find "no applicable rate" where today it
+# successfully reads Resource.hourly_rate. A fixed historical epoch instead
+# of the run date is what keeps every pre-existing historical report intact.
+LEGACY_RATE_BACKFILL_EFFECTIVE_FROM = date(1970, 1, 1)
+
 
 def _backfill_legacy_rate_lines(bind) -> None:
     resources = bind.execute(
@@ -61,17 +69,19 @@ def _backfill_legacy_rate_lines(bind) -> None:
     card_id_by_org: dict[str, str] = {}
     insert_card = sa.text(
         "INSERT INTO project_finance_rate_cards "
-        "(id, tenant_id, organization_id, project_id, name, version, is_active, "
+        "(id, tenant_id, organization_id, project_id, name, card_kind, version, is_active, "
         "created_at, updated_at) "
-        "VALUES (:id, :tenant_id, :organization_id, NULL, 'Legacy Resource Rates', "
+        "VALUES (:id, :tenant_id, :organization_id, NULL, 'Legacy Resource Rates', 'legacy', "
         "1, true, :created_at, :updated_at)"
     )
     insert_line = sa.text(
         "INSERT INTO project_finance_rate_card_lines "
         "(id, tenant_id, organization_id, rate_card_id, rate_type, origin, resource_id, "
-        "unit, rate_amount, rate_currency, is_active, version, created_at, updated_at) "
+        "unit, rate_amount, rate_currency, effective_from, is_active, version, "
+        "created_at, updated_at) "
         "VALUES (:id, :tenant_id, :organization_id, :rate_card_id, 'cost', 'legacy_seeded', "
-        ":resource_id, 'HOUR', :rate_amount, :rate_currency, true, 1, :created_at, :updated_at)"
+        ":resource_id, 'HOUR', :rate_amount, :rate_currency, :effective_from, true, 1, "
+        ":created_at, :updated_at)"
     )
     for resource in resources:
         org_key = f"{resource['tenant_id']}::{resource['organization_id']}"
@@ -110,6 +120,7 @@ def _backfill_legacy_rate_lines(bind) -> None:
                 "resource_id": resource["id"],
                 "rate_amount": resource["hourly_rate"] or 0,
                 "rate_currency": resolved_currency,
+                "effective_from": LEGACY_RATE_BACKFILL_EFFECTIVE_FROM,
                 "created_at": now,
                 "updated_at": now,
             },
@@ -137,11 +148,16 @@ def upgrade() -> None:
         sa.Column("organization_id", sa.String(), nullable=False),
         sa.Column("project_id", sa.String(), nullable=True),
         sa.Column("name", sa.String(length=256), nullable=False),
+        sa.Column("card_kind", sa.String(length=16), nullable=True),
         sa.Column("version", sa.Integer(), nullable=False, server_default="1"),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint("version >= 1", name="ck_pf_rate_cards_version"),
+        sa.CheckConstraint(
+            "card_kind IS NULL OR card_kind = 'legacy'",
+            name="ck_pf_rate_cards_card_kind",
+        ),
         sa.ForeignKeyConstraint(
             ["tenant_id"],
             ["tenants.id"],
@@ -178,6 +194,14 @@ def upgrade() -> None:
         "idx_pf_rate_cards_project",
         "project_finance_rate_cards",
         ["project_id"],
+    )
+    op.create_index(
+        "uq_pf_rate_cards_legacy_per_org",
+        "project_finance_rate_cards",
+        ["tenant_id", "organization_id"],
+        unique=True,
+        sqlite_where=sa.text("card_kind = 'legacy'"),
+        postgresql_where=sa.text("card_kind = 'legacy'"),
     )
 
     op.create_table(
@@ -301,6 +325,9 @@ def downgrade() -> None:
     )
     op.drop_table("project_finance_rate_card_lines")
 
+    op.drop_index(
+        "uq_pf_rate_cards_legacy_per_org", table_name="project_finance_rate_cards"
+    )
     op.drop_index("idx_pf_rate_cards_project", table_name="project_finance_rate_cards")
     op.drop_index("idx_pf_rate_cards_scope", table_name="project_finance_rate_cards")
     op.drop_table("project_finance_rate_cards")

@@ -2,12 +2,18 @@
 
 Computes labor details and plan-vs-actual from assignments and project resources.
 Reporting delegates here; this class is the authoritative source for labor figures.
+
+Labor rates are resolved through the ADR-PF-005 rate-card system
+(``LaborRateResolver.resolve_many``), batched once per calculation rather
+than per assignment/resource — ``ProjectResource.hourly_rate``/
+``Resource.hourly_rate`` are no longer read directly here.
 """
 
 from __future__ import annotations
 
+from datetime import date
 
-from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.modules.project_management.contracts.repositories.project import (
     ProjectRepository,
     ProjectResourceRepository,
@@ -17,11 +23,19 @@ from src.core.modules.project_management.contracts.repositories.task import (
     TaskRepository,
 )
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.rate_resolution import (
+    LaborRateResolver,
+    UnresolvedLaborRate,
+)
+from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.modules.project_management.domain.tasks.task import TaskAssignment
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
 from src.core.modules.project_management.application.financials.models.finance_models import (
     LaborAssignmentRow,
+    LaborDetailsResult,
     LaborPlanActualRow,
+    LaborPlanResult,
     LaborResourceRow,
 )
 
@@ -30,8 +44,10 @@ class LaborCostEngine:
     """
     Compute labor cost details and plan-vs-actual for a project.
 
-    Uses assignment execution data (hours_logged × resolved rate) for actuals,
-    and ProjectResource planning data for planned figures.
+    Uses assignment execution data (hours_logged x resolved rate) for actuals,
+    and ProjectResource planning data (planned_hours x resolved rate) for
+    planned figures. Both rates come from the same batched rate-card
+    resolution per calculation — never a per-assignment/per-resource call.
     """
 
     def __init__(
@@ -42,44 +58,82 @@ class LaborCostEngine:
         assignment_repo: AssignmentRepository,
         resource_repo: ResourceRepository,
         project_resource_repo: ProjectResourceRepository,
+        rate_resolver: LaborRateResolver,
+        tenant_context_service: TenantContextService,
     ) -> None:
         self._project_repo = project_repo
         self._task_repo = task_repo
         self._assignment_repo = assignment_repo
         self._resource_repo = resource_repo
         self._project_resource_repo = project_resource_repo
+        self._rate_resolver = rate_resolver
+        self._tenant_context_service = tenant_context_service
 
-    def get_project_labor_details(self, project_id: str) -> list[LaborResourceRow]:
-        """Return labor cost details grouped by resource for the given project."""
+    def _resolve_scope(self, project) -> tuple[str, str]:
+        context = self._tenant_context_service.require_organization_context(
+            operation_label="resolve project labor rates"
+        )
+        # Defense in depth, same pattern as RateCardResolver: the project
+        # fetch is already tenant-scoped, so this should be unreachable —
+        # but a labor-cost calculation is exactly the kind of financial read
+        # that must not rely on a single layer to catch a cross-org mismatch.
+        if project.organization_id and project.organization_id != context.organization_id:
+            raise BusinessRuleError(
+                "Project does not belong to the active organization.",
+                code="PROJECT_ORGANIZATION_MISMATCH",
+            )
+        assert context.organization_id is not None  # guaranteed by require_organization_context
+        return context.tenant_id, context.organization_id
+
+    def calculate_project_labor_details(
+        self, project_id: str, as_of: date
+    ) -> LaborDetailsResult:
+        """Rich result — rows plus every resource whose rate could not be
+        resolved as of ``as_of``. ``get_project_labor_details`` is a thin
+        wrapper returning ``list(result.rows)``."""
         project = self._project_repo.get(project_id)
         if not project:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
+        tenant_id, organization_id = self._resolve_scope(project)
 
         tasks = self._task_repo.list_by_project(project_id)
         task_map = {t.id: t for t in tasks}
         task_ids = list(task_map.keys())
         if not task_ids:
-            return []
+            return LaborDetailsResult(rows=(), unresolved_rates=())
 
         assignments = self._assignment_repo.list_by_tasks(task_ids)
 
         by_res: dict[str, list[TaskAssignment]] = {}
         for a in assignments:
-            lst = by_res.get(a.resource_id, [])
-            lst.append(a)
-            by_res[a.resource_id] = lst
+            by_res.setdefault(a.resource_id, []).append(a)
+
+        resource_ids = tuple(by_res.keys())
+        batch = self._rate_resolver.resolve_many(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            project_id=project_id,
+            resource_ids=resource_ids,
+            rate_type=RateType.COST,
+            as_of=as_of,
+            unit="HOUR",
+        )
 
         result: list[LaborResourceRow] = []
         for res_id, assigns in by_res.items():
+            snapshot = batch.snapshot_for(res_id)
+            if snapshot is None:
+                # Unresolved — excluded from rows/totals, not zeroed in;
+                # recorded once in batch.unresolved below.
+                continue
             res = self._resource_repo.get(res_id)
             res_name = res.name if res else "<unknown>"
+            hourly_rate = float(snapshot.monetary_rate.money.amount)
+            currency = snapshot.monetary_rate.money.currency.code
             total_hours = 0.0
             total_cost = 0.0
             as_rows: list[LaborAssignmentRow] = []
-            hourly_rate: float = 0.0
-            currency: str | None = None
             for a in assigns:
-                hourly_rate, currency = self._resolve_project_rate_currency(project_id, a)
                 hours = float(getattr(a, "hours_logged", 0.0) or 0.0)
                 task_name = task_map.get(a.task_id).name if a.task_id in task_map else "<unknown>"
                 cost = hours * hourly_rate
@@ -109,18 +163,31 @@ class LaborCostEngine:
             )
 
         result.sort(key=lambda r: r.total_cost, reverse=True)
-        return result
+        return LaborDetailsResult(rows=tuple(result), unresolved_rates=batch.unresolved)
 
-    def get_project_labor_plan_vs_actual(self, project_id: str) -> list[LaborPlanActualRow]:
-        """Return plan vs actual labor per resource using planning + execution data."""
+    def get_project_labor_details(self, project_id: str, as_of: date) -> list[LaborResourceRow]:
+        """Return labor cost details grouped by resource for the given project."""
+        return list(self.calculate_project_labor_details(project_id, as_of).rows)
+
+    def get_unresolved_labor_rates(
+        self, project_id: str, as_of: date
+    ) -> tuple[UnresolvedLaborRate, ...]:
+        return self.calculate_project_labor_details(project_id, as_of).unresolved_rates
+
+    def calculate_project_labor_plan_vs_actual(
+        self, project_id: str, as_of: date
+    ) -> LaborPlanResult:
         project = self._project_repo.get(project_id)
         if not project:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
+        tenant_id, organization_id = self._resolve_scope(project)
 
         proj_cur = (getattr(project, "currency", None) or "").upper() or None
 
-        actual_rows = self.get_project_labor_details(project_id)
-        actual_by_res: dict[str, LaborResourceRow] = {r.resource_id: r for r in actual_rows}
+        actual_result = self.calculate_project_labor_details(project_id, as_of)
+        actual_by_res: dict[str, LaborResourceRow] = {
+            r.resource_id: r for r in actual_result.rows
+        }
 
         prs = self._project_resource_repo.list_by_project(project_id)
         pr_by_res: dict[str, object] = {
@@ -129,7 +196,21 @@ class LaborCostEngine:
             if getattr(pr, "resource_id", None)
         }
 
-        resource_ids = set(actual_by_res.keys()) | set(pr_by_res.keys())
+        resource_ids = tuple(set(actual_by_res.keys()) | set(pr_by_res.keys()))
+        # Planned labor is resolved through the same rate-card system, in one
+        # batch covering every resource in scope — not per resource, and not
+        # through ProjectResource.hourly_rate/Resource.hourly_rate directly.
+        planned_batch = self._rate_resolver.resolve_many(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            project_id=project_id,
+            resource_ids=resource_ids,
+            rate_type=RateType.COST,
+            as_of=as_of,
+            unit="HOUR",
+        )
+        unresolved: list[UnresolvedLaborRate] = list(actual_result.unresolved_rates)
+        seen_unresolved = {u.resource_id for u in unresolved}
 
         out: list[LaborPlanActualRow] = []
         for rid in resource_ids:
@@ -139,38 +220,39 @@ class LaborCostEngine:
 
             pr = pr_by_res.get(rid)
             planned_hours = float(getattr(pr, "planned_hours", 0.0) or 0.0) if pr else 0.0
+            planned_snapshot = planned_batch.snapshot_for(rid)
 
-            planned_rate = None
-            planned_cur = None
-            if pr:
-                if getattr(pr, "hourly_rate", None) is not None:
-                    planned_rate = float(pr.hourly_rate)
-                if getattr(pr, "currency_code", None):
-                    planned_cur = str(pr.currency_code).upper()
+            if planned_hours > 0 and planned_snapshot is None:
+                if rid not in seen_unresolved:
+                    for reason in planned_batch.unresolved:
+                        if reason.resource_id == rid:
+                            unresolved.append(reason)
+                            seen_unresolved.add(rid)
+                            break
+                continue  # excluded from rows — a real planned cost we can't price
 
-            if planned_rate is None:
-                planned_rate = float(getattr(res, "hourly_rate", 0.0) or 0.0)
-
-            if not planned_cur:
-                planned_cur = (str(getattr(res, "currency_code", "") or "")).upper() or proj_cur
-
-            planned_cost = planned_hours * float(planned_rate or 0.0)
+            planned_rate = (
+                float(planned_snapshot.monetary_rate.money.amount)
+                if planned_snapshot is not None
+                else 0.0
+            )
+            planned_cur = (
+                planned_snapshot.monetary_rate.money.currency.code
+                if planned_snapshot is not None
+                else proj_cur
+            )
+            planned_cost = planned_hours * planned_rate
 
             ar = actual_by_res.get(rid)
             actual_hours = float(getattr(ar, "total_hours", 0.0) or 0.0) if ar else 0.0
             actual_cost = float(getattr(ar, "total_cost", 0.0) or 0.0) if ar else 0.0
-
-            actual_cur = None
-            if ar and getattr(ar, "currency_code", None):
-                actual_cur = (ar.currency_code or "").upper() or None
-            if not actual_cur:
-                actual_cur = planned_cur
+            actual_cur = (ar.currency_code if ar else None) or planned_cur
 
             out.append(LaborPlanActualRow(
                 resource_id=rid,
                 resource_name=getattr(res, "name", "<unknown>"),
                 planned_hours=planned_hours,
-                planned_hourly_rate=float(planned_rate or 0.0),
+                planned_hourly_rate=planned_rate,
                 planned_currency_code=planned_cur,
                 planned_cost=planned_cost,
                 actual_hours=actual_hours,
@@ -180,41 +262,13 @@ class LaborCostEngine:
             ))
 
         out.sort(key=lambda r: r.variance_cost, reverse=True)
-        return out
+        return LaborPlanResult(rows=tuple(out), unresolved_rates=tuple(unresolved))
 
-    def _resolve_project_rate_currency(
-        self, project_id: str, assignment
-    ) -> tuple[float, str | None]:
-        pr = None
-        pr_id = getattr(assignment, "project_resource_id", None)
-        if pr_id:
-            pr = self._project_resource_repo.get(pr_id)
-        if not pr:
-            rid = getattr(assignment, "resource_id", None)
-            if rid:
-                pr = self._project_resource_repo.get_for_project(project_id, rid)
-
-        res = (
-            self._resource_repo.get(getattr(assignment, "resource_id", ""))
-            if getattr(assignment, "resource_id", None)
-            else None
-        )
-
-        rate = None
-        cur = None
-        if pr:
-            if getattr(pr, "hourly_rate", None) is not None:
-                rate = float(pr.hourly_rate)
-            if getattr(pr, "currency_code", None):
-                cur = str(pr.currency_code).upper()
-
-        if rate is None:
-            rate = float(getattr(res, "hourly_rate", 0.0) or 0.0) if res else 0.0
-
-        if not cur:
-            cur = (str(getattr(res, "currency_code", "") or "")).upper() if res else None
-
-        return rate, (cur or None)
+    def get_project_labor_plan_vs_actual(
+        self, project_id: str, as_of: date
+    ) -> list[LaborPlanActualRow]:
+        """Return plan vs actual labor per resource using planning + execution data."""
+        return list(self.calculate_project_labor_plan_vs_actual(project_id, as_of).rows)
 
 
 __all__ = ["LaborCostEngine"]

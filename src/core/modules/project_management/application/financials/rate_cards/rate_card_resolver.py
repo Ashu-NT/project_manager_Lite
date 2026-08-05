@@ -1,38 +1,29 @@
 """ADR-PF-005 rate-card resolution — orchestration only.
 
-Fetches the resource, its skills, and every candidate line/card pair in
-one query each, then delegates classification and tie-breaking to
-``rate_card_precedence`` (pure, no I/O) and returns an immutable snapshot
-of what was selected. Never falls back across cost/billing rate types and
-raises rather than guessing when more than one line matches with equal
-specificity.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import date
 from decimal import Decimal
-from types import MappingProxyType
-from typing import Mapping
 
+from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_precedence import (
-    RateModifier,
     classify_line,
     select_within_level,
 )
-from src.core.modules.project_management.contracts.repositories.rate_cards import (
-    ProjectRateCardRepository,
-)
-from src.core.modules.project_management.contracts.repositories.resource import (
-    ResourceRepository,
-)
-from src.core.modules.project_management.contracts.repositories.skills import (
-    ResourceSkillRepository,
+from src.core.modules.project_management.contracts.repositories.rate_resolution import (
+    RateResolutionBatch,
+    RateResolutionCandidate,
+    RateResolutionReader,
+    ResolvedLaborRate,
+    ResourceRateContext,
+    UnresolvedLaborRate,
 )
 from src.core.modules.project_management.domain.financials.rate_cards import (
     RateCardLine,
-    RateLineOrigin,
+    RateModifier,
+    RateSelectionSnapshot,
     RateType,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
@@ -40,66 +31,35 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.finance.money.money import Money
 from src.core.platform.finance.money.quantity import MonetaryRate, normalize_unit
 
-
-def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+_PER_RESOURCE_FAILURE_CODES = frozenset(
+    {"RATE_CARD_NO_APPLICABLE_RATE", "RATE_CARD_AMBIGUOUS_SELECTION"}
+)
 
 
 def _fold(value: str | None) -> str | None:
     return value.strip().lower() if value else None
 
 
-@dataclass(frozen=True, slots=True)
-class RateSelectionSnapshot:
-    monetary_rate: MonetaryRate
-    rate_card_id: str
-    rate_line_id: str
-    rate_card_version: int
-    origin: RateLineOrigin
-    precedence_level: int
-    effective_date: date
-    modifier_applied: RateModifier | None = None
-    modifier_multiplier: Decimal | None = None
-    resolved_at: datetime = field(default_factory=_utc_now)
-
-    @property
-    def modifiers_applied(self) -> Mapping[str, Decimal]:
-        """Read-only view — kept for callers that want a dict-shaped
-        summary; the snapshot's real, genuinely-immutable state is the
-        two scalar fields above (a mutable dict field would let a caller
-        mutate a supposedly-frozen snapshot in place)."""
-        if self.modifier_applied is None or self.modifier_multiplier is None:
-            return MappingProxyType({})
-        return MappingProxyType({self.modifier_applied.value: self.modifier_multiplier})
-
-
 class RateCardResolver:
     """Selects and snapshots a rate-card line per ADR-PF-005's precedence order.
-
-    Precedence (most to least specific): (1) project + resource + customer/
-    contract, (2) project + resource, (3) project + role/skill/department,
-    (4) organization + resource, (5) organization + role/skill/department,
-    (6) legacy ``Resource``-seeded fallback, otherwise fail. Levels 4 and 6
-    share the same selection-key shape (organization-wide, resource-specific)
-    and are distinguished only by ``RateCardLine.origin``.
     """
 
     def __init__(
         self,
         *,
-        rate_card_repo: ProjectRateCardRepository,
-        resource_repo: ResourceRepository,
-        resource_skill_repo: ResourceSkillRepository,
+        reader: RateResolutionReader,
         tenant_context_service: TenantContextService,
+        clock: Clock,
     ) -> None:
-        self._rate_card_repo = rate_card_repo
-        self._resource_repo = resource_repo
-        self._resource_skill_repo = resource_skill_repo
+        self._reader = reader
         self._tenant_context_service = tenant_context_service
+        self._clock = clock
 
     def resolve(
         self,
         *,
+        tenant_id: str,
+        organization_id: str,
         project_id: str | None,
         resource_id: str,
         rate_type: RateType | str,
@@ -116,53 +76,165 @@ class RateCardResolver:
                 code="RATE_CARD_RESOLVE_CUSTOMER_CONTRACT_INCOMPLETE",
             )
 
-        context = self._tenant_context_service.require_organization_context(
-            operation_label="resolve rate card"
+        batch = self._resolve_batch(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            project_id=project_id,
+            resource_ids=(resource_id,),
+            rate_type=rate_type,
+            as_of=as_of,
+            unit=unit,
+            customer_party_id=customer_party_id,
+            contract_reference=contract_reference,
+            modifier=modifier,
         )
-        resource = self._resource_repo.get(resource_id)
-        if resource is None:
-            raise NotFoundError("Resource not found.")
-        if (
-            getattr(resource, "organization_id", None) is not None
-            and resource.organization_id != context.organization_id
-        ):
-            # Defense in depth: resource_repo.get() already scopes by the
-            # ambient tenant/org context, so this should be unreachable —
-            # but a resolver deciding what a resource actually costs is
-            # exactly the kind of financial-correctness path that should
-            # not rely on a single layer to catch a cross-org mismatch.
-            raise BusinessRuleError(
-                "Resource does not belong to the active organization.",
-                code="RATE_CARD_RESOLVE_ORGANIZATION_MISMATCH",
-            )
+        if batch.unresolved:
+            reason = batch.unresolved[0]
+            if reason.reason_code == "RESOURCE_NOT_FOUND":
+                raise NotFoundError(reason.detail)
+            raise BusinessRuleError(reason.detail, code=reason.reason_code)
+        snapshot = batch.snapshot_for(resource_id)
+        assert snapshot is not None
+        return snapshot
+
+    def resolve_many(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str | None,
+        resource_ids: tuple[str, ...],
+        rate_type: RateType | str,
+        as_of: date,
+        unit: str,
+    ) -> RateResolutionBatch:
+        return self._resolve_batch(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            project_id=project_id,
+            resource_ids=resource_ids,
+            rate_type=rate_type,
+            as_of=as_of,
+            unit=unit,
+        )
+
+    def _resolve_batch(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str | None,
+        resource_ids: tuple[str, ...],
+        rate_type: RateType | str,
+        as_of: date,
+        unit: str,
+        customer_party_id: str | None = None,
+        contract_reference: str | None = None,
+        modifier: RateModifier | None = None,
+    ) -> RateResolutionBatch:
+        self._verify_context(tenant_id=tenant_id, organization_id=organization_id)
 
         resolved_type = RateType(rate_type)
         resolved_unit = normalize_unit(unit)
-        skill_codes = self._resource_skill_codes(resource_id)
-        folded_role = _fold(resource.role)
+        deduped_ids = tuple(dict.fromkeys(resource_ids))
 
-        candidates = self._rate_card_repo.list_effective_lines(
+        contexts_by_id = {
+            context.resource_id: context
+            for context in self._reader.list_resource_contexts(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                resource_ids=deduped_ids,
+            )
+        }
+        candidates = self._reader.list_candidates(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
             project_id=project_id,
             rate_type=resolved_type,
             unit=resolved_unit,
             as_of=as_of,
         )
 
+        resolved: list[ResolvedLaborRate] = []
+        unresolved: list[UnresolvedLaborRate] = []
+        for resource_id in deduped_ids:
+            context = contexts_by_id.get(resource_id)
+            if context is None:
+                unresolved.append(
+                    UnresolvedLaborRate(
+                        resource_id=resource_id,
+                        project_id=project_id,
+                        as_of=as_of,
+                        reason_code="RESOURCE_NOT_FOUND",
+                        detail=f"Resource '{resource_id}' not found.",
+                    )
+                )
+                continue
+            try:
+                snapshot = self._select_for_resource(
+                    context,
+                    candidates,
+                    as_of=as_of,
+                    customer_party_id=customer_party_id,
+                    contract_reference=contract_reference,
+                    modifier=modifier,
+                )
+            except BusinessRuleError as exc:
+                if exc.code not in _PER_RESOURCE_FAILURE_CODES:
+                    raise
+                unresolved.append(
+                    UnresolvedLaborRate(
+                        resource_id=resource_id,
+                        project_id=project_id,
+                        as_of=as_of,
+                        reason_code=exc.code,
+                        detail=str(exc),
+                    )
+                )
+                continue
+            resolved.append(ResolvedLaborRate(resource_id=resource_id, snapshot=snapshot))
+
+        return RateResolutionBatch(resolved=tuple(resolved), unresolved=tuple(unresolved))
+
+    def _verify_context(self, *, tenant_id: str, organization_id: str) -> None:
+        context = self._tenant_context_service.require_organization_context(
+            operation_label="resolve rate card"
+        )
+        if context.tenant_id != tenant_id or context.organization_id != organization_id:
+            raise BusinessRuleError(
+                "Rate resolution tenant/organization does not match the "
+                "active context.",
+                code="RATE_CARD_RESOLVE_CONTEXT_MISMATCH",
+            )
+
+    def _select_for_resource(
+        self,
+        context: ResourceRateContext,
+        candidates: tuple[RateResolutionCandidate, ...],
+        *,
+        as_of: date,
+        customer_party_id: str | None,
+        contract_reference: str | None,
+        modifier: RateModifier | None,
+    ) -> RateSelectionSnapshot:
+        folded_role = _fold(context.role)
+
         buckets: dict[int, list[RateCardLine]] = {}
         card_version_by_line_id: dict[str, int] = {}
-        for line, card in candidates:
-            card_version_by_line_id[line.id] = card.version
+        for candidate in candidates:
+            card_version_by_line_id[candidate.line.id] = candidate.card_version
             level = classify_line(
-                line,
-                is_project_scoped=card.project_id is not None,
-                resource=resource,
+                candidate.line,
+                is_project_scoped=candidate.card_project_id is not None,
+                resource_id=context.resource_id,
                 folded_resource_role=folded_role,
-                skill_codes=skill_codes,
+                department_id=context.department_id,
+                skill_codes=context.skill_codes,
                 customer_party_id=customer_party_id,
                 contract_reference=contract_reference,
             )
             if level is not None:
-                buckets.setdefault(level, []).append(line)
+                buckets.setdefault(level, []).append(candidate.line)
 
         for level in (1, 2, 3, 4, 5, 6):
             matches = buckets.get(level, [])
@@ -178,27 +250,13 @@ class RateCardResolver:
             )
 
         raise BusinessRuleError(
-            f"No applicable {resolved_type.value} rate for resource '{resource_id}' "
-            f"as of {as_of.isoformat()}.",
+            f"No applicable rate for resource '{context.resource_id}' as of "
+            f"{as_of.isoformat()}.",
             code="RATE_CARD_NO_APPLICABLE_RATE",
         )
 
-    def _resource_skill_codes(self, resource_id: str) -> frozenset[str]:
-        # Required, not optional (round-review correction): silently treating
-        # a missing skill repo as "this resource has no skills" would make
-        # every skill-dimensioned rate line silently fail to match and fall
-        # through to a lower, wrong precedence level — a costing error with
-        # no signal that anything was misconfigured. Callers that genuinely
-        # never need skill-based resolution pass an explicit
-        # always-empty ResourceSkillRepository, not None.
-        return frozenset(
-            folded
-            for skill in self._resource_skill_repo.list_by_resource(resource_id)
-            if (folded := _fold(getattr(skill, "skill_code", None)))
-        )
-
-    @staticmethod
     def _snapshot(
+        self,
         line: RateCardLine,
         level: int,
         *,
@@ -232,7 +290,8 @@ class RateCardResolver:
             effective_date=as_of,
             modifier_applied=modifier,
             modifier_multiplier=multiplier,
+            resolved_at=self._clock.now(),
         )
 
 
-__all__ = ["RateCardResolver", "RateSelectionSnapshot"]
+__all__ = ["RateCardResolver"]

@@ -11,7 +11,9 @@ from src.core.modules.project_management.application.financials.models.finance_m
     EarnedValueMetrics,
     EvmSeriesPoint,
     LaborAssignmentRow,
+    LaborDetailsResult,
     LaborPlanActualRow,
+    LaborPlanResult,
     LaborResourceRow,
 )
 

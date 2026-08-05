@@ -28,7 +28,13 @@ def test_cost_breakdown_excludes_manual_labor_actual_when_computed_labor_exists(
     pid = project.id
 
     task = ts.create_task(pid, "Labor Task", start_date=date(2023, 11, 6), duration_days=2)
-    resource = rs.create_resource("Engineer", role="DEV", hourly_rate=100.0, currency_code="USD")
+    resource = rs.create_resource(
+        "Engineer",
+        role="DEV",
+        hourly_rate=100.0,
+        currency_code="USD",
+        rate_effective_on=date(2023, 11, 6),
+    )
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=100.0)
     ts.set_assignment_hours(assignment.id, 2.0)  # computed labor = 200
 
@@ -127,7 +133,13 @@ def test_cost_policy_consistent_across_kpi_evm_breakdown_and_totals(services):
     pid = project.id
     task = ts.create_task(pid, "Execution Task", start_date=date(2023, 11, 6), duration_days=3)
 
-    resource = rs.create_resource("Engineer", role="DEV", hourly_rate=100.0, currency_code="USD")
+    resource = rs.create_resource(
+        "Engineer",
+        role="DEV",
+        hourly_rate=100.0,
+        currency_code="USD",
+        rate_effective_on=date(2023, 11, 6),
+    )
     pr = prs.add_to_project(
         project_id=pid,
         resource_id=resource.id,

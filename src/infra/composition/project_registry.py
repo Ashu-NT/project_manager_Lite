@@ -25,6 +25,7 @@ from src.core.platform.application.time_management.time import TimeService
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
 )
+from src.core.modules.project_management.application.common.clock import SystemClock
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import (
     CostService,
@@ -33,6 +34,9 @@ from src.core.modules.project_management.application.financials import (
     ForecastCostService,
     ProjectRateCardService,
     RateCardResolver,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.rate_resolution_reader import (
+    SqlAlchemyRateResolutionReader,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
@@ -259,6 +263,10 @@ def build_project_management_service_bundle(
         employee_repo=repositories.employee_repo,
         assignment_skill_validator=assignment_skill_validator,
     )
+    # Shared by ResourceService (legacy rate-line seeding/supersession) and
+    # RateCardResolver (RateSelectionSnapshot.resolved_at) — one time source,
+    # not two independent ways of asking "what time is it."
+    system_clock = SystemClock()
     resource_service = ResourceService(
         session,
         repositories.resource_repo,
@@ -272,6 +280,8 @@ def build_project_management_service_bundle(
         activity_service=platform_services.activity_service,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
+        project_rate_card_repo=repositories.project_rate_card_repo,
+        clock=system_clock,
     )
     cost_service = CostService(
         session,
@@ -310,11 +320,11 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
+    rate_resolution_reader = SqlAlchemyRateResolutionReader(session=session)
     rate_card_resolver = RateCardResolver(
-        rate_card_repo=repositories.project_rate_card_repo,
-        resource_repo=repositories.resource_repo,
-        resource_skill_repo=repositories.resource_skill_repo,
+        reader=rate_resolution_reader,
         tenant_context_service=platform_services.tenant_context_service,
+        clock=system_clock,
     )
     reporting_service = ReportingService(
         session=session,
@@ -327,6 +337,8 @@ def build_project_management_service_bundle(
         calendar=platform_services.global_calendar_shim,
         baseline_repo=repositories.baseline_repo,
         project_resource_repo=repositories.project_resource_repo,
+        rate_resolver=rate_card_resolver,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
     )
@@ -337,6 +349,8 @@ def build_project_management_service_bundle(
         cost_repo=repositories.cost_repo,
         project_resource_repo=repositories.project_resource_repo,
         assignment_repo=repositories.assignment_repo,
+        rate_resolver=rate_card_resolver,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
     )

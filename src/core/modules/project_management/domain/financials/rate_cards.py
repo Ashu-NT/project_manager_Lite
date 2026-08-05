@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import field
+from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from enum import Enum
+from types import MappingProxyType
+from typing import Mapping
 
 from pydantic import field_validator, model_validator
 
@@ -16,7 +18,7 @@ from src.core.platform.common.pydantic import (
     validated_dataclass,
 )
 from src.core.platform.finance.money.currency import CurrencyCode
-from src.core.platform.finance.money.quantity import normalize_unit
+from src.core.platform.finance.money.quantity import MonetaryRate, normalize_unit
 
 
 class RateType(str, Enum):
@@ -27,6 +29,50 @@ class RateType(str, Enum):
 class RateLineOrigin(str, Enum):
     CONFIGURED = "configured"
     LEGACY_SEEDED = "legacy_seeded"
+
+
+class RateModifier(str, Enum):
+    """A hard-worked-hour context. At most one applies to a given hour —
+    these are not independent multipliers that stack."""
+
+    OVERTIME = "overtime"
+    WEEKEND = "weekend"
+    HOLIDAY = "holiday"
+
+
+def _snapshot_utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+@dataclass(frozen=True, slots=True)
+class RateSelectionSnapshot:
+    """An immutable record of one ADR-PF-005 rate resolution — the
+    monetary rate selected, which line/card/version produced it, and any
+    modifier applied. Lives in the domain layer (not application, where
+    the resolver that builds these lives) so both the resolver and the
+    read/resolution contracts can depend on it without either depending
+    on the other's layer."""
+
+    monetary_rate: MonetaryRate
+    rate_card_id: str
+    rate_line_id: str
+    rate_card_version: int
+    origin: RateLineOrigin
+    precedence_level: int
+    effective_date: date
+    modifier_applied: RateModifier | None = None
+    modifier_multiplier: Decimal | None = None
+    resolved_at: datetime = field(default_factory=_snapshot_utc_now)
+
+    @property
+    def modifiers_applied(self) -> Mapping[str, Decimal]:
+        """Read-only view for callers that want a dict-shaped summary —
+        the snapshot's real, immutable state is the two scalar fields
+        above; a stored mutable dict field would let a caller mutate a
+        supposedly-frozen snapshot in place."""
+        if self.modifier_applied is None or self.modifier_multiplier is None:
+            return MappingProxyType({})
+        return MappingProxyType({self.modifier_applied.value: self.modifier_multiplier})
 
 
 def _utc_now() -> datetime:
@@ -56,6 +102,7 @@ class ProjectRateCard:
     organization_id: str
     name: str
     project_id: str | None = None
+    card_kind: str | None = None
     version: int = 1
     is_active: bool = True
     created_at: datetime = field(default_factory=_utc_now)
@@ -83,6 +130,21 @@ class ProjectRateCard:
     @classmethod
     def _normalize_project_id(cls, value: object) -> str | None:
         return normalize_optional_identifier(value)
+
+    @field_validator("card_kind", mode="before")
+    @classmethod
+    def _normalize_card_kind(cls, value: object) -> str | None:
+        normalized = normalize_optional_text(value).lower() or None
+        if normalized is not None and normalized != "legacy":
+            raise ValidationError(
+                "Rate card kind must be 'legacy' or unset.",
+                code="RATE_CARD_CARD_KIND_INVALID",
+            )
+        return normalized
+
+    @property
+    def is_legacy(self) -> bool:
+        return self.card_kind == "legacy"
 
     @field_validator("version", mode="before")
     @classmethod
@@ -346,5 +408,7 @@ __all__ = [
     "ProjectRateCard",
     "RateCardLine",
     "RateLineOrigin",
+    "RateModifier",
+    "RateSelectionSnapshot",
     "RateType",
 ]

@@ -208,6 +208,7 @@ class _FakeResourceService:
         employee_id: str | None = None,
         expected_version: int | None = None,
         code: str | None = None,
+        effective_on=None,
     ) -> SimpleNamespace:
         resource = self._resources[resource_id]
         if code is not None and code.strip():

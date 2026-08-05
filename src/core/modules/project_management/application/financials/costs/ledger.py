@@ -5,11 +5,14 @@ from datetime import date
 from src.core.modules.project_management.contracts.repositories.project import ProjectResourceRepository
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.cost import CostRepository
+from src.core.modules.project_management.contracts.repositories.rate_resolution import (
+    LaborRateResolver,
+)
 from src.core.modules.project_management.domain.enums import CostType
+from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.application.financials.utils.helpers import (
     normalize_currency,
-    resolve_rate,
 )
 from src.core.modules.project_management.application.financials.models.finance_models import FinanceLedgerRow
 
@@ -121,32 +124,53 @@ def build_computed_labor_plan_rows(
     project: Project,
     as_of: date,
     resource_cache: dict[str, object | None],
+    rate_resolver: LaborRateResolver,
+    tenant_id: str,
+    organization_id: str,
 ) -> list[FinanceLedgerRow]:
     rows: list[FinanceLedgerRow] = []
     project_currency = normalize_currency(getattr(project, "currency", None), None)
     anchor = project.start_date or as_of
-    for pr in project_resource_repo.list_by_project(project.id):
-        if not getattr(pr, "is_active", True):
-            continue
+
+    active_prs = [
+        pr
+        for pr in project_resource_repo.list_by_project(project.id)
+        if getattr(pr, "is_active", True)
+        and float(getattr(pr, "planned_hours", 0.0) or 0.0) > 0.0
+        and getattr(pr, "resource_id", None)
+    ]
+    resource_ids = tuple({str(pr.resource_id) for pr in active_prs})
+    # Same rate-card resolution CostPolicyEngine uses for its own planned-
+    # labor total — a second resolve_many call (not a shared cache), but the
+    # same source of truth, so this ledger's rows never disagree with the
+    # engine's totals in the same finance snapshot.
+    batch = (
+        rate_resolver.resolve_many(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            project_id=project.id,
+            resource_ids=resource_ids,
+            rate_type=RateType.COST,
+            as_of=as_of,
+            unit="HOUR",
+        )
+        if resource_ids
+        else None
+    )
+
+    for pr in active_prs:
         planned_hours = float(getattr(pr, "planned_hours", 0.0) or 0.0)
-        if planned_hours <= 0.0:
-            continue
         resource_id = str(getattr(pr, "resource_id", "") or "")
         resource = resource_cache.get(resource_id)
         if resource_id and resource_id not in resource_cache:
             resource = resource_repo.get(resource_id)
             resource_cache[resource_id] = resource
-        rate = resolve_rate(
-            pr_rate=getattr(pr, "hourly_rate", None),
-            resource_rate=(None if resource is None else getattr(resource, "hourly_rate", None)),
-        )
-        if rate <= 0.0:
-            continue
-        currency = normalize_currency(
-            getattr(pr, "currency_code", None)
-            or (None if resource is None else getattr(resource, "currency_code", None)),
-            project_currency,
-        )
+
+        snapshot = batch.snapshot_for(resource_id) if batch is not None else None
+        if snapshot is None:
+            continue  # unresolved — excluded from this ledger, not zeroed in
+        rate = float(snapshot.monetary_rate.money.amount)
+        currency = normalize_currency(snapshot.monetary_rate.money.currency.code, project_currency)
         amount = planned_hours * rate
         rows.append(
             FinanceLedgerRow(
@@ -181,11 +205,11 @@ def build_computed_labor_actual_rows(
 ) -> list[FinanceLedgerRow]:
     """Build actual labor ledger rows from a labor provider.
 
-    labor_provider must expose get_project_labor_details(project_id) — works with
-    both LaborCostEngine and ReportingService (duck-typed).
+    labor_provider must expose get_project_labor_details(project_id, as_of) —
+    works with both LaborCostEngine and ReportingService (duck-typed).
     """
     rows: list[FinanceLedgerRow] = []
-    for resource_row in labor_provider.get_project_labor_details(project.id):
+    for resource_row in labor_provider.get_project_labor_details(project.id, as_of):
         resource_id = str(getattr(resource_row, "resource_id", "") or "")
         resource_name = str(getattr(resource_row, "resource_name", "") or "")
         for assignment in getattr(resource_row, "assignments", []):

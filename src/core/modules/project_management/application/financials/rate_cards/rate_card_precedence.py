@@ -8,47 +8,29 @@ values, with no database or repository involved.
 
 from __future__ import annotations
 
-from enum import Enum
-
 from src.core.modules.project_management.domain.financials.rate_cards import (
     RateCardLine,
     RateLineOrigin,
 )
-from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.platform.common.exceptions import BusinessRuleError
-
-
-class RateModifier(str, Enum):
-    """A hard-worked-hour context. At most one applies to a given hour —
-    these are not independent multipliers that stack (see
-    ``RateCardResolver``'s round-review correction)."""
-
-    OVERTIME = "overtime"
-    WEEKEND = "weekend"
-    HOLIDAY = "holiday"
 
 
 def classify_line(
     line: RateCardLine,
     *,
     is_project_scoped: bool,
-    resource: Resource,
+    resource_id: str,
     folded_resource_role: str | None,
+    department_id: str | None,
     skill_codes: frozenset[str],
     customer_party_id: str | None,
     contract_reference: str | None,
 ) -> int | None:
     """Return this line's ADR-PF-005 precedence level (1-6) against the
     given resource/context, or ``None`` if it does not match at all.
-
-    Callers must fold ``resource.role`` once (``folded_resource_role``)
-    before calling this repeatedly over many candidate lines —
-    ``RateCardLine.role``/``skill_code`` are already normalized at write
-    time (see the domain model), so only the external ``Resource.role``
-    field needs folding here.
     """
     if line.resource_id:
-        if line.resource_id != resource.id:
+        if line.resource_id != resource_id:
             return None
         if not is_project_scoped:
             return 6 if line.origin == RateLineOrigin.LEGACY_SEEDED else 4
@@ -65,7 +47,7 @@ def classify_line(
         return None
     if line.skill_code and line.skill_code not in skill_codes:
         return None
-    if line.department_id and line.department_id != resource.department_id:
+    if line.department_id and line.department_id != department_id:
         return None
     return 3 if is_project_scoped else 5
 
@@ -85,4 +67,4 @@ def select_within_level(level: int, matches: list[RateCardLine]) -> RateCardLine
     return matches[0]
 
 
-__all__ = ["RateModifier", "classify_line", "select_within_level"]
+__all__ = ["classify_line", "select_within_level"]

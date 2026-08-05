@@ -15,6 +15,10 @@ from src.core.modules.project_management.contracts.repositories.task import (
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.cost import CostRepository
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
+from src.core.modules.project_management.contracts.repositories.rate_resolution import (
+    LaborRateResolver,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.modules.project_management.application.scheduling.services.scheduling_engine import SchedulingEngine
@@ -51,6 +55,8 @@ class ReportingService(
         calendar: CalendarProtocol,
         baseline_repo: BaselineRepository,
         project_resource_repo: ProjectResourceRepository,
+        rate_resolver: LaborRateResolver,
+        tenant_context_service: TenantContextService,
         user_session=None,
         module_catalog_service=None,
     ):
@@ -64,6 +70,8 @@ class ReportingService(
         self._calendar: CalendarProtocol = calendar
         self._baseline_repo: BaselineRepository = baseline_repo
         self._project_resource_repo: ProjectResourceRepository = project_resource_repo
+        self._rate_resolver: LaborRateResolver = rate_resolver
+        self._tenant_context_service: TenantContextService = tenant_context_service
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 

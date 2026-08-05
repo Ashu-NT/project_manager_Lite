@@ -1,18 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
 
-from src.core.modules.project_management.application.financials.rate_cards.rate_card_precedence import (
-    RateModifier,
-)
 from src.core.modules.project_management.domain.financials.rate_cards import (
     ProjectRateCard,
     RateCardLine,
     RateLineOrigin,
+    RateModifier,
     RateType,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
@@ -98,6 +96,41 @@ def test_project_rate_card_scope() -> None:
     assert not project_scoped.is_organization_wide
 
 
+def test_get_or_create_legacy_card_is_idempotent(services) -> None:
+    from sqlalchemy import select
+
+    from src.core.modules.project_management.infrastructure.persistence.orm.rate_cards import (
+        ProjectRateCardORM,
+    )
+    from src.core.modules.project_management.infrastructure.persistence.repositories.rate_cards import (
+        SqlAlchemyProjectRateCardRepository,
+    )
+
+    session = services["session"]
+    repo = SqlAlchemyProjectRateCardRepository(session)
+    tenant_id, organization_id = _context_ids(services)
+
+    first = repo.get_or_create_legacy_card(
+        tenant_id=tenant_id, organization_id=organization_id, currency_code="USD"
+    )
+    assert first.is_legacy
+    session.flush()
+
+    second = repo.get_or_create_legacy_card(
+        tenant_id=tenant_id, organization_id=organization_id, currency_code="USD"
+    )
+    assert second.id == first.id
+
+    count = session.execute(
+        select(ProjectRateCardORM).where(
+            ProjectRateCardORM.tenant_id == tenant_id,
+            ProjectRateCardORM.organization_id == organization_id,
+            ProjectRateCardORM.card_kind == "legacy",
+        )
+    ).all()
+    assert len(count) == 1
+
+
 def _create_project_and_resource(services, *, name: str) -> tuple[str, str]:
     project = services["project_service"].create_project(f"{name} project", currency="USD")
     resource = services["resource_service"].create_resource(
@@ -108,11 +141,19 @@ def _create_project_and_resource(services, *, name: str) -> tuple[str, str]:
     return project.id, resource.id
 
 
+def _context_ids(services) -> tuple[str, str]:
+    user_session = services["user_session"]
+    return user_session.stored_active_tenant_id(), user_session.stored_active_organization_id()
+
+
 def test_resolver_fails_closed_when_no_rate_card_exists(services) -> None:
     _project_id, resource_id = _create_project_and_resource(services, name="fail-closed")
     resolver = services["rate_card_resolver"]
+    tenant_id, organization_id = _context_ids(services)
     with pytest.raises(BusinessRuleError, match="No applicable"):
         resolver.resolve(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
             project_id=None,
             resource_id=resource_id,
             rate_type=RateType.COST,
@@ -125,6 +166,7 @@ def test_resolver_prefers_project_override_over_organization_line(services) -> N
     project_id, resource_id = _create_project_and_resource(services, name="precedence")
     rate_card_service = services["rate_card_service"]
     resolver = services["rate_card_resolver"]
+    tenant_id, organization_id = _context_ids(services)
 
     org_card = rate_card_service.create_rate_card(name="Org Rates")
     rate_card_service.create_line(
@@ -136,6 +178,8 @@ def test_resolver_prefers_project_override_over_organization_line(services) -> N
         resource_id=resource_id,
     )
     org_snapshot = resolver.resolve(
+        tenant_id=tenant_id,
+        organization_id=organization_id,
         project_id=project_id,
         resource_id=resource_id,
         rate_type=RateType.COST,
@@ -155,6 +199,8 @@ def test_resolver_prefers_project_override_over_organization_line(services) -> N
         resource_id=resource_id,
     )
     project_snapshot = resolver.resolve(
+        tenant_id=tenant_id,
+        organization_id=organization_id,
         project_id=project_id,
         resource_id=resource_id,
         rate_type=RateType.COST,
@@ -167,6 +213,8 @@ def test_resolver_prefers_project_override_over_organization_line(services) -> N
     # Organization-wide line is still what a DIFFERENT project sees.
     other_project_id, _ = _create_project_and_resource(services, name="other-project")
     other_snapshot = resolver.resolve(
+        tenant_id=tenant_id,
+        organization_id=organization_id,
         project_id=other_project_id,
         resource_id=resource_id,
         rate_type=RateType.COST,
@@ -180,6 +228,7 @@ def test_resolver_never_crosses_cost_and_billing_rate_types(services) -> None:
     _project_id, resource_id = _create_project_and_resource(services, name="rate-type")
     rate_card_service = services["rate_card_service"]
     resolver = services["rate_card_resolver"]
+    tenant_id, organization_id = _context_ids(services)
 
     card = rate_card_service.create_rate_card(name="Org Rates")
     rate_card_service.create_line(
@@ -192,6 +241,8 @@ def test_resolver_never_crosses_cost_and_billing_rate_types(services) -> None:
     )
     with pytest.raises(BusinessRuleError, match="No applicable"):
         resolver.resolve(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
             project_id=None,
             resource_id=resource_id,
             rate_type=RateType.COST,
@@ -199,6 +250,8 @@ def test_resolver_never_crosses_cost_and_billing_rate_types(services) -> None:
             unit="HOUR",
         )
     billing_snapshot = resolver.resolve(
+        tenant_id=tenant_id,
+        organization_id=organization_id,
         project_id=None,
         resource_id=resource_id,
         rate_type=RateType.BILLING,
@@ -247,6 +300,7 @@ def test_resolver_raises_on_ambiguous_equal_specificity_different_dimensions(ser
     services["resource_service"].add_resource_skill(resource_id, "python", "Python")
     rate_card_service = services["rate_card_service"]
     resolver = services["rate_card_resolver"]
+    tenant_id, organization_id = _context_ids(services)
 
     card = rate_card_service.create_rate_card(name="Project Rates", project_id=project_id)
     rate_card_service.create_line(
@@ -267,6 +321,8 @@ def test_resolver_raises_on_ambiguous_equal_specificity_different_dimensions(ser
     )
     with pytest.raises(BusinessRuleError, match="equal specificity"):
         resolver.resolve(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
             project_id=project_id,
             resource_id=resource_id,
             rate_type=RateType.COST,
@@ -302,8 +358,11 @@ def test_overlapping_same_selection_key_lines_are_rejected(services) -> None:
 def test_resolver_requires_customer_and_contract_together(services) -> None:
     _project_id, resource_id = _create_project_and_resource(services, name="cust-contract")
     resolver = services["rate_card_resolver"]
+    tenant_id, organization_id = _context_ids(services)
     with pytest.raises(ValidationError, match="supplied together"):
         resolver.resolve(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
             project_id=None,
             resource_id=resource_id,
             rate_type=RateType.COST,
@@ -317,6 +376,7 @@ def test_resolver_raises_when_requested_modifier_not_configured(services) -> Non
     _project_id, resource_id = _create_project_and_resource(services, name="no-modifier")
     rate_card_service = services["rate_card_service"]
     resolver = services["rate_card_resolver"]
+    tenant_id, organization_id = _context_ids(services)
 
     card = rate_card_service.create_rate_card(name="Org Rates")
     rate_card_service.create_line(
@@ -329,6 +389,8 @@ def test_resolver_raises_when_requested_modifier_not_configured(services) -> Non
     )
     with pytest.raises(BusinessRuleError, match="no overtime multiplier configured"):
         resolver.resolve(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
             project_id=None,
             resource_id=resource_id,
             rate_type=RateType.COST,
@@ -342,6 +404,7 @@ def test_resolver_applies_a_single_modifier_and_snapshot_is_immutable(services) 
     _project_id, resource_id = _create_project_and_resource(services, name="modifier")
     rate_card_service = services["rate_card_service"]
     resolver = services["rate_card_resolver"]
+    tenant_id, organization_id = _context_ids(services)
 
     card = rate_card_service.create_rate_card(name="Org Rates")
     rate_card_service.create_line(
@@ -354,6 +417,8 @@ def test_resolver_applies_a_single_modifier_and_snapshot_is_immutable(services) 
         overtime_multiplier=Decimal("1.5"),
     )
     snapshot = resolver.resolve(
+        tenant_id=tenant_id,
+        organization_id=organization_id,
         project_id=None,
         resource_id=resource_id,
         rate_type=RateType.COST,
@@ -367,3 +432,172 @@ def test_resolver_applies_a_single_modifier_and_snapshot_is_immutable(services) 
         snapshot.modifiers_applied["overtime"] = Decimal("2")
     with pytest.raises(Exception):
         snapshot.modifier_applied = None
+
+
+def _legacy_lines_for_resource(services, resource_id: str) -> list[RateCardLine]:
+    from sqlalchemy import select
+
+    from src.core.modules.project_management.infrastructure.persistence.mappers.rate_cards import (
+        rate_card_line_from_orm,
+    )
+    from src.core.modules.project_management.infrastructure.persistence.orm.rate_cards import (
+        RateCardLineORM,
+    )
+
+    session = services["session"]
+    rows = session.execute(
+        select(RateCardLineORM).where(
+            RateCardLineORM.resource_id == resource_id,
+            RateCardLineORM.origin == RateLineOrigin.LEGACY_SEEDED.value,
+        )
+    ).scalars().all()
+    return [rate_card_line_from_orm(row) for row in rows]
+
+
+def test_create_resource_seeds_legacy_rate_line_with_real_effective_from(services) -> None:
+    resource = services["resource_service"].create_resource(
+        "Seeded Dev", role="Developer", hourly_rate=90.0, currency_code="usd"
+    )
+    lines = _legacy_lines_for_resource(services, resource.id)
+    assert len(lines) == 1
+    assert lines[0].effective_from is not None
+    assert lines[0].effective_from == date.today()
+    assert lines[0].rate_amount == Decimal("90.0")
+    assert lines[0].is_active
+
+
+def test_create_resource_with_zero_rate_seeds_no_line(services) -> None:
+    resource = services["resource_service"].create_resource(
+        "Zero Rate Dev", role="Developer", hourly_rate=0.0
+    )
+    assert _legacy_lines_for_resource(services, resource.id) == []
+
+
+def test_update_resource_requires_expected_version_for_rate_change(services) -> None:
+    resource_service = services["resource_service"]
+    resource = resource_service.create_resource(
+        "Version Required Dev", role="Developer", hourly_rate=90.0
+    )
+    with pytest.raises(ValidationError) as exc:
+        resource_service.update_resource(
+            resource.id, hourly_rate=100.0, effective_on=date.today()
+        )
+    assert exc.value.code == "RESOURCE_RATE_VERSION_REQUIRED"
+
+
+def test_update_resource_requires_effective_on_for_rate_change(services) -> None:
+    resource_service = services["resource_service"]
+    resource = resource_service.create_resource(
+        "Effective On Required Dev", role="Developer", hourly_rate=90.0
+    )
+    with pytest.raises(ValidationError) as exc:
+        resource_service.update_resource(
+            resource.id, hourly_rate=100.0, expected_version=resource.version
+        )
+    assert exc.value.code == "RESOURCE_RATE_EFFECTIVE_ON_REQUIRED"
+
+
+def test_update_resource_same_day_positive_to_positive_deactivates_and_replaces(
+    services,
+) -> None:
+    resource_service = services["resource_service"]
+    resource = resource_service.create_resource(
+        "Same Day Dev", role="Developer", hourly_rate=90.0
+    )
+    today = date.today()
+    updated = resource_service.update_resource(
+        resource.id,
+        hourly_rate=110.0,
+        expected_version=resource.version,
+        effective_on=today,
+    )
+    lines = _legacy_lines_for_resource(services, updated.id)
+    assert len(lines) == 2
+    old_line = next(line for line in lines if line.rate_amount == Decimal("90.0"))
+    new_line = next(line for line in lines if line.rate_amount == Decimal("110.0"))
+    assert old_line.is_active is False
+    assert new_line.is_active is True
+    assert new_line.effective_from == today
+    assert new_line.effective_to is None
+
+
+def test_update_resource_later_date_positive_to_positive_closes_and_opens(services) -> None:
+    resource_service = services["resource_service"]
+    resource = resource_service.create_resource(
+        "Later Date Dev", role="Developer", hourly_rate=90.0
+    )
+    later = date.today() + timedelta(days=10)
+    resource_service.update_resource(
+        resource.id,
+        hourly_rate=120.0,
+        expected_version=resource.version,
+        effective_on=later,
+    )
+    lines = _legacy_lines_for_resource(services, resource.id)
+    old_line = next(line for line in lines if line.rate_amount == Decimal("90.0"))
+    new_line = next(line for line in lines if line.rate_amount == Decimal("120.0"))
+    assert old_line.effective_to == later - timedelta(days=1)
+    assert old_line.is_active
+    assert new_line.effective_from == later
+    assert new_line.effective_to is None
+
+
+def test_update_resource_backdated_raises(services) -> None:
+    resource_service = services["resource_service"]
+    resource = resource_service.create_resource(
+        "Backdate Dev", role="Developer", hourly_rate=90.0
+    )
+    earlier = date.today() - timedelta(days=10)
+    with pytest.raises(BusinessRuleError, match="backdated"):
+        resource_service.update_resource(
+            resource.id,
+            hourly_rate=120.0,
+            expected_version=resource.version,
+            effective_on=earlier,
+        )
+
+
+def test_update_resource_positive_to_zero_deactivates_with_no_replacement(services) -> None:
+    resource_service = services["resource_service"]
+    resource = resource_service.create_resource(
+        "Retiring Dev", role="Developer", hourly_rate=90.0
+    )
+    today = date.today()
+    resource_service.update_resource(
+        resource.id, hourly_rate=0.0, expected_version=resource.version, effective_on=today
+    )
+    lines = _legacy_lines_for_resource(services, resource.id)
+    assert len(lines) == 1
+    assert lines[0].is_active is False
+
+
+def test_update_resource_zero_to_zero_touches_no_rate_line(services) -> None:
+    resource_service = services["resource_service"]
+    resource = resource_service.create_resource(
+        "Still Zero Dev", role="Developer", hourly_rate=0.0
+    )
+    resource_service.update_resource(
+        resource.id, hourly_rate=0.0, expected_version=resource.version, effective_on=date.today()
+    )
+    assert _legacy_lines_for_resource(services, resource.id) == []
+
+
+def test_update_resource_currency_only_change_goes_through_supersession(services) -> None:
+    resource_service = services["resource_service"]
+    resource = resource_service.create_resource(
+        "Currency Change Dev", role="Developer", hourly_rate=80.0, currency_code="eur"
+    )
+    today = date.today()
+    resource_service.update_resource(
+        resource.id,
+        currency_code="usd",
+        expected_version=resource.version,
+        effective_on=today,
+    )
+    lines = _legacy_lines_for_resource(services, resource.id)
+    assert len(lines) == 2
+    old_line = next(line for line in lines if line.rate_currency == "EUR")
+    new_line = next(line for line in lines if line.rate_currency == "USD")
+    assert old_line.is_active is False
+    assert new_line.is_active is True
+    assert new_line.rate_amount == Decimal("80.0")

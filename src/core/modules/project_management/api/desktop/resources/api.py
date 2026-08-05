@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 
 from src.core.modules.project_management.api.desktop.resources.builders.assignment_builder import (
@@ -143,21 +145,29 @@ class ProjectManagementResourcesDesktopApi:
 
     def update_resource(self, command: ResourceUpdateCommand) -> ResourceDesktopDto:
         service = self._require_resource_service()
+        current = service.get_resource(command.resource_id)
+        hourly_rate_changed = current is None or command.hourly_rate != current.hourly_rate
+        currency_changed = current is None or (
+            command.currency_code is not None
+            and command.currency_code.strip().upper() != (current.currency_code or "")
+        )
+        rate_affecting_change = hourly_rate_changed or currency_changed
         resource = service.update_resource(
             command.resource_id,
             name=command.name,
             code=getattr(command, "code", ""),
             role=command.role,
-            hourly_rate=command.hourly_rate,
+            hourly_rate=command.hourly_rate if hourly_rate_changed else None,
             is_active=command.is_active,
             cost_type=coerce_cost_type(command.cost_type),
-            currency_code=command.currency_code,
+            currency_code=command.currency_code if currency_changed else None,
             capacity_percent=command.capacity_percent,
             address=command.address,
             contact=command.contact,
             worker_type=coerce_worker_type(command.worker_type),
             employee_id=command.employee_id,
             expected_version=command.expected_version,
+            effective_on=date.today() if rate_affecting_change else None,
         )
         return serialize_resource(
             resource,

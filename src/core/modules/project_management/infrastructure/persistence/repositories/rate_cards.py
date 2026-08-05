@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.repositories.rate_cards import (
@@ -265,6 +266,50 @@ class SqlAlchemyProjectRateCardRepository(_RateCardScope, ProjectRateCardReposit
             stmt = stmt.where(ProjectRateCardORM.project_id == project_id)
         rows = self.session.execute(stmt).scalars().all()
         return [rate_card_line_from_orm(row) for row in rows]
+
+    def get_or_create_legacy_card(
+        self, *, tenant_id: str, organization_id: str, currency_code: str
+    ) -> ProjectRateCard:
+        # currency_code isn't stored on the card itself (only rate lines
+        # carry a currency) — accepted here to match the call site's
+        # natural shape; the caller uses it separately when it seeds the
+        # actual legacy RateCardLine alongside this card.
+        del currency_code
+        existing = self._select_legacy_card(tenant_id, organization_id)
+        if existing is not None:
+            return rate_card_from_orm(existing)
+
+        card = ProjectRateCard.create(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            name="Legacy Resource Rates",
+            card_kind="legacy",
+        )
+        try:
+            with self.session.begin_nested():
+                self.session.add(rate_card_to_orm(card))
+                self.session.flush()
+        except IntegrityError:
+            # Lost the race to a concurrent creator — the partial unique
+            # index (tenant_id, organization_id) WHERE card_kind='legacy'
+            # is what actually guarantees only one exists; re-fetch it
+            # rather than treating this as a real failure.
+            existing = self._select_legacy_card(tenant_id, organization_id)
+            if existing is None:
+                raise
+            return rate_card_from_orm(existing)
+        return card
+
+    def _select_legacy_card(
+        self, tenant_id: str, organization_id: str
+    ) -> ProjectRateCardORM | None:
+        return self.session.execute(
+            select(ProjectRateCardORM).where(
+                ProjectRateCardORM.tenant_id == tenant_id,
+                ProjectRateCardORM.organization_id == organization_id,
+                ProjectRateCardORM.card_kind == "legacy",
+            )
+        ).scalar_one_or_none()
 
     def _require_rate_card(self, rate_card_id: str, context: TenantContext) -> ProjectRateCardORM:
         row = self.session.execute(

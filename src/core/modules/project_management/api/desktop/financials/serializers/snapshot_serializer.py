@@ -66,6 +66,8 @@ def serialize_snapshot(project_id: str, snapshot) -> FinancialSnapshotDto:
         by_resource=serialize_analytics(snapshot.by_resource, currency),
         by_task=serialize_analytics(snapshot.by_task, currency),
         notes=tuple(snapshot.notes or ()),
+        labor_rates_complete=not getattr(snapshot, "unresolved_labor_rates", ()),
+        unresolved_labor_rate_count=len(getattr(snapshot, "unresolved_labor_rates", ()) or ()),
     )
 
 

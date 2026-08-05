@@ -15,6 +15,7 @@ from src.core.modules.project_management.application.resources.queries.skill_que
     SkillQueryMixin,
 )
 from src.core.modules.project_management.contracts.repositories.project import ProjectResourceRepository
+from src.core.modules.project_management.contracts.repositories.rate_cards import ProjectRateCardRepository
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.skills import (
     ResourceCertificationRepository,
@@ -23,6 +24,7 @@ from src.core.modules.project_management.contracts.repositories.skills import (
 from src.core.modules.project_management.contracts.repositories.task import AssignmentRepository
 from src.core.platform.contract.time_management.time.contracts import TimeEntryRepository
 from src.core.platform.contract.master_data.employee.contracts import EmployeeRepository
+from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 
 
@@ -49,6 +51,8 @@ class ResourceService(
         activity_service=None,
         module_catalog_service=None,
         tenant_context_service=None,
+        project_rate_card_repo: ProjectRateCardRepository | None = None,
+        clock: Clock | None = None,
     ):
         self._session: Session = session
         self._resource_repo: ResourceRepository = resource_repo
@@ -62,6 +66,8 @@ class ResourceService(
         self._activity_service = activity_service
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
+        self._project_rate_card_repo: ProjectRateCardRepository | None = project_rate_card_repo
+        self._clock: Clock | None = clock
 
 
 __all__ = ["ResourceService"]
