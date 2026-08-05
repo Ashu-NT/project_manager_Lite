@@ -74,7 +74,7 @@ from src.core.platform.api.desktop.master_data.department.department import Plat
 from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
 from src.core.platform.api.desktop.security.identity.identity import PlatformIdentityDesktopApi
 from src.core.platform.api.desktop.master_data.party.party import PlatformPartyDesktopApi
-from src.api.desktop.platform.runtime import PlatformRuntimeDesktopApi
+from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.api.desktop.platform.support import PlatformSupportDesktopApi
 from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi

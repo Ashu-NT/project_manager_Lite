@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from src.api.desktop.runtime import build_desktop_api_registry
+from src.application.runtime import build_desktop_api_registry
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.platform.presenters import PlatformRuntimePresenter
 from src.tests.platform._platform_test_helpers import FakePlatformRuntimeApi

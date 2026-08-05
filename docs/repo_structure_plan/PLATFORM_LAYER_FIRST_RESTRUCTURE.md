@@ -2192,6 +2192,30 @@ Once you sign off on this document, I will:
     same slice that removes `entitlement_runtime.py` (§4c). Update these two
     in lockstep with the code changes that cause them, not as a
     find-and-replace pass afterward.
+18. **⚠️ CRITICAL — SCOPE GAP found during Phase 9c (2026-08-05), deferred
+    to after Phase 10, do not lose track of this.** `src/api/desktop/platform/`
+    is a large transitional facade file that still has **5 unmigrated
+    files with no phase anywhere in §13 assigned to them**: `access.py`,
+    `calendar.py`, `support.py`, `user.py`, and `models/common.py` (plus
+    each one's own `models/<name>.py` sibling where present). The original
+    §4c text for Phase 9e only promises to delete
+    `src/api/__init__.py`/`src/api/desktop/__init__.py` and move
+    `desktop/integration/*` — it never accounts for this `platform/`
+    subfolder, and no other phase (1–9e) claims it either. Concretely this
+    means "§4c: `src/api/` retires completely" is **not actually true**
+    unless these 5 files get a home first. Per the user's explicit
+    instruction (2026-08-05): finish Phases 9d, 9e, and 10 as currently
+    scoped, then come back and resolve this — do not fold it into 9e and
+    do not let Phase 10's "final validation" section quietly claim the
+    migration is 100% complete while these 5 files are still sitting at
+    their pre-restructure path. When this gets picked up, it needs the same
+    treatment every other content group got: read each file to determine
+    its real content group (`access` probably → `access/api/desktop/`,
+    `calendar` → likely already superseded by `EnterpriseCalendarDesktopApi`
+    given the doc's own note that `PlatformCalendarDesktopApi` was already
+    removed — confirm before assuming, `support` → probably its own
+    small standalone group same as `approval`, `user` → `security/auth/`),
+    move it, fix every caller, delete the old file, verify, log.
 
 ## 13. Phased implementation plan (2026-08-04)
 
@@ -2267,7 +2291,7 @@ review unit, not a separate infra-only mega-phase at the end.
 | 9c | `api/desktop/platform/runtime.py` (+ `models/runtime.py`) → `api/desktop/platform_runtime/` | ~2 | Straightforward once 9b lands. |
 | 9d | `api/desktop/runtime.py` (`DesktopApiRegistry`) → `src/application/runtime/desktop_api_registry.py`; update `src/application/runtime/__init__.py`; fix `src/ui_qml/shell/app.py` (§9b's flagged file — the actual shell entrypoint, get this one right) | ~3 | The one true cross-module orchestrator; needs every group already at its final home since it composes platform + PM + inventory + maintenance. |
 | 9e | Retire `src/api/` completely — delete `src/api/__init__.py`, `src/api/desktop/__init__.py`; move `src/api/desktop/integration/*` → `platform/api/desktop/integration/` | ~2 | Last of the `src/api/` content; safe once 9a–9d have moved everything else out. |
-| 10 | Final validation | 0 | Full suite green. Clean up stale `src/api/http/__pycache__` (already-dead, confirmed in §2). Update `README.md`/`EXECUTION_SPEC.md` status sections (§11) to mark this migration complete rather than "proposed." |
+| 10 | Final validation | 0 | Full suite green. Clean up stale `src/api/http/__pycache__` (already-dead, confirmed in §2). Update `README.md`/`EXECUTION_SPEC.md` status sections (§11) to mark this migration complete rather than "proposed." **⚠️ Do NOT claim "`src/api/` retires completely" here — see §12 item 18: `access.py`/`calendar.py`/`support.py`/`user.py`/`models/common.py` are a known, deliberately-deferred gap, to be picked up in a follow-on slice after this phase, not silently glossed over.** |
 
 ### Execution log
 
@@ -3594,6 +3618,162 @@ outside `src/core/platform/`.**
   references anywhere in the repo, confirmed by a final repo-wide grep).
 - **Left uncommitted at the user's explicit instruction**, same as Phases
   8e/8f.
+
+**Phase 9b (`platform_runtime.py` → `application/platform_runtime/
+platform_runtime_service.py`) — completed 2026-08-05.**
+
+- A pure move, no content changes — every one of `platform_runtime.py`'s
+  own internal imports was already an absolute path pointing at each
+  dependency's *final* layer-first home (`api/desktop_runtime/
+  service_resolver`, `application/tenant/modules`,
+  `application/security/authorization/enforcement/permission_checks`,
+  `domain/security/auth/session`, `application/master_data/org/
+  organization_service`, `domain/master_data/org`,
+  `application/tenant/tenancy`) — confirmed true precisely because 9a,
+  8d, 5b, and 6 all landed first, exactly as the plan's dependency
+  ordering intended.
+- Created platform's first single-member content group,
+  `application/platform_runtime/`, with an `__init__.py` re-exporting
+  `PlatformRuntimeApplicationService`, `PlatformRuntimeContextSnapshot`,
+  and `resolve_platform_runtime_application_service` — mirroring every
+  other content group's package-facade pattern (e.g. `application/approval/__init__.py`).
+- External blast radius: 6 files (doc's own §13 estimate was "~2" — same
+  underestimate pattern as 9a, since the estimate counted the file itself
+  as the unit of change rather than every import site) —
+  `src/api/desktop/platform/runtime.py`, `src/api/desktop/runtime.py`,
+  `src/infra/composition/{app_container,platform_registry}.py`,
+  `src/tests/architecture/test_service_architecture.py`,
+  `src/tests/platform/test_enterprise_platform_catalog.py`. All were a
+  plain one-line import-path substitution, no symbol-level changes needed.
+- Gotcha sweep: no monkeypatch string literals reference
+  `application.runtime.platform_runtime`, no facade to repoint (the module
+  never had one — it was always imported by its concrete path, never
+  through a bare-package re-export).
+- Verification (targeted): `compileall` across the new package plus every
+  touched tree, both import smoke tests, then a 5-file targeted spot-check
+  run before and after deleting the old file — 23 passed, 0 failed,
+  identical both times. Blast radius was small enough that no wider
+  confirmatory pass was needed beyond 9a's already-run wide check (which
+  covered `test_service_architecture.py`, one of this phase's own touched
+  files).
+- Deleted `src/application/runtime/platform_runtime.py`. `src/application/
+  runtime/` now contains only `__init__.py` (a docstring marker) — empty of
+  real content until Phase 9d lands `desktop_api_registry.py` there.
+- **Left uncommitted at the user's explicit instruction**, same as Phases
+  8e/8f/9a.
+
+**Phase 9c (`api/desktop/platform/runtime.py` + `models/runtime.py` →
+`api/desktop/platform_runtime/`) — completed 2026-08-05.**
+
+- Discovered on inspection that `src/api/desktop/platform/` is a large,
+  still-live transitional facade — most of its capability content (site,
+  department, employee, document, party, org, identity, approval,
+  activity, tenant) has already been migrated to
+  `src/core/platform/api/desktop/<group>/` by earlier phases, but several
+  groups (`access`, `calendar`, `support`, `user`, plus the shared
+  `models/common.py`) are **not yet migrated and out of scope for this
+  phase** — only `runtime.py` and `models/runtime.py` belong to 9c. Left
+  every other file in `src/api/desktop/platform/` untouched.
+- Created `src/core/platform/api/desktop/platform_runtime/` (+ `models/`
+  subpackage), moved both files in unchanged — `models/runtime.py`'s own
+  internal import of `OrganizationDto` already pointed at its final
+  `master_data/org/models/organization` home (that group migrated in
+  Phase 5b), so no content edits were needed there.
+- The API adapter (`runtime.py`) previously imported `OrganizationDto`,
+  `OrganizationProvisionCommand`, and `OrganizationUpdateCommand` through
+  the old shared `models` facade even though those three actually live in
+  the already-migrated `org` group — split its import block to match the
+  established precedent (e.g. `department.py`): `DesktopApiError`/
+  `DesktopApiResult` stay via the old facade (genuinely shared, un-grouped
+  `models/common.py`, out of scope), the three `Organization*` symbols
+  now import directly from `master_data.org.models.organization`, and the
+  five runtime-specific symbols (`ModuleDto`, `ModuleEntitlementDto`,
+  `ModuleStatePatchCommand`, `PlatformCapabilityDto`,
+  `PlatformRuntimeContextDto`) import from the new
+  `platform_runtime.models.runtime` location.
+- External blast radius: exactly 2 files, both transitional facades that
+  re-export migrated symbols for not-yet-updated consumers —
+  `src/api/desktop/platform/models/__init__.py` (repointed its
+  `models.runtime` import line) and `src/api/desktop/platform/__init__.py`
+  (repointed its `PlatformRuntimeDesktopApi` import line). Confirmed via
+  grep that nothing else in the repo imports the old
+  `api.desktop.platform.runtime`/`api.desktop.platform.models.runtime`
+  paths directly — every real consumer goes through one of these two
+  facades, which is why the doc's own "~2" estimate for this phase was
+  accurate (unlike 9a/9b, where the estimate undercounted real import
+  sites).
+- Verification (targeted): `compileall` on the new package plus
+  `api/desktop/platform`, both import smoke tests, then a 5-file targeted
+  spot-check before and after deleting the two old files — 23 passed, 0
+  failed, identical both times.
+- Deleted `src/api/desktop/platform/runtime.py` and
+  `src/api/desktop/platform/models/runtime.py`. The rest of
+  `src/api/desktop/platform/` (`access.py`, `calendar.py`, `common.py`,
+  `support.py`, `user.py` + their models) is untouched, pending whichever
+  future phase covers those remaining groups — not part of this numbered
+  plan's 9a–9e scope.
+- **Left uncommitted at the user's explicit instruction**, same as Phases
+  8e/8f/9a/9b.
+
+**Phase 9d (`api/desktop/runtime.py` (`DesktopApiRegistry`) →
+`src/application/runtime/desktop_api_registry.py`) — completed
+2026-08-05.**
+
+- A pure move of the file's content (its own imports were already
+  all-final-path, confirmed by earlier phases fixing them incrementally).
+  Made `src/application/runtime/__init__.py` the new facade, re-exporting
+  `DesktopApiRegistry`/`build_desktop_api_registry` — absorbing
+  `src/api/desktop/__init__.py`'s old re-export role, per §4c.
+- **Hit a genuine circular import, the one non-mechanical gotcha this
+  phase's own doc entry warned to expect.** Updating
+  `src/api/desktop/__init__.py`'s import from `src.api.desktop.runtime`
+  (a submodule of itself — safe) to `src.application.runtime` (a
+  different top-level package) created a real cycle:
+  `src.application.runtime.__init__` → `desktop_api_registry.py` →
+  `src.api.desktop.integration` → (triggers parent package init)
+  `src.api.desktop.__init__` → back to `src.application.runtime` (still
+  mid-initialization, `DesktopApiRegistry` not yet defined) →
+  `ImportError`. The original code never hit this because
+  `src.api.desktop.__init__` importing its own submodule doesn't force a
+  second, independent top-level package's `__init__.py` to run partway
+  through. Root-caused by reading the traceback's full chain, not by
+  guessing. **Fix: emptied `src/api/desktop/__init__.py` to a bare package
+  marker** rather than repointing its import — confirmed first that
+  nothing in the repo consumes `from src.api.desktop import
+  DesktopApiRegistry`/`build_desktop_api_registry` at the package level
+  (everything goes through `src.api.desktop.runtime` directly, now
+  `src.application.runtime`), so there was no re-export role left to
+  preserve. This also happens to pre-empt part of Phase 9e's own promised
+  work ("`src/api/desktop/__init__.py` — its re-export role moves to
+  `src/application/runtime/__init__.py`; no successor at its own path") —
+  9e now just needs to delete the (already-empty) file.
+- External blast radius: 27 files (doc's own §13 estimate was "~3" — same
+  underestimate pattern as 9a/9b) — `src/api/desktop/__init__.py` (emptied,
+  above), 25 test files across `inventory_procurement`/`maintenance`/
+  `platform`/`project_management` (all an identical one-line
+  `from src.api.desktop.runtime import build_desktop_api_registry` →
+  `from src.application.runtime import build_desktop_api_registry` swap,
+  done as one bulk `sed` pass since every occurrence was byte-identical),
+  and `src/ui_qml/shell/app.py` — the actual shell entrypoint §9b flagged
+  for special attention, given the extra care its own docstring warns
+  about. Confirmed it's a plain single import + single call site, no
+  further special handling needed once the circular-import fix above was
+  in place.
+- Verification (targeted): `compileall` across every touched tree plus a
+  direct `py_compile` of the shell entrypoint specifically, then four
+  explicit import checks from different angles (`from src.application.runtime
+  import build_desktop_api_registry`, `import src.api.desktop`, the full
+  `build_service_graph` smoke test, `import src.api.desktop.platform.support`
+  — the last one chosen deliberately since it's the one thing that still
+  forces `src/api/desktop/__init__.py` to execute, to prove the emptied
+  facade doesn't break the still-live `platform/` subpackage). Then a
+  21-file targeted spot-check run before and after deleting the old file —
+  75 passed, 1 failed both times (the same already-confirmed pre-existing
+  `site.py` tz-naive/aware datetime bug from the 9a wide check), byte-for-byte
+  identical.
+- Deleted `src/api/desktop/runtime.py`.
+- **Left uncommitted at the user's explicit instruction**, same as Phases
+  8e/8f/9a/9b/9c.
 
 ### Notes on this ordering
 

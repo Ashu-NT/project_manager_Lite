@@ -22,7 +22,7 @@ from src.api.desktop.platform import (
 )
 from src.core.platform.api.desktop.history.audit.audit_enterprise import PlatformEnterpriseAuditDesktopApi
 from src.core.platform.api.desktop.time_management.calendar.enterprise_calendar import EnterpriseCalendarDesktopApi
-from src.application.runtime.platform_runtime import (
+from src.core.platform.application.platform_runtime import (
     PlatformRuntimeApplicationService,
     resolve_platform_runtime_application_service,
 )

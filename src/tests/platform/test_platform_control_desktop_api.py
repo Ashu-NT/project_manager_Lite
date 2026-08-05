@@ -8,7 +8,7 @@ from src.api.desktop.platform import (
     ScopedAccessGrantAssignCommand,
     ScopedAccessGrantRemoveCommand,
 )
-from src.api.desktop.runtime import build_desktop_api_registry
+from src.application.runtime import build_desktop_api_registry
 from src.tests.ui_runtime_helpers import login_as
 
 

@@ -11,7 +11,7 @@ from src.api.desktop.platform import (
     SiteCreateCommand,
     SiteUpdateCommand,
 )
-from src.api.desktop.runtime import build_desktop_api_registry
+from src.application.runtime import build_desktop_api_registry
 
 
 def _build_site_api(services) -> PlatformSiteDesktopApi:

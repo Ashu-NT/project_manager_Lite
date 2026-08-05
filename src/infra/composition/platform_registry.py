@@ -7,7 +7,7 @@ from time import perf_counter
 
 from sqlalchemy.orm import Session
 
-from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
+from src.core.platform.application.platform_runtime import PlatformRuntimeApplicationService
 from src.core.platform.domain.tenant.modules import (
     DEFAULT_ENTERPRISE_MODULES,
     parse_enabled_module_codes,

@@ -54,7 +54,7 @@ from src.core.platform.api.desktop.master_data.org.models.organization import (
     OrganizationUpdateCommand,
 )
 from src.core.platform.api.desktop.master_data.party.models.party import PartyCreateCommand, PartyDto, PartyUpdateCommand
-from src.api.desktop.platform.models.runtime import (
+from src.core.platform.api.desktop.platform_runtime.models.runtime import (
     ModuleDto,
     ModuleEntitlementDto,
     ModuleStatePatchCommand,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.api.desktop.runtime import build_desktop_api_registry
+from src.application.runtime import build_desktop_api_registry
 from src.core.modules.maintenance.api.desktop import (
     build_maintenance_workspace_desktop_api,
 )

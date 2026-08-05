@@ -5,7 +5,7 @@ from src.api.desktop.platform import (
     OrganizationProvisionCommand,
     PlatformRuntimeDesktopApi,
 )
-from src.api.desktop.runtime import build_desktop_api_registry
+from src.application.runtime import build_desktop_api_registry
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 

@@ -10,7 +10,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
+from src.core.platform.application.platform_runtime import PlatformRuntimeApplicationService
 from src.core.platform.access import AccessControlService
 from src.core.platform.integration.module_registry import ModuleRegistry
 from src.core.platform.integration.resolver import IntegrationResolver

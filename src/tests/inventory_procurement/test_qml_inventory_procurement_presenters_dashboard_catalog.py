@@ -1,4 +1,4 @@
-from src.api.desktop.runtime import build_desktop_api_registry
+from src.application.runtime import build_desktop_api_registry
 from src.core.platform.domain.master_data.party import PartyType
 from src.ui_qml.modules.inventory_procurement.context import (
     InventoryProcurementWorkspaceCatalog,

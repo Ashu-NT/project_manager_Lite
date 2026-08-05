@@ -9,19 +9,20 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from src.api.desktop.platform.models import (
-    DesktopApiError,
-    DesktopApiResult,
-    ModuleDto,
-    ModuleEntitlementDto,
-    ModuleStatePatchCommand,
+from src.api.desktop.platform.models import DesktopApiError, DesktopApiResult
+from src.core.platform.api.desktop.master_data.org.models.organization import (
     OrganizationDto,
     OrganizationProvisionCommand,
     OrganizationUpdateCommand,
+)
+from src.core.platform.api.desktop.platform_runtime.models.runtime import (
+    ModuleDto,
+    ModuleEntitlementDto,
+    ModuleStatePatchCommand,
     PlatformCapabilityDto,
     PlatformRuntimeContextDto,
 )
-from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
+from src.core.platform.application.platform_runtime import PlatformRuntimeApplicationService
 
 _ResultT = TypeVar("_ResultT")
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from pathlib import Path
 
-from src.api.desktop.runtime import build_desktop_api_registry
+from src.application.runtime import build_desktop_api_registry
 from src.core.modules.inventory_procurement.api.desktop import (
     InventoryAdjustmentCommand,
     InventoryCycleCountCreateCommand,

@@ -25,7 +25,7 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_scheduling_desktop_api,
     build_project_management_tasks_desktop_api,
 )
-from src.api.desktop.runtime import build_desktop_api_registry
+from src.application.runtime import build_desktop_api_registry
 from src.api.desktop.platform import ApprovalRequestDto, ApprovalStatus, DesktopApiResult
 from src.core.modules.project_management.domain.enums import (
     CostType,
