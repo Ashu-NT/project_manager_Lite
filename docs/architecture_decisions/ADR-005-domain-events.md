@@ -1,7 +1,9 @@
 # ADR-005: Domain Events
 
 - Status: proposed
-- Date: 2026-08-05 (revised 2026-08-05 after three rounds of team review)
+- Date: 2026-08-05 (revised repeatedly on 2026-08-05 — three full team-review
+  rounds plus numerous targeted follow-up corrections; see "Open Items
+  Before This Can Move to Accepted" for the complete resolved list)
 
 ## Context
 
@@ -26,8 +28,9 @@ that other half. **Integration events are out of scope here** — ADR-PF-011
 owns that decision; §2.12 only clarifies one ordering constraint between
 the two.
 
-**This is the third revision, after three rounds of team review.** Round
-one corrected an absolute "never before commit" rule and caught a
+**This has been through three full rounds of team review, plus numerous
+targeted follow-up corrections raised individually afterward.** Round one
+corrected an absolute "never before commit" rule and caught a
 composition-root pattern that would have recreated the exact problem this
 ADR removes. Round two found the fix for round one was described but never
 actually wired into one design, plus a hint object that couldn't satisfy
@@ -35,8 +38,15 @@ its own test. Round three found the wiring still had a real bug (events
 referencing a field the event class didn't declare), an ownership
 contradiction between two sections, an aggregate-discovery gap in the
 draining loop, a missing rollback-safety rule, a thread-safety gap in the
-bus sketch, and a placement inconsistency in the `Clock` example. All are
-fixed below.
+bus sketch, and a placement inconsistency in the `Clock` example. The
+follow-up rounds after that (each individually resolved — see "Open Items
+Before This Can Move to Accepted" for the full list) found: `Clock`'s
+final placement corrected twice, a tenant-isolation gap in the
+view-invalidation channel, a missing link between transactional handlers
+and the current transaction, a real race in the bus's drain loop, the
+handler shape promoted to a named contract, an unsafe `set`-based
+aggregate tracker, and the concrete `UnitOfWork`'s file placement and
+creation site. All are fixed below.
 
 ## Decision
 
@@ -169,18 +179,19 @@ class Task(RecordsDomainEvents):
         )
 ```
 
-### 2.3 `Clock` — protocol in `shared/events/`, implementation in `infra/events/`
+### 2.3 `Clock` — protocol in `shared/time/`, implementation in `infra/time/`
 
 The previous revision put both the `Clock` protocol *and* the concrete
 `SystemClock` in the same file — directly contradicting this ADR's own
 rule that concrete implementations live in infrastructure, not in
-`shared/`. Split, and — per direction — both nested under their
-respective `events/` packages rather than at either root, since `Clock`
-exists in this ADR specifically to give domain events a testable,
-injectable `occurred_at` source:
+`shared/`. Split. **Corrected again, semantically: `Clock` is not
+events-specific vocabulary — it's a general time abstraction that simply
+happens to be used by the event-recording mixin here — so it does not
+belong nested under either package's `events/` folder.** It gets its own
+small `time/` package on each side instead:
 
 ```python
-# src/core/shared/events/clock.py
+# src/core/shared/time/clock.py
 from typing import Protocol
 from datetime import datetime
 
@@ -189,48 +200,70 @@ class Clock(Protocol):
 ```
 
 ```python
-# src/infra/events/system_clock.py
+# src/infra/time/system_clock.py
 from datetime import datetime, timezone
-from src.core.shared.events.clock import Clock
+from src.core.shared.time.clock import Clock
 
 class SystemClock:
     def now(self) -> datetime:
         return datetime.now(timezone.utc)
 ```
 
-`SystemClock` sits alongside `InProcessDomainEventBus` and the other
-concrete event-infrastructure implementations in `src/infra/events/`
-(§2.14 file tree), rather than in `src/infra/platform/`'s more general,
-not-events-specific grab-bag of app-wide utilities — since here it's
-specifically serving the domain-event mixin's timestamping need, not a
-standalone general-purpose utility.
+`SystemClock` lives beside the event bus implementations only in the
+sense that both are under `src/infra/`, not in the same package — it gets
+its own `src/infra/time/` (§2.3.1 file tree), separate from
+`src/infra/events/` and from `src/infra/platform/`'s more general,
+not-time-specific grab-bag of app-wide utilities, since a future consumer
+that needs `Clock` but has nothing to do with domain events (e.g. an
+audit-log timestamp, a rate-card effective-date check) should not have to
+import through an `events` package to get it.
 
 ### 2.3.1 File placement (full tree, corrected)
 
 ```text
 src/core/shared/events/
   domain_event.py                  # DomainEvent marker protocol
-  clock.py                         # Clock protocol
   aggregate_events.py              # RecordsDomainEvents mixin
   domain_event_publisher.py        # TransactionalEventPublisher + PostCommitEventPublisher
-  domain_event_subscriber.py       # TransactionalEventSubscriber + PostCommitEventSubscriber
+  domain_event_subscriber.py       # TransactionalEventHandler/PostCommitEventHandler
+                                    # + TransactionalEventSubscriber/PostCommitEventSubscriber
   subscription.py                  # Subscription protocol (dispose)
-  unit_of_work.py                  # UnitOfWork protocol (§2.6/§2.7)
-  view_invalidation.py             # ViewInvalidationHint + channel contract
+  unit_of_work.py                  # UnitOfWork + UnitOfWorkFactory protocols (§2.6/§2.7)
+  view_invalidation.py             # ViewInvalidationHint + ViewInvalidationHandler
+                                    # + channel contract
   signal.py                        # existing generic Signal[T] primitive — unchanged
 
+src/core/shared/time/
+  clock.py                         # Clock protocol — general time abstraction,
+                                    # not events-specific; used BY aggregate_events.py
+
 src/infra/events/
-  system_clock.py                       # concrete Clock implementation
   in_process_transactional_event_bus.py  # FAIL_FAST, handlers take (event, uow)
   in_process_post_commit_event_bus.py    # ISOLATE_AND_CONTINUE, handlers take (event)
   in_process_view_invalidation_channel.py  # non-marshaling concrete channel
+
+src/infra/time/
+  system_clock.py                  # concrete Clock implementation
+
+src/infra/persistence/db/
+  unit_of_work.py                  # REPLACED (0 callers on session_scope() — §2.6.1):
+                                    # now the concrete SqlAlchemyUnitOfWork (aggregate
+                                    # tracking + event coordination); owns a Session
+                                    # plus the two buses above as collaborators
+
+src/infra/composition/
+  app_container.py                 # build_service_graph(session) — creation site for
+                                    # SqlAlchemyUnitOfWork/UnitOfWorkFactory, alongside
+                                    # today's RepositoryBundle (§2.6.1)
 
 src/ui_qml/infrastructure/events/
   qt_view_invalidation_channel.py   # Qt main-thread-marshaling channel
 ```
 
 Contracts and the one genuinely generic primitive (`Signal`) stay in
-`shared/events/`; every concrete implementation that isn't Qt-specific
+`shared/events/`; `Clock` gets its own `shared/time/`/`infra/time/` pair
+since it's general-purpose, not events-specific; every other concrete
+implementation that isn't Qt-specific
 lives in `infra/events/`; the Qt-marshaling implementation is UI-owned
 under `ui_qml/`, keeping Qt imports out of `src/core/` and `src/infra/`.
 
@@ -276,18 +309,44 @@ class PostCommitEventPublisher(Protocol):
     def publish(self, event: DomainEvent) -> None: ...
 ```
 
+**Further correction: the handler shape must be a named contract element,
+not an inline `Callable[...]` repeated at every use site.** An anonymous
+`Callable[[E, UnitOfWork], None]` typed directly on `subscribe()`'s
+parameter is easy to let drift — the bus's internal handler registry, the
+registration-function signatures in §2.11, and any future adapter all had
+their own copy of the same shape with nothing forcing them to agree, and
+nothing for a type checker or an IDE to name back at you when they don't.
+**Fix: each handler shape gets its own `Protocol`, and every signature
+that accepts or stores a handler is typed against that `Protocol`, never
+against a raw `Callable`:**
+
 ```python
 # src/core/shared/events/domain_event_subscriber.py
+class TransactionalEventHandler(Protocol[E]):
+    def __call__(self, event: E, uow: UnitOfWork) -> None: ...
+
+class PostCommitEventHandler(Protocol[E]):
+    def __call__(self, event: E) -> None: ...
+
 class TransactionalEventSubscriber(Protocol):
     def subscribe(
-        self, event_type: type[E], handler: Callable[[E, UnitOfWork], None]
+        self, event_type: type[E], handler: TransactionalEventHandler[E]
     ) -> Subscription: ...
 
 class PostCommitEventSubscriber(Protocol):
     def subscribe(
-        self, event_type: type[E], handler: Callable[[E], None]
+        self, event_type: type[E], handler: PostCommitEventHandler[E]
     ) -> Subscription: ...
 ```
+
+Any plain function or lambda with a matching parameter list still
+satisfies these structurally — `Protocol` with `__call__` doesn't require
+handlers to subclass anything, it only gives the shape a name. That name
+is what now appears everywhere a handler is stored or passed — the bus's
+internal registry (§2.9) and the registration-function parameters (§2.11)
+— instead of each of those re-declaring `Callable[[E, UnitOfWork], None]`
+or `Callable[[E], None]` on its own and risking the two falling out of
+sync.
 
 A cross-aggregate transactional handler now has an unambiguous answer to
 "which repository and transaction":
@@ -338,13 +397,19 @@ class TaskApplicationService:
             uow.commit()  # event coordination happens inside commit()
 ```
 
-**`UnitOfWork` is a new abstraction this ADR introduces — it does not
-exist in this codebase today.** Checked before writing this: application
-services currently take an already-constructed SQLAlchemy `Session` plus
-already-constructed repositories directly as constructor parameters, all
-wired together at the composition root — there is no existing unit-of-work
-type to build on. This ADR's `UnitOfWork` is deliberately minimal, and
-does **not** propose replacing that existing constructor-injection
+**`UnitOfWork` — the aggregate-tracking, event-coordinating abstraction —
+is new; it does not exist in this codebase today.** Checked before
+writing this: application services currently take an already-constructed
+SQLAlchemy `Session` plus already-constructed repositories directly as
+constructor parameters, all wired together at the composition root.
+There *is* a same-named file, `src/infra/persistence/db/unit_of_work.py`
+— but it currently contains only a `session_scope()` transaction-boundary
+helper, not a class with aggregate tracking or event coordination; see
+§2.6.1 for the exact distinction, why that helper turns out to have zero
+callers, and why the concrete implementation reclaims that same file
+rather than being parked under a different name. This ADR's `UnitOfWork`
+is deliberately minimal,
+and does **not** propose replacing the existing constructor-injection
 pattern everywhere. Its only new responsibilities are event coordination
 (§2.7) and exposing the same `session` a handler needs to build a
 repository the same way services already do:
@@ -353,10 +418,33 @@ repository the same way services already do:
 class UnitOfWork(Protocol):
     session: Session  # the same Session type already used throughout this codebase
 
+    def __enter__(self) -> "UnitOfWork": ...
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None: ...
     def register_touched(self, aggregate: RecordsDomainEvents) -> None: ...
-    def tracked_aggregates(self) -> frozenset[RecordsDomainEvents]: ...
+    def tracked_aggregates(self) -> tuple[RecordsDomainEvents, ...]: ...
     def commit(self) -> None: ...
+
+class UnitOfWorkFactory(Protocol):
+    def create(self) -> UnitOfWork: ...
 ```
+
+**Correction: the usage example above (`with self._uow_factory.create() as
+uow:`) requires context-manager support that the protocol didn't
+declare.** `__enter__`/`__exit__` are part of the contract, not an
+implementation-only detail — `__exit__` rolls back (discarding the
+aggregate instances per §2.8) if an exception propagated out of the
+`with` block before `commit()` was reached; on a clean exit it does
+nothing further. Unlike the existing `session_scope()` (§2.6.1),
+`__exit__` never auto-commits on clean exit — `commit()` must always be
+called explicitly inside the block, since that's where event coordination
+happens (§2.7) and it must never happen implicitly. `UnitOfWorkFactory` is
+the thing application services actually hold (`uow_factory: UnitOfWorkFactory`
+in the example above) — it, not `UnitOfWork` itself, is the constructor
+dependency, since a fresh `UnitOfWork` is created per transaction.
+
+`tracked_aggregates()` returns a `tuple`, not a `frozenset` — see §2.7:
+domain aggregates are not guaranteed hashable, so a `set`/`frozenset` of
+them is not a safe contract return type.
 
 Aggregates loaded through `uow.tasks`/`uow.projects`/etc.-style
 convenience accessors (however a given concrete `UnitOfWork` chooses to
@@ -392,6 +480,95 @@ case, not the common path) — it would never take
 `TransactionalEventPublisher` directly, since publishing transactionally
 without the current `uow` is exactly the gap this section closes.
 
+#### 2.6.1 Concrete placement and creation site
+
+**Correction: `src/infra/persistence/db/unit_of_work.py` already exists —
+checked, and it is not this abstraction.** Its entire content is one
+function:
+
+```python
+# src/infra/persistence/db/unit_of_work.py — EXISTING code, unchanged by this ADR
+@contextmanager
+def session_scope() -> Generator[Session, None, None]:
+    session = SessionLocal()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+```
+
+That's a bare transaction-boundary helper: get a `Session`, commit or
+roll it back, always close it. It has no aggregate tracking, no
+`register_touched`/`tracked_aggregates`, and no event coordination — it
+solves "give every repository the same session for one transaction,"
+which is a real but different problem than this ADR's "know which
+aggregates changed so their recorded events can be drained and
+dispatched."
+
+**Correction (superseding the first cut at this section): `session_scope()`
+has zero callers anywhere in `src/`.** Checked directly — it is defined
+and never imported or invoked elsewhere; `src/ui_qml/shell/app.py` builds
+its session with `SessionLocal()` directly, not through this helper. It
+is dead code left over from the platform layer-first restructure, which
+deliberately chose the name `unit_of_work.py` for this file (see
+`docs/repo_structure_plan/README.md`/`EXECUTION_SPEC.md`) without yet
+putting a real Unit of Work behind it.
+
+**Given that, parking the real implementation under an awkwardly
+disambiguated `sqlalchemy_unit_of_work.py` — the first cut at this
+section — was the wrong call.** Enterprise-standard naming says the file
+called `unit_of_work.py` should *be* the Unit of Work; a reader grepping
+for the pattern expects to find it there, not a bare session-scope
+helper wearing its name. Since nothing depends on `session_scope()`,
+there is no real migration cost to reclaiming the name — no import site
+needs repointing. **Decision: `SqlAlchemyUnitOfWork` claims
+`src/infra/persistence/db/unit_of_work.py` directly; `session_scope()`'s
+try/commit/except-rollback/finally-close shape is folded in as the
+private helper the new class's `__enter__`/`__exit__` use internally**
+(the same behavior, just no longer a free-standing, unused public
+function) — nothing is deleted outright, since that same shape is
+exactly what rollback-on-exception (§2.8) needs:
+
+```text
+src/core/shared/events/unit_of_work.py   # UnitOfWork + UnitOfWorkFactory protocols (contract only — §2.6)
+src/infra/persistence/db/unit_of_work.py  # REPLACED — was session_scope() only (0 callers);
+                                          # now the concrete SqlAlchemyUnitOfWork, with the
+                                          # same try/commit/rollback/close shape folded in
+                                          # as a private helper used by __enter__/__exit__
+```
+
+`SqlAlchemyUnitOfWork` sits under `src/infra/persistence/db/` — the same
+package as `engine.py`/`session_factory.py` — rather than under
+`src/infra/events/`, since its primary job is transaction and
+aggregate-tracking, not event dispatch; it *owns* a
+`transactional_event_bus`/`post_commit_event_bus` pair (both from
+`src/infra/events/`) as collaborators, the same way it owns a `Session`.
+
+**Where instances get created:** composition in this codebase is
+centralized, not per-module — repositories are already built this way in
+`src/infra/composition/repositories.py` (`RepositoryBundle`, one instance
+per `Session`, e.g. `task_repo=SqlAlchemyTaskRepository(session)`) and
+wired together in `src/infra/composition/app_container.py`'s
+`build_service_graph(session)` / `build_service_dict(session)`, both
+called from `src/ui_qml/shell/app.py`'s `build_services()` with the one
+process-lifetime `Session` that function creates. A `UnitOfWork`/
+`UnitOfWorkFactory` is created the same way, at the same place —
+`build_service_graph(session)` builds one `SqlAlchemyUnitOfWork` (or a
+factory closing over `session`, the two registered buses, and the
+outbox repository) alongside today's `RepositoryBundle`, and hands it
+into each module's registry function exactly as `RepositoryBundle`
+already is — e.g. `src/infra/composition/project_registry.py`'s
+`build_project_management_service_bundle(session, repositories,
+platform_services)` gains a `uow`/`uow_factory` parameter, which is what
+`TaskApplicationService.__init__(self, uow_factory: UnitOfWorkFactory,
+clock: Clock)` above actually receives at construction time. No new
+composition mechanism is introduced — this follows the exact
+shape already established for repositories.
+
 ### 2.7 The unit-of-work flow, with dynamic aggregate discovery (gap fixed)
 
 The previous revision's draining loop read only from a frozen
@@ -406,15 +583,48 @@ list handed in up front.** Repositories register an aggregate with the
 UoW whenever one is loaded, added, or otherwise touched — including by a
 transactional handler mid-dispatch:
 
-```python
-# extends the UnitOfWork protocol shape introduced in §2.6
-class UnitOfWork:
-    def register_touched(self, aggregate: RecordsDomainEvents) -> None:
-        self._tracked_aggregates.add(aggregate)  # identity-based set
+**Correction: a plain `set`/`frozenset` is the wrong data structure here.**
+The previous revision's `self._tracked_aggregates.add(aggregate)` assumed
+a hashable-by-identity `set`, but Python doesn't give objects
+identity-based hashing for free — a mutable dataclass or domain entity
+that defines `__eq__` (most of this codebase's aggregates do, for
+business-key equality) has its `__hash__` implicitly set to `None` unless
+it's frozen or explicitly opts back in, so `.add(aggregate)` raises
+`TypeError: unhashable type` the first time this runs against a real
+aggregate. Even for the aggregates that *are* hashable, a `set` still
+dedups by `__eq__`, not by `id()` — two distinct in-memory instances that
+compare equal would collapse into one, which is exactly the wrong
+semantics for "every object touched during this unit of work," including
+transient instances that are equal-by-key but not the same object.
 
-    def tracked_aggregates(self) -> frozenset[RecordsDomainEvents]:
-        return frozenset(self._tracked_aggregates)
+**Fix: track by `id()` in a plain dict — an identity map — never a
+`set`:**
+
+```python
+# src/infra/persistence/db/unit_of_work.py — extends the UnitOfWork
+# protocol shape introduced in §2.6 (concrete placement and creation
+# site: §2.6.1)
+class SqlAlchemyUnitOfWork:
+    def __init__(self) -> None:
+        self._tracked_aggregates: dict[int, RecordsDomainEvents] = {}
+
+    def register_touched(self, aggregate: RecordsDomainEvents) -> None:
+        self._tracked_aggregates[id(aggregate)] = aggregate
+
+    def tracked_aggregates(self) -> tuple[RecordsDomainEvents, ...]:
+        return tuple(self._tracked_aggregates.values())
 ```
+
+Keying by `id(aggregate)` gives genuine identity-based dedup regardless
+of whether the aggregate defines `__eq__`/`__hash__` at all — registering
+the same object twice is a no-op (same `id()`, same dict slot), while two
+distinct-but-equal instances are correctly tracked as two separate
+entries. The dict also holds a strong reference to each aggregate for the
+lifetime of the unit of work, so there's no risk of an `id()` being
+reused by a different, garbage-collected object while the UoW is still
+open. `tracked_aggregates()` returns a `tuple`, not a `frozenset` — the
+values may themselves be unhashable, and callers only ever iterate this,
+never need set operations on it.
 
 Every repository `get()`/`add()` call registers the returned aggregate.
 Each drain round reads the UoW's *current* tracked set, not a snapshot
@@ -531,7 +741,11 @@ from threading import RLock
 
 class InProcessPostCommitEventBus(PostCommitEventPublisher, PostCommitEventSubscriber):
     def __init__(self) -> None:
-        self._handlers: dict[type, list[Callable]] = {}
+        # Keyed by concrete event type; each stored handler is checked
+        # against the named PostCommitEventHandler protocol at subscribe()
+        # time, not a bare Callable — see the "named contract element" fix
+        # in §2.5.
+        self._handlers: dict[type, list[PostCommitEventHandler]] = {}
         self._queue: deque[DomainEvent] = deque()
         self._dispatching = False
         self._lock = RLock()
@@ -571,7 +785,11 @@ class InProcessPostCommitEventBus(PostCommitEventPublisher, PostCommitEventSubsc
 ```
 
 `InProcessTransactionalEventBus` has the identical queue/lock/drain
-shape — `publish(self, event, uow)` and `_dispatch_one(self, event, uow)`
+shape and the same `self._handlers: dict[type, list[TransactionalEventHandler]]`
+registry typing (against `TransactionalEventHandler`, not `PostCommitEventHandler`
+— the two are not interchangeable, so a handler registered on the wrong
+bus fails at subscribe() time instead of at the first missing-`uow`
+`TypeError`) — `publish(self, event, uow)` and `_dispatch_one(self, event, uow)`
 each carry the extra `uow` parameter through to `handler(event, uow)` —
 with one difference: it is `FAIL_FAST`, so `_dispatch_one` does **not**
 catch the handler's exception, and `_drain`'s loop needs its own
@@ -620,8 +838,10 @@ safety.** Whether a *transactional* bus instance should even accept
 publishes from more than one thread concurrently (a single UoW/transaction
 is normally single-threaded already, which may make this moot for that
 bus) versus whether the *post-commit* bus needs to tolerate concurrent
-publishes from multiple background workers is still an open decision — see
-§2.14.
+publishes from multiple background workers is still an open decision —
+see "Open Items Before This Can Move to Accepted" below (this is not yet
+a numbered Decision subsection; it's the one item still blocking
+Accepted status).
 
 ### 2.10 The view-invalidation channel — two independent isolation layers
 
@@ -635,15 +855,24 @@ class ViewInvalidationHint:
     entity_type: str
     entity_id: str | None = None
 
+class ViewInvalidationHandler(Protocol):
+    def __call__(self, hint: ViewInvalidationHint) -> None: ...
+
 class ViewInvalidationChannel(Protocol):
     def notify(self, hint: ViewInvalidationHint) -> None: ...
     def subscribe(
         self,
-        handler: Callable[[ViewInvalidationHint], None],
+        handler: ViewInvalidationHandler,
         *,
         tenant_id: str,
     ) -> Subscription: ...
 ```
+
+Same rule as §2.5: the handler shape is a named `Protocol`
+(`ViewInvalidationHandler`), not an inline `Callable[[ViewInvalidationHint],
+None]` — this is exactly the same kind of stored-callback contract as
+`TransactionalEventHandler`/`PostCommitEventHandler`, so it gets the same
+treatment for the same reason.
 
 `kw_only=True`; `entity_id` optional for hints that don't correspond to
 one entity (auth changes, tenant switches, bulk recalculation). `category`
@@ -687,8 +916,8 @@ it gets its own, clearly-named method:
 ```python
 class ViewInvalidationChannel(Protocol):
     def notify(self, hint: ViewInvalidationHint) -> None: ...
-    def subscribe(self, handler: ..., *, tenant_id: str) -> Subscription: ...
-    def subscribe_across_tenants(self, handler: ...) -> Subscription: ...
+    def subscribe(self, handler: ViewInvalidationHandler, *, tenant_id: str) -> Subscription: ...
+    def subscribe_across_tenants(self, handler: ViewInvalidationHandler) -> Subscription: ...
 ```
 
 so a cross-tenant subscription is a deliberate, searchable, auditable
@@ -855,16 +1084,35 @@ ADR-PF-011; it only keeps this ADR's own description consistent with it.
   since the transaction is already closed by the time they run.
 - `UnitOfWork` gains dynamic aggregate tracking (`register_touched`,
   `tracked_aggregates`) so the draining loop can't miss aggregates touched
-  by handlers mid-dispatch.
-- `src/core/shared/events/` holds contracts + `Signal` + the `Clock`
-  protocol; concrete buses and `SystemClock` live together in
-  `src/infra/events/`; the Qt-marshaling channel lives in
-  `src/ui_qml/infrastructure/events/`.
+  by handlers mid-dispatch — tracked in an identity map (keyed by
+  `id(aggregate)`), not a `set`, since aggregates are not guaranteed
+  hashable and a `set` would dedup by equality, not identity, anyway
+  (§2.7).
+- `src/core/shared/events/` holds contracts + `Signal`; `src/core/shared/
+  time/clock.py` holds the general-purpose `Clock` protocol (not
+  events-specific); concrete buses live in `src/infra/events/` and
+  `SystemClock` lives in `src/infra/time/`; the Qt-marshaling channel
+  lives in `src/ui_qml/infrastructure/events/`.
+- Concrete `SqlAlchemyUnitOfWork` replaces the content of
+  `src/infra/persistence/db/unit_of_work.py` — checked, its existing
+  `session_scope()` helper has zero callers anywhere in `src/`, so
+  reclaiming the enterprise-standard name for the real Unit of Work costs
+  no import-site migration; `session_scope()`'s commit/rollback/close
+  shape is folded in as the private helper `__enter__`/`__exit__` use
+  internally (§2.6.1). Instances are created in
+  `src/infra/composition/app_container.py`'s `build_service_graph(session)`,
+  the same centralized composition point that already builds today's
+  `RepositoryBundle`.
 - Subscription ownership is explicit at both the module (composition-root
   registry, app-shutdown disposal) and controller (self-owned,
   teardown-time disposal) level.
 
 ## Migration Impact
+
+See [ADR-005-execution-plan.md](ADR-005-execution-plan.md) for the
+concrete, per-phase sequencing (which module goes first and why, exit
+criteria per phase, and the still-open platform-signals decision). This
+section states the general rule that plan follows.
 
 Pick one module, smallest event count first. Add its `domain/events.py`
 with `tenant_id` on every tenant-scoped event; adopt `RecordsDomainEvents`
@@ -897,6 +1145,12 @@ module.
 - A transactional handler that loads or creates a *different* aggregate,
   which itself records an event, causes that event to be discovered and
   dispatched too — not silently dropped (the §2.7 fix, directly tested).
+- `register_touched` accepts an aggregate that defines `__eq__` but not
+  `__hash__` (i.e. is unhashable) without raising — and registering the
+  *same* object twice does not double-count it, while two distinct
+  instances that compare equal are still tracked as two separate entries
+  (identity, not equality, semantics — the §2.7 identity-map fix, directly
+  tested).
 - Handler dispatch is by exact event type only.
 - One failing post-commit **adapter** does not block other adapters
   (bus-level isolation); separately, one failing **controller callback**
@@ -915,8 +1169,9 @@ module.
   round ceiling rather than hanging.
 - Two threads calling `publish()` on the same bus concurrently do not
   corrupt the internal queue or double-dispatch (bus-level thread safety,
-  independent of whatever thread-confinement policy §2.14 eventually
-  decides).
+  independent of whatever thread-confinement policy is eventually decided
+  per the still-open item in "Open Items Before This Can Move to
+  Accepted").
 - A `publish()` that arrives at the exact moment a drain loop is checking
   "is the queue empty" is never stranded — it either gets picked up by the
   in-progress drain, or `_dispatching` has genuinely already flipped back
@@ -955,17 +1210,47 @@ Resolved across this and subsequent follow-up corrections: the missing
 `tenant_id` field, the application-service-vs-UoW ownership
 contradiction, dynamic aggregate discovery in the draining loop, the
 rollback-reuse hazard, `Clock`'s contract/implementation placement
-(and its final home in `shared/events/` + `infra/events/`, not
-`infra/platform/`), the bus's internal thread-safety, explicit
-subscription ownership at both lifetimes, structural (not
+(and its final home in `shared/time/clock.py` + `infra/time/system_clock.py`
+— its own general-purpose package, not nested under either side's
+`events/`, and not `infra/platform/`), the bus's internal thread-safety,
+explicit subscription ownership at both lifetimes, structural (not
 binder-discipline) tenant enforcement on `ViewInvalidationChannel.subscribe()`,
-the empty-queue/`_dispatching`-flip race in the bus's drain loop, and —
-this round — transactional handlers receiving the current `UnitOfWork`
-so cross-aggregate updates share the triggering aggregate's own
+the empty-queue/`_dispatching`-flip race in the bus's drain loop,
+transactional handlers receiving the current `UnitOfWork` so
+cross-aggregate updates share the triggering aggregate's own
 session/transaction instead of an ambiguous, separately-injected
-repository.
+repository, the handler shape itself promoted from an inline
+`Callable[...]` repeated per call site to named
+`TransactionalEventHandler`/`PostCommitEventHandler` protocols that every
+subscriber contract, bus registry, and registration function now types
+against consistently; `UnitOfWork` aggregate tracking switched from a
+`set`/`frozenset` (which requires hashability and dedups by equality, not
+identity) to an `id()`-keyed identity map returning a `tuple`; and — from
+an end-to-end consistency pass over the whole document — six internal
+inconsistencies: two phantom `§2.14` cross-references pointing at a
+Decision subsection that was never written (reworded to point at this
+section instead); `ViewInvalidationChannel.subscribe()` still typing its
+handler as a raw `Callable` after §2.5 had already established that
+handler shapes must be named protocols (added `ViewInvalidationHandler`
+to match); the `UnitOfWork` protocol missing the `__enter__`/`__exit__`
+methods its own usage example depends on, and `UnitOfWorkFactory` being
+used in two places without ever being defined (both added to §2.6); the
+concrete aggregate-tracking example in §2.7 still being named
+`UnitOfWork` instead of the `SqlAlchemyUnitOfWork` name §2.6.1 later
+established; and this document's own header/Context undercounting how
+many review rounds it has actually been through. One further correction
+after that pass: §2.6.1's first cut parked `SqlAlchemyUnitOfWork` under a
+disambiguated `sqlalchemy_unit_of_work.py` to avoid the existing
+`unit_of_work.py`/`session_scope()` filename — checked, and
+`session_scope()` has zero callers anywhere in `src/`, so the real
+`UnitOfWork` now reclaims `unit_of_work.py` directly (the
+enterprise-standard expectation for that name), with `session_scope()`'s
+shape folded in as a private helper rather than left stranded as unused
+public code.
 
-**§2.14 — still genuinely open, and now broader than before:**
+**Still genuinely open, and now broader than before** (referenced above
+from §2.9 as future work — not yet promoted to its own numbered Decision
+subsection, since the answer isn't settled):
 
 1. Which specific call sites can publish from a non-Qt-main thread (needed
    to build `qt_view_invalidation_channel.py`'s marshaling behavior).
