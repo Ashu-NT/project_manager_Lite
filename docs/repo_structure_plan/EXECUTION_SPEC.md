@@ -259,9 +259,12 @@ src/core/platform/infrastructure/persistence/
   repositories/<group>/<module>/<file>.py
 ```
 
-**Note (2026-08-04):** platform's internal layering (domain/application/
-contracts) moved from capability-first to layer-first per
-[`repo_structure_plan/PLATFORM_LAYER_FIRST_RESTRUCTURE.md`](./PLATFORM_LAYER_FIRST_RESTRUCTURE.md).
+**Note (2026-08-04, completed 2026-08-05):** platform's internal layering
+(domain/application/contracts) moved from capability-first to layer-first
+per
+[`repo_structure_plan/PLATFORM_LAYER_FIRST_RESTRUCTURE.md`](./PLATFORM_LAYER_FIRST_RESTRUCTURE.md)
+— all 10 phases of that migration are complete, including `src/api/`
+retiring entirely.
 The placement rule above was originally left unchanged by that move (a
 single flat shared tree, not re-split by content group), but a follow-up
 request reversed that: `mappers/`, `orm/`, and `repositories/` now each

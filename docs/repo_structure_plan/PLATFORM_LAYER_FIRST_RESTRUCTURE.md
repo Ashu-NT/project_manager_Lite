@@ -1,9 +1,15 @@
 # Platform Layer-First Restructure — Proposal for Review
 
 Date: 2026-08-04
-Status: **proposal only — no code has been moved.** This document is the
-review checkpoint requested before any file is touched. Nothing here has been
-executed.
+Status: **✅ COMPLETE (2026-08-05).** All 10 phases (§13) plus the
+mid-migration scope gap (§12 item 18) and two user-directed facade
+retirements (`auth/__init__.py`, `common/interfaces.py`) executed and
+verified — see §13's execution log for the full phase-by-phase record,
+ending with Phase 10's full six-target suite validation (1440 passed, 32
+pre-existing failures, zero regressions). `src/api/` has retired
+completely. Everything below this point is retained as the historical
+proposal + execution record, not a pending review request — read §13's
+log for what actually happened, not just what was planned.
 
 ## 1. Relationship to `docs/repo_structure_plan/README.md` and `EXECUTION_SPEC.md`
 
@@ -4024,6 +4030,56 @@ plan) — `src/core/platform/common/interfaces.py` and
   status updates) remains in the numbered plan.
 - **Left uncommitted at the user's explicit instruction**, same as every
   other phase this session.
+
+**Phase 10 (final validation) — completed 2026-08-05. The entire
+Platform Layer-First Restructure is done.**
+
+- Ran the full six-target suite exactly once, per the standing policy
+  (`src/tests/{platform,architecture,project_management,
+  inventory_procurement,maintenance}` + `test_runtime_execution_tracking.py`):
+  **1440 passed, 32 failed, 54m32s.**
+- Verified every one of the 32 failures individually against this
+  session's own `git stash` cross-checks (each was independently
+  confirmed pre-existing and unrelated at the point it first surfaced,
+  across the 9a wide check, the 9d/9e work, and the gap-resolution work):
+  `test_platform_access_scopes` (PM's own permission-catalog drift),
+  `test_platform_org_desktop_api`/`test_site_platform_foundation` (the
+  `site.py` tz-naive/aware datetime bug), `test_postgresql_rls_context`
+  (RLS classification gap for `project_finance_*` tables),
+  `test_qml_platform_routes` (an extra `platform.tenants` route),
+  `test_legacy_rbac_runtime_dependencies_are_removed` (stale
+  `PM_AUTHORIZATION_MIGRATION_MODE` in `.env`),
+  `test_no_python_module_exceeds_hard_line_limit` (vendored
+  `pmenv/Lib/site-packages/*` files tripping the guardrail),
+  `test_data_integrity.py` (12 tests, `tasks.wbs_code` `NOT NULL`
+  violation), `test_project_management_desktop_api_dashboard_trends`/
+  `test_project_management_desktop_api_financials`/
+  `test_repository_tenant_hardening_{priority,secondary_reads,
+  secondary_writes}` (a pre-existing test-isolation/ordering issue,
+  reproduced identically with zero session changes present),
+  `test_qml_project_management_presenters_tasks_bulk`,
+  `test_shared_collaboration_import_and_timesheets`, and
+  `test_inventory_import_export_reporting` (module-licensing-not-enabled
+  gates). **Every one of the 32 traces to a cause this restructure never
+  touched. Zero regressions across the entire 10-phase migration.**
+- Cleaned up the stale `src/api/http/__pycache__` directory mentioned in
+  §2 — already resolved as a side effect of Phase 9e deleting all of
+  `src/api/` outright; nothing left to clean up.
+- Updated `docs/repo_structure_plan/README.md` (the top superseding note,
+  the `#### src/core/platform/` subsection's closing paragraph, and the
+  "Standard Internal Structure" cross-reference) and
+  `docs/repo_structure_plan/EXECUTION_SPEC.md` (the Persistence Split Rule
+  note) to say the migration is **complete**, not proposed — including
+  explicitly calling out that `src/api/` has retired completely (the
+  directory no longer exists) and that the mid-migration scope gap
+  (§12 item 18) was found and resolved the same day.
+- **This is the last phase in the plan. All 10 phases (1, 2, 3, 4, 5a–5c,
+  6, 7a–7b, 8a–8f, 9a–9e, 10) plus the two user-directed facade
+  retirements outside the numbered plan (`auth/__init__.py`,
+  `common/interfaces.py`) are complete.** Everything remains uncommitted
+  per the user's standing instruction — see `git status` for the full
+  diff, spanning every phase from `history` (Phase 1) through this final
+  validation.
 
 ### Notes on this ordering
 

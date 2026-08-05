@@ -17,32 +17,37 @@ As of 2026-05-19, the migration/cutover is complete at the desktop-runtime level
 
 Historical notes later in this document are kept as migration trace, but if they describe QWidget paths as still active, the current status above wins.
 
-**Superseding note (2026-08-04):** the `src/core/platform/` subsection below
-("mini-module pattern": each capability owns its own `domain/application/
-contracts` internally) is superseded by
-[`PLATFORM_LAYER_FIRST_RESTRUCTURE.md`](./PLATFORM_LAYER_FIRST_RESTRUCTURE.md).
-The new target is layer-first: `application/`, `domain/`, `contract/`,
-`infrastructure/`, `access/`, `api/` become the direct children of
+**Superseded (2026-08-04, completed 2026-08-05):** the `src/core/platform/`
+subsection below used to describe a "mini-module pattern" (each capability
+owning its own `domain/application/contracts` internally). That has been
+replaced by the layer-first restructure documented in full in
+[`PLATFORM_LAYER_FIRST_RESTRUCTURE.md`](./PLATFORM_LAYER_FIRST_RESTRUCTURE.md)
+— **all 10 phases of that plan are now complete.** `application/`, `domain/`,
+`contract/`, `infrastructure/`, `access/`, `api/` are the direct children of
 `src/core/platform/`, with capabilities grouped by content into 8 groups
 (`tenant`, `master_data`, `history`, `security`, `approval`,
 `time_management`, `data_operations`, `events`) *inside* each layer (e.g.
-`application/master_data/department/`). `src/api/` and `src/application/`
-are folded down to nearly nothing: `src/api/` retires completely, and
-`src/application/` shrinks to a single cross-module orchestrator file
+`application/master_data/department/`). `src/api/` **has retired
+completely — the directory no longer exists**, and `src/application/`
+shrinks to a single cross-module orchestrator file
 (`runtime/desktop_api_registry.py`). Everything platform-owned that used to
-live in those two packages — including `entitlement_runtime.py` and
-`platform_runtime.py` — moves into `src/core/platform/`. Additional
-follow-up investigations (all in the linked doc, not restated here) found:
-the `auth`/`authorization` split (§4a), `finance` staying at the base level
-(§4b), the `src/application`/`src/api` runtime rearrangement (§4c),
+live in those two packages — including `entitlement_runtime.py` (eliminated
+entirely, not relocated — see §4c) and `platform_runtime.py` — now lives in
+`src/core/platform/`. Additional follow-up investigations (all in the
+linked doc, not restated here) found and resolved: the `auth`/`authorization`
+split (§4a), `finance` staying at the base level (§4b), the
+`src/application`/`src/api` runtime rearrangement (§4c),
 `infrastructure/persistence/{mappers,orm,repositories}` regrouped the same
-way as `application/` (§5a), and `calendar/` de-flattened plus one
-misfiled Protocol found and relocated (§5b). `src/core/modules/*`,
-`src/infra/*`, and `src/ui_qml/*` still follow the capability-first / QML
-guidance below as-is — this is scoped to `src/core/platform/`, `src/api/`,
-and `src/application/` only. See that document for the full grouping
-taxonomy, file-by-file mapping, and import-impact analysis before touching
-platform code.
+way as `application/` (§5a), `calendar/` de-flattened plus one misfiled
+Protocol relocated (§5b), and a scope gap found mid-migration — `access`,
+`calendar` models, `support`, and `user` desktop-API adapters plus two
+lingering permanent facades (`core/platform/auth/`,
+`core/platform/common/interfaces.py`) — resolved the same day it was found
+(§12 item 18). `src/core/modules/*`, `src/infra/*`, and `src/ui_qml/*` still
+follow the capability-first / QML guidance below as-is — this was scoped to
+`src/core/platform/`, `src/api/`, and `src/application/` only. See that
+document's execution log for the full phase-by-phase record, file-by-file
+mapping, and import-impact analysis.
 
 ## Instruction Precedence
 
@@ -432,7 +437,7 @@ below.
 
 Platform capabilities do **not** follow this per-capability pattern anymore
 — see the superseding note above and `#### src/core/platform/` earlier in
-this document for the actual (layer-first) target structure.
+this document for the actual (layer-first) structure, now fully in place.
 
 Subfolder rule (applies to `src/core/modules/<module_name>/`):
 
