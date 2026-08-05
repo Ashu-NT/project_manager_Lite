@@ -7,7 +7,7 @@ from src.core.modules.project_management.contracts.repositories.task import (
     TaskRepository,
 )
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
-from src.core.platform.access.authorization import require_project_permission
+from src.core.modules.project_management.access.scope_permissions import require_project_permission
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import ValidationError
 from src.core.modules.project_management.domain.enums import TaskStatus

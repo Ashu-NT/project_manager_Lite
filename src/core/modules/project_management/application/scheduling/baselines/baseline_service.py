@@ -21,7 +21,7 @@ from src.core.modules.project_management.contracts.repositories.baseline import 
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.domain.approval.policy import is_governance_required
-from src.core.platform.access.authorization import require_project_permission
+from src.core.modules.project_management.access.scope_permissions import require_project_permission
 from src.core.shared.activity import record_activity
 from src.core.platform.application.security.authorization.enforcement.permission_checks import is_admin_session, require_permission
 from src.core.modules.project_management.application.scheduling.services.scheduling_engine import SchedulingEngine

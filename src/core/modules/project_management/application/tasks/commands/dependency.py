@@ -4,7 +4,7 @@ from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from src.core.modules.project_management.domain.tasks.task import TaskDependency
-from src.core.platform.access.authorization import require_project_permission
+from src.core.modules.project_management.access.scope_permissions import require_project_permission
 from src.core.platform.domain.approval.policy import is_governance_required
 from src.core.shared.activity import record_activity
 from src.core.platform.application.security.authorization.enforcement.permission_checks import is_admin_session, require_permission

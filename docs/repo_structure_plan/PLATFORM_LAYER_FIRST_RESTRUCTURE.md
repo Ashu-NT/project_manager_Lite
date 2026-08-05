@@ -3387,6 +3387,65 @@ deferred `infrastructure/persistence` regrouping) — completed 2026-08-05.**
   **Phase 8f** remaining (`access/authorization.py` update + the §5c PM
   extraction).
 
+**Phase 8f (`access/authorization.py` update + §5c PM extraction) —
+completed 2026-08-05. This is the one phase in the whole plan that reaches
+outside `src/core/platform/`.**
+
+- The `get_authorization_engine()`/`record_authorization_denial` imports in
+  `access/authorization.py` were found already pointing at their Phase-8b
+  destinations (`application.security.authorization`,
+  `application.security.authorization.enforcement.permission_checks`) —
+  picked up incidentally by 8b's own repo-wide rewrite sweep, since this
+  file imports *from* authorization and was swept along with every other
+  consumer. No import fix needed for that half of this phase.
+- Did the §5c extraction: read every caller of all four functions in
+  `access/authorization.py` again to reconfirm the split (`require_scope_permission`/
+  `filter_scope_rows` — genuinely generic, callers across `inventory_procurement`,
+  `maintenance`, and platform's own `site_service.py` — stay in platform;
+  `require_project_permission`/`filter_project_rows` — hardcode
+  `scope_type="project"`, every caller under `project_management` — move
+  out). Created `src/core/modules/project_management/access/
+  scope_permissions.py`, containing the two PM-specific functions
+  unchanged, importing the two generic ones from platform. Removed both
+  functions from `access/authorization.py`, which now exports only
+  `require_scope_permission`/`filter_scope_rows`.
+- Fixed all 29 real PM source files that import either function (27 for
+  `require_project_permission`, 4 for `filter_project_rows`, 2 files use
+  both) — a plain find-and-replace of the import path
+  (`src.core.platform.access.authorization` →
+  `src.core.modules.project_management.access.scope_permissions`), since
+  every one of these files imports only the two PM-specific names (no file
+  mixes them with the generic platform-side names on the same import line,
+  confirmed by grep before editing).
+- Confirmed the 5 test files that reference these functions (`test_forecast_cost_service`,
+  `test_assignment_accept_decline`, `test_portfolio_domain_validation`,
+  `test_register_entry_domain_validation`, `test_task_comment_domain_validation`)
+  needed **zero** changes — exactly as §5c predicted, they all
+  `unittest.mock.patch` the attribute at the *consuming* module's own path
+  (e.g. `patch("...application.tasks.commands.assignment.require_project_permission")`),
+  which stays valid regardless of where that module's own import resolves
+  from.
+- Verification (targeted — scoped to the two directly-touched test
+  directories, `src/tests/project_management` and `src/tests/pm`, given
+  this phase's blast radius spans nearly every PM subsystem — not the full
+  six-target suite, still reserved for Phase 10): one pre-existing,
+  unrelated collection-time circular import
+  (`test_pm_scheduling_calendar_real_wiring.py` → `api.desktop` ↔
+  `platform.api.desktop.time_management.calendar` — confirmed present
+  identically with this phase's changes stashed out, so excluded from the
+  comparison with `--ignore`) and 36 pre-existing test failures (mostly
+  tenant-hardening repository tests and PM-domain tests unrelated to
+  authorization) — confirmed **byte-for-byte identical** failure lists with
+  and without this phase's changes (`git stash`/`stash pop` around a second
+  full run), 456 passed either way. Zero regressions.
+- **Left uncommitted at the user's explicit instruction** — unlike Phases
+  1–8e, this phase's changes are not committed as part of doing the work;
+  the user reviews and commits phase work themselves (see
+  `feedback_platform_restructure_no_auto_commit` in the assistant's memory).
+- This closes out **all of `security` (Phases 8a–8f)**. Remaining in the
+  whole plan: **9a–9e** (the `src/application`/`src/api` runtime
+  rearrangement) and **10** (final validation + doc cleanup).
+
 ### Notes on this ordering
 
 - **`security` (Phases 8a–8f) is deliberately last among the content-group

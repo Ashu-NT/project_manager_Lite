@@ -31,7 +31,7 @@ from src.core.modules.project_management.domain.financials.configuration import 
 from src.core.modules.project_management.application.common.currency_policy import (
     resolve_pm_currency,
 )
-from src.core.platform.access.authorization import require_project_permission
+from src.core.modules.project_management.access.scope_permissions import require_project_permission
 from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
