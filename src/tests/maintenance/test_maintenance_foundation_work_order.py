@@ -10,9 +10,9 @@ from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceWorkRequestRepository,
 )
 from src.core.modules.maintenance.application.common.support import coerce_priority, coerce_trigger_mode
-from src.core.platform.auth.domain import UserAccount
-from src.core.platform.auth.contracts import UserRepository
-from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
+from src.core.platform.domain.security.auth import UserAccount
+from src.core.platform.contract.security.auth import UserRepository
+from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
 from src.core.platform.contract.master_data.site.contracts import SiteRepository
 from src.core.shared.events.domain_events import domain_events

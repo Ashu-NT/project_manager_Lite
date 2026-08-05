@@ -14,7 +14,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
     authorization_denied,
     require_permission,
 )
-from src.core.platform.auth.domain.session import (
+from src.core.platform.domain.security.auth.session import (
     UserSessionContext,
     UserSessionPrincipal,
 )

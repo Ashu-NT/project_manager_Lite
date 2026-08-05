@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.auth.contracts import (
+from src.core.platform.contract.security.auth import (
     AuthPolicyReconciliationRepository,
     AuthSessionRepository,
     PermissionRepository,
@@ -18,8 +18,11 @@ from src.core.platform.auth.contracts import (
     RoleRepository,
     UserRepository,
 )
-from src.core.platform.auth.datetime_utils import ensure_utc_datetime
-from src.core.platform.auth.domain import RolePermissionBinding, UserSessionContext
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.domain.security.auth import (
+    RolePermissionBinding,
+    UserSessionContext,
+)
 from src.core.platform.domain.security.authorization.roles import AuthPolicyReconciliation
 from src.core.platform.auth.policy import (
     DEFAULT_ROLE_PERMISSIONS,

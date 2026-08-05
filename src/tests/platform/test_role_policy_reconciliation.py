@@ -5,9 +5,9 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.core.platform.auth.application import RolePolicyReconciliationService
-from src.core.platform.auth.domain import (
-    AuthPolicyReconciliation,
+from src.core.platform.application.security.authorization.roles import RolePolicyReconciliationService
+from src.core.platform.domain.security.authorization.roles import AuthPolicyReconciliation
+from src.core.platform.domain.security.auth import (
     Role,
     RolePermissionBinding,
 )

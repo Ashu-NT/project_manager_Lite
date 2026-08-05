@@ -6,11 +6,11 @@ import json
 import pytest
 from sqlalchemy import select
 
-from src.core.platform.auth.domain import (
+from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_TENANT,
-    Role,
     RoleBinding,
 )
+from src.core.platform.domain.security.auth import Role
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,

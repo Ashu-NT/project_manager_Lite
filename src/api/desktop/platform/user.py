@@ -10,7 +10,10 @@ from src.api.desktop.platform.models import (
     UserUpdateCommand,
 )
 from src.core.platform.auth import AuthService
-from src.core.platform.auth.domain import Role, UserAccount
+from src.core.platform.domain.security.auth import (
+    Role,
+    UserAccount,
+)
 
 
 class PlatformUserDesktopApi:

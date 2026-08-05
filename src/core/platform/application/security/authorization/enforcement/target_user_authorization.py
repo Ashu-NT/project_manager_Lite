@@ -6,7 +6,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
 from src.core.platform.common.exceptions import BusinessRuleError
 
 if TYPE_CHECKING:
-    from src.core.platform.auth.application.auth_service import AuthService
+    from src.core.platform.application.security.auth.auth_service import AuthService
 
 
 def _current_principal(service: AuthService):

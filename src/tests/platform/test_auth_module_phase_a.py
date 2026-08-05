@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from src.core.platform.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.domain.security.auth.credentials.mfa import generate_totp_code
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.infrastructure.persistence.orm.auth import AuthSessionORM

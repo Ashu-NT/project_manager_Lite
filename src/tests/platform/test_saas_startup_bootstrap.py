@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from src.core.platform.auth.domain import RolePermissionBinding, UserAccount
+from src.core.platform.domain.security.auth import (
+    RolePermissionBinding,
+    UserAccount,
+)
 from src.core.platform.domain.security.auth.credentials.passwords import hash_password
 from src.core.platform.auth.policy import DEFAULT_ROLE_PERMISSIONS
 from src.core.platform.domain.tenant.tenancy import Tenant

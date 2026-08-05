@@ -175,8 +175,8 @@ def main(argv: list[str] | None = None) -> int:
             parser.error(f"artifact already exists: {artifact_path}")
 
     from src.core.platform.auth import AuthService
-    from src.core.platform.auth.application import RolePolicyReconciliationService
-    from src.core.platform.auth.domain import UserSessionContext
+    from src.core.platform.application.security.authorization.roles import RolePolicyReconciliationService
+    from src.core.platform.domain.security.auth import UserSessionContext
     from src.infra.composition.repositories import build_repository_bundle
     from src.infra.persistence.db.session_factory import SessionLocal
     from src.infra.platform.logging_config import setup_logging

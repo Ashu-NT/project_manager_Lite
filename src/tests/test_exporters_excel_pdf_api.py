@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from openpyxl import load_workbook
 
-from src.core.platform.auth.domain.session import UserSessionPrincipal
+from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.modules.project_management.domain.enums import CostType, DependencyType
 from src.core.modules.project_management.infrastructure.reporting import api as reporting_api

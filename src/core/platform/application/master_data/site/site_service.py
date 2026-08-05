@@ -21,7 +21,7 @@ from src.core.platform.application.tenant.tenancy import TenantContextService
 
 if TYPE_CHECKING:
     from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
-    from src.core.platform.auth.domain.session import UserSessionContext
+    from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
 def _normalize_optional_text(value: str | None) -> str:

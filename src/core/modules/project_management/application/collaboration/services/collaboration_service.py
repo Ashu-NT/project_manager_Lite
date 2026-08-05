@@ -39,7 +39,7 @@ from src.core.modules.project_management.contracts.repositories.collaboration im
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.task import TaskRepository
 from src.core.platform.contract.history.audit.contracts import AuditRepository
-from src.core.platform.auth.contracts import UserRepository
+from src.core.platform.contract.security.auth import UserRepository
 from src.core.platform.application.master_data.documents import DocumentIntegrationService
 
 

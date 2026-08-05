@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import record_authorization_denial
-from src.core.platform.auth.domain.session import UserSessionContext
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     DomainError,
@@ -22,7 +22,7 @@ from src.core.platform.application.tenant.tenancy.context_policy import (
 from src.core.platform.domain.tenant.tenancy.tenant import Tenant
 
 if TYPE_CHECKING:
-    from src.core.platform.auth.domain.session import UserSessionPrincipal
+    from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 
 
 @dataclass(frozen=True)

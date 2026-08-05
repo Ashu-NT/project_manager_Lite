@@ -6,12 +6,12 @@ from inspect import signature
 import pytest
 
 from src.core.platform.auth import AuthService
-from src.core.platform.auth.domain import (
+from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_PLATFORM,
     RoleBinding,
-    UserAccount,
 )
-from src.core.platform.auth.domain.session import UserSessionContext
+from src.core.platform.domain.security.auth import UserAccount
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.domain.security.auth.credentials.passwords import hash_password
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (

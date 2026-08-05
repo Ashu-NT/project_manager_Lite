@@ -14,14 +14,14 @@ from src.core.platform.application.security.authorization.enforcement.permission
     record_authorization_denial,
     require_permission,
 )
-from src.core.platform.auth.contracts import (
+from src.core.platform.contract.security.auth import (
     AuthSessionRepository,
     PermissionRepository,
     RoleBindingRepository,
     RolePermissionRepository,
     RoleRepository,
 )
-from src.core.platform.auth.domain import (
+from src.core.platform.domain.security.auth import (
     Permission,
     Role,
     RolePermissionBinding,

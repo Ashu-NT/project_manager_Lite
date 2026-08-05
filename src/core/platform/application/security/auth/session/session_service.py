@@ -6,20 +6,20 @@ from typing import TYPE_CHECKING
 
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission
-from src.core.platform.auth.datetime_utils import ensure_utc_datetime
-from src.core.platform.auth.domain import AuthSession
-from src.core.platform.auth.domain.session import UserSessionPrincipal
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.domain.security.auth import AuthSession
+from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import ValidationError
 
 from .principal_builder import build_principal
-from src.core.platform.auth.application.security_audit import add_atomic_security_audit
+from src.core.platform.application.security.auth.audit.security_audit import add_atomic_security_audit
 from .session_utils import next_session_expiry, rotate_session_revision, validate_session_timeout_override
 from src.core.platform.application.security.authorization.enforcement.target_user_authorization import require_target_user_in_active_tenant
 
 if TYPE_CHECKING:
-    from src.core.platform.auth.domain import UserAccount
+    from src.core.platform.domain.security.auth import UserAccount
 
-    from src.core.platform.auth.application.auth_service import AuthService
+    from src.core.platform.application.security.auth.auth_service import AuthService
 
 logger = logging.getLogger(__name__)
 _SESSION_VALIDATION_THROTTLE_SECONDS = 60

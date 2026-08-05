@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.core.platform.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.domain.security.authorization.roles.role_binding import RESOURCE_ROLE_SCOPE_TYPES
-from src.core.platform.auth.domain.session import UserSessionPrincipal
+from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
 
 if TYPE_CHECKING:
-    from src.core.platform.auth.domain import UserAccount
+    from src.core.platform.domain.security.auth import UserAccount
 
-    from src.core.platform.auth.application.auth_service import AuthService
+    from src.core.platform.application.security.auth.auth_service import AuthService
 
 
 _CONTEXT_UNSET = object()

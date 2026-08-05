@@ -6,19 +6,19 @@ from typing import TYPE_CHECKING
 
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission
-from src.core.platform.auth.domain import (
+from src.core.platform.domain.security.auth import (
     normalize_auth_federated_subject,
     normalize_auth_identity_provider,
 )
 from src.core.platform.common.exceptions import ValidationError
 
-from src.core.platform.auth.application.security_audit import add_atomic_security_audit
+from src.core.platform.application.security.auth.audit.security_audit import add_atomic_security_audit
 from src.core.platform.application.security.authorization.enforcement.target_user_authorization import require_target_user_in_active_tenant
 
 if TYPE_CHECKING:
-    from src.core.platform.auth.domain import UserAccount
+    from src.core.platform.domain.security.auth import UserAccount
 
-    from src.core.platform.auth.application.auth_service import AuthService
+    from src.core.platform.application.security.auth.auth_service import AuthService
 
 
 def normalize_identity_provider(identity_provider: str | None) -> str | None:

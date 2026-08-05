@@ -3,13 +3,13 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
-from src.core.platform.auth.contracts import (
+from src.core.platform.contract.security.auth import (
     PermissionRepository,
     RoleBindingRepository,
     RolePermissionRepository,
     RoleRepository,
 )
-from src.core.platform.auth.domain import Role
+from src.core.platform.domain.security.auth import Role
 from src.core.platform.domain.security.authorization.roles import (
     RESOURCE_ROLE_SCOPE_TYPES,
     ROLE_SCOPE_PLATFORM,

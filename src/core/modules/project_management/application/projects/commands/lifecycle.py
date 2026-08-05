@@ -39,7 +39,7 @@ from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyEr
 from src.core.platform.common.interfaces import TimeEntryRepository
 from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.domain.enums import ProjectStatus
-from src.core.platform.auth.domain.session import UserSessionContext
+from src.core.platform.domain.security.auth.session import UserSessionContext
 
 logger = logging.getLogger(__name__)
 

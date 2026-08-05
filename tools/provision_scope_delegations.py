@@ -93,11 +93,11 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(f"artifact already exists: {args.output}")
 
     from src.core.platform.auth import AuthService
-    from src.core.platform.auth.application import (
-        RoleGovernanceService,
-        ScopeDelegationProvisioningService,
-    )
-    from src.core.platform.auth.domain import UserSessionContext
+    from src.core.platform.application.security.authorization.roles import (
+    RoleGovernanceService,
+    ScopeDelegationProvisioningService,
+)
+    from src.core.platform.domain.security.auth import UserSessionContext
     from src.core.platform.tenancy import TenantContextService, build_tenant_context_policy
     from src.infra.composition.repositories import build_repository_bundle
     from src.infra.persistence.db.session_factory import SessionLocal

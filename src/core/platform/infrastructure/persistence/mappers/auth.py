@@ -1,15 +1,17 @@
 from __future__ import annotations
 
-from src.core.platform.auth.domain import (
+from src.core.platform.domain.security.auth import (
     AuthSession,
     Permission,
     Role,
-    RoleBinding,
-    RoleDelegationPolicy,
     RolePermissionBinding,
     UserAccount,
 )
-from src.core.platform.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.domain.security.authorization.roles import (
+    RoleBinding,
+    RoleDelegationPolicy,
+)
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.infrastructure.persistence.orm.auth import (
     AuthSessionORM,
     PermissionORM,

@@ -17,8 +17,8 @@ from contextlib import contextmanager
 
 import pytest
 
-from src.core.platform.auth.domain import RoleBinding
-from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
+from src.core.platform.domain.security.authorization.roles import RoleBinding
+from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.tenant import (
     SqlAlchemyTenantRepository,

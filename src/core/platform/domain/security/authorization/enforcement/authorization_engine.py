@@ -4,7 +4,7 @@ from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 
 if TYPE_CHECKING:
-    from src.core.platform.auth.domain.session import UserSessionContext
+    from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
 _T = TypeVar("_T")

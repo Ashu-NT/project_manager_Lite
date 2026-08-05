@@ -4,7 +4,7 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.auth.domain.session import UserSessionContext
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.contract.events.platform_events.contracts import PlatformEventRepository
 from src.core.platform.domain.events.platform_events.platform_event import PlatformEvent

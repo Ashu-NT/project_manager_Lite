@@ -4,7 +4,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 
-from src.core.platform.auth.contracts import RoleDelegationPolicyRepository, RoleRepository
+from src.core.platform.contract.security.auth import RoleDelegationPolicyRepository, RoleRepository
 from src.core.platform.common.exceptions import BusinessRuleError
 
 from src.core.platform.application.security.authorization.roles.role_governance_service import RoleGovernanceService

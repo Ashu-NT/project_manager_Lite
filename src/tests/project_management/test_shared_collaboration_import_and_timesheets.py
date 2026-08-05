@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from src.core.platform.auth.domain.session import UserSessionPrincipal
+from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 from src.core.platform.common.exceptions import ValidationError

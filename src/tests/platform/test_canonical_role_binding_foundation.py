@@ -5,11 +5,13 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from src.core.platform.auth.domain import (
+from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_PLATFORM,
     ROLE_SCOPE_TENANT,
-    Role,
     RoleBinding,
+)
+from src.core.platform.domain.security.auth import (
+    Role,
     UserAccount,
 )
 from src.core.platform.domain.security.auth.credentials.passwords import hash_password

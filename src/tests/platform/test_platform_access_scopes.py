@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from src.core.platform.access.authorization import require_scope_permission
-from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
+from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.modules.maintenance.access import resolve_maintenance_scope_permissions
 from src.core.modules.inventory_procurement.access.policy import resolve_storeroom_scope_permissions

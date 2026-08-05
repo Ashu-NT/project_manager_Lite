@@ -7,7 +7,7 @@ from src.core.platform.auth.policy import DEFAULT_ROLE_PERMISSIONS
 from src.core.platform.common.exceptions import ValidationError
 
 if TYPE_CHECKING:
-    from src.core.platform.auth.application.auth_service import AuthService
+    from src.core.platform.application.security.auth.auth_service import AuthService
 
 
 def enforce_separation_of_duties(service: AuthService, role_names: Iterable[str]) -> None:

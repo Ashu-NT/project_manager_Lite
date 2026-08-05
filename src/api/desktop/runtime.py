@@ -73,7 +73,7 @@ from src.core.platform.access import AccessControlService
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.history.activity.activity_service import ActivityService
 from src.core.platform.application.history.audit import EnterpriseAuditService
-from src.core.platform.auth.application import AuthService
+from src.core.platform.application.security.auth import AuthService
 from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
 )

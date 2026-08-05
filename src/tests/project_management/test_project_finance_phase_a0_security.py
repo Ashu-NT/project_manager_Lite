@@ -6,7 +6,7 @@ from datetime import date
 import pytest
 
 from src.core.modules.project_management.domain.financials.cost import CostItem
-from src.core.platform.auth.domain.session import UserSessionPrincipal
+from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.auth.policy import DEFAULT_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 

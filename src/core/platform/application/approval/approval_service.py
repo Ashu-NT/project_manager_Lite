@@ -13,7 +13,7 @@ from src.core.platform.contract.approval.contracts import ApprovalHandlerResult,
 from src.core.platform.domain.approval import ApprovalRequest, ApprovalStatus
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission, require_permission
 from src.core.platform.domain.security.authorization.roles.role_binding import ROLE_PRINCIPAL_USER
-from src.core.platform.auth.domain.session import UserSessionContext
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.shared.notifications import safe_dispatch_notification
 

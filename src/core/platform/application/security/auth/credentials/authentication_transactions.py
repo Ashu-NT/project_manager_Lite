@@ -5,21 +5,21 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from src.core.shared.events.domain_events import domain_events
-from src.core.platform.auth.domain import AuthSession
+from src.core.platform.domain.security.auth import AuthSession
 from src.core.platform.auth.policy import (
     login_lockout_minutes,
     login_lockout_threshold,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 
-from src.core.platform.auth.application.audit_recorder import add_atomic_auth_event
+from src.core.platform.application.security.auth.audit.audit_recorder import add_atomic_auth_event
 from src.core.platform.application.security.auth.session.session_service import refresh_current_session_if_user
 from src.core.platform.application.security.auth.session.session_utils import next_session_expiry
 
 if TYPE_CHECKING:
-    from src.core.platform.auth.domain import UserAccount
+    from src.core.platform.domain.security.auth import UserAccount
 
-    from src.core.platform.auth.application.auth_service import AuthService
+    from src.core.platform.application.security.auth.auth_service import AuthService
 
 logger = logging.getLogger(__name__)
 

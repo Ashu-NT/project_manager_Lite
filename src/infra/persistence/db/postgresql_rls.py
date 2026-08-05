@@ -8,7 +8,7 @@ from typing import Iterator
 from sqlalchemy import event, text
 from sqlalchemy.orm import Session
 
-from src.core.platform.auth.domain.session import UserSessionContext
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError
 
 

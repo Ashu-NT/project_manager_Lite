@@ -7,7 +7,7 @@ from typing import NoReturn
 from src.core.platform.application.security.authorization import get_authorization_engine
 from src.core.platform.domain.security.authorization import SecurityDenialEvent
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.auth.domain.session import UserSessionContext
+from src.core.platform.domain.security.auth.session import UserSessionContext
 
 logger = logging.getLogger(__name__)
 

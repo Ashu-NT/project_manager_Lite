@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy import select
 
-from src.core.platform.auth.application.security_audit import (
+from src.core.platform.application.security.auth.audit.security_audit import (
     add_atomic_security_audit,
 )
 from src.core.platform.common.exceptions import BusinessRuleError

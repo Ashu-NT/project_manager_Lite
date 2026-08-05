@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.core.platform.auth.application import (
+from src.core.platform.application.security.authorization.roles import (
     DEFAULT_SCOPE_DELEGATIONS,
     ScopeDelegationProvisioningService,
 )

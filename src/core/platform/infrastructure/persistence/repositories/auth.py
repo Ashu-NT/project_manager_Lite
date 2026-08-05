@@ -5,9 +5,9 @@ from datetime import datetime, timezone
 from sqlalchemy import or_, select, update
 from sqlalchemy.orm import Session
 
-from src.core.platform.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import UserTenantORM
-from src.core.platform.auth.contracts import (
+from src.core.platform.contract.security.auth import (
     AuthPolicyReconciliationRepository,
     AuthSessionRepository,
     PermissionRepository,
@@ -17,13 +17,15 @@ from src.core.platform.auth.contracts import (
     RoleRepository,
     UserRepository,
 )
-from src.core.platform.auth.domain import (
+from src.core.platform.domain.security.authorization.roles import (
     AuthPolicyReconciliation,
+    RoleBinding,
+    RoleDelegationPolicy,
+)
+from src.core.platform.domain.security.auth import (
     AuthSession,
     Permission,
     Role,
-    RoleBinding,
-    RoleDelegationPolicy,
     RolePermissionBinding,
     UserAccount,
     normalize_auth_session_context_id,

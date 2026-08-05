@@ -6,7 +6,7 @@ import re
 
 from pydantic import field_validator, model_validator
 
-from src.core.platform.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.common.pydantic import (
     normalize_optional_identifier,

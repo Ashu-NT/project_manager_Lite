@@ -14,7 +14,7 @@ tenant-wide system role and cannot be reused.
 """
 from __future__ import annotations
 
-from src.core.platform.auth.domain import RoleBinding
+from src.core.platform.domain.security.authorization.roles import RoleBinding
 from src.core.platform.auth.policy import DEFAULT_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS
 
 

@@ -11,10 +11,12 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import IntegrityError
 
-from src.core.platform.auth.domain import (
+from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_TENANT,
-    Role,
     RoleBinding,
+)
+from src.core.platform.domain.security.auth import (
+    Role,
     RolePermissionBinding,
 )
 from src.core.platform.common.exceptions import (

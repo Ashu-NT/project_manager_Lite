@@ -9,7 +9,7 @@ from src.core.platform.domain.security.auth.credentials.passwords import hash_pa
 from src.core.platform.common.exceptions import ValidationError
 
 from src.core.platform.application.security.auth.session.session_service import refresh_current_session_if_user, revoke_all_persisted_sessions
-from src.core.platform.auth.application.security_audit import add_atomic_security_audit
+from src.core.platform.application.security.auth.audit.security_audit import add_atomic_security_audit
 from src.core.platform.application.security.auth.session.session_utils import next_session_expiry, rotate_session_revision
 from src.core.platform.application.security.authorization.enforcement.target_user_authorization import (
     require_self_target,
@@ -17,9 +17,9 @@ from src.core.platform.application.security.authorization.enforcement.target_use
 )
 
 if TYPE_CHECKING:
-    from src.core.platform.auth.domain import UserAccount
+    from src.core.platform.domain.security.auth import UserAccount
 
-    from src.core.platform.auth.application.auth_service import AuthService
+    from src.core.platform.application.security.auth.auth_service import AuthService
 
 
 def change_password(service: AuthService, user_id: str, current_password: str, new_password: str) -> None:

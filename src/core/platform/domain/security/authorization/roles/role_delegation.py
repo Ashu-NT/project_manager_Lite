@@ -5,7 +5,7 @@ import re
 
 from pydantic import field_validator, model_validator
 
-from src.core.platform.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.domain.security.authorization.roles.role_binding import normalize_role_scope_type
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.ids import generate_id

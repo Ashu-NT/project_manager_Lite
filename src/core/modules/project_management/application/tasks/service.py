@@ -66,7 +66,7 @@ from src.core.modules.project_management.contracts.repositories.task import (
 )
 from src.core.platform.application.history.activity.activity_service import ActivityService
 from src.core.platform.application.approval.approval_service import ApprovalService
-from src.core.platform.auth.domain.session import UserSessionContext
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.common.interfaces import TimeEntryRepository, TimesheetPeriodRepository
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 from src.core.modules.project_management.application.scheduling import SchedulingEngine

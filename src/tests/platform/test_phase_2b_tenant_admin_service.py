@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
+from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.tenant import SqlAlchemyTenantRepository
 from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.user_tenant import (

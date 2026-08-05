@@ -15,17 +15,19 @@ from src.core.platform.application.security.authorization.enforcement.permission
     authorization_denied,
     require_permission,
 )
-from src.core.platform.auth.datetime_utils import ensure_utc_datetime
-from src.core.platform.auth.contracts import (
+from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.contract.security.auth import (
     AuthSessionRepository,
     RoleBindingRepository,
     RoleRepository,
     UserRepository,
 )
-from src.core.platform.auth.domain import (
+from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_PLATFORM,
     ROLE_SCOPE_TENANT,
     RoleBinding,
+)
+from src.core.platform.domain.security.auth import (
     UserAccount,
     UserSessionContext,
 )

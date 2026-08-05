@@ -3,14 +3,14 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
-from src.core.platform.auth.domain import (
+from src.core.platform.domain.security.auth import (
     normalize_auth_device_label,
     normalize_auth_session_timeout_override,
 )
 from src.core.platform.auth.policy import session_timeout_minutes
 
 if TYPE_CHECKING:
-    from src.core.platform.auth.domain import UserAccount
+    from src.core.platform.domain.security.auth import UserAccount
 
 
 def normalize_device_label(device_label: str | None) -> str | None:

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, TypeVar
 from src.core.platform.domain.security.authorization import AuthorizationEngine
 
 if TYPE_CHECKING:
-    from src.core.platform.auth.domain.session import UserSessionContext
+    from src.core.platform.domain.security.auth.session import UserSessionContext
 
 
 _T = TypeVar("_T")
