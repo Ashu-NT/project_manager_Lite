@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import Callable, TypeVar
 
-from src.api.desktop.platform.models import DesktopApiError, DesktopApiResult, OrganizationDto
+from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
+from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationDto
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,

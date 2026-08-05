@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.api.desktop.platform._support import execute_desktop_operation
+from src.core.platform.api.desktop.support._support import execute_desktop_operation
 from src.api.desktop.platform.models import DesktopApiResult
 from src.core.platform.api.desktop.tenant.tenancy.models.tenant import TenantDto, TenantInvitationDto
 from src.core.platform.common.exceptions import BusinessRuleError

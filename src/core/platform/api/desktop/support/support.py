@@ -11,9 +11,8 @@ from urllib.request import url2pathname
 
 from PySide6.QtCore import QSettings
 
-from src.api.desktop.platform.models import (
-    DesktopApiError,
-    DesktopApiResult,
+from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
+from src.core.platform.api.desktop.support.models.support import (
     SupportBundleDto,
     SupportEventDto,
     SupportInstallLaunchDto,

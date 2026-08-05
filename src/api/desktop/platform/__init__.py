@@ -66,7 +66,7 @@ from src.api.desktop.platform.models import (
     UserUpdateCommand,
 )
 # PlatformCalendarDesktopApi removed — use EnterpriseCalendarDesktopApi instead
-from src.api.desktop.platform.access import PlatformAccessDesktopApi
+from src.core.platform.api.desktop.access.access import PlatformAccessDesktopApi
 from src.core.platform.api.desktop.history.activity.activity import PlatformActivityDesktopApi
 from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
 from src.core.platform.api.desktop.master_data.documents.document import PlatformDocumentDesktopApi
@@ -76,9 +76,9 @@ from src.core.platform.api.desktop.security.identity.identity import PlatformIde
 from src.core.platform.api.desktop.master_data.party.party import PlatformPartyDesktopApi
 from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
-from src.api.desktop.platform.support import PlatformSupportDesktopApi
+from src.core.platform.api.desktop.support.support import PlatformSupportDesktopApi
 from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
-from src.api.desktop.platform.user import PlatformUserDesktopApi
+from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
 
 __all__ = [
     "ApiKeyCredentialDto",

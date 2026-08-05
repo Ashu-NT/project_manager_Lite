@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.api.desktop.platform._support import execute_desktop_operation
+from src.core.platform.api.desktop.support._support import execute_desktop_operation
 from src.api.desktop.platform.models import DesktopApiResult
 from src.core.platform.api.desktop.history.activity.models.activity import ActivityEntryDto
 from src.core.platform.application.history.activity import ActivityService

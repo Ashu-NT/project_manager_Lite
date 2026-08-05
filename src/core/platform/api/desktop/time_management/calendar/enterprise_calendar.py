@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, time, timedelta
-from src.api.desktop.platform._support import execute_desktop_operation
+from src.core.platform.api.desktop.support._support import execute_desktop_operation
 from src.api.desktop.platform.models import DesktopApiResult
 from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
     CalendarAssignmentDto,

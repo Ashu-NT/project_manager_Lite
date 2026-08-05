@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 
-from src.api.desktop.platform._support import execute_desktop_operation
-from src.api.desktop.platform.models import (
-    DesktopApiResult,
+from src.core.platform.api.desktop.support._support import execute_desktop_operation
+from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.api.desktop.access.models.access import (
     ScopedAccessGrantAssignCommand,
     ScopedAccessGrantDto,
     ScopedAccessGrantRemoveCommand,

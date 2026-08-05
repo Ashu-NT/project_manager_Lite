@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.api.desktop.platform._support import execute_desktop_operation, serialize_organization
+from src.core.platform.api.desktop.support._support import execute_desktop_operation, serialize_organization
 from src.api.desktop.platform.models import DesktopApiResult, OrganizationDto
 from src.core.platform.api.desktop.master_data.party.models.party import (
     PartyCreateCommand,

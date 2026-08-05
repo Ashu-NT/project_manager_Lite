@@ -1,4 +1,4 @@
-from src.api.desktop.platform.models.access import (
+from src.core.platform.api.desktop.access.models.access import (
     ScopedAccessGrantAssignCommand,
     ScopedAccessGrantDto,
     ScopedAccessGrantRemoveCommand,
@@ -9,7 +9,7 @@ from src.core.platform.api.desktop.approval.models.approval import (
     ApprovalDecisionCommand,
     ApprovalRequestDto,
 )
-from src.api.desktop.platform.models.calendar import (
+from src.core.platform.api.desktop.time_management.calendar.models.calendar import (
     WorkingCalendarDayDto,
     WorkingCalendarHolidayCreateCommand,
     WorkingCalendarHolidayDto,
@@ -19,7 +19,7 @@ from src.api.desktop.platform.models.calendar import (
     WorkingDayCalculationCommand,
     WorkingDayCalculationDto,
 )
-from src.api.desktop.platform.models.common import DesktopApiError, DesktopApiResult
+from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
 from src.core.platform.api.desktop.master_data.documents.models.document import (
     DocumentCreateCommand,
     DocumentDto,
@@ -62,7 +62,7 @@ from src.core.platform.api.desktop.platform_runtime.models.runtime import (
     PlatformRuntimeContextDto,
 )
 from src.core.platform.api.desktop.master_data.site.models.site import SiteCreateCommand, SiteDto, SiteUpdateCommand
-from src.api.desktop.platform.models.support import (
+from src.core.platform.api.desktop.support.models.support import (
     SupportBundleDto,
     SupportEventDto,
     SupportInstallLaunchDto,
@@ -71,7 +71,7 @@ from src.api.desktop.platform.models.support import (
     SupportSettingsUpdateCommand,
     SupportUpdateStatusDto,
 )
-from src.api.desktop.platform.models.user import (
+from src.core.platform.api.desktop.security.auth.models.user import (
     RoleDto,
     UserCreateCommand,
     UserDto,

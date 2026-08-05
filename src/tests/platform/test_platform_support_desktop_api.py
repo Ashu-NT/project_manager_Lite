@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 from PySide6.QtCore import QSettings
 
-import src.api.desktop.platform.support as support_module
+import src.core.platform.api.desktop.support.support as support_module
 import src.infra.platform.diagnostics as diagnostics_module
 from src.api.desktop.platform import (
     PlatformSupportDesktopApi,
