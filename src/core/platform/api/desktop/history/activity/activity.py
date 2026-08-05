@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.core.platform.api.desktop.support._support import execute_desktop_operation
-from src.api.desktop.platform.models import DesktopApiResult
+from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.history.activity.models.activity import ActivityEntryDto
 from src.core.platform.application.history.activity import ActivityService
 from src.core.platform.domain.history.activity.activity_entry import ActivityEntry

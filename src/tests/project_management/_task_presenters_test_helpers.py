@@ -13,7 +13,7 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_collaboration_desktop_api,
     build_project_management_tasks_desktop_api,
 )
-from src.api.desktop.platform import DesktopApiResult
+from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.modules.project_management.domain.enums import (
     DependencyType,
     TaskStatus,

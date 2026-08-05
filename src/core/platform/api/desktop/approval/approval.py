@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.core.platform.api.desktop.support._support import execute_desktop_operation
-from src.api.desktop.platform.models import DesktopApiResult
+from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.approval._approval_labels import (
     approval_context_label,
     approval_display_label,

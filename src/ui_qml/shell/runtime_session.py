@@ -6,7 +6,7 @@ from collections.abc import Callable, Sequence
 from PySide6.QtCore import QObject, QTimer, Qt, Signal, Slot
 from PySide6.QtGui import QGuiApplication
 
-from src.core.platform.auth import UserSessionContext
+from src.core.platform.domain.security.auth import UserSessionContext
 from src.ui_qml.shell.context import ShellContext, update_shell_runtime_state
 
 logger = logging.getLogger(__name__)

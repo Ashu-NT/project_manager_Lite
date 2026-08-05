@@ -92,7 +92,7 @@ def main(argv: list[str] | None = None) -> int:
     ):
         parser.error(f"artifact already exists: {args.output}")
 
-    from src.core.platform.auth import AuthService
+    from src.core.platform.application.security.auth import AuthService
     from src.core.platform.application.security.authorization.roles import (
     RoleGovernanceService,
     ScopeDelegationProvisioningService,

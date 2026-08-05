@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from src.api.desktop.platform import (
-    ModuleStatePatchCommand,
-    OrganizationProvisionCommand,
-    PlatformRuntimeDesktopApi,
-)
+from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationProvisionCommand
+from src.core.platform.api.desktop.platform_runtime.models.runtime import ModuleStatePatchCommand
+from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
 from src.application.runtime import build_desktop_api_registry
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 

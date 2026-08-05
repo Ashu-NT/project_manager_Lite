@@ -2192,8 +2192,11 @@ Once you sign off on this document, I will:
     same slice that removes `entitlement_runtime.py` (§4c). Update these two
     in lockstep with the code changes that cause them, not as a
     find-and-replace pass afterward.
-18. **⚠️ CRITICAL — SCOPE GAP found during Phase 9c (2026-08-05), deferred
-    to after Phase 10, do not lose track of this.** `src/api/desktop/platform/`
+18. **✅ RESOLVED (2026-08-05) — SCOPE GAP found during Phase 9c, originally
+    deferred to after Phase 10, then resolved immediately before Phase 9e
+    per the user's explicit instruction. See the "Gap resolution (§12 item
+    18)" execution-log entry, right after Phase 9d's entry, for the full
+    detail.** `src/api/desktop/platform/`
     is a large transitional facade file that still has **5 unmigrated
     files with no phase anywhere in §13 assigned to them**: `access.py`,
     `calendar.py`, `support.py`, `user.py`, and `models/common.py` (plus
@@ -2291,7 +2294,7 @@ review unit, not a separate infra-only mega-phase at the end.
 | 9c | `api/desktop/platform/runtime.py` (+ `models/runtime.py`) → `api/desktop/platform_runtime/` | ~2 | Straightforward once 9b lands. |
 | 9d | `api/desktop/runtime.py` (`DesktopApiRegistry`) → `src/application/runtime/desktop_api_registry.py`; update `src/application/runtime/__init__.py`; fix `src/ui_qml/shell/app.py` (§9b's flagged file — the actual shell entrypoint, get this one right) | ~3 | The one true cross-module orchestrator; needs every group already at its final home since it composes platform + PM + inventory + maintenance. |
 | 9e | Retire `src/api/` completely — delete `src/api/__init__.py`, `src/api/desktop/__init__.py`; move `src/api/desktop/integration/*` → `platform/api/desktop/integration/` | ~2 | Last of the `src/api/` content; safe once 9a–9d have moved everything else out. |
-| 10 | Final validation | 0 | Full suite green. Clean up stale `src/api/http/__pycache__` (already-dead, confirmed in §2). Update `README.md`/`EXECUTION_SPEC.md` status sections (§11) to mark this migration complete rather than "proposed." **⚠️ Do NOT claim "`src/api/` retires completely" here — see §12 item 18: `access.py`/`calendar.py`/`support.py`/`user.py`/`models/common.py` are a known, deliberately-deferred gap, to be picked up in a follow-on slice after this phase, not silently glossed over.** |
+| 10 | Final validation | 0 | Full suite green. Clean up stale `src/api/http/__pycache__` (already-dead, confirmed in §2). Update `README.md`/`EXECUTION_SPEC.md` status sections (§11) to mark this migration complete rather than "proposed." (§12 item 18's gap — `access.py`/`calendar.py`/`support.py`/`user.py`/`models/common.py` — was resolved 2026-08-05, ahead of this phase; "`src/api/` retires completely" is achievable once 9e lands.) |
 
 ### Execution log
 
@@ -3774,6 +3777,253 @@ platform_runtime_service.py`) — completed 2026-08-05.**
 - Deleted `src/api/desktop/runtime.py`.
 - **Left uncommitted at the user's explicit instruction**, same as Phases
   8e/8f/9a/9b/9c.
+
+**Gap resolution (§12 item 18) — `access`/`calendar`/`support`/`user`/
+`models/common.py` migrated out of `src/api/desktop/platform/` — completed
+2026-08-05, ahead of the "after Phase 10" deferral originally planned,
+per the user's explicit instruction to resolve it before 9e rather than
+after 10.**
+
+- Used the doc's own §8 exhaustive per-file mapping table (already had
+  exact destinations for every one of these files — no new judgment calls
+  needed): `access.py`/`models/access.py` → `api/desktop/access/`;
+  `models/calendar.py` → `api/desktop/time_management/calendar/models/`
+  (folds into the group Phase 7b already created — no adapter class exists
+  for calendar, models only, since `PlatformCalendarDesktopApi` was
+  already deleted pre-restructure in favor of `EnterpriseCalendarDesktopApi`);
+  `support.py`/`models/support.py`/`_support.py` → new standalone
+  `api/desktop/support/` group (mirrors `approval`'s single-member
+  treatment — `support` never had its own application/domain layer, this
+  is purely a desktop-facing feature); `user.py`/`models/user.py` → folds
+  into the existing `security/auth/` group; `models/common.py` → base-level
+  `api/desktop/models/common.py` (shared, not group-specific, matching the
+  doc's own note).
+- Investigated `models/calendar.py`'s 8 DTOs before moving them (not just
+  blindly moved): only 2 of 8 (`WorkingDayCalculationCommand`,
+  `WorkingDayCalculationDto`) have any real consumer anywhere in the repo
+  (`src/ui_qml/platform/presenters/calendar_catalog_presenter.py`, a live,
+  wired-up presenter) — the other 6 are genuinely dead, confirmed via
+  word-boundary grep (an initial substring-only grep falsely matched
+  `SchedulingWorkingDayCalculationDto`/`SchedulingWorkingDayCalculationCommand`
+  in PM's own unrelated scheduling module — corrected before drawing any
+  conclusion). Moved all 8 unchanged regardless, since the doc's own
+  mapping table already places all of them at the new location and this
+  restructure's mandate is pure moves, not a dead-code cleanup pass —
+  flagging the 6 dead classes here rather than unilaterally deleting them.
+- **`_support.py` (the shared `execute_desktop_operation`/
+  `serialize_domain_error`/`serialize_organization` helper) has the widest
+  blast radius of any single file in this cleanup**: 11 already-migrated
+  files import it directly (`approval`, `history/activity`,
+  `history/audit`, `master_data/{department,documents,employee,party,site}`,
+  `security/identity`, `tenant/tenancy`, `time_management/calendar`) — all
+  fixed with one repo-wide `sed` pass on the import path (the imported
+  names themselves — `execute_desktop_operation`, plus
+  `serialize_organization` for the 4 files that also use it — stayed
+  identical, since it really was a pure location swap, no signature
+  changes). None of these files needed changes to their *own*
+  `DesktopApiResult`/`OrganizationDto` imports — those keep coming through
+  the old `src.api.desktop.platform.models` facade unchanged, since the
+  facade's *content source* moved (repointed below) but the facade itself
+  (and therefore every already-migrated file's import of it) didn't.
+- External call sites for the adapter classes themselves
+  (`PlatformAccessDesktopApi`, `PlatformSupportDesktopApi`,
+  `PlatformUserDesktopApi`) needed **zero changes** — every real consumer
+  (2 test files, 2 already-updated composition files, 3 QML presenters)
+  imports them via `from src.api.desktop.platform import (...)`, the
+  transitional facade, never the submodule directly. Only one file bucked
+  this pattern: `test_platform_support_desktop_api.py` does
+  `import src.api.desktop.platform.support as support_module` specifically
+  to monkeypatch module-level names (`user_data_dir`, `verify_sha256`)
+  that `support.py` imports into its own namespace — since those bindings
+  now live in the *new* module object, the test's import was repointed to
+  `src.core.platform.api.desktop.support.support`, otherwise the
+  monkeypatch would silently patch a dead module nobody calls.
+- Updated the two transitional facades
+  (`src/api/desktop/platform/{__init__.py,models/__init__.py}`) to source
+  all 5 groups' symbols from their new locations — same repoint-not-remove
+  treatment every earlier phase gave these two files. After this change,
+  `src/api/desktop/platform/` contains **no real content of its own at
+  all** — just the two facade files, both pure re-exports.
+- **Hit and immediately fixed an unrelated problem, unconnected to this
+  restructure**: mid-verification, `src/core/platform/auth/__init__.py`
+  (the permanent facade from Phase 8e, depended on by ~12 files) turned up
+  deleted in the working tree, unstaged — confirmed with the user it was
+  unintentional (not a deliberate follow-up edit) and restored via
+  `git checkout HEAD -- src/core/platform/auth/__init__.py`. Unrelated to
+  any command run as part of this gap-resolution work; flagged in the
+  assistant's memory as a caution for future sessions.
+- Verification (targeted, then wide given the 11-file blast radius):
+  `compileall` across every new/touched tree, three import smoke tests
+  from different angles, then a 13-file targeted spot-check before/after
+  deleting the 9 old files (57 passed, 1 failed both times — the same
+  pre-existing `site.py` bug). Given the unusually wide reach, additionally
+  ran `src/tests/platform` + `src/tests/architecture` in full as a closing
+  confirmatory pass (818 passed, 7 failed) — every one of the 7 failures
+  matches, name-for-name, the pre-existing failure set already confirmed
+  unrelated earlier this session (Phase 9a's wide check). Zero new
+  regressions.
+- Deleted all 9 old files: `src/api/desktop/platform/{access.py,support.py,
+  user.py,_support.py,models/{access,calendar,common,support,user}.py}`.
+- **This resolves §12 item 18 in full — the scope gap is closed.**
+  `src/api/desktop/platform/` is now purely a two-file re-export facade
+  with zero real content, meaning "§4c: `src/api/` retires completely" is
+  now actually achievable once Phase 9e moves `desktop/integration/*` and
+  deletes the (now-trivial) remaining facade files.
+- **Left uncommitted at the user's explicit instruction**, same as Phases
+  8e/8f/9a/9b/9c/9d.
+
+**Additional facade retirements (user-directed, not in the original §13
+plan) — `src/core/platform/common/interfaces.py` and
+`src/core/platform/auth/__init__.py` — completed 2026-08-05.**
+
+- The user asked for these two facades to be removed outright — every
+  caller updated to import directly, not through a facade — rather than
+  left as permanent re-export shims (the treatment every earlier phase had
+  given `auth/__init__.py` specifically, on the reasoning that it was the
+  capability's "stable public API"). This overrides that earlier
+  decision: there is no longer a permanent auth facade in this codebase.
+- `common/interfaces.py` (`TimeEntryRepository`, `TimesheetPeriodRepository`,
+  both pure re-exports of `contract/time_management/time/contracts.py`):
+  6 callers, all in `project_management/application/{projects,resources,tasks}`,
+  fixed with a plain path substitution (imported names unchanged). Verified
+  via `test_data_integrity.py` + `test_qml_project_management_presenters_tasks_bulk.py`
+  (13 failed, 2 passed before **and** after — cross-checked with `git
+  stash` that this is the pre-existing baseline for these two files in
+  isolation, unrelated to anything this session touched; an earlier
+  `-k`-filtered subset run had shown only 8 failures, which was simply the
+  filter excluding some of the 13, not a real discrepancy).
+- `auth/__init__.py` (the `TYPE_CHECKING`/`__getattr__` lazy facade for
+  `AuthService`, `RoleGovernanceService`, `TenantRoleAdministrationService`,
+  `UserSessionContext`, `UserSessionPrincipal`): 12 callers across
+  composition roots, one already-migrated api/desktop file, one
+  already-migrated application file, `ui_qml/shell/{login,runtime_session}.py`,
+  2 architecture/platform tests, and 2 `tools/` scripts — each repointed to
+  the symbol's real module (`application.security.auth` for `AuthService`,
+  `application.security.authorization.roles` for the two role services,
+  `domain.security.auth` for the two session types).
+- **One test needed more than a path swap**:
+  `test_service_architecture.py::test_legacy_service_imports_point_to_new_packages`
+  had `assert LegacyAuthService is AuthService` — a guardrail proving the
+  *facade's* re-export was identical to the real class, imported once via
+  the facade (`AuthService`) and once directly
+  (`.application.security.auth.auth_service import AuthService as
+  LegacyAuthService`). With the facade gone, comparing two direct imports
+  of the same name is vacuous, so the assertion (and the now-unused
+  `LegacyAuthService` alias import) was removed rather than mechanically
+  repointed — the adjacent `LegacyServiceBase.__name__ == "ServiceBase"`
+  check stays, since `common/service_base.py` is a real module, not one of
+  the two facades in scope here.
+- **Found, flagged, and deliberately left alone**: `tools/
+  provision_scope_delegations.py` has an already-broken, pre-existing
+  import — `from src.core.platform.tenancy import TenantContextService,
+  build_tenant_context_policy` — `src/core/platform/tenancy/` does not
+  exist anywhere in the repo. Unrelated to either facade being retired
+  here (not `auth`, not `common.interfaces`) and outside what was asked;
+  noting it here so it isn't lost, not fixing it as a drive-by.
+- Verification (targeted): `compileall` across every touched tree, both
+  import smoke tests, then an 8-file targeted spot-check before and after
+  deleting `auth/__init__.py` — 74 passed, 1 failed both times (the
+  already-confirmed pre-existing `test_platform_access_scopes.py` finance.read
+  mismatch).
+- Deleted `src/core/platform/common/interfaces.py` and the entire
+  `src/core/platform/auth/` directory (only ever held `__init__.py`).
+- **Mid-verification, caught an unrelated accidental deletion of this same
+  `auth/__init__.py` file sitting uncommitted in the working tree** —
+  confirmed with the user it was unintentional and restored via `git
+  checkout` before this retirement work began in earnest, so the facade
+  removal documented here is the real, deliberate one.
+- **Left uncommitted at the user's explicit instruction**, same as every
+  other phase this session.
+
+**Phase 9e (retire `src/api/` completely, expanded scope) — completed
+2026-08-05. `src/api/` no longer exists.**
+
+- Original §13 scope was just "delete `src/api/__init__.py`,
+  `src/api/desktop/__init__.py`; move `desktop/integration/*`" — but per the
+  §12 item 18 gap resolution earlier today, `src/api/desktop/platform/`
+  still had two live re-export facades (`__init__.py`,
+  `models/__init__.py`) with **~65 real import sites** depending on them
+  (the gap resolution moved every *file* out from under the facade, but
+  deliberately left the facade itself + its callers alone, since that was
+  its own separate task). The user asked for these repointed to direct
+  imports too, so this phase's real scope grew to: retire both remaining
+  facades, move `integration/*`, and only then delete `src/api/`.
+- Built a complete symbol → destination map from the two facades' own
+  current `__all__` lists (13 API classes, ~55 DTOs across 15 destination
+  modules) — no new judgment calls, every destination was already
+  established by earlier phases or the gap-resolution work earlier today.
+- Given the scale, wrote a one-off Python script
+  (`rewrite_facade_imports.py`, kept in the scratchpad, not the repo) that
+  used the `ast` module to find every `ImportFrom` node targeting
+  `src.api.desktop.platform` or `src.api.desktop.platform.models` (at
+  module scope *and* nested inside functions — e.g.
+  `calendar_catalog_presenter.py` had two function-local imports), grouped
+  the imported names by destination, and rewrote each import statement in
+  place. Chose this over 65 manual edits specifically because the map is
+  large and mechanical — exactly the class of transformation a script gets
+  right consistently where hand-editing risks a transposed destination on
+  file 40 of 65. Ran once: 59 of 59 targeted files changed, 0 unresolved
+  symbols.
+- Moved `src/api/desktop/integration/capability_api.py` → `src/core/platform/api/desktop/integration/capability_api.py`
+  (per the original §13 plan, confirmed zero internal changes needed — it
+  only ever imported already-platform-owned `ModuleRegistry`/
+  `IntegrationResolver`/`CrossModuleReference`). 3 external callers fixed
+  (`desktop_api_registry.py`, `ui_qml/platform/context.py`,
+  `ui_qml/modules/project_management/context.py`).
+- Verification, done in stages given the size: `compileall` across the
+  entire `src`/`tools` tree (not just touched files, given the script's
+  reach) — clean. Four import smoke tests from different angles. Then a
+  full `src/tests/platform` + `src/tests/architecture` +
+  `src/tests/project_management` run (1145 passed, 32 failed, ~38
+  minutes) as the real confirmatory pass, given ~65 files touched across
+  the whole UI layer and test suite.
+- **Found one genuine regression among the 32 failures, fixed
+  immediately**: `test_platform_common_interfaces_are_platform_only` read
+  `src/core/platform/common/interfaces.py`'s source text directly to
+  assert it contained no stray business-module imports — a guardrail from
+  when that file used to be much larger and messier. Since the file was
+  deleted entirely (in the facade-retirement work earlier today), the
+  test failed with `FileNotFoundError` rather than a real assertion
+  failure. Renamed and rewrote it to match this file's own established
+  "legacy thing was removed" pattern (e.g.
+  `test_legacy_platform_common_package_is_removed`):
+  `test_legacy_platform_common_interfaces_facade_is_removed` now just
+  asserts the path doesn't exist. Confirmed via a full
+  `test_architecture_guardrails_legacy_orm.py` re-run: 34 passed, 1 failed
+  (the same pre-existing `.env` flag), matching the file's baseline
+  exactly.
+- **Cross-checked the other 31 failures via `git stash`**: stashed every
+  uncommitted change from this entire session (not just this phase) and
+  re-ran the specific unfamiliar failing files
+  (`test_project_management_desktop_api_dashboard_trends.py`,
+  `test_project_management_desktop_api_financials.py`,
+  `test_repository_tenant_hardening_priority.py`,
+  `test_repository_tenant_hardening_secondary_reads.py` — 4 files not
+  seen failing anywhere earlier this session) — all 8 of their tests
+  failed identically with zero changes present, confirming a pre-existing
+  test-isolation/ordering issue unrelated to any restructuring work. The
+  remaining 23 of the 32 (the `test_data_integrity.py` set,
+  `test_qml_platform_routes`, `test_site_platform_foundation`,
+  `test_no_python_module_exceeds_hard_line_limit`,
+  `test_legacy_rbac_runtime_dependencies_are_removed`, and a few repeats)
+  were already confirmed pre-existing earlier this session. **Net result:
+  32 failures in, 1 genuine regression found and fixed, 31 pre-existing
+  and unrelated.**
+- Final targeted re-run after fixing the guardrail test and deleting every
+  remaining `src/api/` file: 16 representative files across platform,
+  architecture, and project_management — 101 passed, 3 failed (all
+  three the already-confirmed pre-existing set).
+- Deleted the entire `src/api/` directory (`__init__.py`,
+  `desktop/__init__.py`, `desktop/integration/{__init__.py,
+  capability_api.py}`, `desktop/platform/{__init__.py,
+  models/__init__.py}`) — confirmed via a final repo-wide grep for
+  `src.api`/`src/api` with zero hits anywhere in `src/` or `tools/`.
+- **This closes Phase 9e and the entire `src/application`/`src/api`
+  rearrangement (§4c, Phases 9a–9e).** Only **Phase 10** (final
+  validation: full six-target suite, `README.md`/`EXECUTION_SPEC.md`
+  status updates) remains in the numbered plan.
+- **Left uncommitted at the user's explicit instruction**, same as every
+  other phase this session.
 
 ### Notes on this ordering
 

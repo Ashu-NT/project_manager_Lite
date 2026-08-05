@@ -274,23 +274,8 @@ def test_qml_module_workspace_roots_exist():
         assert (ROOT / rel_path).is_dir()
 
 
-def test_platform_common_interfaces_are_platform_only():
-    interfaces_path = ROOT / "src" / "core" / "platform" / "common" / "interfaces.py"
-    text = interfaces_path.read_text(encoding="utf-8", errors="ignore")
-
-    assert "from src.core.platform.contract.time_management.time.contracts import TimeEntryRepository, TimesheetPeriodRepository" in text
-    assert "core.modules.project_management" not in text
-    assert "class ProjectRepository" not in text
-    assert "class TaskRepository" not in text
-    assert "class BaselineRepository" not in text
-    assert "class ProjectMembershipRepository" not in text
-    assert "class ScopedAccessGrantRepository" not in text
-    assert "class OrganizationRepository" not in text
-    assert "class SiteRepository" not in text
-    assert "class DepartmentRepository" not in text
-    assert "class EmployeeRepository" not in text
-    assert "class ApprovalRepository" not in text
-    assert "class AuditLogRepository" not in text
+def test_legacy_platform_common_interfaces_facade_is_removed():
+    assert not (ROOT / "src" / "core" / "platform" / "common" / "interfaces.py").exists()
 
 
 def test_legacy_rbac_runtime_dependencies_are_removed():

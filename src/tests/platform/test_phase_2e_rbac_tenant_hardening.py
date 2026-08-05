@@ -41,7 +41,7 @@ from src.core.platform.application.tenant.tenancy.tenant_context import TenantCo
 
 def _make_auth_svc(services, *, role_names):
     """Return (AuthService, user) with a non-admin session for the given roles."""
-    from src.core.platform.auth import AuthService
+    from src.core.platform.application.security.auth import AuthService
 
     session = services["session"]
     auth = services["auth_service"]

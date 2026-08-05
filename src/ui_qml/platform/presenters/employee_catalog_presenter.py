@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.api.desktop.platform import (
+from src.core.platform.api.desktop.master_data.department.department import PlatformDepartmentDesktopApi
+from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
+from src.core.platform.api.desktop.master_data.employee.models.employee import (
     EmployeeCreateCommand,
     EmployeeDto,
     EmployeeUpdateCommand,
-    PlatformDepartmentDesktopApi,
-    PlatformEmployeeDesktopApi,
-    PlatformSiteDesktopApi,
 )
-from src.api.desktop.platform.models import DesktopApiResult
+from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
+from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.ui_qml.platform.presenters.support import (
     bool_value,
     int_value,

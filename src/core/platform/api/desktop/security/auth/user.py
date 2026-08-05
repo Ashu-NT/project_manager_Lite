@@ -9,7 +9,7 @@ from src.core.platform.api.desktop.security.auth.models.user import (
     UserPasswordResetCommand,
     UserUpdateCommand,
 )
-from src.core.platform.auth import AuthService
+from src.core.platform.application.security.auth import AuthService
 from src.core.platform.domain.security.auth import (
     Role,
     UserAccount,

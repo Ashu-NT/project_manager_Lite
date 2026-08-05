@@ -5,7 +5,7 @@ from inspect import signature
 
 import pytest
 
-from src.core.platform.auth import AuthService
+from src.core.platform.application.security.auth import AuthService
 from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_PLATFORM,
     RoleBinding,

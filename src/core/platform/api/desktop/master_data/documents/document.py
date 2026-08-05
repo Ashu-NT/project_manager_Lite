@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from src.core.platform.api.desktop.support._support import execute_desktop_operation, serialize_organization
-from src.api.desktop.platform.models import DesktopApiResult, OrganizationDto
+from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationDto
+from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.master_data.documents.models.document import (
     DocumentCreateCommand,
     DocumentDto,

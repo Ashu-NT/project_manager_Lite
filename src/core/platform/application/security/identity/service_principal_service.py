@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.contract.history.audit.contracts import AuditRepository
 from src.core.platform.domain.history.audit import AuditEntry
-from src.core.platform.auth import AuthService
+from src.core.platform.application.security.auth import AuthService
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.contract.security.auth import UserRepository
 from src.core.platform.domain.security.auth import (

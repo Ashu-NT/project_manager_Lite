@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from src.api.desktop.platform import PlatformApprovalDesktopApi
+from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
 from src.ui_qml.modules.project_management.view_models.collaboration import (
     CollaborationCollectionViewModel,
     CollaborationRecordViewModel,

@@ -2,10 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from src.api.desktop.platform.models import (
-    ApprovalRequestDto,
-    ApprovalStatus,
-)
+from src.core.platform.api.desktop.approval.models.approval import ApprovalRequestDto
+from src.core.platform.domain.approval import ApprovalStatus
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.platform.presenters.control_presenter import PlatformControlWorkspacePresenter
 from src.ui_qml.platform.presenters.control_queue_presenter import PlatformControlQueuePresenter

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date, time, timedelta
 from src.core.platform.api.desktop.support._support import execute_desktop_operation
-from src.api.desktop.platform.models import DesktopApiResult
+from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
     CalendarAssignmentDto,
     CalendarCreateCommand,
@@ -792,8 +792,8 @@ class EnterpriseCalendarDesktopApi:
         self, command: ResourceCapacityCommand
     ) -> DesktopApiResult:
         if self._capacity_calculator is None:
-            from src.api.desktop.platform.models import DesktopApiResult
-            from src.api.desktop.platform.models import DesktopApiError
+            from src.core.platform.api.desktop.models.common import DesktopApiResult
+            from src.core.platform.api.desktop.models.common import DesktopApiError
             return DesktopApiResult(
                 ok=False,
                 error=DesktopApiError(

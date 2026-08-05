@@ -3,7 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.api.desktop.integration import IntegrationCapabilityDesktopApi
+from src.core.platform.api.desktop.integration import IntegrationCapabilityDesktopApi
 
 from src.ui_qml.modules.project_management.controllers import (
     ProjectManagementCollaborationWorkspaceController,

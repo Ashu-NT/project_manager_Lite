@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.api.desktop.platform import (
+from src.core.platform.api.desktop.security.identity.models.identity import (
     ApiKeyIssueCommand,
     ServicePrincipalCreateCommand,
 )

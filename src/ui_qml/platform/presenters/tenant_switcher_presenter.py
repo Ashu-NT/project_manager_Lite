@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.api.desktop.platform.models import DesktopApiResult
+from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.tenant.tenancy.models.tenant import TenantDto
 from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
 from src.ui_qml.platform.presenters.support import preview_error_result

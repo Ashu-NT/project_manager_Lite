@@ -2,8 +2,7 @@ from src.core.platform.application.platform_runtime import PlatformRuntimeApplic
 from src.core.platform.common.service_base import ServiceBase as LegacyServiceBase
 from src.core.platform.access import AccessControlService
 from src.core.platform.application.approval.approval_service import ApprovalService
-from src.core.platform.auth import AuthService
-from src.core.platform.application.security.auth.auth_service import AuthService as LegacyAuthService
+from src.core.platform.application.security.auth import AuthService
 from src.core.platform.application.history.audit import EnterpriseAuditService
 from src.core.platform.application.master_data.data_exchange import MasterDataExchangeService
 from src.core.platform.application.master_data.documents.document_service import DocumentService
@@ -281,7 +280,6 @@ def test_maintenance_helper_legacy_roots_are_removed():
 
 def test_legacy_service_imports_point_to_new_packages():
     assert LegacyServiceBase.__name__ == "ServiceBase"
-    assert LegacyAuthService is AuthService
 
 
 def test_services_module_delegates_to_modular_registration_builders():

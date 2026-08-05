@@ -21,7 +21,7 @@ from src.core.modules.project_management.contracts.repositories.skills import (
     ResourceSkillRepository,
 )
 from src.core.modules.project_management.contracts.repositories.task import AssignmentRepository
-from src.core.platform.common.interfaces import TimeEntryRepository
+from src.core.platform.contract.time_management.time.contracts import TimeEntryRepository
 from src.core.platform.contract.master_data.employee.contracts import EmployeeRepository
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 

@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from src.api.desktop.platform import (
-    PlatformDocumentDesktopApi,
-    PlatformEmployeeDesktopApi,
-    PlatformPartyDesktopApi,
-    PlatformRuntimeDesktopApi,
-    PlatformSiteDesktopApi,
-    PlatformDepartmentDesktopApi,
-    PlatformUserDesktopApi,
-)
+from src.core.platform.api.desktop.master_data.department.department import PlatformDepartmentDesktopApi
+from src.core.platform.api.desktop.master_data.documents.document import PlatformDocumentDesktopApi
+from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
+from src.core.platform.api.desktop.master_data.party.party import PlatformPartyDesktopApi
+from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
+from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
+from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
 from src.core.platform.api.desktop.history.audit.audit_enterprise import PlatformEnterpriseAuditDesktopApi
 from src.ui_qml.platform.view_models import (
     PlatformMetricViewModel,

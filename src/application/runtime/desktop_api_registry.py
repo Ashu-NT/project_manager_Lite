@@ -3,23 +3,21 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from src.api.desktop.integration import IntegrationCapabilityDesktopApi
-from src.api.desktop.integration.capability_api import build_integration_capability_api
-from src.api.desktop.platform import (
-    PlatformAccessDesktopApi,
-    PlatformActivityDesktopApi,
-    PlatformApprovalDesktopApi,
-    PlatformDepartmentDesktopApi,
-    PlatformDocumentDesktopApi,
-    PlatformEmployeeDesktopApi,
-    PlatformIdentityDesktopApi,
-    PlatformPartyDesktopApi,
-    PlatformRuntimeDesktopApi,
-    PlatformSiteDesktopApi,
-    PlatformSupportDesktopApi,
-    PlatformTenantDesktopApi,
-    PlatformUserDesktopApi,
-)
+from src.core.platform.api.desktop.integration import IntegrationCapabilityDesktopApi
+from src.core.platform.api.desktop.integration.capability_api import build_integration_capability_api
+from src.core.platform.api.desktop.access.access import PlatformAccessDesktopApi
+from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
+from src.core.platform.api.desktop.history.activity.activity import PlatformActivityDesktopApi
+from src.core.platform.api.desktop.master_data.department.department import PlatformDepartmentDesktopApi
+from src.core.platform.api.desktop.master_data.documents.document import PlatformDocumentDesktopApi
+from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
+from src.core.platform.api.desktop.master_data.party.party import PlatformPartyDesktopApi
+from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
+from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
+from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
+from src.core.platform.api.desktop.security.identity.identity import PlatformIdentityDesktopApi
+from src.core.platform.api.desktop.support.support import PlatformSupportDesktopApi
+from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
 from src.core.platform.api.desktop.history.audit.audit_enterprise import PlatformEnterpriseAuditDesktopApi
 from src.core.platform.api.desktop.time_management.calendar.enterprise_calendar import EnterpriseCalendarDesktopApi
 from src.core.platform.application.platform_runtime import (
