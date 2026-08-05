@@ -156,7 +156,6 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         platform_runtime_application_service=services.get(
             "platform_runtime_application_service"
         ),
-        module_runtime_service=services.get("module_runtime_service"),
         module_catalog_service=services.get("module_catalog_service"),
         organization_service=services.get("organization_service"),
         tenant_context_service=services.get("tenant_context_service"),
@@ -259,17 +258,17 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
 
     module_registry = services.get("module_registry")
     if not isinstance(module_registry, ModuleRegistry):
-        from src.application.runtime.entitlement_runtime import (
-            ModuleRuntimeService as _ModuleRuntimeService,
+        from src.core.platform.api.desktop_runtime.service_resolver import (
+            resolve_module_catalog_service,
         )
         from src.core.platform.integration.module_registry import (
             ModuleRegistry as _ModuleRegistry,
         )
 
-        module_runtime_service = services.get("module_runtime_service")
+        module_catalog_service = resolve_module_catalog_service(services)
         module_registry = (
-            _ModuleRegistry(module_runtime_service)
-            if isinstance(module_runtime_service, _ModuleRuntimeService)
+            _ModuleRegistry(module_catalog_service)
+            if module_catalog_service is not None
             else None
         )
     integration_capability = (
@@ -278,18 +277,13 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         else None
     )
     if integration_capability is None:
-        from src.application.runtime.entitlement_runtime import (
-            ModuleRuntimeService as _FallbackModuleRuntimeService,
-        )
         from src.core.platform.integration.module_registry import (
             ModuleRegistry as _FallbackModuleRegistry,
         )
         from src.core.platform.application.tenant.modules import build_default_module_catalog
 
         fallback_catalog = build_default_module_catalog()
-        fallback_registry = _FallbackModuleRegistry(
-            _FallbackModuleRuntimeService(fallback_catalog)
-        )
+        fallback_registry = _FallbackModuleRegistry(fallback_catalog)
         integration_capability = build_integration_capability_api(fallback_registry)
 
     enterprise_calendar_api: EnterpriseCalendarDesktopApi | None = None
@@ -335,7 +329,7 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     inventory_procurement_apis = build_inventory_procurement_desktop_runtime_apis(
         services=services,
         platform_dependencies=InventoryProcurementDesktopRuntimePlatformDependencies(
-            module_runtime_service=services.get("module_runtime_service"),
+            module_catalog_service=services.get("module_catalog_service"),
             user_session=services.get("user_session"),
         ),
     )

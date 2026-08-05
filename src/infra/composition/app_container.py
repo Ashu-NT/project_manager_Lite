@@ -10,7 +10,6 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.application.runtime.entitlement_runtime import ModuleRuntimeService
 from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
 from src.core.platform.access import AccessControlService
 from src.core.platform.integration.module_registry import ModuleRegistry
@@ -144,7 +143,6 @@ class ServiceGraph:
     session: Session
     user_session: UserSessionContext
     platform_runtime_application_service: PlatformRuntimeApplicationService
-    module_runtime_service: ModuleRuntimeService
     module_catalog_service: ModuleCatalogService
     module_registry: ModuleRegistry
     integration_resolver: IntegrationResolver
@@ -242,7 +240,6 @@ class ServiceGraph:
             "session": self.session,
             "user_session": self.user_session,
             "platform_runtime_application_service": self.platform_runtime_application_service,
-            "module_runtime_service": self.module_runtime_service,
             "module_catalog_service": self.module_catalog_service,
             "module_registry": self.module_registry,
             "integration_resolver": self.integration_resolver,
@@ -376,13 +373,12 @@ def build_service_graph(session: Session) -> ServiceGraph:
         "Project Management service bundle built duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
-    _module_registry = ModuleRegistry(platform_services.module_runtime_service)
+    _module_registry = ModuleRegistry(platform_services.module_catalog_service)
     _integration_resolver = IntegrationResolver(_module_registry)
     graph = ServiceGraph(
         session=session,
         user_session=platform_services.user_session,
         platform_runtime_application_service=platform_services.platform_runtime_application_service,
-        module_runtime_service=platform_services.module_runtime_service,
         module_catalog_service=platform_services.module_catalog_service,
         module_registry=_module_registry,
         integration_resolver=_integration_resolver,

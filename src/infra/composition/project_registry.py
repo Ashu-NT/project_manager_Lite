@@ -162,7 +162,7 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
         enterprise_audit_service=platform_services.enterprise_audit_service,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
 
@@ -189,7 +189,7 @@ def build_project_management_service_bundle(
         timesheet_period_repo=repositories.timesheet_period_repo,
         user_session=platform_services.user_session,
         enterprise_audit_service=platform_services.enterprise_audit_service,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
         scope_organization_resolver=_time_scope_organization_id,
     )
@@ -201,7 +201,7 @@ def build_project_management_service_bundle(
         session=session,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
     register_service = RegisterService(
@@ -210,7 +210,7 @@ def build_project_management_service_bundle(
         register_repo=repositories.register_repo,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
     )
     # Build enterprise calendar adapter here so it can be injected into SchedulingEngine.
     # Instantiated before scheduling_engine so we pass it in during construction.
@@ -250,7 +250,7 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
         approval_service=platform_services.approval_service,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
         notification_service=platform_services.notification_service,
         employee_repo=repositories.employee_repo,
         assignment_skill_validator=assignment_skill_validator,
@@ -266,7 +266,7 @@ def build_project_management_service_bundle(
         cert_repo=repositories.resource_cert_repo,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
     cost_service = CostService(
@@ -278,7 +278,7 @@ def build_project_management_service_bundle(
         activity_service=platform_services.activity_service,
         approval_service=platform_services.approval_service,
         enterprise_audit_service=platform_services.enterprise_audit_service,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
     financial_configuration_service = FinancialConfigurationService(
@@ -288,14 +288,14 @@ def build_project_management_service_bundle(
         project_repo=repositories.project_repo,
         user_session=platform_services.user_session,
         enterprise_audit_service=platform_services.enterprise_audit_service,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
     forecast_service = ForecastCostService(
         repositories.cost_repo,
         repositories.project_repo,
         user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
     )
     reporting_service = ReportingService(
         session=session,
@@ -309,7 +309,7 @@ def build_project_management_service_bundle(
         baseline_repo=repositories.baseline_repo,
         project_resource_repo=repositories.project_resource_repo,
         user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
     )
     finance_service = FinanceService(
         project_repo=repositories.project_repo,
@@ -319,7 +319,7 @@ def build_project_management_service_bundle(
         project_resource_repo=repositories.project_resource_repo,
         assignment_repo=repositories.assignment_repo,
         user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
     )
     collaboration_service = CollaborationService(
         session=session,
@@ -331,7 +331,7 @@ def build_project_management_service_bundle(
         audit_repo=repositories.audit_entry_repo,
         document_integration_service=platform_services.document_integration_service,
         user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
         role_repo=repositories.role_repo,
         role_binding_repo=repositories.role_binding_repo,
@@ -348,7 +348,7 @@ def build_project_management_service_bundle(
         resource_repo=repositories.resource_repo,
         reporting_service=reporting_service,
         user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
     baseline_service = BaselineService(
@@ -364,7 +364,7 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
         approval_service=platform_services.approval_service,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
     )
     dashboard_service = DashboardService(
         reporting_service=reporting_service,
@@ -375,7 +375,7 @@ def build_project_management_service_bundle(
         scheduling_engine=scheduling_engine,
         work_calendar_engine=platform_services.global_calendar_shim,
         user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
     )
     data_import_service = DataImportService(
         project_service=project_service,
@@ -383,7 +383,7 @@ def build_project_management_service_bundle(
         resource_service=resource_service,
         cost_service=cost_service,
         user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
     )
     project_calendar_adapter = _pre_project_calendar_adapter  # reuse the instance wired into SchedulingEngine
     enterprise_resource_availability = EnterpriseResourceAvailabilityService(

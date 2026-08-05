@@ -6,7 +6,7 @@ from datetime import date, datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.application.runtime.entitlement_runtime import ModuleRuntimeService
+from src.core.platform.application.tenant.modules import ModuleCatalogService
 from src.core.modules.inventory_procurement.application.common.support import (
     BUSINESS_PARTY_TYPES,
     normalize_inventory_code,
@@ -57,7 +57,7 @@ class InventoryFoundationService:
         item_service: ItemMasterService,
         stock_service: StockControlService,
         party_service: PartyService,
-        module_runtime_service: ModuleRuntimeService | None = None,
+        module_catalog_service: ModuleCatalogService | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
         activity_service=None,
@@ -75,7 +75,7 @@ class InventoryFoundationService:
         self._item_service = item_service
         self._stock_service = stock_service
         self._party_service = party_service
-        self._module_runtime_service = module_runtime_service
+        self._module_catalog_service = module_catalog_service
         self._user_session = user_session
         self._activity_service = activity_service
 

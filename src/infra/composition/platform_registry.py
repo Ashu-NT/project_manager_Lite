@@ -7,7 +7,6 @@ from time import perf_counter
 
 from sqlalchemy.orm import Session
 
-from src.application.runtime.entitlement_runtime import ModuleRuntimeService
 from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
 from src.core.platform.domain.tenant.modules import (
     DEFAULT_ENTERPRISE_MODULES,
@@ -156,7 +155,6 @@ class PlatformServiceBundle:
     party_repo: PartyRepository
     tenant_context_service: TenantContextService
     platform_runtime_application_service: PlatformRuntimeApplicationService
-    module_runtime_service: ModuleRuntimeService
     module_catalog_service: ModuleCatalogService
     auth_service: AuthService
     role_governance_service: RoleGovernanceService
@@ -432,9 +430,8 @@ def build_platform_service_bundle(
         "Platform module catalog defaults bootstrapped duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
-    module_runtime_service = ModuleRuntimeService(module_catalog_service)
     platform_runtime_application_service = PlatformRuntimeApplicationService(
-        module_runtime_service=module_runtime_service,
+        module_catalog_service=module_catalog_service,
         organization_service=organization_service,
         tenant_context_service=tenant_context_service,
         user_session=user_session,
@@ -630,7 +627,6 @@ def build_platform_service_bundle(
         party_repo=repositories.party_repo,
         tenant_context_service=tenant_context_service,
         platform_runtime_application_service=platform_runtime_application_service,
-        module_runtime_service=module_runtime_service,
         module_catalog_service=module_catalog_service,
         auth_service=auth_service,
         role_governance_service=role_governance_service,

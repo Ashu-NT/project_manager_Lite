@@ -64,7 +64,7 @@ def _build_inventory_api(services):
         procurement_service=services["inventory_procurement_service"],
         purchasing_service=services["inventory_purchasing_service"],
         reporting_service=services["inventory_reporting_service"],
-        module_runtime_service=services["module_runtime_service"],
+        module_catalog_service=services["module_catalog_service"],
     )
 
 

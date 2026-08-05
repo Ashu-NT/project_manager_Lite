@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.application.runtime.entitlement_runtime import (
-    ModuleRuntimeService,
+from src.core.platform.api.desktop_runtime.service_resolver import (
     ModuleRuntimeSnapshot,
-    resolve_module_runtime_service,
+    build_module_runtime_snapshot,
 )
+from src.core.platform.application.tenant.modules import ModuleCatalogService
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.application.master_data.org.organization_service import OrganizationService
@@ -30,19 +30,19 @@ class PlatformRuntimeApplicationService:
     def __init__(
         self,
         *,
-        module_runtime_service: ModuleRuntimeService,
+        module_catalog_service: ModuleCatalogService,
         organization_service: OrganizationService | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session: UserSessionContext | None = None,
     ) -> None:
-        self._module_runtime_service = module_runtime_service
+        self._module_catalog_service = module_catalog_service
         self._organization_service = organization_service
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
 
     @property
-    def module_runtime_service(self) -> ModuleRuntimeService:
-        return self._module_runtime_service
+    def module_catalog_service(self) -> ModuleCatalogService:
+        return self._module_catalog_service
 
     @property
     def organization_service(self) -> OrganizationService | None:
@@ -57,37 +57,37 @@ class PlatformRuntimeApplicationService:
         return self._user_session
 
     def list_modules(self):
-        return self._module_runtime_service.list_modules()
+        return self._module_catalog_service.list_modules()
 
     def list_platform_capabilities(self):
-        return self._module_runtime_service.list_platform_capabilities()
+        return self._module_catalog_service.list_platform_capabilities()
 
     def list_entitlements(self):
-        return self._module_runtime_service.list_entitlements()
+        return self._module_catalog_service.list_entitlements()
 
     def list_licensed_modules(self):
-        return self._module_runtime_service.list_licensed_modules()
+        return self._module_catalog_service.list_licensed_modules()
 
     def list_enabled_modules(self):
-        return self._module_runtime_service.list_enabled_modules()
+        return self._module_catalog_service.list_enabled_modules()
 
     def list_available_modules(self):
-        return self._module_runtime_service.list_available_modules()
+        return self._module_catalog_service.list_available_modules()
 
     def list_planned_modules(self):
-        return self._module_runtime_service.list_planned_modules()
+        return self._module_catalog_service.list_planned_modules()
 
     def enabled_capability_codes(self) -> tuple[str, ...]:
-        return self._module_runtime_service.enabled_capability_codes()
+        return self._module_catalog_service.enabled_capability_codes()
 
     def is_licensed(self, module_code: str) -> bool:
-        return self._module_runtime_service.is_licensed(module_code)
+        return self._module_catalog_service.is_licensed(module_code)
 
     def is_enabled(self, module_code: str) -> bool:
-        return self._module_runtime_service.is_enabled(module_code)
+        return self._module_catalog_service.is_enabled(module_code)
 
     def get_entitlement(self, module_code: str):
-        return self._module_runtime_service.get_entitlement(module_code)
+        return self._module_catalog_service.get_entitlement(module_code)
 
     def set_module_state(
         self,
@@ -97,7 +97,7 @@ class PlatformRuntimeApplicationService:
         enabled: bool | None = None,
         lifecycle_status: str | None = None,
     ):
-        return self._module_runtime_service.set_module_state(
+        return self._module_catalog_service.set_module_state(
             module_code,
             licensed=licensed,
             enabled=enabled,
@@ -105,13 +105,13 @@ class PlatformRuntimeApplicationService:
         )
 
     def shell_summary(self) -> str:
-        return self._module_runtime_service.shell_summary()
+        return self._module_catalog_service.shell_summary()
 
     def current_context_label(self) -> str:
-        return self._module_runtime_service.current_context_label()
+        return self._module_catalog_service.current_context_label()
 
     def snapshot(self) -> PlatformRuntimeContextSnapshot:
-        module_snapshot = self._module_runtime_service.snapshot()
+        module_snapshot = build_module_runtime_snapshot(self._module_catalog_service)
         return PlatformRuntimeContextSnapshot(
             context_label=module_snapshot.context_label,
             module_snapshot=module_snapshot,
@@ -187,7 +187,7 @@ class PlatformRuntimeApplicationService:
             if initial_module_codes is not None
             else {
                 module.code
-                for module in self._module_runtime_service.list_modules()
+                for module in self._module_catalog_service.list_modules()
                 if module.default_enabled and module.stage != "planned"
             }
         )
@@ -198,7 +198,7 @@ class PlatformRuntimeApplicationService:
             base_currency=base_currency,
             is_active=False,
         )
-        self._module_runtime_service.catalog_service.provision_organization_entitlements(
+        self._module_catalog_service.provision_organization_entitlements(
             organization.id,
             licensed_module_codes=selected_module_codes,
             enabled_module_codes=selected_module_codes,
@@ -227,21 +227,17 @@ class PlatformRuntimeApplicationService:
 def resolve_platform_runtime_application_service(
     *,
     platform_runtime_application_service: object | None,
-    module_runtime_service: object | None,
-    module_catalog_service=None,
+    module_catalog_service: object | None,
     organization_service: OrganizationService | None = None,
     tenant_context_service: TenantContextService | None = None,
     user_session: UserSessionContext | None = None,
 ) -> object | None:
     if isinstance(platform_runtime_application_service, PlatformRuntimeApplicationService):
-        runtime = resolve_module_runtime_service(
-            module_runtime_service=module_runtime_service,
-            module_catalog_service=module_catalog_service,
-        )
         if (
-            runtime is None
+            module_catalog_service is None
             or (
-                platform_runtime_application_service.module_runtime_service is runtime
+                platform_runtime_application_service.module_catalog_service
+                is module_catalog_service
                 and (
                     organization_service is None
                     or platform_runtime_application_service.organization_service
@@ -260,13 +256,9 @@ def resolve_platform_runtime_application_service(
         ):
             return platform_runtime_application_service
 
-    runtime = resolve_module_runtime_service(
-        module_runtime_service=module_runtime_service,
-        module_catalog_service=module_catalog_service,
-    )
-    if isinstance(runtime, ModuleRuntimeService):
+    if isinstance(module_catalog_service, ModuleCatalogService):
         return PlatformRuntimeApplicationService(
-            module_runtime_service=runtime,
+            module_catalog_service=module_catalog_service,
             organization_service=organization_service,
             tenant_context_service=tenant_context_service,
             user_session=user_session,

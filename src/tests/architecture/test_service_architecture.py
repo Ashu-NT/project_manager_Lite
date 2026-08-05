@@ -12,7 +12,7 @@ from src.core.platform.application.master_data.employee.employee_service import 
 from src.core.platform.application.master_data.org.organization_service import OrganizationService
 from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.application.master_data.party.party_service import PartyService
-from src.application.runtime.entitlement_runtime import ModuleRuntimeService
+from src.core.platform.application.tenant.modules import ModuleCatalogService
 from src.core.platform.application.time_management.time import TimeService
 from src.tests.path_rewrites import REPO_ROOT
 from src.core.modules.inventory_procurement import (
@@ -96,7 +96,7 @@ def test_service_graph_builder_wires_all_services(session):
 
     assert isinstance(graph, ServiceGraph)
     assert isinstance(graph.platform_runtime_application_service, PlatformRuntimeApplicationService)
-    assert isinstance(graph.module_runtime_service, ModuleRuntimeService)
+    assert isinstance(graph.module_catalog_service, ModuleCatalogService)
     assert isinstance(graph.time_service, TimeService)
     assert isinstance(graph.approval_service, ApprovalService)
     assert isinstance(graph.auth_service, AuthService)
@@ -219,7 +219,7 @@ def test_service_graph_builder_wires_all_services(session):
     )
     assert as_dict["maintenance_work_order_task_service"] is graph.maintenance_work_order_task_service
     assert as_dict["maintenance_work_order_task_step_service"] is graph.maintenance_work_order_task_step_service
-    assert as_dict["module_runtime_service"] is graph.module_runtime_service
+    assert as_dict["module_catalog_service"] is graph.module_catalog_service
     assert as_dict["time_service"] is graph.time_service
     assert as_dict["access_service"] is graph.access_service
     assert as_dict["enterprise_audit_service"] is graph.enterprise_audit_service

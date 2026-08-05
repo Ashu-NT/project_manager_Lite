@@ -341,7 +341,7 @@ class InventoryDesktopFoundationMixin:
         )
 
     def _module_links(self) -> tuple[InventoryModuleLinkDescriptor, ...]:
-        runtime = self._module_runtime_service
+        runtime = self._module_catalog_service
         if runtime is None:
             return (
                 InventoryModuleLinkDescriptor(
@@ -397,7 +397,7 @@ class InventoryDesktopFoundationMixin:
         label: str,
         route_id: str,
     ) -> InventoryModuleLinkDescriptor:
-        runtime = self._module_runtime_service
+        runtime = self._module_catalog_service
         entitlement = runtime.get_entitlement(code) if runtime is not None else None
         is_enabled = bool(runtime and runtime.is_enabled(code))
         lifecycle_status = getattr(entitlement, "lifecycle_status", "")

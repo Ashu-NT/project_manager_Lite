@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.application.runtime.entitlement_runtime import ModuleRuntimeService
+from src.core.platform.application.tenant.modules import ModuleCatalogService
 from src.core.modules.inventory_procurement.application.catalog import ItemMasterService
 from src.core.modules.inventory_procurement.application.common.reference_service import (
     InventoryReferenceService,
@@ -54,7 +54,7 @@ class InventoryProcurementInventoryDesktopApi(
         procurement_service: ProcurementService | None = None,
         purchasing_service: PurchasingService | None = None,
         reporting_service: InventoryReportingService | None = None,
-        module_runtime_service: ModuleRuntimeService | None = None,
+        module_catalog_service: ModuleCatalogService | None = None,
     ) -> None:
         self._inventory_service = inventory_service
         self._stock_service = stock_service
@@ -65,7 +65,7 @@ class InventoryProcurementInventoryDesktopApi(
         self._procurement_service = procurement_service
         self._purchasing_service = purchasing_service
         self._reporting_service = reporting_service
-        self._module_runtime_service = module_runtime_service
+        self._module_catalog_service = module_catalog_service
 
     def _require_inventory_service(self) -> InventoryService:
         if self._inventory_service is None:
@@ -89,7 +89,7 @@ def build_inventory_procurement_inventory_desktop_api(
     procurement_service: ProcurementService | None = None,
     purchasing_service: PurchasingService | None = None,
     reporting_service: InventoryReportingService | None = None,
-    module_runtime_service: ModuleRuntimeService | None = None,
+    module_catalog_service: ModuleCatalogService | None = None,
 ) -> InventoryProcurementInventoryDesktopApi:
     return InventoryProcurementInventoryDesktopApi(
         inventory_service=inventory_service,
@@ -101,7 +101,7 @@ def build_inventory_procurement_inventory_desktop_api(
         procurement_service=procurement_service,
         purchasing_service=purchasing_service,
         reporting_service=reporting_service,
-        module_runtime_service=module_runtime_service,
+        module_catalog_service=module_catalog_service,
     )
 
 

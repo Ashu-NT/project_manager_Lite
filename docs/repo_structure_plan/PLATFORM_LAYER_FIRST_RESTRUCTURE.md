@@ -3478,6 +3478,123 @@ outside `src/core/platform/`.**
   whole plan: **9a–9e** (the `src/application`/`src/api` runtime
   rearrangement) and **10** (final validation + doc cleanup).
 
+**Phase 9a (`src/application`/`src/api` rearrangement, §4c — `entitlement_runtime.py`
+→ `api/desktop_runtime/service_resolver.py`, eliminating `ModuleRuntimeService`)
+— completed 2026-08-05.**
+
+- Confirmed the doc's own recommendation on the way in: `ModuleRuntimeService`
+  (the ~15-method bare delegate wrapper) is **eliminated, not relocated**.
+  Read every one of its methods against `ModuleCatalogService`
+  (`application/tenant/modules/module_catalog_service.py`, built from
+  `ModuleCatalogMutationMixin`/`ModuleCatalogQueryMixin`/
+  `ModuleCatalogContextMixin`) and confirmed every single delegate method
+  name already exists identically on the real service — this really is a
+  pure find-and-replace of the attribute name at every call site, not a
+  behavior change, exactly as §4c predicted.
+- Created `src/core/platform/api/desktop_runtime/service_resolver.py`
+  (platform's first `api/desktop_runtime/` package, mirroring every
+  business module's own convention): `ModuleRuntimeSnapshot` dataclass
+  (moved unchanged), `build_module_runtime_snapshot(catalog_service)` (a
+  plain function replacing the old `ModuleRuntimeService.snapshot()`
+  method), and `resolve_module_catalog_service(services: Mapping[str,
+  object])` (replacing `resolve_module_runtime_service`, now a direct
+  typed lookup since there's only one representation to resolve, not a
+  wrapper-vs-raw ambiguity).
+- `PlatformRuntimeApplicationService` (`src/application/runtime/
+  platform_runtime.py` — stays at this path for now, moves to
+  `application/platform_runtime/` in Phase 9b) now depends on
+  `ModuleCatalogService` directly: constructor param, property, and every
+  delegate method renamed `module_runtime_service` → `module_catalog_service`.
+  Caught one non-mechanical spot the blind rename would have broken:
+  `snapshot()` called `.snapshot()` on the old wrapper, which doesn't exist
+  on `ModuleCatalogService` (it has its own same-named but
+  differently-shaped `snapshot()` returning `ModuleCatalogSnapshot`, unrelated)
+  — fixed to call `build_module_runtime_snapshot(self._module_catalog_service)`
+  instead. Same story for `provision_organization()`'s
+  `self._module_runtime_service.catalog_service.provision_organization_entitlements(...)`
+  — the old wrapper's `.catalog_service` indirection doesn't exist on the
+  real service, fixed to call `provision_organization_entitlements` directly.
+  `resolve_platform_runtime_application_service()` simplified to drop the
+  `module_runtime_service` param entirely (no more two-representations
+  question — one straight `isinstance(module_catalog_service,
+  ModuleCatalogService)` check).
+- `ModuleRegistry` (`src/core/platform/integration/module_registry.py`)
+  constructor param + docstring updated to `ModuleCatalogService`; internal
+  `self._runtime.is_enabled()`/`.get_entitlement()` calls untouched (correct
+  — same method names on the new type, confirmed above).
+- Fixed the secondary layering issue §4c flagged: two `inventory_procurement`
+  files were reaching directly into platform's runtime wrapper instead of
+  going through `ModuleRegistry` — `api/desktop/inventory/api.py` (+ its
+  mixin `foundation.py`, which reads the attribute at runtime via
+  `enabled_capability_codes()`/`get_entitlement()`/`is_enabled()` — all
+  confirmed identical on `ModuleCatalogService`) and `application/inventory/
+  foundation_service.py` (a dead, never-read parameter, renamed anyway for
+  consistency). Threaded the rename through the whole wiring chain:
+  `api/desktop_runtime/registry.py`'s `InventoryProcurementDesktopRuntimePlatformDependencies`
+  dataclass field, `desktop_api_builder.py`'s kwarg, and
+  `infra/composition/inventory_registry.py`'s construction call.
+  Also found — and fixed as a side effect of this rename — a pre-existing
+  naming inconsistency in `infra/composition/project_registry.py`: 16 call
+  sites passed `platform_services.module_runtime_service` (the old wrapper)
+  into a kwarg already correctly named `module_catalog_service`, working
+  only because the wrapper happened to delegate the same method calls.
+  Now genuinely consistent — the kwarg gets the real
+  `platform_services.module_catalog_service`.
+- Composition root updated: `ServiceGraph` (`app_container.py`) and
+  `PlatformServiceBundle` (`platform_registry.py`) both drop the
+  `module_runtime_service` field entirely (keeping the `module_catalog_service`
+  field that already existed alongside it — the two were redundant siblings,
+  exactly the "1:1 pass-through wrapper duplicating what
+  `ModuleCatalogService` already does" the doc called out). `platform_registry.py`
+  no longer constructs a `ModuleRuntimeService` at all.
+- `src/api/desktop/runtime.py` (`build_desktop_api_registry` — Phase 9d's
+  eventual new home, but its content needed fixing now): the
+  `resolve_platform_runtime_application_service(...)` call drops the
+  `module_runtime_service=` kwarg; the `module_registry`/
+  `integration_capability` fallback-construction block rewritten to resolve
+  and pass `ModuleCatalogService` via the new `resolve_module_catalog_service`
+  helper instead of constructing a throwaway `ModuleRuntimeService`; the
+  `InventoryProcurementDesktopRuntimePlatformDependencies(...)` call updated
+  to the renamed field.
+- External blast radius, all found via repo-wide grep for both the type
+  name and the string key `"module_runtime_service"` (the doc's own §4c
+  estimate was "~5 files"; actual count once every composition registry and
+  test call site is included: ~20) — `src/infra/composition/
+  {app_container,platform_registry,inventory_registry}.py`,
+  `project_registry.py` (16 occurrences), the 5 `inventory_procurement`
+  files above, `src/api/desktop/runtime.py`,
+  `src/tests/architecture/test_service_architecture.py` (added a
+  `graph.module_catalog_service`/`ModuleCatalogService` assertion + fixed
+  the `as_dict` parity check — this file never had one before, since
+  `module_catalog_service` was previously only checked indirectly through
+  the redundant wrapper field), `src/tests/platform/
+  test_enterprise_platform_catalog.py` (rewrote the `runtime`-based
+  assertions to use `catalog` + the new `build_module_runtime_snapshot`
+  helper directly), and 4 `inventory_procurement` test files/helpers
+  passing `services["module_runtime_service"]` by the old kwarg name.
+- Verification (targeted, per the standing policy): `compileall` across
+  every touched tree, both import smoke tests, then an 8-file targeted
+  spot-check run before and after deleting the old file — 31 passed, 0
+  failed, identical both times. Given this phase's exceptional reach into
+  the composition root, additionally ran a wider confirmatory pass
+  (`src/tests/architecture` + `src/tests/inventory_procurement` +
+  `src/tests/platform` — 934 passed, 8 failed) as the closing step, not a
+  mid-investigation check. All 8 failures cross-checked against a
+  `git stash`/`stash pop` rerun with every Phase 9a change removed:
+  identical failures both with and without this phase's changes — 2 were
+  already-known baseline failures from earlier phases this session
+  (`test_legacy_rbac_runtime_dependencies_are_removed`,
+  `test_platform_access_scopes.py`'s finance.read mismatch), the other 6
+  newly confirmed pre-existing and unrelated (a datetime tz-naive/aware
+  comparison in `site.py`, a hard-line-limit guardrail, an RLS
+  classification guardrail, a QML route guardrail, and two service-level
+  test failures) — none touch anything this phase changed.
+- Deleted `src/application/runtime/entitlement_runtime.py` entirely (no
+  facade left behind — `ModuleRuntimeService` has zero remaining
+  references anywhere in the repo, confirmed by a final repo-wide grep).
+- **Left uncommitted at the user's explicit instruction**, same as Phases
+  8e/8f.
+
 ### Notes on this ordering
 
 - **`security` (Phases 8a–8f) is deliberately last among the content-group

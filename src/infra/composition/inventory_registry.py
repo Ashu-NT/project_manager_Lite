@@ -244,7 +244,7 @@ def build_inventory_procurement_service_bundle(
         item_service=inventory_item_service,
         stock_service=inventory_stock_service,
         party_service=platform_services.party_service,
-        module_runtime_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
     )
