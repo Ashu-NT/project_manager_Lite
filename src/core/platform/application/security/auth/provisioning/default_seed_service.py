@@ -5,7 +5,10 @@ import os
 from typing import TYPE_CHECKING
 
 from src.core.platform.domain.security.auth import Permission, Role, RolePermissionBinding
-from src.core.platform.auth.policy import DEFAULT_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS
+from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
+    DEFAULT_PERMISSIONS,
+    DEFAULT_ROLE_PERMISSIONS,
+)
 from src.core.platform.application.security.authorization.roles.role_scope_policy import (
     is_platform_role,
     system_role_scope_type,

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import os
-
 DEFAULT_PERMISSIONS: dict[str, str] = {
     "project.read": "View projects",
     "project.manage": "Create and edit projects",
@@ -387,35 +385,9 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
 SYSTEM_ROLE_POLICY_NAME = "system-role-permissions"
 SYSTEM_ROLE_POLICY_VERSION = 7
 
-
-def login_lockout_threshold() -> int:
-    raw = os.getenv("PM_AUTH_LOCKOUT_ATTEMPTS", "5").strip() or "5"
-    try:
-        return max(1, int(raw))
-    except ValueError:
-        return 5
-
-
-def login_lockout_minutes() -> int:
-    raw = os.getenv("PM_AUTH_LOCKOUT_MINUTES", "15").strip() or "15"
-    try:
-        return max(1, int(raw))
-    except ValueError:
-        return 15
-
-
-def session_timeout_minutes() -> int:
-    raw = os.getenv("PM_AUTH_SESSION_MINUTES", "480").strip() or "480"
-    try:
-        return max(5, int(raw))
-    except ValueError:
-        return 480
-
-
 __all__ = [
     "DEFAULT_PERMISSIONS",
     "DEFAULT_ROLE_PERMISSIONS",
-    "login_lockout_minutes",
-    "login_lockout_threshold",
-    "session_timeout_minutes",
+    "SYSTEM_ROLE_POLICY_NAME",
+    "SYSTEM_ROLE_POLICY_VERSION",
 ]

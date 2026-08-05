@@ -10,7 +10,9 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
-from src.core.platform.auth.policy import DEFAULT_PERMISSIONS
+from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
+    DEFAULT_PERMISSIONS,
+)
 from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
 from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
     SqlAlchemyOrganizationRepository,

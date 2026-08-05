@@ -3338,6 +3338,55 @@ deferred `infrastructure/persistence` regrouping) — completed 2026-08-05.**
   things left in the old `auth/` package now — `policy.py` pending Phase
   8e's manual split.
 
+**Phase 8e (`auth/policy.py` manual content split, §4a) — completed
+2026-08-05.**
+
+- The one non-mechanical step in `security`: `policy.py` conflated two
+  unrelated concerns in one file, so it was split by hand rather than moved
+  whole. `DEFAULT_PERMISSIONS`, all fifteen-odd private role-group set
+  constants (`_VIEWER`, `_TEAM_MEMBER`, ... `_MAINTENANCE_SCOPE_MANAGER`),
+  `DEFAULT_ROLE_PERMISSIONS`, `SYSTEM_ROLE_POLICY_NAME`, and
+  `SYSTEM_ROLE_POLICY_VERSION` (the permission/role catalog — authorization's
+  concern) moved to new file `domain/security/authorization/roles/
+  role_permission_catalog.py`. `login_lockout_threshold()`,
+  `login_lockout_minutes()`, `session_timeout_minutes()` (login/session
+  config — authentication's concern) moved to new file `domain/security/
+  auth/login_security_policy.py`. Both destination folders already existed
+  from Phases 8b/8d, per the plan.
+- Both new files' symbols were also added to their package `__init__.py`
+  re-exports (`domain/security/authorization/roles/__init__.py`,
+  `domain/security/auth/__init__.py`), matching every sibling domain
+  submodule's existing treatment — some callers use the package-level
+  import, some the submodule-level import, and both need to keep working.
+- 12 external call sites fixed, none mixing symbols across the split
+  boundary (confirmed by reading each import block first, so no file needed
+  splitting its own import list in two): `authentication_transactions.py`
+  and `session_utils.py` (auth-side, `login_security_policy`);
+  `default_seed_service.py`, `sod_enforcer.py`,
+  `role_policy_reconciliation_service.py`,
+  `tenant_role_administration_service.py`, and 7 test files
+  (`test_phase_0_critical_bug_fixes`, `test_phase_2a_admin_role_hierarchy`,
+  `test_phase_2b/2c/2d/2e_*_scope_roles`, `test_role_policy_reconciliation`,
+  `test_saas_startup_bootstrap`,
+  `test_project_finance_phase_a0_security`) (authorization-side,
+  `role_permission_catalog`).
+- Gotcha sweep: zero remaining `auth.policy` references anywhere (plain
+  grep), zero monkeypatch string literals naming the old path, and the
+  `auth/__init__.py` facade never referenced `policy` at all (confirmed by
+  reading it), so no facade-repoint step was needed for this phase, unlike
+  8b/8c.
+- Verification (targeted only): `compileall` on the affected trees, both
+  import smoke tests, then an 18-file targeted spot-check covering every
+  fixed call site plus `test_platform_persistence_structure.py` and the
+  broader role/governance test set — run before and after deleting the old
+  `policy.py`. Identical both times: 167 passed, 0 failed.
+- Deleted `auth/policy.py`. The old `auth/` package now contains **only**
+  the permanent `auth/__init__.py` facade — every other file that ever
+  lived there across Phases 8b–8e has moved to its layer-first home. This
+  closes out `auth`'s own code migration; `security` as a whole still has
+  **Phase 8f** remaining (`access/authorization.py` update + the §5c PM
+  extraction).
+
 ### Notes on this ordering
 
 - **`security` (Phases 8a–8f) is deliberately last among the content-group

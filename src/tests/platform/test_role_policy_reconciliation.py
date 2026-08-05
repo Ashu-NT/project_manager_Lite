@@ -11,7 +11,7 @@ from src.core.platform.domain.security.auth import (
     Role,
     RolePermissionBinding,
 )
-from src.core.platform.auth.policy import (
+from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
     DEFAULT_ROLE_PERMISSIONS,
     SYSTEM_ROLE_POLICY_NAME,
     SYSTEM_ROLE_POLICY_VERSION,

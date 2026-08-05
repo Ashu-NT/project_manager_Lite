@@ -1,3 +1,8 @@
+from src.core.platform.domain.security.auth.login_security_policy import (
+    login_lockout_minutes,
+    login_lockout_threshold,
+    session_timeout_minutes,
+)
 from src.core.platform.domain.security.auth.session import (
     AuthSession,
     UserSessionContext,
@@ -48,4 +53,7 @@ __all__ = [
     "normalize_auth_session_user_id",
     "normalize_auth_username",
     "validate_auth_email",
+    "login_lockout_minutes",
+    "login_lockout_threshold",
+    "session_timeout_minutes",
 ]

@@ -7,7 +7,7 @@ from src.core.platform.domain.security.auth import (
     normalize_auth_device_label,
     normalize_auth_session_timeout_override,
 )
-from src.core.platform.auth.policy import session_timeout_minutes
+from src.core.platform.domain.security.auth.login_security_policy import session_timeout_minutes
 
 if TYPE_CHECKING:
     from src.core.platform.domain.security.auth import UserAccount

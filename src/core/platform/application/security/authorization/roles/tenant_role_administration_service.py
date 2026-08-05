@@ -28,7 +28,9 @@ from src.core.platform.domain.security.auth import (
     UserSessionContext,
 )
 from src.core.platform.domain.security.authorization.roles import ROLE_SCOPE_TENANT
-from src.core.platform.auth.policy import DEFAULT_ROLE_PERMISSIONS
+from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
+    DEFAULT_ROLE_PERMISSIONS,
+)
 from src.core.platform.domain.security.authorization.enforcement.sod import SeparationOfDutiesPolicy
 from src.core.platform.common.exceptions import (
     BusinessRuleError,

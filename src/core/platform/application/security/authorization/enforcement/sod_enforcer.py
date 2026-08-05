@@ -3,7 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Iterable
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import record_authorization_denial
-from src.core.platform.auth.policy import DEFAULT_ROLE_PERMISSIONS
+from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
+    DEFAULT_ROLE_PERMISSIONS,
+)
 from src.core.platform.common.exceptions import ValidationError
 
 if TYPE_CHECKING:

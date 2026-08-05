@@ -15,7 +15,10 @@ tenant-wide system role and cannot be reused.
 from __future__ import annotations
 
 from src.core.platform.domain.security.authorization.roles import RoleBinding
-from src.core.platform.auth.policy import DEFAULT_PERMISSIONS, DEFAULT_ROLE_PERMISSIONS
+from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
+    DEFAULT_PERMISSIONS,
+    DEFAULT_ROLE_PERMISSIONS,
+)
 
 
 def _active_context_ids(services) -> tuple[str, str]:

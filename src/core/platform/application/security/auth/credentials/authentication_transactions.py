@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.domain.security.auth import AuthSession
-from src.core.platform.auth.policy import (
+from src.core.platform.domain.security.auth.login_security_policy import (
     login_lockout_minutes,
     login_lockout_threshold,
 )

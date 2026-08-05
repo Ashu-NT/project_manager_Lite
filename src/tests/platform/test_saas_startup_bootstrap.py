@@ -5,7 +5,9 @@ from src.core.platform.domain.security.auth import (
     UserAccount,
 )
 from src.core.platform.domain.security.auth.credentials.passwords import hash_password
-from src.core.platform.auth.policy import DEFAULT_ROLE_PERMISSIONS
+from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
+    DEFAULT_ROLE_PERMISSIONS,
+)
 from src.core.platform.domain.tenant.tenancy import Tenant
 from src.core.platform.application.tenant.tenancy import TenancyMode
 from src.infra.composition.platform_registry import build_platform_service_bundle
