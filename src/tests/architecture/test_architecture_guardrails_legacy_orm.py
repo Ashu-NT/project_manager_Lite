@@ -131,7 +131,7 @@ def test_composition_imports_focused_persistence_adapters():
     assert "from infra.platform.db.repositories import" not in text
     assert "from infra.platform.db.mappers import" not in text
     assert "from src.core.modules.project_management.infrastructure.persistence.repositories.task import" in text
-    assert "from src.core.platform.infrastructure.persistence.repositories.auth import" in text
+    assert "from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import" in text
     assert "from src.core.platform.infrastructure.persistence.repositories.master_data.department.departments import" in text
     assert "from src.core.platform.infrastructure.persistence.repositories.master_data.employee.employee import" in text
     assert "from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import" in text
@@ -197,7 +197,7 @@ def test_orm_package_root_loads_all_model_packages():
     assert "import src.core.modules.maintenance.infrastructure.persistence.orm.models" in package_text
     assert "import src.core.modules.maintenance.infrastructure.persistence.orm.preventive_runtime_models" in package_text
     platform_orm_modules = (
-        "tenant.modules.modules", "time_management.time.time", "auth", "events.notifications.notification", "history.audit.audit_entry", "approval.approval", "data_operations.runtime_tracking.runtime_tracking",
+        "tenant.modules.modules", "time_management.time.time", "security.auth.auth", "events.notifications.notification", "history.audit.audit_entry", "approval.approval", "data_operations.runtime_tracking.runtime_tracking",
         "master_data.employee.employee", "master_data.site.sites", "master_data.department.departments",
         "master_data.org.org", "master_data.documents.documents", "master_data.party.party",
     )

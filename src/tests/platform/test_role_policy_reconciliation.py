@@ -18,7 +18,7 @@ from src.core.platform.auth.policy import (
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.common.ids import generate_id
-from src.core.platform.infrastructure.persistence.repositories.auth import (
+from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
     SqlAlchemyAuthPolicyReconciliationRepository,
 )
 

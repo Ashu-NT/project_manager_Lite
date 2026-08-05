@@ -409,7 +409,7 @@ def test_org_admin_binding_supports_organization_scope(services):
     """Canonical bindings support the same role in multiple organizations."""
     from sqlalchemy import select
 
-    from src.core.platform.infrastructure.persistence.orm.auth import RoleBindingORM
+    from src.core.platform.infrastructure.persistence.orm.security.auth.auth import RoleBindingORM
     from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import SqlAlchemyOrganizationRepository
     from src.core.platform.domain.master_data.org.organization import Organization
 

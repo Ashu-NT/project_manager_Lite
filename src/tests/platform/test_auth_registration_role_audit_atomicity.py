@@ -13,7 +13,7 @@ from src.core.platform.domain.security.authorization.roles import (
 from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
     AuditEntryORM,
 )
-from src.core.platform.infrastructure.persistence.orm.auth import UserORM
+from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
 from src.core.platform.domain.tenant.tenancy.tenant import Tenant
 from src.infra.composition.repositories import (
     RepositoryBundle,

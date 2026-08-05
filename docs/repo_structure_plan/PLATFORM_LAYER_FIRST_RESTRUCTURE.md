@@ -3258,6 +3258,86 @@ completed 2026-08-05.**
   `auth/{mfa,passwords}.py` — **not** the rest of `auth/`, which
   continues to exist pending Phases 8d/8e.
 
+**Phase 8d (`security`: `auth`'s `provisioning/` + `audit/` + root, plus the
+deferred `infrastructure/persistence` regrouping) — completed 2026-08-05.**
+
+- Final installment of `auth`'s application/domain code split: moved the
+  remaining 13 files out of the old `auth/application/` and `auth/domain/`
+  — `provisioning/{registration_service,bootstrap_service,
+  default_seed_service,platform_owner_provisioning_service,
+  user_admin_service}.py`, `audit/{audit_recorder,security_audit}.py`, root
+  `{auth_service,auth_query,auth_validation}.py` (application), and root
+  `{session,user,datetime_utils}.py` (domain) — into
+  `application/security/auth/{provisioning,audit}/` and
+  `application/security/auth/` root, `domain/security/auth/` root. This
+  leaves only `policy.py` in the old `auth/` package, pending Phase 8e's
+  manual content split — and the top-level `auth/__init__.py` facade
+  itself, which stays permanently as the capability's stable public API
+  (`AuthService`, `UserSessionContext`, etc.), now re-pointed at the new
+  locations via `TYPE_CHECKING`/`__getattr__` — external callers using
+  `from src.core.platform.auth import AuthService` (12 files: composition
+  roots, `ui_qml`, tests, tools) needed **no changes**, by design, the same
+  as every other phase's stable-facade treatment.
+- This part of the phase (application/domain move + facade repoint + old
+  file deletion) landed in an earlier working session's commits
+  (`update auth`, `update auth 1`, `update auth 2`, `update auth 4`) before
+  this execution log entry was written up — confirmed via `git log`/`git
+  show --stat` and a repo-wide grep for any lingering deep old-path import
+  (`auth.application.*`, `auth.domain.*`, `auth.provisioning.*`,
+  `auth.audit.*`): zero hits outside the facade itself.
+- **Found and completed the one piece this part had left undone**: unlike
+  every other completed group, `auth`'s `infrastructure/persistence/
+  {mappers,orm,repositories}/auth.py` (§5a — one combined file per layer,
+  never split by content the way application/domain were) was still sitting
+  flat at the top of each of the three trees, not yet regrouped into
+  `security/auth/auth.py` like every other module's infra. Moved all three
+  (269/405/772 lines) into `{mappers,orm,repositories}/security/auth/
+  auth.py`, fixing each file's own internal cross-import
+  (`mappers/auth.py`'s `orm.auth` import, `repositories/auth.py`'s
+  `mappers.auth`/`orm.auth` imports) to the new paths.
+- External call sites fixed: `src/infra/composition/{maintenance_registry,
+  repositories}.py`, `src/infra/persistence/orm/__init__.py`, and 8 test
+  files (`test_auth_module_phase_a`, `test_auth_registration_role_audit_atomicity`,
+  `test_membership_lifecycle_foundation`, `test_phase_1_tenant_security_foundation`
+  — 6 occurrences, `test_phase_2a_admin_role_hierarchy`,
+  `test_platform_owner_provisioning`, `test_role_policy_reconciliation`) —
+  a plain repo-wide grep sufficed (no bare-facade fallback ambiguity, since
+  these are all direct `infrastructure.persistence.{mappers,orm,
+  repositories}.auth` imports, never routed through `auth/__init__.py`).
+- Two guardrail tests needed their own string-literal updates, the same
+  class of fix every already-migrated group's phase needed:
+  `test_architecture_guardrails_legacy_orm.py` — the
+  `test_composition_imports_focused_persistence_adapters` assertion string
+  (`repositories.auth` → `repositories.security.auth.auth`) and the
+  `test_orm_package_root_loads_all_model_packages` module-list entry
+  (`"auth"` → `"security.auth.auth"` in `platform_orm_modules`).
+  `test_platform_persistence_structure.py` — moved `security/auth/auth.py`
+  from `FLAT_AREAS` into `NESTED_AREA_FILES` (mirrors every other
+  now-grouped module) and emptied `FLAT_AREAS` to `set()`, since `auth` was
+  the last remaining flat area. Both were caught by the targeted
+  before/after spot-check, not a fresh grep — same lesson as Phase 8b's
+  bare-facade bug: the import smoke test / targeted test run is what
+  surfaces this, not string search.
+- Verification (targeted only, per the standing policy — no full
+  six-target suite until Phase 10): `compileall` on the three new
+  `security/auth/` trees, both import smoke tests, then the targeted
+  spot-check (the 8 directly-touched test files above, plus
+  `test_platform_persistence_structure.py`, plus the broader
+  `auth`-adjacent set already used in 8c for consistency) — run before and
+  after deleting the three old flat files. Before: 2 failed (the module-list
+  assertion above, plus the pre-existing `test_legacy_rbac_runtime_
+  dependencies_are_removed` baseline failure) — fixed the real one. After
+  fixing and re-running post-deletion: 1 failed (`test_platform_
+  persistence_uses_module_style_layout`, the `FLAT_AREAS` staleness above)
+  — fixed, re-ran once more: 150 passed, 1 failed (the same pre-existing
+  `.env`/`PM_AUTHORIZATION_MIGRATION_MODE` baseline failure flagged in
+  Phase 8c's log too), consistent across every run.
+- Deleted the 3 old flat files:
+  `infrastructure/persistence/{mappers,orm,repositories}/auth.py`.
+  `auth/policy.py` and the permanent `auth/__init__.py` facade are the only
+  things left in the old `auth/` package now — `policy.py` pending Phase
+  8e's manual split.
+
 ### Notes on this ordering
 
 - **`security` (Phases 8a–8f) is deliberately last among the content-group

@@ -12,7 +12,7 @@ from src.core.platform.domain.security.authorization.roles import (
     RoleDelegationPolicy,
 )
 from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
-from src.core.platform.infrastructure.persistence.orm.auth import (
+from src.core.platform.infrastructure.persistence.orm.security.auth.auth import (
     AuthSessionORM,
     PermissionORM,
     RoleBindingORM,

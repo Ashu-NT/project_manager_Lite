@@ -14,7 +14,7 @@ from src.core.platform.domain.security.auth import UserAccount
 from src.core.platform.domain.security.auth.credentials.passwords import hash_password
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import AuditEntryORM
-from src.core.platform.infrastructure.persistence.orm.auth import UserORM
+from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
 from src.infra.composition.repositories import RepositoryBundle, build_repository_bundle
 
 

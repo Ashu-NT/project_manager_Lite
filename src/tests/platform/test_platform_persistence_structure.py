@@ -24,6 +24,7 @@ NESTED_AREA_FILES = {
     "tenant/tenancy/user_tenant.py",
     "time_management/time/time.py",
     "time_management/calendar/enterprise_calendar.py",
+    "security/auth/auth.py",
 }
 
 # runtime_tracking, modules, and identity have no mapper (never did — "no
@@ -35,9 +36,7 @@ NESTED_AREA_FILES_NO_MAPPER = {
     "security/identity/identity.py",
 }
 
-FLAT_AREAS = {
-    "auth",
-}
+FLAT_AREAS = set()
 
 
 def _source_file_stems(path: Path) -> set[str]:

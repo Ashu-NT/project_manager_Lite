@@ -67,7 +67,7 @@ from src.core.modules.maintenance.infrastructure.persistence.repositories import
     SqlAlchemyMaintenanceWorkOrderTaskStepRepository,
     SqlAlchemyMaintenanceWorkRequestRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.auth import SqlAlchemyUserRepository
+from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import SqlAlchemyUserRepository
 from src.core.platform.infrastructure.persistence.repositories.master_data.employee.employee import SqlAlchemyEmployeeRepository
 from src.core.platform.infrastructure.persistence.repositories.time_management.time.time import (
     SqlAlchemyTimeEntryRepository,

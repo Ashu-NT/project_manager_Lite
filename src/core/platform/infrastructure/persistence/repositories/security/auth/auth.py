@@ -31,7 +31,7 @@ from src.core.platform.domain.security.auth import (
     normalize_auth_session_context_id,
     normalize_auth_session_datetime,
 )
-from src.core.platform.infrastructure.persistence.mappers.auth import (
+from src.core.platform.infrastructure.persistence.mappers.security.auth.auth import (
     auth_session_from_orm,
     auth_session_to_orm,
     permission_from_orm,
@@ -46,7 +46,7 @@ from src.core.platform.infrastructure.persistence.mappers.auth import (
     user_from_orm,
     user_to_orm,
 )
-from src.core.platform.infrastructure.persistence.orm.auth import (
+from src.core.platform.infrastructure.persistence.orm.security.auth.auth import (
     AuthPolicyReconciliationORM,
     AuthSessionORM,
     PermissionORM,

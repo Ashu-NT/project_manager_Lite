@@ -57,7 +57,7 @@ from src.core.platform.infrastructure.persistence.repositories.approval.approval
 from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import SqlAlchemyAuditRepository
 from src.core.platform.infrastructure.persistence.repositories.events.notifications.notification import SqlAlchemyNotificationRepository
 from src.core.platform.infrastructure.persistence.repositories.events.platform_events.platform_events import SqlAlchemyPlatformEventRepository
-from src.core.platform.infrastructure.persistence.repositories.auth import (
+from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
     SqlAlchemyAuthPolicyReconciliationRepository,
     SqlAlchemyAuthSessionRepository,
     SqlAlchemyPermissionRepository,
