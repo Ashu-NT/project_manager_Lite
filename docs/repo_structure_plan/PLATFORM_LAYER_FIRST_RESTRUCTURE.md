@@ -3160,6 +3160,38 @@ completed 2026-08-04.**
   `auth/sod.py`) — **not** the rest of `auth/`, which continues to
   exist pending Phases 8c/8d/8e.
 
+**Addendum (2026-08-05): `AuthorizationEngine` found misfiled in `domain/`,
+moved to `contract/`.** The user spotted that `domain/security/authorization/
+enforcement/authorization_engine.py` is a plain `typing.Protocol` — no
+state, no implementation, just method signatures — the same shape as
+`CalendarProtocol` (§5b/Phase 7b), which the plan already relocated from
+`application/` to `contract/` for the identical reason. Its two siblings in
+the same folder stayed put on inspection: `SecurityDenialEvent`
+(`security_decision.py`) is a plain frozen dataclass and
+`SeparationOfDutiesPolicy`/`SeparationOfDutiesRule` (`sod.py`) has real
+behavior (`find_conflicts()`) — both genuinely domain content.
+`AuthorizationEngine` was the odd one out. Moved to new file
+`contract/security/authorization/enforcement/authorization_engine.py`
+(content unchanged), mirroring where `calendar_protocol.py` landed. Only
+one real external caller existed (`session_authorization_engine.py`'s
+`from src.core.platform.domain.security.authorization import
+AuthorizationEngine`) — every other grep hit for the bare name was either
+the definition/re-export chain or a false-positive substring match
+(`SessionAuthorizationEngine`, a docstring mentioning "a mock
+AuthorizationEngine"). Removed the symbol from both of `domain/security/
+authorization/{__init__.py,enforcement/__init__.py}`'s re-exports — it does
+not stay as a domain-facing facade, same treatment as `CalendarProtocol`
+leaving `domain/time_management/calendar/__init__.py` entirely. Verified
+with a 6-file targeted spot-check before/after deletion (52 passed, 1
+failed before; 44 passed after, excluding that one file from the second
+run) — the one failure
+(`test_platform_access_scopes.py::test_auth_build_principal_populates_generic_scoped_access_from_project_memberships`)
+was confirmed unrelated and pre-existing via `git stash`/`stash pop`
+(identical failure with every change from this session — 8d through this
+addendum — stashed out entirely; it traces to PM's own
+`PROJECT_SCOPE_ROLE_PERMISSIONS`, nothing this restructure touches).
+Left uncommitted per the user's standing instruction.
+
 **Phase 8c (`security`: `auth`'s `credentials/` + `session/` sub-split) —
 completed 2026-08-05.**
 
