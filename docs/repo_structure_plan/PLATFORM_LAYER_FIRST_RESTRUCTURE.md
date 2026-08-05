@@ -3036,6 +3036,228 @@ review unit, not a separate infra-only mega-phase at the end.
   identity.py`), and the two old `src/api/desktop/platform/identity.py`
   + `models/identity.py` files.
 
+**Phase 8b (`security`: `authorization` — the auth→authorization split) —
+completed 2026-08-04.**
+
+- The largest and most structurally involved phase so far: created 25
+  new files combining (a) the 6 pre-existing `authorization/` files
+  subfoldered into `roles/`/`enforcement/`, and (b) 14 files
+  reclassified out of `auth` per §4a (9 application files, 3 domain
+  files, 2 loose root files renamed on the way in —
+  `auth/authorization.py` → `enforcement/permission_checks.py`,
+  `auth/sod.py` → `enforcement/sod.py`). Final layout:
+  `domain/security/authorization/{roles,enforcement}/` and
+  `application/security/authorization/{roles,enforcement}/`, each with
+  its own `__init__.py` facade plus a top-level package facade. No
+  `contract/security/authorization/` — the group has no contracts of
+  its own, matching precedent. `auth/policy.py`'s manual content split
+  (→ `role_permission_catalog.py`) is explicitly deferred to Phase 8e,
+  not touched here.
+- **The defining complexity of this phase, unlike every prior one: `auth`
+  is not being fully migrated yet, so files move OUT of a module that
+  keeps existing.** This meant, uniquely for this phase:
+  1. `auth/domain/__init__.py` and `auth/application/__init__.py` (the
+     facades of the module the files are LEAVING) needed *editing, not
+     deletion* — their imports for the 14 moved symbols were repointed
+     to the new `domain/security/authorization/roles` and
+     `application/security/authorization/roles` locations, while every
+     other re-export (session, user, auth_query, auth_service, etc.)
+     stayed untouched. This preserves every existing caller that imports
+     the bare `auth.domain`/`auth.application` facade — they needed zero
+     changes, since the facade still re-exports the same symbols, just
+     sourced from a different file internally.
+  2. Every remaining file *inside* `auth` that referenced the moved
+     content — either via a relative import (`.role_governance_service`,
+     `.target_user_authorization`, `from . import role_assignment_service
+     as _roles`) or an absolute old-path import
+     (`auth.authorization`, `auth.sod`, `auth.domain.role_binding`) —
+     needed its own fix. 13 such files were found and fixed directly:
+     `auth_service.py`, `default_seed_service.py`,
+     `federated_identity_service.py`, `mfa_service.py`,
+     `password_service.py`, `principal_builder.py`,
+     `registration_service.py`, `security_audit.py`,
+     `session_service.py`, `user_admin_service.py`, `domain/user.py`,
+     plus the two facades above. A relative import to a file *staying*
+     in `auth` (e.g. `.auth_service`, `.session_service`,
+     `.session_utils`) had to become an absolute
+     `src.core.platform.auth.application.<name>` import once the
+     importing file moved to a different package — relative imports
+     don't survive a package move.
+  3. Symbol-level splitting was required wherever a single `from
+     src.core.platform.auth.domain import (...)` line mixed moving and
+     staying symbols in the same statement (e.g. `Role`/`UserSessionContext`
+     stay; `RoleBinding`/`ROLE_SCOPE_TENANT`/`normalize_role_scope_type`
+     move) — every such statement had to be split into two imports
+     pointing at two different modules, not just path-renamed.
+- **Largest external blast radius of any phase in this proposal**: a
+  single substring-replacement script (`phase8b_rewrite.py`) touched
+  127 occurrences across 118 files repo-wide, because
+  `auth.authorization` (the `require_permission`/`require_any_permission`
+  functions) is imported by nearly every application-layer file across
+  every business module (`project_management`, `inventory_procurement`,
+  `maintenance`) as well as platform's own services — confirming §9a's
+  observation that `auth` is the most test- and code-referenced module
+  in the whole codebase. The rewrite script's own excluded-directory
+  list only needed to cover `src/core/platform/authorization/` (the old
+  pre-existing module), since `auth/` itself was fixed manually first
+  and therefore didn't re-match the old patterns during the sweep.
+- **One real bug introduced by the rewrite script, caught by the import
+  smoke test, not by grep**: the old combined `authorization/__init__.py`
+  facade mixed domain symbols (`AuthorizationEngine`, `SecurityDenialEvent`)
+  and application symbols (`SessionAuthorizationEngine`,
+  `get_authorization_engine`, `set_authorization_engine`) in one bare
+  re-export, the way every pre-restructure platform facade did. The
+  script's bare-fallback rule (`src.core.platform.authorization` →
+  `application.security.authorization`) is correct for the application
+  symbols but wrong for the domain ones, since the two now live in
+  genuinely separate packages. `python -c "from
+  src.infra.composition.app_container import build_service_graph"`
+  failed immediately with `ImportError: cannot import name
+  'SecurityDenialEvent'`, pointing straight at
+  `src/infra/platform/security_audit_recorder.py`. A follow-up grep for
+  `AuthorizationEngine`/`SecurityDenialEvent` imported from the
+  application-layer facade (word-boundary-safe, to avoid matching
+  `SessionAuthorizationEngine`) found one more instance
+  (`auth/domain/session.py`'s `TYPE_CHECKING` import) using the same
+  wrong path; both fixed directly. **Lesson for any future phase with a
+  similarly mixed old combined facade**: a blind bare-path substring
+  fallback is only safe when the old facade's re-exports were
+  single-layer; when they mixed layers, every bare-facade import site
+  must be checked individually for which layer its specific symbols
+  actually belong to, and the import smoke test is what catches this,
+  not a grep sweep (grep found nothing wrong; only actually importing
+  the code surfaced it).
+- Gotcha classes 2 (monkeypatch strings) and 3 (growth-budget paths):
+  none found. Gotcha class 4 (API-adapter facade re-export): not
+  applicable — `authorization`/the moved `auth` pieces have no desktop
+  API surface of their own.
+- The only guardrail touch needed was confirming
+  `test_legacy_platform_authorization_package_is_removed` (`ROOT /
+  "core" / "platform" / "authorization"`, missing a `"src"` segment) is
+  the same class of dead pre-`src/`-migration historical guardrail
+  established as untouched since Phase 1 — left alone.
+  `test_platform_persistence_structure.py` needed no changes:
+  `authorization` has no persistence-layer footprint of its own (its
+  domain objects are persisted through `auth`'s own infra files, which
+  already reference them through the still-working `auth.domain`
+  bare-facade import and therefore needed no changes either).
+- Verification: given this phase's exceptional blast radius, the
+  targeted spot-check widened beyond the usual directly-touched files
+  to the full `platform` + `architecture` + `project_management` +
+  `inventory_procurement` + `maintenance` directories (skipping only
+  `test_runtime_execution_tracking.py`, uninvolved here) — both before
+  and after deletion: 32 failed, 1437 passed each time, diffed against
+  the baseline, **byte-for-byte identical**.
+- Deleted `src/core/platform/authorization/` (the entire old directory)
+  and the 14 specific files that moved out of `auth`
+  (`auth/application/{role_scope_policy,canonical_role_resolver,
+  role_assignment_service,role_governance_service,
+  role_policy_reconciliation_service,
+  scope_delegation_provisioning_service,
+  tenant_role_administration_service,sod_enforcer,
+  target_user_authorization}.py`, `auth/authorization.py`,
+  `auth/domain/{role_binding,role_delegation,policy_reconciliation}.py`,
+  `auth/sod.py`) — **not** the rest of `auth/`, which continues to
+  exist pending Phases 8c/8d/8e.
+
+**Phase 8c (`security`: `auth`'s `credentials/` + `session/` sub-split) —
+completed 2026-08-05.**
+
+- Second installment of `auth`'s partial migration: 11 files moved out
+  (9 application, 2 domain), `auth/` itself still not deleted (audit,
+  provisioning, and root files remain, pending Phase 8d; `policy.py`'s
+  manual split remains pending Phase 8e). Final layout:
+  `domain/security/auth/credentials/{mfa.py,passwords.py}`,
+  `application/security/auth/credentials/{authentication_service,
+  authentication_transactions,password_service,mfa_service,
+  federated_identity_service}.py`, `application/security/auth/session/
+  {session_service,session_utils,context_switch_service,
+  principal_builder}.py`. No `contract/`/`infrastructure/`/`api/`
+  footprint for this sub-split — pure domain+application content. The
+  `credentials`/`session` subfolder split at the domain layer (which
+  only ever holds `credentials`, since `session` has no domain-layer
+  files) was kept in lockstep with the application layer's two-member
+  grouping for consistency, rather than collapsing the single-member
+  domain group per the usual rule — a deliberate exception, since `auth`
+  will keep gaining domain-layer content in later sub-phases and a
+  matching subfolder name avoids a second rename later.
+- Same partial-migration mechanic as Phase 8b, scoped to a smaller
+  slice: `auth/domain/__init__.py` and `auth/application/__init__.py`
+  needed **no edits this time** — a targeted grep confirmed none of the
+  11 moved files' symbols were ever re-exported through either bare
+  facade (they were internal implementation details wired into
+  `AuthService` via direct module imports, never part of the public
+  surface), unlike Phase 8b's `RoleBinding`/`RoleDelegationPolicy`/etc.
+  New package `__init__.py` files (`domain/security/auth/{__init__.py,
+  credentials/__init__.py}`, `application/security/auth/{__init__.py,
+  credentials/__init__.py,session/__init__.py}`) were therefore left as
+  plain empty package markers — an established, pre-existing pattern
+  elsewhere (e.g. `application/time_management/calendar/{assignment,
+  capacity,definitions}/__init__.py`), not a shortcut unique to this
+  phase.
+- 13 files still inside `auth` needed relative-import-to-absolute-path
+  fixes because the content they referenced moved to a different
+  package: `auth_service.py` (7 imports —
+  `authentication_service`/`authentication_transactions`/
+  `context_switch_service`/`federated_identity_service`/`mfa_service`/
+  `password_service`/`principal_builder`/`session_service`, all
+  converted to absolute `application.security.auth.{credentials|
+  session}` paths), `platform_owner_provisioning_service.py`
+  (`auth.passwords` → `domain.security.auth.credentials.passwords`),
+  `registration_service.py` (`auth.passwords` and
+  `.federated_identity_service`, both converted), `user_admin_service.py`
+  (`.session_service` → absolute). `bootstrap_service.py`,
+  `default_seed_service.py`, and other files staying in `auth` that
+  reference other *staying* siblings were left on relative imports
+  unchanged, per precedent.
+- External blast radius: a single substring-replacement script
+  (`phase8c_rewrite.py`, 11 old-path → new-path mappings) touched 17
+  occurrences across 10 files repo-wide — far smaller than Phase 8b's
+  127/118, since these 9 modules were referenced almost exclusively via
+  their fully-qualified paths (`auth.application.session_service.X`)
+  rather than through a bare facade import. Two already-migrated
+  Phase 8b files needed fixing (`role_assignment_service.py`,
+  `role_policy_reconciliation_service.py`, both referencing
+  `auth.application.session_service`/`session_utils`), plus **8
+  monkeypatch string literals in `test_auth_domain_validation.py`**
+  (gotcha class 2 — string paths like
+  `"src.core.platform.auth.application.session_service.
+  require_any_permission"` don't get caught by a normal import grep)
+  and real-import fixes across `test_auth_module_phase_a.py`,
+  `test_canonical_role_binding_foundation.py`, `test_passwords.py`,
+  `test_platform_owner_provisioning.py`, `test_saas_startup_bootstrap.py`,
+  `test_tenancy_rbac_immediate_containment.py` (all `auth.mfa`/
+  `auth.passwords`), and `test_phase_2e_rbac_tenant_hardening.py`
+  (`auth.application.principal_builder`, 2 occurrences). A follow-up
+  repo-wide grep for every old dotted path (both bare and with a
+  trailing symbol) after the script ran found zero remaining hits
+  outside the 11 old files themselves (expected, pending deletion).
+- Gotcha classes 1, 3, and 4: none found — no infra-path imports, no
+  growth-budget path references, and no API-adapter facade re-export,
+  consistent with this sub-split having no infrastructure or API
+  footprint.
+- `test_platform_persistence_structure.py` needed no changes:
+  confirmed `credentials`/`session` have no persistence-layer footprint
+  (`auth` stays in `FLAT_AREAS` unchanged).
+- **Verification per the now-current policy (targeted tests only, no
+  full six-target suite — full suite deferred entirely to Phase 10)**:
+  `compileall` across the affected trees, both import smoke tests
+  (`app_container.build_service_graph`, `import src.api.desktop`), then
+  a targeted spot-check of the 8 directly-touched/affected test files
+  plus `test_platform_persistence_structure.py` (93 passed) — run both
+  before and after deletion, identical results both times. Additionally
+  ran the full `src/tests/architecture` directory (117 passed, 2 failed)
+  as a wider guardrail check given `auth`'s broad reach; both failures
+  (`test_legacy_rbac_runtime_dependencies_are_removed`,
+  `test_no_python_module_exceeds_hard_line_limit`) confirmed pre-existing
+  against the known 32-failure baseline, unrelated to this phase.
+- Deleted the 11 old files: `auth/application/{authentication_service,
+  authentication_transactions,password_service,mfa_service,
+  federated_identity_service,session_service,session_utils,
+  context_switch_service,principal_builder}.py` and
+  `auth/{mfa,passwords}.py` — **not** the rest of `auth/`, which
+  continues to exist pending Phases 8d/8e.
+
 ### Notes on this ordering
 
 - **`security` (Phases 8a–8f) is deliberately last among the content-group

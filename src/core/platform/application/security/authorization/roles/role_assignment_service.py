@@ -11,7 +11,7 @@ from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_TENANT,
 )
 
-from src.core.platform.auth.application.session_service import refresh_current_session_if_user
+from src.core.platform.application.security.auth.session.session_service import refresh_current_session_if_user
 from src.core.platform.application.security.authorization.roles.role_scope_policy import (
     EXPLICIT_SCOPE_ROLE_NAMES,
     PLATFORM_ROLE_NAMES,

@@ -15,14 +15,14 @@ from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_TENANT,
     RoleBinding,
 )
-from src.core.platform.auth.passwords import hash_password
+from src.core.platform.domain.security.auth.credentials.passwords import hash_password
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.domain.tenant.tenancy.user_tenant_membership import UserTenantMembership
 
 if TYPE_CHECKING:
     from .auth_service import AuthService
 
-from .federated_identity_service import (
+from src.core.platform.application.security.auth.credentials.federated_identity_service import (
     normalize_federated_subject,
     normalize_identity_provider,
     validate_federated_identity,

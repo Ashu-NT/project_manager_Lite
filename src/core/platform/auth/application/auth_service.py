@@ -20,17 +20,17 @@ from src.core.platform.auth.domain.session import UserSessionContext, UserSessio
 from src.core.platform.domain.security.authorization.enforcement.sod import SeparationOfDutiesPolicy
 from src.core.platform.common.exceptions import BusinessRuleError
 
-from . import authentication_service as _auth
+from src.core.platform.application.security.auth.credentials import authentication_service as _auth
 from . import bootstrap_service as _bootstrap
-from . import context_switch_service as _context_switch
-from . import federated_identity_service as _fed
-from . import mfa_service as _mfa
-from . import password_service as _pw
+from src.core.platform.application.security.auth.session import context_switch_service as _context_switch
+from src.core.platform.application.security.auth.credentials import federated_identity_service as _fed
+from src.core.platform.application.security.auth.credentials import mfa_service as _mfa
+from src.core.platform.application.security.auth.credentials import password_service as _pw
 from . import platform_owner_provisioning_service as _platform_owner
-from . import principal_builder as _principal
+from src.core.platform.application.security.auth.session import principal_builder as _principal
 from . import registration_service as _reg
 from src.core.platform.application.security.authorization.roles import role_assignment_service as _roles
-from . import session_service as _sessions
+from src.core.platform.application.security.auth.session import session_service as _sessions
 from . import user_admin_service as _users
 from src.core.platform.application.security.authorization.roles.canonical_role_resolver import CanonicalRoleResolver, ScopeTenantResolver
 

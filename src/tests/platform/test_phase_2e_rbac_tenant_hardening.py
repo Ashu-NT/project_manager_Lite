@@ -416,7 +416,7 @@ class TestPrincipalBuilderOrgClearing:
     def test_local_principal_establishes_default_context_when_session_has_none(self, services):
         """Local mode establishes its explicit default context during rebuild."""
         from unittest.mock import MagicMock, patch
-        from src.core.platform.auth.application.principal_builder import build_principal
+        from src.core.platform.application.security.auth.session.principal_builder import build_principal
 
         auth = services["auth_service"]
         if auth._auth_session_repo is None:
@@ -440,7 +440,7 @@ class TestPrincipalBuilderOrgClearing:
     def test_principal_rejects_unknown_saved_tenant(self, services):
         """Unknown saved tenant IDs are not restored as authorization context."""
         from unittest.mock import MagicMock, patch
-        from src.core.platform.auth.application.principal_builder import build_principal
+        from src.core.platform.application.security.auth.session.principal_builder import build_principal
 
         auth = services["auth_service"]
         if auth._auth_session_repo is None:

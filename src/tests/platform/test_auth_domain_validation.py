@@ -186,7 +186,7 @@ def _make_auth_service(monkeypatch: pytest.MonkeyPatch) -> AuthService:
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.session_service.require_any_permission",
+        "src.core.platform.application.security.auth.session.session_service.require_any_permission",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
@@ -194,7 +194,7 @@ def _make_auth_service(monkeypatch: pytest.MonkeyPatch) -> AuthService:
         lambda *args, **kwargs: "",
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.session_service.require_target_user_in_active_tenant",
+        "src.core.platform.application.security.auth.session.session_service.require_target_user_in_active_tenant",
         lambda *args, **kwargs: "",
     )
     monkeypatch.setattr(
@@ -206,11 +206,11 @@ def _make_auth_service(monkeypatch: pytest.MonkeyPatch) -> AuthService:
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.authentication_transactions.add_atomic_auth_event",
+        "src.core.platform.application.security.auth.credentials.authentication_transactions.add_atomic_auth_event",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.session_service.add_atomic_security_audit",
+        "src.core.platform.application.security.auth.session.session_service.add_atomic_security_audit",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
@@ -222,11 +222,11 @@ def _make_auth_service(monkeypatch: pytest.MonkeyPatch) -> AuthService:
         lambda raw_password: f"hash::{raw_password}",
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.authentication_service.verify_password",
+        "src.core.platform.application.security.auth.credentials.authentication_service.verify_password",
         lambda raw_password, password_hash: password_hash == f"hash::{raw_password}",
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.authentication_transactions.domain_events.auth_changed.emit",
+        "src.core.platform.application.security.auth.credentials.authentication_transactions.domain_events.auth_changed.emit",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
@@ -238,7 +238,7 @@ def _make_auth_service(monkeypatch: pytest.MonkeyPatch) -> AuthService:
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.session_service.domain_events.auth_changed.emit",
+        "src.core.platform.application.security.auth.session.session_service.domain_events.auth_changed.emit",
         lambda *args, **kwargs: None,
     )
 

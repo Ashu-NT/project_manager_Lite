@@ -30,7 +30,7 @@ from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.common.ids import generate_id
 from src.core.platform.common.pydantic import validated_dataclass
 
-from src.core.platform.auth.application.session_utils import rotate_session_revision
+from src.core.platform.application.security.auth.session.session_utils import rotate_session_revision
 
 
 @validated_dataclass(frozen=True)

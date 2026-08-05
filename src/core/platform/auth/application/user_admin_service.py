@@ -10,7 +10,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
 from src.core.platform.auth.domain import Role, UserAccount, normalize_auth_username
 from src.core.platform.common.exceptions import ValidationError
 
-from .session_service import refresh_current_session_if_user
+from src.core.platform.application.security.auth.session.session_service import refresh_current_session_if_user
 from .security_audit import add_atomic_security_audit
 from src.core.platform.application.security.authorization.roles.role_scope_policy import is_customer_assignable_role, is_platform_role
 from src.core.platform.application.security.authorization.enforcement.target_user_authorization import (

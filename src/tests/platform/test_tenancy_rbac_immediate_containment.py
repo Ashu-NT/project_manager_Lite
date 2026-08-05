@@ -12,7 +12,7 @@ from src.core.platform.auth.domain import (
     UserAccount,
 )
 from src.core.platform.auth.domain.session import UserSessionContext
-from src.core.platform.auth.passwords import hash_password
+from src.core.platform.domain.security.auth.credentials.passwords import hash_password
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
     SqlAlchemyOrganizationRepository,
