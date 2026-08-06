@@ -4,8 +4,6 @@ from src.core.modules.project_management.application.scheduling import Schedulin
 
 
 class TaskScheduleSyncMixin:
-    # TRANSITION(PF-A0-UOW-BRIDGE): commit propagates the temporary outer-transaction
-    # bridge through schedule recalculation. Remove at the Phase C command cutover.
     _scheduling_engine: SchedulingEngine | None
 
     def _sync_project_schedule(

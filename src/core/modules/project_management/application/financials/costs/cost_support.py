@@ -12,12 +12,8 @@ from src.core.modules.project_management.application.common.currency_policy impo
 )
 
 class CostSupportMixin:
-    def _is_governed(self, *, operation_code: str, bypass_approval: bool) -> bool:
-        return (
-            not bypass_approval
-            and self._approval_service is not None
-            and is_governance_required(operation_code)
-        )
+    def _is_governed(self, *, operation_code: str) -> bool:
+        return self._approval_service is not None and is_governance_required(operation_code)
 
     def _require_operation_permission(
         self,

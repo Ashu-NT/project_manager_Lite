@@ -22,11 +22,12 @@ if TYPE_CHECKING:
 
 
 class TaskDependencyMixin:
-    # TRANSITION(PF-A0-UOW-BRIDGE): commit=False lets an approval use case own the
-    # transaction. Remove this switch with dedicated approved commands in Phase C.
+    """Governed dependency lifecycle for ``add``/``remove``; ``update`` has no governed path (dead, unwired)."""
+
     _session: Session
     _task_repo: TaskRepository
     _dependency_repo: DependencyRepository
+
     def get_dependency(self, dep_id: str) -> TaskDependency | None:
         require_permission(self._user_session, "task.read", operation_label="view dependency")
         dependency = self._dependency_repo.get(dep_id)
@@ -50,8 +51,6 @@ class TaskDependencyMixin:
         successor_id: str,
         dependency_type: DependencyType = DependencyType.FINISH_TO_START,
         lag_days: int = 0,
-        bypass_approval: bool = False,
-        commit: bool = True,
     ) -> TaskDependency:
         predecessor = self._task_repo.get(predecessor_id)
         if not predecessor:
@@ -62,8 +61,7 @@ class TaskDependencyMixin:
         self._require_leaf_task(predecessor, operation_label="participate in dependencies")
         self._require_leaf_task(successor, operation_label="participate in dependencies")
         governed = (
-            not bypass_approval
-            and self._approval_service is not None
+            self._approval_service is not None
             and is_governance_required("dependency.add")
             and not is_admin_session(self._user_session)
         )
@@ -118,6 +116,25 @@ class TaskDependencyMixin:
                 f"Approval required for dependency change. Request {request.id} created.",
                 code="APPROVAL_REQUIRED",
             )
+        return self._apply_dependency_add_decision(
+            predecessor_id=predecessor_id,
+            successor_id=successor_id,
+            dependency_type=dependency_type,
+            lag_days=lag_days,
+            commit=True,
+        )
+
+    def _apply_dependency_add_decision(
+        self,
+        *,
+        predecessor_id: str,
+        successor_id: str,
+        dependency_type: DependencyType,
+        lag_days: int,
+        commit: bool,
+    ) -> TaskDependency:
+        predecessor = self._task_repo.get(predecessor_id)
+        successor = self._task_repo.get(successor_id)
         dependency = TaskDependency.create(predecessor_id, successor_id, dependency_type, lag_days)
         try:
             self._dependency_repo.add(dependency)
@@ -149,16 +166,9 @@ class TaskDependencyMixin:
             domain_events.tasks_changed.emit(predecessor.project_id)
         return dependency
 
-    def remove_dependency(
-        self,
-        dep_id: str,
-        bypass_approval: bool = False,
-        *,
-        commit: bool = True,
-    ) -> None:
+    def remove_dependency(self, dep_id: str) -> None:
         governed = (
-            not bypass_approval
-            and self._approval_service is not None
+            self._approval_service is not None
             and is_governance_required("dependency.remove")
             and not is_admin_session(self._user_session)
         )
@@ -197,15 +207,23 @@ class TaskDependencyMixin:
                 f"Approval required for dependency removal. Request {request.id} created.",
                 code="APPROVAL_REQUIRED",
             )
+        self._apply_dependency_remove_decision(dependency_id=dep_id, commit=True)
+
+    def _apply_dependency_remove_decision(self, *, dependency_id: str, commit: bool) -> None:
+        dependency = self._dependency_repo.get(dependency_id)
+        if not dependency:
+            raise NotFoundError("Dependency not found.", code="DEPENDENCY_NOT_FOUND")
+        predecessor = self._task_repo.get(dependency.predecessor_task_id)
+        successor = self._task_repo.get(dependency.successor_task_id)
+        project_id = predecessor.project_id if predecessor else (successor.project_id if successor else None)
         try:
-            self._dependency_repo.delete(dep_id)
-            project_id = predecessor.project_id if predecessor else (successor.project_id if successor else None)
+            self._dependency_repo.delete(dependency_id)
             self._sync_project_schedule(project_id, commit=False)
             record_activity(
                 self,
                 action="dependency.remove",
                 entity_type="task_dependency",
-                entity_id=dep_id,
+                entity_id=dependency_id,
                 module="project_management",
                 workspace_id=project_id,
                 details={
@@ -244,7 +262,6 @@ class TaskDependencyMixin:
         *,
         dependency_type: DependencyType | None = None,
         lag_days: int | None = None,
-        bypass_approval: bool = False,
     ) -> TaskDependency:
         dependency = self._dependency_repo.get(dep_id)
         if not dependency:
@@ -253,22 +270,13 @@ class TaskDependencyMixin:
         predecessor = self._task_repo.get(dependency.predecessor_task_id)
         successor = self._task_repo.get(dependency.successor_task_id)
         project_id = predecessor.project_id if predecessor else (successor.project_id if successor else None)
-        governed = (
-            not bypass_approval
-            and self._approval_service is not None
-            and is_governance_required("dependency.update")
-            and not is_admin_session(self._user_session)
-        )
-        if governed:
-            require_permission(self._user_session, "approval.request", operation_label="request dependency update")
-        else:
-            require_permission(self._user_session, "task.manage", operation_label="update dependency")
+        require_permission(self._user_session, "task.manage", operation_label="update dependency")
         if project_id:
             require_project_permission(
                 self._user_session,
                 project_id,
-                "approval.request" if governed else "task.manage",
-                operation_label="request dependency update" if governed else "update dependency",
+                "task.manage",
+                operation_label="update dependency",
             )
 
         candidate = replace(
@@ -290,27 +298,6 @@ class TaskDependencyMixin:
             if diagnostic.code == "DEPENDENCY_CYCLE":
                 raise BusinessRuleError(message, code=diagnostic.code)
             raise ValidationError(message, code=diagnostic.code)
-
-        if governed:
-            request = self._approval_service.request_change(
-                request_type="dependency.update",
-                entity_type="task_dependency",
-                entity_id=dependency.id,
-                project_id=project_id,
-                payload={
-                    "dependency_id": dependency.id,
-                    "predecessor_id": dependency.predecessor_task_id,
-                    "predecessor_name": predecessor.name if predecessor else None,
-                    "successor_id": dependency.successor_task_id,
-                    "successor_name": successor.name if successor else None,
-                    "dependency_type": candidate.dependency_type.value,
-                    "lag_days": candidate.lag_days,
-                },
-            )
-            raise BusinessRuleError(
-                f"Approval required for dependency update. Request {request.id} created.",
-                code="APPROVAL_REQUIRED",
-            )
 
         try:
             self._dependency_repo.update(candidate)

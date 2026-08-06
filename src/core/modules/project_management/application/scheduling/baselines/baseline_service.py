@@ -40,8 +40,8 @@ from src.core.modules.project_management.application.common.module_guard import 
 
 
 class BaselineService(ProjectManagementModuleGuardMixin):
-    # TRANSITION(PF-A0-UOW-BRIDGE): commit=False lets an approval use case own the
-    # transaction. Remove this switch with the dedicated approved command in Phase C.
+    """Governed baseline lifecycle; no ``bypass_approval`` flag."""
+
     def __init__(
         self,
         session: Session,
@@ -90,8 +90,6 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         self,
         project_id: str,
         name: str = "Baseline",
-        bypass_approval: bool = False,
-        commit: bool = True,
         *,
         rate_as_of: date,
     ) -> ProjectBaseline:
@@ -103,8 +101,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         creation-time date explicitly. This service never calls
         ``date.today()`` itself."""
         governed = (
-            not bypass_approval
-            and self._approval_service is not None
+            self._approval_service is not None
             and is_governance_required("baseline.create")
             and not is_admin_session(self._user_session)
         )
@@ -151,6 +148,16 @@ class BaselineService(ProjectManagementModuleGuardMixin):
                 f"Approval required for baseline creation. Request {req.id} created.",
                 code="APPROVAL_REQUIRED",
             )
+        return self._apply_baseline_creation_decision(
+            project_id=project_id, name=name, rate_as_of=rate_as_of, commit=True
+        )
+
+    def _apply_baseline_creation_decision(
+        self, *, project_id: str, name: str, rate_as_of: date, commit: bool
+    ) -> ProjectBaseline:
+        project = self._projects.get(project_id)
+        if not project:
+            raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
 
         # Ensure we have a computed schedule (CPM provides earliest_start/finish)
         schedule = self._sched.recalculate_project_schedule(project_id, commit=False)

@@ -45,8 +45,6 @@ from src.core.modules.project_management.application.scheduling.calendars.projec
 
 
 class SchedulingEngine(ResourceLevelingMixin):
-    # TRANSITION(PF-A0-UOW-BRIDGE): commit=False supports approval-owned transactions.
-    # Remove the switch when approved mutations use dedicated Unit-of-Work commands.
     """
     CPM-style scheduling engine:
     - Forward pass: ES/EF

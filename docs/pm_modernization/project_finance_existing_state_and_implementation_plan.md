@@ -773,11 +773,54 @@ ADR gate: complete. ADR-PF-003, ADR-PF-005, and ADR-PF-009 are accepted.
    `CostPolicyEngine`/`LaborCostEngine`'s own "planned" figures (feeding
    KPIs/dashboards/`FinanceSnapshot.planned`) still read
    `ProjectResource.planned_hours` directly rather than the new
-   `ProjectPlannedCostVersion`; that cutover is explicitly its own
-   follow-up slice (mirroring `rate_card_cost_engine_cutover_plan.md`),
-   not done here. Baseline provenance (which exact rate-card line/version
-   valued each task) is also not recorded — a later baseline
+   `ProjectPlannedCostVersion`. Baseline provenance (which exact rate-card
+   line/version valued each task) is also not recorded — a later baseline
    financial-snapshot extension would be needed for that.
+
+   **Investigated and explicitly rejected (2026-08-06): cutting
+   `CostPolicyEngine`/`ledger.py`/`LaborCostEngine` over onto
+   `ProjectPlannedCostVersion`.** This is not a safe data-source swap and
+   would be a regression if done as literally scoped:
+   - **Granularity mismatch.** The three existing call sites
+     (`CostPolicyEngine._resolve_planned_labor_map`, `ledger.py`'s
+     `build_computed_labor_plan_rows`, `LaborCostEngine
+     .calculate_project_labor_plan_vs_actual`) all sum a resource's full
+     `ProjectResource.planned_hours` *envelope*, with no dependency on any
+     task assignment existing. `ProjectPlannedCostVersion` only counts
+     hours actually *allocated* to a task
+     (`TaskAssignment.allocated_planned_hours`) — partial/zero allocation
+     is an explicitly normal state. Cutting over would silently drop
+     unallocated planned hours from every KPI/dashboard reading them (a
+     real, confirmed test regression: `test_technical_math_reporting_
+     cost_policy.py::test_cost_policy_consistent_across_kpi_evm_
+     breakdown_and_totals` has 10 planned hours with 0 allocated to any
+     task; `total_planned_cost` would drop from 1150.0 to 150.0).
+   - **Three call sites, not one, and they'd disagree.** `ledger.py`'s own
+     docstring states its planned-labor rows intentionally share
+     `CostPolicyEngine`'s exact source "so this ledger's rows never
+     disagree with the engine's totals in the same finance snapshot."
+     Cutting over only one of the three would break that invariant within
+     a single `FinanceSnapshot`.
+   - **No freshness mechanism exists.** `ProjectPlannedCostVersion` only
+     updates via an explicit `calculate_snapshot()` call; nothing in
+     production ever calls it today (only tests do), `planned_costs_changed`
+     has zero subscribers, and no assignment-mutating command triggers a
+     recalculation. `CostPolicyEngine`/KPIs are live, always-current read
+     paths — reading this snapshot instead would show `$0` planned for
+     every project until someone manually triggers a calculation.
+
+   Decision: leave `CostPolicyEngine`/`ledger.py`/`LaborCostEngine` as they
+   are — they already resolve through the rate-card resolver correctly at
+   their own (coarser, envelope-level) granularity, which is not wrong,
+   just a different, legitimate view than the new snapshot's
+   allocated-to-task view. The real gap is that nothing yet surfaces
+   `ProjectPlannedCostVersion` to users (no desktop endpoint/report exists
+   for it) — a future additive report, not a replacement of existing
+   figures, would be the correct way to make it visible. A genuine full
+   cutover would require, at minimum, an assignment-change-triggered
+   recalculation mechanism and a product decision on whether unallocated
+   envelope hours should still count as "planned" — out of scope for this
+   phase.
 8. Replace the QML combined "Budget" cost-line section with separate Profile, Budget Versions, Budget Lines, Rate Cards, and Planned Costs views. Current QML may be broken/replaced as contracts move; do not preserve false semantics.
 
 Exit gate: approved budgets cannot mutate; rate selection is deterministic; historical snapshots remain stable after rate changes; plan totals reconcile by cost code/WBS/period; cross-tenant references fail.

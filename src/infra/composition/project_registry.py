@@ -519,8 +519,6 @@ def _register_project_management_approval_handlers(
     budget_service: BudgetService,
     user_session=None,
 ) -> None:
-    # TRANSITION(PF-A0-UOW-BRIDGE): These handlers stage legacy service writes with
-    # commit=False/bypass_approval=True. Remove both switches at the Phase C command cutover.
     def _result(signal_name: str, payload: str) -> ApprovalHandlerResult:
         return ApprovalHandlerResult(
             post_commit_events=(ApprovalPostCommitEvent(signal_name, payload),)
@@ -528,41 +526,35 @@ def _register_project_management_approval_handlers(
 
     def _apply_baseline(req) -> ApprovalHandlerResult:
         project_id = req.payload["project_id"]
-        # No baseline-effective date is carried on the approval request —
-        # this handler applies an already-requested change, so it resolves
-        # "as of" at the composition boundary (never inside BaselineService
-        # itself; see create_baseline's `rate_as_of` docstring).
-        baseline_service.create_baseline(
+
+        baseline_service._apply_baseline_creation_decision(
             project_id=project_id,
             name=req.payload.get("name") or "Baseline",
-            bypass_approval=True,
-            commit=False,
             rate_as_of=date.today(),
+            commit=False,
         )
         return _result("baseline_changed", project_id)
 
     def _apply_dependency_add(req) -> ApprovalHandlerResult:
-        task_service.add_dependency(
+        task_service._apply_dependency_add_decision(
             predecessor_id=req.payload["predecessor_id"],
             successor_id=req.payload["successor_id"],
             dependency_type=_as_dependency_type(req.payload.get("dependency_type", "FS")),
             lag_days=int(req.payload.get("lag_days", 0) or 0),
-            bypass_approval=True,
             commit=False,
         )
         return _result("tasks_changed", req.project_id or "")
 
     def _apply_dependency_remove(req) -> ApprovalHandlerResult:
-        task_service.remove_dependency(
-            dep_id=req.payload["dependency_id"],
-            bypass_approval=True,
+        task_service._apply_dependency_remove_decision(
+            dependency_id=req.payload["dependency_id"],
             commit=False,
         )
         return _result("tasks_changed", req.project_id or "")
 
     def _apply_cost_add(req) -> ApprovalHandlerResult:
         project_id = req.payload["project_id"]
-        cost_service.add_cost_item(
+        cost_service._apply_cost_add_decision(
             project_id=project_id,
             description=req.payload.get("description", ""),
             planned_amount=float(req.payload.get("planned_amount", 0.0) or 0.0),
@@ -573,14 +565,13 @@ def _register_project_management_approval_handlers(
             incurred_date=_parse_date(req.payload.get("incurred_date")),
             currency_code=req.payload.get("currency_code"),
             code=req.payload.get("code", ""),
-            bypass_approval=True,
             commit=False,
             approval_request_id=req.id,
         )
         return _result("costs_changed", project_id)
 
     def _apply_cost_update(req) -> ApprovalHandlerResult:
-        cost_service.update_cost_item(
+        cost_service._apply_cost_update_decision(
             cost_id=req.payload["cost_id"],
             description=req.payload.get("description"),
             planned_amount=req.payload.get("planned_amount"),
@@ -593,29 +584,21 @@ def _register_project_management_approval_handlers(
             ),
             incurred_date=_parse_date(req.payload.get("incurred_date")),
             currency_code=req.payload.get("currency_code"),
-            expected_version=req.payload.get("expected_version"),
             code=req.payload.get("code"),
-            bypass_approval=True,
             commit=False,
             approval_request_id=req.id,
         )
         return _result("costs_changed", req.project_id or "")
 
     def _apply_cost_delete(req) -> ApprovalHandlerResult:
-        cost_service.delete_cost_item(
+        cost_service._apply_cost_delete_decision(
             cost_id=req.payload["cost_id"],
-            bypass_approval=True,
             commit=False,
             approval_request_id=req.id,
         )
         return _result("costs_changed", req.project_id or "")
 
     def _require_budget_decision_actor() -> str:
-        # request.decided_by_user_id/username are stamped by ApprovalService
-        # itself only *after* this handler runs, so the deciding actor must
-        # come from the currently active session principal, never from the
-        # request payload (written by the original requester, not the
-        # approver deciding right now).
         principal = user_session.principal if user_session else None
         if principal is None:
             raise BusinessRuleError(
@@ -625,10 +608,6 @@ def _register_project_management_approval_handlers(
         return principal.user_id
 
     def _apply_budget_approval(req) -> ApprovalHandlerResult:
-        # Calls the internal, unchecked decision method directly — NOT
-        # approve_budget() — because this handler's authorization already
-        # came from ApprovalService's own "approval.decide" check, which is
-        # deliberately independent of "budget.approve".
         budget = budget_service._apply_approval_decision(
             budget_id=req.payload["budget_id"],
             approved_by=_require_budget_decision_actor(),
