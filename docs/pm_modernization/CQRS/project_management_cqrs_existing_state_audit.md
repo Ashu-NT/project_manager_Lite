@@ -1039,7 +1039,7 @@ builder/engine it invokes:
 |---|---:|---:|---:|---|
 | `task_repo.list_by_project` | 1 | 3 (once inside each of the 3 `LaborCostEngine.calculate_project_labor_details` executions) | **4** | Unconditional |
 | `cost_repo.list_by_project` | 2 (via `manual_labor_raw_totals()`, via `build_cost_item_ledger_rows()`) | 3 (1 inside `build_snapshot` via `get_cost_source_breakdown`, 1 inside `get_cost_source_breakdown`'s own manual-labor step, 1 inside `build_snapshot` via `get_cost_control_totals`) | **5** | Unconditional. Whether `get_cost_source_breakdown`'s own manual-labor step and the standalone `manual_labor_raw_totals()` call in the trace are the same helper invoked twice from two call sites, or two distinct code paths, is not fully disambiguated by the trace alone — flagged for Phase 0 to confirm via the query-count instrumentation itself rather than asserted with false precision |
-| `project_repo.get` | 0 | 5 (once inside each `build_snapshot` execution ×2, once inside each `LaborCostEngine` execution ×3) | **5** | Unconditional |
+| `project_repo.get` | 1 (`get_finance_snapshot`'s own direct call, line 133) | 5 (once inside each `build_snapshot` execution ×2, once inside each `LaborCostEngine` execution ×3) | **6** | Unconditional. **Corrected by Phase 0's dynamic measurement (§18)**: an earlier revision of this table said 5 (0 direct + 5 transitive), missing `get_finance_snapshot`'s own direct call at line 133 — running the real code confirmed 6, not 5. Kept here as a worked example of why Phase 0 measures against the real code instead of trusting static counting alone. |
 | `project_resource_repo.list_by_project` | 0 | 3 (once inside each `build_snapshot` execution ×2, once inside `build_computed_labor_plan_rows`) | **3** | Unconditional |
 | `assignment_repo.list_by_tasks` | 0 | 3 (once inside each `LaborCostEngine.calculate_project_labor_details` execution) | **3** | Unconditional |
 | `LaborCostEngine.calculate_project_labor_details` (full sub-graph) | 1 (via `build_computed_labor_actual_rows`) | 2 (once inside each `build_snapshot` execution) | **3** | Unconditional |
@@ -2185,6 +2185,57 @@ Exit gate: a documented, measured baseline across every dimension above, at all 
 sizes. **The accepted post-pilot query-count budget (§19 guardrail 11, §20 open question 4) must
 come from these results, not from this document's illustrative "≤ 6" estimate.**
 
+**Exit gate met — measured baseline, run 2026-08-06.** Instrumentation added at
+`src/tests/project_management/test_finance_snapshot_phase0_measurement.py` (test-only; wraps
+`FinanceService`'s own repository/engine attributes for the duration of one call, then restores
+them; adds a `before_cursor_execute`/`after_cursor_execute` SQL listener on the test engine; no
+production file was touched). Run against the real composition graph (`build_service_dict`, the
+same path production uses) on the project's SQLite test database, at three fixture sizes:
+
+| Dimension | small (1 resource, 2 tasks, 2 cost items) | medium (10, 15, 30) | large (50, 60, 150) |
+|---|---:|---:|---:|
+| Wall-clock time | 48.4 ms | 77.5 ms | 221.4 ms |
+| DB execution time (sum of per-statement durations) | 1.9 ms | 3.1 ms | 7.9 ms |
+| Python time (wall − DB) | 46.4 ms | 74.5 ms | 213.5 ms |
+| Total SQL statements | 164 | 272 | 752 |
+| `cost_repo.list_by_project` calls | 5 | 5 | 5 |
+| `project_resource_repo.list_by_project` calls | 3 | 3 | 3 |
+| `task_repo.list_by_project` calls | 4 | 4 | 4 |
+| `project_repo.get` calls | 6 | 6 | 6 |
+| `rate_resolver.resolve_many` calls | 6 | 6 | 6 |
+| `LaborCostEngine.calculate_project_labor_details` executions | 3 | 3 | 3 |
+| `cost_repo.list_by_project` total rows returned (across its 5 calls) | 10 | 150 | 750 |
+| `snapshot.ledger` rows in the final result | 8 | 110 | 550 |
+
+**Every named-call count matches §7's canonical table exactly, at every fixture size** — the
+redundancy is a fixed, size-independent tax (5/3/4/6/6/3 calls no matter how large the project is),
+confirming the P1 finding in §14 is real and not an artifact of one particular fixture shape. The
+one correction this run produced is already folded into §7's table: `project_repo.get` measures 6,
+not the 5 an earlier draft claimed (it was missing `get_finance_snapshot`'s own direct call).
+
+**A second, larger finding this measurement surfaced that the static call-count table alone did
+not show:** grouping the 164 (small)/272 (medium)/752 (large) statements by table reveals that
+**`organizations`+`tenants` scope-lookup queries are the largest single category — 87 of 164
+statements (53%) on the small fixture, 159/272 (58%) on medium, 479/752 (64%) on large** — far
+outweighing the finance-domain tables the canonical table already tracks (`cost_items`,
+`project_resources`, `task_assignments`, `project_finance_rate_card*`, all flat at 3-6 statements
+regardless of fixture size). This scales with fixture size (unlike the flat finance-domain counts),
+tracking roughly with the resource count, which is consistent with each `resource_repo.get(...)`
+call inside `LaborCostEngine` (§7's 3×N term) independently re-resolving tenant/organization scope
+rather than reusing one already-resolved context. **This is not yet a confirmed root cause** — it
+would require tracing `TenantContextService`/the repository tenant-scoping helper's exact call
+pattern to confirm, which this measurement pass did not do — but it is a real, measured signal that
+the Reader consolidation's benefit may be substantially larger than the 5×/3×/6× domain-call
+reduction alone suggests, since collapsing those calls could also collapse a proportional share of
+this tenant/org lookup volume. Recorded here as a finding for Phase 1 to watch for in its own
+post-migration measurement, not as a claim this document verifies further.
+
+RLS/session-initialization SQL question, decided: this measurement ran against the SQLite test
+engine (`src/tests/conftest.py`'s `session` fixture), which has no PostgreSQL RLS session-variable
+setup at all — so the question of whether to include RLS statements in the budget did not arise
+here and remains open for whoever re-runs this measurement against a PostgreSQL-backed environment
+before setting the final production budget.
+
 **Phase 0A — Independent safety corrections (mandatory, not optional).** Inserted here, between
 measurement and the pilot itself, because several confirmed P0/P1 findings in §14 and §11 are
 correctness/security/reliability fixes that have nothing to do with CQRS and must not wait for or
@@ -2489,13 +2540,24 @@ added under `src/tests/architecture/` following this module's existing conventio
     return`/`except Exception: return ()` — this mirrors a confirmed problem pattern found
     repeatedly in the *desktop-API* layer (§5, §6) and must not be reintroduced in the new
     infrastructure layer.
-11. **Query-count and timing budgets exist for migrated read endpoints.** For each capability
-    migrated per §18, add a test (using SQLAlchemy's `before_cursor_execute` event — confirmed by
-    this audit's own test-suite inventory, §13, to be a mechanism **not currently used anywhere** in
-    this codebase, so its introduction is itself part of the guardrail work) asserting both the
-    query count *and* a timing ceiling for that one desktop-API call stay at or below the budget
-    established from Phase 0's actual measurements (§18) — not from this document's illustrative
-    "≤ 6" estimate, which is explicitly provisional (§20 open question 4).
+11. **Query-count and timing budgets exist for migrated read endpoints — scoped to the redundant
+    finance-domain calls, not total SQL statement count.** Phase 0's actual measurement (above)
+    found `get_finance_snapshot`'s **total** SQL statement count is 164 (small fixture) to 752
+    (large fixture), overwhelmingly dominated by `organizations`/`tenants` scope-lookup queries
+    unrelated to this pilot's own redundancy (53-64% of all statements, scaling with resource
+    count). A budget phrased as "≤ N total statements" would therefore be meaningless or
+    unachievable depending on N — this document's earlier illustrative "≤ 6" was never about total
+    statements; it meant the six *named, finance-domain-specific* redundant call groups §7's
+    canonical table tracks (`cost_repo.list_by_project`, `project_resource_repo.list_by_project`,
+    `task_repo.list_by_project`, `project_repo.get`, `rate_resolver.resolve_many`,
+    `LaborCostEngine.calculate_project_labor_details`), each measured at 5/3/4/6/6/3 calls today and
+    targeted to collapse to 1 each post-Phase-1. **The guardrail must assert against these named
+    call counts specifically** (mirroring `test_finance_snapshot_phase0_measurement.py`'s own
+    instrumentation technique), not a bare total-statement-count assertion, or it will either pass
+    trivially (a generous total budget) or fail for reasons having nothing to do with the pilot (the
+    tenant/org lookup volume). A separate, explicit decision (§20 open question 4) is still needed
+    on whether total-statement/timing budgets are worth adding on top of this, and if so, at what
+    number, informed by Phase 0's measured baseline above.
 12. **`contracts/**` must not import `application/**`.** A blanket, mechanically-checkable
     import-direction test — the specific fix for the circular-dependency mistake found and corrected
     in this document's own first draft (§15b, §16). This is broader than guardrail 1 (which checks
@@ -2597,9 +2659,15 @@ this document:
    `src/tests/project_management/` by default (matching the majority of existing financial-area
    tests), but that default should be confirmed, not assumed, given the ambiguity found.
 4. **What is an acceptable query-count budget for `get_finance_snapshot` post-Phase-1 (§19,
-   guardrail 11)?** This document proposes "≤ 6" as an illustrative starting point based on the
-   confirmed pre-Phase-1 call graph, but the actual number should be set from Phase 0's measured
-   baseline (§18), not from this document's estimate.
+   guardrail 11)?** Phase 0 has now run and measured the real baseline (§18): each of the six named
+   finance-domain call groups (`cost_repo.list_by_project`, `project_resource_repo.list_by_project`,
+   `task_repo.list_by_project`, `project_repo.get`, `rate_resolver.resolve_many`,
+   `LaborCostEngine.calculate_project_labor_details`) is called 5/3/4/6/6/3 times today,
+   size-independent — the natural post-Phase-1 target is 1 call each. **Still open**: whether to
+   additionally budget total SQL statement count and/or wall-clock time, given the measured total
+   (164-752 statements depending on fixture size) is dominated by `organizations`/`tenants`
+   scope-lookup queries this pilot does not target — see Phase 0's measured baseline and guardrail
+   11's corrected wording for why a bare total-statement budget would be the wrong tool here.
 5. **Should the current one-session-per-process model eventually be replaced by an
    operation-scoped session/Unit-of-Work, with repositories/services/readers all sharing one
    session per *operation* instead of one per *process* (§10)?** This is a legitimate future
