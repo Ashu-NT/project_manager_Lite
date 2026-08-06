@@ -187,7 +187,7 @@ def test_baseline_requires_tasks_and_budget_fallback_affects_bac(services):
 
     no_task_project = ps.create_project("No Tasks Baseline", "")
     with pytest.raises(ValidationError):
-        bs.create_baseline(no_task_project.id, "BL-Empty")
+        bs.create_baseline(no_task_project.id, "BL-Empty", rate_as_of=date.today())
 
     budget_project = ps.create_project(
         "Budget Baseline",
@@ -198,7 +198,7 @@ def test_baseline_requires_tasks_and_budget_fallback_affects_bac(services):
     )
     pid = budget_project.id
     ts.create_task(pid, "Budgeted Task", start_date=date(2023, 11, 6), duration_days=3)
-    baseline = bs.create_baseline(pid, "BL-Budget")
+    baseline = bs.create_baseline(pid, "BL-Budget", rate_as_of=date.today())
 
     evm = rp.get_earned_value(project_id=pid, baseline_id=baseline.id, as_of=date(2023, 11, 30))
     assert evm.BAC == pytest.approx(1000.0)

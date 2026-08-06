@@ -431,10 +431,12 @@ def build_project_management_service_bundle(
         calendar=platform_services.global_calendar_shim,
         project_resource_repo=repositories.project_resource_repo,
         resource_repo=repositories.resource_repo,
+        rate_resolver=rate_card_resolver,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
         approval_service=platform_services.approval_service,
         module_catalog_service=platform_services.module_catalog_service,
+        tenant_context_service=platform_services.tenant_context_service,
     )
     dashboard_service = DashboardService(
         reporting_service=reporting_service,
@@ -526,11 +528,16 @@ def _register_project_management_approval_handlers(
 
     def _apply_baseline(req) -> ApprovalHandlerResult:
         project_id = req.payload["project_id"]
+        # No baseline-effective date is carried on the approval request —
+        # this handler applies an already-requested change, so it resolves
+        # "as of" at the composition boundary (never inside BaselineService
+        # itself; see create_baseline's `rate_as_of` docstring).
         baseline_service.create_baseline(
             project_id=project_id,
             name=req.payload.get("name") or "Baseline",
             bypass_approval=True,
             commit=False,
+            rate_as_of=date.today(),
         )
         return _result("baseline_changed", project_id)
 

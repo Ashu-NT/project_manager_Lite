@@ -240,7 +240,7 @@ def test_large_scale_performance_workflow(services):
     baseline = _timed(
         metrics,
         "baseline",
-        lambda: bs.create_baseline(seeded.project_id, "Perf Baseline"),
+        lambda: bs.create_baseline(seeded.project_id, "Perf Baseline", rate_as_of=date.today()),
     )
 
     report_data = _timed(

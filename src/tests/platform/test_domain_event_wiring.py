@@ -177,7 +177,7 @@ def test_approve_baseline_request_emits_baseline_changed(services, monkeypatch):
     _login_as(services, "planner-baseline", "StrongPass123")
 
     with pytest.raises(BusinessRuleError, match="Approval required"):
-        baseline.create_baseline(project.id, "Gate 1")
+        baseline.create_baseline(project.id, "Gate 1", rate_as_of=date.today())
     request_id = approvals.list_pending(project_id=project.id)[0].id
 
     seen: list[str] = []

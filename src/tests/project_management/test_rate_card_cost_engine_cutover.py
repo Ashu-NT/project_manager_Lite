@@ -186,7 +186,7 @@ def test_evm_actual_cost_fails_closed_when_labor_rate_unresolved(services) -> No
     resource = rs.create_resource("Unpriced", role="DEV", hourly_rate=0.0)
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=100.0)
     ts.set_assignment_hours(assignment.id, 2.0)
-    baseline = bs.create_baseline(project.id, "BL-Incomplete")
+    baseline = bs.create_baseline(project.id, "BL-Incomplete", rate_as_of=date.today())
 
     with pytest.raises(BusinessRuleError, match="Actual cost cannot be calculated"):
         rp.get_earned_value(project_id=project.id, baseline_id=baseline.id, as_of=date.today())
@@ -221,7 +221,7 @@ def test_actual_cost_total_includes_labor_and_non_labor_when_complete(services) 
         cost_type=CostType.OVERHEAD,
         currency_code="USD",
     )
-    baseline = bs.create_baseline(project.id, "BL-Full")
+    baseline = bs.create_baseline(project.id, "BL-Full", rate_as_of=date.today())
 
     evm = rp.get_earned_value(project_id=project.id, baseline_id=baseline.id, as_of=date.today())
     assert evm.AC == pytest.approx(300.0)  # 100 labor + 200 non-labor

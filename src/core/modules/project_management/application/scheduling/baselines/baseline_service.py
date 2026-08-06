@@ -1,4 +1,7 @@
 # src/core/modules/project_management/application/scheduling/baseline_service.py
+from datetime import date
+from decimal import Decimal
+
 from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 
 from sqlalchemy.orm import Session
@@ -10,6 +13,7 @@ from src.core.modules.project_management.domain.scheduling.baseline import (
     ProjectBaseline,
 )
 from src.core.modules.project_management.domain.enums import CostType
+from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.modules.project_management.contracts.repositories.project import (
     ProjectRepository,
     ProjectResourceRepository,
@@ -18,7 +22,14 @@ from src.core.modules.project_management.contracts.repositories.task import Task
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.cost import CostRepository
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
+from src.core.modules.project_management.contracts.repositories.rate_resolution import (
+    LaborRateResolver,
+)
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContext,
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.platform.domain.approval.policy import is_governance_required
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
@@ -42,10 +53,12 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         calendar: CalendarProtocol,
         project_resource_repo: ProjectResourceRepository,
         resource_repo: ResourceRepository,
+        rate_resolver: LaborRateResolver,
         user_session=None,
         activity_service=None,
         approval_service=None,
         module_catalog_service=None,
+        tenant_context_service: TenantContextService | None = None,
     ):
         self._session: Session = session
         self._projects: ProjectRepository = project_repo
@@ -56,10 +69,22 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         self._cal: CalendarProtocol = calendar
         self._project_resources: ProjectResourceRepository = project_resource_repo
         self._resources: ResourceRepository = resource_repo
+        self._rate_resolver: LaborRateResolver = rate_resolver
         self._user_session = user_session
         self._activity_service = activity_service
         self._approval_service = approval_service
         self._module_catalog_service = module_catalog_service
+        self._tenant_context_service = tenant_context_service
+
+    def _require_context(self, operation_label: str) -> TenantContext:
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                f"Active organization context is required to {operation_label}.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return self._tenant_context_service.require_organization_context(
+            operation_label=operation_label
+        )
 
     def create_baseline(
         self,
@@ -67,7 +92,16 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         name: str = "Baseline",
         bypass_approval: bool = False,
         commit: bool = True,
+        *,
+        rate_as_of: date,
     ) -> ProjectBaseline:
+        """``rate_as_of`` is the date the resource labor rates used for this
+        baseline's planned-cost valuation are resolved as of — required,
+        with no internal fallback to "today": if the baseline represents a
+        plan effective on a known date, pass that date; otherwise the
+        caller (desktop API / composition boundary) supplies its own
+        creation-time date explicitly. This service never calls
+        ``date.today()`` itself."""
         governed = (
             not bypass_approval
             and self._approval_service is not None
@@ -129,47 +163,101 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         proj_cur = (getattr(project, "currency", None) or "").upper().strip()
 
         # -------------------------
-        # Planned labor snapshot (ProjectResource planned_hours Ã— rate)
-        # - uses PR override rate/currency else Resource defaults
-        # - only includes active PR rows
-        # - if project currency is set, only counts labor in that currency (no FX here)
+        # Planned labor snapshot (ProjectResource.planned_hours x COST rate).
+        #
+        # Rate-source consistency fix only: the quantity/allocation model is
+        # unchanged (still ProjectResource.planned_hours, still duration-
+        # weighted allocation across tasks below). Only the *rate* side is
+        # now resolved through the ADR-PF-005 rate-card system — never
+        # Resource.hourly_rate/ProjectResource.hourly_rate directly — so a
+        # baseline is valued consistently with CostPolicyEngine/
+        # LaborCostEngine at snapshot-creation time, using RateType.COST
+        # (never BILLING) as of the caller-supplied `rate_as_of` date (no
+        # `date.today()` inside this service — the caller decides what date
+        # a baseline's valuation is "as of").
+        #
+        # A persisted baseline is an authoritative historical snapshot: an
+        # unresolved rate or a currency that doesn't match the project's
+        # currency (no FX conversion exists yet) fails baseline creation
+        # closed, rather than silently omitting the resource or mixing
+        # currencies into one total.
+        #
+        # Known limitation of this slice: `BaselineTask.baseline_planned_cost`
+        # stays a plain float (unchanged column/type — a separate financial-
+        # numeric migration would be needed to change it) and records only
+        # the resolved total, not per-line rate provenance (rate_card_id/
+        # rate_line_id/rate_card_version/modifier). Full provenance requires
+        # a later baseline financial-snapshot extension.
         # -------------------------
-        planned_labor_total = 0.0
         pr_rows = self._project_resources.list_by_project(project_id) or []
+        active_prs = [
+            pr
+            for pr in pr_rows
+            if bool(getattr(pr, "is_active", True))
+            and float(getattr(pr, "planned_hours", 0.0) or 0.0) > 0
+            and getattr(pr, "resource_id", None)
+        ]
+        resource_ids = tuple(dict.fromkeys(str(pr.resource_id) for pr in active_prs))
 
-        for pr in pr_rows:
-            if not bool(getattr(pr, "is_active", True)):
-                continue
+        planned_labor_total = Decimal("0")
+        if resource_ids:
+            context = self._require_context("create baseline")
+            batch = self._rate_resolver.resolve_many(
+                tenant_id=context.tenant_id,
+                organization_id=context.organization_id,
+                project_id=project_id,
+                resource_ids=resource_ids,
+                rate_type=RateType.COST,
+                as_of=rate_as_of,
+                unit="HOUR",
+            )
+            if not batch.is_complete:
+                detail = "; ".join(
+                    f"{u.resource_id}: {u.reason_code} ({u.detail})"
+                    for u in batch.unresolved
+                )
+                raise BusinessRuleError(
+                    "Cannot create baseline: one or more labor rates could not "
+                    f"be resolved for project {project_id} as of "
+                    f"{rate_as_of.isoformat()} — {detail}",
+                    code="BASELINE_LABOR_RATE_INCOMPLETE",
+                )
 
-            rid = getattr(pr, "resource_id", None)
-            if not rid:
-                continue
-
-            res = self._resources.get(rid)
-            if not res:
-                continue
-
-            ph = float(getattr(pr, "planned_hours", 0.0) or 0.0)
-            if ph <= 0:
-                continue
-
-            # rate: PR override else resource default
-            rate = getattr(pr, "hourly_rate", None)
-            if rate is None:
-                rate = getattr(res, "hourly_rate", None)
-            rate_val = float(rate or 0.0)
-
-            # currency: PR override else resource default
-            cur = (getattr(pr, "currency_code", None) or getattr(res, "currency_code", None) or "").upper().strip()
-
-            if proj_cur:
-                if not cur:
-                    cur = proj_cur
-                if cur != proj_cur:
-                    # skip mismatched currency without FX conversion
+            snapshots_by_resource = {}
+            mismatched: list[str] = []
+            for resource_id in resource_ids:
+                snapshot = batch.snapshot_for(resource_id)
+                if snapshot is None:
+                    # Defense-in-depth only — batch.is_complete already
+                    # guarantees every requested resource_id resolved.
+                    raise BusinessRuleError(
+                        f"Cannot create baseline: resource {resource_id} has "
+                        "no resolved labor rate.",
+                        code="BASELINE_LABOR_RATE_INCOMPLETE",
+                    )
+                rate_currency = snapshot.monetary_rate.money.currency.code
+                if proj_cur and rate_currency != proj_cur:
+                    mismatched.append(f"{resource_id} ({rate_currency})")
                     continue
+                snapshots_by_resource[resource_id] = snapshot
+            if mismatched:
+                raise BusinessRuleError(
+                    "Cannot create baseline: resolved labor rate currency does "
+                    f"not match the project currency ({proj_cur or 'unset'}) and "
+                    f"no conversion is available for: {', '.join(mismatched)}",
+                    code="BASELINE_LABOR_RATE_CURRENCY_MISMATCH",
+                )
 
-            planned_labor_total += ph * rate_val
+            for pr in active_prs:
+                snapshot = snapshots_by_resource[str(pr.resource_id)]
+                planned_hours = Decimal(str(getattr(pr, "planned_hours", 0.0) or 0.0))
+                planned_labor_total += planned_hours * snapshot.monetary_rate.money.amount
+
+        # Converted once, here, at the boundary into the unchanged legacy
+        # float-based allocation pipeline below (planned_by_task/
+        # alloc_unassigned/alloc_labor) — the hours x rate multiplication
+        # itself happens in Decimal above.
+        planned_labor_total = float(planned_labor_total)
 
         # -------------------------
         # Planned costs snapshot (baseline budget basis)

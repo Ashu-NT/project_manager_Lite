@@ -4,17 +4,25 @@ Status: audit complete; Phase A0, A1, A2, and Phase B1 configuration code gates 
 Last updated: 2026-08-06
 Scope: Project Management finance plus reusable platform financial foundations
 Current increment: Task-owned WBS, effective-dated rate cards (ADR-PF-005) with the
-`CostPolicyEngine`/`LaborCostEngine` cutover, and the versioned `ProjectBudget`/`BudgetLine`
-lifecycle (item 5 below, including governed approval integration) are all now implemented
-and tested (uncommitted) — see [rate_card_cost_engine_cutover_plan.md](rate_card_cost_engine_cutover_plan.md)
-and [project_budget_lifecycle_plan.md](project_budget_lifecycle_plan.md). Also fixed as part
+`CostPolicyEngine`/`LaborCostEngine` cutover, the versioned `ProjectBudget`/`BudgetLine`
+lifecycle (item 5, including governed approval integration), and versioned labor
+planned-cost snapshots (item 6) are all now implemented and tested (uncommitted) — see
+[rate_card_cost_engine_cutover_plan.md](rate_card_cost_engine_cutover_plan.md),
+[project_budget_lifecycle_plan.md](project_budget_lifecycle_plan.md), and
+[project_planned_cost_snapshot_plan.md](project_planned_cost_snapshot_plan.md). The
+planned-cost slice is explicitly tactical/transitional: `TaskAssignment` gained a new
+`allocated_planned_hours` field (envelope-constrained against `ProjectResource
+.planned_hours`, which remains the authoritative planning total) rather than the fuller
+versioned `ProjectLaborPlan`/`LaborPlanAllocation` aggregate a design review recommended;
+that fuller model is deferred as a named future phase, not built here. Also fixed as part
 of the budget slice's own verification: `project_finance_rate_card_lines`'s Numeric columns
 (`rate_amount`/`overtime_multiplier`/`weekend_multiplier`/`holiday_multiplier`) were missing
 the `info['financial_numeric']` marker the A1 architecture guardrail requires — a pre-existing
 gap masked by ORM-table import order, only surfaced once the new budget table changed that
 order. Both rate-card and budget Numeric columns now declare it.
-Remaining Phase B scope: versioned planned-cost snapshots (item 6 below) before Phase C's
-actual ledger/commitments/time/procurement work.
+Remaining Phase B scope: repoint baseline comparison/planning reports onto Money and the new
+planned-cost snapshots, and replace the QML combined "Budget" section (items 7-8 below),
+before Phase C's actual ledger/commitments/time/procurement work.
 
 ## 1. Executive Summary
 
@@ -264,7 +272,22 @@ desktop `FinancialSnapshotDto`. `EVM.get_actual_cost` fails closed
 
 ### 11.6 Planned Costing
 
-**Status: PARTIAL.** Manual `planned_amount`, ProjectResource planned hours, current rates, and baseline task planned cost provide useful sources. They are mixed between persisted and dynamically recalculated values, are not connected to budget lines, and silently skip some currency mismatches. Introduce versioned planned-cost snapshots sourced from assignments/material/manual inputs with source IDs, quantity, snapshotted rate/Money, WBS, cost code, and plan version. A recalculation creates a new snapshot/version rather than rewriting the approved baseline.
+**Status: IMPLEMENTED (tactical), assignment-labor-only (2026-08-06).** Versioned
+`ProjectPlannedCostVersion`/`ProjectPlannedCostLine` snapshots (CURRENT/SUPERSEDED, no
+approval lifecycle — see [project_planned_cost_snapshot_plan.md](project_planned_cost_snapshot_plan.md))
+are built and tested, sourced from `TaskAssignment.allocated_planned_hours` resolved through
+the same rate-card resolver `CostPolicyEngine`/`LaborCostEngine` use, with source lineage
+(`source_assignment_id`), WBS (`task_id`), and cost-code (the project's single
+`ProjectFinancialProfile.default_cost_code_id` — a stated, coarser-than-`BudgetLine`
+limitation) dimensions. Completeness is tracked as three independent flags
+(`rates_complete`/`allocations_complete`/`cost_codes_complete`) plus diagnostic reason codes,
+not one ambiguous flag. `ProjectResource.planned_hours` remains the authoritative
+project-resource planning envelope; `allocated_planned_hours` is a constrained WBS
+distribution of it, enforced at write time, not an independent planning total — a design
+review's recommendation to instead build a full versioned `ProjectLaborPlan`/
+`LaborPlanAllocation` aggregate (its own DRAFT/SUBMIT/APPROVE lifecycle) was deliberately
+deferred as a larger, separately scoped future phase rather than done here. Manual/material
+planned-cost lines and baseline-comparison sourcing remain unimplemented in this slice.
 
 ### 11.7 Commitments
 
@@ -548,7 +571,7 @@ Rules:
 | WBS | IMPLEMENTED | P2/product gate | Task hierarchy is the accepted model | Done: `Task.parent_task_id`/`wbs_code` with cycle prevention and migration |
 | Rate cards | IMPLEMENTED, engines cut over | P0 for actual costing | — | Done: ADR-PF-005 precedence + `CostPolicyEngine`/`LaborCostEngine` cutover (2026-08-05) |
 | Budgeting | IMPLEMENTED | P1 | Baseline lifecycle pattern | Done: versioned `ProjectBudget`/`BudgetLine` with governed approval (2026-08-06) |
-| Planned costing | PARTIAL | P1 | Existing assignment/resource inputs and baseline comparison | Versioned source-linked planned-cost snapshots |
+| Planned costing | IMPLEMENTED (tactical, assignment-labor-only) | P1 | Existing assignment/resource inputs | Done: versioned `ProjectPlannedCostVersion`/`ProjectPlannedCostLine` (2026-08-06); baseline-comparison sourcing and a full `ProjectLaborPlan` model remain deferred |
 | Commitments | MINIMAL | P0/P1 | Procurement ownership and source refs | PM projections, matching, remaining balance, lifecycle |
 | Actual costs | MINIMAL | P0 | Legacy data as migration source | Posted immutable ledger, reversals, periods, idempotency |
 | Timesheet costing | INCONSISTENT | P0 | Platform approved-time ownership | Approved-only idempotent labor postings with rate snapshot |
@@ -730,8 +753,31 @@ ADR gate: complete. ADR-PF-003, ADR-PF-005, and ADR-PF-009 are accepted.
 3. Complete: Task-owned WBS (`parent_task_id`/`wbs_code`, cycle prevention, migration backfill).
 4. Complete: versioned effective-dated rate cards (ADR-PF-005) for internal cost and billing rates, with deterministic priority/fallback and immutable snapshot selection — **and** `CostPolicyEngine`/`LaborCostEngine` are cut over onto them (2026-08-05; see [rate_card_cost_engine_cutover_plan.md](rate_card_cost_engine_cutover_plan.md)). `Resource.hourly_rate`/`ProjectResource.hourly_rate` now only reach cost calculations through an auto-seeded `legacy_seeded` rate-card line, never by direct field read.
 5. Complete: versioned Budget/BudgetLine lifecycle and governed approval integration. Approved versions are immutable and supersede rather than update.
-6. **Next:** Add versioned planned-cost calculation/snapshots from assignments and other planned inputs. Link dimensions to budget lines and retain source lineage.
-7. Repoint baseline comparison and planning reports to Money and planned-cost snapshots.
+6. Complete: versioned planned-cost calculation/snapshots (2026-08-06) from
+   `TaskAssignment.allocated_planned_hours`, dimensioned by cost code + WBS/task in parity
+   with `BudgetLine`, with retained source lineage (`source_assignment_id`, immutable, not a
+   live FK). Manual/material planned-cost inputs and baseline-comparison sourcing are
+   explicitly deferred, as is a full `ProjectLaborPlan`/`LaborPlanAllocation` lifecycle
+   aggregate (a design review's recommendation for the eventual, non-tactical version of this
+   capability).
+7. Partial (2026-08-06): `BaselineService.create_baseline`'s planned-labor
+   snapshot now resolves `RateType.COST` through the rate-card resolver
+   (batched, fail-closed on unresolved/currency-mismatched rates) instead
+   of reading `Resource.hourly_rate`/`ProjectResource.hourly_rate`
+   directly — a rate-source-consistency fix only. The quantity/allocation
+   model (`ProjectResource.planned_hours`, duration-weighted task
+   allocation) and `BaselineTask.baseline_planned_cost`'s `float` type are
+   both deliberately unchanged. `create_baseline` now requires an explicit
+   `rate_as_of: date` argument (never `date.today()` inside the service).
+   **Still remaining under item 7:** the "planning reports" half —
+   `CostPolicyEngine`/`LaborCostEngine`'s own "planned" figures (feeding
+   KPIs/dashboards/`FinanceSnapshot.planned`) still read
+   `ProjectResource.planned_hours` directly rather than the new
+   `ProjectPlannedCostVersion`; that cutover is explicitly its own
+   follow-up slice (mirroring `rate_card_cost_engine_cutover_plan.md`),
+   not done here. Baseline provenance (which exact rate-card line/version
+   valued each task) is also not recorded — a later baseline
+   financial-snapshot extension would be needed for that.
 8. Replace the QML combined "Budget" cost-line section with separate Profile, Budget Versions, Budget Lines, Rate Cards, and Planned Costs views. Current QML may be broken/replaced as contracts move; do not preserve false semantics.
 
 Exit gate: approved budgets cannot mutate; rate selection is deterministic; historical snapshots remain stable after rate changes; plan totals reconcile by cost code/WBS/period; cross-tenant references fail.
@@ -1021,7 +1067,7 @@ These are genuine product/ownership decisions. Questions mapped to A0/A1/A2 ADRs
 
 ## 25. Final Recommendation
 
-Proceed with the upgrade, but do not extend the current combined CostItem/QML model. Phase A0 security/transaction correctness, A1 monetary foundations, A2 canonical application foundations, the Phase B1 configuration foundation, Task-owned WBS, effective-dated rate cards with the `CostPolicyEngine`/`LaborCostEngine` cutover, and the versioned Budget/BudgetLine lifecycle are all implemented. Continue with versioned planned-cost snapshots next. This keeps security, Decimal Money/rate/quantity work, integration composition, and configuration aggregates independently testable.
+Proceed with the upgrade, but do not extend the current combined CostItem/QML model. Phase A0 security/transaction correctness, A1 monetary foundations, A2 canonical application foundations, the Phase B1 configuration foundation, Task-owned WBS, effective-dated rate cards with the `CostPolicyEngine`/`LaborCostEngine` cutover, the versioned Budget/BudgetLine lifecycle, and tactical, assignment-labor-only versioned planned-cost snapshots are all implemented. Continue with repointing baseline/planning reports onto the new snapshots and the QML "Budget" section replacement (Phase B items 7-8) before Phase C's actual ledger/commitments/time/procurement work. This keeps security, Decimal Money/rate/quantity work, integration composition, and configuration aggregates independently testable.
 
 Then build Project Finance as explicit PM-owned aggregates while preserving valid module ownership: Time supplies approved hours, Procurement supplies PO/receipt facts, Party supplies identities, Approval and Audit remain platform services, and external accounting owns official ledger/payment behavior. Use additive persistence and temporary compatibility only to migrate verified data; delete every fallback, dual-write, alias, and transition adapter at its named phase gate.
 

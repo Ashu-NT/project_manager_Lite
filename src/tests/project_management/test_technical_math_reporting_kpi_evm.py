@@ -98,7 +98,7 @@ def test_reporting_evm_core_formulae_and_series_points(services):
     )
     cs.update_cost_item(cost.id, actual_amount=40.0)
 
-    baseline = bs.create_baseline(pid, "BL1")
+    baseline = bs.create_baseline(pid, "BL1", rate_as_of=date(2023, 11, 30))
     ts.update_progress(task.id, percent_complete=50.0)
 
     evm = rp.get_earned_value(project_id=pid, baseline_id=baseline.id, as_of=date(2023, 11, 30))

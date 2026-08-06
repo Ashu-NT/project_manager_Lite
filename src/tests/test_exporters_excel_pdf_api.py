@@ -57,7 +57,7 @@ def _setup_report_project(services):
         currency_code="USD",
     )
 
-    baseline = bs.create_baseline(pid, "Baseline Export")
+    baseline = bs.create_baseline(pid, "Baseline Export", rate_as_of=date.today())
     ts.update_progress(t1.id, percent_complete=50.0)
     return pid, baseline.id
 
