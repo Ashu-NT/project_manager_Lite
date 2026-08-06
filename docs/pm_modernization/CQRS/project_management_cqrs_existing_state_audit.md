@@ -2405,6 +2405,44 @@ defect" refactor would obscure exactly which capability's tests cover which fix.
 tests, and exit gate mirror Phase 0A.2 exactly, applied to `collaboration/services/
 collaboration_service.py`'s write methods and `collaboration_changed` instead.
 
+**Phase 0A.3 — COMPLETE (2026-08-06).** Implemented and verified exactly as scoped above:
+- All 8 Collaboration command methods (`post_comment`, `mark_task_mentions_read`, `edit_comment`,
+  `delete_comment`, `react_to_comment`, `remove_reaction` in `collaboration_comments.py`;
+  `touch_task_presence`, `clear_task_presence` in `collaboration_presence.py`) now wrap their
+  repository write(s) plus `self._session.commit()` in
+  `try: ... except Exception: self._session.rollback(); raise`, matching Phase 0A.2's shape.
+  `record_activity`/`domain_events.collaboration_changed.emit` calls were left exactly where they
+  already were (after the commit, outside the try).
+- `post_comment` has a conditional completion step (when an attachment-carrying comment is
+  registered with `DocumentIntegrationService`, that external service — not
+  `self._session.commit()` — is called instead); the try block was scoped to cover
+  `self._comment_repo.add(comment)` through *both* branches of that conditional, so a failure in
+  either branch still rolls back the comment insert. `_link_existing_comment_documents` (a call
+  into the same external `document_integration_service`) was left outside the try, matching Phase
+  0A.2's precedent of not reaching into a different service's own transaction management.
+- `mark_task_mentions_read` mutates in a loop (one `comment_repo.update` per matching comment)
+  before its single trailing commit; the try block was widened to cover the whole loop, not just
+  the final commit, so a failure partway through a multi-comment batch rolls back every comment in
+  that batch, not only the one that failed — this is a genuine completion of "add the missing
+  wrapper" for this method's actual mutation region, not a restructuring.
+- Verified with 16 new tests
+  (`src/tests/project_management/test_collaboration_phase0a3_rollback_hardening.py`): the full
+  required-tests matrix against `post_comment` (repository failure and commit failure each roll
+  back with no partial comment row; no `collaboration_changed` event after either failure; the
+  shared `Session` stays usable for a subsequent post afterward; the non-failure path is
+  unaffected), plus a forced-repository-failure rollback test for each of the other 7 methods
+  (`mark_task_mentions_read` also gets a commit-failure + session-reusability test, exercising the
+  widened loop wrapper). All 16 pass. A targeted regression run of the pre-existing Collaboration
+  test files (`test_task_comment_domain_validation.py`, `test_task_presence_domain_validation.py`,
+  `test_project_management_desktop_api_workspace_collaboration.py`,
+  `test_qml_project_management_presenters_collaboration.py`) passed unchanged. A wider regression
+  run including `test_repository_tenant_hardening_secondary_writes.py`/`secondary_reads.py`
+  reproduced 4 pre-existing failures, all the same `tasks.wbs_code` NOT NULL constraint error
+  already documented as unrelated during Phase 0A.1's regression check (caused by other,
+  already-uncommitted WBS/budget-migration work on this branch) — confirmed unrelated again by
+  traceback inspection, not investigated further per this engagement's "verify once per phase"
+  convention.
+
 **Phase 0A.4 — Other independent safety corrections.** The remaining items from this phase's
 original scope, unchanged in substance, renumbered for clarity now that Portfolio/Collaboration
 rollback have their own dedicated sub-phases:
