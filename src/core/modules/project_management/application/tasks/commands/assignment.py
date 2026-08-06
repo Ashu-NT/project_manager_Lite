@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
@@ -171,6 +172,98 @@ class TaskAssignmentMixin:
 
         domain_events.tasks_changed.emit(task.project_id)
         return candidate
+
+    def update_assignment_planned_hours(
+        self,
+        assignment_id: str,
+        *,
+        allocated_planned_hours: Decimal,
+        expected_assignment_version: int,
+        expected_project_resource_version: int,
+    ) -> TaskAssignment:
+        """Tactical WBS distribution of a ``ProjectResource.planned_hours envelope """
+        if not self._project_resource_repo:
+            raise BusinessRuleError(
+                "Project resource repository is not configured.",
+                code="PROJECT_RESOURCE_REPO_MISSING",
+            )
+        assignment = self._assignment_repo.get(assignment_id)
+        if not assignment:
+            raise NotFoundError("Assignment not found.", code="ASSIGNMENT_NOT_FOUND")
+        task = self._task_repo.get(assignment.task_id)
+        if not task:
+            raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+        self._require_manage("update assignment planned hours", project_id=task.project_id)
+
+        project_resource = (
+            self._project_resource_repo.get(assignment.project_resource_id)
+            if assignment.project_resource_id
+            else self._project_resource_repo.get_for_project(task.project_id, assignment.resource_id)
+        )
+        if project_resource is None:
+            raise BusinessRuleError(
+                "This resource has no project-resource planning envelope for this project.",
+                code="PROJECT_RESOURCE_ENVELOPE_MISSING",
+            )
+        if (
+            project_resource.project_id != task.project_id
+            or project_resource.resource_id != assignment.resource_id
+        ):
+            raise BusinessRuleError(
+                "Project resource does not match this assignment's task/resource.",
+                code="PROJECT_RESOURCE_MISMATCH",
+            )
+
+        project_task_ids = {t.id for t in self._task_repo.list_by_project(task.project_id)}
+        other_total = sum(
+            (
+                a.allocated_planned_hours
+                for a in self._assignment_repo.list_by_resource(assignment.resource_id)
+                if a.id != assignment.id and a.task_id in project_task_ids
+            ),
+            Decimal("0"),
+        )
+        proposed_hours = Decimal(str(allocated_planned_hours))
+        envelope_hours = Decimal(str(project_resource.planned_hours))
+        proposed_total = other_total + proposed_hours
+        if proposed_total > envelope_hours:
+            raise BusinessRuleError(
+                f"Allocating {proposed_hours} hours to this task would bring "
+                f"{assignment.resource_id}'s total allocated hours on this project to "
+                f"{proposed_total}, exceeding its planned envelope of {envelope_hours}.",
+                code="PROJECT_RESOURCE_HOURS_OVERALLOCATED",
+            )
+
+        candidate = replace(assignment, allocated_planned_hours=proposed_hours)
+        resource = self._resource_repo.get(assignment.resource_id)
+        try:
+            updated = self._assignment_repo.update_planned_hours_with_version_check(
+                candidate, expected_version=expected_assignment_version
+            )
+            self._project_resource_repo.touch_version_with_check(
+                project_resource.id,
+                expected_version=expected_project_resource_version,
+            )
+            self._session.commit()
+            record_assignment_action(
+                self,
+                action="assignment.update_planned_hours",
+                assignment_id=updated.id,
+                project_id=task.project_id,
+                task_id=task.id,
+                task_name=task.name,
+                resource_name=resource.name if resource is not None else updated.resource_id,
+                extra={
+                    "allocated_planned_hours": str(updated.allocated_planned_hours),
+                    "project_resource_planned_hours": str(project_resource.planned_hours),
+                    "allocated_total": str(proposed_total),
+                },
+            )
+        except Exception:
+            self._session.rollback()
+            raise
+        domain_events.tasks_changed.emit(task.project_id)
+        return updated
 
     def get_assignment(self, assignment_id: str) -> TaskAssignment | None:
         require_permission(self._user_session, "task.read", operation_label="view assignment")

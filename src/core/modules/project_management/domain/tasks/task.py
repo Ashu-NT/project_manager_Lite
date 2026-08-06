@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from decimal import Decimal
 import re
 
 from pydantic import field_validator, model_validator
@@ -179,6 +180,8 @@ class TaskAssignment:
     resource_id: str
     allocation_percent: float = 100.0
     hours_logged: float = 0.0
+    allocated_planned_hours: Decimal = Decimal("0")
+    version: int = 1
     project_resource_id: str | None = None
     response_status: str = "pending"
     responded_at: datetime | None = None
@@ -228,6 +231,28 @@ class TaskAssignment:
             )
         return resolved
 
+    @field_validator("allocated_planned_hours", mode="before")
+    @classmethod
+    def _validate_allocated_planned_hours(cls, value: object) -> Decimal:
+        resolved = Decimal(str(value if value not in (None, "") else "0"))
+        if resolved < 0:
+            raise ValidationError(
+                "allocated_planned_hours cannot be negative.",
+                code="ASSIGNMENT_ALLOCATED_PLANNED_HOURS_INVALID",
+            )
+        return resolved
+
+    @field_validator("version", mode="before")
+    @classmethod
+    def _validate_version(cls, value: object) -> int:
+        resolved = int(value or 0)
+        if resolved < 1:
+            raise ValidationError(
+                "Assignment version must be positive.",
+                code="ASSIGNMENT_VERSION_INVALID",
+            )
+        return resolved
+
     @field_validator("response_status", mode="before")
     @classmethod
     def _validate_response_status(cls, value: object) -> str:
@@ -261,6 +286,7 @@ class TaskAssignment:
         resource_id: str,
         allocation_percent: float = 100.0,
         hours_logged: float = 0.0,
+        allocated_planned_hours: Decimal = Decimal("0"),
     ) -> "TaskAssignment":
         return TaskAssignment(
             id=generate_id(),
@@ -268,6 +294,7 @@ class TaskAssignment:
             resource_id=resource_id,
             allocation_percent=allocation_percent,
             hours_logged=hours_logged,
+            allocated_planned_hours=allocated_planned_hours,
         )
 
 

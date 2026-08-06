@@ -88,6 +88,7 @@ class ProjectResourceORM(Base):
     currency_code: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
     planned_hours: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
 Index("idx_project_resource_project", ProjectResourceORM.project_id)

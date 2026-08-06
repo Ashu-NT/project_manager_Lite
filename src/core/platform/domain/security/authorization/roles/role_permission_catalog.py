@@ -32,6 +32,7 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "baseline.approve": "Approve or reject baselines",
     "budget.manage": "Create, edit, and submit project budgets",
     "budget.approve": "Approve, reject, or close project budgets",
+    "plannedcost.manage": "Calculate versioned planned-cost snapshots",
     "register.read": "View risk, issue, and change register data",
     "register.manage": "Create and edit register entries",
     "report.view": "View reports",
@@ -86,6 +87,7 @@ _PLANNER = _TEAM_MEMBER | {
     "time.manage",
     "baseline.manage",
     "budget.manage",
+    "plannedcost.manage",
     "register.manage",
     "report.export",
     "portfolio.read",
@@ -137,6 +139,7 @@ _FINANCE_CONTROLLER = {
     "payroll.read",
     "approval.request",
     "budget.manage",
+    "plannedcost.manage",
     "budget.approve",
 }
 
@@ -301,6 +304,7 @@ _PROJECT_LEAD = _PROJECT_CONTRIBUTOR | {
     "cost.manage",
     "baseline.manage",
     "budget.manage",
+    "plannedcost.manage",
     "register.manage",
     "report.export",
     "approval.request",

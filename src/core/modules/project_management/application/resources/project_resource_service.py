@@ -13,6 +13,10 @@ from src.core.modules.project_management.contracts.repositories.project import (
     ProjectResourceRepository,
 )
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.task import (
+    AssignmentRepository,
+    TaskRepository,
+)
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 
 
@@ -33,6 +37,8 @@ class ProjectResourceService(
         activity_service=None,
         module_catalog_service=None,
         tenant_context_service=None,
+        task_repo: TaskRepository | None = None,
+        assignment_repo: AssignmentRepository | None = None,
     ):
         self._project_resource_repo: ProjectResourceRepository = project_resource_repo
         self._resource_repo: ResourceRepository = resource_repo
@@ -42,6 +48,10 @@ class ProjectResourceService(
         self._activity_service = activity_service
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
+        # Only needed for the envelope-shrink guard in
+        # ProjectResourceCommandMixin.update() — see its docstring.
+        self._task_repo: TaskRepository | None = task_repo
+        self._assignment_repo: AssignmentRepository | None = assignment_repo
 
 
 __all__ = ["ProjectResourceService"]

@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
 from src.core.modules.project_management.contracts.repositories.project import (
     ProjectRepository,
     ProjectResourceRepository,
 )
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.task import (
+    AssignmentRepository,
+    TaskRepository,
+)
 from src.core.modules.project_management.domain.projects.project import ProjectResource
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
 from src.core.shared.activity import record_activity
@@ -20,6 +26,27 @@ class ProjectResourceCommandMixin:
     _project_resource_repo: ProjectResourceRepository
     _resource_repo: ResourceRepository
     _project_repo: ProjectRepository
+    # Optional — only needed to enforce the envelope-shrink guard below.
+    # When absent (composition didn't wire them), the guard is skipped
+    # rather than raising, since not every caller composing this mixin
+    # necessarily deals with task assignments.
+    _task_repo: TaskRepository | None = None
+    _assignment_repo: AssignmentRepository | None = None
+
+    def _allocated_planned_hours_total(self, project_id: str, resource_id: str) -> Decimal:
+        if self._task_repo is None or self._assignment_repo is None:
+            return Decimal("0")
+        task_ids = [t.id for t in self._task_repo.list_by_project(project_id)]
+        if not task_ids:
+            return Decimal("0")
+        return sum(
+            (
+                a.allocated_planned_hours
+                for a in self._assignment_repo.list_by_tasks(task_ids)
+                if a.resource_id == resource_id
+            ),
+            Decimal("0"),
+        )
 
     def add_to_project(
         self,
@@ -128,6 +155,18 @@ class ProjectResourceCommandMixin:
         project = self._project_repo.get(project_resource.project_id)
         if not project:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
+
+        new_envelope = Decimal(str(planned_hours if planned_hours not in (None, "") else 0))
+        allocated_total = self._allocated_planned_hours_total(
+            project_resource.project_id, project_resource.resource_id
+        )
+        if new_envelope < allocated_total:
+            raise BusinessRuleError(
+                f"Cannot reduce planned hours to {new_envelope}: "
+                f"{allocated_total} hours are already allocated to tasks for this resource.",
+                code="PROJECT_RESOURCE_ENVELOPE_BELOW_ALLOCATIONS",
+            )
+
         resolved_currency = resolve_pm_currency(
             tenant_context_service=getattr(self, "_tenant_context_service", None),
             operation_label="update project resource",

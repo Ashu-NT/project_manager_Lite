@@ -248,9 +248,25 @@ class SqlAlchemyAssignmentRepository(AssignmentRepository):
         row.resource_id = assignment.resource_id
         row.allocation_percent = assignment.allocation_percent
         row.hours_logged = assignment.hours_logged
+        row.allocated_planned_hours = assignment.allocated_planned_hours
         row.project_resource_id = assignment.project_resource_id
         row.response_status = assignment.response_status
         row.responded_at = assignment.responded_at
+
+    def update_planned_hours_with_version_check(
+        self, assignment: TaskAssignment, *, expected_version: int
+    ) -> TaskAssignment:
+        self._ensure_task_in_scope(assignment.task_id)
+        assignment.version = update_with_version_check(
+            self.session,
+            TaskAssignmentORM,
+            assignment.id,
+            expected_version,
+            {"allocated_planned_hours": assignment.allocated_planned_hours},
+            not_found_message="Assignment not found.",
+            stale_message="Assignment was updated by another user.",
+        )
+        return assignment
 
     def delete(self, assignment_id: str) -> None:
         self.session.execute(

@@ -38,9 +38,15 @@ from src.core.modules.project_management.application.financials.rate_cards impor
     RateSelectionSnapshot,
 )
 from src.core.modules.project_management.application.financials.budgets import BudgetService
+from src.core.modules.project_management.application.financials.planned_costs import (
+    PlannedCostCalculationResult,
+    PlannedCostService,
+)
 
 __all__ = [
     "BudgetService",
+    "PlannedCostCalculationResult",
+    "PlannedCostService",
     "CommitmentSummary",
     "CostControlTotals",
     "CostForecastResult",

@@ -31,6 +31,7 @@ class DomainEvents:
         ("resources_changed", "module", "project_management", "resource", "resources_changed"),
         ("baseline_changed", "module", "project_management", "project_baseline", "baseline_changed"),
         ("budgets_changed", "module", "project_management", "project_budget", "budgets_changed"),
+        ("planned_costs_changed", "module", "project_management", "project_planned_cost", "planned_costs_changed"),
         ("approvals_changed", "platform", "platform", "approval_request", "approvals_changed"),
         ("register_changed", "module", "project_management", "register_scope", "register_changed"),
         ("auth_changed", "platform", "platform", "user_account", "auth_changed"),
@@ -138,6 +139,7 @@ class DomainEvents:
     resources_changed: Signal[str] = field(default_factory=Signal)
     baseline_changed: Signal[str] = field(default_factory=Signal)
     budgets_changed: Signal[str] = field(default_factory=Signal)
+    planned_costs_changed: Signal[str] = field(default_factory=Signal)
     approvals_changed: Signal[str] = field(default_factory=Signal)
     register_changed: Signal[str] = field(default_factory=Signal)
     auth_changed: Signal[str] = field(default_factory=Signal)

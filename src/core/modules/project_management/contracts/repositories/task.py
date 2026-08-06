@@ -42,6 +42,14 @@ class AssignmentRepository(ABC):
     def update(self, assignment: TaskAssignment) -> None: ...
 
     @abstractmethod
+    def update_planned_hours_with_version_check(
+        self, assignment: TaskAssignment, *, expected_version: int
+    ) -> TaskAssignment:
+        """Dedicated, versioned write path for
+        ``allocated_planned_hours``"""
+        ...
+
+    @abstractmethod
     def delete(self, assignment_id: str) -> None: ...
 
     @abstractmethod
