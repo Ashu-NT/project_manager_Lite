@@ -6,11 +6,11 @@ Scope: Project Management finance plus reusable platform financial foundations
 Current increment: Task-owned WBS, effective-dated rate cards (ADR-PF-005) with the
 `CostPolicyEngine`/`LaborCostEngine` cutover, the versioned `ProjectBudget`/`BudgetLine`
 lifecycle (item 5, including governed approval integration), and versioned labor
-planned-cost snapshots (item 6) are all now implemented and tested (uncommitted) — see
-[rate_card_cost_engine_cutover_plan.md](rate_card_cost_engine_cutover_plan.md),
-[project_budget_lifecycle_plan.md](project_budget_lifecycle_plan.md), and
-[project_planned_cost_snapshot_plan.md](project_planned_cost_snapshot_plan.md). The
-planned-cost slice is explicitly tactical/transitional: `TaskAssignment` gained a new
+planned-cost snapshots (item 6) are all now implemented and tested (uncommitted); their
+design docs (`rate_card_cost_engine_cutover_plan.md`, `project_budget_lifecycle_plan.md`,
+`project_planned_cost_snapshot_plan.md`) were deleted 2026-08-06 as fully-superseded
+implementation logs once done — see [TODO/README.md](TODO/README.md) and git history for
+their content. The planned-cost slice is explicitly tactical/transitional: `TaskAssignment` gained a new
 `allocated_planned_hours` field (envelope-constrained against `ProjectResource
 .planned_hours`, which remains the authoritative planning total) rather than the fuller
 versioned `ProjectLaborPlan`/`LaborPlanAllocation` aggregate a design review recommended;
@@ -258,7 +258,7 @@ modifiers, and immutable `RateSelectionSnapshot` are built and tested
 and `LaborCostEngine` now resolve both planned and actual labor rates through
 `LaborRateResolver.resolve_many` (batched, tenant/org-scoped, explicit `as_of`) instead of
 reading `ProjectResource.hourly_rate`/`Resource.hourly_rate` directly — see
-[rate_card_cost_engine_cutover_plan.md](rate_card_cost_engine_cutover_plan.md). Resources
+`rate_card_cost_engine_cutover_plan.md` (deleted, fully superseded; see git history). Resources
 still carry `hourly_rate`/`currency_code` as inputs, but they now only reach cost
 calculations by auto-seeding a `legacy_seeded` rate-card line at creation/update time; the
 engines never read those fields directly. Unresolved rates are excluded from totals (not
@@ -268,13 +268,16 @@ desktop `FinancialSnapshotDto`. `EVM.get_actual_cost` fails closed
 
 ### 11.5 Budgeting
 
-**Status: IMPLEMENTED (2026-08-06).** Versioned `ProjectBudget`/`BudgetLine` aggregates are built with the full DRAFT -> SUBMITTED -> APPROVED/REJECTED, APPROVED -> SUPERSEDED/CLOSED lifecycle, immutable approved versions (one approved + optionally one open version per project, both DB-enforced), currency (immutable once lines exist), cost-code/task(WBS) line dimensions, and governed approval integration through the existing Platform Approval service — see [project_budget_lifecycle_plan.md](project_budget_lifecycle_plan.md). `Project.planned_budget` remains the BAC/threshold source this phase; no `CostPolicyEngine`/`EarnedValueCalculator` cutover onto approved budget totals yet (a future cutover plan, mirroring the rate-card cutover, will do that separately).
+**Status: IMPLEMENTED (2026-08-06).** Versioned `ProjectBudget`/`BudgetLine` aggregates are built with the full DRAFT -> SUBMITTED -> APPROVED/REJECTED, APPROVED -> SUPERSEDED/CLOSED lifecycle, immutable approved versions (one approved + optionally one open version per project, both DB-enforced), currency (immutable once lines exist), cost-code/task(WBS) line dimensions, and governed approval integration through the existing Platform Approval service — see
+`project_budget_lifecycle_plan.md` (deleted 2026-08-06, fully implemented/verified; see git
+history). `Project.planned_budget` remains the BAC/threshold source this phase; no `CostPolicyEngine`/`EarnedValueCalculator` cutover onto approved budget totals yet (a future cutover plan, mirroring the rate-card cutover, will do that separately).
 
 ### 11.6 Planned Costing
 
 **Status: IMPLEMENTED (tactical), assignment-labor-only (2026-08-06).** Versioned
 `ProjectPlannedCostVersion`/`ProjectPlannedCostLine` snapshots (CURRENT/SUPERSEDED, no
-approval lifecycle — see [project_planned_cost_snapshot_plan.md](project_planned_cost_snapshot_plan.md))
+approval lifecycle — see `project_planned_cost_snapshot_plan.md`, deleted 2026-08-06: its
+design deviated from what was actually built, see 11.6 below for the accurate shape)
 are built and tested, sourced from `TaskAssignment.allocated_planned_hours` resolved through
 the same rate-card resolver `CostPolicyEngine`/`LaborCostEngine` use, with source lineage
 (`source_assignment_id`), WBS (`task_id`), and cost-code (the project's single
@@ -751,7 +754,7 @@ ADR gate: complete. ADR-PF-003, ADR-PF-005, and ADR-PF-009 are accepted.
 1. Complete: add ProjectFinancialProfile and backfill project currency without deleting legacy fields. Planned-budget conversion is intentionally reserved for the versioned Budget aggregate rather than copied into another mutable profile field.
 2. Complete: add ProjectCostCode catalog and project restrictions. Legacy `CostType` remains only on legacy cost records until explicit reviewed mapping/reconciliation.
 3. Complete: Task-owned WBS (`parent_task_id`/`wbs_code`, cycle prevention, migration backfill).
-4. Complete: versioned effective-dated rate cards (ADR-PF-005) for internal cost and billing rates, with deterministic priority/fallback and immutable snapshot selection — **and** `CostPolicyEngine`/`LaborCostEngine` are cut over onto them (2026-08-05; see [rate_card_cost_engine_cutover_plan.md](rate_card_cost_engine_cutover_plan.md)). `Resource.hourly_rate`/`ProjectResource.hourly_rate` now only reach cost calculations through an auto-seeded `legacy_seeded` rate-card line, never by direct field read.
+4. Complete: versioned effective-dated rate cards (ADR-PF-005) for internal cost and billing rates, with deterministic priority/fallback and immutable snapshot selection — **and** `CostPolicyEngine`/`LaborCostEngine` are cut over onto them (2026-08-05; design doc `rate_card_cost_engine_cutover_plan.md` deleted, fully implemented/tested — see git history). `Resource.hourly_rate`/`ProjectResource.hourly_rate` now only reach cost calculations through an auto-seeded `legacy_seeded` rate-card line, never by direct field read.
 5. Complete: versioned Budget/BudgetLine lifecycle and governed approval integration. Approved versions are immutable and supersede rather than update.
 6. Complete: versioned planned-cost calculation/snapshots (2026-08-06) from
    `TaskAssignment.allocated_planned_hours`, dimensioned by cost code + WBS/task in parity
@@ -852,6 +855,11 @@ ADR gate: ADR-PF-004, ADR-PF-006, ADR-PF-007, and ADR-PF-008 must be accepted be
 8. Redesign QML Actuals and Commitments as ledgers with status, source, period, matching, approval, posting, and reversal actions. Remove the generic edit/delete behavior from posted rows.
 
 Exit gate: only approved time generates actuals; one source/version cannot duplicate; rate/FX changes do not change history; commitment matching avoids double count; closed periods reject normal posting; RLS and tenant tests pass; legacy and new totals reconcile.
+
+Prep work only (2026-08-06): the `TRANSITION(PF-A0-UOW-BRIDGE)` cleanup this
+phase's items 2/6 depend on (dedicated approved commands owning their own
+Unit of Work) is done — see the transition-code register above. None of
+Phase C's 8 items themselves have started.
 
 ### Phase D - Forecasts, ETC, change control, and enterprise reporting
 
@@ -973,8 +981,8 @@ This register is mandatory implementation scope. A phase cannot close while its 
 | Planned dual-write adapter, only if required | C | New writes and reports reconcile; legacy writes disabled | PM Finance | NOT CREATED |
 | Client-side fixed-limit Procurement lookup | Pre-existing | C typed project-source contract active | Procurement / PM Integration | OPEN |
 | Legacy financial permission aliases/feature flags | A0 onward | E final role/API/controller inventory passes | Platform Security / PM Finance | NOT CREATED |
-| Approval `commit=False` transaction switches in legacy cost/baseline/dependency/scheduling services | A0 | C dedicated approved commands own the shared Unit of Work | Platform Workflow / PM | OPEN; marked `TRANSITION(PF-A0-UOW-BRIDGE)` |
-| Approved-handler `bypass_approval=True` switches | Pre-existing; constrained in A0 handlers | C handlers call dedicated internal approved commands with no public bypass flag | Platform Workflow / PM | OPEN; marked `TRANSITION(PF-A0-UOW-BRIDGE)` |
+| Approval `commit=False` transaction switches in legacy cost/baseline/dependency/scheduling services | A0 | C dedicated approved commands own the shared Unit of Work | Platform Workflow / PM | CLOSED 2026-08-06; `CostLifecycleMixin`/`BaselineService`/`TaskDependencyMixin` each split into a public governed method + a private `_apply_*_decision` (mirroring `BudgetService`); `SchedulingEngine`/`_sync_project_schedule`'s `commit` params re-scoped as plain caller-owned batching, not an approval bridge — no regressions (24 pre-existing failures unchanged, 428 passed) |
+| Approved-handler `bypass_approval=True` switches | Pre-existing; constrained in A0 handlers | C handlers call dedicated internal approved commands with no public bypass flag | Platform Workflow / PM | CLOSED 2026-08-06; `bypass_approval` parameter removed entirely from `add_cost_item`/`update_cost_item`/`delete_cost_item`/`create_baseline`/`add_dependency`/`remove_dependency` — no caller anywhere (checked) passed `bypass_approval=True` except the composition apply handlers, now rewired to call `_apply_*_decision` directly. `TaskDependencyMixin.update_dependency`'s governed branch was dead code (not in `DEFAULT_GOVERNED_ACTIONS`, no apply handler ever registered) — deleted rather than wired up. |
 | Unused FinanceService ReportingService compatibility argument | A0 candidate | Remove before A0 merge | PM Finance | CLOSED; deleted 2026-08-02 |
 | `Money.from_legacy_float` and `decimal_from_legacy_float` converters | A1 | D legacy CostItem reconciliation, float DTO, and float-column retirement complete | Platform Finance / Data Migration | OPEN; marked `TRANSITION(PF-A1-LEGACY-FLOAT)` |
 | PM desktop formatter legacy-float branch | A1 | D canonical decimal-string read DTO cutover complete | Desktop UI / PM Finance | OPEN; marked `TRANSITION(PF-A1-DESKTOP-FLOAT)` |
