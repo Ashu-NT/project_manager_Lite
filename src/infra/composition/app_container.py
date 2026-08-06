@@ -132,6 +132,7 @@ from src.core.platform.application.time_management.calendar.capacity.enterprise_
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import WorkingTimeCalculator
 from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
+from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import PortfolioResourcePoolService
 from src.infra.composition.inventory_registry import build_inventory_procurement_service_bundle
 from src.infra.composition.maintenance_registry import build_maintenance_service_bundle
 from src.infra.composition.platform_registry import build_platform_service_bundle
@@ -242,6 +243,7 @@ class ServiceGraph:
     working_time_calculator: WorkingTimeCalculator | None
     resource_capacity_calculator: ResourceCapacityCalculator | None
     enterprise_resource_availability: EnterpriseResourceAvailabilityService | None
+    portfolio_resource_pool_service: PortfolioResourcePoolService | None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -347,6 +349,7 @@ class ServiceGraph:
             # Registered as "resource_availability_service" so build_desktop_api_registry picks it up.
             # The old ResourceAvailabilityService (uses WorkCalendarEngine) is no longer the default.
             "resource_availability_service": self.enterprise_resource_availability,
+            "portfolio_resource_pool_service": self.portfolio_resource_pool_service,
         }
 
 
@@ -490,6 +493,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         working_time_calculator=platform_services.working_time_calculator,
         resource_capacity_calculator=project_management_services.resource_capacity_calculator,
         enterprise_resource_availability=project_management_services.enterprise_resource_availability,
+        portfolio_resource_pool_service=project_management_services.portfolio_resource_pool_service,
     )
     logger.debug(
         "Service graph build complete duration_ms=%.1f",

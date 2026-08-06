@@ -62,6 +62,7 @@ from src.core.modules.project_management.application.resources.assignment_valida
 from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import ProjectCalendarAdapter
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
 from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
+from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import PortfolioResourcePoolService
 from src.infra.composition.platform_registry import PlatformServiceBundle
 from src.infra.composition.repositories import RepositoryBundle
 
@@ -120,6 +121,7 @@ class ProjectManagementServiceBundle:
     project_calendar_adapter: ProjectCalendarAdapter
     enterprise_resource_availability: EnterpriseResourceAvailabilityService
     resource_capacity_calculator: ResourceCapacityCalculator
+    portfolio_resource_pool_service: PortfolioResourcePoolService
 
 
 def build_project_management_service_bundle(
@@ -465,6 +467,15 @@ def build_project_management_service_bundle(
     resource_capacity_calculator = ResourceCapacityCalculator(
         availability_service=enterprise_resource_availability,
     )
+    portfolio_resource_pool_service = PortfolioResourcePoolService(
+        resource_repo=repositories.resource_repo,
+        assignment_repo=repositories.assignment_repo,
+        task_repo=repositories.task_repo,
+        project_repo=repositories.project_repo,
+        calendar=platform_services.global_calendar_shim,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
     logger.debug("Project Management core services built")
     _register_project_management_approval_handlers(
         approval_service=platform_services.approval_service,
@@ -507,6 +518,7 @@ def build_project_management_service_bundle(
         project_calendar_adapter=project_calendar_adapter,
         enterprise_resource_availability=enterprise_resource_availability,
         resource_capacity_calculator=resource_capacity_calculator,
+        portfolio_resource_pool_service=portfolio_resource_pool_service,
     )
 
 

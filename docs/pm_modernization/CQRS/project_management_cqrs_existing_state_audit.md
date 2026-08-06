@@ -2278,6 +2278,46 @@ Required tests:
 **Exit gate:** No Portfolio-facing capacity report can execute without explicit application-layer
 permission and tenant/organization validation.
 
+**Phase 0A.1 — COMPLETE (2026-08-06).** Implemented and verified exactly as scoped above:
+- `PortfolioResourcePoolService.get_pool_report` and `.get_resource_demand_by_project`
+  (`application/resources/portfolio_resource_pool_service.py`) now both call a new `_require_scope`
+  helper that enforces `require_permission(self._user_session, "portfolio.read", ...)` followed by
+  `TenantContextService.require_organization_context(...)` — the same permission and the same
+  "require both tenant and organization" pattern used by `PortfolioService`/`portfolio_executive.py`
+  elsewhere in this module. `get_resource_demand_by_project` previously had **no check at all**;
+  `get_pool_report` previously only called a weaker `_active_organization_id` helper.
+- **Significant correction to this finding's original risk framing, discovered during
+  implementation, not anticipated by the P0 finding above:** a repo-wide grep for
+  `PortfolioResourcePoolService(` returned zero matches before this phase — the service was never
+  constructed anywhere in production composition. `capacity_pool_builder.py`'s
+  `if pool_service is None: return ()` and `service_resolver.py`'s
+  `services.get("portfolio_resource_pool_service")` (always `None`) confirm the Portfolio
+  "Capacity vs Demand" desktop feature has been **silently non-functional (always empty) in
+  production**, not merely under-protected. Composition wiring was completed as part of this phase
+  (construction in `project_registry.py`'s `build_project_management_service_bundle`; the field,
+  `as_dict()` key, and constructor argument added to `app_container.py`'s `ServiceGraph`) — without
+  it, the permission fix would have protected a code path nothing could ever reach, per this
+  document's own "Composition root: must own constructing services" rule (§16).
+- Verified with 7 new tests
+  (`src/tests/project_management/test_portfolio_resource_pool_phase0a1_authorization.py`), matching
+  the required-tests list above one-for-one: authorized caller receives the report; caller without
+  `portfolio.read` gets `BusinessRuleError(code="PERMISSION_DENIED")` on both methods; missing
+  tenant context fails closed (`TENANT_CONTEXT_REQUIRED`); missing organization context (tenant
+  present) fails closed (`TENANT_CONTEXT_REQUIRED`); another tenant's resource is never returned;
+  another organization's resource (same tenant) is never returned; the desktop DTO
+  (`PortfolioCapacityResourceDto[]`) is field-for-field unchanged for an authorized caller, exercised
+  against the real composition graph via the now-populated `services["portfolio_resource_pool_service"]`
+  key. All 7 pass. A targeted regression run of the pre-existing Portfolio desktop-API test files
+  (`test_project_management_desktop_api_portfolio_*.py`, `test_qml_project_management_presenters_portfolio.py`)
+  also passed unchanged, confirming the composition wiring did not disturb the existing Portfolio
+  surface. A full `src/tests/project_management/` run surfaced 24 pre-existing failures in unrelated
+  files (e.g. `test_data_integrity.py`'s `tasks.wbs_code` NOT NULL constraint, dashboard-trends
+  activity-feed fakes, PM module-enablement checks) — confirmed unrelated by reproducing them in
+  isolation with tracebacks that never touch Portfolio or this phase's changed files; consistent with
+  this branch's other, already-uncommitted in-progress work (WBS/budget migrations). Per this
+  project's established "verify once per phase" convention, these were not investigated further or
+  fixed as part of Phase 0A.1.
+
 **Phase 0A.2 — Portfolio write rollback hardening.**
 
 Scope:
