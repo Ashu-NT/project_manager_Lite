@@ -95,6 +95,7 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import (
+    BudgetService,
     CostService,
     FinancialConfigurationService,
     FinanceService,
@@ -217,6 +218,7 @@ class ServiceGraph:
     forecast_service: ForecastCostService
     rate_card_service: ProjectRateCardService
     rate_card_resolver: RateCardResolver
+    budget_service: BudgetService
     finance_service: FinanceService
     work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
     scheduling_engine: SchedulingEngine
@@ -318,6 +320,7 @@ class ServiceGraph:
             "forecast_service": self.forecast_service,
             "rate_card_service": self.rate_card_service,
             "rate_card_resolver": self.rate_card_resolver,
+            "budget_service": self.budget_service,
             "finance_service": self.finance_service,
             "work_calendar_engine": self.work_calendar_engine,
             "scheduling_engine": self.scheduling_engine,
@@ -461,6 +464,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         forecast_service=project_management_services.forecast_service,
         rate_card_service=project_management_services.rate_card_service,
         rate_card_resolver=project_management_services.rate_card_resolver,
+        budget_service=project_management_services.budget_service,
         finance_service=project_management_services.finance_service,
         work_calendar_engine=project_management_services.work_calendar_engine,
         scheduling_engine=project_management_services.scheduling_engine,

@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from src.core.platform.access import ScopedRolePolicy
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.contract.approval.contracts import (
     ApprovalHandlerResult,
     ApprovalPostCommitEvent,
@@ -28,6 +29,7 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
 from src.core.modules.project_management.application.common.clock import SystemClock
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import (
+    BudgetService,
     CostService,
     FinancialConfigurationService,
     FinanceService,
@@ -101,6 +103,7 @@ class ProjectManagementServiceBundle:
     forecast_service: ForecastCostService
     rate_card_service: ProjectRateCardService
     rate_card_resolver: RateCardResolver
+    budget_service: BudgetService
     finance_service: FinanceService
     work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
     scheduling_engine: SchedulingEngine
@@ -326,6 +329,20 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         clock=system_clock,
     )
+    budget_service = BudgetService(
+        session=session,
+        budget_repo=repositories.project_budget_repo,
+        project_repo=repositories.project_repo,
+        financial_profile_repo=repositories.project_financial_profile_repo,
+        cost_code_repo=repositories.project_cost_code_repo,
+        task_repo=repositories.task_repo,
+        clock=system_clock,
+        user_session=platform_services.user_session,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
+        module_catalog_service=platform_services.module_catalog_service,
+        tenant_context_service=platform_services.tenant_context_service,
+        approval_service=platform_services.approval_service,
+    )
     reporting_service = ReportingService(
         session=session,
         project_repo=repositories.project_repo,
@@ -432,6 +449,8 @@ def build_project_management_service_bundle(
         baseline_service=baseline_service,
         task_service=task_service,
         cost_service=cost_service,
+        budget_service=budget_service,
+        user_session=platform_services.user_session,
     )
     logger.debug("Project Management approval handlers registered")
     logger.debug(
@@ -450,6 +469,7 @@ def build_project_management_service_bundle(
         forecast_service=forecast_service,
         rate_card_service=rate_card_service,
         rate_card_resolver=rate_card_resolver,
+        budget_service=budget_service,
         finance_service=finance_service,
         work_calendar_engine=work_calendar_engine,
         scheduling_engine=scheduling_engine,
@@ -473,6 +493,8 @@ def _register_project_management_approval_handlers(
     baseline_service: BaselineService,
     task_service: TaskService,
     cost_service: CostService,
+    budget_service: BudgetService,
+    user_session=None,
 ) -> None:
     # TRANSITION(PF-A0-UOW-BRIDGE): These handlers stage legacy service writes with
     # commit=False/bypass_approval=True. Remove both switches at the Phase C command cutover.
@@ -560,6 +582,44 @@ def _register_project_management_approval_handlers(
         )
         return _result("costs_changed", req.project_id or "")
 
+    def _require_budget_decision_actor() -> str:
+        # request.decided_by_user_id/username are stamped by ApprovalService
+        # itself only *after* this handler runs, so the deciding actor must
+        # come from the currently active session principal, never from the
+        # request payload (written by the original requester, not the
+        # approver deciding right now).
+        principal = user_session.principal if user_session else None
+        if principal is None:
+            raise BusinessRuleError(
+                "An authenticated principal is required to decide a budget approval.",
+                code="PROJECT_BUDGET_ACTOR_REQUIRED",
+            )
+        return principal.user_id
+
+    def _apply_budget_approval(req) -> ApprovalHandlerResult:
+        # Calls the internal, unchecked decision method directly — NOT
+        # approve_budget() — because this handler's authorization already
+        # came from ApprovalService's own "approval.decide" check, which is
+        # deliberately independent of "budget.approve".
+        budget = budget_service._apply_approval_decision(
+            budget_id=req.payload["budget_id"],
+            approved_by=_require_budget_decision_actor(),
+            expected_version=req.payload["expected_version"],
+            notes=req.payload.get("notes", ""),
+            commit=False,
+        )
+        return _result("budgets_changed", budget.project_id)
+
+    def _apply_budget_rejection(req) -> ApprovalHandlerResult:
+        budget = budget_service._apply_rejection_decision(
+            budget_id=req.payload["budget_id"],
+            rejected_by=_require_budget_decision_actor(),
+            expected_version=req.payload["expected_version"],
+            notes=req.payload.get("notes", ""),
+            commit=False,
+        )
+        return _result("budgets_changed", budget.project_id)
+
     approval_service.register_apply_handler(
         "baseline.create",
         _apply_baseline,
@@ -583,6 +643,14 @@ def _register_project_management_approval_handlers(
     approval_service.register_apply_handler(
         "cost.delete",
         _apply_cost_delete,
+    )
+    approval_service.register_apply_handler(
+        "budget.approve",
+        _apply_budget_approval,
+    )
+    approval_service.register_reject_handler(
+        "budget.approve",
+        _apply_budget_rejection,
     )
 
 

@@ -1,9 +1,20 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
 Status: audit complete; Phase A0, A1, A2, and Phase B1 configuration code gates complete; hosted PostgreSQL validation pending
-Last updated: 2026-08-02  
-Scope: Project Management finance plus reusable platform financial foundations  
-Current increment: Phase B1 financial profile and cost-code foundation complete; Task-owned WBS implementation next
+Last updated: 2026-08-06
+Scope: Project Management finance plus reusable platform financial foundations
+Current increment: Task-owned WBS, effective-dated rate cards (ADR-PF-005) with the
+`CostPolicyEngine`/`LaborCostEngine` cutover, and the versioned `ProjectBudget`/`BudgetLine`
+lifecycle (item 5 below, including governed approval integration) are all now implemented
+and tested (uncommitted) — see [rate_card_cost_engine_cutover_plan.md](rate_card_cost_engine_cutover_plan.md)
+and [project_budget_lifecycle_plan.md](project_budget_lifecycle_plan.md). Also fixed as part
+of the budget slice's own verification: `project_finance_rate_card_lines`'s Numeric columns
+(`rate_amount`/`overtime_multiplier`/`weekend_multiplier`/`holiday_multiplier`) were missing
+the `info['financial_numeric']` marker the A1 architecture guardrail requires — a pre-existing
+gap masked by ORM-table import order, only surfaced once the new budget table changed that
+order. Both rate-card and budget Numeric columns now declare it.
+Remaining Phase B scope: versioned planned-cost snapshots (item 6 below) before Phase C's
+actual ledger/commitments/time/procurement work.
 
 ## 1. Executive Summary
 
@@ -224,15 +235,32 @@ Coverage does not currently prove safe money arithmetic, ISO currency validity, 
 
 ### 11.3 Work Breakdown Structure
 
-**Status: DECISION ACCEPTED; implementation next.** ADR-PF-003 assigns the WBS hierarchy to PM Tasks through optional parent, project-unique WBS code, ordering, cycle prevention, and summary/leaf semantics. Project Finance references stable Task/WBS IDs and never owns hierarchy mutation. A separate WorkPackage aggregate remains deferred unless a proven non-schedulable financial-node requirement appears.
+**Status: IMPLEMENTED.** ADR-PF-003's Task-owned WBS is built: `Task.parent_task_id`/`wbs_code`
+with cycle prevention, project-unique code validation, and migration backfill
+(`test_task_wbs_migration.py`). Project Finance references stable Task/WBS IDs and never owns
+hierarchy mutation. A separate WorkPackage aggregate remains deferred unless a proven
+non-schedulable financial-node requirement appears.
 
 ### 11.4 Rate Cards
 
-**Status: DECISION ACCEPTED; implementation pending.** ADR-PF-005 fixes separate cost/billing rate types, deterministic specificity, effective/unit/context filtering, ambiguity failure, explicit modifiers, and immutable selection snapshots. `Resource.hourly_rate` and `ProjectResource.hourly_rate/currency/planned_hours` remain current defaults until the rate-card slice implements and reconciles versioned effective-dated lines.
+**Status: IMPLEMENTED, including the cost-engine cutover (2026-08-05).** ADR-PF-005's
+7-level cost/billing precedence, effective-dated lines, ambiguity failure, explicit
+modifiers, and immutable `RateSelectionSnapshot` are built and tested
+(`domain/financials/rate_cards.py`, `application/financials/rate_cards/`). `CostPolicyEngine`
+and `LaborCostEngine` now resolve both planned and actual labor rates through
+`LaborRateResolver.resolve_many` (batched, tenant/org-scoped, explicit `as_of`) instead of
+reading `ProjectResource.hourly_rate`/`Resource.hourly_rate` directly — see
+[rate_card_cost_engine_cutover_plan.md](rate_card_cost_engine_cutover_plan.md). Resources
+still carry `hourly_rate`/`currency_code` as inputs, but they now only reach cost
+calculations by auto-seeding a `legacy_seeded` rate-card line at creation/update time; the
+engines never read those fields directly. Unresolved rates are excluded from totals (not
+zeroed) and surfaced through `unresolved_labor_rates`/`labor_rates_complete` up to the
+desktop `FinancialSnapshotDto`. `EVM.get_actual_cost` fails closed
+(`ACTUAL_COST_INCOMPLETE`) rather than understating AC.
 
 ### 11.5 Budgeting
 
-**Status: MINIMAL.** `Project.planned_budget` is a float total; `application/financials/budgets/__init__.py` has no implementation. Baseline planned cost is not spending authorization. Create versioned ProjectBudget/BudgetLine aggregates with DRAFT -> SUBMITTED -> APPROVED -> SUPERSEDED -> CLOSED, immutable approved versions, currency, WBS/cost-code/period dimensions, and approval references. Reuse the baseline supersede pattern but not the baseline entity. Keep the Project total as a deprecated projection until parity is verified.
+**Status: IMPLEMENTED (2026-08-06).** Versioned `ProjectBudget`/`BudgetLine` aggregates are built with the full DRAFT -> SUBMITTED -> APPROVED/REJECTED, APPROVED -> SUPERSEDED/CLOSED lifecycle, immutable approved versions (one approved + optionally one open version per project, both DB-enforced), currency (immutable once lines exist), cost-code/task(WBS) line dimensions, and governed approval integration through the existing Platform Approval service — see [project_budget_lifecycle_plan.md](project_budget_lifecycle_plan.md). `Project.planned_budget` remains the BAC/threshold source this phase; no `CostPolicyEngine`/`EarnedValueCalculator` cutover onto approved budget totals yet (a future cutover plan, mirroring the rate-card cutover, will do that separately).
 
 ### 11.6 Planned Costing
 
@@ -517,9 +545,9 @@ Rules:
 | --- | --- | --- | --- | --- |
 | Project financial profile | MINIMAL | P1 | Project org/site/client references | Dedicated versioned profile and policy defaults |
 | Cost codes | MINIMAL | P1 | Legacy code/type as migration input | Tenant/org catalog, hierarchy, effective state, mappings |
-| WBS | MISSING | P2/product gate | Tasks as optional leaf references | Task hierarchy or WorkPackage decision and rollups |
-| Rate cards | MINIMAL | P0 for actual costing | Resource/project current rates as fallback | Effective-dated cost/billing rates and snapshots |
-| Budgeting | MINIMAL | P1 | Baseline lifecycle pattern | Immutable approved budget versions and lines |
+| WBS | IMPLEMENTED | P2/product gate | Task hierarchy is the accepted model | Done: `Task.parent_task_id`/`wbs_code` with cycle prevention and migration |
+| Rate cards | IMPLEMENTED, engines cut over | P0 for actual costing | — | Done: ADR-PF-005 precedence + `CostPolicyEngine`/`LaborCostEngine` cutover (2026-08-05) |
+| Budgeting | IMPLEMENTED | P1 | Baseline lifecycle pattern | Done: versioned `ProjectBudget`/`BudgetLine` with governed approval (2026-08-06) |
 | Planned costing | PARTIAL | P1 | Existing assignment/resource inputs and baseline comparison | Versioned source-linked planned-cost snapshots |
 | Commitments | MINIMAL | P0/P1 | Procurement ownership and source refs | PM projections, matching, remaining balance, lifecycle |
 | Actual costs | MINIMAL | P0 | Legacy data as migration source | Posted immutable ledger, reversals, periods, idempotency |
@@ -699,10 +727,10 @@ ADR gate: complete. ADR-PF-003, ADR-PF-005, and ADR-PF-009 are accepted.
 
 1. Complete: add ProjectFinancialProfile and backfill project currency without deleting legacy fields. Planned-budget conversion is intentionally reserved for the versioned Budget aggregate rather than copied into another mutable profile field.
 2. Complete: add ProjectCostCode catalog and project restrictions. Legacy `CostType` remains only on legacy cost records until explicit reviewed mapping/reconciliation.
-3. Decide WBS representation. Implement task hierarchy/work package in PM Scheduling, not finance, if approved.
-4. Add versioned effective-dated rate cards for internal cost and billing rates; formalize priority/fallback and snapshot selection.
-5. Add Budget/BudgetLine lifecycle and approval integration. Approved versions become immutable and supersede rather than update.
-6. Add versioned planned-cost calculation/snapshots from assignments and other planned inputs. Link dimensions to budget lines and retain source lineage.
+3. Complete: Task-owned WBS (`parent_task_id`/`wbs_code`, cycle prevention, migration backfill).
+4. Complete: versioned effective-dated rate cards (ADR-PF-005) for internal cost and billing rates, with deterministic priority/fallback and immutable snapshot selection — **and** `CostPolicyEngine`/`LaborCostEngine` are cut over onto them (2026-08-05; see [rate_card_cost_engine_cutover_plan.md](rate_card_cost_engine_cutover_plan.md)). `Resource.hourly_rate`/`ProjectResource.hourly_rate` now only reach cost calculations through an auto-seeded `legacy_seeded` rate-card line, never by direct field read.
+5. Complete: versioned Budget/BudgetLine lifecycle and governed approval integration. Approved versions are immutable and supersede rather than update.
+6. **Next:** Add versioned planned-cost calculation/snapshots from assignments and other planned inputs. Link dimensions to budget lines and retain source lineage.
 7. Repoint baseline comparison and planning reports to Money and planned-cost snapshots.
 8. Replace the QML combined "Budget" cost-line section with separate Profile, Budget Versions, Budget Lines, Rate Cards, and Planned Costs views. Current QML may be broken/replaced as contracts move; do not preserve false semantics.
 
@@ -961,9 +989,9 @@ The repository already uses global ADR-001 through ADR-004, so Project Finance d
 | --- | --- | --- | --- |
 | [ADR-PF-001](../architecture_decisions/ADR-PF-001-money-currency-precision-rounding.md) | Money, currency, precision, quantities, rates, and rounding | ACCEPTED; PHASE A1 FOUNDATION IMPLEMENTED | A1 implementation |
 | [ADR-PF-002](../architecture_decisions/ADR-PF-002-project-finance-bounded-context.md) | Project Finance bounded-context and module ownership | ACCEPTED; PHASE A2 BOUNDARY CONTRACTS IMPLEMENTED | A2/B contracts |
-| [ADR-PF-003](../architecture_decisions/ADR-PF-003-wbs-and-hierarchical-tasks.md) | WBS versus hierarchical Tasks | ACCEPTED; TASK-OWNED WBS IMPLEMENTATION NEXT | B WBS/planned-cost dimensions |
+| [ADR-PF-003](../architecture_decisions/ADR-PF-003-wbs-and-hierarchical-tasks.md) | WBS versus hierarchical Tasks | ACCEPTED; TASK-OWNED WBS IMPLEMENTED | B WBS/planned-cost dimensions |
 | [ADR-PF-004](../architecture_decisions/ADR-PF-004-financial-posting-and-reversal.md) | Posting and signed reversal model | ACCEPTED; LEDGER IMPLEMENTATION DEFERRED TO C | A1/C ledger schema |
-| [ADR-PF-005](../architecture_decisions/ADR-PF-005-rate-card-precedence.md) | Rate-card precedence | ACCEPTED; RATE-CARD IMPLEMENTATION PENDING | B rate-card implementation |
+| [ADR-PF-005](../architecture_decisions/ADR-PF-005-rate-card-precedence.md) | Rate-card precedence | ACCEPTED; IMPLEMENTED INCLUDING COST-ENGINE CUTOVER (2026-08-05) | B rate-card implementation |
 | [ADR-PF-006](../architecture_decisions/ADR-PF-006-approved-time-posting-trigger.md) | Approved-time posting trigger | ACCEPTED; PHASE A2 SOURCE CONTRACT IMPLEMENTED | A2 contract/C consumer |
 | [ADR-PF-007](../architecture_decisions/ADR-PF-007-procurement-financial-triggers.md) | Procurement commitment and actual triggers | ACCEPTED; PHASE A2 SOURCE CONTRACTS IMPLEMENTED | A2 contract/C consumer |
 | [ADR-PF-008](../architecture_decisions/ADR-PF-008-approval-unit-of-work.md) | Approval and unit-of-work transaction model | ACCEPTED; INITIAL TRANSACTION CUTOVER IMPLEMENTED | A0 approval refactor |
@@ -993,7 +1021,7 @@ These are genuine product/ownership decisions. Questions mapped to A0/A1/A2 ADRs
 
 ## 25. Final Recommendation
 
-Proceed with the upgrade, but do not extend the current combined CostItem/QML model. Phase A0 security/transaction correctness, A1 monetary foundations, A2 canonical application foundations, and the Phase B1 configuration foundation are implemented. Continue with the accepted Task-owned WBS slice, then effective-dated rate cards and versioned Budgets. This keeps security, Decimal Money/rate/quantity work, integration composition, and configuration aggregates independently testable.
+Proceed with the upgrade, but do not extend the current combined CostItem/QML model. Phase A0 security/transaction correctness, A1 monetary foundations, A2 canonical application foundations, the Phase B1 configuration foundation, Task-owned WBS, effective-dated rate cards with the `CostPolicyEngine`/`LaborCostEngine` cutover, and the versioned Budget/BudgetLine lifecycle are all implemented. Continue with versioned planned-cost snapshots next. This keeps security, Decimal Money/rate/quantity work, integration composition, and configuration aggregates independently testable.
 
 Then build Project Finance as explicit PM-owned aggregates while preserving valid module ownership: Time supplies approved hours, Procurement supplies PO/receipt facts, Party supplies identities, Approval and Audit remain platform services, and external accounting owns official ledger/payment behavior. Use additive persistence and temporary compatibility only to migrate verified data; delete every fallback, dual-write, alias, and transition adapter at its named phase gate.
 

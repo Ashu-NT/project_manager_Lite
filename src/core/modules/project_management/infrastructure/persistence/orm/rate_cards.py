@@ -20,7 +20,11 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.infra.persistence.db.financial_numeric import FinancialNumericKind, financial_numeric
+from src.infra.persistence.db.financial_numeric import (
+    FinancialNumericKind,
+    financial_numeric,
+    financial_numeric_info,
+)
 from src.infra.persistence.orm.base import Base
 
 
@@ -158,17 +162,25 @@ class RateCardLineORM(Base):
     )
     unit: Mapped[str] = mapped_column(String(32), nullable=False)
     rate_amount: Mapped[Decimal] = mapped_column(
-        financial_numeric(FinancialNumericKind.RATE), nullable=False
+        financial_numeric(FinancialNumericKind.RATE),
+        nullable=False,
+        info=financial_numeric_info(FinancialNumericKind.RATE),
     )
     rate_currency: Mapped[str] = mapped_column(String(8), nullable=False)
     overtime_multiplier: Mapped[Decimal | None] = mapped_column(
-        financial_numeric(FinancialNumericKind.RATE), nullable=True
+        financial_numeric(FinancialNumericKind.RATE),
+        nullable=True,
+        info=financial_numeric_info(FinancialNumericKind.RATE),
     )
     weekend_multiplier: Mapped[Decimal | None] = mapped_column(
-        financial_numeric(FinancialNumericKind.RATE), nullable=True
+        financial_numeric(FinancialNumericKind.RATE),
+        nullable=True,
+        info=financial_numeric_info(FinancialNumericKind.RATE),
     )
     holiday_multiplier: Mapped[Decimal | None] = mapped_column(
-        financial_numeric(FinancialNumericKind.RATE), nullable=True
+        financial_numeric(FinancialNumericKind.RATE),
+        nullable=True,
+        info=financial_numeric_info(FinancialNumericKind.RATE),
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

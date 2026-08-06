@@ -30,6 +30,8 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "payroll.export": "Export payroll reports and payment files",
     "baseline.manage": "Create baselines",
     "baseline.approve": "Approve or reject baselines",
+    "budget.manage": "Create, edit, and submit project budgets",
+    "budget.approve": "Approve, reject, or close project budgets",
     "register.read": "View risk, issue, and change register data",
     "register.manage": "Create and edit register entries",
     "report.view": "View reports",
@@ -83,6 +85,7 @@ _PLANNER = _TEAM_MEMBER | {
     "task.manage",
     "time.manage",
     "baseline.manage",
+    "budget.manage",
     "register.manage",
     "report.export",
     "portfolio.read",
@@ -92,6 +95,7 @@ _PLANNER = _TEAM_MEMBER | {
 
 _PROJECT_MANAGER = _PLANNER | {
     "baseline.approve",
+    "budget.approve",
     "cost.manage",
     "finance.read",
     "finance.export",
@@ -132,6 +136,8 @@ _FINANCE_CONTROLLER = {
     "finance.export",
     "payroll.read",
     "approval.request",
+    "budget.manage",
+    "budget.approve",
 }
 
 _INVENTORY_MANAGER = {
@@ -196,6 +202,7 @@ _PORTFOLIO_MANAGER = {
 
 _APPROVER = {
     "baseline.approve",
+    "budget.approve",
     "project.read",
     "resource.read",
     "task.read",
@@ -293,6 +300,7 @@ _PROJECT_CONTRIBUTOR = _PROJECT_VIEWER | {
 _PROJECT_LEAD = _PROJECT_CONTRIBUTOR | {
     "cost.manage",
     "baseline.manage",
+    "budget.manage",
     "register.manage",
     "report.export",
     "approval.request",
@@ -301,6 +309,7 @@ _PROJECT_LEAD = _PROJECT_CONTRIBUTOR | {
 
 _PROJECT_OWNER = _PROJECT_LEAD | {
     "project.manage",
+    "budget.approve",
     "timesheet.approve",
     "timesheet.lock",
 }
@@ -383,7 +392,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
 }
 
 SYSTEM_ROLE_POLICY_NAME = "system-role-permissions"
-SYSTEM_ROLE_POLICY_VERSION = 7
+SYSTEM_ROLE_POLICY_VERSION = 8
 
 __all__ = [
     "DEFAULT_PERMISSIONS",
