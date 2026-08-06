@@ -579,10 +579,7 @@ class ProjectManagementTasksDesktopApi:
         list_reservations = getattr(self._reservation_service, "list_reservations", None)
         if not callable(list_reservations):
             return ()
-        try:
-            all_reservations = list_reservations(limit=500)
-        except Exception:
-            return ()
+        all_reservations = list_reservations(limit=500)
         task_reservations = [
             reservation for reservation in all_reservations
             if getattr(reservation, "source_reference_type", "") == "task"

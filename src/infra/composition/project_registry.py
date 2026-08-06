@@ -319,6 +319,7 @@ def build_project_management_service_bundle(
         repositories.project_repo,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
+        tenant_context_service=platform_services.tenant_context_service,
     )
     rate_card_service = ProjectRateCardService(
         session=session,

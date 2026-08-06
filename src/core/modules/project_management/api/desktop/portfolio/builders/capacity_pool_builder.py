@@ -11,10 +11,7 @@ def build_capacity_pool(pool_service=None) -> tuple[PortfolioCapacityResourceDto
         return ()
     today = date.today()
     to_date = today + timedelta(days=90)
-    try:
-        report = pool_service.get_pool_report(from_date=today, to_date=to_date)
-    except Exception:
-        return ()
+    report = pool_service.get_pool_report(from_date=today, to_date=to_date)
     sorted_pool = sorted(report.pool, key=lambda r: float(r.peak_load_percent or 0.0), reverse=True)
     return tuple(
         PortfolioCapacityResourceDto(

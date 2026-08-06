@@ -6,6 +6,7 @@ from collections import deque
 from dataclasses import dataclass, replace
 from datetime import date
 
+from src.core.modules.project_management.access.scope_permissions import require_project_permission
 from src.core.modules.project_management.contracts.repositories.task import (
     DependencyRepository,
     TaskRepository,
@@ -124,6 +125,12 @@ class TaskDependencyDiagnosticsMixin:
             )
 
         project_id = predecessor.project_id
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "task.read",
+            operation_label="preview dependency impact",
+        )
         dependencies = self._dependency_repo.list_by_project(project_id)
         if any(
             dependency.predecessor_task_id == predecessor_id and dependency.successor_task_id == successor_id

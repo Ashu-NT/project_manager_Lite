@@ -2464,6 +2464,103 @@ must genuinely be touched by both — none currently do. The `report.view` vs. `
 `finance.read_sensitive` permission-model decision (§14 P0, §20 open question 1) remains a separate,
 explicit product/security decision — Phase 0A does not resolve it, only the items enumerated above.
 
+**Phase 0A.4 — COMPLETE (2026-08-06).** Each of the three bundled item-groups was investigated and
+resolved on its own terms, exactly as the "decide whether..." framing above invited:
+
+*Broad exception handling.* Two genuinely distinct anti-patterns were hiding under one description:
+
+- **Fixed (swallow-into-empty, live features):** `capacity_pool_builder.py::build_capacity_pool`,
+  `tasks/api.py::list_task_reservations`, and
+  `dashboard_snapshot_service.py::_list_pending_approvals` each had a bare
+  `try: ... except Exception: return ()` around a real, live service call. All three were narrowed
+  to nothing — the `try/except` was removed entirely so failures (including the
+  `PERMISSION_DENIED` a caller without `portfolio.read` now gets from `get_pool_report`, per Phase
+  0A.1) propagate to the desktop boundary instead of silently rendering as "no data". This directly
+  closes the gap Phase 0A.1 left open: an unauthorized caller reaching the Portfolio capacity-pool
+  builder previously saw an empty pool with no error; now sees the actual denial.
+- **Deferred, recorded here (not fixed):** `access_resolution_service.py`/`resource_lookup_service.py`
+  (Tasks) do not actually match this pattern — on inspection, they catch a narrow
+  `BusinessRuleError` (not broad `Exception`) and, instead of swallowing it into empty data, replace
+  it with a **second, hand-rolled implementation of the same permission-filtering decision**
+  `ProjectService`/`ResourceService` already make (reaching into `_project_repo`/`_resource_repo`
+  private attributes to do it). This is the P0 finding at §14/Appendix A verbatim, and its own
+  documented correct fix — "`ProjectService` should expose the fallback/degraded-mode behavior
+  itself... permission-set filtering must have exactly one implementation, not two" — is an
+  application-layer redesign of `ProjectService.list_projects`/`ResourceService.list_resources`,
+  not a mechanical safety patch. Attempting it inside this phase risked behavior change to a live
+  authorization path without dedicated design review, so it is recorded here as a real, open P0
+  finding requiring its own dedicated phase, not fixed. `financials/api.py::list_project_requisitions`
+  was also left as-is: confirmed (twice, independently, elsewhere in this document) to have no QML
+  consumer and already recommended for deletion (§14 P3) — narrowing its exception handling would
+  be polishing dead code.
+
+*`TaskAssignmentBridgeMixin.assign_resource` dual-commit.* Recorded, not fixed, exactly as scoped.
+Confirmed by reading `application/tasks/commands/assignment_bridge.py`: when a task's resource has
+no existing `ProjectResource`, the method commits once to create the `ProjectResource` (lines
+56-61), then calls `self.assign_project_resource(...)`, which commits again for the actual
+assignment. A failure in the second commit leaves the first's `ProjectResource` durably persisted
+with no matching assignment — not a corrupted state, but a genuine two-transactions-where-one-was-
+intended gap. Fixing it correctly means threading a "defer commit" flag through
+`assign_project_resource` (used elsewhere as a standalone public method with its own commit
+contract), which is a small Unit-of-Work-shaped design decision this mechanical safety phase should
+not make unreviewed. Left as an open, planned item for a future phase.
+
+*Five named security gaps — decided individually:*
+
+- **Patched:** `ForecastCostService` had no `tenant_context_service` at all. Added the parameter
+  (defaults to `None`, matching every sibling service's constructor shape) and a
+  `_require_organization_context` helper, called from all four public methods
+  (`get_commitment_summary`, `get_material_rollup`, `compute_forecast`, `check_cost_threshold`)
+  after their existing `require_permission`/`require_project_permission` calls — mirroring
+  `PortfolioResourcePoolService._require_scope`'s shape from Phase 0A.1. Wired
+  `tenant_context_service=platform_services.tenant_context_service` into its construction in
+  `project_registry.py`.
+- **Patched:** `PortfolioDependencyCommandMixin.create_project_dependency` only checked global
+  `portfolio.manage` plus `project.read`-scoped accessibility (via `_accessible_projects()`) — a
+  caller with global `portfolio.manage` but no actual management grant on either project could link
+  them. Added `require_project_permission(user_session, project_id, "portfolio.manage", ...)` for
+  both the predecessor and successor project, after the existing accessibility check.
+  `remove_project_dependency` was left unchanged — the finding named creation specifically, and
+  removal's existing accessibility check is a materially different (lower) risk than granting a new
+  cross-project link.
+- **Patched:** `TaskDependencyDiagnosticsMixin.get_dependency_diagnostics` had zero permission
+  checks — any caller who could reach the method got full task names and schedule-impact details
+  for any two task ids, regardless of project access. Added
+  `require_project_permission(user_session, project_id, "task.read", ...)` immediately after the
+  same-project validation resolves `project_id`, before any dependency/schedule data is read.
+- **Decided not to patch (documented, no gap found):** the two `get_authorization_engine()` direct
+  calls (`TaskAssignmentMixin.get_assignment_action_context`,
+  `CollaborationCommentQueryMixin.get_task_comment_action_context`) are **capability probes**, not
+  enforcement bypasses — they compute boolean `can_read`/`can_manage` flags for desktop
+  presentation (e.g. "should this button be enabled") and correctly need `engine.has_permission(...)`
+  as a query returning a value, not `require_permission(...)`'s raise-on-deny contract. Read in
+  full: neither incorrectly grants anything a `require_permission` call at the same site would have
+  denied. The "bypass" framing in this finding is a code-hygiene observation (duplicated low-level
+  engine access instead of a shared capability-check helper), not a security hole — no immediate
+  patch needed.
+- **Decided to defer (documented, real but out of scope for this pass):** `CostService` accepts
+  `tenant_context_service` but never references it anywhere across its three command/query mixins.
+  Unlike `ForecastCostService` (4 small, already-permission-checked methods), `CostService` is a
+  much larger facade (`CostLifecycleMixin` + `CostQueryMixin` + `CostSupportMixin`) backing a live,
+  heavily-used financial capability; auditing every method to add tenant-context enforcement
+  correctly is a larger, higher-risk change than this mechanical safety pass should take unreviewed
+  — repository-level RLS scoping still defends the data underneath in the meantime, matching this
+  document's own established defense-in-depth reasoning. Left as an open item for a future,
+  dedicated pass over `CostService` specifically.
+
+Verified with 9 new tests
+(`src/tests/project_management/test_phase0a4_other_safety_corrections.py`): `ForecastCostService`
+succeeds for an authorized caller with context, fails closed with no `tenant_context_service`, and
+fails closed with a tenant present but no organization; `create_project_dependency` succeeds for an
+authorized caller and denies a caller with global `portfolio.manage` but no project-scoped grant on
+either project; `get_dependency_diagnostics` succeeds for an authorized caller and denies a caller
+without project-scoped `task.read`; and both `capacity_pool_builder.py` and
+`_list_pending_approvals` now propagate a forced failure instead of swallowing it into `()`. All 9
+pass. A full `src/tests/project_management/` regression run reproduced the exact same 24
+pre-existing failures already documented during Phase 0A.1/0A.3's own regression checks (identical
+test names, identical `tasks.wbs_code`/module-enablement/dashboard-fake root causes) — confirmed
+unrelated again, not investigated further.
+
 **Sequencing — one governance sequence, not two independent tracks.** Phase 0A does not expand the
 scope of the Finance Snapshot pilot, and there is no *technical* dependency forcing one phase to
 wait on the other's code. But this document states a single, unambiguous ordering rather than

@@ -166,10 +166,7 @@ class DashboardSnapshotService:
     def _list_pending_approvals(self, *, project_id: str | None) -> tuple[Any, ...]:
         if self._approval_service is None:
             return ()
-        try:
-            return tuple(self._approval_service.list_pending(project_id=project_id, limit=120))
-        except Exception:
-            return ()
+        return tuple(self._approval_service.list_pending(project_id=project_id, limit=120))
 
 
 __all__ = ["DashboardSnapshotService"]
