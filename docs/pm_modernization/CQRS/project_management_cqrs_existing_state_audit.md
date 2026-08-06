@@ -2584,6 +2584,9 @@ Phase 0A.3
 Phase 0A.4
 → other independent safety corrections
 
+Phase 0B
+→ attribute the Phase 0 SQL-count growth to specific call sites (diagnostic only)
+
 Phase 1
 → Finance Snapshot CQRS pilot
 
@@ -2595,12 +2598,121 @@ Phase 3C
 → introduce Portfolio Reader only when justified
 ```
 
-Phase 0.1-0A.4 and Phase 1 remain independently reviewable, independently revertible commits — this
+Phase 0.1-0A.4, Phase 0B, and Phase 1 remain independently reviewable, independently revertible commits — this
 sequence governs merge order, not implementation scope; nothing about fixing Portfolio's permission
 check or rollback handling requires touching any file the Finance Snapshot pilot touches, and
 nothing about the pilot requires touching Portfolio or Collaboration. The reason for the ordering is
 priority, not a dependency graph: this document's own tiers (§14) treat every Phase 0A item as P0
 and the Finance Snapshot redundancy as P1, and P0 findings merge first as a matter of policy.
+
+**Phase 0B — SQL growth attribution (diagnostic only, COMPLETE 2026-08-06).** Inserted here,
+between Phase 0A and Phase 1, specifically to answer the question Phase 0's own measurement
+deliberately left open: *why* did total SQL statement count grow 164 -> 272 -> 752 across the
+small/medium/large fixtures, with `organizations`/`tenants` dominating 53-64% of every run? This
+phase is scoped narrowly as attribution, not remediation — no production code was changed; its
+only output is findings for Phase 1's Reader design to act on.
+
+Method: extended the Phase 0 measurement harness
+(`src/tests/project_management/test_finance_snapshot_phase0b_sql_growth_attribution.py`, new file,
+test-only) with named-call counters on `TenantContextService.get_active_tenant`/
+`.get_active_organization` and on `LaborCostEngine`'s injected `resource_repo.get`, run at the same
+3 fixture sizes as Phase 0, then cross-referenced against the measured `sql_by_table` breakdown.
+
+**Confirmed root cause: two independent, uncoordinated per-resource lookup loops, each of which
+independently re-triggers a full tenant+organization context resolution with no caching.**
+
+1. `resource_repo.get(resource_id)` is called exactly **4 times per distinct resource, every
+   snapshot build** — confirmed by measurement (4, 40, 200 calls at 1/10/50 resources) and fully
+   traced statically to two call sites that never share a cache with each other:
+   - `LaborCostEngine.calculate_project_labor_details`'s own per-resource loop
+     (`labor_cost.py:129`), invoked **3 times per snapshot**: twice via
+     `CostPolicyEngine.build_snapshot()` (executed fresh, uncached, once each from
+     `get_cost_source_breakdown` and `get_cost_control_totals` — the redundancy §7's canonical
+     table already named) and once via `build_computed_labor_actual_rows` ->
+     `get_project_labor_details` -> `calculate_project_labor_details`. = 3xN.
+   - `ledger.py::build_computed_labor_plan_rows`'s own per-resource loop (`ledger.py:161-167`) has
+     its own `resource_cache` dict that correctly avoids re-fetching *within its own loop*, but
+     that cache is a local variable never shared with `LaborCostEngine`'s lookups above — so it
+     still contributes a 4th, fully independent pass over every resource. = +1xN.
+   - Net: 3xN + 1xN = 4xN, matching the measurement exactly at every fixture size.
+2. **Every single repository call independently re-resolves tenant + organization context from
+   scratch, with zero per-request caching.** Confirmed by reading
+   `SqlAlchemyResourceRepository._base_stmt()` (and the equivalent on every other PM repository):
+   each call starts with `self._context()` -> `tenant_context_service.require_organization_context()`
+   -> `get_active_tenant()` (1 query against `tenants`) + `get_active_organization()` (1 query
+   against `organizations`) — freshly, every time, for every repository method call. This is not
+   specific to resources; it is the scoping mechanism every PM repository uses. Measured
+   `tenant_context.get_active_tenant`/`get_active_organization` call counts (39/41 at small,
+   75/77 at medium, 235/237 at large) track the total repository-call volume for the snapshot,
+   and the resource-lookup redundancy above (finding 1) is confirmed to be the single largest
+   contributor to that volume, since it alone accounts for 4xN of the total repository calls made
+   during one snapshot build.
+3. **This is exactly why `organizations`/`tenants` dominate 53-64% of total statements, and why
+   that percentage climbs as resource count grows:** `tenants` + `organizations` statement counts
+   were 87/164 (53%) at small, 159/272 (58%) at medium, 479/752 (64%) at large — reproducing Phase
+   0's original 53-64% finding almost exactly, and confirming it climbs *because* the dominant
+   contributor (finding 1) scales with resource count while most other call groups in §7's
+   canonical table do not.
+4. A small, constant remainder of `tenants`/`organizations` statements (a flat +3/+4 respectively,
+   independent of resource count) comes from the snapshot's other, non-resource-scaling repository
+   calls (`project_repo.get`, `task_repo.list_by_project`, `cost_repo.list_by_project`, the initial
+   permission check) each performing their own single tenant/org resolution — a real but minor
+   contributor, not investigated further since it does not scale and is not the growth driver.
+
+**What this means for Phase 1's Reader design (not fixed here — this phase is diagnostic only):**
+- The Reader must fetch every resource it needs **once, in a single batch query**, and share that
+  result across every consumer that currently calls `resource_repo.get()` independently (labor
+  actual, labor plan-vs-actual/ledger rows) — eliminating the 4xN redundancy is expected to be the
+  single largest SQL-count reduction available in this migration, larger than the 5x/3x/6x
+  domain-call reduction §7 already quantified.
+- The tenant/organization re-resolution-per-repository-call pattern is **not specific to Finance**
+  and not something Phase 1 can or should fix by itself (fixing it means changing how every PM
+  repository resolves scope, a platform-wide change far outside a single-Reader pilot's scope) —
+  but the Reader itself should be designed to resolve tenant/organization context **once** per
+  read (matching `FinanceService._resolve_scope`'s existing single-resolution pattern) and pass the
+  resolved `TenantContext` down to its own SQL statements, rather than letting each of the
+  Reader's own internal queries re-derive it independently the way today's repositories do.
+- The broader "no per-request tenant/org caching anywhere in the repository layer" finding is
+  recorded here as a genuine, cross-cutting P1/P2-shaped observation for a future, dedicated phase
+  — explicitly out of scope for this diagnostic pass and for the Finance Reader pilot alike.
+
+Verified with 3 tests (parametrized across small/medium/large,
+`test_finance_snapshot_phase0b_sql_growth_attribution.py`), asserting: `LaborCostEngine` is invoked
+exactly 3 times per snapshot; `resource_repo.get()` is called exactly `4 * resource_count` times;
+measured `tenants`/`organizations` table-hit counts are consistent with (at least 90% attributable
+to) the measured tenant-context named-call counts. All pass at all 3 sizes. No production code was
+modified in this phase.
+
+**Phase 0B exit gate: PASSED.**
+
+The size-dependent SQL growth has been attributed to 4 × N `ResourceRepository.get` calls and the
+repository layer's per-call tenant/organization context resolution.
+
+**Phase 1 must:**
+
+1. acquire required resource facts in one scoped batch;
+2. invoke `LaborCostEngine` once;
+3. reuse the resulting `LaborDetailsResult` across policy and ledger assembly;
+4. avoid any per-resource `ResourceRepository.get` calls;
+5. resolve tenant/organization scope once before invoking the Reader;
+6. leave the cross-cutting repository scope-resolution redesign outside the Finance Snapshot
+   pilot.
+
+**Verdict**
+
+| Check | Result |
+|---|---|
+| Root cause identified | Yes |
+| Measurements match static call trace | Yes |
+| Growth driver isolated | Yes |
+| No production behavior changed | Yes |
+| Enough evidence for Reader design | Yes |
+| Global scope caching ready to implement | No — separate future work |
+| **Phase 0B exit gate** | **Passed** |
+
+**Main implementation guardrail for Phase 1:** Phase 1 passes only when `resource_repo.get` falls
+from 4 × N to zero on the Finance Snapshot path, while labor, policy, DTO, permissions, and
+planned-cost semantics remain unchanged.
 
 **Phase 1 — One DB-to-desktop-API read pilot (Finance Snapshot, §17).** Scope: exactly as scoped in
 §17, with the ownership split fixed in §15b (`FinanceSnapshotReader` = SQL acquisition,
