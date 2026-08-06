@@ -35,8 +35,12 @@ class PortfolioScenarioCommandMixin:
             project_ids=self._validate_project_ids(scenario.project_ids),
             intake_item_ids=self._validate_intake_ids(scenario.intake_item_ids),
         )
-        self._scenario_repo.add(scenario)
-        self._session.commit()
+        try:
+            self._scenario_repo.add(scenario)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         domain_events.portfolio_changed.emit(scenario.id)
         return scenario
 
@@ -78,8 +82,12 @@ class PortfolioScenarioCommandMixin:
                 candidate,
                 intake_item_ids=self._validate_intake_ids(candidate.intake_item_ids),
             )
-        self._scenario_repo.update(candidate)
-        self._session.commit()
+        try:
+            self._scenario_repo.update(candidate)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         domain_events.portfolio_changed.emit(candidate.id)
         return candidate
 

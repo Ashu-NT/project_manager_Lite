@@ -2363,6 +2363,40 @@ Required failure-injection tests:
 **Exit gate:** Every Portfolio write either commits completely or rolls back completely, and the
 shared `Session` remains usable after a failed write.
 
+**Phase 0A.2 — COMPLETE (2026-08-06).** Implemented and verified exactly as scoped above:
+- All 6 Portfolio command methods (`create_project_dependency`, `remove_project_dependency`
+  in `portfolio_dependencies.py`; `create_intake_item`, `update_intake_item` in
+  `portfolio_intake.py`; `create_scenario`, `update_scenario` in `portfolio_scenarios.py`;
+  `create_scoring_template`, `activate_scoring_template` in `portfolio_templates.py` — 8 methods
+  across 4 command-mixin files) now wrap their repository add/update/delete call plus
+  `self._session.commit()` in `try: ... except Exception: self._session.rollback(); raise`,
+  matching this module's own established `CostService`/`_apply_cost_add_decision` shape exactly.
+  `record_activity`/`domain_events.portfolio_changed.emit` calls were left exactly where they
+  already were (after the commit, outside the try) — no restructuring beyond the missing wrapper,
+  per scope.
+- `_ensure_scoring_templates`/`_deactivate_other_templates` (`portfolio/utils/portfolio_support.py`)
+  were deliberately left unwrapped — they are internal support helpers, not among the command
+  methods §14's consolidation named, and the plan's own "do not restructure beyond adding the
+  missing rollback wrapper to each existing write method" instruction excludes them. Their pending
+  writes are still covered transactionally: since they never call `session.commit()` themselves
+  (only the lazy-bootstrap path inside `_ensure_scoring_templates` does, as its own separate,
+  already-atomic unit), any rollback triggered by the calling command method's new wrapper still
+  reverts their pending changes along with it — confirmed by
+  `test_update_scoring_template_rolls_back_on_repository_failure`, which forces the failure on the
+  *second* of two pending writes in one transaction and asserts the *first* (an unrelated template's
+  deactivation, done via `_deactivate_other_templates`) is rolled back too.
+- Verified with 33 new tests
+  (`src/tests/project_management/test_portfolio_phase0a2_rollback_hardening.py`), covering the
+  required-tests list above for every one of the 8 methods: forced repository failure and forced
+  commit failure each trigger rollback with no partial row surviving; no `portfolio_changed` event
+  fires after either failure; the shared `Session` remains usable for a subsequent write after each
+  failure (tested against the real production session via the `services` fixture, not a fake); and
+  the non-failure path's behavior, return value, and emitted event are unchanged. All 33 pass. A
+  targeted regression run of the pre-existing Portfolio desktop-API and tenant-isolation test files
+  (`test_project_management_desktop_api_portfolio_*.py`, `test_qml_project_management_presenters_
+  portfolio.py`, `test_portfolio_domain_validation.py`, `test_tenant_isolation_services_pm.py`,
+  plus this phase's own Phase 0A.1 test file) also passed unchanged.
+
 **Phase 0A.3 — Collaboration rollback hardening.** Kept as its own separate commit and test set,
 deliberately not merged with Phase 0A.2 merely because both capabilities share the same defect —
 Portfolio and Collaboration have different write methods, different call sites, and different

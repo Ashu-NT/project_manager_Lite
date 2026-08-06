@@ -42,8 +42,12 @@ class PortfolioDependencyCommandMixin:
                     "That portfolio dependency already exists.",
                     code="PORTFOLIO_DEPENDENCY_DUPLICATE",
                 )
-        self._dependency_repo.add(dependency)
-        self._session.commit()
+        try:
+            self._dependency_repo.add(dependency)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         record_activity(
             self,
             action="portfolio.project_dependency.add",
@@ -82,8 +86,12 @@ class PortfolioDependencyCommandMixin:
                 "You no longer have access to one of the projects in this dependency.",
                 code="PORTFOLIO_DEPENDENCY_SCOPE_INVALID",
             )
-        self._dependency_repo.delete(dependency_id)
-        self._session.commit()
+        try:
+            self._dependency_repo.delete(dependency_id)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         record_activity(
             self,
             action="portfolio.project_dependency.remove",

@@ -40,8 +40,12 @@ class PortfolioTemplateCommandMixin:
             )
         if activate:
             self._deactivate_other_templates()
-        self._scoring_template_repo.add(template)
-        self._session.commit()
+        try:
+            self._scoring_template_repo.add(template)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         domain_events.portfolio_changed.emit(template.id)
         return template
 
@@ -52,8 +56,12 @@ class PortfolioTemplateCommandMixin:
             return template
         self._deactivate_other_templates()
         candidate = replace(template, is_active=True, updated_at=self._utc_now())
-        self._scoring_template_repo.update(candidate)
-        self._session.commit()
+        try:
+            self._scoring_template_repo.update(candidate)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         domain_events.portfolio_changed.emit(candidate.id)
         return candidate
 

@@ -51,8 +51,12 @@ class PortfolioIntakeCommandMixin:
             risk_weight=scoring_template.risk_weight,
             status=status,
         )
-        self._intake_repo.add(item)
-        self._session.commit()
+        try:
+            self._intake_repo.add(item)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         domain_events.portfolio_changed.emit(item.id)
         return item
 
@@ -108,8 +112,12 @@ class PortfolioIntakeCommandMixin:
         if "scoring_template_id" in changes and changes["scoring_template_id"] is not None:
             scoring_template = self._resolve_scoring_template(changes["scoring_template_id"])
             candidate = self._apply_scoring_template(candidate, scoring_template)
-        self._intake_repo.update(candidate)
-        self._session.commit()
+        try:
+            self._intake_repo.update(candidate)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         domain_events.portfolio_changed.emit(candidate.id)
         return candidate
 
