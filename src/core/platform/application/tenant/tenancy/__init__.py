@@ -11,12 +11,14 @@ from src.core.platform.application.tenant.tenancy.context_policy import (
     build_tenant_context_policy,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import (
+    ActiveScopeIds,
     TenantContext,
     TenantContextService,
     require_tenant_context_service,
 )
 
 __all__ = [
+    "ActiveScopeIds",
     "IssuedTenantInvitation",
     "LocalSingleTenantContextPolicy",
     "SaaSTenantContextPolicy",

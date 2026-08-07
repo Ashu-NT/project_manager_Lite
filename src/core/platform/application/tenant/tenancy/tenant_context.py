@@ -33,6 +33,16 @@ class TenantContext:
     organization: Organization | None
 
 
+@dataclass(frozen=True)
+class ActiveScopeIds:
+    """Lightweight, immutable (tenant_id, organization_id) pair for repository-level SQL
+    predicates. Carries IDs only - never ORM/domain entities - so it cannot go stale in the
+    session-coupling sense `TenantContext.tenant`/`.organization` can."""
+
+    tenant_id: str
+    organization_id: str
+
+
 class TenantContextService:
     """Session-scoped tenant + organization context for multi-tenant business data.
 
@@ -459,6 +469,35 @@ class TenantContextService:
             )
         return ctx
 
+    def require_active_scope_ids(self, *, operation_label: str) -> ActiveScopeIds:
+        """Fast path for repository-level SQL predicates: trust the session principal's
+        already-validated `active_tenant_id`/`active_organization_id` instead of re-querying
+        `tenants`/`organizations`
+        """
+        if self._user_session is None:
+            ctx = self.require_organization_context(operation_label=operation_label)
+            if ctx.organization_id is None:
+                raise BusinessRuleError(
+                    f"Active organization context is required for {operation_label}.",
+                    code="ORGANIZATION_CONTEXT_REQUIRED",
+                )
+            return ActiveScopeIds(tenant_id=ctx.tenant_id, organization_id=ctx.organization_id)
+
+        session_tenant_id = self._session_tenant_id()
+        if not session_tenant_id:
+            raise BusinessRuleError(
+                f"Active tenant context is required for {operation_label}.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+
+        organization_id = self._session_organization_id()
+        if not organization_id:
+            raise BusinessRuleError(
+                f"Active organization context is required for {operation_label}.",
+                code="ORGANIZATION_CONTEXT_REQUIRED",
+            )
+        return ActiveScopeIds(tenant_id=session_tenant_id, organization_id=organization_id)
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
@@ -479,7 +518,7 @@ class TenantContextService:
         active_tenant_id = self._session_tenant_id()
         if active_tenant_id:
             org_tenant_id = str(getattr(organization, "tenant_id", "") or "").strip()
-            # H-5: deny access when org has no tenant_id while a tenant is active —
+            # H-5: deny access when org has no tenant_id while a tenant is active -
             # an unscoped org is ambiguous and must not be accessible in multi-tenant mode.
             if not org_tenant_id or org_tenant_id != active_tenant_id:
                 return False
@@ -524,6 +563,7 @@ def require_tenant_context_service(
 
 
 __all__ = [
+    "ActiveScopeIds",
     "TenantContext",
     "TenantContextService",
     "require_tenant_context_service",

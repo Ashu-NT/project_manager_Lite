@@ -25,7 +25,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.baseline
     ProjectBaselineORM,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContext, TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds, TenantContextService
 from src.infra.persistence.db.optimistic import update_with_version_check
 
 
@@ -34,13 +34,13 @@ class SqlAlchemyBaselineRepository(BaselineRepository):
         self.session = session
         self._tenant_context_service: TenantContextService | None = None
 
-    def _context(self) -> TenantContext:
+    def _context(self) -> ActiveScopeIds:
         if self._tenant_context_service is None:
             raise BusinessRuleError(
                 "BaselineRepository requires TenantContextService.",
                 code="TENANT_CONTEXT_REQUIRED",
             )
-        return self._tenant_context_service.require_organization_context(
+        return self._tenant_context_service.require_active_scope_ids(
             operation_label="access baselines"
         )
 

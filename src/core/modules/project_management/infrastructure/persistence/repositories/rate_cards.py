@@ -25,7 +25,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.rate_car
     RateCardLineORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
-from src.core.platform.application.tenant.tenancy.tenant_context import TenantContext, TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds, TenantContextService
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.infra.persistence.db.optimistic import update_with_version_check
 
@@ -34,18 +34,18 @@ class _RateCardScope:
     session: Session
     _tenant_context_service: TenantContextService | None
 
-    def _context(self, *, operation_label: str) -> TenantContext:
+    def _context(self, *, operation_label: str) -> ActiveScopeIds:
         if self._tenant_context_service is None:
             raise BusinessRuleError(
                 "Rate card repository requires TenantContextService.",
                 code="TENANT_CONTEXT_REQUIRED",
             )
-        return self._tenant_context_service.require_organization_context(
+        return self._tenant_context_service.require_active_scope_ids(
             operation_label=operation_label
         )
 
     @staticmethod
-    def _require_entity_scope(entity, context: TenantContext) -> None:
+    def _require_entity_scope(entity, context: ActiveScopeIds) -> None:
         if (
             entity.tenant_id != context.tenant_id
             or entity.organization_id != context.organization_id
@@ -55,7 +55,7 @@ class _RateCardScope:
                 code="RATE_CARD_SCOPE_MISMATCH",
             )
 
-    def _require_project(self, project_id: str, context: TenantContext) -> None:
+    def _require_project(self, project_id: str, context: ActiveScopeIds) -> None:
         project = self.session.execute(
             select(ProjectORM.id).where(
                 ProjectORM.id == project_id,
@@ -311,7 +311,7 @@ class SqlAlchemyProjectRateCardRepository(_RateCardScope, ProjectRateCardReposit
             )
         ).scalar_one_or_none()
 
-    def _require_rate_card(self, rate_card_id: str, context: TenantContext) -> ProjectRateCardORM:
+    def _require_rate_card(self, rate_card_id: str, context: ActiveScopeIds) -> ProjectRateCardORM:
         row = self.session.execute(
             select(ProjectRateCardORM).where(
                 ProjectRateCardORM.id == rate_card_id,
