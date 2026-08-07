@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.core.platform.org.domain import Organization
+from src.core.platform.domain.master_data.org import Organization
 
 
 def _active_organization(owner: Any) -> Organization:

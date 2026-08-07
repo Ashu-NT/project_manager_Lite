@@ -14,7 +14,7 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     ProjectManagementParentScopedRepositorySupport,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.tenancy.tenant_context import TenantContext, TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContext, TenantContextService
 from src.infra.persistence.db.optimistic import update_with_version_check
 from src.core.modules.project_management.infrastructure.persistence.mappers.project import (
     project_from_orm,
@@ -198,6 +198,25 @@ class SqlAlchemyProjectResourceRepository(
         row.currency_code = pr.currency_code
         row.planned_hours = pr.planned_hours
         row.is_active = pr.is_active
+
+    def touch_version_with_check(self, pr_id: str, *, expected_version: int) -> int:
+        self._require_via_anchor_in_scope(
+            ProjectResourceORM,
+            ProjectORM,
+            joins=((ProjectORM, ProjectResourceORM.project_id == ProjectORM.id),),
+            record_id=pr_id,
+            operation_label="manage project resources",
+            not_found_message="Project resource not found.",
+        )
+        return update_with_version_check(
+            self.session,
+            ProjectResourceORM,
+            pr_id,
+            expected_version,
+            {},
+            not_found_message="Project resource not found.",
+            stale_message="Project resource was updated by another user.",
+        )
 
 
 __all__ = [

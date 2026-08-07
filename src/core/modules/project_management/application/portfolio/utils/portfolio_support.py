@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from src.core.platform.access.authorization import filter_project_rows
+from src.core.modules.project_management.access.scope_permissions import filter_project_rows
 from src.core.platform.common.exceptions import ValidationError
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,

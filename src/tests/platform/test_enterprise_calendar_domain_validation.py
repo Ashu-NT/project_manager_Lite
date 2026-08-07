@@ -4,7 +4,7 @@ from datetime import date, time
 
 import pytest
 
-from src.core.platform.calendar.domain.enterprise_calendar import (
+from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     CalendarException,
     CalendarRecurringEvent,
     CalendarWorkingRule,

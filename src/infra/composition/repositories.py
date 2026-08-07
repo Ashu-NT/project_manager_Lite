@@ -17,6 +17,12 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     SqlAlchemyPortfolioScenarioRepository,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.baseline import SqlAlchemyBaselineRepository
+from src.core.modules.project_management.infrastructure.persistence.repositories.budget import (
+    SqlAlchemyProjectBudgetRepository,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.planned_cost import (
+    SqlAlchemyProjectPlannedCostVersionRepository,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.cost import (
     SqlAlchemyCostRepository,
 )
@@ -24,7 +30,10 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     SqlAlchemyProjectCostCodeRepository,
     SqlAlchemyProjectFinancialProfileRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.enterprise_calendar import (
+from src.core.modules.project_management.infrastructure.persistence.repositories.rate_cards import (
+    SqlAlchemyProjectRateCardRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
     SqlAlchemyCalendarExceptionRepository,
     SqlAlchemyCalendarRecurringEventRepository,
@@ -52,12 +61,12 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     SqlAlchemyDependencyRepository,
     SqlAlchemyTaskRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.activity import SqlAlchemyActivityRepository
-from src.core.platform.infrastructure.persistence.repositories.approval import SqlAlchemyApprovalRepository
-from src.core.platform.infrastructure.persistence.repositories.audit_entry import SqlAlchemyAuditRepository
-from src.core.platform.infrastructure.persistence.repositories.notification import SqlAlchemyNotificationRepository
-from src.core.platform.infrastructure.persistence.repositories.platform_events import SqlAlchemyPlatformEventRepository
-from src.core.platform.infrastructure.persistence.repositories.auth import (
+from src.core.platform.infrastructure.persistence.repositories.history.activity.activity import SqlAlchemyActivityRepository
+from src.core.platform.infrastructure.persistence.repositories.approval.approval import SqlAlchemyApprovalRepository
+from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import SqlAlchemyAuditRepository
+from src.core.platform.infrastructure.persistence.repositories.events.notifications.notification import SqlAlchemyNotificationRepository
+from src.core.platform.infrastructure.persistence.repositories.events.platform_events.platform_events import SqlAlchemyPlatformEventRepository
+from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
     SqlAlchemyAuthPolicyReconciliationRepository,
     SqlAlchemyAuthSessionRepository,
     SqlAlchemyPermissionRepository,
@@ -67,23 +76,23 @@ from src.core.platform.infrastructure.persistence.repositories.auth import (
     SqlAlchemyRoleRepository,
     SqlAlchemyUserRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.documents import (
+from src.core.platform.infrastructure.persistence.repositories.master_data.documents.documents import (
     SqlAlchemyDocumentLinkRepository,
     SqlAlchemyDocumentRepository,
     SqlAlchemyDocumentStructureRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.departments import SqlAlchemyDepartmentRepository
-from src.core.platform.infrastructure.persistence.repositories.employee import SqlAlchemyEmployeeRepository
-from src.core.platform.infrastructure.persistence.repositories.org import SqlAlchemyOrganizationRepository
-from src.core.platform.infrastructure.persistence.repositories.tenant import SqlAlchemyTenantRepository
-from src.core.platform.infrastructure.persistence.repositories.user_tenant import SqlAlchemyUserTenantMembershipRepository
-from src.core.platform.infrastructure.persistence.repositories.party import SqlAlchemyPartyRepository
-from src.core.platform.infrastructure.persistence.repositories.sites import SqlAlchemySiteRepository
-from src.core.platform.infrastructure.persistence.repositories.time import (
+from src.core.platform.infrastructure.persistence.repositories.master_data.department.departments import SqlAlchemyDepartmentRepository
+from src.core.platform.infrastructure.persistence.repositories.master_data.employee.employee import SqlAlchemyEmployeeRepository
+from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import SqlAlchemyOrganizationRepository
+from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.tenant import SqlAlchemyTenantRepository
+from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.user_tenant import SqlAlchemyUserTenantMembershipRepository
+from src.core.platform.infrastructure.persistence.repositories.master_data.party.party import SqlAlchemyPartyRepository
+from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import SqlAlchemySiteRepository
+from src.core.platform.infrastructure.persistence.repositories.time_management.time.time import (
     SqlAlchemyTimeEntryRepository,
     SqlAlchemyTimesheetPeriodRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.identity import (
+from src.core.platform.infrastructure.persistence.repositories.security.identity.identity import (
     SqlAlchemyApiKeyCredentialRepository,
     SqlAlchemyServicePrincipalRepository,
 )
@@ -114,6 +123,9 @@ class RepositoryBundle:
     cost_repo: SqlAlchemyCostRepository
     project_financial_profile_repo: SqlAlchemyProjectFinancialProfileRepository
     project_cost_code_repo: SqlAlchemyProjectCostCodeRepository
+    project_rate_card_repo: SqlAlchemyProjectRateCardRepository
+    project_budget_repo: SqlAlchemyProjectBudgetRepository
+    planned_cost_repo: SqlAlchemyProjectPlannedCostVersionRepository
     platform_calendar_repo: SqlAlchemyPlatformCalendarRepository
     calendar_working_rule_repo: SqlAlchemyCalendarWorkingRuleRepository
     calendar_exception_repo: SqlAlchemyCalendarExceptionRepository
@@ -175,6 +187,9 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         cost_repo=SqlAlchemyCostRepository(session),
         project_financial_profile_repo=SqlAlchemyProjectFinancialProfileRepository(session),
         project_cost_code_repo=SqlAlchemyProjectCostCodeRepository(session),
+        project_rate_card_repo=SqlAlchemyProjectRateCardRepository(session),
+        project_budget_repo=SqlAlchemyProjectBudgetRepository(session),
+        planned_cost_repo=SqlAlchemyProjectPlannedCostVersionRepository(session),
         platform_calendar_repo=SqlAlchemyPlatformCalendarRepository(session),
         calendar_working_rule_repo=SqlAlchemyCalendarWorkingRuleRepository(session),
         calendar_exception_repo=SqlAlchemyCalendarExceptionRepository(session),

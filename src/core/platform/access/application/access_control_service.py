@@ -18,21 +18,21 @@ from src.core.platform.access.domain import (
     normalize_access_scope_type,
     normalize_access_user_id,
 )
-from src.core.platform.auth.authorization import (
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     authorization_denied,
     require_permission,
 )
-from src.core.platform.auth.contracts import UserRepository
-from src.core.platform.tenancy.domain import MEMBERSHIP_STATUS_ACTIVE
+from src.core.platform.contract.security.auth import UserRepository
+from src.core.platform.domain.tenant.tenancy import MEMBERSHIP_STATUS_ACTIVE
 
 if TYPE_CHECKING:
-    from src.core.platform.audit.application.enterprise_audit_service import EnterpriseAuditService
-    from src.core.platform.auth import UserSessionContext
-    from src.core.platform.auth.application.auth_service import AuthService
-    from src.core.platform.auth.application.role_governance_service import RoleGovernanceService
-    from src.core.platform.auth.contracts import RoleBindingRepository, RoleRepository
-    from src.core.platform.tenancy.contracts import UserTenantMembershipRepository
-    from src.core.platform.tenancy.tenant_context import TenantContextService
+    from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
+    from src.core.platform.domain.security.auth import UserSessionContext
+    from src.core.platform.application.security.auth.auth_service import AuthService
+    from src.core.platform.application.security.authorization.roles.role_governance_service import RoleGovernanceService
+    from src.core.platform.contract.security.auth import RoleBindingRepository, RoleRepository
+    from src.core.platform.contract.tenant.tenancy.contracts import UserTenantMembershipRepository
+    from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
 
 ScopeExistsResolver = Callable[[str, str], bool]

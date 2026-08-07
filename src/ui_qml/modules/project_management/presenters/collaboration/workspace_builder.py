@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.api.desktop.platform import PlatformApprovalDesktopApi
+from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementCollaborationDesktopApi,
 )

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.core.platform.auth.domain.session import UserSessionPrincipal
+from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
 
 

@@ -131,12 +131,12 @@ def test_composition_imports_focused_persistence_adapters():
     assert "from infra.platform.db.repositories import" not in text
     assert "from infra.platform.db.mappers import" not in text
     assert "from src.core.modules.project_management.infrastructure.persistence.repositories.task import" in text
-    assert "from src.core.platform.infrastructure.persistence.repositories.auth import" in text
-    assert "from src.core.platform.infrastructure.persistence.repositories.departments import" in text
-    assert "from src.core.platform.infrastructure.persistence.repositories.employee import" in text
-    assert "from src.core.platform.infrastructure.persistence.repositories.org import" in text
-    assert "from src.core.platform.infrastructure.persistence.repositories.sites import" in text
-    assert "from src.core.platform.infrastructure.persistence.repositories.time import" in text
+    assert "from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import" in text
+    assert "from src.core.platform.infrastructure.persistence.repositories.master_data.department.departments import" in text
+    assert "from src.core.platform.infrastructure.persistence.repositories.master_data.employee.employee import" in text
+    assert "from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import" in text
+    assert "from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import" in text
+    assert "from src.core.platform.infrastructure.persistence.repositories.time_management.time.time import" in text
 
 
 def test_project_management_persistence_imports_project_management_orm_models():
@@ -197,8 +197,9 @@ def test_orm_package_root_loads_all_model_packages():
     assert "import src.core.modules.maintenance.infrastructure.persistence.orm.models" in package_text
     assert "import src.core.modules.maintenance.infrastructure.persistence.orm.preventive_runtime_models" in package_text
     platform_orm_modules = (
-        "org", "employee", "sites", "departments", "documents", "party",
-        "modules", "time", "auth", "notification", "audit", "approval", "runtime_tracking",
+        "tenant.modules.modules", "time_management.time.time", "security.auth.auth", "events.notifications.notification", "history.audit.audit_entry", "approval.approval", "data_operations.runtime_tracking.runtime_tracking",
+        "master_data.employee.employee", "master_data.site.sites", "master_data.department.departments",
+        "master_data.org.org", "master_data.documents.documents", "master_data.party.party",
     )
     for module in platform_orm_modules:
         assert f"import src.core.platform.infrastructure.persistence.orm.{module}" in package_text
@@ -273,23 +274,8 @@ def test_qml_module_workspace_roots_exist():
         assert (ROOT / rel_path).is_dir()
 
 
-def test_platform_common_interfaces_are_platform_only():
-    interfaces_path = ROOT / "src" / "core" / "platform" / "common" / "interfaces.py"
-    text = interfaces_path.read_text(encoding="utf-8", errors="ignore")
-
-    assert "from src.core.platform.time.contracts import TimeEntryRepository, TimesheetPeriodRepository" in text
-    assert "core.modules.project_management" not in text
-    assert "class ProjectRepository" not in text
-    assert "class TaskRepository" not in text
-    assert "class BaselineRepository" not in text
-    assert "class ProjectMembershipRepository" not in text
-    assert "class ScopedAccessGrantRepository" not in text
-    assert "class OrganizationRepository" not in text
-    assert "class SiteRepository" not in text
-    assert "class DepartmentRepository" not in text
-    assert "class EmployeeRepository" not in text
-    assert "class ApprovalRepository" not in text
-    assert "class AuditLogRepository" not in text
+def test_legacy_platform_common_interfaces_facade_is_removed():
+    assert not (ROOT / "src" / "core" / "platform" / "common" / "interfaces.py").exists()
 
 
 def test_legacy_rbac_runtime_dependencies_are_removed():
@@ -365,25 +351,34 @@ def test_platform_calendar_does_not_import_project_management_at_module_scope():
     platform module never gains a hard, top-level dependency on
     project_management. This guards that boundary as the codebase evolves.
     """
-    calendar_root = ROOT / "src" / "core" / "platform" / "calendar"
+    calendar_roots = [
+        ROOT / "src" / "core" / "platform" / "domain" / "time_management" / "calendar",
+        ROOT / "src" / "core" / "platform" / "contract" / "time_management" / "calendar",
+        ROOT / "src" / "core" / "platform" / "application" / "time_management" / "calendar",
+        ROOT / "src" / "core" / "platform" / "infrastructure" / "persistence" / "mappers" / "time_management" / "calendar",
+        ROOT / "src" / "core" / "platform" / "infrastructure" / "persistence" / "orm" / "time_management" / "calendar",
+        ROOT / "src" / "core" / "platform" / "infrastructure" / "persistence" / "repositories" / "time_management" / "calendar",
+        ROOT / "src" / "core" / "platform" / "api" / "desktop" / "time_management" / "calendar",
+    ]
     violations: list[tuple[str, str]] = []
 
-    for path in _python_files(calendar_root):
-        source = path.read_text(encoding="utf-8", errors="ignore")
-        tree = ast.parse(source)
-        for node in tree.body:
-            if isinstance(node, ast.Import):
-                for alias in node.names:
-                    name = alias.name
-                    if name == "src.core.modules.project_management" or name.startswith(
+    for calendar_root in calendar_roots:
+        for path in _python_files(calendar_root):
+            source = path.read_text(encoding="utf-8", errors="ignore")
+            tree = ast.parse(source)
+            for node in tree.body:
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        name = alias.name
+                        if name == "src.core.modules.project_management" or name.startswith(
+                            "src.core.modules.project_management."
+                        ):
+                            violations.append((str(path.relative_to(ROOT)), name))
+                elif isinstance(node, ast.ImportFrom):
+                    mod = node.module or ""
+                    if mod == "src.core.modules.project_management" or mod.startswith(
                         "src.core.modules.project_management."
                     ):
-                        violations.append((str(path.relative_to(ROOT)), name))
-            elif isinstance(node, ast.ImportFrom):
-                mod = node.module or ""
-                if mod == "src.core.modules.project_management" or mod.startswith(
-                    "src.core.modules.project_management."
-                ):
-                    violations.append((str(path.relative_to(ROOT)), mod))
+                        violations.append((str(path.relative_to(ROOT)), mod))
 
     assert not violations, f"Platform calendar module imports project_management at module scope: {violations}"

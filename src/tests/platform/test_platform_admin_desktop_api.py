@@ -1,20 +1,24 @@
 from __future__ import annotations
 
-from src.api.desktop.platform import (
+from src.core.platform.api.desktop.master_data.documents.document import PlatformDocumentDesktopApi
+from src.core.platform.api.desktop.master_data.documents.models.document import (
     DocumentCreateCommand,
     DocumentLinkCreateCommand,
     DocumentStructureCreateCommand,
     DocumentStructureUpdateCommand,
+)
+from src.core.platform.api.desktop.master_data.party.models.party import (
     PartyCreateCommand,
     PartyUpdateCommand,
-    PlatformDocumentDesktopApi,
-    PlatformPartyDesktopApi,
-    PlatformUserDesktopApi,
+)
+from src.core.platform.api.desktop.master_data.party.party import PlatformPartyDesktopApi
+from src.core.platform.api.desktop.security.auth.models.user import (
     UserCreateCommand,
     UserPasswordResetCommand,
     UserUpdateCommand,
 )
-from src.api.desktop.runtime import build_desktop_api_registry
+from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
+from src.application.runtime import build_desktop_api_registry
 
 
 def _document_api(services) -> PlatformDocumentDesktopApi:

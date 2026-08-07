@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from src.core.modules.project_management.domain.portfolio import PortfolioScoringTemplate
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.common.exceptions import ValidationError
 
@@ -40,8 +40,12 @@ class PortfolioTemplateCommandMixin:
             )
         if activate:
             self._deactivate_other_templates()
-        self._scoring_template_repo.add(template)
-        self._session.commit()
+        try:
+            self._scoring_template_repo.add(template)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         domain_events.portfolio_changed.emit(template.id)
         return template
 
@@ -52,8 +56,12 @@ class PortfolioTemplateCommandMixin:
             return template
         self._deactivate_other_templates()
         candidate = replace(template, is_active=True, updated_at=self._utc_now())
-        self._scoring_template_repo.update(candidate)
-        self._session.commit()
+        try:
+            self._scoring_template_repo.update(candidate)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         domain_events.portfolio_changed.emit(candidate.id)
         return candidate
 

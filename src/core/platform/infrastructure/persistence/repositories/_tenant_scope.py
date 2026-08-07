@@ -3,20 +3,24 @@ from __future__ import annotations
 from sqlalchemy import select
 
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.tenancy.tenant_context import TenantContext, TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    ActiveScopeIds,
+    TenantContext,
+    TenantContextService,
+)
 
 
 class TenantScopedRepositorySupport:
     _repository_label = "Repository"
     _tenant_context_service: TenantContextService | None
 
-    def _context(self, *, operation_label: str) -> TenantContext:
+    def _context(self, *, operation_label: str) -> ActiveScopeIds:
         if self._tenant_context_service is None:
             raise BusinessRuleError(
                 f"{self._repository_label} requires TenantContextService.",
                 code="TENANT_CONTEXT_REQUIRED",
             )
-        return self._tenant_context_service.require_organization_context(
+        return self._tenant_context_service.require_active_scope_ids(
             operation_label=operation_label
         )
 

@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import date
 
 from src.core.modules.project_management.domain.enums import ProjectStatus
-from src.core.platform.access.authorization import filter_project_rows
-from src.core.platform.auth.authorization import require_permission
+from src.core.modules.project_management.access.scope_permissions import filter_project_rows
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.modules.project_management.application.dashboard.models.dashboard_models import DashboardData
 from src.core.modules.project_management.application.dashboard.models.portfolio_models import (
     PORTFOLIO_SCOPE_ID,

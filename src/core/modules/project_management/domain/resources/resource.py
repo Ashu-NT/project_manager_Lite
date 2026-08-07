@@ -31,6 +31,7 @@ class Resource:
     worker_type: WorkerType = WorkerType.EXTERNAL
     employee_id: str | None = None
     organization_id: str | None = None
+    department_id: str | None = None
 
     @field_validator("name", mode="before")
     @classmethod
@@ -46,7 +47,7 @@ class Resource:
     def _normalize_text_fields(cls, value: object) -> str:
         return normalize_optional_text(value)
 
-    @field_validator("employee_id", "organization_id", mode="before")
+    @field_validator("employee_id", "organization_id", "department_id", mode="before")
     @classmethod
     def _normalize_identifier_fields(cls, value: object) -> str | None:
         return normalize_optional_identifier(value)
@@ -132,6 +133,7 @@ class Resource:
         employee_id: str | None = None,
         code: str = "",
         organization_id: str | None = None,
+        department_id: str | None = None,
     ) -> "Resource":
         return Resource(
             id=generate_id(),
@@ -148,6 +150,7 @@ class Resource:
             worker_type=worker_type,
             employee_id=employee_id,
             organization_id=organization_id,
+            department_id=department_id,
         )
 
 

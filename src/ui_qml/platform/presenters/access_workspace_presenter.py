@@ -2,15 +2,14 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from src.api.desktop.platform import (
-    DesktopApiError,
-    DesktopApiResult,
-    PlatformAccessDesktopApi,
-    PlatformUserDesktopApi,
+from src.core.platform.api.desktop.access.access import PlatformAccessDesktopApi
+from src.core.platform.api.desktop.access.models.access import (
     ScopedAccessGrantAssignCommand,
     ScopedAccessGrantRemoveCommand,
-    UserDto,
 )
+from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
+from src.core.platform.api.desktop.security.auth.models.user import UserDto
+from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
 from src.ui_qml.platform.presenters.support import preview_error_result
 from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionItemViewModel,

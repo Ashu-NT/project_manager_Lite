@@ -60,6 +60,11 @@ class ResourceORM(Base):
         ForeignKey("organizations.id", ondelete="RESTRICT"),
         nullable=False,
     )
+    department_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("departments.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
@@ -67,3 +72,4 @@ Index("idx_resources_tenant", ResourceORM.tenant_id)
 Index("idx_resources_employee", ResourceORM.employee_id)
 Index("ux_resources_code", ResourceORM.resource_code, unique=True)
 Index("idx_resources_organization", ResourceORM.organization_id)
+Index("idx_resources_department", ResourceORM.department_id)

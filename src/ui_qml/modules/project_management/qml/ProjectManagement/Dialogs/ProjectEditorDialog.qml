@@ -96,6 +96,7 @@ AppWidgets.EntityDialog {
     // ── Form content ──────────────────────────────────────────────────────────
 
     GridLayout {
+        id: projectFormGrid
         Layout.fillWidth: true
         columns: root.width > 520 ? 2 : 1
         columnSpacing: Theme.AppTheme.spacingMd
@@ -167,13 +168,13 @@ AppWidgets.EntityDialog {
         AppWidgets.FormField {
             Layout.fillWidth: true
             label: "Start date"
-            AppControls.DateField { id: startDateField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+            AppControls.DateField { id: startDateField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" ; popupBoundaryItem: projectFormGrid }
         }
 
         AppWidgets.FormField {
             Layout.fillWidth: true
             label: "Finish date"
-            AppControls.DateField { id: endDateField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD" }
+            AppControls.DateField { id: endDateField; Layout.fillWidth: true; placeholderText: "YYYY-MM-DD"; popupBoundaryItem: projectFormGrid }
         }
     }
 

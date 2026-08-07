@@ -17,7 +17,7 @@ from src.core.modules.project_management.domain.tasks.task import (
     TaskAssignment,
     TaskDependency,
 )
-from src.core.platform.auth.domain.session import (
+from src.core.platform.domain.security.auth.session import (
     UserSessionContext,
     UserSessionPrincipal,
 )

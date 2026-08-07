@@ -28,7 +28,13 @@ def test_cost_breakdown_excludes_manual_labor_actual_when_computed_labor_exists(
     pid = project.id
 
     task = ts.create_task(pid, "Labor Task", start_date=date(2023, 11, 6), duration_days=2)
-    resource = rs.create_resource("Engineer", role="DEV", hourly_rate=100.0, currency_code="USD")
+    resource = rs.create_resource(
+        "Engineer",
+        role="DEV",
+        hourly_rate=100.0,
+        currency_code="USD",
+        rate_effective_on=date(2023, 11, 6),
+    )
     assignment = ts.assign_resource(task.id, resource.id, allocation_percent=100.0)
     ts.set_assignment_hours(assignment.id, 2.0)  # computed labor = 200
 
@@ -104,7 +110,7 @@ def test_cost_policy_uses_manual_labor_as_fallback_when_no_computed_labor(servic
     assert kpi.total_committed_cost == pytest.approx(120.0)
     assert kpi.total_actual_cost == pytest.approx(80.0)
 
-    baseline = bs.create_baseline(pid, "BL-Manual")
+    baseline = bs.create_baseline(pid, "BL-Manual", rate_as_of=date(2023, 11, 30))
     evm = rp.get_earned_value(project_id=pid, baseline_id=baseline.id, as_of=date(2023, 11, 30))
     assert evm.BAC == pytest.approx(300.0)
 
@@ -127,7 +133,13 @@ def test_cost_policy_consistent_across_kpi_evm_breakdown_and_totals(services):
     pid = project.id
     task = ts.create_task(pid, "Execution Task", start_date=date(2023, 11, 6), duration_days=3)
 
-    resource = rs.create_resource("Engineer", role="DEV", hourly_rate=100.0, currency_code="USD")
+    resource = rs.create_resource(
+        "Engineer",
+        role="DEV",
+        hourly_rate=100.0,
+        currency_code="USD",
+        rate_effective_on=date(2023, 11, 6),
+    )
     pr = prs.add_to_project(
         project_id=pid,
         resource_id=resource.id,
@@ -191,7 +203,7 @@ def test_cost_policy_consistent_across_kpi_evm_breakdown_and_totals(services):
     assert kpi.total_committed_cost == pytest.approx(20.0)
     assert kpi.total_actual_cost == pytest.approx(230.0)
 
-    baseline = bs.create_baseline(pid, "BL-Policy")
+    baseline = bs.create_baseline(pid, "BL-Policy", rate_as_of=date(2023, 11, 30))
     evm = rp.get_earned_value(project_id=pid, baseline_id=baseline.id, as_of=date(2023, 11, 30))
     assert evm.BAC == pytest.approx(1150.0)
     assert evm.AC == pytest.approx(230.0)

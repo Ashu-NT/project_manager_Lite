@@ -20,7 +20,7 @@ from src.core.modules.project_management.api.desktop.timesheets.services.project
 from src.core.modules.project_management.api.desktop.timesheets.utils.period_utils import (
     period_end,
 )
-from src.core.platform.time.domain import TimesheetPeriodStatus
+from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 
 
 def serialize_period_summary(

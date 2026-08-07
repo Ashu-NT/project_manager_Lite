@@ -11,7 +11,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.infra.persistence.orm import Base
-from src.core.platform.infrastructure.persistence.repositories.enterprise_calendar import (
+from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
     SqlAlchemyCalendarExceptionRepository,
     SqlAlchemyCalendarRecurringEventRepository,
@@ -19,23 +19,23 @@ from src.core.platform.infrastructure.persistence.repositories.enterprise_calend
     SqlAlchemyPlatformCalendarRepository,
     SqlAlchemyShiftPatternRepository,
 )
-from src.core.platform.calendar.application.enterprise_calendar_service import (
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
     EnterpriseCalendarService,
 )
-from src.core.platform.calendar.application.working_rule_service import WorkingRuleService
-from src.core.platform.calendar.application.calendar_exception_service import (
+from src.core.platform.application.time_management.calendar.definitions.working_rule_service import WorkingRuleService
+from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import (
     CalendarExceptionService,
 )
-from src.core.platform.calendar.application.recurring_event_service import RecurringEventService
-from src.core.platform.calendar.application.shift_pattern_service import ShiftPatternService
-from src.core.platform.calendar.application.calendar_assignment_service import (
+from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import RecurringEventService
+from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import ShiftPatternService
+from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
 )
-from src.core.platform.calendar.application.enterprise_calendar_resolver import (
+from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
     EnterpriseCalendarResolver,
 )
-from src.core.platform.calendar.application.working_time_calculator import WorkingTimeCalculator
-from src.api.desktop.platform.enterprise_calendar import EnterpriseCalendarDesktopApi
+from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import WorkingTimeCalculator
+from src.core.platform.api.desktop.time_management.calendar.enterprise_calendar import EnterpriseCalendarDesktopApi
 from src.core.modules.project_management.api.desktop.scheduling.api import (
     ProjectManagementSchedulingDesktopApi,
 )

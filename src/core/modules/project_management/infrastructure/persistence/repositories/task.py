@@ -13,7 +13,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.project 
 from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
 from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskAssignmentORM, TaskDependencyORM, TaskORM
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.tenancy.tenant_context import TenantContext, TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds, TenantContextService
 from src.infra.persistence.db.optimistic import update_with_version_check
 from src.core.modules.project_management.infrastructure.persistence.mappers.task import (
     assignment_from_orm,
@@ -30,13 +30,13 @@ class SqlAlchemyTaskRepository(TaskRepository):
         self.session = session
         self._tenant_context_service: TenantContextService | None = None
 
-    def _context(self) -> TenantContext:
+    def _context(self) -> ActiveScopeIds:
         if self._tenant_context_service is None:
             raise BusinessRuleError(
                 "TaskRepository requires TenantContextService.",
                 code="TENANT_CONTEXT_REQUIRED",
             )
-        return self._tenant_context_service.require_organization_context(
+        return self._tenant_context_service.require_active_scope_ids(
             operation_label="access tasks"
         )
 
@@ -248,9 +248,25 @@ class SqlAlchemyAssignmentRepository(AssignmentRepository):
         row.resource_id = assignment.resource_id
         row.allocation_percent = assignment.allocation_percent
         row.hours_logged = assignment.hours_logged
+        row.allocated_planned_hours = assignment.allocated_planned_hours
         row.project_resource_id = assignment.project_resource_id
         row.response_status = assignment.response_status
         row.responded_at = assignment.responded_at
+
+    def update_planned_hours_with_version_check(
+        self, assignment: TaskAssignment, *, expected_version: int
+    ) -> TaskAssignment:
+        self._ensure_task_in_scope(assignment.task_id)
+        assignment.version = update_with_version_check(
+            self.session,
+            TaskAssignmentORM,
+            assignment.id,
+            expected_version,
+            {"allocated_planned_hours": assignment.allocated_planned_hours},
+            not_found_message="Assignment not found.",
+            stale_message="Assignment was updated by another user.",
+        )
+        return assignment
 
     def delete(self, assignment_id: str) -> None:
         self.session.execute(

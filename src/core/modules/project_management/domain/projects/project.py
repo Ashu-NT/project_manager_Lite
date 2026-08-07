@@ -125,6 +125,7 @@ class ProjectResource:
     currency_code: str | None = None
     planned_hours: float = 0.0
     is_active: bool = True
+    version: int = 1
 
     @field_validator("project_id", mode="before")
     @classmethod
@@ -181,6 +182,17 @@ class ProjectResource:
             raise ValidationError(
                 "planned_hours cannot be negative.",
                 code="PROJECT_RESOURCE_PLANNED_HOURS_INVALID",
+            )
+        return resolved
+
+    @field_validator("version", mode="before")
+    @classmethod
+    def _validate_version(cls, value: object) -> int:
+        resolved = int(value or 0)
+        if resolved < 1:
+            raise ValidationError(
+                "Project resource version must be positive.",
+                code="PROJECT_RESOURCE_VERSION_INVALID",
             )
         return resolved
 

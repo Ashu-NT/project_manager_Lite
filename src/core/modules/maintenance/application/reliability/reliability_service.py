@@ -32,16 +32,16 @@ from src.core.modules.maintenance.infrastructure.reporting import (
 )
 from src.core.modules.maintenance.application.common.support import normalize_maintenance_code
 from src.core.platform.access.authorization import filter_scope_rows
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.platform.org.contracts import OrganizationRepository
-from src.core.platform.site.contracts import SiteRepository
-from src.core.platform.tenancy.tenant_context import (
+from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.master_data.site.contracts import SiteRepository
+from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
     require_tenant_context_service,
 )
-from src.core.platform.org.domain import Organization
-from src.core.platform.site.domain import Site
+from src.core.platform.domain.master_data.org import Organization
+from src.core.platform.domain.master_data.site import Site
 
 _TERMINAL_WORK_ORDER_STATUSES = {
     MaintenanceWorkOrderStatus.COMPLETED,

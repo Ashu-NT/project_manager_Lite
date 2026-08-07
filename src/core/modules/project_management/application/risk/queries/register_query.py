@@ -6,8 +6,8 @@ from src.core.modules.project_management.domain.risk.register import RegisterEnt
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.register import RegisterEntryRepository
-from src.core.platform.access.authorization import filter_project_rows, require_project_permission
-from src.core.platform.auth.authorization import require_permission
+from src.core.modules.project_management.access.scope_permissions import filter_project_rows, require_project_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.modules.project_management.application.risk.dto.register_summary import (
     RegisterProjectSummary,
     RegisterUrgentItem,

@@ -25,7 +25,7 @@ from src.core.modules.inventory_procurement.domain.inventory.stock import (
     Storeroom,
 )
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.org.domain import Organization
+from src.core.platform.domain.master_data.org import Organization
 from src.core.shared.events.domain_events import domain_events
 
 

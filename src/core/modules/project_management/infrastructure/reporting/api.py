@@ -16,13 +16,13 @@ from src.core.modules.project_management.application.financials import FinanceSe
 from src.core.modules.project_management.infrastructure.reporting.services.reporting_service import ReportingService
 from src.core.modules.project_management.infrastructure.reporting.models.report_models import GanttTaskBar
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.exporting import (
-    ExportArtifact,
+from src.core.platform.application.data_operations.exporting import (
     cleanup_temp_artifact,
     ensure_output_path,
     finalize_artifact,
 )
-from src.core.platform.report_runtime import ReportDefinitionRegistry, ReportRuntime
+from src.core.platform.domain.data_operations.exporting import ExportArtifact
+from src.core.platform.application.data_operations.report_runtime import ReportDefinitionRegistry, ReportRuntime
 
 
 @dataclass(frozen=True)

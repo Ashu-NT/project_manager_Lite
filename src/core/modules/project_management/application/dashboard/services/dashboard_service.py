@@ -1,10 +1,10 @@
 """Dashboard orchestration service — assembles all dashboard sections."""
 from __future__ import annotations
 
-from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 from src.core.shared.events.domain_events import domain_events
-from src.core.platform.access.authorization import require_project_permission
-from src.core.platform.auth.authorization import require_permission
+from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 from src.core.modules.project_management.application.dashboard.alerts.alerts_mixin import DashboardAlertsMixin
 from src.core.modules.project_management.application.dashboard.analytics.burndown import DashboardBurndownMixin

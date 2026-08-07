@@ -5,12 +5,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from src.core.platform.auth.application import CanonicalRoleResolver
-from src.core.platform.auth.domain import (
+from src.core.platform.application.security.authorization.roles import CanonicalRoleResolver
+from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_PLATFORM,
     ROLE_SCOPE_TENANT,
-    Role,
     RoleBinding,
+)
+from src.core.platform.domain.security.auth import (
+    Role,
     RolePermissionBinding,
 )
 from src.core.platform.common.exceptions import BusinessRuleError

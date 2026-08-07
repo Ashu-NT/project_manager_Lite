@@ -1,7 +1,7 @@
 ﻿from pathlib import Path
 from types import SimpleNamespace
 
-from src.api.desktop.runtime import build_desktop_api_registry
+from src.application.runtime import build_desktop_api_registry
 from src.core.modules.maintenance.api.desktop import (
     MaintenanceLocationCreateCommand,
     MaintenancePreventivePlanCreateCommand,

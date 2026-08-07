@@ -187,6 +187,10 @@ def _make_service(
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
+        "src.core.modules.project_management.application.portfolio.commands.portfolio_dependencies.require_project_permission",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
         "src.core.modules.project_management.application.portfolio.utils.portfolio_support.filter_project_rows",
         lambda projects, *_args, **_kwargs: list(projects),
     )

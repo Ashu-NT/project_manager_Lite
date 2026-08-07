@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.api.desktop.platform import (
-    DesktopApiResult,
+from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.api.desktop.time_management.calendar.models.calendar import (
     WorkingDayCalculationCommand,
     WorkingDayCalculationDto,
 )
@@ -95,19 +95,19 @@ class PlatformCalendarCatalogPresenter:
             return preview_error_result("Enterprise calendar API is not connected.")
         start_date_str = string_value(payload, "startDate")
         if not start_date_str:
-            from src.api.desktop.platform import DesktopApiError
+            from src.core.platform.api.desktop.models.common import DesktopApiError
             return DesktopApiResult(
                 ok=False,
                 error=DesktopApiError(code="validation", message="Start date is required.", category="validation"),
             )
         working_days = int_value(payload, "workingDays")
         if working_days is None or working_days < 0:
-            from src.api.desktop.platform import DesktopApiError
+            from src.core.platform.api.desktop.models.common import DesktopApiError
             return DesktopApiResult(
                 ok=False,
                 error=DesktopApiError(code="validation", message="Working days must be >= 0.", category="validation"),
             )
-        from src.api.desktop.platform.models.enterprise_calendar import WorkingDaysCommand
+        from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import WorkingDaysCommand
         return self._enterprise_calendar_api.calculate_working_days(
             WorkingDaysCommand(start_date=start_date_str, working_days=working_days)
         )

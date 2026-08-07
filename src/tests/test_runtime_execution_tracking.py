@@ -3,8 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import uuid4
 
-from src.core.platform.exporting import ExportArtifactDraft, ExportDefinitionRegistry, ExportRuntime
-from src.core.platform.report_runtime import ReportDefinitionRegistry, ReportRuntime
+from src.core.platform.application.data_operations.exporting import ExportDefinitionRegistry, ExportRuntime
+from src.core.platform.domain.data_operations.exporting import ExportArtifactDraft
+from src.core.platform.application.data_operations.report_runtime import ReportDefinitionRegistry, ReportRuntime
 
 
 class _TrackingExportDefinition:

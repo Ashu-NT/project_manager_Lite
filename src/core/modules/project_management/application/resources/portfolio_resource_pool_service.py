@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 
 from dataclasses import dataclass, field
 from datetime import date
@@ -17,6 +17,9 @@ from src.core.modules.project_management.domain.resources.resource import Resour
 from src.core.modules.project_management.application.resources.resource_availability_service import (
     ResourceAvailabilityService,
     ResourceAvailabilityWindow,
+)
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 
@@ -87,6 +90,7 @@ class PortfolioResourcePoolService:
         project_repo: ProjectRepository,
         calendar: CalendarProtocol,
         tenant_context_service=None,
+        user_session=None,
     ) -> None:
         self._resources = resource_repo
         self._assignments = assignment_repo
@@ -94,6 +98,7 @@ class PortfolioResourcePoolService:
         self._projects = project_repo
         self._calendar = calendar
         self._tenant_context_service = tenant_context_service
+        self._user_session = user_session
         self._availability = ResourceAvailabilityService(
             resource_repo=resource_repo,
             assignment_repo=assignment_repo,
@@ -109,10 +114,9 @@ class PortfolioResourcePoolService:
     ) -> PortfolioResourcePoolReport:
         """
         Build a portfolio resource pool report for the given date range.
-
         If resource_ids is None, includes all active resources.
         """
-        self._active_organization_id(operation_label="build portfolio resource pool")
+        self._require_scope(operation_label="build portfolio resource pool")
         if resource_ids is None:
             all_resources = self._resources.list()
             resource_ids = [r.id for r in all_resources if getattr(r, "is_active", True)]
@@ -142,6 +146,7 @@ class PortfolioResourcePoolService:
         to_date: date,
     ) -> list[ResourceDemandEntry]:
         """Return per-project demand breakdown for a single resource."""
+        self._require_scope(operation_label="view portfolio resource demand")
         return self._build_demands(resource_id, from_date, to_date)
 
     # ── internal ────────────────────────────────────────────────────────────
@@ -217,14 +222,16 @@ class PortfolioResourcePoolService:
 
         return demands
 
-    def _active_organization_id(self, *, operation_label: str) -> str:
+    def _require_scope(self, *, operation_label: str) -> None:
+        """Enforce the missing application-layer guard for this cross-project report."""
+        require_permission(self._user_session, "portfolio.read", operation_label=operation_label)
         tenant_context = self._tenant_context_service
         if tenant_context is None:
             raise BusinessRuleError(
-                f"Active organization context is required for {operation_label}.",
+                f"Active tenant and organization context is required for {operation_label}.",
                 code="TENANT_CONTEXT_REQUIRED",
             )
-        return tenant_context.require_active_organization_id(operation_label=operation_label)
+        tenant_context.require_organization_context(operation_label=operation_label)
 
 
 __all__ = [

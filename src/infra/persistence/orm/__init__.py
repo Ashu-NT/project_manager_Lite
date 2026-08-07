@@ -1,29 +1,29 @@
 """ORM metadata and model packages."""
 
 from src.infra.persistence.orm.base import Base
-import src.core.platform.infrastructure.persistence.orm.tenant  # noqa: F401  — must precede org (FK dep)
+import src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant  # noqa: F401  — must precede org (FK dep)
 import src.core.modules.maintenance.infrastructure.persistence.orm.models  # noqa: F401
 import src.core.modules.maintenance.infrastructure.persistence.orm.preventive_runtime_models  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.org  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.employee  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.sites  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.departments  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.master_data.org.org  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.master_data.employee.employee  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.master_data.site.sites  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.master_data.department.departments  # noqa: F401
 # src.core.platform.infrastructure.persistence.orm.calendar removed after Alembic migration
 # working_calendars and holidays tables are dropped by migration o8p9q0r1s2t3
-import src.core.platform.infrastructure.persistence.orm.enterprise_calendar  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.documents  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.party  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.modules  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.time  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.auth  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.identity  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.user_tenant  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.activity  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.platform_events  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.audit_entry  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.notification  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.approval  # noqa: F401
-import src.core.platform.infrastructure.persistence.orm.runtime_tracking  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.time_management.calendar.enterprise_calendar  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.master_data.documents.documents  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.master_data.party.party  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.tenant.modules.modules  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.time_management.time.time  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.security.auth.auth  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.security.identity.identity  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.history.activity.activity  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.events.platform_events.platform_events  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.events.notifications.notification  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.approval.approval  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.data_operations.runtime_tracking.runtime_tracking  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.project  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.resource  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.task  # noqa: F401

@@ -9,8 +9,8 @@ from src.core.modules.project_management.domain.collaboration import (
     resolve_mentions,
 )
 from src.core.modules.project_management.infrastructure.collaboration_attachments import store_task_comment_attachments
-from src.core.platform.access.authorization import require_project_permission
-from src.core.platform.auth.authorization import require_permission
+from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
@@ -85,19 +85,23 @@ class CollaborationCommentCommandMixin:
             comment_id=comment.id,
             attachments=list(attachments or []),
         )
-        self._comment_repo.add(comment)
-        if self._document_integration_service is not None and comment.attachments:
-            self._document_integration_service.register_entity_attachments(
-                required_permission="collaboration.manage",
-                operation_label="register task collaboration attachments",
-                module_code="project_management",
-                entity_type="task_comment",
-                entity_id=comment.id,
-                attachments=comment.attachments,
-                source_system="project_management",
-            )
-        else:
-            self._session.commit()
+        try:
+            self._comment_repo.add(comment)
+            if self._document_integration_service is not None and comment.attachments:
+                self._document_integration_service.register_entity_attachments(
+                    required_permission="collaboration.manage",
+                    operation_label="register task collaboration attachments",
+                    module_code="project_management",
+                    entity_type="task_comment",
+                    entity_id=comment.id,
+                    attachments=comment.attachments,
+                    source_system="project_management",
+                )
+            else:
+                self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         self._link_existing_comment_documents(
             comment_id=comment.id,
             document_ids=normalized_linked_document_ids,
@@ -137,30 +141,35 @@ class CollaborationCommentCommandMixin:
             return
 
         changed = False
-        for comment in self._comment_repo.list_by_task(task_id):
-            if not self._comment_mentions_principal(comment):
-                continue
+        try:
+            for comment in self._comment_repo.list_by_task(task_id):
+                if not self._comment_mentions_principal(comment):
+                    continue
 
-            user_reads = {str(item).strip() for item in comment.read_by_user_ids if str(item).strip()}
-            alias_reads = {item.lower() for item in comment.read_by}
-            already_read = False
-            if principal_user_id and principal_user_id in user_reads:
-                already_read = True
-            if not already_read and aliases and not alias_reads.isdisjoint(aliases):
-                already_read = True
-            if already_read:
-                continue
+                user_reads = {str(item).strip() for item in comment.read_by_user_ids if str(item).strip()}
+                alias_reads = {item.lower() for item in comment.read_by}
+                already_read = False
+                if principal_user_id and principal_user_id in user_reads:
+                    already_read = True
+                if not already_read and aliases and not alias_reads.isdisjoint(aliases):
+                    already_read = True
+                if already_read:
+                    continue
 
-            if principal_user_id:
-                comment.read_by_user_ids = sorted(user_reads.union({principal_user_id}))
-            primary_alias = self._principal_primary_alias()
-            if primary_alias:
-                comment.read_by = sorted(alias_reads.union({primary_alias}))
-            self._comment_repo.update(comment)
-            changed = True
+                if principal_user_id:
+                    comment.read_by_user_ids = sorted(user_reads.union({principal_user_id}))
+                primary_alias = self._principal_primary_alias()
+                if primary_alias:
+                    comment.read_by = sorted(alias_reads.union({primary_alias}))
+                self._comment_repo.update(comment)
+                changed = True
 
+            if changed:
+                self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         if changed:
-            self._session.commit()
             domain_events.collaboration_changed.emit(task_id)
 
     def edit_comment(
@@ -205,8 +214,12 @@ class CollaborationCommentCommandMixin:
         comment.mentions = mentions
         comment.mentioned_user_ids = mentioned_user_ids
         comment.updated_at = datetime.now(timezone.utc)
-        self._comment_repo.update(comment)
-        self._session.commit()
+        try:
+            self._comment_repo.update(comment)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         domain_events.collaboration_changed.emit(task.id)
         return comment
 
@@ -234,8 +247,12 @@ class CollaborationCommentCommandMixin:
             comment.deleted_at = datetime.now(timezone.utc)
             comment.deleted_by_user_id = getattr(principal, "user_id", None)
             comment.deletion_reason = reason
-            self._comment_repo.update(comment)
-            self._session.commit()
+            try:
+                self._comment_repo.update(comment)
+                self._session.commit()
+            except Exception:
+                self._session.rollback()
+                raise
             domain_events.collaboration_changed.emit(task.id)
         return comment
 
@@ -278,8 +295,12 @@ class CollaborationCommentCommandMixin:
         reactors.add(principal_user_id)
         reactions[emoji_key] = sorted(reactors)
         comment.reactions = reactions
-        self._comment_repo.update(comment)
-        self._session.commit()
+        try:
+            self._comment_repo.update(comment)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         domain_events.collaboration_changed.emit(task.id)
         return comment
 
@@ -297,8 +318,12 @@ class CollaborationCommentCommandMixin:
         else:
             reactions.pop(emoji_key, None)
         comment.reactions = reactions
-        self._comment_repo.update(comment)
-        self._session.commit()
+        try:
+            self._comment_repo.update(comment)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         domain_events.collaboration_changed.emit(task.id)
         return comment
 

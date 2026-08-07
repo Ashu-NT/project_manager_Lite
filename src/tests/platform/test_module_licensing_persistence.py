@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import text
 
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
-from src.core.platform.modules.domain.subscription import ModuleEntitlementRecord
+from src.core.platform.domain.tenant.modules.subscription import ModuleEntitlementRecord
 
 
 def test_module_entitlement_record_dto_normalizes_and_validates_fields():

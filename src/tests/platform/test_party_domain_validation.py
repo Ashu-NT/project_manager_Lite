@@ -3,9 +3,9 @@ from __future__ import annotations
 import pytest
 
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.platform.org.domain import Organization
-from src.core.platform.party.application.party_service import PartyService
-from src.core.platform.party.domain import Party, PartyType
+from src.core.platform.domain.master_data.org import Organization
+from src.core.platform.application.master_data.party.party_service import PartyService
+from src.core.platform.domain.master_data.party import Party, PartyType
 
 
 class _FakeSession:
@@ -73,11 +73,11 @@ def _make_organization() -> Organization:
 
 def _make_service(monkeypatch: pytest.MonkeyPatch) -> PartyService:
     monkeypatch.setattr(
-        "src.core.platform.party.application.party_service.require_permission",
+        "src.core.platform.application.master_data.party.party_service.require_permission",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.party.application.party_service.require_any_permission",
+        "src.core.platform.application.master_data.party.party_service.require_any_permission",
         lambda *args, **kwargs: None,
     )
     return PartyService(

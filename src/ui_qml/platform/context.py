@@ -3,8 +3,8 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.api.desktop.integration import IntegrationCapabilityDesktopApi
-from src.api.desktop.platform import PlatformRuntimeDesktopApi
+from src.core.platform.api.desktop.integration import IntegrationCapabilityDesktopApi
+from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
 from src.ui_qml.platform.controllers.admin import (
     PlatformAdminAccessWorkspaceController,
     PlatformAdminWorkspaceController,

@@ -39,7 +39,7 @@ from src.core.modules.maintenance.api.desktop.shared_options import (
     serialize_system_option,
 )
 from src.core.modules.maintenance.domain import MaintenanceWorkOrderStatus, MaintenanceWorkRequestStatus
-from src.core.platform.site import SiteService
+from src.core.platform.application.master_data.site.site_service import SiteService
 
 _OPEN_REQUEST_STATUSES = {
     MaintenanceWorkRequestStatus.NEW.value,

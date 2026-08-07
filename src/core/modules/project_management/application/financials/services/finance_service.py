@@ -13,8 +13,13 @@ from src.core.modules.project_management.contracts.repositories.task import (
 )
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.cost import CostRepository
-from src.core.platform.access.authorization import require_project_permission
-from src.core.platform.auth.authorization import require_permission
+from src.core.modules.project_management.contracts.repositories.rate_resolution import (
+    LaborRateResolver,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 
 from src.core.modules.project_management.application.financials.reporting.analytics import (
     build_dimension_analytics,
@@ -62,6 +67,8 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         cost_repo: CostRepository,
         project_resource_repo: ProjectResourceRepository,
         assignment_repo: AssignmentRepository,
+        rate_resolver: LaborRateResolver,
+        tenant_context_service: TenantContextService,
         user_session=None,
         module_catalog_service=None,
     ) -> None:
@@ -70,12 +77,16 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         self._resource_repo: ResourceRepository = resource_repo
         self._cost_repo: CostRepository = cost_repo
         self._project_resource_repo: ProjectResourceRepository = project_resource_repo
+        self._rate_resolver: LaborRateResolver = rate_resolver
+        self._tenant_context_service: TenantContextService = tenant_context_service
         self._labor = LaborCostEngine(
             project_repo=project_repo,
             task_repo=task_repo,
             assignment_repo=assignment_repo,
             resource_repo=resource_repo,
             project_resource_repo=project_resource_repo,
+            rate_resolver=rate_resolver,
+            tenant_context_service=tenant_context_service,
         )
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
@@ -87,8 +98,22 @@ class FinanceService(ProjectManagementModuleGuardMixin):
             cost_repo=self._cost_repo,
             project_resource_repo=self._project_resource_repo,
             resource_repo=self._resource_repo,
-            get_labor_details=self._labor.get_project_labor_details,
+            rate_resolver=self._rate_resolver,
+            tenant_context_service=self._tenant_context_service,
+            get_labor_details=self._labor.calculate_project_labor_details,
         )
+
+    def _resolve_scope(self, project) -> tuple[str, str]:
+        context = self._tenant_context_service.require_organization_context(
+            operation_label="build finance snapshot"
+        )
+        if project.organization_id and project.organization_id != context.organization_id:
+            raise BusinessRuleError(
+                "Project does not belong to the active organization.",
+                code="PROJECT_ORGANIZATION_MISMATCH",
+            )
+        assert context.organization_id is not None  # guaranteed by require_organization_context
+        return context.tenant_id, context.organization_id
 
     def get_finance_snapshot(
         self,
@@ -108,6 +133,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         project = self._project_repo.get(project_id)
         if project is None:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
+        tenant_id, organization_id = self._resolve_scope(project)
 
         project_currency = normalize_currency(getattr(project, "currency", None), None)
         task_map = {task.id: task for task in self._task_repo.list_by_project(project_id)}
@@ -136,6 +162,9 @@ class FinanceService(ProjectManagementModuleGuardMixin):
                 project=project,
                 as_of=as_of,
                 resource_cache=resource_cache,
+                rate_resolver=self._rate_resolver,
+                tenant_id=tenant_id,
+                organization_id=organization_id,
             )
         )
         ledger.extend(
@@ -198,6 +227,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
             ),
             by_task=build_dimension_analytics(ledger=ledger, dimension="task"),
             notes=notes,
+            unresolved_labor_rates=totals.unresolved_labor_rates,
         )
 
     @staticmethod

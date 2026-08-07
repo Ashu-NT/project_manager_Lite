@@ -10,7 +10,7 @@ from src.core.modules.project_management.infrastructure.importers.models.import_
     ImportValidationIssue,
     ImportValidationSeverity,
 )
-from src.core.platform.importing import (
+from src.core.platform.domain.data_operations.importing import (
     ImportFieldSpec,
     ImportPreview,
     ImportPreviewRow,

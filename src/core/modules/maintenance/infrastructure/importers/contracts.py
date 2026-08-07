@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.core.platform.importing import ImportFieldSpec
+from src.core.platform.domain.data_operations.importing import ImportFieldSpec
 
 
 MAINTENANCE_MODULE_CODE = "maintenance_management"

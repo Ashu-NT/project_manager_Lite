@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.platform.department.application.department_service import DepartmentService
-from src.core.platform.department.domain import Department
-from src.core.platform.employee.application.employee_service import EmployeeService
-from src.core.platform.employee.domain import Employee, EmploymentType
-from src.core.platform.org.domain import Organization
-from src.core.platform.site.domain import Site
+from src.core.platform.application.master_data.department.department_service import DepartmentService
+from src.core.platform.domain.master_data.department import Department
+from src.core.platform.application.master_data.employee.employee_service import EmployeeService
+from src.core.platform.domain.master_data.employee import Employee, EmploymentType
+from src.core.platform.domain.master_data.org import Organization
+from src.core.platform.domain.master_data.site import Site
 
 
 class _FakeSession:
@@ -188,7 +188,7 @@ def test_department_dto_normalizes_and_validates_fields():
 
 def test_department_service_uses_entity_validation(monkeypatch):
     monkeypatch.setattr(
-        "src.core.platform.department.application.department_commands.require_permission",
+        "src.core.platform.application.master_data.department.department_commands.require_permission",
         lambda *args, **kwargs: None,
     )
 
@@ -300,7 +300,7 @@ def test_employee_dto_normalizes_and_validates_fields():
 
 def test_employee_service_uses_entity_validation_and_final_state(monkeypatch):
     monkeypatch.setattr(
-        "src.core.platform.employee.application.employee_service.require_permission",
+        "src.core.platform.application.master_data.employee.employee_service.require_permission",
         lambda *args, **kwargs: None,
     )
 

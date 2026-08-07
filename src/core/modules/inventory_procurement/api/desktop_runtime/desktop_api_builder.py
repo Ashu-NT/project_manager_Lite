@@ -42,7 +42,7 @@ def build_inventory_procurement_desktop_runtime_apis(
             procurement_service=resolved.procurement_service,
             purchasing_service=resolved.purchasing_service,
             reporting_service=resolved.reporting_service,
-            module_runtime_service=platform_dependencies.module_runtime_service,
+            module_catalog_service=platform_dependencies.module_catalog_service,
         ),
         inventory_procurement_reservations=build_inventory_procurement_reservations_desktop_api(
             reservation_service=resolved.reservation_service,

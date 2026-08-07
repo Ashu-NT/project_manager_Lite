@@ -13,8 +13,9 @@ from src.core.shared.activity import record_activity
 
 
 class CostLifecycleMixin:
-    # TRANSITION(PF-A0-UOW-BRIDGE): commit and approval_request_id bridge legacy
-    # mutable cost commands into ApprovalService's outer transaction. Remove at Phase C.
+    """Governed cost-item lifecycle.
+    """
+
     @staticmethod
     def _is_cost_code_integrity_error(exc: IntegrityError) -> bool:
         message = " ".join(
@@ -75,12 +76,9 @@ class CostLifecycleMixin:
         actual_amount: float = 0.0,
         incurred_date: date | None = None,
         currency_code: str | None = None,
-        bypass_approval: bool = False,
         code: str = "",
-        commit: bool = True,
-        approval_request_id: str | None = None,
     ) -> CostItem:
-        governed = self._is_governed(operation_code="cost.add", bypass_approval=bypass_approval)
+        governed = self._is_governed(operation_code="cost.add")
         self._require_operation_permission(
             project_id=project_id,
             governed=governed,
@@ -129,10 +127,10 @@ class CostLifecycleMixin:
                 code="APPROVAL_REQUIRED",
             )
 
-        cost_item = CostItem.create(
+        return self._apply_cost_add_decision(
             project_id=project_id,
             task_id=task_id,
-            code=self._resolve_cost_code(code, project_id, draft.description),
+            code=code,
             description=draft.description,
             planned_amount=draft.planned_amount,
             committed_amount=draft.committed_amount,
@@ -140,6 +138,36 @@ class CostLifecycleMixin:
             cost_type=draft.cost_type,
             incurred_date=draft.incurred_date,
             currency_code=draft.currency_code,
+            commit=True,
+        )
+
+    def _apply_cost_add_decision(
+        self,
+        *,
+        project_id: str,
+        task_id: str | None,
+        code: str,
+        description: str,
+        planned_amount: float,
+        committed_amount: float,
+        actual_amount: float,
+        cost_type: CostType,
+        incurred_date: date | None,
+        currency_code: str,
+        commit: bool,
+        approval_request_id: str | None = None,
+    ) -> CostItem:
+        cost_item = CostItem.create(
+            project_id=project_id,
+            task_id=task_id,
+            code=self._resolve_cost_code(code, project_id, description),
+            description=description,
+            planned_amount=planned_amount,
+            committed_amount=committed_amount,
+            actual_amount=actual_amount,
+            cost_type=cost_type,
+            incurred_date=incurred_date,
+            currency_code=currency_code,
         )
 
         try:
@@ -193,12 +221,9 @@ class CostLifecycleMixin:
         incurred_date: date | None = None,
         currency_code: str | None = None,
         expected_version: int | None = None,
-        bypass_approval: bool = False,
         code: str | None = None,
-        commit: bool = True,
-        approval_request_id: str | None = None,
     ) -> CostItem:
-        governed = self._is_governed(operation_code="cost.update", bypass_approval=bypass_approval)
+        governed = self._is_governed(operation_code="cost.update")
         item = self._require_cost_item(cost_id)
         self._require_operation_permission(
             project_id=item.project_id,
@@ -273,8 +298,8 @@ class CostLifecycleMixin:
                 code="APPROVAL_REQUIRED",
             )
 
-        candidate = replace(
-            item,
+        return self._apply_cost_update_decision(
+            cost_id=cost_id,
             code=resolved_code,
             description=resolved_description,
             planned_amount=resolved_planned_amount,
@@ -283,6 +308,35 @@ class CostLifecycleMixin:
             cost_type=resolved_cost_type,
             incurred_date=resolved_incurred_date,
             currency_code=resolved_currency_code,
+            commit=True,
+        )
+
+    def _apply_cost_update_decision(
+        self,
+        *,
+        cost_id: str,
+        code: str,
+        description: str,
+        planned_amount: float,
+        committed_amount: float,
+        actual_amount: float,
+        cost_type: CostType,
+        incurred_date: date | None,
+        currency_code: str,
+        commit: bool,
+        approval_request_id: str | None = None,
+    ) -> CostItem:
+        item = self._require_cost_item(cost_id)
+        candidate = replace(
+            item,
+            code=code,
+            description=description,
+            planned_amount=planned_amount,
+            committed_amount=committed_amount,
+            actual_amount=actual_amount,
+            cost_type=cost_type,
+            incurred_date=incurred_date,
+            currency_code=currency_code,
         )
         try:
             self._cost_repo.update(candidate)
@@ -325,15 +379,8 @@ class CostLifecycleMixin:
             domain_events.costs_changed.emit(candidate.project_id)
         return candidate
 
-    def delete_cost_item(
-        self,
-        cost_id: str,
-        bypass_approval: bool = False,
-        *,
-        commit: bool = True,
-        approval_request_id: str | None = None,
-    ) -> None:
-        governed = self._is_governed(operation_code="cost.delete", bypass_approval=bypass_approval)
+    def delete_cost_item(self, cost_id: str) -> None:
+        governed = self._is_governed(operation_code="cost.delete")
         item = self._require_cost_item(cost_id)
         self._require_operation_permission(
             project_id=item.project_id,
@@ -359,6 +406,16 @@ class CostLifecycleMixin:
                 f"Approval required for cost deletion. Request {req.id} created.",
                 code="APPROVAL_REQUIRED",
             )
+        self._apply_cost_delete_decision(cost_id=cost_id, commit=True)
+
+    def _apply_cost_delete_decision(
+        self,
+        *,
+        cost_id: str,
+        commit: bool,
+        approval_request_id: str | None = None,
+    ) -> None:
+        item = self._require_cost_item(cost_id)
         try:
             self._cost_repo.delete(cost_id)
             record_activity(
@@ -388,3 +445,6 @@ class CostLifecycleMixin:
 
         if commit:
             domain_events.costs_changed.emit(item.project_id)
+
+
+__all__ = ["CostLifecycleMixin"]

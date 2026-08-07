@@ -12,7 +12,7 @@ from src.core.modules.project_management.domain.risk.register import (
     as_register_entry_status,
     as_register_entry_type,
 )
-from src.core.platform.approval.domain import ApprovalStatus
+from src.core.platform.domain.approval import ApprovalStatus
 from src.core.modules.project_management.api.desktop.dashboard.models.tables import (
     ProjectDashboardOperationalTabDescriptor,
     ProjectDashboardOperationalTableDescriptor,
@@ -205,7 +205,7 @@ def _build_resource_overloads_table(dashboard_data: Any) -> ProjectDashboardOper
 
 
 def _build_pending_approvals_table(pending_approvals: tuple[Any, ...]) -> ProjectDashboardOperationalTableDescriptor:
-    from src.api.desktop.platform._approval_labels import approval_context_label, approval_display_label, approval_module_label
+    from src.core.platform.api.desktop.approval._approval_labels import approval_context_label, approval_display_label, approval_module_label
     return ProjectDashboardOperationalTableDescriptor(
         id="pending_approvals", title="Pending Approvals",
         subtitle="Governed changes waiting for decision or application.",

@@ -1,0 +1,112 @@
+from __future__ import annotations
+
+import logging
+import os
+from typing import TYPE_CHECKING
+
+from src.core.platform.domain.security.auth import Permission, Role, RolePermissionBinding
+from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
+    DEFAULT_PERMISSIONS,
+    DEFAULT_ROLE_PERMISSIONS,
+)
+from src.core.platform.application.security.authorization.roles.role_scope_policy import (
+    is_platform_role,
+    system_role_scope_type,
+)
+
+if TYPE_CHECKING:
+    from src.core.platform.application.security.auth.auth_service import AuthService
+
+logger = logging.getLogger(__name__)
+
+
+def truthy_env(value: str | None) -> bool:
+    return str(value or "").strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def resolve_bootstrap_admin_password() -> str:
+    from src.core.platform.common.exceptions import ValidationError
+
+    configured = os.getenv("PM_ADMIN_PASSWORD")
+    if configured is not None and configured.strip():
+        return configured.strip()
+    if not truthy_env(os.getenv("PM_ALLOW_DEFAULT_ADMIN_PASSWORD")):
+        raise ValidationError("PM_ADMIN_PASSWORD must be set")
+    default_password = "ChangeMe123!"
+    logger.warning(
+        "=================================================================\n"
+        "  FIRST-RUN SETUP: Admin account created with default credentials\n"
+        "  Username : admin\n"
+        "  Password : %s\n"
+        "  You will be prompted to change this password after signing in.\n"
+        "  Set PM_ADMIN_PASSWORD in your environment to use a custom value.\n"
+        "=================================================================",
+        default_password,
+    )
+    return default_password
+
+
+def ensure_default_permissions(service: AuthService) -> None:
+    for code, description in DEFAULT_PERMISSIONS.items():
+        if service._permission_repo.get_by_code(code) is None:
+            service._permission_repo.add(Permission.create(code=code, description=description))
+
+
+def ensure_default_roles(service: AuthService) -> dict[str, Role]:
+    roles: dict[str, Role] = {}
+    for role_name in DEFAULT_ROLE_PERMISSIONS:
+        role = service._role_repo.get_by_name(role_name)
+        if role is None:
+            role = Role.create(
+                name=role_name,
+                description=f"System role: {role_name}",
+                is_system=True,
+                allowed_scope_type=system_role_scope_type(role_name),
+                is_assignable=not is_platform_role(role_name),
+            )
+            service._role_repo.add(role)
+        roles[role_name] = role
+    return roles
+
+
+def ensure_role_permissions(service: AuthService, role_map: dict[str, Role]) -> None:
+    permission_map = {p.code: p.id for p in service._permission_repo.list_all()}
+    for role_name, permission_codes in DEFAULT_ROLE_PERMISSIONS.items():
+        role = role_map.get(role_name)
+        if not role:
+            continue
+        for code in permission_codes:
+            permission_id = permission_map.get(code)
+            if not permission_id:
+                continue
+            if not service._role_permission_repo.exists(role.id, permission_id):
+                service._role_permission_repo.add(
+                    RolePermissionBinding.create(role_id=role.id, permission_id=permission_id)
+                )
+
+
+def ensure_auth_policy_definitions(service: AuthService) -> dict[str, Role]:
+    ensure_default_permissions(service)
+    service._session.flush()
+    role_map = ensure_default_roles(service)
+    service._session.flush()
+    return role_map
+
+
+def ensure_auth_policy_defaults(service: AuthService) -> dict[str, Role]:
+    """Seed complete policy only for explicit local/bootstrap workflows."""
+    role_map = ensure_auth_policy_definitions(service)
+    ensure_role_permissions(service, role_map)
+    service._session.flush()
+    return role_map
+
+
+__all__ = [
+    "ensure_auth_policy_defaults",
+    "ensure_auth_policy_definitions",
+    "ensure_default_permissions",
+    "ensure_default_roles",
+    "ensure_role_permissions",
+    "resolve_bootstrap_admin_password",
+    "truthy_env",
+]

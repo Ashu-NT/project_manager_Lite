@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.auth.domain.session import UserSessionContext
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.infra.persistence.db.postgresql_rls import (
     configure_session_rls_context,
     worker_tenant_scope,

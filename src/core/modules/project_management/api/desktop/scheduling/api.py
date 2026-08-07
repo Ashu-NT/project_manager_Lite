@@ -3,7 +3,7 @@
 from __future__ import annotations
 from datetime import date
 
-from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
@@ -159,7 +159,7 @@ class ProjectManagementSchedulingDesktopApi:
 
     def calculate_working_days(self, command: SchedulingWorkingDayCalculationCommand) -> SchedulingWorkingDayCalculationDto:
         if self._platform_calendar_api is not None:
-            from src.api.desktop.platform.models.enterprise_calendar import (
+            from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
                 WorkingDaysCommand as PlatformWorkingDaysCommand,
             )
 
@@ -305,7 +305,12 @@ class ProjectManagementSchedulingDesktopApi:
         return build_baseline_rows((project_id or "").strip(), self._baseline_service)
 
     def create_baseline(self, command: SchedulingBaselineCreateCommand) -> SchedulingBaselineOptionDescriptor:
-        baseline = self._require_baseline_service().create_baseline(command.project_id, command.name)
+        # No baseline-effective date is supplied by the desktop command, so
+        # this boundary resolves "as of" itself — never inside
+        # BaselineService (see create_baseline's `rate_as_of` docstring).
+        baseline = self._require_baseline_service().create_baseline(
+            command.project_id, command.name, rate_as_of=date.today()
+        )
         return SchedulingBaselineOptionDescriptor(
             value=baseline.id, label=f"{baseline.name} ({baseline.created_at.isoformat()})"
         )

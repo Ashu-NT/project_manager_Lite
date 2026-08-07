@@ -17,17 +17,17 @@ from src.core.modules.maintenance.application.common.support import (
 )
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.shared.activity.activity_recorder import record_activity
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.org.contracts import OrganizationRepository
-from src.core.platform.tenancy.tenant_context import (
+from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
     require_tenant_context_service,
 )
 from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
-from src.core.platform.org.domain import Organization
-from src.core.platform.party.domain import PartyType
-from src.core.platform.party.contracts import PartyRepository
+from src.core.platform.domain.master_data.org import Organization
+from src.core.platform.domain.master_data.party import PartyType
+from src.core.platform.contract.master_data.party.contracts import PartyRepository
 
 _MANUFACTURER_PARTY_TYPES = {
     PartyType.MANUFACTURER,

@@ -18,14 +18,14 @@ from src.core.modules.maintenance.contracts.repositories import (
 )
 from src.core.modules.maintenance.application.reliability import MaintenanceReliabilityService
 from src.core.platform.access.authorization import filter_scope_rows
-from src.core.platform.org.contracts import OrganizationRepository
-from src.core.platform.site.contracts import SiteRepository
-from src.core.platform.tenancy.tenant_context import (
+from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.master_data.site.contracts import SiteRepository
+from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
     require_tenant_context_service,
 )
-from src.core.platform.exporting import ensure_output_path, finalize_artifact
-from src.core.platform.report_runtime import ReportDefinitionRegistry, ReportRuntime
+from src.core.platform.application.data_operations.exporting import ensure_output_path, finalize_artifact
+from src.core.platform.application.data_operations.report_runtime import ReportDefinitionRegistry, ReportRuntime
 
 from .definitions import register_maintenance_report_definitions
 from .documents import (

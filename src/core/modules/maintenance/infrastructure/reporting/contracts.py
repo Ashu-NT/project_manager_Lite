@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from src.core.platform.report_runtime import ReportFormat
+from src.core.platform.domain.data_operations.report_runtime import ReportFormat
 
 
 @dataclass(frozen=True)

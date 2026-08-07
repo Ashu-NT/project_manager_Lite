@@ -3,44 +3,43 @@ from __future__ import annotations
 import logging
 from time import perf_counter
 
-from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 
 from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy.orm import Session
 
-from src.application.runtime.entitlement_runtime import ModuleRuntimeService
-from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
+from src.core.platform.application.platform_runtime import PlatformRuntimeApplicationService
 from src.core.platform.access import AccessControlService
 from src.core.platform.integration.module_registry import ModuleRegistry
 from src.core.platform.integration.resolver import IntegrationResolver
-from src.core.platform.activity.application.activity_service import ActivityService
-from src.core.platform.approval import ApprovalService
-from src.core.platform.audit import EnterpriseAuditService
-from src.core.platform.notifications import NotificationService
-from src.core.platform.auth import (
-    AuthService,
+from src.core.platform.application.history.activity.activity_service import ActivityService
+from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.application.history.audit import EnterpriseAuditService
+from src.core.platform.application.events.notifications.notification_service import NotificationService
+from src.core.platform.application.security.auth import AuthService
+from src.core.platform.application.security.authorization.roles import (
     RoleGovernanceService,
     TenantRoleAdministrationService,
 )
-from src.core.platform.auth.domain.session import UserSessionContext
-from src.core.platform.data_exchange import MasterDataExchangeService
-from src.core.platform.documents import DocumentService
-from src.core.platform.modules import ModuleCatalogService
-from src.core.platform.department import DepartmentService
-from src.core.platform.employee import EmployeeService
-from src.core.platform.org import OrganizationService
-from src.core.platform.site import SiteService
-from src.core.platform.party import PartyService
-from src.core.platform.time.application import TimeService
-from src.core.platform.tenancy import (
+from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.application.master_data.data_exchange import MasterDataExchangeService
+from src.core.platform.application.master_data.documents.document_service import DocumentService
+from src.core.platform.application.tenant.modules import ModuleCatalogService
+from src.core.platform.application.master_data.department.department_service import DepartmentService
+from src.core.platform.application.master_data.employee.employee_service import EmployeeService
+from src.core.platform.application.master_data.org.organization_service import OrganizationService
+from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.master_data.party.party_service import PartyService
+from src.core.platform.application.time_management.time import TimeService
+from src.core.platform.application.tenant.tenancy import (
     TenantAdminService,
     TenantContextService,
     TenantMembershipService,
 )
-from src.core.platform.runtime_tracking import RuntimeExecutionService
-from src.core.platform.identity import ServicePrincipalService
+from src.core.platform.application.data_operations.runtime_tracking import RuntimeExecutionService
+from src.core.platform.application.security.identity import ServicePrincipalService
 from src.core.modules.inventory_procurement import (
     ProcurementService,
     InventoryDataExchangeService,
@@ -96,10 +95,14 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import (
+    BudgetService,
     CostService,
     FinancialConfigurationService,
     FinanceService,
     ForecastCostService,
+    PlannedCostService,
+    ProjectRateCardService,
+    RateCardResolver,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
@@ -119,16 +122,17 @@ from src.core.modules.project_management.application.timesheets import Timesheet
 from src.core.modules.project_management.application.resources.assignment_validation import (
     AssignmentSkillValidator,
 )
-from src.core.platform.calendar.application.enterprise_calendar_service import EnterpriseCalendarService
-from src.core.platform.calendar.application.working_rule_service import WorkingRuleService
-from src.core.platform.calendar.application.calendar_exception_service import CalendarExceptionService
-from src.core.platform.calendar.application.recurring_event_service import RecurringEventService
-from src.core.platform.calendar.application.shift_pattern_service import ShiftPatternService
-from src.core.platform.calendar.application.calendar_assignment_service import CalendarAssignmentService
-from src.core.platform.calendar.application.enterprise_calendar_resolver import EnterpriseCalendarResolver
-from src.core.platform.calendar.application.working_time_calculator import WorkingTimeCalculator
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import EnterpriseCalendarService
+from src.core.platform.application.time_management.calendar.definitions.working_rule_service import WorkingRuleService
+from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import CalendarExceptionService
+from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import RecurringEventService
+from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import ShiftPatternService
+from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import CalendarAssignmentService
+from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import EnterpriseCalendarResolver
+from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import WorkingTimeCalculator
 from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
+from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import PortfolioResourcePoolService
 from src.infra.composition.inventory_registry import build_inventory_procurement_service_bundle
 from src.infra.composition.maintenance_registry import build_maintenance_service_bundle
 from src.infra.composition.platform_registry import build_platform_service_bundle
@@ -144,7 +148,6 @@ class ServiceGraph:
     session: Session
     user_session: UserSessionContext
     platform_runtime_application_service: PlatformRuntimeApplicationService
-    module_runtime_service: ModuleRuntimeService
     module_catalog_service: ModuleCatalogService
     module_registry: ModuleRegistry
     integration_resolver: IntegrationResolver
@@ -215,6 +218,10 @@ class ServiceGraph:
     cost_service: CostService
     financial_configuration_service: FinancialConfigurationService
     forecast_service: ForecastCostService
+    rate_card_service: ProjectRateCardService
+    rate_card_resolver: RateCardResolver
+    budget_service: BudgetService
+    planned_cost_service: PlannedCostService
     finance_service: FinanceService
     work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
     scheduling_engine: SchedulingEngine
@@ -236,13 +243,13 @@ class ServiceGraph:
     working_time_calculator: WorkingTimeCalculator | None
     resource_capacity_calculator: ResourceCapacityCalculator | None
     enterprise_resource_availability: EnterpriseResourceAvailabilityService | None
+    portfolio_resource_pool_service: PortfolioResourcePoolService | None
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "session": self.session,
             "user_session": self.user_session,
             "platform_runtime_application_service": self.platform_runtime_application_service,
-            "module_runtime_service": self.module_runtime_service,
             "module_catalog_service": self.module_catalog_service,
             "module_registry": self.module_registry,
             "integration_resolver": self.integration_resolver,
@@ -315,6 +322,10 @@ class ServiceGraph:
             "cost_service": self.cost_service,
             "financial_configuration_service": self.financial_configuration_service,
             "forecast_service": self.forecast_service,
+            "rate_card_service": self.rate_card_service,
+            "rate_card_resolver": self.rate_card_resolver,
+            "budget_service": self.budget_service,
+            "planned_cost_service": self.planned_cost_service,
             "finance_service": self.finance_service,
             "work_calendar_engine": self.work_calendar_engine,
             "scheduling_engine": self.scheduling_engine,
@@ -338,6 +349,7 @@ class ServiceGraph:
             # Registered as "resource_availability_service" so build_desktop_api_registry picks it up.
             # The old ResourceAvailabilityService (uses WorkCalendarEngine) is no longer the default.
             "resource_availability_service": self.enterprise_resource_availability,
+            "portfolio_resource_pool_service": self.portfolio_resource_pool_service,
         }
 
 
@@ -376,13 +388,12 @@ def build_service_graph(session: Session) -> ServiceGraph:
         "Project Management service bundle built duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
-    _module_registry = ModuleRegistry(platform_services.module_runtime_service)
+    _module_registry = ModuleRegistry(platform_services.module_catalog_service)
     _integration_resolver = IntegrationResolver(_module_registry)
     graph = ServiceGraph(
         session=session,
         user_session=platform_services.user_session,
         platform_runtime_application_service=platform_services.platform_runtime_application_service,
-        module_runtime_service=platform_services.module_runtime_service,
         module_catalog_service=platform_services.module_catalog_service,
         module_registry=_module_registry,
         integration_resolver=_integration_resolver,
@@ -457,6 +468,10 @@ def build_service_graph(session: Session) -> ServiceGraph:
             project_management_services.financial_configuration_service
         ),
         forecast_service=project_management_services.forecast_service,
+        rate_card_service=project_management_services.rate_card_service,
+        rate_card_resolver=project_management_services.rate_card_resolver,
+        budget_service=project_management_services.budget_service,
+        planned_cost_service=project_management_services.planned_cost_service,
         finance_service=project_management_services.finance_service,
         work_calendar_engine=project_management_services.work_calendar_engine,
         scheduling_engine=project_management_services.scheduling_engine,
@@ -478,6 +493,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         working_time_calculator=platform_services.working_time_calculator,
         resource_capacity_calculator=project_management_services.resource_capacity_calculator,
         enterprise_resource_availability=project_management_services.enterprise_resource_availability,
+        portfolio_resource_pool_service=project_management_services.portfolio_resource_pool_service,
     )
     logger.debug(
         "Service graph build complete duration_ms=%.1f",

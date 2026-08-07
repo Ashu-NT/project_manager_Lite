@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.core.platform.auth import AuthService, UserSessionContext
+from src.core.platform.application.security.auth import AuthService
+from src.core.platform.domain.security.auth import UserSessionContext
 from src.core.platform.common.exceptions import ValidationError
 
 QML_IMPORT_NAME = "Shell.Controllers"

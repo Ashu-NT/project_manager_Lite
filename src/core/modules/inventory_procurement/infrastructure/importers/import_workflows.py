@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.importing import (
+from src.core.platform.domain.data_operations.importing import (
     ImportPreview,
     ImportPreviewRow,
     ImportSourceRow,

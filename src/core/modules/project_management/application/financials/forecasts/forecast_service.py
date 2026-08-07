@@ -7,8 +7,8 @@ from src.core.modules.project_management.contracts.repositories.cost import Cost
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.domain.financials.cost import CommitmentStatus, CostItem
-from src.core.platform.access.authorization import require_project_permission
-from src.core.platform.auth.authorization import require_permission
+from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
@@ -92,11 +92,23 @@ class ForecastCostService(ProjectManagementModuleGuardMixin):
         project_repo: ProjectRepository,
         user_session=None,
         module_catalog_service=None,
+        tenant_context_service=None,
     ) -> None:
         self._costs: CostRepository = cost_repo
         self._projects: ProjectRepository = project_repo
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
+        self._tenant_context_service = tenant_context_service
+
+    def _require_organization_context(self, *, operation_label: str) -> None:
+        if self._tenant_context_service is None:
+            from src.core.platform.common.exceptions import BusinessRuleError
+
+            raise BusinessRuleError(
+                f"Active tenant and organization context is required for {operation_label}.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        self._tenant_context_service.require_organization_context(operation_label=operation_label)
 
     def get_commitment_summary(self, project_id: str) -> CommitmentSummary:
         require_permission(self._user_session, "finance.read", operation_label="view commitment summary")
@@ -104,6 +116,7 @@ class ForecastCostService(ProjectManagementModuleGuardMixin):
             self._user_session, project_id, "finance.read",
             operation_label="view commitment summary",
         )
+        self._require_organization_context(operation_label="view commitment summary")
         items = self._costs.list_by_project(project_id)
         return self._build_commitment_summary(project_id, items)
 
@@ -117,6 +130,7 @@ class ForecastCostService(ProjectManagementModuleGuardMixin):
             self._user_session, project_id, "finance.read",
             operation_label="view material rollup",
         )
+        self._require_organization_context(operation_label="view material rollup")
         all_items = self._costs.list_by_project(project_id)
         material = [
             c for c in all_items
@@ -149,6 +163,7 @@ class ForecastCostService(ProjectManagementModuleGuardMixin):
             self._user_session, project_id, "finance.read",
             operation_label="compute cost forecast",
         )
+        self._require_organization_context(operation_label="compute cost forecast")
         project = self._projects.get(project_id)
         if project is None:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
@@ -190,6 +205,7 @@ class ForecastCostService(ProjectManagementModuleGuardMixin):
             self._user_session, project_id, "finance.read",
             operation_label="check cost threshold",
         )
+        self._require_organization_context(operation_label="check cost threshold")
         items = self._costs.list_by_project(project_id)
         bac = sum(c.planned_amount for c in items)
         if bac <= 0:

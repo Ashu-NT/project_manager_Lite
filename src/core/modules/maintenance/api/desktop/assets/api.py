@@ -52,8 +52,9 @@ from src.core.modules.maintenance.domain import (
     MaintenanceCriticality,
     MaintenanceLifecycleStatus,
 )
-from src.core.platform.site import SiteService
-from src.core.platform.party import PartyService, PartyType
+from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.master_data.party.party_service import PartyService
+from src.core.platform.domain.master_data.party import PartyType
 
 _MANUFACTURER_PARTY_TYPES = {
     PartyType.MANUFACTURER,

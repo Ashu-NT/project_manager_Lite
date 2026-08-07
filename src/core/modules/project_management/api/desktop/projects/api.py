@@ -7,7 +7,7 @@ from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceService,
 )
-from src.core.platform.site import SiteService
+from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.common.exceptions import BusinessRuleError
 
 from src.core.modules.project_management.api.desktop.projects.models.project import (

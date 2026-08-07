@@ -17,7 +17,7 @@ ApplicationWindow {
     minimumWidth: 740
     minimumHeight: 480
     visible: true
-    title: "Sign in — TECHASH Enterprise"
+    title: "Sign in - TECHASH Enterprise"
     color: Theme.AppTheme.loginWindowBackground
 
     onClosing: function() {

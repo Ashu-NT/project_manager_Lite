@@ -6,7 +6,7 @@ from datetime import date, datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.application.runtime.entitlement_runtime import ModuleRuntimeService
+from src.core.platform.application.tenant.modules import ModuleCatalogService
 from src.core.modules.inventory_procurement.application.common.support import (
     BUSINESS_PARTY_TYPES,
     normalize_inventory_code,
@@ -30,14 +30,14 @@ from src.core.modules.inventory_procurement.domain.inventory.foundation import (
 )
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
 from src.core.shared.activity.activity_recorder import record_activity
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.common.ids import generate_id
 from src.core.shared.events.domain_events import domain_events
-from src.core.platform.org.contracts import OrganizationRepository
-from src.core.platform.org.domain import Organization
-from src.core.platform.party import PartyService
-from src.core.platform.tenancy.tenant_context import (
+from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.domain.master_data.org import Organization
+from src.core.platform.application.master_data.party.party_service import PartyService
+from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
     require_tenant_context_service,
 )
@@ -57,7 +57,7 @@ class InventoryFoundationService:
         item_service: ItemMasterService,
         stock_service: StockControlService,
         party_service: PartyService,
-        module_runtime_service: ModuleRuntimeService | None = None,
+        module_catalog_service: ModuleCatalogService | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session=None,
         activity_service=None,
@@ -75,7 +75,7 @@ class InventoryFoundationService:
         self._item_service = item_service
         self._stock_service = stock_service
         self._party_service = party_service
-        self._module_runtime_service = module_runtime_service
+        self._module_catalog_service = module_catalog_service
         self._user_session = user_session
         self._activity_service = activity_service
 

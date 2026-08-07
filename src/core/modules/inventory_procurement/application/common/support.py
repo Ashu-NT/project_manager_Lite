@@ -21,7 +21,7 @@ from src.core.modules.inventory_procurement.domain._validation import (
 )
 from src.core.modules.inventory_procurement.domain.catalog.item import StockItem
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.party.domain import PartyType
+from src.core.platform.domain.master_data.party import PartyType
 
 BUSINESS_PARTY_TYPES = {
     PartyType.SUPPLIER,

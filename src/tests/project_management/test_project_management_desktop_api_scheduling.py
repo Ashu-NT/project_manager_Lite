@@ -321,7 +321,9 @@ class _FakeBaselineService:
     def list_baselines(self, project_id: str) -> list[SimpleNamespace]:
         return list(self._baselines_by_project.get(project_id, []))
 
-    def create_baseline(self, project_id: str, name: str = "Baseline") -> SimpleNamespace:
+    def create_baseline(
+        self, project_id: str, name: str = "Baseline", *, rate_as_of: date | None = None
+    ) -> SimpleNamespace:
         baseline = SimpleNamespace(
             id=f"base-{self._next_id}",
             project_id=project_id,

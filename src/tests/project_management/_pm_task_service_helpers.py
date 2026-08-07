@@ -6,13 +6,13 @@ from types import SimpleNamespace
 
 from PySide6.QtCore import QSettings
 
-from src.api.desktop.platform import DesktopApiResult
+from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.modules.project_management.api.desktop import (
     build_project_management_collaboration_desktop_api,
     build_project_management_tasks_desktop_api,
 )
 from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
-from src.core.platform.documents import DocumentStorageKind
+from src.core.platform.domain.master_data.documents import DocumentStorageKind
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementTaskViewStore,

@@ -32,8 +32,21 @@ from src.core.modules.project_management.application.financials.earned_value.evm
 from src.core.modules.project_management.application.financials.configuration_service import (
     FinancialConfigurationService,
 )
+from src.core.modules.project_management.application.financials.rate_cards import (
+    ProjectRateCardService,
+    RateCardResolver,
+    RateSelectionSnapshot,
+)
+from src.core.modules.project_management.application.financials.budgets import BudgetService
+from src.core.modules.project_management.application.financials.planned_costs import (
+    PlannedCostCalculationResult,
+    PlannedCostService,
+)
 
 __all__ = [
+    "BudgetService",
+    "PlannedCostCalculationResult",
+    "PlannedCostService",
     "CommitmentSummary",
     "CostControlTotals",
     "CostForecastResult",
@@ -52,4 +65,7 @@ __all__ = [
     "LaborCostEngine",
     "MaterialRollup",
     "FinancialConfigurationService",
+    "ProjectRateCardService",
+    "RateCardResolver",
+    "RateSelectionSnapshot",
 ]

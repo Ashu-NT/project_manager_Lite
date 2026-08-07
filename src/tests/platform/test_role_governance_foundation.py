@@ -11,10 +11,12 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import IntegrityError
 
-from src.core.platform.auth.domain import (
+from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_TENANT,
-    Role,
     RoleBinding,
+)
+from src.core.platform.domain.security.auth import (
+    Role,
     RolePermissionBinding,
 )
 from src.core.platform.common.exceptions import (
@@ -22,8 +24,8 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from src.core.platform.org.domain import Organization
-from src.core.platform.tenancy import Tenant
+from src.core.platform.domain.master_data.org import Organization
+from src.core.platform.domain.tenant.tenancy import Tenant
 from src.infra.persistence.migrations.runner import run_migrations
 
 

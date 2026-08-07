@@ -21,13 +21,13 @@ def test_compare_baselines_returns_added_removed_changed_and_cost_delta(services
     task_a = ts.create_task(pid, "Task A", start_date=date(2024, 1, 1), duration_days=2)
     task_b = ts.create_task(pid, "Task B", start_date=date(2024, 1, 3), duration_days=2)
     cost_s.add_cost_item(project_id=pid, description="A planned", planned_amount=100.0, task_id=task_a.id)
-    baseline_1 = bs.create_baseline(pid, "BL1")
+    baseline_1 = bs.create_baseline(pid, "BL1", rate_as_of=date.today())
 
     ts.update_task(task_a.id, start_date=date(2024, 1, 2), duration_days=3)
     ts.delete_task(task_b.id)
     task_c = ts.create_task(pid, "Task C", start_date=date(2024, 1, 8), duration_days=1)
     cost_s.add_cost_item(project_id=pid, description="A extra", planned_amount=50.0, task_id=task_a.id)
-    baseline_2 = bs.create_baseline(pid, "BL2")
+    baseline_2 = bs.create_baseline(pid, "BL2", rate_as_of=date.today())
 
     comparison = rp.compare_baselines(
         project_id=pid,
@@ -65,8 +65,8 @@ def test_compare_baselines_filters_out_unchanged_rows_when_requested(services):
     pid = project.id
     ts.create_task(pid, "Task Stable", start_date=date(2024, 2, 5), duration_days=2)
 
-    baseline_1 = bs.create_baseline(pid, "Stable-1")
-    baseline_2 = bs.create_baseline(pid, "Stable-2")
+    baseline_1 = bs.create_baseline(pid, "Stable-1", rate_as_of=date.today())
+    baseline_2 = bs.create_baseline(pid, "Stable-2", rate_as_of=date.today())
 
     comparison = rp.compare_baselines(
         project_id=pid,
@@ -89,7 +89,7 @@ def test_compare_baselines_validates_input_and_missing_ids(services):
     project = ps.create_project("Baseline Compare Validation", "")
     pid = project.id
     ts.create_task(pid, "Task 1", start_date=date(2024, 3, 4), duration_days=1)
-    baseline = bs.create_baseline(pid, "Only")
+    baseline = bs.create_baseline(pid, "Only", rate_as_of=date.today())
 
     with pytest.raises(ValidationError) as same_exc:
         rp.compare_baselines(pid, baseline.id, baseline.id)
@@ -111,7 +111,7 @@ def test_baseline_approval_tracks_current_approved_and_variance_records(services
     task = ts.create_task(pid, "Critical Task", start_date=date(2024, 4, 1), duration_days=2)
     cost_s.add_cost_item(project_id=pid, description="Initial plan", planned_amount=100.0, task_id=task.id)
 
-    baseline_1 = bs.create_baseline(pid, "BL1")
+    baseline_1 = bs.create_baseline(pid, "BL1", rate_as_of=date.today())
     bs.submit_baseline(baseline_1.id, submitted_by="alex")
     approved_1 = bs.approve_baseline(baseline_1.id, approved_by="alex")
 
@@ -122,7 +122,7 @@ def test_baseline_approval_tracks_current_approved_and_variance_records(services
     ts.update_task(task.id, start_date=date(2024, 4, 3), duration_days=4)
     cost_s.add_cost_item(project_id=pid, description="Growth", planned_amount=25.0, task_id=task.id)
 
-    baseline_2 = bs.create_baseline(pid, "BL2")
+    baseline_2 = bs.create_baseline(pid, "BL2", rate_as_of=date.today())
     bs.submit_baseline(baseline_2.id, submitted_by="alex")
     approved_2 = bs.approve_baseline(baseline_2.id, approved_by="alex")
 

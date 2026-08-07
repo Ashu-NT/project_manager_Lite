@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from src.api.desktop.platform import (
-    DesktopApiError,
-    DesktopApiResult,
+from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
+from src.core.platform.api.desktop.platform_runtime.models.runtime import (
     ModuleEntitlementDto,
     ModuleStatePatchCommand,
-    PlatformRuntimeDesktopApi,
 )
+from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
 from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionItemViewModel,
     PlatformWorkspaceActionListViewModel,

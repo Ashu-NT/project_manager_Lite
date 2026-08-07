@@ -35,7 +35,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.skills i
     TaskSkillRequirementORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskORM
-from src.core.platform.tenancy.tenant_context import TenantContextService
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
 
 class SqlAlchemyResourceSkillRepository(

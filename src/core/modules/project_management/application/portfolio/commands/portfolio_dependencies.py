@@ -3,7 +3,8 @@ from __future__ import annotations
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.portfolio import PortfolioProjectDependency
 from src.core.shared.activity import record_activity
-from src.core.platform.auth.authorization import require_permission
+from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
 
@@ -32,6 +33,13 @@ class PortfolioDependencyCommandMixin:
                 "Choose two accessible projects for the portfolio dependency.",
                 code="PORTFOLIO_DEPENDENCY_PROJECT_REQUIRED",
             )
+        for project_id in (predecessor.id, successor.id):
+            require_project_permission(
+                self._user_session,
+                project_id,
+                "portfolio.manage",
+                operation_label="create portfolio dependency",
+            )
         self._active_portfolio_organization_id(operation_label="create portfolio dependency")
         for existing in self._dependency_repo.list():
             if (
@@ -42,8 +50,12 @@ class PortfolioDependencyCommandMixin:
                     "That portfolio dependency already exists.",
                     code="PORTFOLIO_DEPENDENCY_DUPLICATE",
                 )
-        self._dependency_repo.add(dependency)
-        self._session.commit()
+        try:
+            self._dependency_repo.add(dependency)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         record_activity(
             self,
             action="portfolio.project_dependency.add",
@@ -82,8 +94,12 @@ class PortfolioDependencyCommandMixin:
                 "You no longer have access to one of the projects in this dependency.",
                 code="PORTFOLIO_DEPENDENCY_SCOPE_INVALID",
             )
-        self._dependency_repo.delete(dependency_id)
-        self._session.commit()
+        try:
+            self._dependency_repo.delete(dependency_id)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         record_activity(
             self,
             action="portfolio.project_dependency.remove",

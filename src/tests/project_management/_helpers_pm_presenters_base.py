@@ -25,8 +25,10 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_scheduling_desktop_api,
     build_project_management_tasks_desktop_api,
 )
-from src.api.desktop.runtime import build_desktop_api_registry
-from src.api.desktop.platform import ApprovalRequestDto, ApprovalStatus, DesktopApiResult
+from src.application.runtime import build_desktop_api_registry
+from src.core.platform.api.desktop.approval.models.approval import ApprovalRequestDto
+from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.domain.approval import ApprovalStatus
 from src.core.modules.project_management.domain.enums import (
     CostType,
     DependencyType,
@@ -39,7 +41,7 @@ from src.core.modules.project_management.domain.risk.register import (
     RegisterEntryStatus,
     RegisterEntryType,
 )
-from src.core.platform.documents import DocumentStorageKind
+from src.core.platform.domain.master_data.documents import DocumentStorageKind
 from src.tests.ui_runtime_helpers import wait_until
 from src.ui_qml.modules.project_management.presenters.collaboration import (
     ProjectCollaborationWorkspacePresenter,

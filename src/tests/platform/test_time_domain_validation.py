@@ -6,8 +6,8 @@ from datetime import date
 import pytest
 
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.time.application.time_service import TimeService
-from src.core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
+from src.core.platform.application.time_management.time.time_service import TimeService
+from src.core.platform.domain.time_management.time import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
 
 
 class _FakeSession:
@@ -187,19 +187,19 @@ class _FakeTimesheetPeriodRepo:
 
 def _make_time_service(monkeypatch: pytest.MonkeyPatch) -> tuple[TimeService, _FakeWorkAllocation]:
     monkeypatch.setattr(
-        "src.core.platform.time.application.timesheet_support.require_any_permission",
+        "src.core.platform.application.time_management.time.timesheet_support.require_any_permission",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.time.application.timesheet_periods.require_permission",
+        "src.core.platform.application.time_management.time.timesheet_periods.require_permission",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.time.application.timesheet_entries.record_audit_entry",
+        "src.core.platform.application.time_management.time.timesheet_entries.record_audit_entry",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.time.application.timesheet_periods.record_audit_entry",
+        "src.core.platform.application.time_management.time.timesheet_periods.record_audit_entry",
         lambda *args, **kwargs: None,
     )
 

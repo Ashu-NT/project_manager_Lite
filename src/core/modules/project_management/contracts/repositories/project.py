@@ -43,3 +43,12 @@ class ProjectResourceRepository(ABC):
 
     @abstractmethod
     def update(self, pr: ProjectResource) -> None: ...
+
+    @abstractmethod
+    def touch_version_with_check(self, pr_id: str, *, expected_version: int) -> int:
+        """Advances only ``version`` (no other field changes) and returns
+        the new value. Used by the assignment-level planned-hours
+        reconciliation flow to make a concurrent envelope shrink and a
+        concurrent allocation increase detectable against each other, even
+        though neither operation, by itself, mutates the other's data."""
+        ...

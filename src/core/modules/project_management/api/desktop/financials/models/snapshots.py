@@ -72,6 +72,8 @@ class FinancialSnapshotDto:
     by_resource: tuple[FinancialAnalyticsRowDto, ...]
     by_task: tuple[FinancialAnalyticsRowDto, ...]
     notes: tuple[str, ...]
+    labor_rates_complete: bool = True
+    unresolved_labor_rate_count: int = 0
 
 
 __all__ = [

@@ -8,13 +8,13 @@ from src.core.modules.project_management.domain.enums import CostType, WorkerTyp
 from src.core.modules.project_management.infrastructure.persistence.orm.resource import (
     ResourceORM,
 )
-from src.core.platform.infrastructure.persistence.orm.approval import ApprovalRequestORM
-from src.core.platform.infrastructure.persistence.orm.audit_entry import AuditEntryORM
-from src.core.platform.infrastructure.persistence.orm.time import (
+from src.core.platform.infrastructure.persistence.orm.approval.approval import ApprovalRequestORM
+from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import AuditEntryORM
+from src.core.platform.infrastructure.persistence.orm.time_management.time.time import (
     TimeEntryORM,
     TimesheetPeriodORM,
 )
-from src.core.platform.time.domain import TimesheetPeriodStatus
+from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 
 
 def _seed_time_governance_scope_rows(services) -> dict[str, str]:

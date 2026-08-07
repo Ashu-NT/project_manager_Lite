@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment, TaskDependency
 from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskAssignmentORM, TaskDependencyORM, TaskORM
 
@@ -58,6 +60,8 @@ def assignment_to_orm(assignment: TaskAssignment) -> TaskAssignmentORM:
         project_resource_id=getattr(assignment, "project_resource_id", None),
         allocation_percent=assignment.allocation_percent,
         hours_logged=getattr(assignment, "hours_logged", 0.0),
+        allocated_planned_hours=getattr(assignment, "allocated_planned_hours", Decimal("0")),
+        version=getattr(assignment, "version", 1),
         response_status=getattr(assignment, "response_status", "pending"),
         responded_at=getattr(assignment, "responded_at", None),
     )
@@ -71,6 +75,8 @@ def assignment_from_orm(obj: TaskAssignmentORM) -> TaskAssignment:
         project_resource_id=getattr(obj, "project_resource_id", None),
         allocation_percent=obj.allocation_percent,
         hours_logged=getattr(obj, "hours_logged", 0.0),
+        allocated_planned_hours=getattr(obj, "allocated_planned_hours", Decimal("0")),
+        version=getattr(obj, "version", 1),
         response_status=getattr(obj, "response_status", "pending") or "pending",
         responded_at=getattr(obj, "responded_at", None),
     )

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from src.core.modules.project_management.domain.portfolio import PortfolioScenario
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.shared.events.domain_events import domain_events
 
@@ -35,8 +35,12 @@ class PortfolioScenarioCommandMixin:
             project_ids=self._validate_project_ids(scenario.project_ids),
             intake_item_ids=self._validate_intake_ids(scenario.intake_item_ids),
         )
-        self._scenario_repo.add(scenario)
-        self._session.commit()
+        try:
+            self._scenario_repo.add(scenario)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         domain_events.portfolio_changed.emit(scenario.id)
         return scenario
 
@@ -78,8 +82,12 @@ class PortfolioScenarioCommandMixin:
                 candidate,
                 intake_item_ids=self._validate_intake_ids(candidate.intake_item_ids),
             )
-        self._scenario_repo.update(candidate)
-        self._session.commit()
+        try:
+            self._scenario_repo.update(candidate)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         domain_events.portfolio_changed.emit(candidate.id)
         return candidate
 

@@ -10,8 +10,8 @@ from src.ui_qml.modules.project_management.presenters import (
     build_project_management_workspace_presenters,
 )
 from src.ui_qml.modules.project_management.routes import build_project_management_routes
-from src.api.desktop.runtime import build_desktop_api_registry
-from src.api.desktop.platform import DesktopApiResult
+from src.application.runtime import build_desktop_api_registry
+from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.modules.project_management.domain.enums import (
     CostType,
     ProjectStatus,

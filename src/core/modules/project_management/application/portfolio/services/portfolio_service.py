@@ -22,7 +22,7 @@ from src.core.modules.project_management.contracts.repositories.portfolio import
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
-from src.core.platform.audit.contracts import AuditRepository
+from src.core.platform.contract.history.audit.contracts import AuditRepository
 from src.core.platform.common.exceptions import BusinessRuleError
 
 

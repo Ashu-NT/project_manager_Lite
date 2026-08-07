@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import Iterable, TypeVar
 
-from src.core.platform.auth.authorization import record_authorization_denial
+from src.core.platform.application.security.authorization.enforcement.permission_checks import record_authorization_denial
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.auth.domain.session import UserSessionContext
-from src.core.platform.authorization import get_authorization_engine
+from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.application.security.authorization import get_authorization_engine
 
 
 _T = TypeVar("_T")
@@ -42,22 +42,6 @@ def require_scope_permission(
     )
 
 
-def require_project_permission(
-    user_session: UserSessionContext | None,
-    project_id: str,
-    permission_code: str,
-    *,
-    operation_label: str,
-) -> None:
-    require_scope_permission(
-        user_session,
-        "project",
-        project_id,
-        permission_code,
-        operation_label=operation_label,
-    )
-
-
 def filter_scope_rows(
     rows: Iterable[_T],
     user_session: UserSessionContext | None,
@@ -75,25 +59,7 @@ def filter_scope_rows(
     )
 
 
-def filter_project_rows(
-    rows: Iterable[_T],
-    user_session: UserSessionContext | None,
-    *,
-    permission_code: str,
-    project_id_getter,
-) -> list[_T]:
-    return filter_scope_rows(
-        rows,
-        user_session,
-        scope_type="project",
-        permission_code=permission_code,
-        scope_id_getter=project_id_getter,
-    )
-
-
 __all__ = [
-    "filter_project_rows",
     "filter_scope_rows",
-    "require_project_permission",
     "require_scope_permission",
 ]

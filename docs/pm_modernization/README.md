@@ -5,8 +5,9 @@ Status: authoritative follow-up plan for the live PM module inside the modular S
 ## Focused Upgrade Plans
 
 - [Project Finance existing-state audit and implementation plan](project_finance_existing_state_and_implementation_plan.md) - authoritative backend-first plan for upgrading the Financials workspace and its shared monetary foundations.
+- [Rate Card Cost-Engine Cutover Plan](rate_card_cost_engine_cutover_plan.md) - companion to ADR-PF-005; plans repointing `CostPolicyEngine`/`LaborCostEngine` at the (implemented) rate-card resolver.
 
-Project Finance progress (2026-08-02): Phase A0-A2 and Phase B1 configuration are implemented. The accepted Task-owned WBS slice is next; effective-dated rate cards and versioned budgets follow. Temporary currency synchronization is registered under `PF-B1-CURRENCY-DUAL-WRITE` and must be deleted at profile read-model/QML cutover.
+Project Finance progress (2026-08-05): Phase A0-A2 and Phase B1 configuration are implemented. Task-owned WBS (ADR-PF-003) turned out to already be implemented on inspection. Rate Cards (ADR-PF-005) are now implemented and tested (uncommitted) with the full 7-level precedence; the cost-engine cutover onto them is planned but not yet built — see the cutover plan above. Versioned budgets follow. Temporary currency synchronization is registered under `PF-B1-CURRENCY-DUAL-WRITE` and must be deleted at profile read-model/QML cutover.
 
 ## Purpose
 

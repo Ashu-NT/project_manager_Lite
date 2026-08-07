@@ -140,7 +140,9 @@ def test_baseline_service_uses_domain_normalization_for_create_and_reject_flow(s
     project = project_service.create_project("Baseline DTO Service Proof")
     task_service.create_task(project.id, "First Task", start_date=date(2026, 7, 1), duration_days=2)
 
-    created = baseline_service.create_baseline(project.id, "  Weekly Freeze  ")
+    created = baseline_service.create_baseline(
+        project.id, "  Weekly Freeze  ", rate_as_of=date.today()
+    )
     assert created.name == "Weekly Freeze"
 
     submitted = baseline_service.submit_baseline(

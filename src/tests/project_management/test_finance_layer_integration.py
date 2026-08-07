@@ -27,7 +27,13 @@ def _seed_finance_project(services) -> str:
     task_a = ts.create_task(pid, "Execution A", start_date=date(2024, 1, 8), duration_days=5)
     ts.create_task(pid, "Execution B", start_date=date(2024, 1, 15), duration_days=3)
 
-    resource = rs.create_resource("Engineer A", "Developer", hourly_rate=60.0, currency_code="EUR")
+    resource = rs.create_resource(
+        "Engineer A",
+        "Developer",
+        hourly_rate=60.0,
+        currency_code="EUR",
+        rate_effective_on=date(2024, 1, 8),
+    )
     pr = prs.add_to_project(
         project_id=pid,
         resource_id=resource.id,

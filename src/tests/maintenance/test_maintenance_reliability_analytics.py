@@ -17,10 +17,10 @@ from src.core.modules.maintenance.domain import (
     MaintenanceFailureCodeType,
 )
 from src.core.modules.maintenance import MaintenanceReliabilityService
-from src.core.platform.auth.domain.session import UserSessionContext, UserSessionPrincipal
+from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.org.domain import Organization
-from src.core.platform.site.domain import Site
+from src.core.platform.domain.master_data.org import Organization
+from src.core.platform.domain.master_data.site import Site
 from .test_maintenance_foundation_asset import _TenantContext
 
 

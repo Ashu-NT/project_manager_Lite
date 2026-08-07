@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from pathlib import Path
 
-from src.api.desktop.runtime import build_desktop_api_registry
+from src.application.runtime import build_desktop_api_registry
 from src.core.modules.inventory_procurement.api.desktop import (
     InventoryAdjustmentCommand,
     InventoryCycleCountCreateCommand,
@@ -34,7 +34,7 @@ from src.core.modules.inventory_procurement.api.desktop import (
     build_inventory_procurement_reservations_desktop_api,
     build_inventory_procurement_workspace_desktop_api,
 )
-from src.core.platform.party.domain import PartyType
+from src.core.platform.domain.master_data.party import PartyType
 from src.tests.ui_runtime_helpers import login_as
 
 
@@ -89,7 +89,7 @@ def _build_inventory_api(services):
         procurement_service=services["inventory_procurement_service"],
         purchasing_service=services["inventory_purchasing_service"],
         reporting_service=services["inventory_reporting_service"],
-        module_runtime_service=services["module_runtime_service"],
+        module_catalog_service=services["module_catalog_service"],
     )
 
 

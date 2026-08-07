@@ -8,6 +8,8 @@
 
 Project Finance must consume approved Time and Procurement facts without importing their repositories or relying on process-local notifications. Delivery can be retried, duplicated, delayed, or received out of order. The existing collaboration inbox is user-facing collaboration data, and the shared process-local domain events are UI refresh signals; neither is a durable integration mechanism.
 
+The domain-event half of that observation — giving each bounded context typed, immutable, past-tense domain events instead of the shared string-keyed signal file — is addressed separately in [ADR-005](ADR-005-domain-events.md). That decision is complementary, not a dependency: this ADR's outbox/inbox contract stands regardless of when or whether ADR-005 is implemented.
+
 ## Decision
 
 - A source module owns a transactional outbox record written in the same database transaction as its aggregate transition. Time writes approved-time events; Procurement writes PO/receipt lifecycle events.

@@ -6,7 +6,7 @@ from uuid import uuid4
 import pytest
 
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.party.domain import PartyType
+from src.core.platform.domain.master_data.party import PartyType
 from src.tests.ui_runtime_helpers import login_as
 
 
@@ -125,7 +125,7 @@ def test_purchase_order_submit_enriches_approval_payload(services):
     assert request.payload["line_count"] == 1
     assert request.payload["total_amount"] == pytest.approx(1200.0)
 
-    from src.api.desktop.platform._approval_labels import approval_context_label, approval_display_label
+    from src.core.platform.api.desktop.approval._approval_labels import approval_context_label, approval_display_label
 
     display_label = approval_display_label(request)
     context_label = approval_context_label(request)

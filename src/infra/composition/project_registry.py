@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 
 import logging
 from dataclasses import dataclass
@@ -11,7 +11,8 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from src.core.platform.access import ScopedRolePolicy
-from src.core.platform.approval.contracts import (
+from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.contract.approval.contracts import (
     ApprovalHandlerResult,
     ApprovalPostCommitEvent,
 )
@@ -21,16 +22,24 @@ from src.core.modules.project_management.access.policy import (
     normalize_project_scope_role,
     resolve_project_scope_permissions,
 )
-from src.core.platform.time.application import TimeService
+from src.core.platform.application.time_management.time import TimeService
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
 )
+from src.core.modules.project_management.application.common.clock import SystemClock
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import (
+    BudgetService,
     CostService,
     FinancialConfigurationService,
     FinanceService,
     ForecastCostService,
+    PlannedCostService,
+    ProjectRateCardService,
+    RateCardResolver,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.rate_resolution_reader import (
+    SqlAlchemyRateResolutionReader,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
@@ -53,6 +62,7 @@ from src.core.modules.project_management.application.resources.assignment_valida
 from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import ProjectCalendarAdapter
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
 from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
+from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import PortfolioResourcePoolService
 from src.infra.composition.platform_registry import PlatformServiceBundle
 from src.infra.composition.repositories import RepositoryBundle
 
@@ -93,6 +103,10 @@ class ProjectManagementServiceBundle:
     cost_service: CostService
     financial_configuration_service: FinancialConfigurationService
     forecast_service: ForecastCostService
+    rate_card_service: ProjectRateCardService
+    rate_card_resolver: RateCardResolver
+    budget_service: BudgetService
+    planned_cost_service: PlannedCostService
     finance_service: FinanceService
     work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
     scheduling_engine: SchedulingEngine
@@ -107,6 +121,7 @@ class ProjectManagementServiceBundle:
     project_calendar_adapter: ProjectCalendarAdapter
     enterprise_resource_availability: EnterpriseResourceAvailabilityService
     resource_capacity_calculator: ResourceCapacityCalculator
+    portfolio_resource_pool_service: PortfolioResourcePoolService
 
 
 def build_project_management_service_bundle(
@@ -162,7 +177,7 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
         enterprise_audit_service=platform_services.enterprise_audit_service,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
 
@@ -189,7 +204,7 @@ def build_project_management_service_bundle(
         timesheet_period_repo=repositories.timesheet_period_repo,
         user_session=platform_services.user_session,
         enterprise_audit_service=platform_services.enterprise_audit_service,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
         scope_organization_resolver=_time_scope_organization_id,
     )
@@ -201,8 +216,10 @@ def build_project_management_service_bundle(
         session=session,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
+        task_repo=repositories.task_repo,
+        assignment_repo=repositories.assignment_repo,
     )
     register_service = RegisterService(
         session=session,
@@ -210,7 +227,7 @@ def build_project_management_service_bundle(
         register_repo=repositories.register_repo,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
     )
     # Build enterprise calendar adapter here so it can be injected into SchedulingEngine.
     # Instantiated before scheduling_engine so we pass it in during construction.
@@ -250,11 +267,15 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
         approval_service=platform_services.approval_service,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
         notification_service=platform_services.notification_service,
         employee_repo=repositories.employee_repo,
         assignment_skill_validator=assignment_skill_validator,
     )
+    # Shared by ResourceService (legacy rate-line seeding/supersession) and
+    # RateCardResolver (RateSelectionSnapshot.resolved_at) — one time source,
+    # not two independent ways of asking "what time is it."
+    system_clock = SystemClock()
     resource_service = ResourceService(
         session,
         repositories.resource_repo,
@@ -266,8 +287,10 @@ def build_project_management_service_bundle(
         cert_repo=repositories.resource_cert_repo,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
+        project_rate_card_repo=repositories.project_rate_card_repo,
+        clock=system_clock,
     )
     cost_service = CostService(
         session,
@@ -278,7 +301,7 @@ def build_project_management_service_bundle(
         activity_service=platform_services.activity_service,
         approval_service=platform_services.approval_service,
         enterprise_audit_service=platform_services.enterprise_audit_service,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
     financial_configuration_service = FinancialConfigurationService(
@@ -288,14 +311,60 @@ def build_project_management_service_bundle(
         project_repo=repositories.project_repo,
         user_session=platform_services.user_session,
         enterprise_audit_service=platform_services.enterprise_audit_service,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
     forecast_service = ForecastCostService(
         repositories.cost_repo,
         repositories.project_repo,
         user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    rate_card_service = ProjectRateCardService(
+        session=session,
+        rate_card_repo=repositories.project_rate_card_repo,
+        project_repo=repositories.project_repo,
+        user_session=platform_services.user_session,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
+        module_catalog_service=platform_services.module_catalog_service,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    rate_resolution_reader = SqlAlchemyRateResolutionReader(session=session)
+    rate_card_resolver = RateCardResolver(
+        reader=rate_resolution_reader,
+        tenant_context_service=platform_services.tenant_context_service,
+        clock=system_clock,
+    )
+    budget_service = BudgetService(
+        session=session,
+        budget_repo=repositories.project_budget_repo,
+        project_repo=repositories.project_repo,
+        financial_profile_repo=repositories.project_financial_profile_repo,
+        cost_code_repo=repositories.project_cost_code_repo,
+        task_repo=repositories.task_repo,
+        clock=system_clock,
+        user_session=platform_services.user_session,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
+        module_catalog_service=platform_services.module_catalog_service,
+        tenant_context_service=platform_services.tenant_context_service,
+        approval_service=platform_services.approval_service,
+    )
+    planned_cost_service = PlannedCostService(
+        session=session,
+        planned_cost_repo=repositories.planned_cost_repo,
+        project_repo=repositories.project_repo,
+        financial_profile_repo=repositories.project_financial_profile_repo,
+        cost_code_repo=repositories.project_cost_code_repo,
+        task_repo=repositories.task_repo,
+        assignment_repo=repositories.assignment_repo,
+        project_resource_repo=repositories.project_resource_repo,
+        rate_resolver=rate_card_resolver,
+        clock=system_clock,
+        user_session=platform_services.user_session,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
+        module_catalog_service=platform_services.module_catalog_service,
+        tenant_context_service=platform_services.tenant_context_service,
     )
     reporting_service = ReportingService(
         session=session,
@@ -308,8 +377,10 @@ def build_project_management_service_bundle(
         calendar=platform_services.global_calendar_shim,
         baseline_repo=repositories.baseline_repo,
         project_resource_repo=repositories.project_resource_repo,
+        rate_resolver=rate_card_resolver,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
     )
     finance_service = FinanceService(
         project_repo=repositories.project_repo,
@@ -318,8 +389,10 @@ def build_project_management_service_bundle(
         cost_repo=repositories.cost_repo,
         project_resource_repo=repositories.project_resource_repo,
         assignment_repo=repositories.assignment_repo,
+        rate_resolver=rate_card_resolver,
+        tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
     )
     collaboration_service = CollaborationService(
         session=session,
@@ -331,7 +404,7 @@ def build_project_management_service_bundle(
         audit_repo=repositories.audit_entry_repo,
         document_integration_service=platform_services.document_integration_service,
         user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
         role_repo=repositories.role_repo,
         role_binding_repo=repositories.role_binding_repo,
@@ -348,7 +421,7 @@ def build_project_management_service_bundle(
         resource_repo=repositories.resource_repo,
         reporting_service=reporting_service,
         user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
     baseline_service = BaselineService(
@@ -361,10 +434,12 @@ def build_project_management_service_bundle(
         calendar=platform_services.global_calendar_shim,
         project_resource_repo=repositories.project_resource_repo,
         resource_repo=repositories.resource_repo,
+        rate_resolver=rate_card_resolver,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
         approval_service=platform_services.approval_service,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
+        tenant_context_service=platform_services.tenant_context_service,
     )
     dashboard_service = DashboardService(
         reporting_service=reporting_service,
@@ -375,7 +450,7 @@ def build_project_management_service_bundle(
         scheduling_engine=scheduling_engine,
         work_calendar_engine=platform_services.global_calendar_shim,
         user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
     )
     data_import_service = DataImportService(
         project_service=project_service,
@@ -383,7 +458,7 @@ def build_project_management_service_bundle(
         resource_service=resource_service,
         cost_service=cost_service,
         user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_runtime_service,
+        module_catalog_service=platform_services.module_catalog_service,
     )
     project_calendar_adapter = _pre_project_calendar_adapter  # reuse the instance wired into SchedulingEngine
     enterprise_resource_availability = EnterpriseResourceAvailabilityService(
@@ -393,12 +468,23 @@ def build_project_management_service_bundle(
     resource_capacity_calculator = ResourceCapacityCalculator(
         availability_service=enterprise_resource_availability,
     )
+    portfolio_resource_pool_service = PortfolioResourcePoolService(
+        resource_repo=repositories.resource_repo,
+        assignment_repo=repositories.assignment_repo,
+        task_repo=repositories.task_repo,
+        project_repo=repositories.project_repo,
+        calendar=platform_services.global_calendar_shim,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+    )
     logger.debug("Project Management core services built")
     _register_project_management_approval_handlers(
         approval_service=platform_services.approval_service,
         baseline_service=baseline_service,
         task_service=task_service,
         cost_service=cost_service,
+        budget_service=budget_service,
+        user_session=platform_services.user_session,
     )
     logger.debug("Project Management approval handlers registered")
     logger.debug(
@@ -415,6 +501,10 @@ def build_project_management_service_bundle(
         cost_service=cost_service,
         financial_configuration_service=financial_configuration_service,
         forecast_service=forecast_service,
+        rate_card_service=rate_card_service,
+        rate_card_resolver=rate_card_resolver,
+        budget_service=budget_service,
+        planned_cost_service=planned_cost_service,
         finance_service=finance_service,
         work_calendar_engine=work_calendar_engine,
         scheduling_engine=scheduling_engine,
@@ -429,6 +519,7 @@ def build_project_management_service_bundle(
         project_calendar_adapter=project_calendar_adapter,
         enterprise_resource_availability=enterprise_resource_availability,
         resource_capacity_calculator=resource_capacity_calculator,
+        portfolio_resource_pool_service=portfolio_resource_pool_service,
     )
 
 
@@ -438,9 +529,9 @@ def _register_project_management_approval_handlers(
     baseline_service: BaselineService,
     task_service: TaskService,
     cost_service: CostService,
+    budget_service: BudgetService,
+    user_session=None,
 ) -> None:
-    # TRANSITION(PF-A0-UOW-BRIDGE): These handlers stage legacy service writes with
-    # commit=False/bypass_approval=True. Remove both switches at the Phase C command cutover.
     def _result(signal_name: str, payload: str) -> ApprovalHandlerResult:
         return ApprovalHandlerResult(
             post_commit_events=(ApprovalPostCommitEvent(signal_name, payload),)
@@ -448,36 +539,35 @@ def _register_project_management_approval_handlers(
 
     def _apply_baseline(req) -> ApprovalHandlerResult:
         project_id = req.payload["project_id"]
-        baseline_service.create_baseline(
+
+        baseline_service._apply_baseline_creation_decision(
             project_id=project_id,
             name=req.payload.get("name") or "Baseline",
-            bypass_approval=True,
+            rate_as_of=date.today(),
             commit=False,
         )
         return _result("baseline_changed", project_id)
 
     def _apply_dependency_add(req) -> ApprovalHandlerResult:
-        task_service.add_dependency(
+        task_service._apply_dependency_add_decision(
             predecessor_id=req.payload["predecessor_id"],
             successor_id=req.payload["successor_id"],
             dependency_type=_as_dependency_type(req.payload.get("dependency_type", "FS")),
             lag_days=int(req.payload.get("lag_days", 0) or 0),
-            bypass_approval=True,
             commit=False,
         )
         return _result("tasks_changed", req.project_id or "")
 
     def _apply_dependency_remove(req) -> ApprovalHandlerResult:
-        task_service.remove_dependency(
-            dep_id=req.payload["dependency_id"],
-            bypass_approval=True,
+        task_service._apply_dependency_remove_decision(
+            dependency_id=req.payload["dependency_id"],
             commit=False,
         )
         return _result("tasks_changed", req.project_id or "")
 
     def _apply_cost_add(req) -> ApprovalHandlerResult:
         project_id = req.payload["project_id"]
-        cost_service.add_cost_item(
+        cost_service._apply_cost_add_decision(
             project_id=project_id,
             description=req.payload.get("description", ""),
             planned_amount=float(req.payload.get("planned_amount", 0.0) or 0.0),
@@ -488,14 +578,13 @@ def _register_project_management_approval_handlers(
             incurred_date=_parse_date(req.payload.get("incurred_date")),
             currency_code=req.payload.get("currency_code"),
             code=req.payload.get("code", ""),
-            bypass_approval=True,
             commit=False,
             approval_request_id=req.id,
         )
         return _result("costs_changed", project_id)
 
     def _apply_cost_update(req) -> ApprovalHandlerResult:
-        cost_service.update_cost_item(
+        cost_service._apply_cost_update_decision(
             cost_id=req.payload["cost_id"],
             description=req.payload.get("description"),
             planned_amount=req.payload.get("planned_amount"),
@@ -508,22 +597,48 @@ def _register_project_management_approval_handlers(
             ),
             incurred_date=_parse_date(req.payload.get("incurred_date")),
             currency_code=req.payload.get("currency_code"),
-            expected_version=req.payload.get("expected_version"),
             code=req.payload.get("code"),
-            bypass_approval=True,
             commit=False,
             approval_request_id=req.id,
         )
         return _result("costs_changed", req.project_id or "")
 
     def _apply_cost_delete(req) -> ApprovalHandlerResult:
-        cost_service.delete_cost_item(
+        cost_service._apply_cost_delete_decision(
             cost_id=req.payload["cost_id"],
-            bypass_approval=True,
             commit=False,
             approval_request_id=req.id,
         )
         return _result("costs_changed", req.project_id or "")
+
+    def _require_budget_decision_actor() -> str:
+        principal = user_session.principal if user_session else None
+        if principal is None:
+            raise BusinessRuleError(
+                "An authenticated principal is required to decide a budget approval.",
+                code="PROJECT_BUDGET_ACTOR_REQUIRED",
+            )
+        return principal.user_id
+
+    def _apply_budget_approval(req) -> ApprovalHandlerResult:
+        budget = budget_service._apply_approval_decision(
+            budget_id=req.payload["budget_id"],
+            approved_by=_require_budget_decision_actor(),
+            expected_version=req.payload["expected_version"],
+            notes=req.payload.get("notes", ""),
+            commit=False,
+        )
+        return _result("budgets_changed", budget.project_id)
+
+    def _apply_budget_rejection(req) -> ApprovalHandlerResult:
+        budget = budget_service._apply_rejection_decision(
+            budget_id=req.payload["budget_id"],
+            rejected_by=_require_budget_decision_actor(),
+            expected_version=req.payload["expected_version"],
+            notes=req.payload.get("notes", ""),
+            commit=False,
+        )
+        return _result("budgets_changed", budget.project_id)
 
     approval_service.register_apply_handler(
         "baseline.create",
@@ -548,6 +663,14 @@ def _register_project_management_approval_handlers(
     approval_service.register_apply_handler(
         "cost.delete",
         _apply_cost_delete,
+    )
+    approval_service.register_apply_handler(
+        "budget.approve",
+        _apply_budget_approval,
+    )
+    approval_service.register_reject_handler(
+        "budget.approve",
+        _apply_budget_rejection,
     )
 
 

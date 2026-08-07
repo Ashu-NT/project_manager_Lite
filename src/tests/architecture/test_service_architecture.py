@@ -1,20 +1,18 @@
-from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
+from src.core.platform.application.platform_runtime import PlatformRuntimeApplicationService
 from src.core.platform.common.service_base import ServiceBase as LegacyServiceBase
 from src.core.platform.access import AccessControlService
-from src.core.platform.approval import ApprovalService
-from src.core.platform.approval.application.approval_service import ApprovalService as LegacyApprovalService
-from src.core.platform.auth import AuthService
-from src.core.platform.auth.application.auth_service import AuthService as LegacyAuthService
-from src.core.platform.audit import EnterpriseAuditService
-from src.core.platform.data_exchange import MasterDataExchangeService
-from src.core.platform.documents import DocumentService
-from src.core.platform.department import DepartmentService
-from src.core.platform.employee import EmployeeService
-from src.core.platform.org import OrganizationService
-from src.core.platform.site import SiteService
-from src.core.platform.party import PartyService
-from src.application.runtime.entitlement_runtime import ModuleRuntimeService
-from src.core.platform.time.application import TimeService
+from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.application.security.auth import AuthService
+from src.core.platform.application.history.audit import EnterpriseAuditService
+from src.core.platform.application.master_data.data_exchange import MasterDataExchangeService
+from src.core.platform.application.master_data.documents.document_service import DocumentService
+from src.core.platform.application.master_data.department.department_service import DepartmentService
+from src.core.platform.application.master_data.employee.employee_service import EmployeeService
+from src.core.platform.application.master_data.org.organization_service import OrganizationService
+from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.master_data.party.party_service import PartyService
+from src.core.platform.application.tenant.modules import ModuleCatalogService
+from src.core.platform.application.time_management.time import TimeService
 from src.tests.path_rewrites import REPO_ROOT
 from src.core.modules.inventory_procurement import (
     InventoryDataExchangeService,
@@ -97,7 +95,7 @@ def test_service_graph_builder_wires_all_services(session):
 
     assert isinstance(graph, ServiceGraph)
     assert isinstance(graph.platform_runtime_application_service, PlatformRuntimeApplicationService)
-    assert isinstance(graph.module_runtime_service, ModuleRuntimeService)
+    assert isinstance(graph.module_catalog_service, ModuleCatalogService)
     assert isinstance(graph.time_service, TimeService)
     assert isinstance(graph.approval_service, ApprovalService)
     assert isinstance(graph.auth_service, AuthService)
@@ -220,7 +218,7 @@ def test_service_graph_builder_wires_all_services(session):
     )
     assert as_dict["maintenance_work_order_task_service"] is graph.maintenance_work_order_task_service
     assert as_dict["maintenance_work_order_task_step_service"] is graph.maintenance_work_order_task_step_service
-    assert as_dict["module_runtime_service"] is graph.module_runtime_service
+    assert as_dict["module_catalog_service"] is graph.module_catalog_service
     assert as_dict["time_service"] is graph.time_service
     assert as_dict["access_service"] is graph.access_service
     assert as_dict["enterprise_audit_service"] is graph.enterprise_audit_service
@@ -282,8 +280,6 @@ def test_maintenance_helper_legacy_roots_are_removed():
 
 def test_legacy_service_imports_point_to_new_packages():
     assert LegacyServiceBase.__name__ == "ServiceBase"
-    assert LegacyApprovalService is ApprovalService
-    assert LegacyAuthService is AuthService
 
 
 def test_services_module_delegates_to_modular_registration_builders():

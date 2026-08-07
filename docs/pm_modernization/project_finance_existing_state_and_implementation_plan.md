@@ -1,9 +1,28 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
 Status: audit complete; Phase A0, A1, A2, and Phase B1 configuration code gates complete; hosted PostgreSQL validation pending
-Last updated: 2026-08-02  
-Scope: Project Management finance plus reusable platform financial foundations  
-Current increment: Phase B1 financial profile and cost-code foundation complete; Task-owned WBS implementation next
+Last updated: 2026-08-06
+Scope: Project Management finance plus reusable platform financial foundations
+Current increment: Task-owned WBS, effective-dated rate cards (ADR-PF-005) with the
+`CostPolicyEngine`/`LaborCostEngine` cutover, the versioned `ProjectBudget`/`BudgetLine`
+lifecycle (item 5, including governed approval integration), and versioned labor
+planned-cost snapshots (item 6) are all now implemented and tested (uncommitted); their
+design docs (`rate_card_cost_engine_cutover_plan.md`, `project_budget_lifecycle_plan.md`,
+`project_planned_cost_snapshot_plan.md`) were deleted 2026-08-06 as fully-superseded
+implementation logs once done — see [TODO/README.md](TODO/README.md) and git history for
+their content. The planned-cost slice is explicitly tactical/transitional: `TaskAssignment` gained a new
+`allocated_planned_hours` field (envelope-constrained against `ProjectResource
+.planned_hours`, which remains the authoritative planning total) rather than the fuller
+versioned `ProjectLaborPlan`/`LaborPlanAllocation` aggregate a design review recommended;
+that fuller model is deferred as a named future phase, not built here. Also fixed as part
+of the budget slice's own verification: `project_finance_rate_card_lines`'s Numeric columns
+(`rate_amount`/`overtime_multiplier`/`weekend_multiplier`/`holiday_multiplier`) were missing
+the `info['financial_numeric']` marker the A1 architecture guardrail requires — a pre-existing
+gap masked by ORM-table import order, only surfaced once the new budget table changed that
+order. Both rate-card and budget Numeric columns now declare it.
+Remaining Phase B scope: repoint baseline comparison/planning reports onto Money and the new
+planned-cost snapshots, and replace the QML combined "Budget" section (items 7-8 below),
+before Phase C's actual ledger/commitments/time/procurement work.
 
 ## 1. Executive Summary
 
@@ -224,19 +243,54 @@ Coverage does not currently prove safe money arithmetic, ISO currency validity, 
 
 ### 11.3 Work Breakdown Structure
 
-**Status: DECISION ACCEPTED; implementation next.** ADR-PF-003 assigns the WBS hierarchy to PM Tasks through optional parent, project-unique WBS code, ordering, cycle prevention, and summary/leaf semantics. Project Finance references stable Task/WBS IDs and never owns hierarchy mutation. A separate WorkPackage aggregate remains deferred unless a proven non-schedulable financial-node requirement appears.
+**Status: IMPLEMENTED.** ADR-PF-003's Task-owned WBS is built: `Task.parent_task_id`/`wbs_code`
+with cycle prevention, project-unique code validation, and migration backfill
+(`test_task_wbs_migration.py`). Project Finance references stable Task/WBS IDs and never owns
+hierarchy mutation. A separate WorkPackage aggregate remains deferred unless a proven
+non-schedulable financial-node requirement appears.
 
 ### 11.4 Rate Cards
 
-**Status: DECISION ACCEPTED; implementation pending.** ADR-PF-005 fixes separate cost/billing rate types, deterministic specificity, effective/unit/context filtering, ambiguity failure, explicit modifiers, and immutable selection snapshots. `Resource.hourly_rate` and `ProjectResource.hourly_rate/currency/planned_hours` remain current defaults until the rate-card slice implements and reconciles versioned effective-dated lines.
+**Status: IMPLEMENTED, including the cost-engine cutover (2026-08-05).** ADR-PF-005's
+7-level cost/billing precedence, effective-dated lines, ambiguity failure, explicit
+modifiers, and immutable `RateSelectionSnapshot` are built and tested
+(`domain/financials/rate_cards.py`, `application/financials/rate_cards/`). `CostPolicyEngine`
+and `LaborCostEngine` now resolve both planned and actual labor rates through
+`LaborRateResolver.resolve_many` (batched, tenant/org-scoped, explicit `as_of`) instead of
+reading `ProjectResource.hourly_rate`/`Resource.hourly_rate` directly — see
+`rate_card_cost_engine_cutover_plan.md` (deleted, fully superseded; see git history). Resources
+still carry `hourly_rate`/`currency_code` as inputs, but they now only reach cost
+calculations by auto-seeding a `legacy_seeded` rate-card line at creation/update time; the
+engines never read those fields directly. Unresolved rates are excluded from totals (not
+zeroed) and surfaced through `unresolved_labor_rates`/`labor_rates_complete` up to the
+desktop `FinancialSnapshotDto`. `EVM.get_actual_cost` fails closed
+(`ACTUAL_COST_INCOMPLETE`) rather than understating AC.
 
 ### 11.5 Budgeting
 
-**Status: MINIMAL.** `Project.planned_budget` is a float total; `application/financials/budgets/__init__.py` has no implementation. Baseline planned cost is not spending authorization. Create versioned ProjectBudget/BudgetLine aggregates with DRAFT -> SUBMITTED -> APPROVED -> SUPERSEDED -> CLOSED, immutable approved versions, currency, WBS/cost-code/period dimensions, and approval references. Reuse the baseline supersede pattern but not the baseline entity. Keep the Project total as a deprecated projection until parity is verified.
+**Status: IMPLEMENTED (2026-08-06).** Versioned `ProjectBudget`/`BudgetLine` aggregates are built with the full DRAFT -> SUBMITTED -> APPROVED/REJECTED, APPROVED -> SUPERSEDED/CLOSED lifecycle, immutable approved versions (one approved + optionally one open version per project, both DB-enforced), currency (immutable once lines exist), cost-code/task(WBS) line dimensions, and governed approval integration through the existing Platform Approval service — see
+`project_budget_lifecycle_plan.md` (deleted 2026-08-06, fully implemented/verified; see git
+history). `Project.planned_budget` remains the BAC/threshold source this phase; no `CostPolicyEngine`/`EarnedValueCalculator` cutover onto approved budget totals yet (a future cutover plan, mirroring the rate-card cutover, will do that separately).
 
 ### 11.6 Planned Costing
 
-**Status: PARTIAL.** Manual `planned_amount`, ProjectResource planned hours, current rates, and baseline task planned cost provide useful sources. They are mixed between persisted and dynamically recalculated values, are not connected to budget lines, and silently skip some currency mismatches. Introduce versioned planned-cost snapshots sourced from assignments/material/manual inputs with source IDs, quantity, snapshotted rate/Money, WBS, cost code, and plan version. A recalculation creates a new snapshot/version rather than rewriting the approved baseline.
+**Status: IMPLEMENTED (tactical), assignment-labor-only (2026-08-06).** Versioned
+`ProjectPlannedCostVersion`/`ProjectPlannedCostLine` snapshots (CURRENT/SUPERSEDED, no
+approval lifecycle — see `project_planned_cost_snapshot_plan.md`, deleted 2026-08-06: its
+design deviated from what was actually built, see 11.6 below for the accurate shape)
+are built and tested, sourced from `TaskAssignment.allocated_planned_hours` resolved through
+the same rate-card resolver `CostPolicyEngine`/`LaborCostEngine` use, with source lineage
+(`source_assignment_id`), WBS (`task_id`), and cost-code (the project's single
+`ProjectFinancialProfile.default_cost_code_id` — a stated, coarser-than-`BudgetLine`
+limitation) dimensions. Completeness is tracked as three independent flags
+(`rates_complete`/`allocations_complete`/`cost_codes_complete`) plus diagnostic reason codes,
+not one ambiguous flag. `ProjectResource.planned_hours` remains the authoritative
+project-resource planning envelope; `allocated_planned_hours` is a constrained WBS
+distribution of it, enforced at write time, not an independent planning total — a design
+review's recommendation to instead build a full versioned `ProjectLaborPlan`/
+`LaborPlanAllocation` aggregate (its own DRAFT/SUBMIT/APPROVE lifecycle) was deliberately
+deferred as a larger, separately scoped future phase rather than done here. Manual/material
+planned-cost lines and baseline-comparison sourcing remain unimplemented in this slice.
 
 ### 11.7 Commitments
 
@@ -517,10 +571,10 @@ Rules:
 | --- | --- | --- | --- | --- |
 | Project financial profile | MINIMAL | P1 | Project org/site/client references | Dedicated versioned profile and policy defaults |
 | Cost codes | MINIMAL | P1 | Legacy code/type as migration input | Tenant/org catalog, hierarchy, effective state, mappings |
-| WBS | MISSING | P2/product gate | Tasks as optional leaf references | Task hierarchy or WorkPackage decision and rollups |
-| Rate cards | MINIMAL | P0 for actual costing | Resource/project current rates as fallback | Effective-dated cost/billing rates and snapshots |
-| Budgeting | MINIMAL | P1 | Baseline lifecycle pattern | Immutable approved budget versions and lines |
-| Planned costing | PARTIAL | P1 | Existing assignment/resource inputs and baseline comparison | Versioned source-linked planned-cost snapshots |
+| WBS | IMPLEMENTED | P2/product gate | Task hierarchy is the accepted model | Done: `Task.parent_task_id`/`wbs_code` with cycle prevention and migration |
+| Rate cards | IMPLEMENTED, engines cut over | P0 for actual costing | — | Done: ADR-PF-005 precedence + `CostPolicyEngine`/`LaborCostEngine` cutover (2026-08-05) |
+| Budgeting | IMPLEMENTED | P1 | Baseline lifecycle pattern | Done: versioned `ProjectBudget`/`BudgetLine` with governed approval (2026-08-06) |
+| Planned costing | IMPLEMENTED (tactical, assignment-labor-only) | P1 | Existing assignment/resource inputs | Done: versioned `ProjectPlannedCostVersion`/`ProjectPlannedCostLine` (2026-08-06); baseline-comparison sourcing and a full `ProjectLaborPlan` model remain deferred |
 | Commitments | MINIMAL | P0/P1 | Procurement ownership and source refs | PM projections, matching, remaining balance, lifecycle |
 | Actual costs | MINIMAL | P0 | Legacy data as migration source | Posted immutable ledger, reversals, periods, idempotency |
 | Timesheet costing | INCONSISTENT | P0 | Platform approved-time ownership | Approved-only idempotent labor postings with rate snapshot |
@@ -699,11 +753,77 @@ ADR gate: complete. ADR-PF-003, ADR-PF-005, and ADR-PF-009 are accepted.
 
 1. Complete: add ProjectFinancialProfile and backfill project currency without deleting legacy fields. Planned-budget conversion is intentionally reserved for the versioned Budget aggregate rather than copied into another mutable profile field.
 2. Complete: add ProjectCostCode catalog and project restrictions. Legacy `CostType` remains only on legacy cost records until explicit reviewed mapping/reconciliation.
-3. Decide WBS representation. Implement task hierarchy/work package in PM Scheduling, not finance, if approved.
-4. Add versioned effective-dated rate cards for internal cost and billing rates; formalize priority/fallback and snapshot selection.
-5. Add Budget/BudgetLine lifecycle and approval integration. Approved versions become immutable and supersede rather than update.
-6. Add versioned planned-cost calculation/snapshots from assignments and other planned inputs. Link dimensions to budget lines and retain source lineage.
-7. Repoint baseline comparison and planning reports to Money and planned-cost snapshots.
+3. Complete: Task-owned WBS (`parent_task_id`/`wbs_code`, cycle prevention, migration backfill).
+4. Complete: versioned effective-dated rate cards (ADR-PF-005) for internal cost and billing rates, with deterministic priority/fallback and immutable snapshot selection — **and** `CostPolicyEngine`/`LaborCostEngine` are cut over onto them (2026-08-05; design doc `rate_card_cost_engine_cutover_plan.md` deleted, fully implemented/tested — see git history). `Resource.hourly_rate`/`ProjectResource.hourly_rate` now only reach cost calculations through an auto-seeded `legacy_seeded` rate-card line, never by direct field read.
+5. Complete: versioned Budget/BudgetLine lifecycle and governed approval integration. Approved versions are immutable and supersede rather than update.
+6. Complete: versioned planned-cost calculation/snapshots (2026-08-06) from
+   `TaskAssignment.allocated_planned_hours`, dimensioned by cost code + WBS/task in parity
+   with `BudgetLine`, with retained source lineage (`source_assignment_id`, immutable, not a
+   live FK). Manual/material planned-cost inputs and baseline-comparison sourcing are
+   explicitly deferred, as is a full `ProjectLaborPlan`/`LaborPlanAllocation` lifecycle
+   aggregate (a design review's recommendation for the eventual, non-tactical version of this
+   capability).
+7. Partial (2026-08-06): `BaselineService.create_baseline`'s planned-labor
+   snapshot now resolves `RateType.COST` through the rate-card resolver
+   (batched, fail-closed on unresolved/currency-mismatched rates) instead
+   of reading `Resource.hourly_rate`/`ProjectResource.hourly_rate`
+   directly — a rate-source-consistency fix only. The quantity/allocation
+   model (`ProjectResource.planned_hours`, duration-weighted task
+   allocation) and `BaselineTask.baseline_planned_cost`'s `float` type are
+   both deliberately unchanged. `create_baseline` now requires an explicit
+   `rate_as_of: date` argument (never `date.today()` inside the service).
+   **Still remaining under item 7:** the "planning reports" half —
+   `CostPolicyEngine`/`LaborCostEngine`'s own "planned" figures (feeding
+   KPIs/dashboards/`FinanceSnapshot.planned`) still read
+   `ProjectResource.planned_hours` directly rather than the new
+   `ProjectPlannedCostVersion`. Baseline provenance (which exact rate-card
+   line/version valued each task) is also not recorded — a later baseline
+   financial-snapshot extension would be needed for that.
+
+   **Investigated and explicitly rejected (2026-08-06): cutting
+   `CostPolicyEngine`/`ledger.py`/`LaborCostEngine` over onto
+   `ProjectPlannedCostVersion`.** This is not a safe data-source swap and
+   would be a regression if done as literally scoped:
+   - **Granularity mismatch.** The three existing call sites
+     (`CostPolicyEngine._resolve_planned_labor_map`, `ledger.py`'s
+     `build_computed_labor_plan_rows`, `LaborCostEngine
+     .calculate_project_labor_plan_vs_actual`) all sum a resource's full
+     `ProjectResource.planned_hours` *envelope*, with no dependency on any
+     task assignment existing. `ProjectPlannedCostVersion` only counts
+     hours actually *allocated* to a task
+     (`TaskAssignment.allocated_planned_hours`) — partial/zero allocation
+     is an explicitly normal state. Cutting over would silently drop
+     unallocated planned hours from every KPI/dashboard reading them (a
+     real, confirmed test regression: `test_technical_math_reporting_
+     cost_policy.py::test_cost_policy_consistent_across_kpi_evm_
+     breakdown_and_totals` has 10 planned hours with 0 allocated to any
+     task; `total_planned_cost` would drop from 1150.0 to 150.0).
+   - **Three call sites, not one, and they'd disagree.** `ledger.py`'s own
+     docstring states its planned-labor rows intentionally share
+     `CostPolicyEngine`'s exact source "so this ledger's rows never
+     disagree with the engine's totals in the same finance snapshot."
+     Cutting over only one of the three would break that invariant within
+     a single `FinanceSnapshot`.
+   - **No freshness mechanism exists.** `ProjectPlannedCostVersion` only
+     updates via an explicit `calculate_snapshot()` call; nothing in
+     production ever calls it today (only tests do), `planned_costs_changed`
+     has zero subscribers, and no assignment-mutating command triggers a
+     recalculation. `CostPolicyEngine`/KPIs are live, always-current read
+     paths — reading this snapshot instead would show `$0` planned for
+     every project until someone manually triggers a calculation.
+
+   Decision: leave `CostPolicyEngine`/`ledger.py`/`LaborCostEngine` as they
+   are — they already resolve through the rate-card resolver correctly at
+   their own (coarser, envelope-level) granularity, which is not wrong,
+   just a different, legitimate view than the new snapshot's
+   allocated-to-task view. The real gap is that nothing yet surfaces
+   `ProjectPlannedCostVersion` to users (no desktop endpoint/report exists
+   for it) — a future additive report, not a replacement of existing
+   figures, would be the correct way to make it visible. A genuine full
+   cutover would require, at minimum, an assignment-change-triggered
+   recalculation mechanism and a product decision on whether unallocated
+   envelope hours should still count as "planned" — out of scope for this
+   phase.
 8. Replace the QML combined "Budget" cost-line section with separate Profile, Budget Versions, Budget Lines, Rate Cards, and Planned Costs views. Current QML may be broken/replaced as contracts move; do not preserve false semantics.
 
 Exit gate: approved budgets cannot mutate; rate selection is deterministic; historical snapshots remain stable after rate changes; plan totals reconcile by cost code/WBS/period; cross-tenant references fail.
@@ -735,6 +855,11 @@ ADR gate: ADR-PF-004, ADR-PF-006, ADR-PF-007, and ADR-PF-008 must be accepted be
 8. Redesign QML Actuals and Commitments as ledgers with status, source, period, matching, approval, posting, and reversal actions. Remove the generic edit/delete behavior from posted rows.
 
 Exit gate: only approved time generates actuals; one source/version cannot duplicate; rate/FX changes do not change history; commitment matching avoids double count; closed periods reject normal posting; RLS and tenant tests pass; legacy and new totals reconcile.
+
+Prep work only (2026-08-06): the `TRANSITION(PF-A0-UOW-BRIDGE)` cleanup this
+phase's items 2/6 depend on (dedicated approved commands owning their own
+Unit of Work) is done — see the transition-code register above. None of
+Phase C's 8 items themselves have started.
 
 ### Phase D - Forecasts, ETC, change control, and enterprise reporting
 
@@ -856,8 +981,8 @@ This register is mandatory implementation scope. A phase cannot close while its 
 | Planned dual-write adapter, only if required | C | New writes and reports reconcile; legacy writes disabled | PM Finance | NOT CREATED |
 | Client-side fixed-limit Procurement lookup | Pre-existing | C typed project-source contract active | Procurement / PM Integration | OPEN |
 | Legacy financial permission aliases/feature flags | A0 onward | E final role/API/controller inventory passes | Platform Security / PM Finance | NOT CREATED |
-| Approval `commit=False` transaction switches in legacy cost/baseline/dependency/scheduling services | A0 | C dedicated approved commands own the shared Unit of Work | Platform Workflow / PM | OPEN; marked `TRANSITION(PF-A0-UOW-BRIDGE)` |
-| Approved-handler `bypass_approval=True` switches | Pre-existing; constrained in A0 handlers | C handlers call dedicated internal approved commands with no public bypass flag | Platform Workflow / PM | OPEN; marked `TRANSITION(PF-A0-UOW-BRIDGE)` |
+| Approval `commit=False` transaction switches in legacy cost/baseline/dependency/scheduling services | A0 | C dedicated approved commands own the shared Unit of Work | Platform Workflow / PM | CLOSED 2026-08-06; `CostLifecycleMixin`/`BaselineService`/`TaskDependencyMixin` each split into a public governed method + a private `_apply_*_decision` (mirroring `BudgetService`); `SchedulingEngine`/`_sync_project_schedule`'s `commit` params re-scoped as plain caller-owned batching, not an approval bridge — no regressions (24 pre-existing failures unchanged, 428 passed) |
+| Approved-handler `bypass_approval=True` switches | Pre-existing; constrained in A0 handlers | C handlers call dedicated internal approved commands with no public bypass flag | Platform Workflow / PM | CLOSED 2026-08-06; `bypass_approval` parameter removed entirely from `add_cost_item`/`update_cost_item`/`delete_cost_item`/`create_baseline`/`add_dependency`/`remove_dependency` — no caller anywhere (checked) passed `bypass_approval=True` except the composition apply handlers, now rewired to call `_apply_*_decision` directly. `TaskDependencyMixin.update_dependency`'s governed branch was dead code (not in `DEFAULT_GOVERNED_ACTIONS`, no apply handler ever registered) — deleted rather than wired up. |
 | Unused FinanceService ReportingService compatibility argument | A0 candidate | Remove before A0 merge | PM Finance | CLOSED; deleted 2026-08-02 |
 | `Money.from_legacy_float` and `decimal_from_legacy_float` converters | A1 | D legacy CostItem reconciliation, float DTO, and float-column retirement complete | Platform Finance / Data Migration | OPEN; marked `TRANSITION(PF-A1-LEGACY-FLOAT)` |
 | PM desktop formatter legacy-float branch | A1 | D canonical decimal-string read DTO cutover complete | Desktop UI / PM Finance | OPEN; marked `TRANSITION(PF-A1-DESKTOP-FLOAT)` |
@@ -961,9 +1086,9 @@ The repository already uses global ADR-001 through ADR-004, so Project Finance d
 | --- | --- | --- | --- |
 | [ADR-PF-001](../architecture_decisions/ADR-PF-001-money-currency-precision-rounding.md) | Money, currency, precision, quantities, rates, and rounding | ACCEPTED; PHASE A1 FOUNDATION IMPLEMENTED | A1 implementation |
 | [ADR-PF-002](../architecture_decisions/ADR-PF-002-project-finance-bounded-context.md) | Project Finance bounded-context and module ownership | ACCEPTED; PHASE A2 BOUNDARY CONTRACTS IMPLEMENTED | A2/B contracts |
-| [ADR-PF-003](../architecture_decisions/ADR-PF-003-wbs-and-hierarchical-tasks.md) | WBS versus hierarchical Tasks | ACCEPTED; TASK-OWNED WBS IMPLEMENTATION NEXT | B WBS/planned-cost dimensions |
+| [ADR-PF-003](../architecture_decisions/ADR-PF-003-wbs-and-hierarchical-tasks.md) | WBS versus hierarchical Tasks | ACCEPTED; TASK-OWNED WBS IMPLEMENTED | B WBS/planned-cost dimensions |
 | [ADR-PF-004](../architecture_decisions/ADR-PF-004-financial-posting-and-reversal.md) | Posting and signed reversal model | ACCEPTED; LEDGER IMPLEMENTATION DEFERRED TO C | A1/C ledger schema |
-| [ADR-PF-005](../architecture_decisions/ADR-PF-005-rate-card-precedence.md) | Rate-card precedence | ACCEPTED; RATE-CARD IMPLEMENTATION PENDING | B rate-card implementation |
+| [ADR-PF-005](../architecture_decisions/ADR-PF-005-rate-card-precedence.md) | Rate-card precedence | ACCEPTED; IMPLEMENTED INCLUDING COST-ENGINE CUTOVER (2026-08-05) | B rate-card implementation |
 | [ADR-PF-006](../architecture_decisions/ADR-PF-006-approved-time-posting-trigger.md) | Approved-time posting trigger | ACCEPTED; PHASE A2 SOURCE CONTRACT IMPLEMENTED | A2 contract/C consumer |
 | [ADR-PF-007](../architecture_decisions/ADR-PF-007-procurement-financial-triggers.md) | Procurement commitment and actual triggers | ACCEPTED; PHASE A2 SOURCE CONTRACTS IMPLEMENTED | A2 contract/C consumer |
 | [ADR-PF-008](../architecture_decisions/ADR-PF-008-approval-unit-of-work.md) | Approval and unit-of-work transaction model | ACCEPTED; INITIAL TRANSACTION CUTOVER IMPLEMENTED | A0 approval refactor |
@@ -993,7 +1118,7 @@ These are genuine product/ownership decisions. Questions mapped to A0/A1/A2 ADRs
 
 ## 25. Final Recommendation
 
-Proceed with the upgrade, but do not extend the current combined CostItem/QML model. Phase A0 security/transaction correctness, A1 monetary foundations, A2 canonical application foundations, and the Phase B1 configuration foundation are implemented. Continue with the accepted Task-owned WBS slice, then effective-dated rate cards and versioned Budgets. This keeps security, Decimal Money/rate/quantity work, integration composition, and configuration aggregates independently testable.
+Proceed with the upgrade, but do not extend the current combined CostItem/QML model. Phase A0 security/transaction correctness, A1 monetary foundations, A2 canonical application foundations, the Phase B1 configuration foundation, Task-owned WBS, effective-dated rate cards with the `CostPolicyEngine`/`LaborCostEngine` cutover, the versioned Budget/BudgetLine lifecycle, and tactical, assignment-labor-only versioned planned-cost snapshots are all implemented. Continue with repointing baseline/planning reports onto the new snapshots and the QML "Budget" section replacement (Phase B items 7-8) before Phase C's actual ledger/commitments/time/procurement work. This keeps security, Decimal Money/rate/quantity work, integration composition, and configuration aggregates independently testable.
 
 Then build Project Finance as explicit PM-owned aggregates while preserving valid module ownership: Time supplies approved hours, Procurement supplies PO/receipt facts, Party supplies identities, Approval and Audit remain platform services, and external accounting owns official ledger/payment behavior. Use additive persistence and temporary compatibility only to migrate verified data; delete every fallback, dual-write, alias, and transition adapter at its named phase gate.
 

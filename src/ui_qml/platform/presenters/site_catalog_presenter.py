@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.api.desktop.platform import (
-    PlatformSiteDesktopApi,
+from src.core.platform.api.desktop.master_data.site.models.site import (
     SiteCreateCommand,
     SiteDto,
     SiteUpdateCommand,
 )
-from src.api.desktop.platform.models import DesktopApiResult
+from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
+from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.ui_qml.platform.presenters.support import (
     bool_value,
     int_value,

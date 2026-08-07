@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from openpyxl import load_workbook
 
-from src.core.platform.auth.domain.session import UserSessionPrincipal
+from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.modules.project_management.domain.enums import CostType, DependencyType
 from src.core.modules.project_management.infrastructure.reporting import api as reporting_api
@@ -57,7 +57,7 @@ def _setup_report_project(services):
         currency_code="USD",
     )
 
-    baseline = bs.create_baseline(pid, "Baseline Export")
+    baseline = bs.create_baseline(pid, "Baseline Export", rate_as_of=date.today())
     ts.update_progress(t1.id, percent_complete=50.0)
     return pid, baseline.id
 

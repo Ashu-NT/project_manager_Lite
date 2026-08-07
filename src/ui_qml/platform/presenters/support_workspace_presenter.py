@@ -3,11 +3,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from src.api.desktop.platform import (
-    PlatformSupportDesktopApi,
-    SupportSettingsUpdateCommand,
-)
-from src.api.desktop.platform.models import DesktopApiResult
+from src.core.platform.api.desktop.support.models.support import SupportSettingsUpdateCommand
+from src.core.platform.api.desktop.support.support import PlatformSupportDesktopApi
+from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.ui_qml.platform.presenters.support import (
     bool_value,
     option_item,

@@ -9,9 +9,9 @@ from src.core.modules.project_management.domain.tasks.hierarchy import (
     TaskHierarchyRollup,
 )
 from src.core.modules.project_management.domain.tasks.task import Task
-from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
-from src.core.platform.access.authorization import require_project_permission
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
+from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
 

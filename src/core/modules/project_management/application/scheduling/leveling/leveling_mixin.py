@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 from datetime import date
 from sqlalchemy.orm import Session
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError

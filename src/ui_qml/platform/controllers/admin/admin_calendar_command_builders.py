@@ -2,7 +2,7 @@ from __future__ import annotations
 
 
 def build_calendar_create_command(payload: dict):
-    from src.api.desktop.platform.models.enterprise_calendar import CalendarCreateCommand
+    from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import CalendarCreateCommand
     return CalendarCreateCommand(
         code=str(payload.get("code", "")),
         name=str(payload.get("name", "")),
@@ -14,7 +14,7 @@ def build_calendar_create_command(payload: dict):
 
 
 def build_calendar_update_command(payload: dict):
-    from src.api.desktop.platform.models.enterprise_calendar import CalendarUpdateCommand
+    from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import CalendarUpdateCommand
     return CalendarUpdateCommand(
         calendar_id=str(payload.get("calendarId", "")),
         name=str(payload.get("name", "")),
@@ -24,7 +24,7 @@ def build_calendar_update_command(payload: dict):
 
 
 def build_exception_create_command(payload: dict):
-    from src.api.desktop.platform.models.enterprise_calendar import ExceptionCreateCommand
+    from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import ExceptionCreateCommand
     return ExceptionCreateCommand(
         calendar_id=str(payload.get("calendarId", "")),
         exception_date=str(payload.get("exceptionDate", "")),
@@ -37,7 +37,7 @@ def build_exception_create_command(payload: dict):
 
 
 def build_recurring_event_create_command(payload: dict):
-    from src.api.desktop.platform.models.enterprise_calendar import RecurringEventCreateCommand
+    from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import RecurringEventCreateCommand
     return RecurringEventCreateCommand(
         calendar_id=str(payload.get("calendarId", "")),
         title=str(payload.get("title", "")),
@@ -54,7 +54,7 @@ def build_recurring_event_create_command(payload: dict):
 def dispatch_calendar_assign(controller, payload: dict, entity_type: str):
     if controller._enterprise_calendar_api is None:
         return None
-    from src.api.desktop.platform.models.enterprise_calendar import (
+    from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import (
         DeptCalendarAssignCommand,
         EmpCalendarAssignCommand,
         ProjectCalendarAssignCommand,

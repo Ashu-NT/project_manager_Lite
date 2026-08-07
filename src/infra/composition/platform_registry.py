@@ -7,60 +7,61 @@ from time import perf_counter
 
 from sqlalchemy.orm import Session
 
-from src.application.runtime.entitlement_runtime import ModuleRuntimeService
-from src.application.runtime.platform_runtime import PlatformRuntimeApplicationService
-from src.core.platform.modules import (
+from src.core.platform.application.platform_runtime import PlatformRuntimeApplicationService
+from src.core.platform.domain.tenant.modules import (
     DEFAULT_ENTERPRISE_MODULES,
-    ModuleCatalogService,
     parse_enabled_module_codes,
     parse_licensed_module_codes,
 )
+from src.core.platform.application.tenant.modules import ModuleCatalogService
 from src.core.platform.access import AccessControlService, ScopedRolePolicy, ScopedRolePolicyRegistry
-from src.core.platform.activity import ActivityService
-from src.core.platform.approval import ApprovalService
-from src.core.platform.audit import EnterpriseAuditService
-from src.core.platform.notifications import NotificationService
-from src.core.platform.auth import (
-    AuthService,
+from src.core.platform.application.history.activity import ActivityService
+from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.application.history.audit import EnterpriseAuditService
+from src.core.platform.application.events.notifications.notification_service import NotificationService
+from src.core.platform.application.security.auth import AuthService
+from src.core.platform.application.security.authorization.roles import (
     RoleGovernanceService,
     TenantRoleAdministrationService,
 )
-from src.core.platform.auth.domain.session import UserSessionContext
-from src.core.platform.documents import DocumentIntegrationService, DocumentService
-from src.core.platform.data_exchange import MasterDataExchangeService
-from src.core.platform.department import DepartmentService
-from src.core.platform.employee import EmployeeService
-from src.core.platform.org import Organization, OrganizationRepository, OrganizationService
-from src.core.platform.site import SiteRepository, SiteService
-from src.core.platform.site.access_policy import (
+from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.application.master_data.documents import DocumentIntegrationService, DocumentService
+from src.core.platform.application.master_data.data_exchange import MasterDataExchangeService
+from src.core.platform.application.master_data.department.department_service import DepartmentService
+from src.core.platform.application.master_data.employee.employee_service import EmployeeService
+from src.core.platform.application.master_data.org.organization_service import OrganizationService
+from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.domain.master_data.org import Organization
+from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.contract.master_data.site.contracts import SiteRepository
+from src.core.platform.domain.master_data.site.access_policy import (
     SITE_SCOPE_ROLE_CHOICES,
     normalize_site_scope_role,
     resolve_site_scope_permissions,
 )
-from src.core.platform.tenancy import (
+from src.core.platform.domain.tenant.tenancy import Tenant, UserTenantMembership
+from src.core.platform.application.tenant.tenancy import (
     TenantAdminService,
     TenantMembershipService,
     TenantContextService,
     TenancyMode,
-    Tenant,
-    UserTenantMembership,
     build_tenant_context_policy,
 )
-from src.core.platform.party import PartyService
-from src.core.platform.party.contracts import PartyRepository
-from src.core.platform.runtime_tracking import RuntimeExecutionService
-from src.core.platform.identity import ServicePrincipalService
-from src.core.platform.calendar.application.enterprise_calendar_service import EnterpriseCalendarService
-from src.core.platform.calendar.application.working_rule_service import WorkingRuleService
-from src.core.platform.calendar.application.calendar_exception_service import CalendarExceptionService
-from src.core.platform.calendar.application.recurring_event_service import RecurringEventService
-from src.core.platform.calendar.application.shift_pattern_service import ShiftPatternService
-from src.core.platform.calendar.application.calendar_assignment_service import CalendarAssignmentService
-from src.core.platform.calendar.application.enterprise_calendar_resolver import EnterpriseCalendarResolver
-from src.core.platform.calendar.application.working_time_calculator import WorkingTimeCalculator
-from src.core.platform.calendar.application.global_calendar_shim import GlobalCalendarShim
-from src.core.platform.infrastructure.persistence.repositories.modules import SqlAlchemyModuleEntitlementRepository
-from src.core.platform.infrastructure.persistence.repositories.runtime_tracking import SqlAlchemyRuntimeExecutionRepository
+from src.core.platform.application.master_data.party.party_service import PartyService
+from src.core.platform.contract.master_data.party.contracts import PartyRepository
+from src.core.platform.application.data_operations.runtime_tracking import RuntimeExecutionService
+from src.core.platform.application.security.identity import ServicePrincipalService
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import EnterpriseCalendarService
+from src.core.platform.application.time_management.calendar.definitions.working_rule_service import WorkingRuleService
+from src.core.platform.application.time_management.calendar.definitions.calendar_exception_service import CalendarExceptionService
+from src.core.platform.application.time_management.calendar.definitions.recurring_event_service import RecurringEventService
+from src.core.platform.application.time_management.calendar.definitions.shift_pattern_service import ShiftPatternService
+from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import CalendarAssignmentService
+from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import EnterpriseCalendarResolver
+from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import WorkingTimeCalculator
+from src.core.platform.application.time_management.calendar.capacity.global_calendar_shim import GlobalCalendarShim
+from src.core.platform.infrastructure.persistence.repositories.tenant.modules.modules import SqlAlchemyModuleEntitlementRepository
+from src.core.platform.infrastructure.persistence.repositories.data_operations.runtime_tracking.runtime_tracking import SqlAlchemyRuntimeExecutionRepository
 from src.infra.composition.repositories import RepositoryBundle
 from src.infra.platform.operational_support import current_trace_id
 from src.infra.platform.security_audit_recorder import (
@@ -154,7 +155,6 @@ class PlatformServiceBundle:
     party_repo: PartyRepository
     tenant_context_service: TenantContextService
     platform_runtime_application_service: PlatformRuntimeApplicationService
-    module_runtime_service: ModuleRuntimeService
     module_catalog_service: ModuleCatalogService
     auth_service: AuthService
     role_governance_service: RoleGovernanceService
@@ -430,9 +430,8 @@ def build_platform_service_bundle(
         "Platform module catalog defaults bootstrapped duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
-    module_runtime_service = ModuleRuntimeService(module_catalog_service)
     platform_runtime_application_service = PlatformRuntimeApplicationService(
-        module_runtime_service=module_runtime_service,
+        module_catalog_service=module_catalog_service,
         organization_service=organization_service,
         tenant_context_service=tenant_context_service,
         user_session=user_session,
@@ -628,7 +627,6 @@ def build_platform_service_bundle(
         party_repo=repositories.party_repo,
         tenant_context_service=tenant_context_service,
         platform_runtime_application_service=platform_runtime_application_service,
-        module_runtime_service=module_runtime_service,
         module_catalog_service=module_catalog_service,
         auth_service=auth_service,
         role_governance_service=role_governance_service,

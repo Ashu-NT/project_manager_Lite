@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 
 import os
 
@@ -64,14 +64,14 @@ from src.core.modules.project_management.contracts.repositories.task import (
     DependencyRepository,
     TaskRepository,
 )
-from src.core.platform.activity.application.activity_service import ActivityService
-from src.core.platform.approval.application.approval_service import ApprovalService
-from src.core.platform.auth.domain.session import UserSessionContext
-from src.core.platform.common.interfaces import TimeEntryRepository, TimesheetPeriodRepository
+from src.core.platform.application.history.activity.activity_service import ActivityService
+from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.contract.time_management.time.contracts import TimeEntryRepository, TimesheetPeriodRepository
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.timesheets import TimesheetService
-from src.core.platform.calendar.application.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 
 
 class TaskService(

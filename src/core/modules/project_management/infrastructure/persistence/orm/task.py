@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy import (
@@ -21,6 +22,11 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
+from src.infra.persistence.db.financial_numeric import (
+    FinancialNumericKind,
+    financial_numeric,
+    financial_numeric_info,
+)
 from src.infra.persistence.orm.base import Base
 
 
@@ -100,6 +106,14 @@ class TaskAssignmentORM(Base):
     )
     allocation_percent: Mapped[float] = mapped_column(Float, default=100.0)
     hours_logged: Mapped[float] = mapped_column(Float, default=0.0)
+    allocated_planned_hours: Mapped[Decimal] = mapped_column(
+        financial_numeric(FinancialNumericKind.QUANTITY),
+        nullable=False,
+        default=Decimal("0"),
+        server_default="0",
+        info=financial_numeric_info(FinancialNumericKind.QUANTITY),
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     project_resource_id: Mapped[Optional[str]] = mapped_column(
         String,
         ForeignKey("project_resources.id", ondelete="CASCADE"),

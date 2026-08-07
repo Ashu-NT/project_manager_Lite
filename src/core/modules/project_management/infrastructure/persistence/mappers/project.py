@@ -55,6 +55,7 @@ def project_resource_from_orm(obj: ProjectResourceORM) -> ProjectResource:
         currency_code=obj.currency_code,
         planned_hours=obj.planned_hours,
         is_active=obj.is_active,
+        version=getattr(obj, "version", 1),
     )
 
 
@@ -67,6 +68,7 @@ def project_resource_to_orm(resource: ProjectResource) -> ProjectResourceORM:
         currency_code=resource.currency_code,
         planned_hours=resource.planned_hours,
         is_active=resource.is_active,
+        version=getattr(resource, "version", 1),
     )
 
 

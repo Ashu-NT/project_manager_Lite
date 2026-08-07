@@ -7,8 +7,13 @@ so that all cost-policy calculations use a single authoritative implementation.
 
 from __future__ import annotations
 
+from datetime import date
 
 from src.core.modules.project_management.domain.enums import CostType
+from src.core.modules.project_management.contracts.repositories.rate_resolution import (
+    LaborRateResolver,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.modules.project_management.application.financials.costs.cost_policy_engine import (
     CostControlTotals,
     CostPolicyEngine,
@@ -27,14 +32,19 @@ CostBucketKey = tuple[CostType, str]
 class ReportingCostPolicyMixin:
     """Thin delegate — all logic lives in CostPolicyEngine (financials)."""
 
+    _rate_resolver: LaborRateResolver
+    _tenant_context_service: TenantContextService
+
     def _make_cost_policy_engine(self) -> CostPolicyEngine:
         return CostPolicyEngine(
             project_repo=self._project_repo,
             cost_repo=self._cost_repo,
             project_resource_repo=self._project_resource_repo,
             resource_repo=self._resource_repo,
-            get_labor_details=self.get_project_labor_details
-            if hasattr(self, "get_project_labor_details")
+            rate_resolver=self._rate_resolver,
+            tenant_context_service=self._tenant_context_service,
+            get_labor_details=self.calculate_project_labor_details
+            if hasattr(self, "calculate_project_labor_details")
             else None,
         )
 
@@ -42,27 +52,33 @@ class ReportingCostPolicyMixin:
         self,
         project_id: str,
         *,
-        as_of=None,
+        as_of: date | None = None,
     ) -> CostPolicySnapshot:
-        return self._make_cost_policy_engine().build_snapshot(project_id, as_of=as_of)
+        return self._make_cost_policy_engine().build_snapshot(
+            project_id, as_of=as_of or date.today()
+        )
 
     def get_project_cost_control_totals(
         self,
         project_id: str,
         *,
-        as_of=None,
+        as_of: date | None = None,
     ) -> CostControlTotals:
         self._require_view("view cost control totals", project_id=project_id)
-        return self._make_cost_policy_engine().get_cost_control_totals(project_id, as_of=as_of)
+        return self._make_cost_policy_engine().get_cost_control_totals(
+            project_id, as_of=as_of or date.today()
+        )
 
     def get_project_cost_source_breakdown(
         self,
         project_id: str,
         *,
-        as_of=None,
+        as_of: date | None = None,
     ) -> CostSourceBreakdown:
         self._require_view("view cost source breakdown", project_id=project_id)
-        return self._make_cost_policy_engine().get_cost_source_breakdown(project_id, as_of=as_of)
+        return self._make_cost_policy_engine().get_cost_source_breakdown(
+            project_id, as_of=as_of or date.today()
+        )
 
     # Proxy helpers for mixins that call self._xxx() ─────────────────────────
 

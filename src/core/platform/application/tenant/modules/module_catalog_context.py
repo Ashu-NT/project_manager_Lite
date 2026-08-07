@@ -1,0 +1,103 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from src.core.platform.contract.tenant.modules.contracts import ModuleEntitlementRepository
+
+if TYPE_CHECKING:
+    from src.core.platform.domain.master_data.org import Organization
+from src.core.platform.domain.tenant.modules.defaults import (
+    MODULE_RUNTIME_ACCESS_STATUSES,
+    default_lifecycle_status,
+)
+from src.core.platform.domain.tenant.modules.module_codes import normalize_module_code
+from src.core.platform.domain.tenant.modules.subscription import ModuleEntitlementRecord
+
+
+class ModuleCatalogContextMixin:
+    _entitlement_repo: ModuleEntitlementRepository
+
+    def _persist_state(self, record: ModuleEntitlementRecord) -> None:
+        module_code = record.module_code
+        normalized_record = record
+        if self._entitlement_repo is None:
+            if normalized_record.licensed:
+                self._licensed_codes.add(module_code)
+            else:
+                self._licensed_codes.discard(module_code)
+            if normalized_record.enabled and normalized_record.licensed:
+                self._enabled_codes.add(module_code)
+            else:
+                self._enabled_codes.discard(module_code)
+            return
+        self._entitlement_repo.upsert(normalized_record)
+        if self._session is not None:
+            self._session.commit()
+
+    def _effective_records(self) -> list[ModuleEntitlementRecord]:
+        if self._entitlement_repo is None:
+            return [
+                ModuleEntitlementRecord(
+                    module_code=module.code,
+                    licensed=module.code in self._licensed_codes,
+                    enabled=module.code in self._enabled_codes and module.code in self._licensed_codes,
+                    lifecycle_status=default_lifecycle_status(module.code in self._licensed_codes),
+                )
+                for module in self._modules
+            ]
+        records = self._ensure_context_defaults()
+        if not records:
+            return []
+        return records
+
+    def _ensure_context_defaults(self) -> list[ModuleEntitlementRecord]:
+        if self._entitlement_repo is None:
+            return []
+        if not self._has_active_organization_context():
+            return []
+        records = self._entitlement_repo.list_all()
+        if records:
+            return records
+        changed = False
+        for module in self._modules:
+            self._entitlement_repo.upsert(
+                ModuleEntitlementRecord(
+                    module_code=module.code,
+                    licensed=module.code in self._licensed_codes,
+                    enabled=module.code in self._enabled_codes and module.code in self._licensed_codes,
+                    lifecycle_status=default_lifecycle_status(module.code in self._licensed_codes),
+                )
+            )
+            changed = True
+        if changed and self._session is not None:
+            self._session.commit()
+        return self._entitlement_repo.list_all()
+
+    def _effective_codes(self) -> tuple[set[str], set[str]]:
+        records = self._effective_records()
+        if not records:
+            if self._entitlement_repo is not None and not self._has_active_organization_context():
+                return set(), set()
+            return set(self._licensed_codes), set(self._enabled_codes)
+        licensed_codes = {normalize_module_code(record.module_code) for record in records if record.licensed}
+        enabled_codes = {
+            normalize_module_code(record.module_code)
+            for record in records
+            if (
+                record.licensed
+                and record.enabled
+                and record.lifecycle_status in MODULE_RUNTIME_ACCESS_STATUSES
+            )
+        }
+        return licensed_codes, enabled_codes
+
+    def _current_organization(self) -> Organization | None:
+        if self._organization_context_provider is None:
+            return None
+        return self._organization_context_provider()
+
+    def _has_active_organization_context(self) -> bool:
+        return self._current_organization() is not None
+
+
+__all__ = ["ModuleCatalogContextMixin"]

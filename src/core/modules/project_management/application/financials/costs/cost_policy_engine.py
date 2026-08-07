@@ -2,26 +2,38 @@
 
 This is the authoritative implementation of cost aggregation, labor policy
 decisions, and cost control totals for a project. Reporting delegates here.
+
+Labor rates (both planned, from ``ProjectResource.planned_hours``, and
+actual, via the injected labor-details provider) are resolved through the
+ADR-PF-005 rate-card system (``LaborRateResolver``) — never read directly
+from ``ProjectResource.hourly_rate``/``Resource.hourly_rate``.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from typing import Callable
 
-from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.modules.project_management.contracts.repositories.project import (
     ProjectRepository,
     ProjectResourceRepository,
 )
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.cost import CostRepository
+from src.core.modules.project_management.contracts.repositories.rate_resolution import (
+    LaborRateResolver,
+    UnresolvedLaborRate,
+)
 from src.core.modules.project_management.domain.enums import CostType
+from src.core.modules.project_management.domain.financials.rate_cards import RateType
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
 from src.core.modules.project_management.application.financials.models.finance_models import (
     CostSourceBreakdown,
     CostSourceRow,
+    LaborDetailsResult,
 )
 
 CostBucketKey = tuple[CostType, str]
@@ -41,6 +53,7 @@ class CostPolicySnapshot:
     include_manual_labor_planned: bool
     include_manual_labor_committed: bool
     include_manual_labor_actual: bool
+    unresolved_labor_rates: tuple[UnresolvedLaborRate, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True)
@@ -54,6 +67,7 @@ class CostControlTotals:
     actual: float
     exposure: float
     available: float | None
+    unresolved_labor_rates: tuple[UnresolvedLaborRate, ...] = ()
 
 
 class CostPolicyEngine:
@@ -65,10 +79,15 @@ class CostPolicyEngine:
 
     Parameters
     ----------
+    rate_resolver:
+        Required. Resolves planned-labor rates (from ``ProjectResource``
+        planning data) via the ADR-PF-005 rate-card system.
     get_labor_details:
-        Optional callable ``(project_id: str) -> list[LaborResourceRow]``.
-        When provided, actual labor is aggregated from assignment rows.
-        Without it, actual labor defaults to zero (manual cost items only).
+        Optional callable ``(project_id: str, as_of: date) ->
+        LaborDetailsResult``. When provided, actual labor is aggregated
+        from its rows and any unresolved resources are carried through to
+        this snapshot's own ``unresolved_labor_rates``. Without it, actual
+        labor defaults to zero (manual cost items only).
     """
 
     def __init__(
@@ -78,36 +97,61 @@ class CostPolicyEngine:
         cost_repo: CostRepository,
         project_resource_repo: ProjectResourceRepository,
         resource_repo: ResourceRepository,
-        get_labor_details: Callable | None = None,
+        rate_resolver: LaborRateResolver,
+        tenant_context_service: TenantContextService,
+        get_labor_details: Callable[[str, date], LaborDetailsResult] | None = None,
     ) -> None:
         self._project_repo = project_repo
         self._cost_repo = cost_repo
         self._project_resource_repo = project_resource_repo
         self._resource_repo = resource_repo
+        self._rate_resolver = rate_resolver
+        self._tenant_context_service = tenant_context_service
         self._get_labor_details = get_labor_details
 
     # ── public interface ──────────────────────────────────────────────────────
+
+    def _resolve_scope(self, project) -> tuple[str, str]:
+        context = self._tenant_context_service.require_organization_context(
+            operation_label="build cost policy snapshot"
+        )
+        if project.organization_id and project.organization_id != context.organization_id:
+            raise BusinessRuleError(
+                "Project does not belong to the active organization.",
+                code="PROJECT_ORGANIZATION_MISMATCH",
+            )
+        assert context.organization_id is not None  # guaranteed by require_organization_context
+        return context.tenant_id, context.organization_id
 
     def build_snapshot(
         self,
         project_id: str,
         *,
-        as_of: date | None = None,
+        as_of: date,
     ) -> CostPolicySnapshot:
-        as_of = as_of or date.today()
         project = self._project_repo.get(project_id)
         if not project:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
+        tenant_id, organization_id = self._resolve_scope(project)
 
         project_currency = (
             (getattr(project, "currency", None) or "").strip().upper() or None
         )
         budget = float(getattr(project, "planned_budget", 0.0) or 0.0)
 
-        planned_labor_by_currency = self._resolve_planned_labor_map(project_id, project_currency)
-        actual_labor_by_currency = self._resolve_actual_labor_map(project_id, project_currency)
+        planned_labor_by_currency, planned_unresolved = self._resolve_planned_labor_map(
+            project_id,
+            project_currency,
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            as_of=as_of,
+        )
+        actual_labor_by_currency, actual_unresolved = self._resolve_actual_labor_map(
+            project_id, project_currency, as_of=as_of
+        )
         planned_labor_total = float(sum(planned_labor_by_currency.values()))
         actual_labor_total = float(sum(actual_labor_by_currency.values()))
+        unresolved_labor_rates = tuple(planned_unresolved) + tuple(actual_unresolved)
 
         # Manual LABOR rows are fallback-only to avoid double-counting.
         include_manual_labor_planned = planned_labor_total <= 0.0
@@ -189,13 +233,14 @@ class CostPolicyEngine:
             include_manual_labor_planned=include_manual_labor_planned,
             include_manual_labor_committed=include_manual_labor_committed,
             include_manual_labor_actual=include_manual_labor_actual,
+            unresolved_labor_rates=unresolved_labor_rates,
         )
 
     def get_cost_control_totals(
         self,
         project_id: str,
         *,
-        as_of: date | None = None,
+        as_of: date,
     ) -> CostControlTotals:
         snapshot = self.build_snapshot(project_id, as_of=as_of)
         planned = self._sum_bucket_map(snapshot.planned_map, snapshot.project_currency)
@@ -213,20 +258,31 @@ class CostPolicyEngine:
             actual=actual,
             exposure=exposure,
             available=available,
+            unresolved_labor_rates=snapshot.unresolved_labor_rates,
         )
 
     def get_actual_cost(self, project_id: str, as_of: date) -> float:
-        """Return policy-applied actual cost as a single float (for EVM)."""
+        """Return policy-applied actual cost as a single float (for EVM).
+
+        Fails closed: if any labor rate could not be resolved, the total
+        would understate the true actual cost with no visible signal, so
+        this raises rather than returning a silently-narrowed number.
+        """
         snapshot = self.build_snapshot(project_id, as_of=as_of)
+        if snapshot.unresolved_labor_rates:
+            raise BusinessRuleError(
+                "Actual cost cannot be calculated because one or more labor "
+                "rates could not be resolved.",
+                code="ACTUAL_COST_INCOMPLETE",
+            )
         return self._sum_bucket_map(snapshot.actual_map, snapshot.project_currency)
 
     def get_cost_source_breakdown(
         self,
         project_id: str,
         *,
-        as_of: date | None = None,
+        as_of: date,
     ) -> CostSourceBreakdown:
-        as_of = as_of or date.today()
         snapshot = self.build_snapshot(project_id, as_of=as_of)
 
         direct_planned = self._sum_bucket_excluding_type(
@@ -405,40 +461,63 @@ class CostPolicyEngine:
         return float(total)
 
     def _resolve_planned_labor_map(
-        self, project_id: str, project_currency: str | None
-    ) -> dict[str, float]:
+        self,
+        project_id: str,
+        project_currency: str | None,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        as_of: date,
+    ) -> tuple[dict[str, float], tuple[UnresolvedLaborRate, ...]]:
         planned_labor_by_currency: dict[str, float] = {}
         prs = self._project_resource_repo.list_by_project(project_id) or []
-        for pr in prs:
-            if not getattr(pr, "is_active", True):
-                continue
+        active_prs = [
+            pr
+            for pr in prs
+            if getattr(pr, "is_active", True)
+            and float(getattr(pr, "planned_hours", 0.0) or 0.0) > 0
+            and getattr(pr, "resource_id", None)
+        ]
+        resource_ids = tuple(str(pr.resource_id) for pr in active_prs)
+        if not resource_ids:
+            return planned_labor_by_currency, ()
+
+        batch = self._rate_resolver.resolve_many(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            project_id=project_id,
+            resource_ids=resource_ids,
+            rate_type=RateType.COST,
+            as_of=as_of,
+            unit="HOUR",
+        )
+        for pr in active_prs:
+            resource_id = str(pr.resource_id)
+            snapshot = batch.snapshot_for(resource_id)
+            if snapshot is None:
+                continue  # excluded — recorded in batch.unresolved
             planned_hours = float(getattr(pr, "planned_hours", 0.0) or 0.0)
-            if planned_hours <= 0:
-                continue
-            res = self._resource_repo.get(getattr(pr, "resource_id", ""))
-            rate = (
-                float(pr.hourly_rate)
-                if getattr(pr, "hourly_rate", None) is not None
-                else float(getattr(res, "hourly_rate", 0.0) or 0.0)
-            )
-            if rate <= 0.0:
-                continue
+            rate = float(snapshot.monetary_rate.money.amount)
             cur = self._normalize_currency(
-                getattr(pr, "currency_code", None) or getattr(res, "currency_code", None),
-                project_currency,
+                snapshot.monetary_rate.money.currency.code, project_currency
             )
             planned_labor_by_currency[cur] = float(
                 planned_labor_by_currency.get(cur, 0.0) + (planned_hours * rate)
             )
-        return planned_labor_by_currency
+        return planned_labor_by_currency, batch.unresolved
 
     def _resolve_actual_labor_map(
-        self, project_id: str, project_currency: str | None
-    ) -> dict[str, float]:
+        self,
+        project_id: str,
+        project_currency: str | None,
+        *,
+        as_of: date,
+    ) -> tuple[dict[str, float], tuple[UnresolvedLaborRate, ...]]:
         actual_labor_by_currency: dict[str, float] = {}
         if self._get_labor_details is None:
-            return actual_labor_by_currency
-        for row in self._get_labor_details(project_id):
+            return actual_labor_by_currency, ()
+        result = self._get_labor_details(project_id, as_of)
+        for row in result.rows:
             total = float(getattr(row, "total_cost", 0.0) or 0.0)
             if total <= 0:
                 continue
@@ -448,7 +527,7 @@ class CostPolicyEngine:
             actual_labor_by_currency[cur] = float(
                 actual_labor_by_currency.get(cur, 0.0) + total
             )
-        return actual_labor_by_currency
+        return actual_labor_by_currency, result.unresolved_rates
 
 
 __all__ = ["CostPolicyEngine", "CostPolicySnapshot", "CostControlTotals"]

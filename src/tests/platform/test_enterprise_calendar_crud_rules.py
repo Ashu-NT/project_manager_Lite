@@ -7,7 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from src.infra.persistence.orm import Base
-from src.core.platform.infrastructure.persistence.repositories.enterprise_calendar import (
+from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
     SqlAlchemyCalendarExceptionRepository,
     SqlAlchemyCalendarRecurringEventRepository,
@@ -15,12 +15,12 @@ from src.core.platform.infrastructure.persistence.repositories.enterprise_calend
     SqlAlchemyPlatformCalendarRepository,
     SqlAlchemyShiftPatternRepository,
 )
-from src.core.platform.calendar.domain.enterprise_calendar import CalendarType
-from src.core.platform.calendar.application.enterprise_calendar_service import (
+from src.core.platform.domain.time_management.calendar.enterprise_calendar import CalendarType
+from src.core.platform.application.time_management.calendar.enterprise_calendar_service import (
     EnterpriseCalendarService,
 )
-from src.core.platform.calendar.application.working_rule_service import WorkingRuleService
-from src.core.platform.calendar.application.calendar_assignment_service import (
+from src.core.platform.application.time_management.calendar.definitions.working_rule_service import WorkingRuleService
+from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
@@ -132,7 +132,7 @@ def rule_service(db_session, repos, mock_user_session):
 def seeded_assignment_entities(db_session, org_id):
     from datetime import datetime, timezone
 
-    from src.core.platform.infrastructure.persistence.orm.sites import SiteORM
+    from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
 
     now = datetime.now(timezone.utc)
     db_session.add_all(

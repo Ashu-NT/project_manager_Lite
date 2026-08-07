@@ -6,7 +6,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.importing import ImportFieldSpec
+from src.core.platform.domain.data_operations.importing import ImportFieldSpec
 
 
 ITEM_FIELDS: tuple[ImportFieldSpec, ...] = (

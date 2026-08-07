@@ -5,7 +5,7 @@ from datetime import date, datetime, timezone
 import pytest
 
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.documents.domain import (
+from src.core.platform.domain.master_data.documents import (
     Document,
     DocumentLink,
     DocumentStorageKind,

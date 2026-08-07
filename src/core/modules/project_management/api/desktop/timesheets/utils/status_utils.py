@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.core.platform.time.domain import TimesheetPeriodStatus
+from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 
 
 def coerce_queue_status(value: str) -> TimesheetPeriodStatus | None:

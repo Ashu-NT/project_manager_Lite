@@ -26,7 +26,7 @@ class InventoryProcurementDesktopRuntimeApis:
 
 @dataclass(frozen=True)
 class InventoryProcurementDesktopRuntimePlatformDependencies:
-    module_runtime_service: object | None
+    module_catalog_service: object | None
     user_session: object | None
 
 

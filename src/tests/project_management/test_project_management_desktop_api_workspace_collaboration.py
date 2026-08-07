@@ -5,7 +5,7 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_collaboration_desktop_api,
     build_project_management_workspace_desktop_api,
 )
-from src.core.platform.documents import DocumentStorageKind
+from src.core.platform.domain.master_data.documents import DocumentStorageKind
 
 
 EXPECTED_PM_WORKSPACE_KEYS = [

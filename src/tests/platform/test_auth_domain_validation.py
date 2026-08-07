@@ -5,15 +5,15 @@ from datetime import datetime
 
 import pytest
 
-from src.core.platform.auth.application.auth_service import AuthService
-from src.core.platform.auth.domain import (
+from src.core.platform.application.security.auth.auth_service import AuthService
+from src.core.platform.domain.security.auth import (
     AuthSession,
     Permission,
     Role,
     RolePermissionBinding,
     UserAccount,
 )
-from src.core.platform.auth.domain.user import normalize_auth_session_timeout_override
+from src.core.platform.domain.security.auth.user import normalize_auth_session_timeout_override
 from src.core.platform.common.exceptions import ValidationError
 
 
@@ -174,71 +174,71 @@ class _FakeAuthSessionRepo:
 
 def _make_auth_service(monkeypatch: pytest.MonkeyPatch) -> AuthService:
     monkeypatch.setattr(
-        "src.core.platform.auth.application.registration_service.require_permission",
+        "src.core.platform.application.security.auth.provisioning.registration_service.require_permission",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.user_admin_service.require_permission",
+        "src.core.platform.application.security.auth.provisioning.user_admin_service.require_permission",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.user_admin_service.require_any_permission",
+        "src.core.platform.application.security.auth.provisioning.user_admin_service.require_any_permission",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.session_service.require_any_permission",
+        "src.core.platform.application.security.auth.session.session_service.require_any_permission",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.user_admin_service.require_target_user_in_active_tenant",
+        "src.core.platform.application.security.auth.provisioning.user_admin_service.require_target_user_in_active_tenant",
         lambda *args, **kwargs: "",
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.session_service.require_target_user_in_active_tenant",
+        "src.core.platform.application.security.auth.session.session_service.require_target_user_in_active_tenant",
         lambda *args, **kwargs: "",
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.registration_service.add_atomic_security_audit",
+        "src.core.platform.application.security.auth.provisioning.registration_service.add_atomic_security_audit",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.user_admin_service.add_atomic_security_audit",
+        "src.core.platform.application.security.auth.provisioning.user_admin_service.add_atomic_security_audit",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.authentication_transactions.add_atomic_auth_event",
+        "src.core.platform.application.security.auth.credentials.authentication_transactions.add_atomic_auth_event",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.session_service.add_atomic_security_audit",
+        "src.core.platform.application.security.auth.session.session_service.add_atomic_security_audit",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.registration_service.enforce_separation_of_duties",
+        "src.core.platform.application.security.auth.provisioning.registration_service.enforce_separation_of_duties",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.registration_service.hash_password",
+        "src.core.platform.application.security.auth.provisioning.registration_service.hash_password",
         lambda raw_password: f"hash::{raw_password}",
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.authentication_service.verify_password",
+        "src.core.platform.application.security.auth.credentials.authentication_service.verify_password",
         lambda raw_password, password_hash: password_hash == f"hash::{raw_password}",
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.authentication_transactions.domain_events.auth_changed.emit",
+        "src.core.platform.application.security.auth.credentials.authentication_transactions.domain_events.auth_changed.emit",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.registration_service.domain_events.auth_changed.emit",
+        "src.core.platform.application.security.auth.provisioning.registration_service.domain_events.auth_changed.emit",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.user_admin_service.domain_events.auth_changed.emit",
+        "src.core.platform.application.security.auth.provisioning.user_admin_service.domain_events.auth_changed.emit",
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
-        "src.core.platform.auth.application.session_service.domain_events.auth_changed.emit",
+        "src.core.platform.application.security.auth.session.session_service.domain_events.auth_changed.emit",
         lambda *args, **kwargs: None,
     )
 

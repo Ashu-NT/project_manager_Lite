@@ -57,7 +57,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
-    from src.core.platform.auth.application import AuthService
+    from src.core.platform.application.security.auth import AuthService
     from src.infra.composition.repositories import build_repository_bundle
     from src.infra.persistence.db.engine import get_db_url
     from src.infra.persistence.db.session_factory import SessionLocal

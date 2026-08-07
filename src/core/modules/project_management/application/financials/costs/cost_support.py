@@ -3,21 +3,17 @@ from __future__ import annotations
 import json
 
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.platform.approval.policy import is_governance_required
-from src.core.platform.access.authorization import require_project_permission
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.domain.approval.policy import is_governance_required
+from src.core.modules.project_management.access.scope_permissions import require_project_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.shared.audit import record_audit_entry
 from src.core.modules.project_management.application.common.currency_policy import (
     resolve_pm_currency,
 )
 
 class CostSupportMixin:
-    def _is_governed(self, *, operation_code: str, bypass_approval: bool) -> bool:
-        return (
-            not bypass_approval
-            and self._approval_service is not None
-            and is_governance_required(operation_code)
-        )
+    def _is_governed(self, *, operation_code: str) -> bool:
+        return self._approval_service is not None and is_governance_required(operation_code)
 
     def _require_operation_permission(
         self,

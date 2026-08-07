@@ -5,6 +5,8 @@ Business logic lives in financials/costs/labor_cost.py.
 
 from __future__ import annotations
 
+from datetime import date
+
 from src.core.modules.project_management.contracts.repositories.project import (
     ProjectRepository,
     ProjectResourceRepository,
@@ -14,11 +16,16 @@ from src.core.modules.project_management.contracts.repositories.task import (
     TaskRepository,
 )
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.rate_resolution import (
+    LaborRateResolver,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.modules.project_management.application.financials.costs.labor_cost import (
     LaborCostEngine,
 )
 from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
     LaborAssignmentRow,
+    LaborDetailsResult,
     LaborPlanActualRow,
     LaborResourceRow,
 )
@@ -29,6 +36,8 @@ class ReportingLaborMixin:
     _assignment_repo: AssignmentRepository
     _resource_repo: ResourceRepository
     _project_resource_repo: ProjectResourceRepository
+    _rate_resolver: LaborRateResolver
+    _tenant_context_service: TenantContextService
 
     def _make_labor_engine(self) -> LaborCostEngine:
         return LaborCostEngine(
@@ -37,12 +46,27 @@ class ReportingLaborMixin:
             assignment_repo=self._assignment_repo,
             resource_repo=self._resource_repo,
             project_resource_repo=self._project_resource_repo,
+            rate_resolver=self._rate_resolver,
+            tenant_context_service=self._tenant_context_service,
         )
 
-    def get_project_labor_details(self, project_id: str) -> list[LaborResourceRow]:
+    def calculate_project_labor_details(
+        self, project_id: str, as_of: date | None = None
+    ) -> LaborDetailsResult:
         self._require_view("view labor details", project_id=project_id)
-        return self._make_labor_engine().get_project_labor_details(project_id)
+        return self._make_labor_engine().calculate_project_labor_details(
+            project_id, as_of or date.today()
+        )
 
-    def get_project_labor_plan_vs_actual(self, project_id: str) -> list[LaborPlanActualRow]:
+    def get_project_labor_details(
+        self, project_id: str, as_of: date | None = None
+    ) -> list[LaborResourceRow]:
+        return list(self.calculate_project_labor_details(project_id, as_of).rows)
+
+    def get_project_labor_plan_vs_actual(
+        self, project_id: str, as_of: date | None = None
+    ) -> list[LaborPlanActualRow]:
         self._require_view("view labor plan versus actual", project_id=project_id)
-        return self._make_labor_engine().get_project_labor_plan_vs_actual(project_id)
+        return self._make_labor_engine().get_project_labor_plan_vs_actual(
+            project_id, as_of or date.today()
+        )

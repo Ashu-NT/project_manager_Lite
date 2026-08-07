@@ -3,24 +3,24 @@ from __future__ import annotations
 import pytest
 
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.infrastructure.persistence.repositories.approval import (
+from src.core.platform.infrastructure.persistence.repositories.approval.approval import (
     SqlAlchemyApprovalRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.audit_entry import (
+from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
     SqlAlchemyAuditRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.departments import (
+from src.core.platform.infrastructure.persistence.repositories.master_data.department.departments import (
     SqlAlchemyDepartmentRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.documents import (
+from src.core.platform.infrastructure.persistence.repositories.master_data.documents.documents import (
     SqlAlchemyDocumentLinkRepository,
     SqlAlchemyDocumentRepository,
     SqlAlchemyDocumentStructureRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.employee import (
+from src.core.platform.infrastructure.persistence.repositories.master_data.employee.employee import (
     SqlAlchemyEmployeeRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.enterprise_calendar import (
+from src.core.platform.infrastructure.persistence.repositories.time_management.calendar.enterprise_calendar import (
     SqlAlchemyCalendarAssignmentRepository,
     SqlAlchemyCalendarExceptionRepository,
     SqlAlchemyCalendarRecurringEventRepository,
@@ -28,13 +28,13 @@ from src.core.platform.infrastructure.persistence.repositories.enterprise_calend
     SqlAlchemyPlatformCalendarRepository,
     SqlAlchemyShiftPatternRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.party import (
+from src.core.platform.infrastructure.persistence.repositories.master_data.party.party import (
     SqlAlchemyPartyRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.sites import (
+from src.core.platform.infrastructure.persistence.repositories.master_data.site.sites import (
     SqlAlchemySiteRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.time import (
+from src.core.platform.infrastructure.persistence.repositories.time_management.time.time import (
     SqlAlchemyTimeEntryRepository,
     SqlAlchemyTimesheetPeriodRepository,
 )

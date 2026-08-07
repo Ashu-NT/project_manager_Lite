@@ -26,7 +26,7 @@ from src.core.modules.maintenance.infrastructure.persistence.repositories._tenan
     MaintenanceTenantScopedRepositorySupport,
 )
 from src.core.platform.common.exceptions import NotFoundError
-from src.core.platform.tenancy.tenant_context import (
+from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
     require_tenant_context_service,
 )

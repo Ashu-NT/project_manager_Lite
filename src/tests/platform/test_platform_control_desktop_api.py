@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from src.api.desktop.platform import (
-    ApprovalDecisionCommand,
-    ApprovalStatus,
-    PlatformAccessDesktopApi,
-    PlatformApprovalDesktopApi,
+from src.core.platform.api.desktop.access.access import PlatformAccessDesktopApi
+from src.core.platform.api.desktop.access.models.access import (
     ScopedAccessGrantAssignCommand,
     ScopedAccessGrantRemoveCommand,
 )
-from src.api.desktop.runtime import build_desktop_api_registry
+from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
+from src.core.platform.api.desktop.approval.models.approval import ApprovalDecisionCommand
+from src.core.platform.domain.approval import ApprovalStatus
+from src.application.runtime import build_desktop_api_registry
 from src.tests.ui_runtime_helpers import login_as
 
 

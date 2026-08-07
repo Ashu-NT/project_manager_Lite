@@ -5,13 +5,16 @@ import json
 import pytest
 from sqlalchemy import func, select
 
-from src.core.platform.auth.application import AuthService
-from src.core.platform.auth.domain import ROLE_SCOPE_PLATFORM, ROLE_SCOPE_TENANT
-from src.core.platform.infrastructure.persistence.orm.audit_entry import (
+from src.core.platform.application.security.auth import AuthService
+from src.core.platform.domain.security.authorization.roles import (
+    ROLE_SCOPE_PLATFORM,
+    ROLE_SCOPE_TENANT,
+)
+from src.core.platform.infrastructure.persistence.orm.history.audit.audit_entry import (
     AuditEntryORM,
 )
-from src.core.platform.infrastructure.persistence.orm.auth import UserORM
-from src.core.platform.tenancy.domain.tenant import Tenant
+from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
+from src.core.platform.domain.tenant.tenancy.tenant import Tenant
 from src.infra.composition.repositories import (
     RepositoryBundle,
     build_repository_bundle,

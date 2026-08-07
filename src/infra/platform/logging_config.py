@@ -37,7 +37,7 @@ def _apply_logger_overrides(root_level: int) -> None:
         "src.ui_qml.platform.controllers.common.workspace_controller_base": debug_or_info,
         "src.ui_qml.modules.inventory_procurement.controllers.common.workspace_controller_base": debug_or_info,
         "src.ui_qml.modules.maintenance.controllers.common.workspace_controller_base": debug_or_info,
-        "src.core.platform.calendar.application.enterprise_calendar_resolver": debug_or_info,
+        "src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver": debug_or_info,
         "qt.qml": logging.DEBUG if debug_enabled else logging.WARNING,
         "sqlalchemy.engine": logging.WARNING,
         "alembic": logging.INFO,

@@ -4,7 +4,7 @@ from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
 
 import pytest
-from src.core.platform.auth.domain.session import UserSessionContext
+from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.tests.ui_runtime_helpers import login_as

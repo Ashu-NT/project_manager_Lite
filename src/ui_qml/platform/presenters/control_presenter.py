@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import logging
 
-from src.api.desktop.platform import ApprovalStatus, PlatformApprovalDesktopApi
-from src.api.desktop.platform.audit_enterprise import PlatformEnterpriseAuditDesktopApi
+from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
+from src.core.platform.domain.approval import ApprovalStatus
+from src.core.platform.api.desktop.history.audit.audit_enterprise import PlatformEnterpriseAuditDesktopApi
 from src.ui_qml.platform.view_models import (
     PlatformMetricViewModel,
     PlatformWorkspaceOverviewViewModel,

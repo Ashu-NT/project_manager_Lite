@@ -9,7 +9,7 @@ from src.core.modules.project_management.domain.enums import (
 )
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
-from src.core.platform.time.domain import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
+from src.core.platform.domain.time_management.time import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
 from src.tests.project_management._timesheets_fakes_services import (
     _FakeResourceService,
     _FakeTaskService,

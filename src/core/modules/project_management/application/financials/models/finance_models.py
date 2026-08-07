@@ -3,6 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
+from src.core.modules.project_management.contracts.repositories.rate_resolution import (
+    UnresolvedLaborRate,
+)
+
 
 # ── Finance snapshot DTOs ─────────────────────────────────────────────────────
 
@@ -67,6 +71,7 @@ class FinanceSnapshot:
     by_resource: list[FinanceAnalyticsRow]
     by_task: list[FinanceAnalyticsRow]
     notes: list[str]
+    unresolved_labor_rates: tuple[UnresolvedLaborRate, ...] = ()
 
 
 # ── Cost DTOs ─────────────────────────────────────────────────────────────────
@@ -137,6 +142,33 @@ class LaborPlanActualRow:
     variance_cost: float
 
 
+@dataclass(frozen=True)
+class LaborDetailsResult:
+    """Rich result for labor details — rows plus which resources' rates
+    could not be resolved, so a caller can tell "no labor cost" apart from
+    "some labor cost we couldn't price." The existing list-returning
+    ``get_project_labor_details`` is a thin wrapper over this — one
+    computation, not a second query to separately answer what was
+    unresolved."""
+
+    rows: tuple[LaborResourceRow, ...]
+    unresolved_rates: tuple[UnresolvedLaborRate, ...]
+
+    @property
+    def is_complete(self) -> bool:
+        return not self.unresolved_rates
+
+
+@dataclass(frozen=True)
+class LaborPlanResult:
+    rows: tuple[LaborPlanActualRow, ...]
+    unresolved_rates: tuple[UnresolvedLaborRate, ...]
+
+    @property
+    def is_complete(self) -> bool:
+        return not self.unresolved_rates
+
+
 # ── Earned Value DTOs ─────────────────────────────────────────────────────────
 
 @dataclass
@@ -184,6 +216,8 @@ __all__ = [
     "LaborAssignmentRow",
     "LaborResourceRow",
     "LaborPlanActualRow",
+    "LaborDetailsResult",
+    "LaborPlanResult",
     # EVM
     "EarnedValueMetrics",
     "EvmSeriesPoint",

@@ -3,18 +3,25 @@ from __future__ import annotations
 
 import logging
 from dataclasses import replace
+from datetime import date, timedelta
+from decimal import Decimal
 
 from sqlalchemy.exc import IntegrityError
 
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
+from src.core.modules.project_management.domain.financials.rate_cards import (
+    RateCardLine,
+    RateLineOrigin,
+    RateType,
+)
 from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.modules.project_management.contracts.repositories.project import ProjectResourceRepository
 from src.core.modules.project_management.contracts.repositories.task import AssignmentRepository
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from src.core.platform.common.interfaces import TimeEntryRepository
-from src.core.platform.employee.contracts import EmployeeRepository
+from src.core.platform.contract.time_management.time.contracts import TimeEntryRepository
+from src.core.platform.contract.master_data.employee.contracts import EmployeeRepository
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.auth.authorization import require_permission
+from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.shared.activity import record_activity
 from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.application.common.currency_policy import (
@@ -28,6 +35,15 @@ def _employee_contact(employee) -> str:
 
 
 class ResourceCommandMixin:
+    def _active_tenant_id(self, *, operation_label: str) -> str:
+        tenant_context = getattr(self, "_tenant_context_service", None)
+        if tenant_context is None:
+            raise BusinessRuleError(
+                f"Active tenant context is required for {operation_label}.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        return tenant_context.require_active_tenant_id(operation_label=operation_label)
+
     def _resolve_resource_code(self, code: str, name: str, *, exclude_id: str | None = None) -> str:
         """Normalize a manual code or auto-generate a unique one (global scope)."""
         from src.core.platform.common.code_generation import (
@@ -80,6 +96,94 @@ class ResourceCommandMixin:
             code="CODE_DUPLICATE",
         ) from exc
 
+    def _current_legacy_rate_line(self, resource_id: str) -> RateCardLine | None:
+        rate_card_repo = getattr(self, "_project_rate_card_repo", None)
+        if rate_card_repo is None:
+            return None
+        for line in rate_card_repo.list_lines_in_scope(project_id=None):
+            if (
+                line.resource_id == resource_id
+                and line.origin == RateLineOrigin.LEGACY_SEEDED
+                and line.rate_type == RateType.COST
+                and line.is_active
+            ):
+                return line
+        return None
+
+    def _create_legacy_rate_line(self, resource: Resource, *, effective_from: date) -> None:
+        rate_card_repo = getattr(self, "_project_rate_card_repo", None)
+        if rate_card_repo is None:
+            raise BusinessRuleError(
+                "A rate card repository is required to seed a resource's labor rate.",
+                code="RATE_CARD_REPO_REQUIRED",
+            )
+        card = rate_card_repo.get_or_create_legacy_card(
+            tenant_id=self._active_tenant_id(operation_label="seed legacy rate line"),
+            organization_id=resource.organization_id,
+            currency_code=resource.currency_code,
+        )
+        line = RateCardLine.create(
+            tenant_id=self._active_tenant_id(operation_label="seed legacy rate line"),
+            organization_id=resource.organization_id,
+            rate_card_id=card.id,
+            rate_type=RateType.COST,
+            unit="HOUR",
+            rate_amount=Decimal(str(resource.hourly_rate)),
+            rate_currency=resource.currency_code,
+            origin=RateLineOrigin.LEGACY_SEEDED,
+            resource_id=resource.id,
+            effective_from=effective_from,
+        )
+        rate_card_repo.add_line(line)
+
+    def _supersede_legacy_rate_line(
+        self,
+        *,
+        resource: Resource,
+        previous_hourly_rate: float,
+        effective_on: date | None,
+    ) -> None:
+        """Zero-rate transition matrix (ADR-PF-005 cutover): ``0`` always
+        means "not configured," never a real rate line. ``positive -> 0``
+        retires the current line with no replacement; every other
+        transition that actually changes the rate or its currency
+        deactivates-and-replaces (same-day) or closes-and-opens (a later
+        date) — never amends a line in place, for auditability."""
+        previous_rate = Decimal(str(previous_hourly_rate or 0))
+        new_rate = Decimal(str(resource.hourly_rate or 0))
+        if previous_rate == 0 and new_rate == 0:
+            return
+
+        assert effective_on is not None  # enforced by the caller's required-field check
+
+        if previous_rate == 0:
+            self._create_legacy_rate_line(resource, effective_from=effective_on)
+            return
+
+        current_line = self._current_legacy_rate_line(resource.id)
+        if current_line is None:
+            raise BusinessRuleError(
+                f"Resource '{resource.id}' has a positive rate but no active "
+                "legacy rate line was found to supersede.",
+                code="LEGACY_RATE_LINE_MISSING",
+            )
+
+        rate_card_repo = self._project_rate_card_repo
+        if current_line.effective_from == effective_on:
+            rate_card_repo.update_line(replace(current_line, is_active=False))
+        elif effective_on > current_line.effective_from:
+            rate_card_repo.update_line(
+                replace(current_line, effective_to=effective_on - timedelta(days=1))
+            )
+        else:
+            raise BusinessRuleError(
+                "A backdated rate change requires the dedicated rate-card workflow.",
+                code="LEGACY_RATE_BACKDATE_NOT_ALLOWED",
+            )
+
+        if new_rate > 0:
+            self._create_legacy_rate_line(resource, effective_from=effective_on)
+
     def create_resource(
         self,
         name: str,
@@ -94,6 +198,7 @@ class ResourceCommandMixin:
         worker_type: WorkerType | str = WorkerType.EXTERNAL,
         employee_id: str | None = None,
         code: str = "",
+        rate_effective_on: date | None = None,
     ) -> Resource:
         require_permission(self._user_session, "resource.manage", operation_label="create resource")
         organization_id = self._active_organization_id(operation_label="create resource")
@@ -140,6 +245,17 @@ class ResourceCommandMixin:
         resource.code = self._resolve_resource_code(code, resource.name)
         try:
             self._resource_repo.add(resource)
+            if resource.hourly_rate > 0:
+                clock = getattr(self, "_clock", None)
+                effective_on = rate_effective_on or (
+                    clock.today() if clock is not None else None
+                )
+                if effective_on is None:
+                    raise BusinessRuleError(
+                        "A clock is required to seed a resource's legacy rate line.",
+                        code="RATE_CLOCK_REQUIRED",
+                    )
+                self._create_legacy_rate_line(resource, effective_from=effective_on)
             self._session.commit()
             record_activity(
                 self,
@@ -185,11 +301,28 @@ class ResourceCommandMixin:
         employee_id: str | None = None,
         expected_version: int | None = None,
         code: str | None = None,
+        effective_on: date | None = None,
     ) -> Resource:
         require_permission(self._user_session, "resource.manage", operation_label="update resource")
         resource = self._resource_repo.get(resource_id)
         if not resource:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
+
+        rate_affecting_change = hourly_rate is not None or currency_code is not None
+        if rate_affecting_change:
+            if expected_version is None:
+                raise ValidationError(
+                    "expected_version is required when changing the resource rate "
+                    "or currency.",
+                    code="RESOURCE_RATE_VERSION_REQUIRED",
+                )
+            if effective_on is None:
+                raise ValidationError(
+                    "effective_on is required when changing the resource rate or "
+                    "currency.",
+                    code="RESOURCE_RATE_EFFECTIVE_ON_REQUIRED",
+                )
+
         if expected_version is not None and resource.version != expected_version:
             raise ConcurrencyError(
                 "Resource changed since you opened it. Refresh and try again.",
@@ -255,6 +388,12 @@ class ResourceCommandMixin:
 
         try:
             self._resource_repo.update(candidate)
+            if rate_affecting_change:
+                self._supersede_legacy_rate_line(
+                    resource=candidate,
+                    previous_hourly_rate=resource.hourly_rate,
+                    effective_on=effective_on,
+                )
             self._session.commit()
             record_activity(
                 self,

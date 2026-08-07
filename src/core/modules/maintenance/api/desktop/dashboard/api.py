@@ -27,7 +27,7 @@ from src.core.modules.maintenance.api.desktop.shared_options import (
     serialize_site_option,
     serialize_system_option,
 )
-from src.core.platform.site import SiteService
+from src.core.platform.application.master_data.site.site_service import SiteService
 
 _WINDOW_CHOICES = (30, 60, 90, 180, 365)
 _SUMMARY_SUPPORTING_TEXT = {

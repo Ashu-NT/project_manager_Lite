@@ -5,8 +5,10 @@ from src.ui_qml.modules.project_management.context import ProjectManagementWorks
 from src.core.modules.project_management.api.desktop import (
     build_project_management_collaboration_desktop_api,
 )
-from src.api.desktop.platform import ApprovalRequestDto, ApprovalStatus, DesktopApiResult
-from src.core.platform.documents import DocumentStorageKind
+from src.core.platform.api.desktop.approval.models.approval import ApprovalRequestDto
+from src.core.platform.api.desktop.models.common import DesktopApiResult
+from src.core.platform.domain.approval import ApprovalStatus
+from src.core.platform.domain.master_data.documents import DocumentStorageKind
 from src.ui_qml.modules.project_management.presenters.collaboration import (
     ProjectCollaborationWorkspacePresenter,
 )

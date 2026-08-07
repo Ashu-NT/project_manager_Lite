@@ -27,8 +27,8 @@ from src.core.modules.inventory_procurement.infrastructure.reporting.models impo
     StockStatusRow,
 )
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.exporting import ensure_output_path, finalize_artifact
-from src.core.platform.report_runtime import ReportDefinitionRegistry, ReportRuntime
+from src.core.platform.application.data_operations.exporting import ensure_output_path, finalize_artifact
+from src.core.platform.application.data_operations.report_runtime import ReportDefinitionRegistry, ReportRuntime
 
 
 def _isoformat(value: object) -> str:

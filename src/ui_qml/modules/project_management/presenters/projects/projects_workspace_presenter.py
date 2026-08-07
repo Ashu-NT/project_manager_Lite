@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.api.desktop.platform import PlatformSiteDesktopApi
+from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementProjectsDesktopApi,
     build_project_management_projects_desktop_api,

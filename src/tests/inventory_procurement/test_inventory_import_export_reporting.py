@@ -6,9 +6,9 @@ from uuid import uuid4
 import pytest
 from openpyxl import load_workbook
 
-from src.core.platform.auth.domain.session import UserSessionPrincipal
+from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.party.domain import PartyType
+from src.core.platform.domain.master_data.party import PartyType
 from src.tests.ui_runtime_helpers import login_as
 
 

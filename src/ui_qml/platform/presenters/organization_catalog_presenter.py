@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.api.desktop.platform import (
+from src.core.platform.api.desktop.master_data.org.models.organization import (
     OrganizationDto,
     OrganizationProvisionCommand,
     OrganizationUpdateCommand,
-    PlatformRuntimeDesktopApi,
 )
-from src.api.desktop.platform.models import DesktopApiResult
+from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
+from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.ui_qml.platform.presenters.support import (
     bool_value,
     int_value,

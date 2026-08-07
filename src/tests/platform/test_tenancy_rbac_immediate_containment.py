@@ -5,21 +5,21 @@ from inspect import signature
 
 import pytest
 
-from src.core.platform.auth import AuthService
-from src.core.platform.auth.domain import (
+from src.core.platform.application.security.auth import AuthService
+from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_PLATFORM,
     RoleBinding,
-    UserAccount,
 )
-from src.core.platform.auth.domain.session import UserSessionContext
-from src.core.platform.auth.passwords import hash_password
+from src.core.platform.domain.security.auth import UserAccount
+from src.core.platform.domain.security.auth.session import UserSessionContext
+from src.core.platform.domain.security.auth.credentials.passwords import hash_password
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.infrastructure.persistence.repositories.org import (
+from src.core.platform.infrastructure.persistence.repositories.master_data.org.org import (
     SqlAlchemyOrganizationRepository,
 )
-from src.core.platform.org.domain import Organization
-from src.core.platform.tenancy.domain.tenant import Tenant
-from src.core.platform.tenancy.domain.user_tenant_membership import (
+from src.core.platform.domain.master_data.org import Organization
+from src.core.platform.domain.tenant.tenancy.tenant import Tenant
+from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
     UserTenantMembership,
 )
 

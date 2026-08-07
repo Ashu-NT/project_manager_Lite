@@ -13,15 +13,15 @@ from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
 )
-from src.core.platform.infrastructure.persistence.orm.auth import UserORM
-from src.core.platform.infrastructure.persistence.orm.tenant import TenantORM
-from src.core.platform.infrastructure.persistence.repositories.auth import (
+from src.core.platform.infrastructure.persistence.orm.security.auth.auth import UserORM
+from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
+from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
     SqlAlchemyUserRepository,
 )
-from src.core.platform.infrastructure.persistence.repositories.user_tenant import (
+from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.user_tenant import (
     SqlAlchemyUserTenantMembershipRepository,
 )
-from src.core.platform.tenancy import (
+from src.core.platform.domain.tenant.tenancy import (
     MEMBERSHIP_STATUS_ACTIVE,
     MEMBERSHIP_STATUS_INVITED,
     MEMBERSHIP_STATUS_REMOVED,
