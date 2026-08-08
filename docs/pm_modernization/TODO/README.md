@@ -209,8 +209,16 @@ DA3 Dashboard and workspace-performance checkpoint (2026-08-08):
   fixture, Dashboard improved from approximately 0.70s/1,501 SQL statements to 0.08s/96, and
   Portfolio from approximately 0.30s/494 to 0.06s/68. These are regression evidence, not a
   production SLA.
-- Focused resource, Dashboard, architecture, auth, and runtime checkpoint: 68 passed. DA3 is
-  complete; DA4 remains the next responsibility-audit phase.
+- Existing scale fixtures confirm the authorization lease removes fixed per-operation overhead:
+  Collaboration inbox/workspace reads moved from 53/56 SQL statements to 3/6, EVM series from 50
+  to 15, Portfolio scenario comparison from 62 to 12, capacity pool from 20 to 5, and Finance
+  snapshot/EVM reads from 45/47 to 10/12. Their persistent budgets now pin the lower counts.
+- Focused resource, Dashboard, architecture, auth, and runtime checkpoint: 68 passed. The broad PM
+  and architecture run covered 599 tests: 596 passed in the complete run and its three stale
+  Phase 3B measurement budgets passed after recalibration. The directly affected Platform security
+  set passed 126 tests; its one unrelated existing failure is the global PostgreSQL RLS inventory,
+  which does not yet classify newly added Project Finance tenant tables. DA3 is complete; DA4
+  remains the next responsibility-audit phase.
 
 ## 1. Finance — Phase B, remaining
 

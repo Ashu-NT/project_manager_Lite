@@ -233,7 +233,7 @@ def test_phase3a_measure_evm_series_growth(services, periods, capsys) -> None:
 
     assert len(series) == periods
     assert calculations["EarnedValueCalculator.calculate"] == periods
-    assert sql_stats.total_statements == 50
+    assert sql_stats.total_statements == 15
     assert calls["evm_series_reader.read_facts"] == 1
     assert calls["rate_resolver.resolve_many_dates"] == 1
     assert calls["rate_reader.list_resource_contexts"] == 1

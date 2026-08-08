@@ -165,7 +165,7 @@ def test_phase3c_measure_portfolio_read_candidates(services, size_name, capsys) 
         assert result is not None
         assert sql_stats.total_statements > 0
         if operation_name == "capacity_pool":
-            assert sql_stats.total_statements == 20
+            assert sql_stats.total_statements == 5
             assert calls["portfolio_pool_reader.read_facts"] == 1
             assert calls["calendar.working_day_dates_between"] == 1
             assert calls["resource_repo.list"] == 0
@@ -174,7 +174,7 @@ def test_phase3c_measure_portfolio_read_candidates(services, size_name, capsys) 
             assert calls["task_repo.get"] == 0
             assert calls["project_repo.get"] == 0
         elif operation_name == "scenario_comparison":
-            assert sql_stats.total_statements == 62
+            assert sql_stats.total_statements == 12
             assert calls["portfolio_scenario_reader.read_facts"] == 1
             assert calls["calendar.working_day_dates_between"] == 1
             assert calls["portfolio._accessible_projects"] == 1
@@ -187,7 +187,7 @@ def test_phase3c_measure_portfolio_read_candidates(services, size_name, capsys) 
             assert calls["resource_repo.list"] == 0
             assert calls["resource_repo.get"] == 0
         elif operation_name == "heatmap":
-            expected_sql = {1: 67, 5: 91, 12: 133}[project_count]
+            expected_sql = {1: 17, 5: 41, 12: 83}[project_count]
             assert sql_stats.total_statements == expected_sql
             assert calls["portfolio_heatmap_reader.read_facts"] == 1
             assert calls["project_calendar.working_day_dates_between"] == project_count

@@ -207,7 +207,7 @@ def test_phase3b_measure_reporting_financial_reads(services, size_name, capsys) 
 
         assert result is not None
         uses_evm_reader = operation_name in {"cost_breakdown", "earned_value"}
-        assert sql_stats.total_statements == (47 if uses_evm_reader else 45)
+        assert sql_stats.total_statements == (12 if uses_evm_reader else 10)
         assert calls["FinanceSnapshotReader.read_facts"] == (0 if uses_evm_reader else 1)
         assert calls["EvmSeriesReader.read_facts"] == (1 if uses_evm_reader else 0)
         assert policy_builds["CostPolicyEngine.build_snapshot"] == 0

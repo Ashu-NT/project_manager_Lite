@@ -75,7 +75,7 @@ def test_phase3d_measure_collaboration_reads(services, size_name, capsys) -> Non
             print(report)
 
         assert result is not None
-        expected_sql = 53 if operation_name == "inbox" else 56
+        expected_sql = 3 if operation_name == "inbox" else 6
         assert sql_stats.total_statements == expected_sql
         assert calls["collaboration.read_fact_graph"] == 1
         assert calls["collaboration_reader.read_facts"] == 1

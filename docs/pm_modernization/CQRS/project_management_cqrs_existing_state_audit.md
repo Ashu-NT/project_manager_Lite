@@ -4425,7 +4425,13 @@ executive snapshot, a validated-principal lease with forced shell heartbeat reva
 entitlement scope reads, and bounded calendar range snapshots reduced the SQLite fixture from
 approximately 0.70s/1,501 SQL statements to 0.08s/96 for Dashboard and from approximately
 0.30s/494 to 0.06s/68 for Portfolio. These measurements are regression evidence, not a production
-SLA, and they did not introduce a Dashboard Reader or temporary compatibility path.
+SLA, and they did not introduce a Dashboard Reader or temporary compatibility path. Existing
+scale fixtures also pin Collaboration at 3/6 statements for inbox/workspace, EVM series at 15,
+Portfolio scenario/capacity reads at 12/5, and Finance snapshot/EVM reads at 10/12. The broad PM
+and architecture run covered 599 tests, with its three initially stale Phase 3B budgets rerun green.
+The directly affected Platform security set passed 126 tests; the remaining unrelated failure is
+the global PostgreSQL RLS inventory's missing classification for newly added Project Finance
+tenant tables.
 
 One capability at a time, per the migration constraints ("do not migrate all capabilities in one
 phase"):
