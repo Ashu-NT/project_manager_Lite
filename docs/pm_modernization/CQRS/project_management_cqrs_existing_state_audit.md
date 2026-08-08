@@ -1,13 +1,12 @@
 # Project Management — CQRS Existing-State Audit and Design-Mapping
 
-Status: **complete for CQRS pilot selection, PM finance design, and the desktop-adapter
-responsibility audit** (2026-08-06, corrected after review; the Scheduling-adapter follow-up this
-status line previously flagged as pending was completed in the "Desktop Adapter Responsibility
-Audit" section below and is no longer outstanding). This document is read-only design-mapping: no
-production code was modified, no files were moved, no CQRS classes were introduced, no migrations
-were generated, no existing concepts were renamed. Everything stated as fact below was verified by
-opening the file and following the call chain to its concrete runtime implementation; everything
-proposed is clearly separated into §15-20 and is explicitly *not yet built*. **The three Scheduling
+Status: **audit and prerequisite Phases 0, 0A, 0B, and 0C complete; Phase 1 not started**
+(2026-08-08). CQRS pilot selection, PM finance design, and the desktop-adapter responsibility audit
+are complete. This document began as read-only design-mapping and now also records exact
+implementation evidence for the prerequisite phases; proposed CQRS Reader work remains separated
+into §15-20 and is explicitly not built until its phase is marked complete. Everything stated as
+fact below was verified by opening the file and following the call chain to its concrete runtime
+implementation. **The three Scheduling
 desktop-API service files and six Scheduling desktop-API serializer files that earlier revisions of
 this document flagged as unopened (`services/scheduling_facade_service.py`,
 `services/dependency_resolution_service.py`, `services/calendar_adapter_service.py`, and six
@@ -2587,6 +2586,10 @@ Phase 0A.4
 Phase 0B
 → attribute the Phase 0 SQL-count growth to specific call sites (diagnostic only)
 
+Phase 0C
+→ replace PM repository entity hydration with validated session scope IDs
+→ prove repository scoping remains fail-closed and tenant/organization query growth is removed
+
 Phase 1
 → Finance Snapshot CQRS pilot
 
@@ -2598,8 +2601,8 @@ Phase 3C
 → introduce Portfolio Reader only when justified
 ```
 
-Phase 0.1-0A.4, Phase 0B, and Phase 1 remain independently reviewable, independently revertible commits — this
-sequence governs merge order, not implementation scope; nothing about fixing Portfolio's permission
+Phase 0.1-0A.4, Phase 0B, Phase 0C, and Phase 1 remain independently reviewable, independently
+revertible changes - this sequence governs merge order, not implementation scope; nothing about fixing Portfolio's permission
 check or rollback handling requires touching any file the Finance Snapshot pilot touches, and
 nothing about the pilot requires touching Portfolio or Collaboration. The reason for the ordering is
 priority, not a dependency graph: this document's own tiers (§14) treat every Phase 0A item as P0
@@ -2694,9 +2697,9 @@ repository layer's per-call tenant/organization context resolution.
 2. invoke `LaborCostEngine` once;
 3. reuse the resulting `LaborDetailsResult` across policy and ledger assembly;
 4. avoid any per-resource `ResourceRepository.get` calls;
-5. resolve tenant/organization scope once before invoking the Reader;
-6. leave the cross-cutting repository scope-resolution redesign outside the Finance Snapshot
-   pilot.
+5. acquire the already-validated active scope IDs once before invoking the Reader;
+6. preserve Phase 0C's ID-only repository rule and never reintroduce tenant/organization entity
+   hydration inside Reader SQL acquisition.
 
 **Verdict**
 
@@ -2707,8 +2710,73 @@ repository layer's per-call tenant/organization context resolution.
 | Growth driver isolated | Yes |
 | No production behavior changed | Yes |
 | Enough evidence for Reader design | Yes |
-| Global scope caching ready to implement | No — separate future work |
+| ID-only PM repository scope ready | Yes - completed in Phase 0C |
 | **Phase 0B exit gate** | **Passed** |
+
+**Phase 0C - PM repository scope-ID fast path (COMPLETE 2026-08-08).** This phase implements the
+cross-cutting PM repository correction diagnosed by Phase 0B before the Finance Reader is built.
+It is deliberately a tenancy-scoping optimization, not a CQRS Reader and not an authorization
+replacement.
+
+Implemented design:
+
+1. `TenantContextService.require_active_scope_ids(...)` returns immutable `ActiveScopeIds`
+   (`tenant_id`, `organization_id`) from the already-established `UserSessionContext`. With the
+   production desktop composition's session present, it does not query `tenants` or
+   `organizations`. It fails closed with `TENANT_CONTEXT_REQUIRED` or
+   `ORGANIZATION_CONTEXT_REQUIRED` when either required ID is absent.
+2. Every PM repository scope predicate now consumes IDs only. Direct repositories use
+   `require_active_scope_ids(...)`; Calendar Assignment, Portfolio, Project Resource, and Skills
+   repositories receive the same behavior through `TenantScopedRepositorySupport`/
+   `TenantParentScopedRepositorySupport`. The final incomplete direct classes were
+   `SqlAlchemyProjectRepository`, `SqlAlchemyAssignmentRepository`, and
+   `SqlAlchemyDependencyRepository`; all are now converted.
+3. `TenantContextService.get_active_tenant()`, `.get_active_organization()`,
+   `.require_context()`, and `.require_organization_context()` remain intact. Application services
+   that need full entities for switching, membership, currency, calendar, or explicit context
+   validation continue to use them. RBAC remains in the application service layer, and SQL tenant
+   and organization predicates remain in repositories; the fast path replaces neither control.
+4. The sessionless `TenantContextService` path retains full-context validation for explicit
+   non-desktop/test composition. This is a permanent compatibility of the context service, not a
+   PM transition adapter; the composed desktop runtime always supplies `UserSessionContext`.
+5. The shared tenant-scope support class is used by repositories outside PM. This phase verifies
+   and claims completion only for PM, per this plan's scope; no other module is declared audited by
+   association.
+
+Measured result on the same small/medium/large Finance Snapshot fixtures:
+
+| Metric | Small | Medium | Large |
+|---|---:|---:|---:|
+| Total SQL after Phase 0C | 112 | 148 | 308 |
+| `tenants` statements after Phase 0C | 16 | 16 | 16 |
+| `organizations` statements after Phase 0C | 19 | 19 | 19 |
+| Combined tenant/organization statements before Phase 0C | 87 | 159 | 479 |
+| Combined tenant/organization statements after Phase 0C | 35 | 35 | 35 |
+| `resource_repo.get` calls still remaining for Phase 1 | 4 | 40 | 200 |
+
+The tenant/organization component is now constant rather than resource-count-dependent. Total SQL
+still grows because the independently diagnosed `resource_repo.get == 4 * resource_count` loop
+continues to query `resources`; eliminating that remaining loop belongs to Phase 1's batched
+Reader, not Phase 0C.
+
+Verification and guardrails:
+
+- `test_phase0c_repository_scope_ids.py` proves session IDs are returned without touching tenant or
+  organization repositories, missing scope fails closed, and all formerly incomplete direct PM
+  repositories call the ID-only contract.
+- `test_pm_phase0c_repository_scope_architecture.py` fails if any PM persistence repository
+  reintroduces `require_organization_context(...)`, while also proving the separate full-entity
+  helper remains available for genuine consumers.
+- The Phase 0B executable diagnostic now retains the still-current 3x labor-calculation and 4xN
+  resource-lookup findings without asserting the repository context defect that Phase 0C removed.
+- Focused Phase 0B/0C verification: **9 passed**.
+
+**Phase 0C exit gate: PASSED.** All PM repository query/write scoping uses validated active IDs,
+tenant and organization predicates are preserved, incomplete scope fails closed, and no full
+tenant/organization entity hydration remains in the PM repository package.
+
+**Temporary/deletion register:** none. Phase 0C is a direct contract replacement with no feature
+flag, cache, dual path in PM repositories, compatibility facade, or temporary file to delete.
 
 **Main implementation guardrail for Phase 1:** Phase 1 passes only when `resource_repo.get` falls
 from 4 × N to zero on the Finance Snapshot path, while labor, policy, DTO, permissions, and
@@ -3136,14 +3204,16 @@ its own, without cross-referencing four other sections to reconstruct it.
 - **What tests and measurements prove the migration is safe?** §17's required test list, §18
   Phase 0's baseline-measurement requirement, §19's query-count guardrail.
 - **Is every Portfolio-facing cross-project capacity report protected by an explicit
-  application-layer permission?** Not yet — this is Phase 0A.1's mandatory exit gate (§18), tracked
-  as a Resolved Decision (above), not an open question.
-- **Do all Portfolio command methods roll back after repository or commit failure?** Not yet — this
-  is Phase 0A.2's mandatory exit gate (§18).
-- **Is the shared `Session` reusable after an injected Portfolio failure?** Not yet — explicitly one
-  of Phase 0A.2's required failure-injection tests (§18), not merely implied by "rollback happened."
-- **Are failure events suppressed on a rolled-back Portfolio write?** Not yet — Phase 0A.2 requires
-  a test proving no `portfolio_changed`/activity success event is emitted after a forced failure.
+  application-layer permission?** Yes - completed and verified in Phase 0A.1 (§18).
+- **Do all Portfolio command methods roll back after repository or commit failure?** Yes - completed
+  and verified in Phase 0A.2 (§18).
+- **Is the shared `Session` reusable after an injected Portfolio failure?** Yes - Phase 0A.2's
+  failure-injection coverage verifies reuse after rollback.
+- **Are failure events suppressed on a rolled-back Portfolio write?** Yes - Phase 0A.2 verifies no
+  `portfolio_changed`/activity success event is emitted after forced failure.
+- **Do PM repositories hydrate full tenant/organization entities for SQL scope predicates?** No -
+  Phase 0C replaced that path with validated `ActiveScopeIds` and added a repository-package
+  architecture guard.
 - **Are desktop DTOs and QML unchanged by the Portfolio safety corrections?** Yes, by design —
   Phase 0A.1/0A.2 add permission and rollback handling only; §15c's Approved Flow note confirms no
   desktop-API signature or DTO change.
@@ -3179,10 +3249,10 @@ Recommended first CQRS pilot: Finance Snapshot (FinanceService.get_finance_snaps
 Top five architecture risks:
   1. Two non-overlapping permission systems (report.view vs finance.read/finance.read_sensitive)
      gate the same financial data with no redaction on one side (P0, security).
-  2. PortfolioResourcePoolService has no permission check at all on a cross-project report (P0,
-     security).
-  3. Portfolio and Collaboration commit every write with zero try/except/rollback anywhere (P0,
-     reliability).
+  2. PortfolioResourcePoolService originally had no permission check on a cross-project report
+     (P0, security; remediated in Phase 0A.1).
+  3. Portfolio and Collaboration originally committed writes without complete rollback handling
+     (P0, reliability; remediated in Phases 0A.2/0A.3).
   4. FinanceService.get_finance_snapshot's confirmed, call-count-verified redundant computation
      (P1, performance — the pilot's own justification).
   5. Zero SQL-side aggregation anywhere in the persistence layer, module-wide (P1, systemic
@@ -3193,9 +3263,8 @@ Areas that could not be fully verified in this original pass, since closed:
     subsequently opened and verified in the "Desktop Adapter Responsibility Audit" section below.
   - Six Scheduling desktop-API serializer files were not opened in this pass — same closure.
 Areas that remain genuinely unverified as of this document's latest revision:
-  - No real wall-clock timing or production query-count measurement exists yet for
-    get_finance_snapshot — Phase 0 of the migration plan (§18) exists specifically to produce one
-    before Phase 1 begins.
+  - SQLite wall-clock and SQL-count baselines exist for get_finance_snapshot (Phases 0/0B/0C), but
+    the same measurement has not yet been run against hosted PostgreSQL with RLS enabled.
   - Whether Dashboard's `_build_high_risks_table` and Register's own filtered list actually disagree
     in practice today (a flagged risk, not a confirmed live bug — see the Desktop Adapter Audit's
     own Terminal Summary).
