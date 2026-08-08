@@ -41,6 +41,9 @@ from src.core.modules.project_management.application.financials import (
 from src.core.modules.project_management.infrastructure.persistence.repositories.rate_resolution_reader import (
     SqlAlchemyRateResolutionReader,
 )
+from src.core.modules.project_management.infrastructure.persistence.reads.financials import (
+    SqlAlchemyFinanceSnapshotReader,
+)
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import (
@@ -390,6 +393,7 @@ def build_project_management_service_bundle(
         project_resource_repo=repositories.project_resource_repo,
         assignment_repo=repositories.assignment_repo,
         rate_resolver=rate_card_resolver,
+        finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session),
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,

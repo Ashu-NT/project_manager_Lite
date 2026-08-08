@@ -16,8 +16,10 @@ from src.core.modules.project_management.contracts.repositories.cost import Cost
 from src.core.modules.project_management.contracts.repositories.rate_resolution import (
     LaborRateResolver,
 )
+from src.core.modules.project_management.contracts.reads.financials.finance_snapshot_reader import (
+    FinanceSnapshotReader,
+)
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
-from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 
@@ -48,10 +50,6 @@ from src.core.modules.project_management.application.financials.models.finance_m
     FinancePeriodRow,
     FinanceSnapshot,
 )
-from src.core.modules.project_management.application.financials.costs.policy import (
-    manual_labor_raw_totals,
-    resolve_manual_labor_inclusion,
-)
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 
 
@@ -68,6 +66,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         project_resource_repo: ProjectResourceRepository,
         assignment_repo: AssignmentRepository,
         rate_resolver: LaborRateResolver,
+        finance_snapshot_reader: FinanceSnapshotReader,
         tenant_context_service: TenantContextService,
         user_session=None,
         module_catalog_service=None,
@@ -78,6 +77,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         self._cost_repo: CostRepository = cost_repo
         self._project_resource_repo: ProjectResourceRepository = project_resource_repo
         self._rate_resolver: LaborRateResolver = rate_resolver
+        self._finance_snapshot_reader = finance_snapshot_reader
         self._tenant_context_service: TenantContextService = tenant_context_service
         self._labor = LaborCostEngine(
             project_repo=project_repo,
@@ -103,18 +103,6 @@ class FinanceService(ProjectManagementModuleGuardMixin):
             get_labor_details=self._labor.calculate_project_labor_details,
         )
 
-    def _resolve_scope(self, project) -> tuple[str, str]:
-        context = self._tenant_context_service.require_organization_context(
-            operation_label="build finance snapshot"
-        )
-        if project.organization_id and project.organization_id != context.organization_id:
-            raise BusinessRuleError(
-                "Project does not belong to the active organization.",
-                code="PROJECT_ORGANIZATION_MISMATCH",
-            )
-        assert context.organization_id is not None  # guaranteed by require_organization_context
-        return context.tenant_id, context.organization_id
-
     def get_finance_snapshot(
         self,
         project_id: str,
@@ -130,49 +118,45 @@ class FinanceService(ProjectManagementModuleGuardMixin):
             operation_label="view finance snapshot",
         )
         as_of = as_of or date.today()
-        project = self._project_repo.get(project_id)
-        if project is None:
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="build finance snapshot"
+        )
+        facts = self._finance_snapshot_reader.read_facts(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=project_id,
+            as_of=as_of,
+        )
+        if facts is None:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
-        tenant_id, organization_id = self._resolve_scope(project)
-
-        project_currency = normalize_currency(getattr(project, "currency", None), None)
-        task_map = {task.id: task for task in self._task_repo.list_by_project(project_id)}
-        resource_cache: dict[str, object | None] = {}
 
         engine = self._make_cost_policy_engine()
-        source_breakdown = engine.get_cost_source_breakdown(project_id, as_of=as_of)
-        totals = engine.get_cost_control_totals(project_id, as_of=as_of)
-        manual_raw = manual_labor_raw_totals(cost_repo=self._cost_repo, project_id=project_id, as_of=as_of)
-        manual_included = resolve_manual_labor_inclusion(source_rows=source_breakdown.rows, manual_raw=manual_raw)
+        labor_details = self._labor.calculate_project_labor_details(
+            project_id,
+            as_of,
+            facts=facts,
+        )
+        policy = engine.compose_from_facts(facts, labor_details)
+        source_breakdown = policy.source_breakdown
+        totals = policy.totals
 
         ledger: list[FinanceLedgerRow] = []
         ledger.extend(
             build_cost_item_ledger_rows(
-                cost_repo=self._cost_repo,
-                project=project,
-                task_map=task_map,
-                as_of=as_of,
-                manual_included=manual_included,
+                facts=facts,
+                manual_included=policy.manual_labor_included,
             )
         )
         ledger.extend(
             build_computed_labor_plan_rows(
-                project_resource_repo=self._project_resource_repo,
-                resource_repo=self._resource_repo,
-                project=project,
-                as_of=as_of,
-                resource_cache=resource_cache,
-                rate_resolver=self._rate_resolver,
-                tenant_id=tenant_id,
-                organization_id=organization_id,
+                facts=facts,
+                labor_details=labor_details,
             )
         )
         ledger.extend(
             build_computed_labor_actual_rows(
-                labor_provider=self._labor,
-                project=project,
-                task_map=task_map,
-                as_of=as_of,
+                facts=facts,
+                labor_details=labor_details,
             )
         )
         ledger.sort(
@@ -209,7 +193,10 @@ class FinanceService(ProjectManagementModuleGuardMixin):
 
         return FinanceSnapshot(
             project_id=project_id,
-            project_currency=totals.project_currency or project_currency,
+            project_currency=(
+                totals.project_currency
+                or normalize_currency(facts.project.currency, None)
+            ),
             budget=float(totals.budget),
             planned=float(totals.planned),
             committed=float(totals.committed),

@@ -3,14 +3,11 @@
 
 Phase 0's measurement found total SQL statement counts growing 164 -> 272 -> 752 across the
 small/medium/large fixtures, with `organizations`/`tenants` dominating 53-64% of all statements —
-flagged there as a real, measured signal but an *unconfirmed* root cause. This is a focused
-diagnostic, not an optimization pass: it exists only to attribute that growth to specific call
-sites before Phase 1 designs the Reader SQL, so the Reader can be built to avoid reproducing
-whichever pattern is actually responsible.
+flagged there as a real, measured signal and subsequently attributed in Phase 0B/0C. The same
+instrumentation now enforces the completed Phase 1 Reader cutover.
 
-The Phase 0B tenant/organization diagnosis is retained in the audit as historical evidence. After
-Phase 0C, this executable regression test continues to prove the still-unresolved 4 x N resource
-lookup and 3 x labor-calculation findings without requiring the removed repository context defect.
+The Phase 0B tenant/organization diagnosis remains in the audit as historical evidence. This test
+now proves that the former 4 x N resource lookup and three labor calculations remain eliminated.
 
 Test-only instrumentation - every hook wraps a bound method on an
 already-constructed instance for the duration of one measurement, then restores it (same technique
@@ -147,7 +144,7 @@ def _seed_finance_project(services, *, resources: int, tasks: int, cost_items: i
 
 
 @pytest.mark.parametrize("size_name", ["small", "medium", "large"])
-def test_phase0b_preserves_resource_lookup_attribution_after_scope_remediation(
+def test_phase1_removes_resource_lookup_growth_after_scope_remediation(
     services, size_name, capsys
 ):
     sizes = _SIZES[size_name]
@@ -188,16 +185,12 @@ def test_phase0b_preserves_resource_lookup_attribution_after_scope_remediation(
         print(report)
 
     labor_invocations = call_log.count("LaborCostEngine.calculate_project_labor_details")
-    assert labor_invocations == 3
-    assert call_log.count("resource_repo.get") == 4 * sizes["resources"]
+    assert labor_invocations == 1
+    assert call_log.count("resource_repo.get") == 0
+    assert call_log.count("rate_resolver.resolve_many") == 1
+    assert sql_stats.total_statements <= 70
 
-    # Full-context application flows still legitimately hydrate tenant/organization entities.
-    # Phase 0C removes the repository-driven, size-dependent component; it does not remove those
-    # entity-dependent calls.
     tenant_lookups = call_log.count("tenant_context.get_active_tenant")
     org_lookups = call_log.count("tenant_context.get_active_organization")
     assert sql_stats.by_table.get("tenants", 0) >= tenant_lookups * 0.9
     assert sql_stats.by_table.get("organizations", 0) >= org_lookups * 0.9
-
-    # The resource lookup loop remains Phase 1 work. Phase 0C's dedicated contract and
-    # architecture tests guarantee those calls no longer trigger full context hydration.

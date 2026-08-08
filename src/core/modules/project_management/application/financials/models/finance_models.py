@@ -128,6 +128,17 @@ class LaborResourceRow:
     assignments: list[LaborAssignmentRow]
 
 
+@dataclass(frozen=True)
+class PlannedLaborResourceRow:
+    project_resource_id: str
+    resource_id: str
+    resource_name: str
+    planned_hours: float
+    hourly_rate: float
+    currency_code: str | None
+    total_cost: float
+
+
 @dataclass
 class LaborPlanActualRow:
     resource_id: str
@@ -153,6 +164,8 @@ class LaborDetailsResult:
 
     rows: tuple[LaborResourceRow, ...]
     unresolved_rates: tuple[UnresolvedLaborRate, ...]
+    planned_rows: tuple[PlannedLaborResourceRow, ...] = ()
+    planned_unresolved_rates: tuple[UnresolvedLaborRate, ...] = ()
 
     @property
     def is_complete(self) -> bool:
@@ -215,6 +228,7 @@ __all__ = [
     # Labor
     "LaborAssignmentRow",
     "LaborResourceRow",
+    "PlannedLaborResourceRow",
     "LaborPlanActualRow",
     "LaborDetailsResult",
     "LaborPlanResult",
