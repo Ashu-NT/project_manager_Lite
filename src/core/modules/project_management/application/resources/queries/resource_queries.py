@@ -1,12 +1,17 @@
 from __future__ import annotations
 
-from src.core.modules.project_management.domain.resources.resource import Resource
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.access.scope_permissions import (
     require_any_project_permission,
 )
+from src.core.modules.project_management.contracts.repositories.resource import (
+    ResourceRepository,
+)
+from src.core.modules.project_management.domain.resources.resource import Resource
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_any_permission,
+    require_permission,
+)
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
 
 class ResourceQueryMixin:
@@ -37,6 +42,27 @@ class ResourceQueryMixin:
         }
         if not normalized_ids:
             return resources
+        return [resource for resource in resources if resource.id in normalized_ids]
+
+    def list_for_task_workspace(
+        self,
+        *,
+        resource_ids: tuple[str, ...],
+    ) -> list[Resource]:
+        require_any_permission(
+            self._user_session,
+            ("resource.read", "task.read", "task.manage"),
+            operation_label="list task resources",
+        )
+        self._active_organization_id(operation_label="list task resources")
+        normalized_ids = {
+            str(resource_id or "").strip()
+            for resource_id in resource_ids
+            if str(resource_id or "").strip()
+        }
+        if not normalized_ids:
+            return []
+        resources = self._resource_repo.list()
         return [resource for resource in resources if resource.id in normalized_ids]
 
     def get_resource(self, resource_id: str) -> Resource:

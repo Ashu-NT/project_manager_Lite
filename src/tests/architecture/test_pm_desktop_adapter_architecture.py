@@ -23,22 +23,7 @@ FORBIDDEN_REPOSITORY_IMPORT_PREFIXES = (
 
 # DA0 transition register. Every entry must be removed with its DA1 runtime fix.
 KNOWN_REPOSITORY_IMPORTS: set[str] = set()
-KNOWN_PRIVATE_COLLABORATOR_ACCESS = {
-    "src/core/modules/project_management/api/desktop/tasks/builders/"
-    "resource_options_builder.py:_project_resource_repo",
-    "src/core/modules/project_management/api/desktop/tasks/builders/"
-    "resource_options_builder.py:_resource_repo",
-    "src/core/modules/project_management/api/desktop/tasks/services/"
-    "access_resolution_service.py:_project_repo",
-    "src/core/modules/project_management/api/desktop/tasks/services/"
-    "access_resolution_service.py:_tenant_context_service",
-    "src/core/modules/project_management/api/desktop/tasks/services/"
-    "access_resolution_service.py:_user_session",
-    "src/core/modules/project_management/api/desktop/tasks/services/"
-    "resource_lookup_service.py:_resource_repo",
-    "src/core/modules/project_management/api/desktop/tasks/services/"
-    "resource_lookup_service.py:_tenant_context_service",
-}
+KNOWN_PRIVATE_COLLABORATOR_ACCESS: set[str] = set()
 KNOWN_APPLICATION_CONSTRUCTION = {
     "src/core/modules/project_management/api/desktop/scheduling/builders/constraint_builder.py:"
     "src.core.modules.project_management.application.scheduling.cpm.constraint_validator."

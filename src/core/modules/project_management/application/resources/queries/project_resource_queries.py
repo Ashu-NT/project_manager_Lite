@@ -1,12 +1,16 @@
 from __future__ import annotations
 
-from src.core.modules.project_management.contracts.repositories.project import ProjectResourceRepository
-from src.core.modules.project_management.domain.projects.project import ProjectResource
 from src.core.modules.project_management.access.scope_permissions import (
     require_any_project_permission,
     require_project_permission,
 )
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.modules.project_management.contracts.repositories.project import (
+    ProjectResourceRepository,
+)
+from src.core.modules.project_management.domain.projects.project import ProjectResource
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_permission,
+)
 
 
 class ProjectResourceQueryMixin:
@@ -32,6 +36,15 @@ class ProjectResourceQueryMixin:
             project_id,
             ("project.read", "project.manage"),
             operation_label="list project resources",
+        )
+        return self._project_resource_repo.list_by_project(project_id)
+
+    def list_for_task_workspace(self, project_id: str) -> list[ProjectResource]:
+        require_any_project_permission(
+            self._user_session,
+            project_id,
+            ("project.read", "task.read", "task.manage"),
+            operation_label="list task project resources",
         )
         return self._project_resource_repo.list_by_project(project_id)
 

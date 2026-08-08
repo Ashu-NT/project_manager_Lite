@@ -1,11 +1,18 @@
 from __future__ import annotations
 
-
-from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
-from src.core.modules.project_management.domain.projects.project import Project
-from src.core.modules.project_management.access.scope_permissions import filter_project_rows, require_project_permission
-from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.modules.project_management.access.scope_permissions import (
+    filter_project_rows,
+    require_project_permission,
+)
+from src.core.modules.project_management.contracts.repositories.project import (
+    ProjectRepository,
+)
 from src.core.modules.project_management.domain.enums import ProjectStatus
+from src.core.modules.project_management.domain.projects.project import Project
+from src.core.platform.application.security.authorization.enforcement.permission_checks import (
+    require_any_permission,
+    require_permission,
+)
 
 
 class ProjectQueryMixin:
@@ -20,6 +27,26 @@ class ProjectQueryMixin:
             permission_code="project.read",
             project_id_getter=lambda project: project.id,
         )
+
+    def list_for_task_workspace(self) -> list[Project]:
+        permission_codes = ("project.read", "task.read", "task.manage")
+        require_any_permission(
+            self._user_session,
+            permission_codes,
+            operation_label="list task projects",
+        )
+        projects = self._project_repo.list()
+        visible_project_ids = {
+            project.id
+            for permission_code in permission_codes
+            for project in filter_project_rows(
+                projects,
+                self._user_session,
+                permission_code=permission_code,
+                project_id_getter=lambda row: row.id,
+            )
+        }
+        return [project for project in projects if project.id in visible_project_ids]
 
     def get_project(self, project_id: str) -> Project | None:
         require_permission(self._user_session, "project.read", operation_label="view project")

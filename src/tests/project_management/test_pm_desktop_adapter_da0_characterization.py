@@ -174,6 +174,44 @@ def test_da1_project_manager_queries_project_resources_without_resource_read(ser
     assert [row.id for row in memberships] == [membership.id]
 
 
+def test_da1_task_reader_queries_only_its_scoped_project_resources(services) -> None:
+    project = services["project_service"].create_project("DA1 Task Project")
+    services["project_service"].create_project("DA1 Hidden Project")
+    resource = services["resource_service"].create_resource(
+        name="Task Planner",
+        role="Planner",
+    )
+    membership = services["project_resource_service"].add_to_project(
+        project_id=project.id,
+        resource_id=resource.id,
+    )
+    principal = services["user_session"].principal
+    services["user_session"].set_principal(
+        UserSessionPrincipal(
+            user_id=principal.user_id,
+            username="scoped-task-reader",
+            display_name="Scoped Task Reader",
+            role_names=frozenset(),
+            permissions=frozenset({"task.read"}),
+            scoped_access={
+                "project": {project.id: frozenset({"task.read"})},
+            },
+            active_tenant_id=principal.active_tenant_id,
+            active_organization_id=principal.active_organization_id,
+        )
+    )
+
+    projects = services["project_service"].list_for_task_workspace()
+    memberships = services["project_resource_service"].list_for_task_workspace(project.id)
+    resources = services["resource_service"].list_for_task_workspace(
+        resource_ids=(resource.id,),
+    )
+
+    assert [row.id for row in projects] == [project.id]
+    assert [row.id for row in memberships] == [membership.id]
+    assert [row.id for row in resources] == [resource.id]
+
+
 def test_da0_characterizes_task_list_silently_omitting_denied_project() -> None:
     api = ProjectManagementTasksDesktopApi(task_service=object())
     api._project_name_by_id = lambda: {
@@ -191,34 +229,16 @@ def test_da0_characterizes_task_list_silently_omitting_denied_project() -> None:
     assert [row.id for row in api.list_all_tasks()] == ["task-allowed"]
 
 
-class _TaskScopeSession:
-    def project_ids_for(self, permission_code: str) -> set[str]:
-        return {"project-task-read"} if permission_code == "task.read" else set()
-
-    def has_permission(self, _permission_code: str) -> bool:
-        return False
-
-
-def test_da0_characterizes_hand_rolled_task_project_permission_fallback() -> None:
+def test_da1_task_project_scope_resolution_uses_public_application_query() -> None:
     project = SimpleNamespace(
         id="project-task-read",
         name="Task Scoped Project",
         organization_id="organization-1",
     )
-    project_service = SimpleNamespace(
-        list_projects=lambda: (_ for _ in ()).throw(
-            BusinessRuleError("Permission denied: project.read", code="PERMISSION_DENIED")
-        ),
-        _project_repo=SimpleNamespace(get=lambda project_id: project if project_id == project.id else None),
-        _tenant_context_service=SimpleNamespace(
-            require_active_organization_id=lambda **_kwargs: "organization-1",
-        ),
-    )
-    task_service = SimpleNamespace(_user_session=_TaskScopeSession())
+    project_service = SimpleNamespace(list_for_task_workspace=lambda: [project])
 
     rows = project_rows_for_task_scope(
         project_service=project_service,
-        task_service=task_service,
     )
 
     assert [row.id for row in rows] == ["project-task-read"]
@@ -414,9 +434,12 @@ def test_da0_characterizes_duplicate_project_resource_rate_precedence() -> None:
     project_row = serialize_project_resource(project_resource, resource_by_id=resource)
     task_options = build_project_resource_options(
         "project-1",
-        project_resource_service=SimpleNamespace(list_by_project=lambda _project_id: (project_resource,)),
-        resource_service=SimpleNamespace(list_resources=lambda: (resource,)),
-        task_service=None,
+        project_resource_service=SimpleNamespace(
+            list_for_task_workspace=lambda _project_id: (project_resource,)
+        ),
+        resource_service=SimpleNamespace(
+            list_for_task_workspace=lambda **_kwargs: (resource,)
+        ),
     )
 
     assert project_row.hourly_rate == 125.0

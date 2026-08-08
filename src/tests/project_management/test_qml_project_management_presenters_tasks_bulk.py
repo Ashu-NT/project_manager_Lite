@@ -203,14 +203,16 @@ def _build_task_record(*, task_id, project_id, name, description, status, start_
 def _build_catalog(tmp_path: Path, task_service):
     tasks_api = build_project_management_tasks_desktop_api(
         project_service=SimpleNamespace(
-            list_projects=lambda: [
+            list_for_task_workspace=lambda: [
                 SimpleNamespace(id="proj-1", name="Plant Upgrade"),
                 SimpleNamespace(id="proj-2", name="Warehouse Retrofit"),
             ]
         ),
         task_service=task_service,
-        project_resource_service=SimpleNamespace(list_by_project=lambda project_id: []),
-        resource_service=SimpleNamespace(list_resources=lambda: []),
+        project_resource_service=SimpleNamespace(
+            list_for_task_workspace=lambda project_id: []
+        ),
+        resource_service=SimpleNamespace(list_for_task_workspace=lambda **_kwargs: []),
     )
     collaboration_service = _FakeCollaborationService()
     collaboration_api = build_project_management_collaboration_desktop_api(collaboration_service=collaboration_service)

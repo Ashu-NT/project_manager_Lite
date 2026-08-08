@@ -17,11 +17,6 @@ from src.core.modules.project_management.domain.tasks.task import (
     TaskAssignment,
     TaskDependency,
 )
-from src.core.platform.domain.security.auth.session import (
-    UserSessionContext,
-    UserSessionPrincipal,
-)
-from src.core.platform.common.exceptions import BusinessRuleError
 from src.tests.project_management._fake_project_resource_services import (
     _FakeProjectResourceService,
     _FakeProjectService,
@@ -115,28 +110,13 @@ def test_project_management_tasks_desktop_api_mutates_task_records() -> None:
     assert api.list_tasks(project.id) == ()
 
 
-def test_project_management_tasks_desktop_api_falls_back_to_task_scope_without_project_read() -> None:
-    class _ProjectRepo:
+def test_project_management_tasks_desktop_api_uses_task_scoped_project_query() -> None:
+    class _TaskScopedProjectService:
         def __init__(self, projects):
-            self._projects = {project.id: project for project in projects}
+            self._projects = list(projects)
 
-        def list(self):
-            return list(self._projects.values())
-
-        def get(self, project_id):
-            return self._projects.get(project_id)
-
-    class _ProjectReadDeniedService:
-        def __init__(self, projects):
-            self._project_repo = _ProjectRepo(projects)
-            self._tenant_context_service = SimpleNamespace(
-                require_active_organization_id=lambda **_kwargs: "org-test",
-            )
-
-        def list_projects(self):
-            raise BusinessRuleError(
-                "Permission denied for list projects. Missing 'project.read'."
-            )
+        def list_for_task_workspace(self):
+            return list(self._projects)
 
     project_service = _FakeProjectService()
     project = project_service.create_project(
@@ -154,21 +134,8 @@ def test_project_management_tasks_desktop_api_falls_back_to_task_scope_without_p
         priority=80,
         deadline=date(2026, 5, 8),
     )
-    user_session = UserSessionContext()
-    user_session.set_principal(
-        UserSessionPrincipal(
-            user_id="user-1",
-            username="task-reader",
-            display_name="Task Reader",
-            role_names=frozenset({"viewer"}),
-            permissions=frozenset({"task.read"}),
-            scoped_access={"project": {project.id: frozenset({"task.read"})}},
-        )
-    )
-    task_service._user_session = user_session
-
     api = build_project_management_tasks_desktop_api(
-        project_service=_ProjectReadDeniedService([project]),
+        project_service=_TaskScopedProjectService([project]),
         task_service=task_service,
     )
 

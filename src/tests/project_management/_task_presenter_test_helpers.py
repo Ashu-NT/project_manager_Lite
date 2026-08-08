@@ -282,19 +282,19 @@ def _build_task_record(*, task_id, project_id, name, description, status, start_
 def _build_tasks_catalog(tmp_path: Path, task_service, collaboration_service, timesheets_api):
     tasks_api = build_project_management_tasks_desktop_api(
         project_service=SimpleNamespace(
-            list_projects=lambda: [
+            list_for_task_workspace=lambda: [
                 SimpleNamespace(id="proj-1", name="Plant Upgrade"),
                 SimpleNamespace(id="proj-2", name="Warehouse Retrofit"),
             ]
         ),
         task_service=task_service,
         project_resource_service=SimpleNamespace(
-            list_by_project=lambda project_id: [
+            list_for_task_workspace=lambda project_id: [
                 SimpleNamespace(id="pr-1", project_id="proj-1", resource_id="res-1", hourly_rate=90.0, currency_code="EUR", is_active=True)
             ] if project_id == "proj-1" else []
         ),
         resource_service=SimpleNamespace(
-            list_resources=lambda: [SimpleNamespace(id="res-1", name="Alex Taylor", is_active=True, hourly_rate=85.0, currency_code="EUR")]
+            list_for_task_workspace=lambda **_kwargs: [SimpleNamespace(id="res-1", name="Alex Taylor", is_active=True, hourly_rate=85.0, currency_code="EUR")]
         ),
     )
     collaboration_api = build_project_management_collaboration_desktop_api(collaboration_service=collaboration_service)

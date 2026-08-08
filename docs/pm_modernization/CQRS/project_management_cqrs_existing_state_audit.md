@@ -87,11 +87,13 @@ not a universal violation to fix everywhere. The real, confirmed boundary violat
 one, in the opposite direction from the classic "domain entity leaked to the UI" concern:
 **desktop-API-layer builder/service files reaching into other services' *private* attributes**
 (`_resource_repo`, `_project_resource_repo`, `_tenant_context_service`) as a fallback when an
-expected collaborator isn't wired — found repeatedly in
+expected collaborator isn't wired — originally found repeatedly in
 `api/desktop/projects/builders/resource_builder.py`,
 `api/desktop/tasks/services/access_resolution_service.py`, and
-`api/desktop/resources/services/availability_resolution_service.py` (consolidated with every other
-adapter-boundary finding in the new "Desktop Adapter Boundary Weaknesses" section after §14). This
+`api/desktop/resources/services/availability_resolution_service.py`. **Resolved in DA1
+(2026-08-08):** all three capabilities now consume public application queries, both obsolete
+desktop service modules were deleted, and the private-collaborator exception register is empty.
+This
 matters for CQRS because a reader built on top of this pattern would inherit an undocumented
 dependency on another service's internals.
 
@@ -265,7 +267,7 @@ src/core/modules/project_management/
 │       │   ├── models/{task.py, assignment.py, dependency.py, options.py, skill.py, validation.py, reservation.py}
 │       │   ├── serializers/{task_serializer.py, dependency_serializer.py, assignment_serializer.py, skill_serializer.py, reservation_serializer.py}
 │       │   ├── builders/{material_demand_builder.py, assignment_validation_builder.py, assignment_preview_builder.py}
-│       │   ├── services/{access_resolution_service.py, resource_lookup_service.py}   # RED FLAG: private-attribute repo bypass
+│       │   ├── services/{access_resolution_service.py, resource_lookup_service.py}   # presentation lookup only; DA1 private bypass removed
 │       │   └── utils/{dependency_utils.py, task_id_utils.py, task_status_utils.py}
 │       ├── resources/
 │       │   ├── api.py                    # ProjectManagementResourcesDesktopApi
@@ -567,7 +569,7 @@ Classification legend: COMMAND / QUERY / MIXED / REPORT / LOOKUP / INTEGRATION /
 | `update_project` | `ProjectUpdateCommand` → `ProjectDesktopDto` | `ProjectService.update_project` | COMMAND | `project_command_handler.py:75` |
 | `set_project_status` | `id, status` → `ProjectDesktopDto` | `ProjectService.set_status` + re-read | COMMAND | `project_command_handler.py:88`, `project_bulk_handler.py:75` |
 | `delete_project` | `id` → None | `ProjectService.delete_project` | COMMAND | `project_command_handler.py:97` |
-| `list_project_resources` | `project_id` → `ProjectResourceDesktopDto[]` | `ProjectResourceService.list_by_project` (+ private-repo fallback — **flag**) | QUERY | `resources_builder.py:22` |
+| `list_project_resources` | `project_id` → `ProjectResourceDesktopDto[]` | `ProjectResourceService.list_for_project_workspace` | QUERY | `resources_builder.py:22` |
 | `list_assignable_resources` | `project_id` → descriptor[] | `list_project_resources` + `ResourceService.list_resources` | QUERY | `resources_builder.py:63` |
 | `add_project_resource` / `update_project_resource` / `remove_project_resource` | commands → DTO/None | `ProjectResourceService.add_to_project/update/delete` | COMMAND | `resource_handler.py` |
 
@@ -4292,7 +4294,7 @@ Dashboard failure-propagation coverage in `test_phase0a4_other_safety_correction
 P1/P3 Financials findings were confirmed caller-free and deleted instead of preserving dead
 behavior; the architecture suite holds a deletion guard. DA0 also corrected Dashboard's stale
 `IN_REVIEW` reference to canonical `IN_PROGRESS`. The focused checkpoint is 31 passing tests.
-Every exit gate below is satisfied; DA1 has not started.
+Every exit gate below is satisfied; DA1 subsequently completed on 2026-08-08.
 
 - Add tests pinning current desktop DTO output for every finding in the master table (a
   characterization test per P0/P1 row, at minimum) — so no migration in later phases can silently
@@ -4323,7 +4325,7 @@ stale exemptions fail the suite.
 
 ### Phase DA1 — Composition leaks
 
-**Status: IN PROGRESS (2026-08-08); Resources and Projects COMPLETE.** Resources now obtains
+**Status: COMPLETE (2026-08-08); Resources, Projects, and Tasks COMPLETE.** Resources now obtains
 assignments through public, tenant/RBAC-aware
 `TaskService.list_assignments_for_resource()` and uses the availability service supplied by
 composition. The desktop API/factory no longer imports `AssignmentRepository`; the private
@@ -4337,9 +4339,16 @@ no Resources private/construction exceptions. Projects now uses public
 private collaborator/repository/tenant-context reach-throughs are deleted. A project-scoped manager
 without global `resource.read` is covered end to end. Resources checkpoint: 22 passing tests;
 Projects targeted checkpoint: 21 passing tests; combined desktop/architecture regression: 63
-passing tests. Tasks remains open in DA1.
+passing tests. Tasks now uses public `ProjectService.list_for_task_workspace()`,
+`ProjectResourceService.list_for_task_workspace()`, and
+`ResourceService.list_for_task_workspace()` queries. Exception-message parsing and every private
+repository/session/tenant-context reach-through were deleted; canonical application RBAC and
+tenant-scoped repositories now own those decisions. A real-service scoped `task.read` test covers
+project filtering and membership/resource lookup. Tasks focused checkpoint: 28 passing tests;
+broader task/desktop-adapter checkpoint: 124 passing, 458 deselected, with three pre-existing
+warnings. The private-collaborator exception register is now empty.
 
-Migrate: `resolve_availability_service`'s fallback construction (Resources); the
+Completed migration: `resolve_availability_service`'s fallback construction (Resources); the
 `_resource_repo`/`_assignments` private-attribute fallbacks (Resources); `access_resolution_service.py`/
 `resource_lookup_service.py`'s repo-bypass fallback (Tasks); `list_resources_for_context`'s direct
 `_tenant_context_service` call (Projects).

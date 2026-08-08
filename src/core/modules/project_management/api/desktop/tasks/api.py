@@ -153,7 +153,6 @@ class ProjectManagementTasksDesktopApi:
     def list_projects(self) -> tuple[TaskProjectOptionDescriptor, ...]:
         return build_project_options(
             project_service=self._project_service,
-            task_service=self._task_service,
         )
 
     def list_statuses(self) -> tuple[TaskStatusDescriptor, ...]:
@@ -167,7 +166,6 @@ class ProjectManagementTasksDesktopApi:
             project_id,
             project_resource_service=self._project_resource_service,
             resource_service=self._resource_service,
-            task_service=self._task_service,
         )
 
     def get_task(self, task_id: str) -> TaskDesktopDto | None:
@@ -334,7 +332,6 @@ class ProjectManagementTasksDesktopApi:
         assignments = list(list_assignments_for_task(task_id))
         resources_by_id = resource_by_id(
             resource_service=self._resource_service,
-            task_service=self._task_service,
             resource_ids=tuple(
                 str(getattr(assignment, "resource_id", "") or "")
                 for assignment in assignments
@@ -388,7 +385,6 @@ class ProjectManagementTasksDesktopApi:
             assignment,
             resources_by_id=resource_by_id(
                 resource_service=self._resource_service,
-                task_service=self._task_service,
                 resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
             ),
         )
@@ -405,7 +401,6 @@ class ProjectManagementTasksDesktopApi:
             assignment,
             resources_by_id=resource_by_id(
                 resource_service=self._resource_service,
-                task_service=self._task_service,
                 resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
             ),
         )
@@ -422,7 +417,6 @@ class ProjectManagementTasksDesktopApi:
             assignment,
             resources_by_id=resource_by_id(
                 resource_service=self._resource_service,
-                task_service=self._task_service,
                 resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
             ),
         )
@@ -436,7 +430,6 @@ class ProjectManagementTasksDesktopApi:
             assignment,
             resources_by_id=resource_by_id(
                 resource_service=self._resource_service,
-                task_service=self._task_service,
                 resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
             ),
         )
@@ -447,7 +440,6 @@ class ProjectManagementTasksDesktopApi:
             assignment,
             resources_by_id=resource_by_id(
                 resource_service=self._resource_service,
-                task_service=self._task_service,
                 resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
             ),
         )
@@ -701,7 +693,6 @@ class ProjectManagementTasksDesktopApi:
             project.id: project.name
             for project in project_rows_for_task_scope(
                 project_service=self._project_service,
-                task_service=self._task_service,
             )
         }
 

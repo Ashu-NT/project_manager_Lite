@@ -570,14 +570,14 @@ def build_task_controller_bundle(tmp_path: Path) -> dict:
     )
     tasks_api = build_project_management_tasks_desktop_api(
         project_service=SimpleNamespace(
-            list_projects=lambda: [
+            list_for_task_workspace=lambda: [
                 SimpleNamespace(id="proj-1", name="Plant Upgrade"),
                 SimpleNamespace(id="proj-2", name="Warehouse Retrofit"),
             ]
         ),
         task_service=task_service,
         project_resource_service=SimpleNamespace(
-            list_by_project=lambda project_id: [
+            list_for_task_workspace=lambda project_id: [
                 SimpleNamespace(
                     id="pr-1",
                     project_id="proj-1",
@@ -591,7 +591,7 @@ def build_task_controller_bundle(tmp_path: Path) -> dict:
             else []
         ),
         resource_service=SimpleNamespace(
-            list_resources=lambda: [
+            list_for_task_workspace=lambda **_kwargs: [
                 SimpleNamespace(
                     id="res-1",
                     name="Alex Taylor",

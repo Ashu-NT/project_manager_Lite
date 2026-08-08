@@ -19,8 +19,9 @@ generated and therefore takes priority over starting the much larger Finance Pha
 - **DA0 - Guardrails and characterization (complete 2026-08-08):** architecture guardrails
   are implemented and all six P0 plus ten P1 rows are characterized or, for the two confirmed
   dead Financials methods, usage-verified and deleted.
-- **DA1 - Composition leaks (in progress):** Resources and Projects complete. Tasks is next
-  because its remaining fallbacks duplicate tenant/RBAC decisions.
+- **DA1 - Composition leaks (complete 2026-08-08):** Resources, Projects, and Tasks now use
+  explicit public application queries; the desktop architecture register contains no repository
+  imports or private collaborator access exceptions.
 - **DA2 - Application orchestration (not started):** move assignment previews, task/project
   access resolution, dashboard partial-failure behavior, and other application decisions out
   of presentation builders.
@@ -41,7 +42,7 @@ exception in the same change that removes its runtime violation.
 | Exception group | Current locations | Removal gate | Status |
 | --- | --- | --- | --- |
 | Repository contracts imported by desktop Resources | None; all three imports removed | Resources pilot | CLOSED 2026-08-08 |
-| Private collaborator access | Tasks access/resource lookup builders only | DA1 replaces every private fallback with public application queries | OPEN |
+| Private collaborator access | None; all Tasks access/resource lookup reach-throughs removed | DA1 Tasks migration | CLOSED 2026-08-08 |
 | Application objects constructed in desktop code | `ConstraintValidator` only; Resources construction removed | Scheduling composition migration provides the constructed collaborator | OPEN |
 | Private platform module imports | `common/financial_formatting.py` imports `finance.money._decimal`; Dashboard imports `approval._approval_labels` | Expose and consume public platform contracts | OPEN |
 
@@ -93,6 +94,22 @@ DA1 Projects checkpoint (2026-08-08):
   unrelated global `resource.read` permission. Targeted checkpoint: 21 tests passed.
 - Combined desktop/architecture regression: 63 tests passed. Projects is complete; DA1
   continues with Tasks.
+
+DA1 Tasks checkpoint (2026-08-08):
+
+- Added public `ProjectService.list_for_task_workspace()`,
+  `ProjectResourceService.list_for_task_workspace()`, and
+  `ResourceService.list_for_task_workspace()` queries. They enforce canonical global/project RBAC
+  while repositories retain tenant/organization isolation.
+- Removed exception-message parsing and all `_project_repo`, `_resource_repo`,
+  `_project_resource_repo`, `_tenant_context_service`, and `_user_session` access from the Tasks
+  desktop adapter. Obsolete fallback helpers and their parameters were deleted rather than retained
+  as transition code.
+- Added a real-service scoped `task.read` test proving project filtering and resource/membership
+  access, converted desktop characterization tests to the public contracts, and reduced the
+  private-collaborator architecture exception set to zero.
+- Focused checkpoint: 28 tests passed. Broader task/desktop-adapter checkpoint: 124 tests passed,
+  458 deselected, with three pre-existing warnings. DA1 is complete; DA2 is next.
 
 ## 1. Finance — Phase B, remaining
 
