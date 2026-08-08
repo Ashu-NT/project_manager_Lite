@@ -53,6 +53,7 @@ class SqlAlchemyFinanceSnapshotReader:
             TaskFact(
                 task_id=str(row.id),
                 name=str(row.name),
+                percent_complete=float(row.percent_complete or 0.0),
                 start_date=row.start_date,
                 end_date=row.end_date,
                 actual_start=row.actual_start,

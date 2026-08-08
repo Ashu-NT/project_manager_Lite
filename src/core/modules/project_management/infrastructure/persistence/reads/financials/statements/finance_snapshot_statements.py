@@ -8,6 +8,10 @@ from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.sql import Select
 
 from src.core.modules.project_management.infrastructure.persistence.orm.cost import CostItemORM
+from src.core.modules.project_management.infrastructure.persistence.orm.baseline import (
+    BaselineTaskORM,
+    ProjectBaselineORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.project import (
     ProjectORM,
     ProjectResourceORM,
@@ -45,6 +49,7 @@ def task_facts_statement(*, tenant_id: str, organization_id: str, project_id: st
         select(
             TaskORM.id,
             TaskORM.name,
+            TaskORM.percent_complete,
             TaskORM.start_date,
             TaskORM.end_date,
             TaskORM.actual_start,
@@ -53,6 +58,58 @@ def task_facts_statement(*, tenant_id: str, organization_id: str, project_id: st
         .join(ProjectORM, ProjectORM.id == TaskORM.project_id)
         .where(_project_scope(tenant_id=tenant_id, organization_id=organization_id, project_id=project_id))
         .order_by(TaskORM.id)
+    )
+
+
+def evm_baseline_statement(
+    *,
+    tenant_id: str,
+    organization_id: str,
+    project_id: str,
+    baseline_id: str | None,
+) -> SqlSelect:
+    stmt = (
+        select(ProjectBaselineORM.id)
+        .join(ProjectORM, ProjectORM.id == ProjectBaselineORM.project_id)
+        .where(
+            _project_scope(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
+            )
+        )
+    )
+    if baseline_id is not None:
+        return stmt.where(ProjectBaselineORM.id == baseline_id)
+    return stmt.order_by(ProjectBaselineORM.created_at.desc()).limit(1)
+
+
+def evm_baseline_task_facts_statement(
+    *,
+    tenant_id: str,
+    organization_id: str,
+    project_id: str,
+    baseline_id: str,
+) -> SqlSelect:
+    return (
+        select(
+            BaselineTaskORM.task_id,
+            BaselineTaskORM.baseline_start,
+            BaselineTaskORM.baseline_finish,
+            BaselineTaskORM.baseline_duration_days,
+            BaselineTaskORM.baseline_planned_cost,
+        )
+        .join(ProjectBaselineORM, ProjectBaselineORM.id == BaselineTaskORM.baseline_id)
+        .join(ProjectORM, ProjectORM.id == ProjectBaselineORM.project_id)
+        .where(
+            BaselineTaskORM.baseline_id == baseline_id,
+            _project_scope(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
+            ),
+        )
+        .order_by(BaselineTaskORM.task_id)
     )
 
 
@@ -169,9 +226,10 @@ __all__ = [
     "assignment_facts_statement",
     "cost_aggregate_facts_statement",
     "cost_item_facts_statement",
+    "evm_baseline_statement",
+    "evm_baseline_task_facts_statement",
     "project_fact_statement",
     "project_resource_facts_statement",
     "resource_facts_statement",
     "task_facts_statement",
 ]
-

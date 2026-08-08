@@ -13,6 +13,7 @@ from src.core.modules.project_management.application.financials.rate_cards.rate_
     select_within_level,
 )
 from src.core.modules.project_management.contracts.repositories.rate_resolution import (
+    DatedRateResolutionBatch,
     RateResolutionBatch,
     RateResolutionCandidate,
     RateResolutionReader,
@@ -118,6 +119,63 @@ class RateCardResolver:
             unit=unit,
         )
 
+    def resolve_many_dates(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str | None,
+        resource_ids: tuple[str, ...],
+        rate_type: RateType | str,
+        as_of_dates: tuple[date, ...],
+        unit: str,
+    ) -> tuple[DatedRateResolutionBatch, ...]:
+        dates = tuple(dict.fromkeys(as_of_dates))
+        if not dates:
+            return ()
+        self._verify_context(tenant_id=tenant_id, organization_id=organization_id)
+        resolved_type = RateType(rate_type)
+        resolved_unit = normalize_unit(unit)
+        deduped_ids = tuple(dict.fromkeys(resource_ids))
+        contexts_by_id = {
+            context.resource_id: context
+            for context in self._reader.list_resource_contexts(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                resource_ids=deduped_ids,
+            )
+        }
+        candidates = self._reader.list_candidates_for_range(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            project_id=project_id,
+            rate_type=resolved_type,
+            unit=resolved_unit,
+            starts_on=min(dates),
+            ends_on=max(dates),
+        )
+        results: list[DatedRateResolutionBatch] = []
+        for as_of in dates:
+            applicable = tuple(
+                candidate
+                for candidate in candidates
+                if (candidate.line.effective_from is None or candidate.line.effective_from <= as_of)
+                and (candidate.line.effective_to is None or candidate.line.effective_to >= as_of)
+            )
+            results.append(
+                DatedRateResolutionBatch(
+                    as_of=as_of,
+                    batch=self._resolve_from_inputs(
+                        project_id=project_id,
+                        resource_ids=deduped_ids,
+                        contexts_by_id=contexts_by_id,
+                        candidates=applicable,
+                        as_of=as_of,
+                    ),
+                )
+            )
+        return tuple(results)
+
     def _resolve_batch(
         self,
         *,
@@ -155,9 +213,33 @@ class RateCardResolver:
             as_of=as_of,
         )
 
+        return self._resolve_from_inputs(
+            project_id=project_id,
+            resource_ids=deduped_ids,
+            contexts_by_id=contexts_by_id,
+            candidates=candidates,
+            as_of=as_of,
+            customer_party_id=customer_party_id,
+            contract_reference=contract_reference,
+            modifier=modifier,
+        )
+
+    def _resolve_from_inputs(
+        self,
+        *,
+        project_id: str | None,
+        resource_ids: tuple[str, ...],
+        contexts_by_id: dict[str, ResourceRateContext],
+        candidates: tuple[RateResolutionCandidate, ...],
+        as_of: date,
+        customer_party_id: str | None = None,
+        contract_reference: str | None = None,
+        modifier: RateModifier | None = None,
+    ) -> RateResolutionBatch:
+
         resolved: list[ResolvedLaborRate] = []
         unresolved: list[UnresolvedLaborRate] = []
-        for resource_id in deduped_ids:
+        for resource_id in resource_ids:
             context = contexts_by_id.get(resource_id)
             if context is None:
                 unresolved.append(
@@ -197,7 +279,7 @@ class RateCardResolver:
         return RateResolutionBatch(resolved=tuple(resolved), unresolved=tuple(unresolved))
 
     def _verify_context(self, *, tenant_id: str, organization_id: str) -> None:
-        context = self._tenant_context_service.require_organization_context(
+        context = self._tenant_context_service.require_active_scope_ids(
             operation_label="resolve rate card"
         )
         if context.tenant_id != tenant_id or context.organization_id != organization_id:

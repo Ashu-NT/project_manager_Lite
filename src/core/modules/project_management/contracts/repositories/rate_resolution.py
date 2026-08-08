@@ -57,6 +57,18 @@ class RateResolutionReader(Protocol):
         as_of: date,
     ) -> tuple[RateResolutionCandidate, ...]: ...
 
+    def list_candidates_for_range(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str | None,
+        rate_type: RateType,
+        unit: str,
+        starts_on: date,
+        ends_on: date,
+    ) -> tuple[RateResolutionCandidate, ...]: ...
+
 
 @dataclass(frozen=True, slots=True)
 class UnresolvedLaborRate:
@@ -89,6 +101,12 @@ class RateResolutionBatch:
         return None
 
 
+@dataclass(frozen=True, slots=True)
+class DatedRateResolutionBatch:
+    as_of: date
+    batch: RateResolutionBatch
+
+
 class LaborRateResolver(Protocol):
     def resolve_many(
         self,
@@ -102,8 +120,21 @@ class LaborRateResolver(Protocol):
         unit: str,
     ) -> RateResolutionBatch: ...
 
+    def resolve_many_dates(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str | None,
+        resource_ids: tuple[str, ...],
+        rate_type: RateType,
+        as_of_dates: tuple[date, ...],
+        unit: str,
+    ) -> tuple[DatedRateResolutionBatch, ...]: ...
+
 
 __all__ = [
+    "DatedRateResolutionBatch",
     "LaborRateResolver",
     "RateResolutionBatch",
     "RateResolutionCandidate",

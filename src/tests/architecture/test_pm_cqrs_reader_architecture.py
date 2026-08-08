@@ -9,6 +9,9 @@ from pathlib import Path
 from src.core.modules.project_management.application.financials.services.finance_service import (
     FinanceService,
 )
+from src.core.modules.project_management.application.financials.earned_value.evm_series import (
+    EarnedValueSeriesCalculator,
+)
 from src.tests.path_rewrites import REPO_ROOT
 
 
@@ -20,6 +23,7 @@ FINANCE_READER = FINANCE_READS / "sqlalchemy_finance_snapshot_reader.py"
 FINANCE_POLICY = PM_ROOT / "application/financials/costs/cost_policy_engine.py"
 PROJECT_REGISTRY = REPO_ROOT / "src/infra/composition/project_registry.py"
 PHASE1_TEST = REPO_ROOT / "src/tests/project_management/test_finance_snapshot_phase1_reader.py"
+PHASE3A_TEST = REPO_ROOT / "src/tests/project_management/test_evm_series_phase3a_parity.py"
 
 FORBIDDEN_CONTRACT_IMPORTS = (
     "src.core.modules.project_management.application",
@@ -250,6 +254,36 @@ def test_runtime_composition_and_desktop_proof_remain_present() -> None:
     assert "finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session)" in registry
     assert "isinstance(reader, SqlAlchemyFinanceSnapshotReader)" in runtime_test
     assert "registry.project_management_financials.get_finance_snapshot" in runtime_test
+
+
+def test_evm_series_keeps_bounded_reader_and_policy_ownership() -> None:
+    source = inspect.getsource(EarnedValueSeriesCalculator.build_series)
+
+    assert source.count("self._reader.read_facts(") == 1
+    assert source.count("calculate_project_labor_series(") == 1
+    assert source.count("prepare_working_days(") == 1
+    assert source.count("compose_from_facts_at(") == 1
+    assert "prepared_facts=facts" in source
+    for forbidden in (
+        "_project_repo",
+        "_baseline_repo",
+        "_task_repo",
+        "_cost_repo",
+        "_assignment_repo",
+        "_resource_repo",
+        "resolve_many(",
+        "calculate_project_labor_details(",
+    ):
+        assert forbidden not in source
+
+
+def test_evm_series_runtime_reader_proof_remains_present() -> None:
+    registry = PROJECT_REGISTRY.read_text(encoding="utf-8")
+    runtime_test = PHASE3A_TEST.read_text(encoding="utf-8")
+
+    assert "evm_series_reader=SqlAlchemyEvmSeriesReader(session=session)" in registry
+    assert "isinstance(reader, SqlAlchemyEvmSeriesReader)" in runtime_test
+    assert "reporting.get_evm_series(" in runtime_test
 
 
 def test_guard_detectors_reject_deliberately_broken_in_memory_examples() -> None:

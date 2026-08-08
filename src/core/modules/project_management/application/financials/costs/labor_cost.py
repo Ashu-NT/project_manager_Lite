@@ -26,6 +26,7 @@ from src.core.modules.project_management.contracts.repositories.task import (
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.rate_resolution import (
     LaborRateResolver,
+    RateResolutionBatch,
     UnresolvedLaborRate,
 )
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
@@ -80,10 +81,6 @@ class LaborCostEngine:
         context = self._tenant_context_service.require_organization_context(
             operation_label="resolve project labor rates"
         )
-        # Defense in depth, same pattern as RateCardResolver: the project
-        # fetch is already tenant-scoped, so this should be unreachable —
-        # but a labor-cost calculation is exactly the kind of financial read
-        # that must not rely on a single layer to catch a cross-org mismatch.
         if project.organization_id and project.organization_id != context.organization_id:
             raise BusinessRuleError(
                 "Project does not belong to the active organization.",
@@ -185,9 +182,12 @@ class LaborCostEngine:
         *,
         as_of: date,
         facts: FinanceSnapshotFacts,
+        rate_batch: RateResolutionBatch | None = None,
     ) -> LaborDetailsResult:
         """Calculate planned and actual labor from one scoped reader result."""
-        if facts.project_id != project_id or facts.as_of != as_of:
+        if facts.project_id != project_id or (
+            rate_batch is None and facts.as_of != as_of
+        ):
             raise BusinessRuleError(
                 "Finance labor facts do not match the requested snapshot.",
                 code="FINANCE_FACT_SCOPE_MISMATCH",
@@ -206,19 +206,21 @@ class LaborCostEngine:
         )
         planned_resource_ids = {row.resource_id for row in active_plans}
         actual_resource_ids = set(by_resource)
-        resource_ids = tuple(sorted(planned_resource_ids | actual_resource_ids))
+        resource_ids = self._finance_fact_resource_ids(facts)
         if not resource_ids:
             return LaborDetailsResult(rows=(), unresolved_rates=())
 
-        batch = self._rate_resolver.resolve_many(
-            tenant_id=facts.tenant_id,
-            organization_id=facts.organization_id,
-            project_id=project_id,
-            resource_ids=resource_ids,
-            rate_type=RateType.COST,
-            as_of=as_of,
-            unit="HOUR",
-        )
+        batch = rate_batch
+        if batch is None:
+            batch = self._rate_resolver.resolve_many(
+                tenant_id=facts.tenant_id,
+                organization_id=facts.organization_id,
+                project_id=project_id,
+                resource_ids=resource_ids,
+                rate_type=RateType.COST,
+                as_of=as_of,
+                unit="HOUR",
+            )
 
         actual_rows: list[LaborResourceRow] = []
         for resource_id, assignments in by_resource.items():
@@ -293,6 +295,58 @@ class LaborCostEngine:
             planned_unresolved_rates=unresolved_planned,
         )
 
+    def calculate_project_labor_series(
+        self,
+        project_id: str,
+        *,
+        as_of_dates: tuple[date, ...],
+        facts: FinanceSnapshotFacts,
+    ) -> tuple[tuple[date, LaborDetailsResult], ...]:
+        """Evaluate prepared labor facts for several dates with one source read."""
+        if facts.project_id != project_id:
+            raise BusinessRuleError(
+                "Finance labor facts do not match the requested project.",
+                code="FINANCE_FACT_SCOPE_MISMATCH",
+            )
+        dates = tuple(dict.fromkeys(as_of_dates))
+        if not dates:
+            return ()
+        resource_ids = self._finance_fact_resource_ids(facts)
+        if not resource_ids:
+            empty = LaborDetailsResult(rows=(), unresolved_rates=())
+            return tuple((as_of, empty) for as_of in dates)
+        batches = self._rate_resolver.resolve_many_dates(
+            tenant_id=facts.tenant_id,
+            organization_id=facts.organization_id,
+            project_id=project_id,
+            resource_ids=resource_ids,
+            rate_type=RateType.COST,
+            as_of_dates=dates,
+            unit="HOUR",
+        )
+        return tuple(
+            (
+                dated.as_of,
+                self._calculate_from_finance_facts(
+                    project_id,
+                    as_of=dated.as_of,
+                    facts=facts,
+                    rate_batch=dated.batch,
+                ),
+            )
+            for dated in batches
+        )
+
+    @staticmethod
+    def _finance_fact_resource_ids(facts: FinanceSnapshotFacts) -> tuple[str, ...]:
+        planned = {
+            row.resource_id
+            for row in facts.project_resources
+            if row.is_active and row.planned_hours > 0.0 and row.resource_id
+        }
+        assigned = {row.resource_id for row in facts.assignments if row.resource_id}
+        return tuple(sorted(planned | assigned))
+
     def get_project_labor_details(self, project_id: str, as_of: date) -> list[LaborResourceRow]:
         """Return labor cost details grouped by resource for the given project."""
         return list(self.calculate_project_labor_details(project_id, as_of).rows)
@@ -325,9 +379,6 @@ class LaborCostEngine:
         }
 
         resource_ids = tuple(set(actual_by_res.keys()) | set(pr_by_res.keys()))
-        # Planned labor is resolved through the same rate-card system, in one
-        # batch covering every resource in scope — not per resource, and not
-        # through ProjectResource.hourly_rate/Resource.hourly_rate directly.
         planned_batch = self._rate_resolver.resolve_many(
             tenant_id=tenant_id,
             organization_id=organization_id,

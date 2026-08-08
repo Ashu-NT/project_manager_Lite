@@ -2961,6 +2961,115 @@ production behavior changed in this phase.
 guard self-test; no temporary production path, fixture module, compatibility code, or dead file was
 created.
 
+**Phase 3A measured baseline and implementation contract - COMPLETE 2026-08-08.**
+
+The real `ReportingService.get_evm_series(...)` runtime composition was measured with one task, two
+resources, one baseline, one direct-cost row, and 3/12/24 monthly points. Timing is evidence only;
+statement and collaborator growth are the enforceable regression dimensions.
+
+| Metric | 3 points | 12 points | 24 points |
+|---|---:|---:|---:|
+| Wall time (host observation) | 0.133 s | 0.596 s | 1.023 s |
+| Summed DB execution time | 0.006 s | 0.023 s | 0.036 s |
+| **SQL statements** | **248** | **896** | **1,754** |
+| `EarnedValueCalculator.calculate` | 3 | 12 | 24 |
+| `project_repo.get` | 10 | 37 | 73 |
+| `baseline_repo.get_baseline` | 3 | 12 | 24 |
+| `baseline_repo.list_tasks` | 4 | 13 | 25 |
+| `task_repo.list_by_project` | 6 | 24 | 48 |
+| `cost_repo.list_by_project` | 3 | 12 | 24 |
+| `project_resource_repo.list_by_project` | 3 | 12 | 24 |
+| `assignment_repo.list_by_tasks` | 3 | 12 | 24 |
+| `resource_repo.get` | 6 | 24 | 48 |
+| `rate_resolver.resolve_many` | 6 | 24 | 48 |
+
+This confirms a period-count N+1, not merely resource-count growth. Every point reconstructs the
+baseline/task/project graph and then re-enters both planned- and actual-labor rate resolution. The
+large authorization/context statement counts are amplified by rate resolution using full entity
+context revalidation even though it compares IDs only.
+
+Phase 3A implementation boundaries:
+
+1. Add one tenant/organization/project-scoped EVM-series Reader returning immutable primitive facts.
+   It may compose the existing Finance fact Reader and a series-specific baseline projection; it
+   must not return ORM/domain entities or apply EVM, cost-source, rate-precedence, RBAC, or redaction
+   policy.
+2. Add multi-date rate resolution that reads resource contexts and overlapping rate candidates once,
+   then invokes the existing rate-precedence classifier independently for each period. A new rate
+   algorithm or SQL-owned precedence is forbidden.
+3. `LaborCostEngine`, `CostPolicyEngine`, and `EarnedValueCalculator` remain the semantic owners.
+   They gain prepared-facts/series entry points that share existing composition and formula helpers;
+   the orchestration layer must not copy those policies.
+4. Preserve `ReportingService.get_evm_series(...)`, the desktop API, DTO fields, QML behavior,
+   month-end generation, baseline selection, calendar math, unresolved-rate handling, and cost-source
+   reconciliation. Add parity coverage for explicit/latest baselines, cost-loaded and fallback BAC,
+   rate effective-date changes, manual/computed labor, and no-baseline errors.
+5. Exit gate: source acquisition and rate-candidate reads are bounded independently of period count;
+   legacy repository calls from the series path are zero; old and new results are field-for-field
+   equal across the parity matrix; focused PM, desktop, architecture, and runtime-composition tests
+   pass.
+
+**Temporary/deletion register:** none planned. Phase 3A replaces the EVM-series runtime path directly;
+no feature flag, fallback calculator loop, compatibility Reader, or transition evidence file may be
+retained. The repository-backed single-date EVM and Reporting cost builders remain live capabilities
+until their explicitly separate Phase 3B migration and are therefore not Phase 3A dead code.
+
+Phase 3A implementation result:
+
+1. `EvmSeriesReader` and frozen/slotted `EvmSeriesFacts` now own the read boundary. The concrete
+   SQLAlchemy adapter composes the existing Finance fact projection with explicitly scoped latest or
+   requested baseline facts. Task progress is a primitive Finance task fact, so no duplicate task
+   source read is needed. Wrong tenant or organization returns no facts.
+2. `RateCardResolver.resolve_many_dates(...)` loads resource contexts and rate candidates overlapping
+   the complete period range once. It filters candidates per date in memory and invokes the existing
+   precedence/ambiguity selection unchanged. Its ID-only context comparison now uses the Phase 0C
+   `require_active_scope_ids(...)` fast path rather than rehydrating tenant/organization entities.
+3. `LaborCostEngine.calculate_project_labor_series(...)` composes each period from the prepared facts
+   and dated rate batches. `CostPolicyEngine.compose_from_facts_at(...)` derives period-specific stored
+   cost aggregates from the one raw cost fact set and delegates to the existing reconciliation path.
+   Manual labor remains excluded when computed labor exists.
+4. `EarnedValueCalculator` remains the sole EVM formula owner. Its prepared-facts parameters bypass
+   repository acquisition but execute the same BAC/PV/EV/AC and derived-metric implementation.
+   `GlobalCalendarShim` supplies one request-scoped working-day snapshot for the complete series
+   range, preserving enterprise rules/exceptions without a process-global stale cache.
+5. Runtime composition injects `SqlAlchemyEvmSeriesReader(session=session)` into `ReportingService`.
+   `EarnedValueSeriesCalculator.build_series` now performs one scope lookup, one Reader call, one
+   multi-date labor/rate call, one calendar snapshot, and in-memory period composition. The stable
+   reporting/desktop/QML DTO boundary did not change.
+
+Measured post-cutover result on the same fixtures:
+
+| Metric | 3 points | 12 points | 24 points |
+|---|---:|---:|---:|
+| Original SQL | 248 | 896 | 1,754 |
+| **Phase 3A SQL** | **50** | **50** | **50** |
+| Observed wall time | 0.041 s | 0.046 s | 0.052 s |
+| `EvmSeriesReader.read_facts` | 1 | 1 | 1 |
+| `rate_resolver.resolve_many_dates` | 1 | 1 | 1 |
+| rate context/candidate range reads | 1 + 1 | 1 + 1 | 1 + 1 |
+| calendar working-day range reads | 1 | 1 | 1 |
+| all legacy series repository calls | 0 | 0 | 0 |
+
+Verification:
+
+- post-cutover measurement/growth guard: **3 passed**;
+- explicit/latest baseline, dated-rate, manual/computed-labor, budget-fallback, no-baseline,
+  wrong-scope, and real runtime-composition parity coverage: **4 passed**;
+- focused rate-card/cost/baseline regression: **38 passed**;
+- full PM suite in timeout-safe partitions: **537 passed** (**202 + 213 + 122**);
+- full architecture suite: **130 passed** with only the same unrelated existing hard-size failure for
+  generated `resources/shared_resources_rc.py` and the documented 1,408-line
+  `enterprise_calendar.py`.
+
+**Phase 3A exit gate: PASSED.** SQL and named source calls are bounded independently of period count;
+the parity matrix, tenant isolation, concrete runtime injection, PM regressions, and architecture
+guards pass. Timing remains evidence only and is not used as a brittle threshold.
+
+**Phase 3A final deletion register:** none. The old per-period series acquisition loop was replaced
+directly. No feature flag, compatibility Reader, fallback series implementation, transition evidence
+module, or temporary file remains. The repository-backed single-date EVM and broader Reporting cost
+builders are live Phase 3B inputs, not dead Phase 3A code.
+
 **Phase 3 — Migrate additional high-cost reads, one capability per sub-phase, each explicitly
 measured before it is trusted to have improved anything.** An earlier draft of this plan bundled
 these together and separately implied `ReportingService` and `EarnedValueSeriesCalculator` would

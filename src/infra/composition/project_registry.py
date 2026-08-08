@@ -42,6 +42,7 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     SqlAlchemyRateResolutionReader,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.financials import (
+    SqlAlchemyEvmSeriesReader,
     SqlAlchemyFinanceSnapshotReader,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
@@ -382,6 +383,7 @@ def build_project_management_service_bundle(
         project_resource_repo=repositories.project_resource_repo,
         rate_resolver=rate_card_resolver,
         tenant_context_service=platform_services.tenant_context_service,
+        evm_series_reader=SqlAlchemyEvmSeriesReader(session=session),
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
     )

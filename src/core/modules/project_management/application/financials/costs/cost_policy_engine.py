@@ -1,17 +1,9 @@
 """Cost policy engine — owns all cost bucket and policy snapshot logic.
-
-This is the authoritative implementation of cost aggregation, labor policy
-decisions, and cost control totals for a project. Reporting delegates here.
-
-Labor rates (both planned, from ``ProjectResource.planned_hours``, and
-actual, via the injected labor-details provider) are resolved through the
-ADR-PF-005 rate-card system (``LaborRateResolver``) — never read directly
-from ``ProjectResource.hourly_rate``/``Resource.hourly_rate``.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date
 from typing import Callable
 
@@ -27,6 +19,7 @@ from src.core.modules.project_management.contracts.repositories.rate_resolution 
     UnresolvedLaborRate,
 )
 from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
+    CostAggregateFact,
     FinanceSnapshotFacts,
 )
 from src.core.modules.project_management.domain.enums import CostType
@@ -415,6 +408,61 @@ class CostPolicyEngine:
             totals=self._totals_from_snapshot(snapshot),
             source_breakdown=source_breakdown,
             manual_labor_included=manual_included,
+        )
+
+    def compose_from_facts_at(
+        self,
+        facts: FinanceSnapshotFacts,
+        labor_details: LaborDetailsResult,
+        *,
+        as_of: date,
+    ) -> CostPolicyComposition:
+        """Apply policy at one date without re-reading stored cost rows."""
+        if as_of == facts.as_of:
+            return self.compose_from_facts(facts, labor_details)
+        return self.compose_from_facts(
+            replace(
+                facts,
+                as_of=as_of,
+                cost_aggregates=self._aggregate_cost_items_at(facts, as_of=as_of),
+            ),
+            labor_details,
+        )
+
+    @staticmethod
+    def _aggregate_cost_items_at(
+        facts: FinanceSnapshotFacts,
+        *,
+        as_of: date,
+    ) -> tuple[CostAggregateFact, ...]:
+        buckets: dict[tuple[str, str | None, str], list[float]] = {}
+        for item in facts.cost_items:
+            key = (item.cost_type, item.currency_code, item.commitment_status)
+            values = buckets.setdefault(key, [0.0] * 7)
+            values[0] += item.planned_amount if item.planned_amount > 0.0 else 0.0
+            values[1] += item.committed_amount if item.committed_amount > 0.0 else 0.0
+            actual_in_scope = item.incurred_date is None or item.incurred_date <= as_of
+            if actual_in_scope and item.actual_amount > 0.0:
+                values[2] += item.actual_amount
+            values[3] += item.planned_amount
+            values[4] += item.committed_amount
+            if actual_in_scope:
+                values[5] += item.actual_amount
+            values[6] += 1.0
+        return tuple(
+            CostAggregateFact(
+                cost_type=key[0],
+                currency_code=key[1],
+                commitment_status=key[2],
+                positive_planned=values[0],
+                positive_committed=values[1],
+                positive_actual_as_of=values[2],
+                raw_planned=values[3],
+                raw_committed=values[4],
+                raw_actual_as_of=values[5],
+                row_count=int(values[6]),
+            )
+            for key, values in buckets.items()
         )
 
     def _totals_from_snapshot(self, snapshot: CostPolicySnapshot) -> CostControlTotals:
