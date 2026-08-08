@@ -9,6 +9,11 @@ from pathlib import Path
 from src.core.modules.project_management.application.financials.services.finance_service import (
     FinanceService,
 )
+from src.core.modules.project_management.application.financials.budgets import (
+    BudgetApprovalOutcome,
+    BudgetApprovalResult,
+    BudgetService,
+)
 from src.core.modules.project_management.application.financials.earned_value.evm_series import (
     EarnedValueSeriesCalculator,
 )
@@ -532,6 +537,28 @@ def test_collaboration_cross_project_reads_use_one_scoped_fact_graph() -> None:
         "ProjectORM.id.in_(project_ids)",
     ):
         assert predicate in reader_source
+
+
+def test_budget_approval_uses_one_immutable_command_result_for_both_outcomes() -> None:
+    assert is_dataclass(BudgetApprovalResult)
+    assert BudgetApprovalResult.__dataclass_params__.frozen
+    assert hasattr(BudgetApprovalResult, "__slots__")
+    assert set(BudgetApprovalResult.__annotations__) == {
+        "outcome",
+        "budget_id",
+        "project_id",
+        "budget_status",
+        "row_version",
+        "approval_request_id",
+    }
+    assert BudgetApprovalOutcome.APPLIED.value == "applied"
+    assert BudgetApprovalOutcome.PENDING_APPROVAL.value == "pending_approval"
+
+    source = inspect.getsource(BudgetService.approve_budget)
+    assert "BudgetApprovalOutcome.APPLIED" in source
+    assert "BudgetApprovalOutcome.PENDING_APPROVAL" in source
+    assert "approval_request_id=req.id" in source
+    assert "APPROVAL_REQUIRED" not in source
 
 
 def test_guard_detectors_reject_deliberately_broken_in_memory_examples() -> None:

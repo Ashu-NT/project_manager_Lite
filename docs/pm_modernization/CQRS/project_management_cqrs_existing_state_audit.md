@@ -868,8 +868,9 @@ BudgetService.create_budget(...)
   → domain_events.budgets_changed.emit    (after commit)
 
 BudgetService.approve_budget(...)                                 # THE governed/ungoverned split
-  → governed?  approval_service.request_change(...) → raise APPROVAL_REQUIRED   # NO mutation happens on this call at all
-  → ungoverned → _apply_approval_decision(commit=True)
+  → governed?  approval_service.request_change(...) → BudgetApprovalResult(pending_approval, request_id)
+                                                               # NO budget mutation happens on this call
+  → ungoverned → _apply_approval_decision(commit=True) → BudgetApprovalResult(applied)
       → budget_repo.get_approved_for_project(project_id)          # find the currently-approved version, if any
       → session.begin_nested():
             previous.supersede(...) → budget_repo.update(previous, expected_row_version=captured_before_call)
@@ -881,9 +882,10 @@ BudgetService.approve_budget(...)                                 # THE governed
       → _commit() if commit=True else flush()
       → domain_events.budgets_changed.emit  only if commit=True
 ```
-- **Governed path never mutates anything on the same call** that raises `APPROVAL_REQUIRED` — the
-  actual write only happens later, either directly (ungoverned) or via the approval-apply handler
-  calling `_apply_approval_decision(commit=False)` inside `ApprovalService`'s own transaction.
+- **Governed path never mutates the budget on the request call.** It now returns an immutable
+  `BudgetApprovalResult` naming the successful `pending_approval` outcome and durable request ID;
+  the actual write only happens later via the approval-apply handler calling
+  `_apply_approval_decision(commit=False)` inside `ApprovalService`'s own transaction.
 - **`expected_row_version` is captured into a local variable before each mutating call**, not
   re-read from the object afterward — a deliberate defense against a future refactor where
   `supersede()`/`approve()` might start touching `row_version` directly.
@@ -935,14 +937,14 @@ entry point).
 ### Any approval-governed mutation — general shape confirmed across all 4 governed areas
 
 `CostLifecycleMixin` (add/update/delete cost item), `BudgetService.approve_budget`,
-`TaskDependencyMixin.add_dependency`/`remove_dependency`, `BaselineService.create_baseline` all
-share the **identical** structural pattern: a public, permission-checked method that branches on
-`is_governance_required(...)` (and `not is_admin_session(...)`); the governed branch calls
-`approval_service.request_change(...)` and raises `BusinessRuleError(code="APPROVAL_REQUIRED")`
-**without ever mutating anything**; the ungoverned branch (or the later approval-apply handler)
-calls a private `_apply_*_decision(..., commit: bool)` method that performs the actual write and
-either commits (direct caller) or only flushes (approval-apply handler, letting `ApprovalService`
-own the final commit). **`TaskDependencyMixin.update_dependency` is the one confirmed exception** —
+`TaskDependencyMixin.add_dependency`/`remove_dependency`, and `BaselineService.create_baseline`
+share the same permission, governance, and deferred-mutation structure. Cost, dependency, and
+baseline request paths still raise `BusinessRuleError(code="APPROVAL_REQUIRED")`; Phase 4 changed
+only budget approval to return `BudgetApprovalResult(pending_approval)` after the request commits.
+The ungoverned branch (or later approval-apply handler) calls a private
+`_apply_*_decision(..., commit: bool)` method that performs the actual write and either commits
+(direct caller) or only flushes (approval-apply handler, letting `ApprovalService` own the final
+commit). **`TaskDependencyMixin.update_dependency` is the one confirmed exception** —
 its own class docstring states it "has no governed path (dead, unwired)," and it commits directly
 with no `commit:` parameter, then triggers a schedule resync as a **second, separate** commit —
 the least atomic write path found in the whole audit.
@@ -1734,23 +1736,22 @@ imposed where the existing service style already works, no mass rewrite.
 
 ```text
 Desktop request DTO → application service method (acts as the "CommandService") → domain aggregate
-  → write Repository (unchanged) → ORM/database → domain entity (today) / CommandResult (proposed)
+  → write Repository (unchanged) → ORM/database → domain entity (majority) / selected CommandResult
   → desktop response DTO
 ```
 
-**What's missing is only the middle-right link**: services return the full domain aggregate today,
-not a narrower `CommandResult`. **Recommendation: introduce `CommandResult` dataclasses only where
-a service currently returns something broader than the caller needs, and only for the capability
+Most services still return the full domain aggregate rather than a narrower `CommandResult`.
+**Recommendation: introduce `CommandResult` dataclasses only where a service returns something
+broader than the caller needs or has multiple successful outcomes, and only for the capability
 being actively touched — not as a blanket rule.** Concretely:
 
 - `TaskService.create_task`/`update_task` returning the full `Task` aggregate is fine as-is; the
   desktop serializer already narrows it correctly. **No change needed here.**
-- `BudgetService.approve_budget`/`_apply_approval_decision` already has the shape a
-  `CommandResult` would formalize (it returns the mutated `ProjectBudget`, and the governed path
-  separately signals `APPROVAL_REQUIRED` via an exception) — **a light `CommandResult` wrapper
-  here would mainly help name the two outcomes (`applied` vs. `pending_approval`) instead of using
-  control flow via exception for the pending case, but this is a P3 clarity improvement, not
-  required for CQRS to land.**
+- **Implemented in Phase 4:** `BudgetService.approve_budget` returns immutable
+  `BudgetApprovalResult` for both successful outcomes (`applied` and `pending_approval`). It carries
+  only budget/project identity, budget status/version, and the optional approval-request ID. The
+  internal `_apply_approval_decision` deliberately continues returning `ProjectBudget` inside the
+  transaction-owning application/composition path. No other write was converted speculatively.
 - **Should existing services be split into command/query services?** Not wholesale. The
   `*QueryMixin`/`*CommandMixin`/`*LifecycleMixin` convention already in every composed service
   **is** the command/query split, lexically, today. Splitting them into two *separate classes* with
@@ -3359,9 +3360,34 @@ Each sub-phase follows the same reader+facts+parity-test shape Phase 1 establish
 reviewable and revertible, and requires its own Phase-0-style measurement before and after — none of
 them inherit Phase 1's measured improvement by association.
 
-**Phase 4 — Introduce command results on selected writes.** Only where §15a identifies genuine
-value (e.g. naming `BudgetService.approve_budget`'s two outcomes explicitly) — not a blanket pass
-over every write method.
+**Phase 4 - COMPLETE 2026-08-08 — introduce command results only on selected writes.**
+
+- `BudgetService.approve_budget` now returns frozen, slotted `BudgetApprovalResult`. Direct approval
+  returns `applied` after the budget transaction commits; governed approval returns
+  `pending_approval` with the committed approval-request ID and leaves the submitted budget
+  unchanged. Stale writes, denied permissions, duplicate pending requests, invalid lifecycle
+  transitions, and persistence conflicts remain typed errors rather than successful outcomes.
+- The result is intentionally narrow: outcome, budget/project IDs, budget status, row version, and
+  optional request ID. It contains no domain aggregate, ORM object, repository, or untyped payload.
+  `_apply_approval_decision` remains an internal aggregate-returning method because the registered
+  approval handler needs the project ID while participating in `ApprovalService`'s transaction.
+- No production desktop/QML caller existed for `approve_budget`, so no compatibility adapter,
+  feature flag, dual return type, or temporary migration path was introduced. Other PM writes keep
+  their existing returns; Phase 4 is not a blanket command-object/result rewrite.
+
+Verification completed on 2026-08-08: all **42 budget lifecycle tests** pass; the focused CQRS
+architecture file passes **18 tests**; the full PM suite passes **560 tests** in bounded partitions
+(**215 + 218 + 127**); and the full architecture suite reports **138 passed** with only the same
+pre-existing hard-size guard failure listing generated `resources/shared_resources_rc.py` and the
+documented 1,408-line `enterprise_calendar.py`. `compileall` and `git diff --check` are clean.
+
+**Phase 4 deletion register - COMPLETE:** the budget-specific `APPROVAL_REQUIRED` branch was removed
+when the result contract landed. No compatibility result, legacy exception fallback, transition
+evidence, temporary file, or migration-only code remains.
+
+**Phase 4 exit gate: PASSED.** Both successful budget-approval outcomes are explicit and tested,
+error semantics and transaction ownership are preserved, and unrelated write contracts are
+unchanged.
 
 **Phase 5 — Connect stable desktop DTOs to QML.** Not applicable to the Phase 1 pilot (its DTO
 doesn't change), but relevant once/if a later phase's read model *does* warrant a DTO shape change

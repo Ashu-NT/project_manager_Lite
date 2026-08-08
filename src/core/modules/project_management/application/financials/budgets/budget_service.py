@@ -11,6 +11,10 @@ from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.financials.budgets.approval_result import (
+    BudgetApprovalOutcome,
+    BudgetApprovalResult,
+)
 from src.core.modules.project_management.contracts.repositories.budget import (
     ProjectBudgetRepository,
 )
@@ -53,13 +57,11 @@ class BudgetService(ProjectManagementModuleGuardMixin):
     """Governed lifecycle for the versioned ``ProjectBudget``/``BudgetLine``
     aggregate — see docs/pm_modernization/project_budget_lifecycle_plan.md.
 
-    ``approve_budget`` is the only governed operation. Its ungoverned path
-    and the composition-registered apply/reject handlers both funnel through
-    ``_apply_approval_decision``/``_apply_rejection_decision``, which never
-    check ``budget.approve`` themselves — by construction they are only
-    reachable through an already-permission-checked caller (either this
-    service's own public methods, or ``ApprovalService``'s own
-    ``approval.decide`` check). There is no ``bypass_approval`` flag.
+    ``approve_budget`` names direct application and governed request creation
+    as separate successful outcomes. Both direct application and the
+    composition-registered decision handlers funnel through the same internal
+    mutation methods; those handlers rely on their already-authorized callers
+    and never expose an approval-bypass flag.
     """
 
     def __init__(
@@ -219,15 +221,12 @@ class BudgetService(ProjectManagementModuleGuardMixin):
 
     def approve_budget(
         self, budget_id: str, *, approved_by: str, notes: str = "", expected_version: int
-    ) -> ProjectBudget:
+    ) -> BudgetApprovalResult:
         budget = self._require_budget(budget_id)
         governed = self._is_approval_governed()
-        # Branched, not a single unconditional check: a governed requester
-        # only needs to be allowed to *request* a decision (approval.request)
-        # — requiring budget.approve here would defeat the entire point of
-        # routing approval through governance for exactly the reviewers who
-        # hold approval.decide but not budget.approve (mirrors
-        # BaselineService.create_baseline's governed/direct branching).
+        # A governed requester needs approval.request, while only a direct
+        # approver needs budget.approve. Collapsing these checks would prevent
+        # valid governance-only reviewers from submitting a decision request.
         if governed:
             require_permission(
                 self._user_session, "approval.request", operation_label="request budget approval"
@@ -262,16 +261,27 @@ class BudgetService(ProjectManagementModuleGuardMixin):
                     "notes": notes,
                 },
             )
-            raise BusinessRuleError(
-                f"Approval required. Request {req.id} created.",
-                code="APPROVAL_REQUIRED",
+            return BudgetApprovalResult(
+                outcome=BudgetApprovalOutcome.PENDING_APPROVAL,
+                budget_id=budget.id,
+                project_id=budget.project_id,
+                budget_status=budget.status,
+                row_version=budget.row_version,
+                approval_request_id=req.id,
             )
-        return self._apply_approval_decision(
+        approved = self._apply_approval_decision(
             budget_id=budget_id,
             approved_by=approved_by,
             expected_version=expected_version,
             notes=notes,
             commit=True,
+        )
+        return BudgetApprovalResult(
+            outcome=BudgetApprovalOutcome.APPLIED,
+            budget_id=approved.id,
+            project_id=approved.project_id,
+            budget_status=approved.status,
+            row_version=approved.row_version,
         )
 
     def reject_budget(
