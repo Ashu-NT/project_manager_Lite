@@ -1,6 +1,6 @@
 # Project Management — CQRS Existing-State Audit and Design-Mapping
 
-Status: **audit and prerequisite Phases 0, 0A, 0B, and 0C complete; Phase 1 complete**
+Status: **audit and prerequisite Phases 0, 0A, 0B, and 0C complete; Phases 1 and 2 complete**
 (2026-08-08). CQRS pilot selection, PM finance design, and the desktop-adapter responsibility audit
 are complete. This document began as read-only design-mapping and now also records exact
 implementation evidence for the prerequisite phases; proposed CQRS Reader work remains separated
@@ -2917,6 +2917,49 @@ second real example exists** to write a guardrail against, not before. Files aff
 files under `src/tests/architecture/`. Exit gate: guardrail tests pass against the Phase 1 code and
 would fail if a hypothetical violation were introduced (write a deliberately-broken temporary
 example to prove the guardrail catches it, then remove the example).
+
+**Phase 2 implementation result — COMPLETE 2026-08-08.**
+
+Implemented guardrails:
+
+1. Every current and future `Protocol` under `contracts/reads/**` is inspected for explicit
+   `tenant_id` and `organization_id` parameters and a contract-owned facts/primitive return type.
+2. Every facts dataclass under `contracts/reads/**/models/` must be both frozen and slotted.
+3. Read contracts cannot import application services, desktop adapters, persistence, ORM, or
+   SQLAlchemy. SQLAlchemy Reader adapters cannot import application or desktop layers.
+4. SQLAlchemy Readers cannot call write/session lifecycle methods, broadly catch infrastructure
+   exceptions, perform permission/redaction/rate-policy work, or reference planned-cost-version
+   models as an alternative source.
+5. Every Finance statement builder must accept tenant, organization, and project scope. The resource
+   statement must apply direct tenant/organization predicates plus project-scoped existence checks.
+6. The cost aggregate is structurally limited to `CostItemORM` plus its scoped `ProjectORM` parent,
+   requires `SUM`/`GROUP BY`, and cannot fan out through project resources or assignments.
+7. `FinanceService.get_finance_snapshot` is locked to exactly one Reader call, one labor calculation,
+   and one policy composition, with repository refetches and Finance-side reconciliation forbidden.
+   The guard also proves `CostPolicyEngine.compose_from_facts` remains the reconciliation owner.
+8. Runtime composition must construct `SqlAlchemyFinanceSnapshotReader(session=session)`, and the
+   real desktop-runtime test proving the concrete instance is reached must remain present.
+9. The existing QML Python-layer boundary now explicitly rejects both `contracts.reads` and
+   `infrastructure.persistence.reads` imports, in addition to repositories/ORM.
+10. Guard-detector tests feed deliberately broken contract and adapter source in memory and prove
+    that missing organization scope, an application-layer contract import, and `session.commit()`
+    are rejected. No deliberately broken file is written to or retained in the repository.
+
+Verification:
+
+- new CQRS Reader architecture guards plus the extended QML boundary: **21 passed**;
+- Phase 1 real Reader/runtime integration recheck: **3 passed**;
+- full architecture suite: **128 passed** with the same one unrelated existing hard-size failure for
+  generated `resources/shared_resources_rc.py` and the previously documented 1,408-line
+  `enterprise_calendar.py`.
+
+**Phase 2 exit gate: PASSED.** The guard logic catches deliberately broken in-memory examples, all
+Reader contracts/adapters and the real Phase 1 composition satisfy the enforced boundaries, and no
+production behavior changed in this phase.
+
+**Temporary/deletion register:** none. Broken examples exist only as in-memory strings inside the
+guard self-test; no temporary production path, fixture module, compatibility code, or dead file was
+created.
 
 **Phase 3 — Migrate additional high-cost reads, one capability per sub-phase, each explicitly
 measured before it is trusted to have improved anything.** An earlier draft of this plan bundled
