@@ -30,6 +30,7 @@ from src.core.modules.project_management.application.scheduling import (
 )
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 
 
 class DashboardService(
@@ -64,21 +65,62 @@ class DashboardService(
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 
-    def get_dashboard_data(self, project_id: str, baseline_id: str | None = None) -> DashboardData:
+    def get_dashboard_data(
+        self,
+        project_id: str,
+        baseline_id: str | None = None,
+        *,
+        include_evm: bool = True,
+    ) -> DashboardData:
         require_permission(self._user_session, "report.view", operation_label="view dashboard")
         require_project_permission(self._user_session, project_id, "report.view", operation_label="view dashboard")
         schedule = self._sched.recalculate_project_schedule(project_id, persist=False)
-
         kpi = self._reporting.get_project_kpis(project_id, schedule=schedule)
         resource_load = self._reporting.get_resource_load_summary(project_id)
-        alerts = self._build_alerts(project_id, kpi, resource_load)
-        upcoming = self._build_upcoming_tasks(project_id)
-        burndown = self._build_burndown(project_id)
-        milestones = self._build_milestone_health(project_id, schedule=schedule)
-        critical_watchlist = self._build_critical_watchlist(project_id, schedule=schedule)
-        register_summary = self._build_register_summary(project_id)
+        tasks = select_leaf_tasks(self._tasks.list_tasks_for_project(project_id))
+        assignments = self._tasks.list_assignments_for_tasks([task.id for task in tasks])
+        assignments_by_task: dict[str, list[object]] = {}
+        for assignment in assignments:
+            assignments_by_task.setdefault(assignment.task_id, []).append(assignment)
+        resources_by_id = {
+            resource.id: resource for resource in self._resources.list_resources()
+        }
+        owner_by_task = self._build_task_owner_map(
+            tasks,
+            assignments_by_task=assignments_by_task,
+            resource_names={
+                resource_id: resource.name
+                for resource_id, resource in resources_by_id.items()
+            },
+        )
+
+        alerts = self._build_alerts(project_id, kpi, resource_load, tasks=tasks)
+        upcoming = self._build_upcoming_tasks(
+            project_id,
+            tasks=tasks,
+            assignments_by_task=assignments_by_task,
+            resources_by_id=resources_by_id,
+        )
+        burndown = self._build_burndown(project_id, kpi=kpi, tasks=tasks)
+        milestones = self._build_milestone_health(
+            project_id,
+            schedule=schedule,
+            tasks=tasks,
+            owner_by_task=owner_by_task,
+        )
+        critical_watchlist = self._build_critical_watchlist(
+            project_id,
+            schedule=schedule,
+            tasks=tasks,
+            owner_by_task=owner_by_task,
+        )
+        register_snapshot = self._build_register_snapshot(project_id)
         cost_sources = self._reporting.get_project_cost_source_breakdown(project_id)
-        evm_obj = self._build_evm(project_id, baseline_id=baseline_id)
+        evm_obj = (
+            self._build_evm(project_id, baseline_id=baseline_id)
+            if include_evm
+            else None
+        )
 
         return DashboardData(
             kpi=kpi,
@@ -87,7 +129,8 @@ class DashboardService(
             burndown=burndown,
             milestone_health=milestones,
             critical_watchlist=critical_watchlist,
-            register_summary=register_summary,
+            register_summary=(register_snapshot.summary if register_snapshot else None),
+            high_risks=(list(register_snapshot.high_risks) if register_snapshot else []),
             cost_sources=cost_sources,
             evm=evm_obj,
             upcoming_tasks=upcoming,

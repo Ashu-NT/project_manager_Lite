@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.modules.project_management.application.risk import (
-    RegisterProjectSummary,
+    RegisterDashboardSnapshot,
     RegisterService,
 )
 
@@ -10,11 +10,14 @@ from src.core.modules.project_management.application.risk import (
 class DashboardRegisterMixin:
     _registers: RegisterService | None
 
-    def _build_register_summary(self, project_id: str) -> RegisterProjectSummary | None:
+    def _build_register_snapshot(
+        self,
+        project_id: str,
+    ) -> RegisterDashboardSnapshot | None:
         if self._registers is None:
             return None
         try:
-            return self._registers.get_project_summary(project_id)
+            return self._registers.get_dashboard_snapshot(project_id)
         except BusinessRuleError:
             return None
 

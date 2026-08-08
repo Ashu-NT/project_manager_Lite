@@ -284,6 +284,10 @@ def test_register_service_applies_one_triage_policy_to_lists_and_summary(
 
     listed = service.list_entries(as_of=date(2026, 6, 10))
     summary = service.get_project_summary("proj-1")
+    dashboard_snapshot = service.get_dashboard_snapshot(
+        "proj-1",
+        as_of=date(2026, 6, 10),
+    )
 
     assert [entry.id for entry in listed[:3]] == [
         critical_future.id,
@@ -299,6 +303,10 @@ def test_register_service_applies_one_triage_policy_to_lists_and_summary(
         critical_future.id,
         high_overdue.id,
         medium_overdue.id,
+    ]
+    assert dashboard_snapshot.summary == summary
+    assert [item.id for item in dashboard_snapshot.high_risks] == [
+        critical_future.id,
     ]
 
 

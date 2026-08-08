@@ -23,6 +23,15 @@ from src.core.modules.project_management.application.resources.resource_availabi
 from src.core.modules.project_management.application.resources.resource_service import (
     ResourceService,
 )
+from src.core.modules.project_management.application.resources.resource_load_engine import (
+    ResourceLoadEngine,
+    ResourceLoadMetric,
+    ResourceUtilizationBand,
+    is_resource_near_capacity,
+    is_resource_overloaded,
+    resource_utilization_band,
+    resource_utilization_status_label,
+)
 
 __all__ = [
     "AssignmentSkillValidator",
@@ -35,7 +44,14 @@ __all__ = [
     "ResourceAvailabilityWindow",
     "ResourceDateLoad",
     "ResourceDemandEntry",
+    "ResourceLoadEngine",
+    "ResourceLoadMetric",
     "ResourcePoolSummary",
     "ResourceService",
+    "ResourceUtilizationBand",
     "SkillViolation",
+    "is_resource_near_capacity",
+    "is_resource_overloaded",
+    "resource_utilization_band",
+    "resource_utilization_status_label",
 ]

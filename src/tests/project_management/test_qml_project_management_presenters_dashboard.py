@@ -76,7 +76,7 @@ def test_project_management_workspace_catalog_exposes_real_dashboard_snapshot_st
             ]
         ),
         dashboard_service=SimpleNamespace(
-            get_dashboard_data=lambda project_id, baseline_id=None: SimpleNamespace(
+            get_dashboard_data=lambda project_id, baseline_id=None, include_evm=True: SimpleNamespace(
                 kpi=SimpleNamespace(
                     project_id=project_id,
                     name="Plant Upgrade" if project_id == "proj-1" else "Warehouse Retrofit",

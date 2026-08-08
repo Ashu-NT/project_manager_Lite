@@ -65,7 +65,7 @@ class ShellRuntimeSessionController(QObject):
         principal = self._user_session.principal
         if principal is not None:
             self._last_username = str(principal.username or "").strip() or self._last_username
-        is_authenticated = bool(self._user_session.is_authenticated())
+        is_authenticated = bool(self._user_session.revalidate_principal())
         if is_authenticated:
             self._last_authenticated = True
             self._sync_shell_identity()

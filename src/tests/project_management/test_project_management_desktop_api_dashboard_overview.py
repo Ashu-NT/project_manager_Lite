@@ -131,7 +131,7 @@ def test_project_management_dashboard_desktop_api_builds_service_snapshot() -> N
             ]
         ),
         dashboard_service=SimpleNamespace(
-            get_dashboard_data=lambda project_id, baseline_id=None: SimpleNamespace(
+            get_dashboard_data=lambda project_id, baseline_id=None, include_evm=True: SimpleNamespace(
                 kpi=SimpleNamespace(
                     project_id=project_id,
                     name="Plant Upgrade",

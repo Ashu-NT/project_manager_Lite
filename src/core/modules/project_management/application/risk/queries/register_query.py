@@ -9,6 +9,7 @@ from src.core.modules.project_management.contracts.repositories.register import 
 from src.core.modules.project_management.access.scope_permissions import filter_project_rows, require_project_permission
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.modules.project_management.application.risk.dto.register_summary import (
+    RegisterDashboardSnapshot,
     RegisterProjectSummary,
     RegisterUrgentItem,
 )
@@ -68,18 +69,71 @@ class RegisterQueryMixin:
         return sorted(scoped_rows, key=lambda entry: entry.triage_key(triage_date))
 
     def get_project_summary(self, project_id: str) -> RegisterProjectSummary:
-        require_permission(self._user_session, "register.read", operation_label="view register summary")
+        items = self._project_entries(
+            project_id,
+            operation_label="view register summary",
+        )
+        today = date.today()
+        return self._build_project_summary(items, today=today)
+
+    def get_dashboard_snapshot(
+        self,
+        project_id: str,
+        *,
+        as_of: date | None = None,
+    ) -> RegisterDashboardSnapshot:
+        items = self._project_entries(
+            project_id,
+            operation_label="view dashboard register",
+        )
+        today = as_of or date.today()
+        ordered = sorted(items, key=lambda item: item.triage_key(today))
+        high_risks = tuple(
+            item
+            for item in ordered
+            if item.entry_type == RegisterEntryType.RISK
+            and item.severity in {
+                RegisterEntrySeverity.HIGH,
+                RegisterEntrySeverity.CRITICAL,
+            }
+            and item.status in {
+                RegisterEntryStatus.OPEN,
+                RegisterEntryStatus.IN_PROGRESS,
+            }
+        )
+        return RegisterDashboardSnapshot(
+            summary=self._build_project_summary(items, today=today),
+            high_risks=high_risks,
+        )
+
+    def _project_entries(
+        self,
+        project_id: str,
+        *,
+        operation_label: str,
+    ) -> list[RegisterEntry]:
+        require_permission(
+            self._user_session,
+            "register.read",
+            operation_label=operation_label,
+        )
         require_project_permission(
             self._user_session,
             project_id,
             "register.read",
-            operation_label="view register summary",
+            operation_label=operation_label,
         )
         project = self._project_repo.get(project_id)
         if project is None:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
-        items = self._register_repo.list_entries(project_id=project_id)
-        today = date.today()
+        return self._register_repo.list_entries(project_id=project_id)
+
+    @staticmethod
+    def _build_project_summary(
+        items: list[RegisterEntry],
+        *,
+        today: date,
+    ) -> RegisterProjectSummary:
         active_items = [item for item in items if item.status in _ACTIVE_STATUSES]
         urgent = sorted(active_items, key=lambda item: item.triage_key(today))[:5]
         return RegisterProjectSummary(

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 
-from datetime import date
+from datetime import date, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -41,6 +41,9 @@ from src.core.modules.project_management.application.scheduling.cpm.results impo
 from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
     BoundProjectCalendar,
     ProjectCalendarAdapter,
+)
+from src.core.modules.project_management.application.scheduling.calendars.working_day_snapshot import (
+    WorkingDaySnapshotCalendar,
 )
 
 
@@ -98,19 +101,27 @@ class SchedulingEngine(ResourceLevelingMixin):
         if not tasks:
             return {}
 
+        tasks_by_id: dict[str, Task] = {t.id: t for t in tasks}
+        deps = select_leaf_dependencies(
+            self._dependency_repo.list_by_project(project_id),
+            tasks,
+        )
+
         # If a project has an enterprise calendar assignment, bind the adapter so all
         # CPM arithmetic uses that calendar instead of the global WorkCalendarEngine.
         if self._project_calendar_adapter is not None:
             try:
                 bound = self._project_calendar_adapter.bind_for_project(project_id)
                 if bound is not None:
-                    self._calendar = bound
-                    self._task_calendar = bound
+                    calendar = self._build_working_day_snapshot(
+                        bound,
+                        tasks=tasks,
+                        dependencies=deps,
+                    )
+                    self._calendar = calendar
+                    self._task_calendar = calendar
             except Exception:
                 pass  # fall back to default WorkCalendarEngine
-
-        tasks_by_id: dict[str, Task] = {t.id: t for t in tasks}
-        deps = select_leaf_dependencies(self._dependency_repo.list_by_project(project_id), tasks)
 
         # Pre-load task→primary_resource for per-task calendar resolution
         if self._calendar_resolver and self._assignment_repo and self._resource_calendar_map:
@@ -171,6 +182,39 @@ class SchedulingEngine(ResourceLevelingMixin):
                 raise
 
         return result
+
+    @staticmethod
+    def _build_working_day_snapshot(
+        calendar: BoundProjectCalendar,
+        *,
+        tasks: list[Task],
+        dependencies: list[TaskDependency],
+    ) -> WorkingDaySnapshotCalendar:
+        anchors = [
+            value
+            for task in tasks
+            for value in (
+                task.start_date,
+                task.end_date,
+                task.deadline,
+                task.constraint_date,
+            )
+            if value is not None
+        ]
+        today = date.today()
+        earliest = min(anchors, default=today)
+        latest = max(anchors, default=today)
+        work_span = sum(max(1, int(task.duration_days or 1)) for task in tasks)
+        work_span += sum(abs(int(dependency.lag_days or 0)) + 1 for dependency in dependencies)
+        padding_days = max(60, min((work_span * 3) + 30, 3_650))
+        start = earliest - timedelta(days=padding_days)
+        end = latest + timedelta(days=padding_days)
+        return WorkingDaySnapshotCalendar(
+            start=start,
+            end=end,
+            working_dates=calendar.working_day_dates_between(start, end),
+            fallback=calendar,
+        )
 
     def _compute_task_dates(
         self,

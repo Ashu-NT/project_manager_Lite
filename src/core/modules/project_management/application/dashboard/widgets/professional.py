@@ -19,12 +19,19 @@ class DashboardProfessionalMixin:
         project_id: str,
         *,
         schedule: dict[str, CPMTaskInfo] | None = None,
+        tasks: list[object] | None = None,
+        owner_by_task: dict[str, str | None] | None = None,
     ) -> list[MilestoneHealthRow]:
-        tasks = select_leaf_tasks(self._tasks.list_tasks_for_project(project_id))
+        tasks = (
+            tasks
+            if tasks is not None
+            else select_leaf_tasks(self._tasks.list_tasks_for_project(project_id))
+        )
         if not tasks:
             return []
         info_by_id = schedule or self._sched.recalculate_project_schedule(project_id, persist=False)
-        owner_by_task = self._build_task_owner_map(tasks)
+        if owner_by_task is None:
+            owner_by_task = self._build_task_owner_map(tasks)
         milestone_tasks = [task for task in tasks if self._is_explicit_milestone(task)]
         if not milestone_tasks:
             milestone_tasks = [
@@ -59,12 +66,19 @@ class DashboardProfessionalMixin:
         project_id: str,
         *,
         schedule: dict[str, CPMTaskInfo] | None = None,
+        tasks: list[object] | None = None,
+        owner_by_task: dict[str, str | None] | None = None,
     ) -> list[CriticalPathRow]:
-        tasks = select_leaf_tasks(self._tasks.list_tasks_for_project(project_id))
+        tasks = (
+            tasks
+            if tasks is not None
+            else select_leaf_tasks(self._tasks.list_tasks_for_project(project_id))
+        )
         if not tasks:
             return []
         info_by_id = schedule or self._sched.recalculate_project_schedule(project_id, persist=False)
-        owner_by_task = self._build_task_owner_map(tasks)
+        if owner_by_task is None:
+            owner_by_task = self._build_task_owner_map(tasks)
         watch_candidates = [
             info
             for info in info_by_id.values()
@@ -97,14 +111,25 @@ class DashboardProfessionalMixin:
             )
         return rows
 
-    def _build_task_owner_map(self, tasks: list[object]) -> dict[str, str | None]:
+    def _build_task_owner_map(
+        self,
+        tasks: list[object],
+        *,
+        assignments_by_task: dict[str, list[object]] | None = None,
+        resource_names: dict[str, str] | None = None,
+    ) -> dict[str, str | None]:
         owner_by_task: dict[str, str | None] = {}
-        resource_names = {
-            resource.id: resource.name
-            for resource in getattr(self, "_resources").list_resources()
-        }
+        if resource_names is None:
+            resource_names = {
+                resource.id: resource.name
+                for resource in getattr(self, "_resources").list_resources()
+            }
         for task in tasks:
-            assignments = self._tasks.list_assignments_for_task(task.id)
+            assignments = (
+                assignments_by_task.get(task.id, [])
+                if assignments_by_task is not None
+                else self._tasks.list_assignments_for_task(task.id)
+            )
             if not assignments:
                 owner_by_task[task.id] = None
                 continue

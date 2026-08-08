@@ -9,6 +9,7 @@ from src.core.modules.project_management.api.desktop.portfolio.factories.portfol
 from src.core.modules.project_management.api.desktop.portfolio.models import (
     PortfolioCapacityResourceDto,
     PortfolioDependencyDesktopDto,
+    PortfolioExecutiveDesktopSnapshot,
     PortfolioHeatmapDesktopDto,
     PortfolioIntakeDesktopDto,
     PortfolioOptionDescriptor,
@@ -24,6 +25,7 @@ __all__ = [
     "PortfolioCapacityResourceDto",
     "PortfolioDependencyCreateCommand",
     "PortfolioDependencyDesktopDto",
+    "PortfolioExecutiveDesktopSnapshot",
     "PortfolioHeatmapDesktopDto",
     "PortfolioIntakeCreateCommand",
     "PortfolioIntakeDesktopDto",

@@ -160,7 +160,7 @@ def _build_resource_chart(*, dashboard_data: Any, portfolio_mode: bool) -> Proje
 
     return ProjectDashboardChartDescriptor(
         title=title, subtitle=subtitle, chart_type="bar",
-        points=tuple(_PT(label=r.resource_name, value=_util(r), value_label=fmt_percent(_util(r), 0), supporting_text=f"Alloc {fmt_float(r.total_allocation_percent, 0)}% / Cap {fmt_float(r.capacity_percent, 0)}% | Tasks {fmt_int(r.tasks_count)}", target_value=100.0, tone="danger" if _util(r) > 100.0 else "accent") for r in rows[:8]),
+        points=tuple(_PT(label=r.resource_name, value=_util(r), value_label=fmt_percent(_util(r), 0), supporting_text=f"Alloc {fmt_float(r.total_allocation_percent, 0)}% / Cap {fmt_float(r.capacity_percent, 0)}% | Tasks {fmt_int(r.tasks_count)}", target_value=100.0, tone="danger" if bool(getattr(r, "is_overloaded", False)) else "accent") for r in rows[:8]),
     )
 
 

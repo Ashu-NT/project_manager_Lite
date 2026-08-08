@@ -111,7 +111,11 @@ def build_health_cards(
     risk_critical = int(getattr(summary, "critical_items", 0) or 0)
     risk_open = int(getattr(summary, "open_risks", 0) or 0)
     risk_tone = "danger" if risk_critical > 0 else "warning" if risk_open > 0 else "success"
-    resource_tone = "danger" if overloads > 0 else "warning" if peak_util >= 90.0 else "success"
+    near_capacity = any(
+        bool(getattr(row, "is_near_capacity", False))
+        for row in resource_rows
+    )
+    resource_tone = "danger" if overloads > 0 else "warning" if near_capacity else "success"
     return (
         ProjectDashboardHealthCardDescriptor(id="schedule", title="Schedule Health", status_label="Late" if late_tasks > 0 else "On Track", metric_value=f"SPI {fmt_ratio(getattr(evm, 'SPI', None))}", metric_label="Schedule performance", supporting_text=f"Critical tasks {fmt_int(critical_tasks)} | Late tasks {fmt_int(late_tasks)}", meta_text="Critical-path and slip pressure across active activities.", tone=schedule_tone, route_id="project_management.scheduling"),
         ProjectDashboardHealthCardDescriptor(id="cost", title="Cost Health", status_label="Overrun" if cost_variance > 0.0 else "Stable", metric_value=f"CPI {fmt_ratio(getattr(evm, 'CPI', None))}", metric_label="Cost performance", supporting_text=f"Variance {fmt_float(cost_variance, 0)} | VAC {fmt_float(getattr(evm, 'VAC', 0.0), 0)}", meta_text="Cost and forecast pressure against the selected baseline.", tone=cost_tone, route_id="project_management.financials"),

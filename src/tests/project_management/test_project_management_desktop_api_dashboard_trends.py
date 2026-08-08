@@ -21,9 +21,17 @@ def test_project_management_dashboard_desktop_api_uses_real_period_labels_for_tr
         project_service=SimpleNamespace(
             list_projects=lambda: [SimpleNamespace(id="proj-1", name="Plant Upgrade")]
         ),
-        baseline_service=SimpleNamespace(list_baselines=lambda _project_id: []),
+        baseline_service=SimpleNamespace(
+            list_baselines=lambda _project_id: [
+                SimpleNamespace(
+                    id="base-1",
+                    name="Approved Baseline",
+                    created_at=datetime(2026, 1, 1, 9, 0),
+                )
+            ]
+        ),
         dashboard_service=SimpleNamespace(
-            get_dashboard_data=lambda project_id, baseline_id=None: SimpleNamespace(
+            get_dashboard_data=lambda project_id, baseline_id=None, include_evm=True: SimpleNamespace(
                 kpi=SimpleNamespace(
                     project_id=project_id,
                     name="Plant Upgrade",
@@ -115,7 +123,7 @@ def test_project_management_dashboard_desktop_api_normalizes_naive_activity_time
         ),
         baseline_service=SimpleNamespace(list_baselines=lambda _project_id: []),
         dashboard_service=SimpleNamespace(
-            get_dashboard_data=lambda project_id, baseline_id=None: SimpleNamespace(
+            get_dashboard_data=lambda project_id, baseline_id=None, include_evm=True: SimpleNamespace(
                 kpi=SimpleNamespace(
                     project_id=project_id,
                     name="Plant Upgrade",

@@ -12,7 +12,6 @@ from src.core.platform.domain.tenant.modules import (
 )
 from src.core.platform.contract.tenant.modules.contracts import ModuleEntitlementRepository
 from src.core.platform.infrastructure.persistence.orm.tenant.modules.modules import ModuleEntitlementORM
-from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )
@@ -160,15 +159,9 @@ class SqlAlchemyModuleEntitlementRepository(
         *,
         operation_label: str,
     ) -> str:
-        ctx = self._tenant_context(operation_label=operation_label)
+        ctx = self._context(operation_label=operation_label)
         normalized_id = str(organization_id or "").strip()
-        organization_exists = self.session.execute(
-            select(OrganizationORM.id).where(
-                OrganizationORM.id == normalized_id,
-                OrganizationORM.tenant_id == ctx.tenant_id,
-            )
-        ).scalar_one_or_none()
-        if organization_exists is None:
+        if normalized_id != ctx.organization_id:
             raise NotFoundError(
                 "Organization not found in the active tenant.",
                 code="ORGANIZATION_NOT_FOUND",

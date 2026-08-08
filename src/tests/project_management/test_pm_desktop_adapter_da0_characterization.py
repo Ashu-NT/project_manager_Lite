@@ -27,9 +27,6 @@ from src.core.modules.project_management.api.desktop.scheduling.builders.change_
     build_change_impact,
     compute_schedule_impact,
 )
-from src.core.modules.project_management.api.desktop.scheduling.formatters.status_formatter import (
-    resource_load_status_label,
-)
 from src.core.modules.project_management.api.desktop.tasks.api import (
     ProjectManagementTasksDesktopApi,
 )
@@ -65,6 +62,9 @@ from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,
     RegisterEntryStatus,
     RegisterEntryType,
+)
+from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
+    ResourceLoadRow,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
@@ -496,7 +496,7 @@ def test_da0_characterizes_assignment_preview_formula_and_per_conflict_lookup() 
 
 
 def test_da0_characterizes_shared_overload_boundary_across_desktop_views() -> None:
-    at_capacity = SimpleNamespace(
+    at_capacity = ResourceLoadRow(
         resource_id="resource-100",
         resource_name="At capacity",
         utilization_percent=100.0,
@@ -504,7 +504,7 @@ def test_da0_characterizes_shared_overload_boundary_across_desktop_views() -> No
         capacity_percent=100.0,
         tasks_count=1,
     )
-    overloaded = SimpleNamespace(
+    overloaded = ResourceLoadRow(
         resource_id="resource-101",
         resource_name="Overloaded",
         utilization_percent=100.1,
@@ -518,8 +518,8 @@ def test_da0_characterizes_shared_overload_boundary_across_desktop_views() -> No
     panel = _build_resource_overload_panel(dashboard_data=dashboard_data, portfolio_mode=False)
     table = _build_resource_overloads_table(dashboard_data)
 
-    assert resource_load_status_label(100.0) == "Hot"
-    assert resource_load_status_label(100.1) == "Overloaded"
+    assert at_capacity.utilization_status_label == "Hot"
+    assert overloaded.utilization_status_label == "Overloaded"
     assert overloaded_resource_count((at_capacity, overloaded)) == 1
     assert [point.tone for point in chart.points] == ["accent", "danger"]
     assert [row.tone for row in panel.rows] == ["danger", "warning"]
@@ -571,15 +571,18 @@ def test_da0_characterizes_dashboard_and_register_high_risk_parity() -> None:
     service = SimpleNamespace(list_entries=lambda **_kwargs: entries)
 
     register_rows = build_entry_list(register_service=service, project_id="project-1")
-    dashboard_table = _build_high_risks_table(
-        SimpleNamespace(kpi=SimpleNamespace(project_id="project-1")),
-        register_service=service,
-    )
-
     active_high_risk_ids = [
         row.id
         for row in register_rows
         if row.severity in (RegisterEntrySeverity.HIGH, RegisterEntrySeverity.CRITICAL)
         and row.status in (RegisterEntryStatus.OPEN, RegisterEntryStatus.IN_PROGRESS)
     ]
+    dashboard_table = _build_high_risks_table(
+        SimpleNamespace(
+            kpi=SimpleNamespace(project_id="project-1"),
+            high_risks=tuple(
+                row for row in register_rows if row.id in active_high_risk_ids
+            ),
+        )
+    )
     assert [row.id for row in dashboard_table.rows] == active_high_risk_ids

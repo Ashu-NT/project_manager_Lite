@@ -38,8 +38,9 @@ def build_workspace_state(
     templates = desktop_api.list_templates()
     intake_items = desktop_api.list_intake_items()
     scenarios = desktop_api.list_scenarios()
-    heatmap = desktop_api.list_heatmap()
-    dependencies = desktop_api.list_dependencies()
+    executive_snapshot = desktop_api.get_executive_snapshot()
+    heatmap = executive_snapshot.heatmap
+    dependencies = executive_snapshot.dependencies
     recent_actions = desktop_api.list_recent_actions(limit=12)
     intake_status_options = (
         PortfolioSelectorOptionViewModel(value="all", label="All statuses"),

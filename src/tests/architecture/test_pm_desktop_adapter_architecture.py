@@ -290,6 +290,9 @@ def test_register_triage_policy_stays_out_of_desktop_adapters() -> None:
         REPO_ROOT
         / "src/core/modules/project_management/application/risk/queries/register_query.py"
     ).read_text(encoding="utf-8")
+    dashboard_source = (
+        DESKTOP_ROOT / "dashboard/builders/operational_table_builder.py"
+    ).read_text(encoding="utf-8")
 
     assert "sorted(" not in builder_source
     assert "severity_rank" not in builder_source
@@ -297,6 +300,31 @@ def test_register_triage_policy_stays_out_of_desktop_adapters() -> None:
     assert "entry.is_overdue_on(date.today())" in serializer_source
     assert ".triage_key(" in query_source
     assert not (register_root / "utils/register_status_utils.py").exists()
+    assert "register_service" not in dashboard_source
+    assert "sorted(" not in dashboard_source.split("def _build_high_risks_table", 1)[1].split("def ", 1)[0]
+    assert 'getattr(dashboard_data, "high_risks"' in dashboard_source
+
+
+def test_resource_utilization_policy_stays_out_of_desktop_adapters() -> None:
+    source_paths = (
+        DESKTOP_ROOT / "dashboard/builders/chart_builder.py",
+        DESKTOP_ROOT / "dashboard/builders/health_card_builder.py",
+        DESKTOP_ROOT / "dashboard/builders/operational_table_builder.py",
+        DESKTOP_ROOT / "dashboard/builders/overview_builder.py",
+        DESKTOP_ROOT / "dashboard/builders/panel_builder.py",
+        DESKTOP_ROOT / "scheduling/serializers/resource_load_serializer.py",
+    )
+    sources = tuple(path.read_text(encoding="utf-8") for path in source_paths)
+
+    assert all("utilization_percent > 100.0" not in source for source in sources)
+    assert all("_util(r) > 100.0" not in source for source in sources)
+    assert all("90.0 <= _util(r)" not in source for source in sources)
+    assert all("peak_util >= 90.0" not in source for source in sources)
+    assert any('getattr(r, "is_overloaded"' in source for source in sources)
+    assert "utilization_status_label" in sources[-1]
+    assert not (
+        DESKTOP_ROOT / "scheduling/formatters/status_formatter.py"
+    ).exists()
 
 
 def test_da0_scanners_detect_synthetic_violations() -> None:

@@ -2,7 +2,51 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from enum import Enum
 from typing import Iterable
+
+
+class ResourceUtilizationBand(str, Enum):
+    IDLE = "idle"
+    STABLE = "stable"
+    HOT = "hot"
+    NEAR_CAPACITY = "near_capacity"
+    OVERLOADED = "overloaded"
+
+
+def resource_utilization_band(utilization_percent: float) -> ResourceUtilizationBand:
+    utilization = float(utilization_percent or 0.0)
+    if utilization > 100.0:
+        return ResourceUtilizationBand.OVERLOADED
+    if utilization >= 90.0:
+        return ResourceUtilizationBand.NEAR_CAPACITY
+    if utilization >= 85.0:
+        return ResourceUtilizationBand.HOT
+    if utilization > 0.0:
+        return ResourceUtilizationBand.STABLE
+    return ResourceUtilizationBand.IDLE
+
+
+def is_resource_overloaded(utilization_percent: float) -> bool:
+    return resource_utilization_band(utilization_percent) is ResourceUtilizationBand.OVERLOADED
+
+
+def is_resource_near_capacity(utilization_percent: float) -> bool:
+    return resource_utilization_band(utilization_percent) is ResourceUtilizationBand.NEAR_CAPACITY
+
+
+def resource_utilization_status_label(utilization_percent: float) -> str:
+    band = resource_utilization_band(utilization_percent)
+    if band is ResourceUtilizationBand.OVERLOADED:
+        return "Overloaded"
+    if band in {
+        ResourceUtilizationBand.HOT,
+        ResourceUtilizationBand.NEAR_CAPACITY,
+    }:
+        return "Hot"
+    if band is ResourceUtilizationBand.STABLE:
+        return "Stable"
+    return "Idle"
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,4 +131,12 @@ class ResourceLoadEngine:
         return tuple(metrics)
 
 
-__all__ = ["ResourceLoadEngine", "ResourceLoadMetric"]
+__all__ = [
+    "ResourceLoadEngine",
+    "ResourceLoadMetric",
+    "ResourceUtilizationBand",
+    "is_resource_near_capacity",
+    "is_resource_overloaded",
+    "resource_utilization_band",
+    "resource_utilization_status_label",
+]

@@ -25,12 +25,13 @@ generated and therefore takes priority over starting the much larger Finance Pha
 - **DA2 - Security and error boundaries (complete 2026-08-08):** Tasks reports partial
   permission-scoped loads, Dashboard propagates approval failures, and dead PM calendar mutation
   compatibility stubs were deleted in favor of Platform Admin's canonical calendar CRUD.
-- **DA3 - Domain policy (in progress):** Resources, Scheduling, and Register are complete. Normalized
+- **DA3 - Domain policy (complete 2026-08-08):** Resources, Scheduling, Register, and Dashboard are complete. Normalized
   resource-rate decisions belong to `ResourceService`, certification lifecycle status belongs
   to `ResourceCertification`, baseline actions belong to `ProjectBaseline`, task remaining
   duration belongs to `Task`, and default-calendar selection belongs to Platform's
   `EnterpriseCalendarService`. Register overdue/triage policy belongs to `RegisterEntry`, and
-  `RegisterService` applies it after RBAC scope filtering. Dashboard is next.
+  `RegisterService` applies it after RBAC scope filtering. Dashboard consumes the same Register
+  snapshot and canonical resource-utilization policy across every desktop projection.
 - **DA4 - Read/report extraction (not started):** move only measured or clearly problematic
   reads; do not create speculative Readers.
 - **DA5 - Duplicate and dead-code removal (not started):** remove superseded duplicate
@@ -180,8 +181,36 @@ DA3 Register checkpoint (2026-08-08):
 - Domain, application query, desktop API, QML presenter, DA0 characterization, and architecture
   checkpoint: 33 passed. The complete PM/architecture regression passed 729 tests; its one
   unrelated existing failure is the hard line-limit guard for generated `shared_resources_rc.py`
-  and Platform `enterprise_calendar.py`. DA3 remains in progress; Dashboard overload/risk
-  consolidation is next.
+  and Platform `enterprise_calendar.py`. That checkpoint closed Register; Dashboard followed below.
+
+DA3 Dashboard and workspace-performance checkpoint (2026-08-08):
+
+- `ResourceUtilizationBand` now owns the canonical idle/stable/hot/near-capacity/overloaded
+  boundaries. Reporting rows expose policy facts; Dashboard and Scheduling desktop serializers
+  only project those facts. The duplicate Scheduling status formatter was deleted.
+- `RegisterService.get_dashboard_snapshot()` returns summary and high-risk rows from one
+  RBAC-filtered load using `RegisterEntry.triage_key()`. Dashboard no longer injects or calls
+  `RegisterService` from its desktop adapter.
+- Dashboard loads tasks, batch assignments, resources, KPI, schedule, and Register data once per
+  snapshot. A no-baseline view no longer executes EVM/EVM-series queries. Portfolio obtains its
+  heatmap and dependency projection from one typed executive snapshot.
+- Repeated permission checks now use a 30-second validated-principal lease. The QML runtime
+  heartbeat and application activation force persisted revalidation, preserving revocation and
+  graceful re-login behavior. Same-process authority changes still rebuild or clear the principal
+  immediately.
+- Repository entitlement reads use the existing ID-only active scope contract. Full tenant and
+  organization entity validation remains on login, context switch, mutation, and explicit runtime
+  revalidation paths.
+- Scheduling uses the previously-unused bounded `WorkingDaySnapshotCalendar`; CPM calculations run
+  against one range load. Resource-load reporting also uses range resolution instead of one
+  calendar query per day.
+- Persistent evidence is in
+  `test_dashboard_portfolio_workspace_performance_measurement.py`. On the single-project SQLite
+  fixture, Dashboard improved from approximately 0.70s/1,501 SQL statements to 0.08s/96, and
+  Portfolio from approximately 0.30s/494 to 0.06s/68. These are regression evidence, not a
+  production SLA.
+- Focused resource, Dashboard, architecture, auth, and runtime checkpoint: 68 passed. DA3 is
+  complete; DA4 remains the next responsibility-audit phase.
 
 ## 1. Finance — Phase B, remaining
 

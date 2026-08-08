@@ -1,16 +1,11 @@
 """Operational table and tab builders."""
 
 from __future__ import annotations
-from datetime import date
 from typing import Any
 
 from src.core.modules.project_management.domain.risk.register import (
-    RegisterEntrySeverity,
-    RegisterEntryStatus,
-    RegisterEntryType,
     as_register_entry_severity,
     as_register_entry_status,
-    as_register_entry_type,
 )
 from src.core.platform.domain.approval import ApprovalStatus
 from src.core.modules.project_management.api.desktop.dashboard.models.tables import (
@@ -66,7 +61,6 @@ def build_operational_tables(
     pending_approvals: tuple[Any, ...],
     selected_period_key: str,
     portfolio_mode: bool,
-    register_service=None,
 ) -> tuple[ProjectDashboardOperationalTableDescriptor, ...]:
     if portfolio_mode:
         return (
@@ -79,7 +73,7 @@ def build_operational_tables(
         )
     return (
         _build_delayed_tasks_table(dashboard_data),
-        _build_high_risks_table(dashboard_data, register_service=register_service),
+        _build_high_risks_table(dashboard_data),
         _build_budget_variances_table(dashboard_data),
         _build_resource_overloads_table(dashboard_data),
         _build_pending_approvals_table(pending_approvals),
@@ -119,17 +113,9 @@ def _build_portfolio_delayed_table(dashboard_data: Any, *, selected_period_key: 
     )
 
 
-def _build_high_risks_table(dashboard_data: Any, *, register_service=None) -> ProjectDashboardOperationalTableDescriptor:
+def _build_high_risks_table(dashboard_data: Any) -> ProjectDashboardOperationalTableDescriptor:
     project_id = str(getattr(getattr(dashboard_data, "kpi", None), "project_id", "") or "")
-    risk_rows: list[Any] = []
-    if register_service is not None and project_id:
-        try:
-            risk_rows = sorted(
-                register_service.list_entries(project_id=project_id, entry_type=RegisterEntryType.RISK),
-                key=lambda i: (0 if i.severity == RegisterEntrySeverity.CRITICAL else 1, 0 if i.status == RegisterEntryStatus.OPEN else 1, i.due_date or date.max, str(i.title or "").casefold()),
-            )
-        except Exception:
-            risk_rows = []
+    risk_rows = tuple(getattr(dashboard_data, "high_risks", ()) or ())
     return ProjectDashboardOperationalTableDescriptor(
         id="high_risks", title="High Risks",
         subtitle="Register risks that need active mitigation and escalation follow-through.",
@@ -138,8 +124,6 @@ def _build_high_risks_table(dashboard_data: Any, *, register_service=None) -> Pr
         rows=tuple(
             ProjectDashboardTableRowDescriptor(id=i.id, route_id="project_management.register", state={"entryId": i.id, "projectId": i.project_id}, values={"title": i.title, "severityLabel": as_register_entry_severity(i.severity).value.title(), "owner": i.owner_name or "Unassigned", "dueDate": fmt_date(i.due_date), "statusLabel": as_register_entry_status(i.status).value.replace("_", " ").title(), "response": i.response_plan or i.impact_summary or i.description or ""})
             for i in risk_rows
-            if i.severity in (RegisterEntrySeverity.HIGH, RegisterEntrySeverity.CRITICAL)
-            and i.status in (RegisterEntryStatus.OPEN, RegisterEntryStatus.IN_PROGRESS)
         ),
     )
 
@@ -199,7 +183,7 @@ def _build_resource_overloads_table(dashboard_data: Any) -> ProjectDashboardOper
         empty_state="No resource loading data is available yet.",
         columns=(_COL("resourceName", "Resource", 3, 180, True), _COL("utilization", "Utilization", 2, 180, False, True, "progress"), _COL("allocation", "Allocation", 1, 100), _COL("capacity", "Capacity", 1, 100), _COL("tasks", "Tasks", 1, 80, True), _COL("statusLabel", "Status", 0, 96, False, True, "status")),
         rows=tuple(
-            ProjectDashboardTableRowDescriptor(id=r.resource_id, route_id="project_management.resources", state={"resourceId": r.resource_id}, values={"resourceName": r.resource_name, "utilization": {"value": min(max(_util(r) / 100.0, 0.0), 2.0), "label": fmt_percent(_util(r), 0)}, "allocation": fmt_percent(r.total_allocation_percent, 0), "capacity": fmt_percent(r.capacity_percent, 0), "tasks": fmt_int(r.tasks_count), "statusLabel": "Overloaded" if _util(r) > 100.0 else "Balanced"})
+            ProjectDashboardTableRowDescriptor(id=r.resource_id, route_id="project_management.resources", state={"resourceId": r.resource_id}, values={"resourceName": r.resource_name, "utilization": {"value": min(max(_util(r) / 100.0, 0.0), 2.0), "label": fmt_percent(_util(r), 0)}, "allocation": fmt_percent(r.total_allocation_percent, 0), "capacity": fmt_percent(r.capacity_percent, 0), "tasks": fmt_int(r.tasks_count), "statusLabel": "Overloaded" if bool(getattr(r, "is_overloaded", False)) else "Balanced"})
             for r in rows
         ),
     )

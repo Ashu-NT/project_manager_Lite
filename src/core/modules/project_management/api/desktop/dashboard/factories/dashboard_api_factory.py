@@ -13,7 +13,6 @@ def build_project_management_dashboard_desktop_api(
     dashboard_service=None,
     baseline_service=None,
     reporting_service=None,
-    register_service=None,
     collaboration_service=None,
     approval_service=None,
 ) -> ProjectManagementDashboardDesktopApi:
@@ -22,7 +21,6 @@ def build_project_management_dashboard_desktop_api(
         dashboard_service=dashboard_service,
         baseline_service=baseline_service,
         reporting_service=reporting_service,
-        register_service=register_service,
         collaboration_service=collaboration_service,
         approval_service=approval_service,
     )

@@ -162,6 +162,12 @@ class _FakePortfolioDesktopApi:
             ),
         )
 
+    def get_executive_snapshot(self):
+        return SimpleNamespace(
+            heatmap=self.list_heatmap(),
+            dependencies=self.list_dependencies(),
+        )
+
     def list_recent_actions(self, *, limit=12):
         assert limit == 12
         return (

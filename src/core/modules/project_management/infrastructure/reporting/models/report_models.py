@@ -3,6 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
+from src.core.modules.project_management.application.resources.resource_load_engine import (
+    ResourceUtilizationBand,
+    resource_utilization_band,
+    resource_utilization_status_label,
+)
+
 # Financial domain DTOs live in financials/models/ — re-exported here for backward compat.
 from src.core.modules.project_management.application.financials.models.finance_models import (
     CostBreakdownRow,
@@ -58,6 +64,22 @@ class ResourceLoadRow:
     tasks_count: int
     capacity_percent: float = 100.0
     utilization_percent: float = 0.0
+
+    @property
+    def utilization_band(self) -> ResourceUtilizationBand:
+        return resource_utilization_band(self.utilization_percent)
+
+    @property
+    def is_overloaded(self) -> bool:
+        return self.utilization_band is ResourceUtilizationBand.OVERLOADED
+
+    @property
+    def is_near_capacity(self) -> bool:
+        return self.utilization_band is ResourceUtilizationBand.NEAR_CAPACITY
+
+    @property
+    def utilization_status_label(self) -> str:
+        return resource_utilization_status_label(self.utilization_percent)
 
 @dataclass
 class TaskVarianceRow:

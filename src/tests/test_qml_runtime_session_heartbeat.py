@@ -35,6 +35,9 @@ class _FakeUserSession:
             display_name="Project Planner",
         )
 
+    def revalidate_principal(self) -> bool:
+        return True
+
     def is_authenticated(self) -> bool:
         return True
 

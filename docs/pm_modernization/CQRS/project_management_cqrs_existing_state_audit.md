@@ -4099,8 +4099,10 @@ data.
 **Implementation delta (2026-08-08):** the table above remains the audited pre-migration evidence.
 The two Financials procurement rows and their repeated P3 cleanup row are now closed by deletion
 after a fresh no-caller verification. Dashboard high-risk filtering now uses canonical
-`RegisterEntryStatus.IN_PROGRESS` instead of the nonexistent `IN_REVIEW`; its contents/order are
-covered against the Register workspace. All remaining P0/P1 rows have characterization coverage.
+`RegisterService.get_dashboard_snapshot()` and `RegisterEntry.triage_key()` rather than a desktop
+filter/sort. `ResourceUtilizationBand` is the single application policy used by reporting rows for
+Dashboard and Scheduling status projection; the duplicate Scheduling formatter was deleted.
+All remaining P0/P1 rows have characterization coverage.
 
 **Findings deliberately not added to this table** (reviewed and judged legitimate, per the instruction
 not to over-flag formatting/mapping):
@@ -4374,7 +4376,7 @@ signals, it does not invent new ones that weren't already possible at the applic
 
 ### Phase DA3 — Application/domain policy extraction
 
-**Status: IN PROGRESS (2026-08-08); Resources, Scheduling, and Register COMPLETE.** The desktop Resources API and CSV
+**Status: COMPLETE (2026-08-08); Resources, Scheduling, Register, and Dashboard COMPLETE.** The desktop Resources API and CSV
 importer no longer pre-read a resource, compare hourly rate/currency, or choose an effective date.
 `ResourceService.update_resource()` compares the fully normalized candidate to persisted values,
 requires optimistic concurrency only for an actual rate-affecting change, and resolves an omitted
@@ -4408,7 +4410,22 @@ longer sorts, the serializer projects the domain overdue result, and the duplica
 application, desktop, QML, characterization, and architecture checkpoint passed 33 tests.
 The complete PM/architecture regression passed 729 tests; its one unrelated existing failure is
 the hard line-limit guard for generated `shared_resources_rc.py` and Platform
-`enterprise_calendar.py`. Dashboard is the next capability.
+`enterprise_calendar.py`.
+
+Dashboard now consumes one RBAC-filtered Register dashboard snapshot for summary and high-risk
+rows. `ResourceUtilizationBand` owns the canonical utilization boundaries, reporting rows expose
+the resulting policy facts, and all Dashboard/Scheduling desktop consumers only format those
+facts. The duplicate Scheduling formatter was deleted. The focused resource, Dashboard,
+architecture, auth, and runtime checkpoint passed 68 tests.
+
+The related workspace-performance investigation was evidence-led rather than a speculative Reader
+migration. The persistent single-project harness records stage timing, SQL count, and application
+call count. Reused task/assignment/resource facts, no-baseline EVM suppression, a typed Portfolio
+executive snapshot, a validated-principal lease with forced shell heartbeat revalidation, ID-only
+entitlement scope reads, and bounded calendar range snapshots reduced the SQLite fixture from
+approximately 0.70s/1,501 SQL statements to 0.08s/96 for Dashboard and from approximately
+0.30s/494 to 0.06s/68 for Portfolio. These measurements are regression evidence, not a production
+SLA, and they did not introduce a Dashboard Reader or temporary compatibility path.
 
 One capability at a time, per the migration constraints ("do not migrate all capabilities in one
 phase"):
@@ -4426,9 +4443,10 @@ phase"):
    deterministic triage key for an explicit as-of date; `RegisterService` applies the order after
    RBAC filtering and reuses it for the project summary. Duplicate desktop policy was deleted.
 5. **Dashboard** — the four independent overload-threshold implementations collapse to one shared
-   banding function in `application/reporting`; `_build_high_risks_table`'s independent
-   reimplementation of Register's triage logic is replaced with a call to whatever Register exposes
-   from item 4.
+   **COMPLETE 2026-08-08:** `ResourceUtilizationBand` is the shared application policy projected by
+   reporting rows across Dashboard and Scheduling. `_build_high_risks_table` consumes the high-risk
+   rows returned by `RegisterService.get_dashboard_snapshot()` and contains no independent filter
+   or sort.
 
 **Do not put all of these into one generic service** — each lands with the specific owner named
 above, per the Correct-destination rules, not a shared catch-all.
@@ -4442,10 +4460,10 @@ Migrate only measured or clearly problematic reads, per the migration constraint
 - Timesheets' period-total recomputation (`period_serializer.py`) becomes a service-level aggregate
   on `TimeService`, removing the extra query.
 - Timesheets' assignment-options cross-service Python join becomes one application-layer query.
-- Dashboard's Portfolio/Register-adjacent report totals are candidates for a future Reader **only
-  if** a Phase 0-style measurement (mirroring the Finance Snapshot pilot's own Phase 0, §18) shows
-  a comparable redundancy — this audit did not find one as severe as the Finance Snapshot case, so
-  no Reader is recommended here yet, only the application-layer aggregate fixes above.
+- Dashboard's Portfolio/Register-adjacent fan-out was measured with a persistent SQL/call-count
+  harness. The redundancy was removed through existing application aggregates and bounded calendar
+  snapshots; the resulting 0.08s/96-statement single-project fixture does not justify a dedicated
+  Dashboard Reader. Reconsider only if realistic-scale measurements breach an agreed budget.
 
 **This phase is explicitly not combined with the Finance Snapshot CQRS Reader pilot** (§15-18),
 except where the exact same financial desktop method must be touched — and no finding in this audit

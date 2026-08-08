@@ -202,11 +202,9 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
             if task.start_date and task.end_date
         ]
         working_dates = (
-            frozenset(
-                self._iter_workdays(
-                    min(start for start, _end in scheduled_ranges),
-                    max(end for _start, end in scheduled_ranges),
-                )
+            self._working_dates_between(
+                min(start for start, _end in scheduled_ranges),
+                max(end for _start, end in scheduled_ranges),
             )
             if scheduled_ranges
             else frozenset()
@@ -228,11 +226,16 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
             )
         ]
 
-    def _iter_workdays(self, start: date, end: date):
+    def _working_dates_between(self, start: date, end: date) -> frozenset[date]:
         if end < start:
             start, end = end, start
+        range_loader = getattr(self._calendar, "working_day_dates_between", None)
+        if callable(range_loader):
+            return frozenset(range_loader(start, end))
+        working_dates: set[date] = set()
         cur = start
         while cur <= end:
             if self._calendar.is_working_day(cur):
-                yield cur
+                working_dates.add(cur)
             cur += timedelta(days=1)
+        return frozenset(working_dates)

@@ -1,7 +1,6 @@
 """Resource load serializer."""
 
 from src.core.modules.project_management.api.desktop.scheduling.models.resources import SchedulingResourceLoadDto
-from src.core.modules.project_management.api.desktop.scheduling.formatters.status_formatter import resource_load_status_label
 
 
 def serialize_resource_load_row(row) -> SchedulingResourceLoadDto:
@@ -18,7 +17,7 @@ def serialize_resource_load_row(row) -> SchedulingResourceLoadDto:
         utilization_percent=utilization,
         utilization_label=f"{utilization:.1f}%",
         tasks_count=int(getattr(row, "tasks_count", 0) or 0),
-        status_label=resource_load_status_label(utilization),
+        status_label=str(getattr(row, "utilization_status_label", "Idle") or "Idle"),
     )
 
 
