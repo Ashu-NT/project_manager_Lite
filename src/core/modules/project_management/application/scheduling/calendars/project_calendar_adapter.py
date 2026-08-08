@@ -48,6 +48,9 @@ class BoundProjectCalendar:
     def working_days_between(self, start: date, end: date) -> int:
         return self._adapter.working_days_between(self._project_id, start, end)
 
+    def working_day_dates_between(self, start: date, end: date) -> frozenset[date]:
+        return self._adapter.working_day_dates_between(self._project_id, start, end)
+
 
 class ProjectCalendarAdapter:
     """
@@ -95,6 +98,18 @@ class ProjectCalendarAdapter:
                     count += 1
                 current += timedelta(days=1)
             return count
+
+    def working_day_dates_between(
+        self,
+        project_id: str,
+        start: date,
+        end: date,
+    ) -> frozenset[date]:
+        """Resolve one bounded project-calendar snapshot without query fallbacks."""
+        if end < start:
+            return frozenset()
+        days = self._resolver.resolve_range(project_id=project_id, start=start, end=end)
+        return frozenset(day.date for day in days if day.available_hours > 0)
 
     def add_working_days(self, project_id: str, start: date, n: int) -> date:
         if n == 0:

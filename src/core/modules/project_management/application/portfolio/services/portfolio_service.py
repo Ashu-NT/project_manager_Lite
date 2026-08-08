@@ -23,7 +23,15 @@ from src.core.modules.project_management.contracts.repositories.project import P
 from src.core.modules.project_management.contracts.reads.portfolio.scenario_reader import (
     PortfolioScenarioReader,
 )
-from src.core.modules.project_management.infrastructure.reporting import ReportingService
+from src.core.modules.project_management.contracts.reads.portfolio.heatmap_reader import (
+    PortfolioHeatmapReader,
+)
+from src.core.modules.project_management.contracts.repositories.rate_resolution import (
+    LaborRateResolver,
+)
+from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
+    ProjectCalendarAdapter,
+)
 from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 from src.core.platform.contract.history.audit.contracts import AuditRepository
 from src.core.platform.common.exceptions import BusinessRuleError
@@ -55,9 +63,11 @@ class PortfolioService(
         scenario_repo: PortfolioScenarioRepository,
         audit_repo: AuditRepository,
         project_repo: ProjectRepository,
+        heatmap_reader: PortfolioHeatmapReader,
         scenario_reader: PortfolioScenarioReader,
         calendar: CalendarProtocol,
-        reporting_service: ReportingService,
+        project_calendar_adapter: ProjectCalendarAdapter,
+        rate_resolver: LaborRateResolver,
         user_session=None,
         module_catalog_service=None,
         tenant_context_service=None,
@@ -69,9 +79,11 @@ class PortfolioService(
         self._scenario_repo = scenario_repo
         self._audit_repo = audit_repo
         self._project_repo = project_repo
+        self._heatmap_reader = heatmap_reader
         self._scenario_reader = scenario_reader
         self._calendar = calendar
-        self._reporting = reporting_service
+        self._project_calendar_adapter = project_calendar_adapter
+        self._rate_resolver = rate_resolver
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
         if tenant_context_service is None:

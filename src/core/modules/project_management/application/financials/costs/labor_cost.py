@@ -77,6 +77,24 @@ class LaborCostEngine:
         self._rate_resolver = rate_resolver
         self._tenant_context_service = tenant_context_service
 
+    @classmethod
+    def for_facts(
+        cls,
+        *,
+        rate_resolver: LaborRateResolver,
+        tenant_context_service: TenantContextService,
+    ) -> "LaborCostEngine":
+        """Build the engine for immutable Reader facts without repository fallbacks."""
+        return cls(
+            project_repo=None,  # type: ignore[arg-type]
+            task_repo=None,  # type: ignore[arg-type]
+            assignment_repo=None,  # type: ignore[arg-type]
+            resource_repo=None,  # type: ignore[arg-type]
+            project_resource_repo=None,  # type: ignore[arg-type]
+            rate_resolver=rate_resolver,
+            tenant_context_service=tenant_context_service,
+        )
+
     def _resolve_scope(self, project) -> tuple[str, str]:
         context = self._tenant_context_service.require_organization_context(
             operation_label="resolve project labor rates"
@@ -101,6 +119,12 @@ class LaborCostEngine:
         wrapper returning ``list(result.rows)``."""
         if facts is not None:
             return self._calculate_from_finance_facts(project_id, as_of=as_of, facts=facts)
+
+        if self._project_repo is None:
+            raise BusinessRuleError(
+                "LaborCostEngine was configured for Reader facts only.",
+                code="LABOR_FACTS_REQUIRED",
+            )
 
         project = self._project_repo.get(project_id)
         if not project:

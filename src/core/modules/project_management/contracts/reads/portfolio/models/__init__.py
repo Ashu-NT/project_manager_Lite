@@ -14,6 +14,12 @@ from .scenario_facts import (
 )
 
 __all__ = [
+    "HeatmapAssignmentFact",
+    "HeatmapDependencyFact",
+    "HeatmapProjectFacts",
+    "HeatmapResourceFact",
+    "HeatmapTaskFact",
+    "PortfolioHeatmapFacts",
     "PortfolioDemandFact",
     "PortfolioResourceFact",
     "PortfolioResourcePoolFacts",
@@ -25,3 +31,11 @@ __all__ = [
     "PortfolioScenarioResourceFact",
     "PortfolioScenarioTaskFact",
 ]
+from .heatmap_facts import (
+    HeatmapAssignmentFact,
+    HeatmapDependencyFact,
+    HeatmapProjectFacts,
+    HeatmapResourceFact,
+    HeatmapTaskFact,
+    PortfolioHeatmapFacts,
+)

@@ -228,9 +228,11 @@ def test_portfolio_service_requires_tenant_context_service() -> None:
             scenario_repo=object(),
             audit_repo=object(),
             project_repo=object(),
+            heatmap_reader=object(),
             scenario_reader=object(),
             calendar=object(),
-            reporting_service=object(),
+            project_calendar_adapter=object(),
+            rate_resolver=object(),
             tenant_context_service=None,
         )
 

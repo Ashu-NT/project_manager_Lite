@@ -116,6 +116,23 @@ class CostPolicyEngine:
         self._tenant_context_service = tenant_context_service
         self._get_labor_details = get_labor_details
 
+    @classmethod
+    def for_facts(
+        cls,
+        *,
+        rate_resolver: LaborRateResolver,
+        tenant_context_service: TenantContextService,
+    ) -> "CostPolicyEngine":
+        """Build the policy engine for immutable facts without repository fallbacks."""
+        return cls(
+            project_repo=None,  # type: ignore[arg-type]
+            cost_repo=None,  # type: ignore[arg-type]
+            project_resource_repo=None,  # type: ignore[arg-type]
+            resource_repo=None,  # type: ignore[arg-type]
+            rate_resolver=rate_resolver,
+            tenant_context_service=tenant_context_service,
+        )
+
     # ── public interface ──────────────────────────────────────────────────────
 
     def _resolve_scope(self, project) -> tuple[str, str]:

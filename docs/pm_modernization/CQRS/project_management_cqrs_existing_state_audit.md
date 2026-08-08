@@ -3165,7 +3165,7 @@ until its own sub-phase explicitly migrates and re-tests it.
   worst confirmed N+1 in the module, §7).
 - **Phase 3B - COMPLETE 2026-08-08** — measured and migrated `ReportingService`'s cost/EVM builders
   explicitly (§7 and §15b); the independently verified result is recorded above.
-- **Phase 3C - IN PROGRESS 2026-08-08 — measure and, only if justified, migrate Portfolio reads.** Candidates:
+- **Phase 3C - COMPLETE 2026-08-08 — measured and migrated Portfolio reads.** Candidates:
   `PortfolioService.list_portfolio_heatmap`; scenario evaluation/comparison; cross-project capacity
   reporting (`PortfolioResourcePoolService`) — **after** its Phase 0A.1 permission fix, not instead
   of it. Required precondition, all three: (1) Phase 0A's Portfolio security and rollback
@@ -3188,7 +3188,7 @@ until its own sub-phase explicitly migrates and re-tests it.
 
   | Candidate | SQL at 1 project | SQL at 5 projects | SQL at 12 projects | Decision |
   |---|---:|---:|---:|---|
-  | executive heatmap | 332 | 1,448 | 3,401 | justified; retain as Phase 3C.3 |
+  | executive heatmap | 332 | 1,448 | 3,401 | Phase 3C.3 complete; now 67 / 91 / 133 |
   | scenario comparison | 347 | 869 | 1,739 | Phase 3C.2 complete; now 62 / 62 / 62 |
   | cross-project capacity pool | 298 | 1,418 | 3,378 | justified; migrate first as Phase 3C.1 |
 
@@ -3259,8 +3259,55 @@ until its own sub-phase explicitly migrates and re-tests it.
   `_portfolio_resources`, direct scenario/intake query acquisition, per-project Reporting fan-out,
   and `PortfolioService`'s scenario-only `ResourceRepository` dependency were deleted in the same
   cutover. No compatibility constructor, fallback Reader, feature flag, transition evidence, or
-  temporary implementation file remains. Phase 3C.3 heatmap remains an independently measured live
-  path; no performance benefit is claimed for it until its own cutover and parity gate completes.
+  temporary implementation file remains. At that checkpoint the Phase 3C.3 heatmap was still an
+  independently measured live path; its subsequently completed cutover is recorded below.
+
+  **Phase 3C.3 executive heatmap - COMPLETE 2026-08-08.**
+
+  - `PortfolioService.list_portfolio_heatmap` now acquires one immutable
+    `PortfolioHeatmapReader` fact graph after application-owned `portfolio.read` authorization and
+    one existing project-access scan. `SqlAlchemyPortfolioHeatmapReader` applies explicit tenant,
+    organization, and accessible-project predicates to projects, tasks, dependencies, costs,
+    project resources, assignments, and resources; it returns no ORM/domain entities.
+  - schedule, utilization, labor, and cost policy remain owned by their established engines:
+    `CPMCalculator`, `ResourceLoadEngine`, `LaborCostEngine`, and `CostPolicyEngine`. The heatmap did
+    not introduce a second CPM, utilization, rate-card, or manual/computed-labor formula.
+  - each project resolves one bounded immutable working-day snapshot through its project calendar
+    hierarchy and one batched rate-card resolution for its resources. These calls intentionally
+    remain per project because project calendar assignments and project-scoped rate-card precedence
+    are independent policy inputs; replacing them with one global calendar/rate would be faster but
+    incorrect. The new bulk calendar API has no day-by-day SQL fallback. A future platform-level
+    multi-project calendar/rate projection may reduce this policy slope without changing this Reader
+    contract, but it is not a correctness or Phase 3C exit blocker.
+  - measured SQL is **67 / 91 / 133** for 1/5/12 projects, down from
+    **332 / 1,448 / 3,401**. The exact regression budget is `61 + 6 * project_count` in the seeded
+    fixture: one heatmap Reader call, one access scan, one calendar snapshot and one rate-resolution
+    call per project, and zero legacy KPI, resource-load, project-get, task-list, assignment-list, or
+    resource-get calls. This removes the former roughly 280 statements per additional project while
+    preserving project-specific policy semantics.
+  - parity covers dependency-driven CPM, critical and late counts, overload normalization, computed
+    labor plus manual-cost policy, cost variance, pressure scoring/sorting, concrete runtime wiring,
+    cross-organization rejection, and the existing stable-row behavior when one project's facts are
+    invalid. Desktop DTO and QML shapes remain unchanged.
+  - the heatmap remains a growing collection and therefore inherits this audit's pagination rule:
+    the future desktop query-service pagination cutover must use stable cursor/keyset semantics and
+    preserve the current pressure/late/name ordering. Pagination was not silently added to the
+    existing no-argument desktop contract in this optimization sub-phase.
+
+  Verification completed on 2026-08-08: focused parity, measurement, enterprise-foundation,
+  tenant-isolation, desktop Portfolio, concrete Reader, and CQRS architecture checks pass. The full
+  architecture suite reports **136 passed**, with only the same pre-existing hard-size failure for
+  generated `resources/shared_resources_rc.py` and the documented 1,408-line
+  `enterprise_calendar.py`. `compileall` and `git diff --check` are clean.
+
+  **Phase 3C.3 deletion register - COMPLETE:** the per-project Reporting KPI/resource-load fan-out
+  and `PortfolioService`'s now-unused `ReportingService` dependency were deleted in the same cutover.
+  No compatibility constructor, repository fallback, feature flag, transition evidence, temporary
+  implementation file, or migration-only path remains.
+
+  **Phase 3C exit gate: PASSED.** All three measured Portfolio candidates now use scoped immutable
+  facts with explicit query budgets, protected behavior, fail-closed authorization, concrete runtime
+  wiring, and no superseded transition path.
 - **Phase 3D** — measure and migrate Collaboration reads (`list_inbox`, `list_workspace_snapshot`)
   explicitly, following the same precondition discipline as Phase 3C (its own Phase 0A.3 rollback
   fix must be complete first).

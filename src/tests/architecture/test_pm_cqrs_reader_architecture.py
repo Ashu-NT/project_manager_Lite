@@ -36,6 +36,9 @@ from src.core.modules.project_management.application.resources.portfolio_resourc
 from src.core.modules.project_management.application.portfolio.queries.portfolio_scenarios import (
     PortfolioScenarioQueryMixin,
 )
+from src.core.modules.project_management.application.portfolio.queries.portfolio_executive import (
+    PortfolioExecutiveQueryMixin,
+)
 from src.core.modules.project_management.infrastructure.reporting.builders.kpi import (
     ReportingKpiMixin,
 )
@@ -58,6 +61,9 @@ PORTFOLIO_POOL_READER = (
 )
 PORTFOLIO_SCENARIO_READER = (
     PM_ROOT / "infrastructure/persistence/reads/portfolio/sqlalchemy_scenario_reader.py"
+)
+PORTFOLIO_HEATMAP_READER = (
+    PM_ROOT / "infrastructure/persistence/reads/portfolio/sqlalchemy_heatmap_reader.py"
 )
 
 FORBIDDEN_CONTRACT_IMPORTS = (
@@ -432,6 +438,37 @@ def test_portfolio_scenarios_use_one_scoped_fact_graph_and_shared_load_engine() 
     for predicate in (
         "PortfolioScenarioORM.tenant_id == tenant_id",
         "PortfolioScenarioORM.organization_id == organization_id",
+        "ProjectORM.tenant_id == tenant_id",
+        "ProjectORM.organization_id == organization_id",
+        "ResourceORM.tenant_id == tenant_id",
+        "ResourceORM.organization_id == organization_id",
+    ):
+        assert predicate in reader_source
+
+
+def test_portfolio_heatmap_uses_one_scoped_fact_graph_and_pure_policy_engines() -> None:
+    heatmap_source = inspect.getsource(PortfolioExecutiveQueryMixin.list_portfolio_heatmap)
+    source = inspect.getsource(PortfolioExecutiveQueryMixin)
+    registry = PROJECT_REGISTRY.read_text(encoding="utf-8")
+    reader_source = PORTFOLIO_HEATMAP_READER.read_text(encoding="utf-8")
+
+    assert heatmap_source.count("self._heatmap_reader.read_facts(") == 1
+    assert "CPMCalculator(calendar).calculate(" in source
+    assert "ResourceLoadEngine.calculate(" in source
+    assert "LaborCostEngine.for_facts(" in source
+    assert "CostPolicyEngine.for_facts(" in source
+    assert "working_day_dates_between(" in source
+    for forbidden in (
+        "_reporting.get_project_kpis(",
+        "_reporting.get_resource_load_summary(",
+        "_project_repo.get(",
+        "_task_repo.list_by_project(",
+        "_assignment_repo.list_by_tasks(",
+        "_resource_repo.get(",
+    ):
+        assert forbidden not in heatmap_source
+    assert "heatmap_reader=SqlAlchemyPortfolioHeatmapReader(session=session)" in registry
+    for predicate in (
         "ProjectORM.tenant_id == tenant_id",
         "ProjectORM.organization_id == organization_id",
         "ResourceORM.tenant_id == tenant_id",

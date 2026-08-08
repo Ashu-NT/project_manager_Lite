@@ -114,6 +114,13 @@ def test_phase3c_measure_portfolio_read_candidates(services, size_name, capsys) 
         (reporting._resource_repo, "get", "resource_repo.get"),
         (pool._reader, "read_facts", "portfolio_pool_reader.read_facts"),
         (portfolio._scenario_reader, "read_facts", "portfolio_scenario_reader.read_facts"),
+        (portfolio._heatmap_reader, "read_facts", "portfolio_heatmap_reader.read_facts"),
+        (
+            portfolio._project_calendar_adapter,
+            "working_day_dates_between",
+            "project_calendar.working_day_dates_between",
+        ),
+        (portfolio._rate_resolver, "resolve_many", "rate_resolver.resolve_many"),
         (
             pool._calendar,
             "working_day_dates_between",
@@ -175,6 +182,21 @@ def test_phase3c_measure_portfolio_read_candidates(services, size_name, capsys) 
             assert calls["scenario_repo.get"] == 0
             assert calls["intake_repo.list"] == 0
             assert calls["reporting.get_resource_load_summary"] == 0
+            assert calls["task_repo.list_by_project"] == 0
+            assert calls["assignment_repo.list_by_tasks"] == 0
+            assert calls["resource_repo.list"] == 0
+            assert calls["resource_repo.get"] == 0
+        elif operation_name == "heatmap":
+            expected_sql = {1: 67, 5: 91, 12: 133}[project_count]
+            assert sql_stats.total_statements == expected_sql
+            assert calls["portfolio_heatmap_reader.read_facts"] == 1
+            assert calls["project_calendar.working_day_dates_between"] == project_count
+            assert calls["rate_resolver.resolve_many"] == project_count
+            assert calls["portfolio._accessible_projects"] == 1
+            assert calls["project_repo.list"] == 1
+            assert calls["reporting.get_project_kpis"] == 0
+            assert calls["reporting.get_resource_load_summary"] == 0
+            assert calls["project_repo.get"] == 0
             assert calls["task_repo.list_by_project"] == 0
             assert calls["assignment_repo.list_by_tasks"] == 0
             assert calls["resource_repo.list"] == 0
