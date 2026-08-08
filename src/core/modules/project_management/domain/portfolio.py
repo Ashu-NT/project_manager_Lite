@@ -40,6 +40,25 @@ def as_portfolio_intake_status(value: PortfolioIntakeStatus | str) -> PortfolioI
         ) from exc
 
 
+def calculate_portfolio_intake_composite_score(
+    *,
+    strategic_score: int,
+    value_score: int,
+    urgency_score: int,
+    risk_score: int,
+    strategic_weight: int,
+    value_weight: int,
+    urgency_weight: int,
+    risk_weight: int,
+) -> int:
+    return (
+        int(strategic_score or 0) * int(strategic_weight or 0)
+        + int(value_score or 0) * int(value_weight or 0)
+        + int(urgency_score or 0) * int(urgency_weight or 0)
+        - int(risk_score or 0) * int(risk_weight or 0)
+    )
+
+
 def _validate_portfolio_weight(value: object, *, label: str, code: str) -> int:
     resolved = int(value if value not in (None, "") else 0)
     if resolved < 0 or resolved > 9:
@@ -344,11 +363,15 @@ class PortfolioIntakeItem:
 
     @property
     def composite_score(self) -> int:
-        return (
-            int(self.strategic_score or 0) * int(self.strategic_weight or 0)
-            + int(self.value_score or 0) * int(self.value_weight or 0)
-            + int(self.urgency_score or 0) * int(self.urgency_weight or 0)
-            - (int(self.risk_score or 0) * int(self.risk_weight or 0))
+        return calculate_portfolio_intake_composite_score(
+            strategic_score=self.strategic_score,
+            value_score=self.value_score,
+            urgency_score=self.urgency_score,
+            risk_score=self.risk_score,
+            strategic_weight=self.strategic_weight,
+            value_weight=self.value_weight,
+            urgency_weight=self.urgency_weight,
+            risk_weight=self.risk_weight,
         )
 
 

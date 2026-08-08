@@ -69,6 +69,7 @@ from src.core.modules.project_management.application.resources.resource_capacity
 from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import PortfolioResourcePoolService
 from src.core.modules.project_management.infrastructure.persistence.reads.portfolio import (
     SqlAlchemyPortfolioResourcePoolReader,
+    SqlAlchemyPortfolioScenarioReader,
 )
 from src.infra.composition.platform_registry import PlatformServiceBundle
 from src.infra.composition.repositories import RepositoryBundle
@@ -428,7 +429,8 @@ def build_project_management_service_bundle(
         scenario_repo=repositories.portfolio_scenario_repo,
         audit_repo=repositories.audit_entry_repo,
         project_repo=repositories.project_repo,
-        resource_repo=repositories.resource_repo,
+        scenario_reader=SqlAlchemyPortfolioScenarioReader(session=session),
+        calendar=platform_services.global_calendar_shim,
         reporting_service=reporting_service,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,

@@ -20,8 +20,11 @@ from src.core.modules.project_management.contracts.repositories.portfolio import
     PortfolioScenarioRepository,
 )
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
+from src.core.modules.project_management.contracts.reads.portfolio.scenario_reader import (
+    PortfolioScenarioReader,
+)
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
+from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 from src.core.platform.contract.history.audit.contracts import AuditRepository
 from src.core.platform.common.exceptions import BusinessRuleError
 
@@ -52,7 +55,8 @@ class PortfolioService(
         scenario_repo: PortfolioScenarioRepository,
         audit_repo: AuditRepository,
         project_repo: ProjectRepository,
-        resource_repo: ResourceRepository,
+        scenario_reader: PortfolioScenarioReader,
+        calendar: CalendarProtocol,
         reporting_service: ReportingService,
         user_session=None,
         module_catalog_service=None,
@@ -65,7 +69,8 @@ class PortfolioService(
         self._scenario_repo = scenario_repo
         self._audit_repo = audit_repo
         self._project_repo = project_repo
-        self._resource_repo = resource_repo
+        self._scenario_reader = scenario_reader
+        self._calendar = calendar
         self._reporting = reporting_service
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service

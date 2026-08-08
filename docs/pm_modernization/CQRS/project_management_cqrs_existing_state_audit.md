@@ -3189,7 +3189,7 @@ until its own sub-phase explicitly migrates and re-tests it.
   | Candidate | SQL at 1 project | SQL at 5 projects | SQL at 12 projects | Decision |
   |---|---:|---:|---:|---|
   | executive heatmap | 332 | 1,448 | 3,401 | justified; retain as Phase 3C.3 |
-  | scenario comparison | 347 | 869 | 1,739 | justified; retain as Phase 3C.2 |
+  | scenario comparison | 347 | 869 | 1,739 | Phase 3C.2 complete; now 62 / 62 / 62 |
   | cross-project capacity pool | 298 | 1,418 | 3,378 | justified; migrate first as Phase 3C.1 |
 
   The attribution is explicit. Heatmap calls full KPI and resource-load reporting once per project
@@ -3225,9 +3225,42 @@ until its own sub-phase explicitly migrates and re-tests it.
   `compileall` and `git diff --check` are clean.
 
   **Phase 3C.1 deletion register - COMPLETE:** no compatibility constructor, repository fallback,
-  feature flag, transition evidence, or temporary implementation file remains. Phase 3C.2 scenario
-  reads and Phase 3C.3 heatmap remain independently measured live paths; no performance benefit is
-  claimed for either until its own cutover and parity gate completes.
+  feature flag, transition evidence, or temporary implementation file remains.
+
+  **Phase 3C.2 scenario evaluation/comparison - COMPLETE 2026-08-08.**
+
+  - `evaluate_scenario` and `compare_scenarios` now consume one immutable
+    `PortfolioScenarioReader` fact graph. Comparison no longer calls the public evaluation method
+    twice or repeats scenario, project, intake, resource, task, and assignment acquisition.
+  - authorization remains application-owned: `portfolio.read` is enforced first, and the existing
+    project-access filter resolves the allowed project IDs once. The Reader then applies explicit
+    tenant/organization predicates independently to scenarios, projects, intake, resources, tasks,
+    and assignments; passing an inaccessible project ID cannot widen its SQL scope.
+  - `ResourceLoadEngine` is now the one pure owner of leaf-task selection, scheduled peak,
+    unscheduled allocation, capacity normalization, utilization, and sorting. Both Reporting's
+    `get_resource_load_summary` and Portfolio scenario evaluation delegate to it; no Portfolio copy
+    of the load formula was introduced.
+  - the project date range resolves to one immutable working-day snapshot. Scenario comparison now
+    performs exactly one Reader call, one project-access scan, and one bulk calendar call, with zero
+    scenario/intake repository gets and zero per-project Reporting/resource-load calls.
+  - measured SQL is **62 / 62 / 62** for 1/5/12 projects, down from **347 / 869 / 1,739**. Public
+    signatures and result models are unchanged. Parity covers scheduled and unscheduled work,
+    shared resources, inactive capacity exclusion, intake scoring, default/explicit capacity limits,
+    budget and capacity flags, comparison deltas, and concrete cross-organization isolation.
+
+  Verification completed on 2026-08-08: the broader Portfolio/desktop/tenant-isolation/reporting
+  selection passes **34 tests**; the focused measurement, parity, concrete Reader, and architecture
+  selection passes; the full PM suite passes **551 tests** in bounded partitions
+  (209 + 210 + 132); and the full architecture suite reports **135 passed** with only the same
+  pre-existing hard-size failure for generated `resources/shared_resources_rc.py` and the documented
+  1,408-line `enterprise_calendar.py`. `compileall` and `git diff --check` are clean.
+
+  **Phase 3C.2 deletion register - COMPLETE:** the recursive comparison-to-evaluation path,
+  `_portfolio_resources`, direct scenario/intake query acquisition, per-project Reporting fan-out,
+  and `PortfolioService`'s scenario-only `ResourceRepository` dependency were deleted in the same
+  cutover. No compatibility constructor, fallback Reader, feature flag, transition evidence, or
+  temporary implementation file remains. Phase 3C.3 heatmap remains an independently measured live
+  path; no performance benefit is claimed for it until its own cutover and parity gate completes.
 - **Phase 3D** — measure and migrate Collaboration reads (`list_inbox`, `list_workspace_snapshot`)
   explicitly, following the same precondition discipline as Phase 3C (its own Phase 0A.3 rollback
   fix must be complete first).

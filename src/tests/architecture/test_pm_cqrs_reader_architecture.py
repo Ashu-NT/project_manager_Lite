@@ -33,6 +33,12 @@ from src.core.modules.project_management.infrastructure.reporting.builders.evm_c
 from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import (
     PortfolioResourcePoolService,
 )
+from src.core.modules.project_management.application.portfolio.queries.portfolio_scenarios import (
+    PortfolioScenarioQueryMixin,
+)
+from src.core.modules.project_management.infrastructure.reporting.builders.kpi import (
+    ReportingKpiMixin,
+)
 from src.tests.path_rewrites import REPO_ROOT
 
 
@@ -49,6 +55,9 @@ PHASE3B_TEST = REPO_ROOT / "src/tests/project_management/test_reporting_financia
 PORTFOLIO_POOL_READER = (
     PM_ROOT
     / "infrastructure/persistence/reads/portfolio/sqlalchemy_resource_pool_reader.py"
+)
+PORTFOLIO_SCENARIO_READER = (
+    PM_ROOT / "infrastructure/persistence/reads/portfolio/sqlalchemy_scenario_reader.py"
 )
 
 FORBIDDEN_CONTRACT_IMPORTS = (
@@ -397,6 +406,38 @@ def test_portfolio_capacity_uses_one_scoped_reader_and_bulk_calendar_snapshot() 
     assert "ResourceORM.organization_id == organization_id" in reader_source
     assert "ProjectORM.tenant_id == tenant_id" in reader_source
     assert "ProjectORM.organization_id == organization_id" in reader_source
+
+
+def test_portfolio_scenarios_use_one_scoped_fact_graph_and_shared_load_engine() -> None:
+    compare_source = inspect.getsource(PortfolioScenarioQueryMixin.compare_scenarios)
+    acquisition_source = inspect.getsource(PortfolioScenarioQueryMixin._read_scenario_facts)
+    scenario_source = inspect.getsource(PortfolioScenarioQueryMixin)
+    reporting_source = inspect.getsource(ReportingKpiMixin.get_resource_load_summary)
+    registry = PROJECT_REGISTRY.read_text(encoding="utf-8")
+    reader_source = PORTFOLIO_SCENARIO_READER.read_text(encoding="utf-8")
+
+    assert acquisition_source.count("self._scenario_reader.read_facts(") == 1
+    assert compare_source.count("self._read_scenario_facts(") == 1
+    assert "self.evaluate_scenario(" not in compare_source
+    assert "ResourceLoadEngine.calculate(" in scenario_source
+    assert "ResourceLoadEngine.calculate(" in reporting_source
+    for forbidden in (
+        "_scenario_repo.get(",
+        "_intake_repo.list(",
+        "_resource_repo.list(",
+        "_reporting.get_resource_load_summary(",
+    ):
+        assert forbidden not in scenario_source
+    assert "scenario_reader=SqlAlchemyPortfolioScenarioReader(session=session)" in registry
+    for predicate in (
+        "PortfolioScenarioORM.tenant_id == tenant_id",
+        "PortfolioScenarioORM.organization_id == organization_id",
+        "ProjectORM.tenant_id == tenant_id",
+        "ProjectORM.organization_id == organization_id",
+        "ResourceORM.tenant_id == tenant_id",
+        "ResourceORM.organization_id == organization_id",
+    ):
+        assert predicate in reader_source
 
 
 def test_guard_detectors_reject_deliberately_broken_in_memory_examples() -> None:

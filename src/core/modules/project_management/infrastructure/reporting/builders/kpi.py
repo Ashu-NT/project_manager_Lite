@@ -17,6 +17,9 @@ from src.core.modules.project_management.contracts.repositories.resource import 
 from src.core.modules.project_management.contracts.repositories.cost import CostRepository
 from src.core.modules.project_management.application.scheduling.services.scheduling_engine import SchedulingEngine
 from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
+from src.core.modules.project_management.application.resources.resource_load_engine import (
+    ResourceLoadEngine,
+)
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.modules.project_management.infrastructure.reporting.builders.cost_policy import (
     ReportingCostPolicyMixin,
@@ -187,54 +190,43 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
             return []
 
         assignments = self._assignment_repo.list_by_tasks(task_ids)
-        tasks_by_id = {t.id: t for t in tasks}
-        # group by resource
-        load_by_res: dict[str, tuple[float, int, float]] = {}
-        daily_by_res: dict[str, dict[date, float]] = {}
-        for a in assignments:
-            rid = a.resource_id
-            _peak, count, unscheduled = load_by_res.get(rid, (0.0, 0, 0.0))
-            alloc = float(a.allocation_percent or 0.0)
-            count += 1
-            task = tasks_by_id.get(a.task_id)
-            ts = getattr(task, "start_date", None) if task is not None else None
-            te = getattr(task, "end_date", None) if task is not None else None
-            if alloc > 0.0 and ts and te:
-                bucket = daily_by_res.setdefault(rid, {})
-                for d in self._iter_workdays(ts, te):
-                    bucket[d] = bucket.get(d, 0.0) + alloc
-            elif alloc > 0.0:
-                # Unscheduled assignments are treated conservatively as additional risk.
-                unscheduled += alloc
-            load_by_res[rid] = (0.0, count, unscheduled)
-
-        rows: list[ResourceLoadRow] = []
-        for res_id, (_unused_peak, count, unscheduled_alloc) in load_by_res.items():
-            peak_daily_alloc = max(daily_by_res.get(res_id, {}).values(), default=0.0)
-            total_alloc = float(peak_daily_alloc + unscheduled_alloc)
-            res = self._resource_repo.get(res_id)
-            name = res.name if res else "<unknown>"
-            capacity = float(getattr(res, "capacity_percent", 100.0) or 100.0) if res else 100.0
-            if capacity <= 0.0:
-                capacity = 100.0
-            utilization = (float(total_alloc) / capacity) * 100.0
-            rows.append(
-                ResourceLoadRow(
-                    resource_id=res_id,
-                    resource_name=name,
-                    total_allocation_percent=total_alloc,
-                    tasks_count=count,
-                    capacity_percent=capacity,
-                    utilization_percent=utilization,
+        resource_ids = sorted({assignment.resource_id for assignment in assignments})
+        resources = tuple(
+            resource
+            for resource_id in resource_ids
+            if (resource := self._resource_repo.get(resource_id)) is not None
+        )
+        scheduled_ranges = [
+            (min(task.start_date, task.end_date), max(task.start_date, task.end_date))
+            for task in tasks
+            if task.start_date and task.end_date
+        ]
+        working_dates = (
+            frozenset(
+                self._iter_workdays(
+                    min(start for start, _end in scheduled_ranges),
+                    max(end for _start, end in scheduled_ranges),
                 )
             )
-
-        # Sort by highest utilization pressure.
-        rows.sort(
-            key=lambda r: (r.utilization_percent, r.total_allocation_percent),
-            reverse=True,
+            if scheduled_ranges
+            else frozenset()
         )
-        return rows
+        return [
+            ResourceLoadRow(
+                resource_id=row.resource_id,
+                resource_name=row.resource_name,
+                total_allocation_percent=row.total_allocation_percent,
+                tasks_count=row.tasks_count,
+                capacity_percent=row.capacity_percent,
+                utilization_percent=row.utilization_percent,
+            )
+            for row in ResourceLoadEngine.calculate(
+                tasks=tasks,
+                assignments=assignments,
+                resources=resources,
+                working_dates=working_dates,
+            )
+        ]
 
     def _iter_workdays(self, start: date, end: date):
         if end < start:
