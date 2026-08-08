@@ -26,15 +26,29 @@ class CollaborationPresenceQueryMixin:
 
     def list_active_presence(self, *, limit: int = 200) -> list[TaskPresenceStatusItem]:
         require_permission(self._user_session, "collaboration.read", operation_label="view active task presence")
-        tasks = self._accessible_tasks_for_collaboration()
-        if not tasks:
-            return []
-        project_name_by_id = {task.project_id: self._project_name(task.project_id) for task in tasks}
-        return self._presence_items_for_tasks(
-            tasks=tasks,
-            project_name_by_id=project_name_by_id,
-            limit=limit,
+        facts, _project_names = self._read_cross_project_collaboration_facts(
+            comment_limit=0,
+            presence_limit=limit,
         )
+        return self._presence_items_from_facts(facts.active_presence)
+
+    def _presence_items_from_facts(self, rows) -> list[TaskPresenceStatusItem]:
+        principal = self._user_session.principal if self._user_session is not None else None
+        principal_user_id = str(getattr(principal, "user_id", "") or "").strip()
+        return [
+            TaskPresenceStatusItem(
+                task_id=row.task_id,
+                task_name=row.task_name,
+                project_id=row.project_id,
+                project_name=row.project_name,
+                username=row.username,
+                display_name=row.display_name,
+                activity=row.activity,
+                last_seen_at=row.last_seen_at,
+                is_self=bool(principal_user_id and row.user_id == principal_user_id),
+            )
+            for row in rows
+        ]
 
     def _presence_items_for_tasks(
         self,

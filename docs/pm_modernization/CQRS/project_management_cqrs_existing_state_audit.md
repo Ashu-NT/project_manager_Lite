@@ -3296,6 +3296,7 @@ until its own sub-phase explicitly migrates and re-tests it.
 
   Verification completed on 2026-08-08: focused parity, measurement, enterprise-foundation,
   tenant-isolation, desktop Portfolio, concrete Reader, and CQRS architecture checks pass. The full
+  PM suite passes **554 tests** in bounded partitions (**212 + 215 + 127**). The full
   architecture suite reports **136 passed**, with only the same pre-existing hard-size failure for
   generated `resources/shared_resources_rc.py` and the documented 1,408-line
   `enterprise_calendar.py`. `compileall` and `git diff --check` are clean.
@@ -3308,9 +3309,51 @@ until its own sub-phase explicitly migrates and re-tests it.
   **Phase 3C exit gate: PASSED.** All three measured Portfolio candidates now use scoped immutable
   facts with explicit query budgets, protected behavior, fail-closed authorization, concrete runtime
   wiring, and no superseded transition path.
-- **Phase 3D** — measure and migrate Collaboration reads (`list_inbox`, `list_workspace_snapshot`)
-  explicitly, following the same precondition discipline as Phase 3C (its own Phase 0A.3 rollback
-  fix must be complete first).
+- **Phase 3D - COMPLETE 2026-08-08 — measured and migrated Collaboration reads.** Phase 0A.3's
+  rollback correction was complete before this work began. The persistent 1/5/12-project harness
+  seeded one task, comment, and active-presence row per project and measured both public candidates:
+
+  | Candidate | SQL at 1 project | SQL at 5 projects | SQL at 12 projects | Post-cutover |
+  |---|---:|---:|---:|---:|
+  | collaboration inbox | 40 | 104 | 216 | **53 / 53 / 53** |
+  | collaboration workspace snapshot | 44 | 108 | 220 | **56 / 56 / 56** |
+
+  The baseline growth was caused by one task-list and one project-permission path per accessible
+  project; runtime session revalidation amplified every permission call. Workspace snapshot also
+  queried the same recent comments twice before reading presence and audit rows. The cutover now
+  performs one canonical accessible-project filter and one immutable `CollaborationWorkspaceReader`
+  fact read. Inbox executes one joined comment query. Workspace executes that same comment query
+  once, one joined presence query, and one organization-scoped audit query. It no longer scales SQL
+  with the number of accessible projects in the measured fixture.
+
+  Authorization remains application-owned: `collaboration.read` and canonical project filtering run
+  before the Reader. `SqlAlchemyCollaborationWorkspaceReader` accepts only those authorized project
+  IDs and independently applies explicit tenant, organization, and project predicates to every
+  query; it neither resolves nor broadens access. Direct cross-organization and scoped-viewer tests
+  prove comments, presence, and project names cannot leak from unauthorized projects.
+
+  Public desktop/QML DTOs and service signatures are unchanged. Mention aliases, unread state,
+  ordering, previews, audit-derived workflow notices, active-presence TTL, and the legacy
+  limit-before-mention-filter behavior have parity coverage. Existing `limit` arguments remain
+  bounded SQL limits; they are not advertised as cursor pagination. A later keyset/cursor contract
+  is required only if Collaboration gains continuation-based navigation.
+
+  Verification completed on 2026-08-08: focused Collaboration, rollback, enterprise-foundation,
+  desktop/QML, tenant-isolation, measurement, concrete Reader, and CQRS architecture checks pass.
+  The full PM suite passes **560 tests** in bounded partitions (**215 + 218 + 127**). The full
+  architecture suite reports **137 passed**, with only the same two pre-existing hard-size
+  violations for generated `resources/shared_resources_rc.py` and the documented 1,408-line
+  `enterprise_calendar.py`. `compileall` and `git diff --check` are clean.
+
+  **Phase 3D deletion register - COMPLETE:** `_accessible_task_context_for_collaboration`,
+  `_accessible_tasks_for_collaboration`, `_list_accessible_comments`, the per-project permission and
+  project-name helpers, and the duplicate workspace comment read were deleted in the same cutover.
+  No compatibility constructor, repository fallback, feature flag, transition evidence, temporary
+  implementation file, or migration-only path remains.
+
+  **Phase 3D exit gate: PASSED.** The measured Collaboration candidates now use explicitly scoped,
+  immutable facts with constant query budgets, protected behavior, fail-closed authorization,
+  concrete runtime wiring, and no superseded transition path.
 
 Each sub-phase follows the same reader+facts+parity-test shape Phase 1 established, is independently
 reviewable and revertible, and requires its own Phase-0-style measurement before and after — none of

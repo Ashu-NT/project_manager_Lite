@@ -10,20 +10,24 @@ from src.core.platform.application.security.authorization.enforcement.permission
 class CollaborationNotificationQueryMixin:
     def list_notifications(self, *, limit: int = 200) -> list[CollaborationNotificationItem]:
         require_permission(self._user_session, "collaboration.read", operation_label="view collaboration notifications")
-        tasks, project_name_by_id = self._accessible_task_context_for_collaboration()
+        facts, project_name_by_id = self._read_cross_project_collaboration_facts(comment_limit=limit)
         inbox_items = self._build_comment_items(
             limit=limit,
-            tasks=tasks,
-            project_name_by_id=project_name_by_id,
+            comments=facts.comments,
             mentions_only=True,
         )
-        return self._build_notifications(limit=limit, inbox_items=inbox_items)
+        return self._build_notifications(
+            limit=limit,
+            inbox_items=inbox_items,
+            project_name_by_id=project_name_by_id,
+        )
 
     def _build_notifications(
         self,
         *,
         limit: int,
         inbox_items: list[CollaborationInboxItem],
+        project_name_by_id: dict[str, str],
     ) -> list[CollaborationNotificationItem]:
         rows: list[CollaborationNotificationItem] = [
             CollaborationNotificationItem(
@@ -41,25 +45,38 @@ class CollaborationNotificationQueryMixin:
             for item in inbox_items
         ]
         for row in self._recent_audit_rows_for_collaboration(limit=max(limit * 3, 100)):
-            notification = self._notification_from_audit(row)
+            notification = self._notification_from_audit(
+                row,
+                project_name_by_id=project_name_by_id,
+            )
             if notification is not None:
                 rows.append(notification)
         rows.sort(key=lambda item: item.created_at, reverse=True)
         return rows[:limit]
 
-    def _notification_from_audit(self, row) -> CollaborationNotificationItem | None:
+    def _notification_from_audit(
+        self,
+        row,
+        *,
+        project_name_by_id: dict[str, str],
+    ) -> CollaborationNotificationItem | None:
         if row.entity_type == "approval_request":
-            return self._approval_notification_from_audit(row)
+            return self._approval_notification_from_audit(row, project_name_by_id=project_name_by_id)
         if row.entity_type == "timesheet_period":
-            return self._timesheet_notification_from_audit(row)
+            return self._timesheet_notification_from_audit(row, project_name_by_id=project_name_by_id)
         return None
 
-    def _approval_notification_from_audit(self, row) -> CollaborationNotificationItem | None:
+    def _approval_notification_from_audit(
+        self,
+        row,
+        *,
+        project_name_by_id: dict[str, str],
+    ) -> CollaborationNotificationItem | None:
         action = str(getattr(row, "action", None) or row.metadata.get("action", "") or "")
         if action not in {"governance.request", "governance.approve", "governance.reject"}:
             return None
         project_id = str(getattr(row, "project_id", None) or row.metadata.get("project_id") or row.entity_parent_id or "").strip() or None
-        if project_id and not self._principal_can_access_project(project_id):
+        if project_id and project_id not in project_name_by_id:
             return None
         details = getattr(row, "details", None) or row.metadata or {}
         subject = (
@@ -84,11 +101,16 @@ class CollaborationNotificationQueryMixin:
             actor_username=row.actor_username or "system",
             created_at=occurred_at,
             project_id=project_id,
-            project_name=self._project_name(project_id),
+            project_name=project_name_by_id.get(project_id or "", ""),
             attention=action == "governance.request",
         )
 
-    def _timesheet_notification_from_audit(self, row) -> CollaborationNotificationItem | None:
+    def _timesheet_notification_from_audit(
+        self,
+        row,
+        *,
+        project_name_by_id: dict[str, str],
+    ) -> CollaborationNotificationItem | None:
         action = str(getattr(row, "action", None) or row.metadata.get("action", "") or "")
         if action not in {
             "timesheet_period.submit",
@@ -99,7 +121,7 @@ class CollaborationNotificationQueryMixin:
         }:
             return None
         project_ids = self._audit_project_ids(row)
-        visible_project_ids = [project_id for project_id in project_ids if self._principal_can_access_project(project_id)]
+        visible_project_ids = [project_id for project_id in project_ids if project_id in project_name_by_id]
         if project_ids and not visible_project_ids:
             return None
         details = getattr(row, "details", None) or row.metadata or {}
@@ -127,8 +149,8 @@ class CollaborationNotificationQueryMixin:
             body_preview="; ".join(body_parts),
             actor_username=row.actor_username or "system",
             created_at=occurred_at,
-            project_id=row_project_id if row_project_id and self._principal_can_access_project(row_project_id) else None,
-            project_name=self._project_names_label(visible_project_ids),
+            project_id=row_project_id if row_project_id in project_name_by_id else None,
+            project_name=self._project_names_label(visible_project_ids, project_name_by_id),
             attention=action in {"timesheet_period.submit", "timesheet_period.lock", "timesheet_period.reject"},
         )
 

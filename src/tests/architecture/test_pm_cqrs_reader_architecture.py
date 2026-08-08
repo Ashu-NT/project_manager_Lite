@@ -39,6 +39,18 @@ from src.core.modules.project_management.application.portfolio.queries.portfolio
 from src.core.modules.project_management.application.portfolio.queries.portfolio_executive import (
     PortfolioExecutiveQueryMixin,
 )
+from src.core.modules.project_management.application.collaboration.queries.collaboration_inbox import (
+    CollaborationInboxQueryMixin,
+)
+from src.core.modules.project_management.application.collaboration.queries.collaboration_notifications import (
+    CollaborationNotificationQueryMixin,
+)
+from src.core.modules.project_management.application.collaboration.queries.collaboration_presence import (
+    CollaborationPresenceQueryMixin,
+)
+from src.core.modules.project_management.application.collaboration.utils.support import (
+    CollaborationSupportMixin,
+)
 from src.core.modules.project_management.infrastructure.reporting.builders.kpi import (
     ReportingKpiMixin,
 )
@@ -64,6 +76,10 @@ PORTFOLIO_SCENARIO_READER = (
 )
 PORTFOLIO_HEATMAP_READER = (
     PM_ROOT / "infrastructure/persistence/reads/portfolio/sqlalchemy_heatmap_reader.py"
+)
+COLLABORATION_WORKSPACE_READER = (
+    PM_ROOT
+    / "infrastructure/persistence/reads/collaboration/sqlalchemy_workspace_reader.py"
 )
 
 FORBIDDEN_CONTRACT_IMPORTS = (
@@ -473,6 +489,47 @@ def test_portfolio_heatmap_uses_one_scoped_fact_graph_and_pure_policy_engines() 
         "ProjectORM.organization_id == organization_id",
         "ResourceORM.tenant_id == tenant_id",
         "ResourceORM.organization_id == organization_id",
+    ):
+        assert predicate in reader_source
+
+
+def test_collaboration_cross_project_reads_use_one_scoped_fact_graph() -> None:
+    support_source = inspect.getsource(CollaborationSupportMixin)
+    inbox_source = inspect.getsource(CollaborationInboxQueryMixin)
+    notification_source = inspect.getsource(CollaborationNotificationQueryMixin)
+    presence_source = inspect.getsource(CollaborationPresenceQueryMixin.list_active_presence)
+    registry = PROJECT_REGISTRY.read_text(encoding="utf-8")
+    reader_source = COLLABORATION_WORKSPACE_READER.read_text(encoding="utf-8")
+
+    assert support_source.count("self._workspace_reader.read_facts(") == 1
+    assert "filter_project_rows(" in support_source
+    assert "_read_cross_project_collaboration_facts(" in inbox_source
+    assert "_read_cross_project_collaboration_facts(" in notification_source
+    assert "_read_cross_project_collaboration_facts(" in presence_source
+    for removed in (
+        "_accessible_task_context_for_collaboration",
+        "_accessible_tasks_for_collaboration",
+        "_list_accessible_comments",
+        "_principal_can_access_project",
+    ):
+        assert removed not in support_source
+    for forbidden in (
+        "_task_repo.list_by_project(",
+        "_comment_repo.list_recent_for_tasks(",
+        "_presence_repo.list_recent_for_tasks(",
+        "_project_repo.get(",
+    ):
+        assert forbidden not in inbox_source
+        assert forbidden not in notification_source
+        assert forbidden not in presence_source
+    assert (
+        "workspace_reader=SqlAlchemyCollaborationWorkspaceReader(session=session)"
+        in registry
+    )
+    for predicate in (
+        "ProjectORM.tenant_id == tenant_id",
+        "ProjectORM.organization_id == organization_id",
+        "ProjectORM.id.in_(project_ids)",
     ):
         assert predicate in reader_source
 

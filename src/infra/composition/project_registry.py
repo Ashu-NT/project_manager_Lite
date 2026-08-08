@@ -72,6 +72,9 @@ from src.core.modules.project_management.infrastructure.persistence.reads.portfo
     SqlAlchemyPortfolioResourcePoolReader,
     SqlAlchemyPortfolioScenarioReader,
 )
+from src.core.modules.project_management.infrastructure.persistence.reads.collaboration import (
+    SqlAlchemyCollaborationWorkspaceReader,
+)
 from src.infra.composition.platform_registry import PlatformServiceBundle
 from src.infra.composition.repositories import RepositoryBundle
 
@@ -414,6 +417,7 @@ def build_project_management_service_bundle(
         project_repo=repositories.project_repo,
         user_repo=repositories.user_repo,
         audit_repo=repositories.audit_entry_repo,
+        workspace_reader=SqlAlchemyCollaborationWorkspaceReader(session=session),
         document_integration_service=platform_services.document_integration_service,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
