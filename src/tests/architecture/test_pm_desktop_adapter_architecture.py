@@ -278,6 +278,27 @@ def test_scheduling_lifecycle_and_calendar_policy_stays_with_its_owners() -> Non
     assert "get_default_calendar()" in calendar_source
 
 
+def test_register_triage_policy_stays_out_of_desktop_adapters() -> None:
+    register_root = DESKTOP_ROOT / "register"
+    builder_source = (
+        register_root / "builders/entry_list_builder.py"
+    ).read_text(encoding="utf-8")
+    serializer_source = (
+        register_root / "serializers/entry_serializer.py"
+    ).read_text(encoding="utf-8")
+    query_source = (
+        REPO_ROOT
+        / "src/core/modules/project_management/application/risk/queries/register_query.py"
+    ).read_text(encoding="utf-8")
+
+    assert "sorted(" not in builder_source
+    assert "severity_rank" not in builder_source
+    assert "is_overdue(" not in builder_source
+    assert "entry.is_overdue_on(date.today())" in serializer_source
+    assert ".triage_key(" in query_source
+    assert not (register_root / "utils/register_status_utils.py").exists()
+
+
 def test_da0_scanners_detect_synthetic_violations() -> None:
     path_label = "synthetic.py"
     repository_tree = ast.parse(

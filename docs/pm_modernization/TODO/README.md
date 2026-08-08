@@ -25,11 +25,12 @@ generated and therefore takes priority over starting the much larger Finance Pha
 - **DA2 - Security and error boundaries (complete 2026-08-08):** Tasks reports partial
   permission-scoped loads, Dashboard propagates approval failures, and dead PM calendar mutation
   compatibility stubs were deleted in favor of Platform Admin's canonical calendar CRUD.
-- **DA3 - Domain policy (in progress):** Resources and Scheduling are complete. Normalized
+- **DA3 - Domain policy (in progress):** Resources, Scheduling, and Register are complete. Normalized
   resource-rate decisions belong to `ResourceService`, certification lifecycle status belongs
   to `ResourceCertification`, baseline actions belong to `ProjectBaseline`, task remaining
   duration belongs to `Task`, and default-calendar selection belongs to Platform's
-  `EnterpriseCalendarService`. Register is next, followed by Dashboard.
+  `EnterpriseCalendarService`. Register overdue/triage policy belongs to `RegisterEntry`, and
+  `RegisterService` applies it after RBAC scope filtering. Dashboard is next.
 - **DA4 - Read/report extraction (not started):** move only measured or clearly problematic
   reads; do not create speculative Readers.
 - **DA5 - Duplicate and dead-code removal (not started):** remove superseded duplicate
@@ -165,6 +166,22 @@ DA3 Scheduling checkpoint (2026-08-08):
 - Domain, Platform service, real PM-to-Platform wiring, QML presenter, and architecture checkpoint:
   45 passed. The broader PM Scheduling/Baseline/architecture regression passed 69 tests with 658
   unrelated tests deselected. DA3 remains in progress; Register triage ownership is next.
+
+DA3 Register checkpoint (2026-08-08):
+
+- `RegisterEntry.is_overdue_on()` now owns terminal-status and due-date interpretation, while
+  `RegisterEntry.triage_key()` owns severity-first, overdue-first, due-date, and title ordering for
+  an explicit as-of date.
+- `RegisterService.list_entries()` applies the canonical ordering only after project RBAC filtering;
+  `get_project_summary()` reuses the same domain rule for urgent ordering and overdue totals.
+- The desktop Register builder now only coerces filters and forwards the service result. Its
+  duplicate `register_status_utils.py` policy helper was deleted rather than retained as transition
+  code, and the serializer projects `RegisterEntry.is_overdue_on()` into the unchanged DTO.
+- Domain, application query, desktop API, QML presenter, DA0 characterization, and architecture
+  checkpoint: 33 passed. The complete PM/architecture regression passed 729 tests; its one
+  unrelated existing failure is the hard line-limit guard for generated `shared_resources_rc.py`
+  and Platform `enterprise_calendar.py`. DA3 remains in progress; Dashboard overload/risk
+  consolidation is next.
 
 ## 1. Finance — Phase B, remaining
 

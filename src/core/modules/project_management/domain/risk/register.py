@@ -36,6 +36,19 @@ class RegisterEntryStatus(str, Enum):
     CLOSED = "CLOSED"
 
 
+_REGISTER_SEVERITY_PRIORITY = {
+    RegisterEntrySeverity.CRITICAL: 0,
+    RegisterEntrySeverity.HIGH: 1,
+    RegisterEntrySeverity.MEDIUM: 2,
+    RegisterEntrySeverity.LOW: 3,
+}
+_TERMINAL_REGISTER_STATUSES = {
+    RegisterEntryStatus.APPROVED,
+    RegisterEntryStatus.REJECTED,
+    RegisterEntryStatus.CLOSED,
+}
+
+
 def as_register_entry_type(value: RegisterEntryType | str) -> RegisterEntryType:
     if isinstance(value, RegisterEntryType):
         return value
@@ -92,6 +105,21 @@ class RegisterEntry:
     created_at: datetime | None = None
     updated_at: datetime | None = None
     version: int = 1
+
+    def is_overdue_on(self, as_of: date) -> bool:
+        return (
+            self.due_date is not None
+            and self.status not in _TERMINAL_REGISTER_STATUSES
+            and self.due_date < as_of
+        )
+
+    def triage_key(self, as_of: date) -> tuple[int, int, date, str]:
+        return (
+            _REGISTER_SEVERITY_PRIORITY[self.severity],
+            0 if self.is_overdue_on(as_of) else 1,
+            self.due_date or date.max,
+            self.title.casefold(),
+        )
 
     @field_validator("project_id", mode="before")
     @classmethod

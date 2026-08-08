@@ -4374,7 +4374,7 @@ signals, it does not invent new ones that weren't already possible at the applic
 
 ### Phase DA3 — Application/domain policy extraction
 
-**Status: IN PROGRESS (2026-08-08); Resources and Scheduling COMPLETE.** The desktop Resources API and CSV
+**Status: IN PROGRESS (2026-08-08); Resources, Scheduling, and Register COMPLETE.** The desktop Resources API and CSV
 importer no longer pre-read a resource, compare hourly rate/currency, or choose an effective date.
 `ResourceService.update_resource()` compares the fully normalized candidate to persisted values,
 requires optimistic concurrency only for an actual rate-affecting change, and resolves an omitted
@@ -4398,7 +4398,17 @@ write-policy item without replacement code. The separately documented lossy scal
 no-contract-change extraction. Scheduling checkpoint: 45 passed across domain, Platform service,
 real PM-to-Platform wiring, QML presenter, and architecture tests; the broader PM
 Scheduling/Baseline/architecture regression passed 69 tests with 658 unrelated tests deselected.
-Register is the next capability.
+
+Register now exposes `RegisterEntry.is_overdue_on()` and `RegisterEntry.triage_key()` as the
+canonical context-free policy for terminal-state due dates and severity/overdue/due-date/title
+ordering. `RegisterService.list_entries()` applies that order after project RBAC filtering, and
+`get_project_summary()` reuses it for urgent items and overdue totals. The desktop builder no
+longer sorts, the serializer projects the domain overdue result, and the duplicate
+`register_status_utils.py` was deleted without a compatibility layer. The focused domain,
+application, desktop, QML, characterization, and architecture checkpoint passed 33 tests.
+The complete PM/architecture regression passed 729 tests; its one unrelated existing failure is
+the hard line-limit guard for generated `shared_resources_rc.py` and Platform
+`enterprise_calendar.py`. Dashboard is the next capability.
 
 One capability at a time, per the migration constraints ("do not migrate all capabilities in one
 phase"):
@@ -4412,9 +4422,9 @@ phase"):
    calendar resolution moved to Platform `get_default_calendar()` (application). The former
    uniform-hours mutation item was satisfied by DA2 deletion because no live PM write path
    remained to migrate.
-4. **Register** — the triage-ordering rule (severity/overdue) moves to `RegisterService`/
-   `RegisterEntry` (application service or domain, decided when implemented — likely domain, since
-   ordering by severity/overdue is a context-free function of the entry's own fields plus "today").
+4. **Register - COMPLETE 2026-08-08:** `RegisterEntry` owns overdue interpretation and the
+   deterministic triage key for an explicit as-of date; `RegisterService` applies the order after
+   RBAC filtering and reuses it for the project summary. Duplicate desktop policy was deleted.
 5. **Dashboard** — the four independent overload-threshold implementations collapse to one shared
    banding function in `application/reporting`; `_build_high_risks_table`'s independent
    reimplementation of Register's triage logic is replaced with a call to whatever Register exposes

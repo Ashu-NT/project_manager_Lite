@@ -1,15 +1,9 @@
 from __future__ import annotations
 
-from datetime import date
-
 from src.core.modules.project_management.api.desktop.register.utils.register_enum_utils import (
     coerce_entry_severity,
     coerce_entry_status,
     coerce_entry_type,
-)
-from src.core.modules.project_management.api.desktop.register.utils.register_status_utils import (
-    is_overdue,
-    severity_rank,
 )
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,
@@ -48,17 +42,7 @@ def build_entry_list(
             else None
         ),
     )
-    return tuple(
-        sorted(
-            entries,
-            key=lambda entry: (
-                severity_rank(entry.severity),
-                0 if is_overdue(entry.due_date, entry.status) else 1,
-                entry.due_date or date.max,
-                (entry.title or "").casefold(),
-            ),
-        )
-    )
+    return tuple(entries)
 
 
 __all__ = ["build_entry_list"]

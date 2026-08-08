@@ -9,6 +9,7 @@ from src.core.modules.project_management.domain.enums import (
 )
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.domain.risk.register import (
+    RegisterEntry,
     RegisterEntrySeverity,
     RegisterEntryStatus,
     RegisterEntryType,
@@ -159,7 +160,7 @@ class _FakeProjectService:
 
 class _FakeRegisterService:
     def __init__(self) -> None:
-        self._entries: dict[str, SimpleNamespace] = {}
+        self._entries: dict[str, RegisterEntry] = {}
         self._next_id = 1
 
     def list_entries(
@@ -169,8 +170,8 @@ class _FakeRegisterService:
         entry_type: RegisterEntryType | None = None,
         status: RegisterEntryStatus | None = None,
         severity: RegisterEntrySeverity | None = None,
-    ) -> list[SimpleNamespace]:
-        return [
+    ) -> list[RegisterEntry]:
+        entries = [
             entry
             for entry in self._entries.values()
             if (project_id is None or entry.project_id == project_id)
@@ -178,6 +179,7 @@ class _FakeRegisterService:
             and (status is None or entry.status == status)
             and (severity is None or entry.severity == severity)
         ]
+        return sorted(entries, key=lambda entry: entry.triage_key(date.today()))
 
     def create_entry(
         self,
@@ -193,8 +195,8 @@ class _FakeRegisterService:
         impact_summary: str = "",
         response_plan: str = "",
         code: str = "",
-    ) -> SimpleNamespace:
-        entry = SimpleNamespace(
+    ) -> RegisterEntry:
+        entry = RegisterEntry(
             id=f"reg-{self._next_id}",
             project_id=project_id,
             entry_type=entry_type,
@@ -228,7 +230,7 @@ class _FakeRegisterService:
         impact_summary: str | None = None,
         response_plan: str | None = None,
         code: str | None = None,
-    ) -> SimpleNamespace:
+    ) -> RegisterEntry:
         entry = self._entries[entry_id]
         if code is not None and code.strip():
             entry.code = code
@@ -255,5 +257,5 @@ class _FakeRegisterService:
     def delete_entry(self, entry_id: str) -> None:
         del self._entries[entry_id]
 
-    def get_entry(self, entry_id: str) -> SimpleNamespace:
+    def get_entry(self, entry_id: str) -> RegisterEntry:
         return self._entries[entry_id]

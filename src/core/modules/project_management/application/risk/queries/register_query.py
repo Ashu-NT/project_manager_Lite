@@ -18,14 +18,6 @@ _ACTIVE_STATUSES = {
     RegisterEntryStatus.IN_PROGRESS,
     RegisterEntryStatus.MITIGATED,
 }
-_SEVERITY_ORDER = {
-    RegisterEntrySeverity.CRITICAL: 0,
-    RegisterEntrySeverity.HIGH: 1,
-    RegisterEntrySeverity.MEDIUM: 2,
-    RegisterEntrySeverity.LOW: 3,
-}
-
-
 class RegisterQueryMixin:
     _project_repo: ProjectRepository
     _register_repo: RegisterEntryRepository
@@ -50,6 +42,7 @@ class RegisterQueryMixin:
         entry_type: RegisterEntryType | None = None,
         status: RegisterEntryStatus | None = None,
         severity: RegisterEntrySeverity | None = None,
+        as_of: date | None = None,
     ) -> list[RegisterEntry]:
         require_permission(self._user_session, "register.read", operation_label="view risk/issue/change register")
         if project_id:
@@ -65,12 +58,14 @@ class RegisterQueryMixin:
             status=status,
             severity=severity,
         )
-        return filter_project_rows(
+        scoped_rows = filter_project_rows(
             rows,
             self._user_session,
             permission_code="register.read",
             project_id_getter=lambda entry: entry.project_id,
         )
+        triage_date = as_of or date.today()
+        return sorted(scoped_rows, key=lambda entry: entry.triage_key(triage_date))
 
     def get_project_summary(self, project_id: str) -> RegisterProjectSummary:
         require_permission(self._user_session, "register.read", operation_label="view register summary")
@@ -86,15 +81,7 @@ class RegisterQueryMixin:
         items = self._register_repo.list_entries(project_id=project_id)
         today = date.today()
         active_items = [item for item in items if item.status in _ACTIVE_STATUSES]
-        urgent = sorted(
-            active_items,
-            key=lambda item: (
-                _SEVERITY_ORDER.get(item.severity, 99),
-                0 if item.due_date and item.due_date < today else 1,
-                item.due_date or date.max,
-                item.title.lower(),
-            ),
-        )[:5]
+        urgent = sorted(active_items, key=lambda item: item.triage_key(today))[:5]
         return RegisterProjectSummary(
             open_risks=sum(
                 1
@@ -115,7 +102,7 @@ class RegisterQueryMixin:
             overdue_items=sum(
                 1
                 for item in active_items
-                if item.due_date is not None and item.due_date < today
+                if item.is_overdue_on(today)
             ),
             critical_items=sum(
                 1
