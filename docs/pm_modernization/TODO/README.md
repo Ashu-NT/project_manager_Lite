@@ -3,9 +3,60 @@
 Generated 2026-08-06 by reading every file in `docs/pm_modernization/` and separating
 done/partial/pending. This is the single place to look for what's left; the other docs
 in this folder describe what already exists and why. Three fully-superseded implementation
-logs (`rate_card_cost_engine_cutover_plan.md`, `project_budget_lifecycle_plan.md`,
-`project_planned_cost_snapshot_plan.md`) were deleted as part of this cleanup — see
-"Deleted docs" at the bottom for what happened to their content.
+logs were deleted as part of the cleanup; their disposition is recorded at the bottom.
+
+Updated 2026-08-08 after completing the numbered CQRS plan and reconciling the subsequent
+Desktop Adapter Responsibility Audit. CQRS Phases 0A-0C and 1-6 are complete. The
+Session/Unit-of-Work investigation remains a separate future architecture decision; it is
+not an unfinished CQRS phase.
+
+## 0. Desktop adapter responsibility hardening (in progress)
+
+Source: `../CQRS/project_management_cqrs_existing_state_audit.md`, "Desktop Adapter
+Responsibility Audit." This work was identified after the original consolidated TODO was
+generated and therefore takes priority over starting the much larger Finance Phase C.
+
+- **DA0 - Guardrails and characterization (in progress):** architecture guardrails are
+  implemented and all six P0 behavior themes are characterized. The nine P1 findings still
+  require characterization before DA0 closes.
+- **DA1 - Composition leaks (not started):** Resources first as the low-risk migration,
+  followed immediately by Projects and Tasks because their findings are tenant/RBAC
+  sensitive.
+- **DA2 - Application orchestration (not started):** move assignment previews, task/project
+  access resolution, dashboard partial-failure behavior, and other application decisions out
+  of presentation builders.
+- **DA3 - Domain policy (not started):** remove lifecycle, certification, scheduling, and
+  financial policy calculations from serializers/builders.
+- **DA4 - Read orchestration and cleanup (not started):** consolidate only measured duplicate
+  reads, remove dead procurement helpers, and preserve desktop DTO contracts.
+
+### DA0/DA1 exception deletion register
+
+These are verified pre-existing violations, not permanent exemptions. The architecture suite
+holds the exact set so both additions and removals require an explicit update. Delete each test
+exception in the same change that removes its runtime violation.
+
+| Exception group | Current locations | Removal gate | Status |
+| --- | --- | --- | --- |
+| Repository contracts imported by desktop Resources | `resources/api.py`, `resources/factories/resources_api_factory.py`, `resources/services/availability_resolution_service.py` | DA1 injects public application collaborators from composition | OPEN |
+| Private collaborator access | Resources availability/assignment builders; Projects access/resource builders and API; Tasks access/resource lookup builders | DA1 replaces every private fallback with a public application method or injected collaborator | OPEN |
+| Application objects constructed in desktop code | `ResourceAvailabilityService`, `ConstraintValidator` | DA1/composition migration provides constructed collaborators | OPEN |
+| Private platform module imports | `common/financial_formatting.py` imports `finance.money._decimal`; Dashboard imports `approval._approval_labels` | Expose and consume public platform contracts | OPEN |
+
+**DA0 exit gate:** all P0/P1 behaviors have characterization coverage; architecture scanners
+reject synthetic violations; every remaining exception above has a named DA1 removal owner.
+
+Implementation checkpoint (2026-08-08):
+
+- `test_pm_desktop_adapter_architecture.py` pins the exact repository-import, private-access,
+  application-construction, and private-module exception sets; it also blocks reverse
+  application/domain imports and proves the scanners detect synthetic violations.
+- `test_pm_desktop_adapter_da0_characterization.py` pins the schedule-impact baseline
+  divergence, Projects tenant-context fallback, both Tasks authorization fallbacks, and the
+  Scheduling placeholder-success behavior.
+- Dashboard authorization/infrastructure error propagation was already corrected and remains
+  covered by `test_phase0a4_other_safety_corrections.py`.
+- Focused checkpoint: 20 tests passed. DA0 remains open only for P1 characterization.
 
 ## 1. Finance — Phase B, remaining
 

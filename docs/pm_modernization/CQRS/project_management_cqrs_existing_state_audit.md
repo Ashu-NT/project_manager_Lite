@@ -4277,6 +4277,15 @@ fix is a deliberate, reviewed behavior change, not an unnoticed one.
 
 ### Phase DA0 — Guardrails and characterization
 
+**Status: IN PROGRESS (2026-08-08).** The architecture guardrails are implemented in
+`src/tests/architecture/test_pm_desktop_adapter_architecture.py` with an exact, fail-on-addition
+and fail-on-stale-removal exception register for verified pre-existing DA1 violations. All six P0
+themes are characterized by
+`src/tests/project_management/test_pm_desktop_adapter_da0_characterization.py` plus the existing
+Dashboard failure-propagation coverage in `test_phase0a4_other_safety_corrections.py`. The focused
+checkpoint is 20 passing tests. DA0 remains open for characterization of the nine P1 findings;
+DA1 has not started.
+
 - Add tests pinning current desktop DTO output for every finding in the master table (a
   characterization test per P0/P1 row, at minimum) — so no migration in later phases can silently
   change behavior no one intended to change.
