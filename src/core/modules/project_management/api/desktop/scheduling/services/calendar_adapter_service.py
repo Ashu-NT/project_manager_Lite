@@ -47,22 +47,15 @@ def unwrap_platform_calendar_result(result):
     raise RuntimeError("Platform calendar operation failed.")
 
 
-def _default_platform_calendar_id(platform_calendar_api) -> str:
-    global_calendars = unwrap_platform_calendar_result(
-        platform_calendar_api.list_calendars(calendar_type="GLOBAL")
-    ) or ()
-    if global_calendars:
-        return global_calendars[0].id
-    any_calendars = unwrap_platform_calendar_result(platform_calendar_api.list_calendars()) or ()
-    return any_calendars[0].id if any_calendars else ""
-
-
 def _resolve_calendar_id(platform_calendar_api, calendar_id: str) -> str:
     # "default" is the QML view model's fallback sentinel (never a real
     # platform calendar id) — treat it the same as "no id supplied".
     if calendar_id and calendar_id != "default":
         return calendar_id
-    return _default_platform_calendar_id(platform_calendar_api)
+    default_calendar = unwrap_platform_calendar_result(
+        platform_calendar_api.get_default_calendar()
+    )
+    return default_calendar.id
 
 
 def list_platform_calendar_options(

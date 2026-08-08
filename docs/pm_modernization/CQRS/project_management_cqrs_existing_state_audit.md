@@ -4374,7 +4374,7 @@ signals, it does not invent new ones that weren't already possible at the applic
 
 ### Phase DA3 — Application/domain policy extraction
 
-**Status: IN PROGRESS (2026-08-08); Resources COMPLETE.** The desktop Resources API and CSV
+**Status: IN PROGRESS (2026-08-08); Resources and Scheduling COMPLETE.** The desktop Resources API and CSV
 importer no longer pre-read a resource, compare hourly rate/currency, or choose an effective date.
 `ResourceService.update_resource()` compares the fully normalized candidate to persisted values,
 requires optimistic concurrency only for an actual rate-affecting change, and resolves an omitted
@@ -4384,7 +4384,21 @@ context-free valid/expiring-soon/expired rule through typed `CertificationStatus
 only projects the returned value into the unchanged desktop DTO. Duplicate CSV/desktop policy and
 the obsolete `RESOURCE_RATE_EFFECTIVE_ON_REQUIRED` branch were deleted, and an architecture guard
 prevents restoration. Combined Resources, characterization, and architecture checkpoint: 54
-passed. Scheduling is the next capability.
+passed.
+
+Scheduling now projects `ProjectBaseline.can_submit/can_approve/can_reject` instead of comparing
+status strings, and both schedule serializers project `Task.remaining_duration_days`. The
+duplicate desktop scheduling utility was deleted. Platform
+`EnterpriseCalendarService.get_default_calendar()` owns canonical active GLOBAL-calendar
+selection under tenant/organization scope and `task.read`; its desktop API exposes the existing
+`CalendarDto`, and PM no longer reconstructs the convention with list/filter heuristics. DA2's
+deletion of the caller-free PM calendar mutation surface also closed the planned uniform-hours
+write-policy item without replacement code. The separately documented lossy scalar
+`hours_per_day` snapshot projection remains a P2 DTO-design follow-up, not part of this
+no-contract-change extraction. Scheduling checkpoint: 45 passed across domain, Platform service,
+real PM-to-Platform wiring, QML presenter, and architecture tests; the broader PM
+Scheduling/Baseline/architecture regression passed 69 tests with 658 unrelated tests deselected.
+Register is the next capability.
 
 One capability at a time, per the migration constraints ("do not migrate all capabilities in one
 phase"):
@@ -4393,11 +4407,11 @@ phase"):
    `ResourceService` (application service — it is a use-case decision, not a stable invariant).
 2. **Resources — COMPLETE 2026-08-08:** certification status/expiring-soon moved to
    `ResourceCertification` (domain — a context-free function of the entity's own dates).
-3. **Scheduling** — baseline can-submit/can-approve/can-reject moves to `ProjectBaseline` (domain);
-   `remaining_duration_days` moves to `Task` (domain); the uniform-hours-per-week calendar policy
-   moves to the platform calendar service (application, in the platform module, not PM); the
-   default-calendar resolution moves to a platform `get_default_calendar()` (application, platform
-   module).
+3. **Scheduling — COMPLETE 2026-08-08:** baseline can-submit/can-approve/can-reject moved to
+   `ProjectBaseline` (domain); `remaining_duration_days` moved to `Task` (domain); default
+   calendar resolution moved to Platform `get_default_calendar()` (application). The former
+   uniform-hours mutation item was satisfied by DA2 deletion because no live PM write path
+   remained to migrate.
 4. **Register** — the triage-ordering rule (severity/overdue) moves to `RegisterService`/
    `RegisterEntry` (application service or domain, decided when implemented — likely domain, since
    ordering by severity/overdue is a context-free function of the entry's own fields plus "today").

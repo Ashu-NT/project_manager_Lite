@@ -204,6 +204,25 @@ def test_global_calendar_idempotent(cal_service, org_id):
     assert cal1.id == cal2.id
 
 
+def test_get_default_calendar_returns_canonical_global(cal_service, org_id):
+    cal_service.create_calendar(
+        code="SITE-FIRST",
+        name="Site First",
+        calendar_type=CalendarType.SITE.value,
+        is_default=True,
+    )
+    global_calendar = cal_service.ensure_global_calendar(org_id)
+
+    assert cal_service.get_default_calendar().id == global_calendar.id
+
+
+def test_get_default_calendar_fails_when_global_is_missing(cal_service):
+    with pytest.raises(NotFoundError) as exc_info:
+        cal_service.get_default_calendar()
+
+    assert exc_info.value.code == "DEFAULT_CALENDAR_NOT_FOUND"
+
+
 def test_create_site_calendar(cal_service, org_id):
     cal = cal_service.create_calendar(
         code="SITE-HH",

@@ -248,6 +248,36 @@ def test_resource_rate_and_certification_policy_stays_out_of_adapters() -> None:
     assert "(expiry - today).days" not in certification_source
 
 
+def test_scheduling_lifecycle_and_calendar_policy_stays_with_its_owners() -> None:
+    scheduling_root = DESKTOP_ROOT / "scheduling"
+    baseline_source = (
+        scheduling_root / "formatters/baseline_formatter.py"
+    ).read_text(encoding="utf-8")
+    schedule_source = (
+        scheduling_root / "serializers/schedule_serializer.py"
+    ).read_text(encoding="utf-8")
+    calendar_source = (
+        scheduling_root / "services/calendar_adapter_service.py"
+    ).read_text(encoding="utf-8")
+
+    for token in (
+        'status_val == "draft"',
+        'status_val == "submitted"',
+    ):
+        assert token not in baseline_source
+    assert "baseline.can_submit" in baseline_source
+    assert "baseline.can_approve" in baseline_source
+    assert "baseline.can_reject" in baseline_source
+
+    assert "task.remaining_duration_days" in schedule_source
+    assert "scheduling_utils" not in schedule_source
+    assert not (scheduling_root / "utils/scheduling_utils.py").exists()
+
+    assert "_default_platform_calendar_id" not in calendar_source
+    assert 'list_calendars(calendar_type="GLOBAL")' not in calendar_source
+    assert "get_default_calendar()" in calendar_source
+
+
 def test_da0_scanners_detect_synthetic_violations() -> None:
     path_label = "synthetic.py"
     repository_tree = ast.parse(

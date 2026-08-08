@@ -20,21 +20,44 @@ def test_project_baseline_dto_normalizes_and_validates_lifecycle_metadata():
     assert baseline.name == "Baseline"
     assert baseline.status == BaselineStatus.DRAFT
     assert baseline.version == 1
+    assert baseline.can_submit is True
+    assert baseline.can_approve is False
+    assert baseline.can_reject is False
 
     baseline.submit("  alex  ", "  Ready for review.  ")
     assert baseline.status == BaselineStatus.SUBMITTED
     assert baseline.submitted_by == "alex"
     assert baseline.submitted_at == date.today()
     assert baseline.notes == "Ready for review."
+    assert baseline.can_submit is False
+    assert baseline.can_approve is True
+    assert baseline.can_reject is True
 
     baseline.approve("  maria  ", "  Approved for execution.  ")
     assert baseline.status == BaselineStatus.APPROVED
     assert baseline.approved_by == "maria"
     assert baseline.approved_at == date.today()
     assert baseline.notes == "Approved for execution."
+    assert baseline.can_submit is False
+    assert baseline.can_approve is False
+    assert baseline.can_reject is False
 
     baseline.supersede()
     assert baseline.status == BaselineStatus.SUPERSEDED
+    assert baseline.can_submit is False
+    assert baseline.can_approve is False
+    assert baseline.can_reject is False
+
+
+def test_project_baseline_rejected_state_exposes_no_lifecycle_actions():
+    baseline = ProjectBaseline.create("proj-1", "Rejected")
+    baseline.submit("alex")
+    baseline.reject("Needs revision")
+
+    assert baseline.status == BaselineStatus.REJECTED
+    assert baseline.can_submit is False
+    assert baseline.can_approve is False
+    assert baseline.can_reject is False
 
 
 def test_project_baseline_dto_rejects_invalid_status_and_transitions():

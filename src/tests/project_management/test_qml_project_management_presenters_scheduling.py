@@ -6,6 +6,11 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_scheduling_desktop_api,
 )
 from src.core.modules.project_management.domain.enums import TaskStatus
+from src.core.modules.project_management.domain.scheduling.baseline import (
+    BaselineStatus,
+    ProjectBaseline,
+)
+from src.core.modules.project_management.domain.tasks.task import Task
 
 
 class _FakeSchedulingEngine:
@@ -67,7 +72,13 @@ def _build_schedule_record(
     percent_complete,
 ) -> SimpleNamespace:
     return SimpleNamespace(
-        task=SimpleNamespace(id=task_id, project_id=project_id, name=name, status=status, percent_complete=percent_complete),
+        task=Task(
+            id=task_id,
+            project_id=project_id,
+            name=name,
+            status=status,
+            percent_complete=percent_complete,
+        ),
         earliest_start=start_date,
         earliest_finish=finish_date,
         latest_start=latest_start,
@@ -76,6 +87,24 @@ def _build_schedule_record(
         is_critical=is_critical,
         deadline=deadline,
         late_by_days=late_by_days,
+    )
+
+
+def _approved_baseline(
+    baseline_id: str,
+    name: str,
+    created_at: date,
+) -> ProjectBaseline:
+    return ProjectBaseline(
+        id=baseline_id,
+        project_id="proj-1",
+        name=name,
+        created_at=created_at,
+        status=BaselineStatus.APPROVED,
+        submitted_by="planner",
+        submitted_at=created_at,
+        approved_by="reviewer",
+        approved_at=created_at,
     )
 
 
@@ -130,8 +159,16 @@ def test_project_management_workspace_catalog_exposes_typed_scheduling_controlle
         baseline_service=_FakeBaselineService(
             {
                 "proj-1": [
-                    SimpleNamespace(id="base-2", name="Weekly Freeze", created_at=date(2026, 5, 7), status="approved"),
-                    SimpleNamespace(id="base-1", name="Original Plan", created_at=date(2026, 5, 1), status="approved"),
+                    _approved_baseline(
+                        "base-2",
+                        "Weekly Freeze",
+                        date(2026, 5, 7),
+                    ),
+                    _approved_baseline(
+                        "base-1",
+                        "Original Plan",
+                        date(2026, 5, 1),
+                    ),
                 ]
             }
         ),

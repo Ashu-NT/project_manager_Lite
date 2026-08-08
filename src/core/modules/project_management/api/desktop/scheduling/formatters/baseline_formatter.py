@@ -17,9 +17,9 @@ def format_baseline_row(baseline, index: int) -> SchedulingBaselineRowDto:
         variance_state_label="Latest" if index == 0 else "Stored",
         status=status_val,
         status_label=status_label,
-        can_submit=status_val == "draft",
-        can_approve=status_val == "submitted",
-        can_reject=status_val == "submitted",
+        can_submit=baseline.can_submit,
+        can_approve=baseline.can_approve,
+        can_reject=baseline.can_reject,
     )
 
 

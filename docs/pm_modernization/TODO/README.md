@@ -25,10 +25,11 @@ generated and therefore takes priority over starting the much larger Finance Pha
 - **DA2 - Security and error boundaries (complete 2026-08-08):** Tasks reports partial
   permission-scoped loads, Dashboard propagates approval failures, and dead PM calendar mutation
   compatibility stubs were deleted in favor of Platform Admin's canonical calendar CRUD.
-- **DA3 - Domain policy (in progress):** Resources is complete: normalized persisted-value
-  comparison and rate effective-date resolution now belong to `ResourceService`, while
-  certification lifecycle status belongs to `ResourceCertification`. Scheduling is next,
-  followed by Register and Dashboard.
+- **DA3 - Domain policy (in progress):** Resources and Scheduling are complete. Normalized
+  resource-rate decisions belong to `ResourceService`, certification lifecycle status belongs
+  to `ResourceCertification`, baseline actions belong to `ProjectBaseline`, task remaining
+  duration belongs to `Task`, and default-calendar selection belongs to Platform's
+  `EnterpriseCalendarService`. Register is next, followed by Dashboard.
 - **DA4 - Read/report extraction (not started):** move only measured or clearly problematic
   reads; do not create speculative Readers.
 - **DA5 - Duplicate and dead-code removal (not started):** remove superseded duplicate
@@ -146,6 +147,24 @@ DA3 Resources checkpoint (2026-08-08):
 - An architecture deletion guard prevents the removed policy from returning to adapters.
   Combined Resources, characterization, and architecture checkpoint: 54 passed. DA3 remains in
   progress; Scheduling lifecycle/derived-state extraction is next.
+
+DA3 Scheduling checkpoint (2026-08-08):
+
+- `ProjectBaseline.can_submit/can_approve/can_reject` now expose the same lifecycle legality
+  enforced by its transition methods; the desktop formatter only projects those properties.
+- `Task.remaining_duration_days` owns the progress-based duration calculation. The duplicate
+  desktop `scheduling_utils.py` implementation was deleted, not retained as compatibility code.
+- Platform `EnterpriseCalendarService.get_default_calendar()` now resolves the active
+  organization's canonical active GLOBAL calendar under `task.read` and tenant/organization
+  scope. Platform's desktop API exposes the query and PM consumes it instead of independently
+  listing/filtering calendars.
+- The former uniform-hours calendar mutation policy requires no migration because DA2 deleted its
+  caller-free PM mutation surface. The separate first-working-day `hours_per_day` snapshot
+  approximation remains the documented P2 DTO-design follow-up; changing that response shape is
+  outside this no-DTO-change tranche.
+- Domain, Platform service, real PM-to-Platform wiring, QML presenter, and architecture checkpoint:
+  45 passed. The broader PM Scheduling/Baseline/architecture regression passed 69 tests with 658
+  unrelated tests deselected. DA3 remains in progress; Register triage ownership is next.
 
 ## 1. Finance — Phase B, remaining
 

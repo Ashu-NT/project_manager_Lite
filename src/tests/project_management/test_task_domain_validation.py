@@ -66,6 +66,36 @@ def test_task_dto_rejects_invalid_progress_and_actual_dates():
     assert exc_actual.value.code == "TASK_ACTUAL_DATE_RANGE_INVALID"
 
 
+def test_task_owns_remaining_duration_calculation():
+    assert (
+        Task.create(
+            project_id="project-1",
+            name="Progress Task",
+            duration_days=10,
+            percent_complete=25,
+        ).remaining_duration_days
+        == 8
+    )
+    assert (
+        Task.create(
+            project_id="project-1",
+            name="Completed Task",
+            duration_days=10,
+            percent_complete=100,
+        ).remaining_duration_days
+        == 0
+    )
+    assert (
+        Task.create(
+            project_id="project-1",
+            name="Undated Task",
+            duration_days=None,
+            percent_complete=50,
+        ).remaining_duration_days
+        is None
+    )
+
+
 def test_task_assignment_dto_validates_allocation_and_hours():
     assignment = TaskAssignment.create(
         task_id="  task-1  ",
