@@ -12,6 +12,24 @@ from src.core.modules.project_management.application.financials.services.finance
 from src.core.modules.project_management.application.financials.earned_value.evm_series import (
     EarnedValueSeriesCalculator,
 )
+from src.core.modules.project_management.application.financials.earned_value.evm_calculator import (
+    EarnedValueCalculator,
+)
+from src.core.modules.project_management.application.financials.costs.cost_breakdown_engine import (
+    CostBreakdownEngine,
+)
+from src.core.modules.project_management.application.financials.costs.cost_policy_engine import (
+    CostPolicyEngine,
+)
+from src.core.modules.project_management.infrastructure.reporting.builders.cost_breakdown import (
+    ReportingCostBreakdownMixin,
+)
+from src.core.modules.project_management.infrastructure.reporting.builders.cost_policy import (
+    ReportingCostPolicyMixin,
+)
+from src.core.modules.project_management.infrastructure.reporting.builders.evm_core import (
+    ReportingEvmCoreMixin,
+)
 from src.tests.path_rewrites import REPO_ROOT
 
 
@@ -24,6 +42,7 @@ FINANCE_POLICY = PM_ROOT / "application/financials/costs/cost_policy_engine.py"
 PROJECT_REGISTRY = REPO_ROOT / "src/infra/composition/project_registry.py"
 PHASE1_TEST = REPO_ROOT / "src/tests/project_management/test_finance_snapshot_phase1_reader.py"
 PHASE3A_TEST = REPO_ROOT / "src/tests/project_management/test_evm_series_phase3a_parity.py"
+PHASE3B_TEST = REPO_ROOT / "src/tests/project_management/test_reporting_financials_phase3b_parity.py"
 
 FORBIDDEN_CONTRACT_IMPORTS = (
     "src.core.modules.project_management.application",
@@ -284,6 +303,70 @@ def test_evm_series_runtime_reader_proof_remains_present() -> None:
     assert "evm_series_reader=SqlAlchemyEvmSeriesReader(session=session)" in registry
     assert "isinstance(reader, SqlAlchemyEvmSeriesReader)" in runtime_test
     assert "reporting.get_evm_series(" in runtime_test
+
+
+def test_reporting_financial_reads_use_one_facts_policy_composition() -> None:
+    finance_source = inspect.getsource(ReportingCostPolicyMixin._compose_finance_policy)
+    evm_source = inspect.getsource(ReportingCostPolicyMixin._compose_evm_policy)
+    totals_source = inspect.getsource(ReportingCostPolicyMixin.get_project_cost_control_totals)
+    sources_source = inspect.getsource(ReportingCostPolicyMixin.get_project_cost_source_breakdown)
+    breakdown_source = inspect.getsource(ReportingCostBreakdownMixin.get_cost_breakdown)
+    earned_value_source = inspect.getsource(ReportingEvmCoreMixin.get_earned_value)
+
+    assert finance_source.count("self._finance_snapshot_reader.read_facts(") == 1
+    assert evm_source.count("self._evm_series_reader.read_facts(") == 1
+    for source in (finance_source, evm_source):
+        assert source.count("calculate_project_labor_details(") == 1
+        assert source.count("compose_from_facts(") == 1
+        for forbidden in (
+            "_project_repo",
+            "_baseline_repo",
+            "_task_repo",
+            "_cost_repo",
+            "_assignment_repo",
+            "_resource_repo",
+            "build_snapshot(",
+        ):
+            assert forbidden not in source
+
+    assert "_compose_finance_policy(" in totals_source
+    assert "_compose_finance_policy(" in sources_source
+    assert "_compose_evm_policy(" in breakdown_source
+    assert "build_breakdown_from_snapshot(" in breakdown_source
+    assert "_compose_evm_policy(" in earned_value_source
+    assert "prepared_facts=facts" in earned_value_source
+    assert "ACTUAL_COST_INCOMPLETE" in earned_value_source
+
+
+def test_reporting_financial_runtime_reader_proof_remains_present() -> None:
+    registry = PROJECT_REGISTRY.read_text(encoding="utf-8")
+    runtime_test = PHASE3B_TEST.read_text(encoding="utf-8")
+
+    assert "finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session)" in registry
+    assert "isinstance(reader, SqlAlchemyFinanceSnapshotReader)" in runtime_test
+    assert "reporting.get_project_cost_control_totals(" in runtime_test
+
+
+def test_phase3b_removed_repository_backed_financial_transition_paths() -> None:
+    for removed in (
+        "get_cost_control_totals",
+        "get_cost_source_breakdown",
+        "get_actual_cost",
+    ):
+        assert not hasattr(CostPolicyEngine, removed)
+    assert not hasattr(CostBreakdownEngine, "build_breakdown")
+
+    evm_source = inspect.getsource(EarnedValueCalculator)
+    for forbidden in (
+        "ProjectRepository",
+        "TaskRepository",
+        "BaselineRepository",
+        "_project_repo",
+        "_task_repo",
+        "_baseline_repo",
+        "_get_actual_cost",
+    ):
+        assert forbidden not in evm_source
 
 
 def test_guard_detectors_reject_deliberately_broken_in_memory_examples() -> None:

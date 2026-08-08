@@ -384,6 +384,7 @@ def build_project_management_service_bundle(
         rate_resolver=rate_card_resolver,
         tenant_context_service=platform_services.tenant_context_service,
         evm_series_reader=SqlAlchemyEvmSeriesReader(session=session),
+        finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session),
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
     )

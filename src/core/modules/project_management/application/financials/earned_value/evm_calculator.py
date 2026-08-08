@@ -11,9 +11,6 @@ from typing import Callable
 
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
-from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.task import TaskRepository
-from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
 from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
     EvmSeriesFacts,
 )
@@ -29,38 +26,24 @@ class EarnedValueCalculator:
 
     Parameters
     ----------
-    baseline_repo, task_repo, project_repo:
-        Repository dependencies.
     calendar:
         Enterprise calendar for working-day calculations.
-    get_actual_cost:
-        Callable ``(project_id: str, as_of: date) -> float``.
-        Supplied by CostPolicyEngine; if None, AC defaults to 0.
     """
 
     def __init__(
         self,
         *,
-        baseline_repo: BaselineRepository,
-        task_repo: TaskRepository,
-        project_repo: ProjectRepository,
         calendar: CalendarProtocol,
-        get_actual_cost: Callable[[str, date], float] | None = None,
     ) -> None:
-        self._baseline_repo = baseline_repo
-        self._task_repo = task_repo
-        self._project_repo = project_repo
         self._calendar = calendar
-        self._get_actual_cost = get_actual_cost
 
     def calculate(
         self,
         project_id: str,
         *,
-        as_of: date | None = None,
-        baseline_id: str | None = None,
-        prepared_facts: EvmSeriesFacts | None = None,
-        actual_cost: float | None = None,
+        as_of: date,
+        prepared_facts: EvmSeriesFacts,
+        actual_cost: float,
         working_days_between: Callable[[date, date], int] | None = None,
     ) -> EarnedValueMetrics:
         """
@@ -72,40 +55,27 @@ class EarnedValueCalculator:
         - AC: from CostPolicyEngine (policy-applied actual cost).
         - CPI, SPI, EAC, ETC, VAC, TCPI derived from above.
         """
-        as_of = as_of or date.today()
         notes: list[str] = []
 
-        if prepared_facts is not None:
-            if prepared_facts.finance.project_id != project_id:
-                raise BusinessRuleError(
-                    "EVM facts do not match the requested project.",
-                    code="EVM_FACT_SCOPE_MISMATCH",
-                )
-            resolved_baseline_id = prepared_facts.baseline_id
-            b_tasks = prepared_facts.baseline_tasks
-            tasks = {task.task_id: task for task in prepared_facts.finance.tasks}
-            project = prepared_facts.finance.project
-        else:
-            if baseline_id:
-                baseline = self._baseline_repo.get_baseline(baseline_id)
-            else:
-                baseline = self._baseline_repo.get_latest_for_project(project_id)
-            resolved_baseline_id = baseline.id if baseline is not None else None
+        if prepared_facts.finance.project_id != project_id:
+            raise BusinessRuleError(
+                "EVM facts do not match the requested project.",
+                code="EVM_FACT_SCOPE_MISMATCH",
+            )
+        resolved_baseline_id = prepared_facts.baseline_id
+        b_tasks = prepared_facts.baseline_tasks
+        tasks = {task.task_id: task for task in prepared_facts.finance.tasks}
+        project = prepared_facts.finance.project
 
         if not resolved_baseline_id:
             raise BusinessRuleError(
                 "No baseline found. Create a baseline first.", code="NO_BASELINE"
             )
 
-        if prepared_facts is None:
-            b_tasks = self._baseline_repo.list_tasks(resolved_baseline_id)
         if not b_tasks:
             raise BusinessRuleError(
                 "Baseline has no tasks. Recreate baseline.", code="BASELINE_EMPTY"
             )
-
-        if prepared_facts is None:
-            tasks = {t.id: t for t in self._task_repo.list_by_project(project_id)}
 
         def clamp01(x: float) -> float:
             return max(0.0, min(1.0, x))
@@ -115,8 +85,6 @@ class EarnedValueCalculator:
             return max(0, counter(start, end))
 
         BAC = float(sum(bt.baseline_planned_cost for bt in b_tasks))
-        if prepared_facts is None:
-            project = self._project_repo.get(project_id)
         if BAC <= 0 and project and getattr(project, "planned_budget", None):
             BAC = float(project.planned_budget or 0.0)
             notes.append("BAC set from project planned budget (project.planned_budget).")
@@ -218,13 +186,7 @@ class EarnedValueCalculator:
             notes.append("EV is 0 (tasks may have 0% progress or baseline budget is missing).")
 
         # ── Actual Cost (AC) from CostPolicyEngine ────────────────────────────
-        if actual_cost is not None:
-            AC = float(actual_cost)
-        elif self._get_actual_cost is not None:
-            AC = float(self._get_actual_cost(project_id, as_of))
-        else:
-            AC = 0.0
-            notes.append("AC is 0 (no cost policy engine provided).")
+        AC = float(actual_cost)
 
         if AC <= 0:
             notes.append(

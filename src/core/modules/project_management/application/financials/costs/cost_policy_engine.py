@@ -243,55 +243,6 @@ class CostPolicyEngine:
             unresolved_labor_rates=unresolved_labor_rates,
         )
 
-    def get_cost_control_totals(
-        self,
-        project_id: str,
-        *,
-        as_of: date,
-    ) -> CostControlTotals:
-        snapshot = self.build_snapshot(project_id, as_of=as_of)
-        return self._totals_from_snapshot(snapshot)
-
-    def get_actual_cost(self, project_id: str, as_of: date) -> float:
-        """Return policy-applied actual cost as a single float (for EVM).
-
-        Fails closed: if any labor rate could not be resolved, the total
-        would understate the true actual cost with no visible signal, so
-        this raises rather than returning a silently-narrowed number.
-        """
-        snapshot = self.build_snapshot(project_id, as_of=as_of)
-        if snapshot.unresolved_labor_rates:
-            raise BusinessRuleError(
-                "Actual cost cannot be calculated because one or more labor "
-                "rates could not be resolved.",
-                code="ACTUAL_COST_INCOMPLETE",
-            )
-        return self._sum_bucket_map(snapshot.actual_map, snapshot.project_currency)
-
-    def get_cost_source_breakdown(
-        self,
-        project_id: str,
-        *,
-        as_of: date,
-    ) -> CostSourceBreakdown:
-        snapshot = self.build_snapshot(project_id, as_of=as_of)
-
-        manual_raw = {"planned": 0.0, "committed": 0.0, "actual": 0.0}
-        for item in self._cost_repo.list_by_project(project_id):
-            if (getattr(item, "cost_type", None) or CostType.OTHER) != CostType.LABOR:
-                continue
-            cur = self._normalize_currency(
-                getattr(item, "currency_code", None), snapshot.project_currency
-            )
-            if not self._currency_in_scope(cur, snapshot.project_currency):
-                continue
-            manual_raw["planned"] += float(getattr(item, "planned_amount", 0.0) or 0.0)
-            manual_raw["committed"] += float(getattr(item, "committed_amount", 0.0) or 0.0)
-            incurred = getattr(item, "incurred_date", None)
-            if incurred is None or incurred <= as_of:
-                manual_raw["actual"] += float(getattr(item, "actual_amount", 0.0) or 0.0)
-        return self._source_breakdown_from_snapshot(snapshot, manual_raw=manual_raw)
-
     def compose_from_facts(
         self,
         facts: FinanceSnapshotFacts,

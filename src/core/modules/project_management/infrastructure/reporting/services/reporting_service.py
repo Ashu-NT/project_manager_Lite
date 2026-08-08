@@ -21,6 +21,9 @@ from src.core.modules.project_management.contracts.repositories.rate_resolution 
 from src.core.modules.project_management.contracts.reads.financials.evm_series_reader import (
     EvmSeriesReader,
 )
+from src.core.modules.project_management.contracts.reads.financials.finance_snapshot_reader import (
+    FinanceSnapshotReader,
+)
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
@@ -61,6 +64,7 @@ class ReportingService(
         rate_resolver: LaborRateResolver,
         tenant_context_service: TenantContextService,
         evm_series_reader: EvmSeriesReader,
+        finance_snapshot_reader: FinanceSnapshotReader,
         user_session=None,
         module_catalog_service=None,
     ):
@@ -77,6 +81,7 @@ class ReportingService(
         self._rate_resolver: LaborRateResolver = rate_resolver
         self._tenant_context_service: TenantContextService = tenant_context_service
         self._evm_series_reader: EvmSeriesReader = evm_series_reader
+        self._finance_snapshot_reader: FinanceSnapshotReader = finance_snapshot_reader
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 

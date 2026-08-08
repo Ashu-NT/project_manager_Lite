@@ -120,7 +120,6 @@ class EarnedValueSeriesCalculator:
             )
             evm = self._calculator.calculate(
                 project_id,
-                baseline_id=baseline_id,
                 as_of=pe,
                 prepared_facts=facts,
                 actual_cost=policy.totals.actual,

@@ -3070,6 +3070,55 @@ directly. No feature flag, compatibility Reader, fallback series implementation,
 module, or temporary file remains. The repository-backed single-date EVM and broader Reporting cost
 builders are live Phase 3B inputs, not dead Phase 3A code.
 
+**Phase 3B measured baseline and implementation contract - IN PROGRESS 2026-08-08.**
+
+The four standalone `ReportingService` financial reads were measured independently on the same
+small/medium/large fixtures used by the Finance pilot. Each fixture has 1/10/50 resources,
+2/15/60 tasks, and 2/30/150 cost rows. A baseline is added for the baseline-aware operations.
+
+| Operation | Small SQL | Medium SQL | Large SQL | Confirmed large-fixture source graph |
+|---|---:|---:|---:|---|
+| cost control totals | 93 | 102 | 142 | 2 project gets, 1 task list, 1 project-resource list, 1 assignment batch, 50 resource gets, 1 cost list, 2 rate batches |
+| cost source breakdown | 100 | 109 | 149 | same graph plus a second cost list for raw manual-labor totals |
+| cost breakdown | 105 | 114 | 154 | same graph as totals; baseline fallback is conditional and was not entered because planned data exists |
+| single-date earned value | 115 | 124 | 164 | totals graph plus baseline get/list, a second task list, and a third project get |
+
+All four operations invoke `CostPolicyEngine.build_snapshot(...)` once,
+`ReportingService.calculate_project_labor_details(...)` once, and
+`rate_resolver.resolve_many(...)` twice. Every operation performs one `resource_repo.get(...)` per
+assigned resource. The exact +N SQL slope therefore remains after Phase 3A and justifies this
+sub-phase independently; Phase 3A improved only the series path.
+
+Phase 3B implementation boundaries:
+
+1. Cost totals and cost-source reads consume one explicitly tenant/organization/project-scoped
+   `FinanceSnapshotReader` result. Cost breakdown and earned value consume one `EvmSeriesReader`
+   result because baseline facts are part of their existing semantics.
+2. `LaborCostEngine` remains the rate/labor owner and is called once with prepared Finance facts.
+   `CostPolicyEngine.compose_from_facts(...)` remains the sole reconciliation owner and is called
+   once. `EarnedValueCalculator` and `CostBreakdownEngine` remain the sole formula/row owners and gain
+   or use facts/snapshot entry points rather than having logic copied into Reporting mixins.
+3. Preserve all four public signatures and application result types, latest/explicit baseline
+   behavior, unresolved-rate fail-closed behavior for EVM, manual/computed-labor policy, currency
+   filtering, future-incurred-cost filtering, and baseline planned-cost fallback.
+4. Preserve the existing `report.view` plus project-scope permission contract in this performance
+   sub-phase. The audit's broader `finance.read`/sensitive-redaction unification question remains an
+   explicit authorization-design decision and must not be changed as an accidental Reader side
+   effect.
+5. Runtime composition must inject the concrete Finance and EVM Readers into Reporting. The Finance
+   Reader instance may be shared with `FinanceService`; no Reporting-owned SQL, ORM access, domain
+   entity hydration, or Reader fallback is permitted.
+6. Exit gate: each operation performs exactly one facts read, one facts-driven labor calculation,
+   and one facts-driven policy composition; all legacy repository calls and per-resource hydration
+   from these four runtime paths are zero; query count is bounded across fixture sizes; the parity,
+   isolation, runtime-composition, PM regression, and architecture guards pass.
+
+**Phase 3B temporary/deletion register:** none planned. The four mixin call sites will be replaced
+directly, not retained behind flags. After cutover, repository-backed helpers are removed only when
+repository-wide reference analysis proves they have no remaining live production caller; a method
+still used by another Reporting/KPI or application capability is not dead merely because these four
+call sites migrated.
+
 **Phase 3 — Migrate additional high-cost reads, one capability per sub-phase, each explicitly
 measured before it is trusted to have improved anything.** An earlier draft of this plan bundled
 these together and separately implied `ReportingService` and `EarnedValueSeriesCalculator` would
