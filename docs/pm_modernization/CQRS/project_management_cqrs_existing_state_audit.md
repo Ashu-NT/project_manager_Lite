@@ -3070,7 +3070,7 @@ directly. No feature flag, compatibility Reader, fallback series implementation,
 module, or temporary file remains. The repository-backed single-date EVM and broader Reporting cost
 builders are live Phase 3B inputs, not dead Phase 3A code.
 
-**Phase 3B measured baseline and implementation contract - IN PROGRESS 2026-08-08.**
+**Phase 3B measured baseline and implementation contract - COMPLETE 2026-08-08.**
 
 The four standalone `ReportingService` financial reads were measured independently on the same
 small/medium/large fixtures used by the Finance pilot. Each fixture has 1/10/50 resources,
@@ -3113,11 +3113,47 @@ Phase 3B implementation boundaries:
    from these four runtime paths are zero; query count is bounded across fixture sizes; the parity,
    isolation, runtime-composition, PM regression, and architecture guards pass.
 
-**Phase 3B temporary/deletion register:** none planned. The four mixin call sites will be replaced
-directly, not retained behind flags. After cutover, repository-backed helpers are removed only when
-repository-wide reference analysis proves they have no remaining live production caller; a method
-still used by another Reporting/KPI or application capability is not dead merely because these four
-call sites migrated.
+Phase 3B cut over all four operations to prepared Reader facts. Cost totals and source use the
+concrete `SqlAlchemyFinanceSnapshotReader`; breakdown and single-date earned value use the concrete
+`SqlAlchemyEvmSeriesReader`. Runtime composition injects both Readers into `ReportingService`.
+`LaborCostEngine.calculate_project_labor_details(...)` and
+`CostPolicyEngine.compose_from_facts(...)` each run exactly once per operation. Formula ownership
+remains in `CostBreakdownEngine.build_breakdown_from_snapshot(...)` and
+`EarnedValueCalculator.calculate(...)`; the Reporting mixins contain no duplicate finance formula.
+
+| Operation | Baseline SQL small/medium/large | Post-cutover SQL small/medium/large | Repository calls after cutover |
+|---|---:|---:|---:|
+| cost control totals | 93 / 102 / 142 | **45 / 45 / 45** | **0** |
+| cost source breakdown | 100 / 109 / 149 | **45 / 45 / 45** | **0** |
+| cost breakdown | 105 / 114 / 154 | **47 / 47 / 47** | **0** |
+| single-date earned value | 115 / 124 / 164 | **47 / 47 / 47** | **0** |
+
+The post-cutover measurement suite also proves one Reader call, one rate-resolution batch, one
+facts-driven labor calculation, one policy composition, and no ORM identity-map growth for every
+operation and fixture size. The parity matrix covers mixed computed/manual labor, future incurred
+costs, out-of-currency rows, explicit/latest baseline selection, and unresolved-rate fail-closed EVM
+behavior. Concrete runtime-composition coverage proves Reporting receives the SQLAlchemy Finance
+Reader rather than a test-only or fallback implementation.
+
+Verification completed on 2026-08-08:
+
+- Phase 3A/3B focused CQRS suites: **12 passed**.
+- focused financial policy and reporting regressions: **32 passed**.
+- full PM suite, partitioned to bound test-run memory: **542 passed** (209 + 209 + 124).
+- full architecture suite: **133 passed**, with only the pre-existing hard-size failure for generated
+  `resources/shared_resources_rc.py` and the documented 1,408-line `enterprise_calendar.py`.
+
+**Phase 3B deletion register - COMPLETE:** no temporary adapter, feature flag, compatibility Reader,
+fallback path, or transition-evidence file was introduced. Repository-wide reference analysis proved
+the old `CostPolicyEngine.get_cost_control_totals(...)`, `get_actual_cost(...)`, and
+`get_cost_source_breakdown(...)` wrappers, the repository-backed `CostBreakdownEngine` entry point,
+and the repository-backed `EarnedValueCalculator` path had no remaining production caller, so they
+were deleted in the same cutover. `CostPolicyEngine.build_snapshot(...)` remains intentionally live
+for KPI callers and is not dead code.
+
+**Phase 3B exit gate: PASSED.** Query growth is bounded, behavioral parity and fail-closed behavior
+are protected, concrete runtime wiring is proven, all PM regressions pass, and no migration-only code
+remains.
 
 **Phase 3 — Migrate additional high-cost reads, one capability per sub-phase, each explicitly
 measured before it is trusted to have improved anything.** An earlier draft of this plan bundled
@@ -3127,10 +3163,9 @@ until its own sub-phase explicitly migrates and re-tests it.
 
 - **Phase 3A** — measure and migrate `EarnedValueSeriesCalculator.build_series` explicitly (the
   worst confirmed N+1 in the module, §7).
-- **Phase 3B** — measure and migrate `ReportingService`'s cost/EVM builders explicitly (§7, §15b —
-  this is the sub-phase that would finally deliver the benefit the withdrawn "for free" claim
-  pointed at, but only once it is actually done and tested here).
-- **Phase 3C — measure and, only if justified, migrate Portfolio reads.** Candidates:
+- **Phase 3B - COMPLETE 2026-08-08** — measured and migrated `ReportingService`'s cost/EVM builders
+  explicitly (§7 and §15b); the independently verified result is recorded above.
+- **Phase 3C - IN PROGRESS 2026-08-08 — measure and, only if justified, migrate Portfolio reads.** Candidates:
   `PortfolioService.list_portfolio_heatmap`; scenario evaluation/comparison; cross-project capacity
   reporting (`PortfolioResourcePoolService`) — **after** its Phase 0A.1 permission fix, not instead
   of it. Required precondition, all three: (1) Phase 0A's Portfolio security and rollback
@@ -3146,6 +3181,53 @@ until its own sub-phase explicitly migrates and re-tests it.
     → immutable Portfolio read model
     → existing desktop serializer/DTO
   ```
+
+  The mandatory Phase 0A.1 authorization and Phase 0A.2 rollback preconditions are complete. A
+  persistent measurement harness then exercised each candidate with 1/5/12 projects, one scheduled
+  assigned resource per project, and two overlapping scenarios:
+
+  | Candidate | SQL at 1 project | SQL at 5 projects | SQL at 12 projects | Decision |
+  |---|---:|---:|---:|---|
+  | executive heatmap | 332 | 1,448 | 3,401 | justified; retain as Phase 3C.3 |
+  | scenario comparison | 347 | 869 | 1,739 | justified; retain as Phase 3C.2 |
+  | cross-project capacity pool | 298 | 1,418 | 3,378 | justified; migrate first as Phase 3C.1 |
+
+  The attribution is explicit. Heatmap calls full KPI and resource-load reporting once per project
+  (at 12 projects: 12 KPI calls, 12 resource-load calls, 36 project gets, 48 task lists, and 24
+  resource gets). Scenario comparison repeats accessible-project/intake acquisition three times and
+  resource-load reporting 18 times. Capacity performs two resource gets and assignment reads per
+  resource, two task gets per resource, one project get per project, and 3,276 calendar-related SQL
+  statements at the large fixture. All three exceed the evidence threshold; they are not speculative
+  CQRS work.
+
+  **Phase 3C.1 cross-project capacity - COMPLETE 2026-08-08.**
+
+  - `PortfolioResourcePoolService` now consumes one immutable, explicitly tenant/organization-scoped
+    `PortfolioResourcePoolReader` fact set and one bounded working-day snapshot.
+  - `SqlAlchemyPortfolioResourcePoolReader` projects resources plus joined assignment/task/project
+    demand rows directly. It returns no ORM or domain entities and applies tenant and organization
+    predicates to both resource and project sides of the join.
+  - the old resource/assignment/task/project repository constructor dependencies and the private
+    `ResourceAvailabilityService._compute_window(...)` call were deleted; runtime composition injects
+    the concrete SQLAlchemy Reader directly, with no fallback.
+  - query count is now **20 / 20 / 20** for 1/5/12 projects, with exactly one Reader call, one bulk
+    calendar resolution, and zero legacy repository calls. Cross-project demand names, allocation,
+    peak/average utilization, overload state, explicit resource filtering, fail-closed permission,
+    and tenant/organization scope are protected by focused tests.
+  - the more precise missing-organization error code is now `ORGANIZATION_CONTEXT_REQUIRED`; missing
+    tenant remains `TENANT_CONTEXT_REQUIRED`.
+
+  Verification completed on 2026-08-08: the measurement harness passes all 3 fixture sizes; the
+  broader Portfolio/PM integration selection passes **61 tests**; focused parity, concrete
+  cross-organization isolation, and CQRS architecture checks pass; and the full architecture suite
+  reports **134 passed** with only the same pre-existing hard-size failure for generated
+  `resources/shared_resources_rc.py` and the documented 1,408-line `enterprise_calendar.py`.
+  `compileall` and `git diff --check` are clean.
+
+  **Phase 3C.1 deletion register - COMPLETE:** no compatibility constructor, repository fallback,
+  feature flag, transition evidence, or temporary implementation file remains. Phase 3C.2 scenario
+  reads and Phase 3C.3 heatmap remain independently measured live paths; no performance benefit is
+  claimed for either until its own cutover and parity gate completes.
 - **Phase 3D** — measure and migrate Collaboration reads (`list_inbox`, `list_workspace_snapshot`)
   explicitly, following the same precondition discipline as Phase 3C (its own Phase 0A.3 rollback
   fix must be complete first).

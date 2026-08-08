@@ -67,6 +67,9 @@ from src.core.modules.project_management.application.scheduling.calendars.projec
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
 from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
 from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import PortfolioResourcePoolService
+from src.core.modules.project_management.infrastructure.persistence.reads.portfolio import (
+    SqlAlchemyPortfolioResourcePoolReader,
+)
 from src.infra.composition.platform_registry import PlatformServiceBundle
 from src.infra.composition.repositories import RepositoryBundle
 
@@ -476,10 +479,7 @@ def build_project_management_service_bundle(
         availability_service=enterprise_resource_availability,
     )
     portfolio_resource_pool_service = PortfolioResourcePoolService(
-        resource_repo=repositories.resource_repo,
-        assignment_repo=repositories.assignment_repo,
-        task_repo=repositories.task_repo,
-        project_repo=repositories.project_repo,
+        reader=SqlAlchemyPortfolioResourcePoolReader(session=session),
         calendar=platform_services.global_calendar_shim,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,

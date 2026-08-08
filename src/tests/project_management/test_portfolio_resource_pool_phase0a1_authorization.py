@@ -26,6 +26,10 @@ from src.core.modules.project_management.api.desktop.portfolio.builders.capacity
 from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import (
     PortfolioResourcePoolService,
 )
+from src.core.modules.project_management.contracts.reads.portfolio.models.resource_pool_facts import (
+    PortfolioResourceFact,
+    PortfolioResourcePoolFacts,
+)
 from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.platform.application.tenant.tenancy.context_policy import SaaSTenantContextPolicy
@@ -63,40 +67,44 @@ class _OrgRepo:
         return self._organizations.get(organization_id)
 
 
-class _ResourceRepo:
-    """Mimics the real repository's org-scoped RLS filtering on ``list()``."""
-
-    def __init__(self, resources: list[Resource], *, tenant_context_service=None) -> None:
+class _ResourcePoolReader:
+    def __init__(self, resources: list[Resource]) -> None:
         self.rows = list(resources)
-        self._tenant_context_service = tenant_context_service
 
-    def list(self):
-        if self._tenant_context_service is not None:
-            org_id = self._tenant_context_service.get_active_organization_id()
-            if org_id:
-                return [r for r in self.rows if getattr(r, "organization_id", None) == org_id]
-        return list(self.rows)
-
-    def get(self, resource_id: str):
-        return next((r for r in self.rows if r.id == resource_id), None)
-
-
-class _AssignmentRepo:
-    def list_by_resource(self, resource_id: str):
-        return []
-
-
-class _TaskRepo:
-    def get(self, task_id: str):
-        return None
-
-
-class _ProjectRepo:
-    def get(self, project_id: str):
-        return None
+    def read_facts(
+        self,
+        *,
+        tenant_id,
+        organization_id,
+        from_date,
+        to_date,
+        resource_ids=None,
+    ):
+        selected = [
+            resource
+            for resource in self.rows
+            if resource.organization_id == organization_id
+            and (resource_ids is None or resource.id in resource_ids)
+        ]
+        return PortfolioResourcePoolFacts(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            resources=tuple(
+                PortfolioResourceFact(
+                    resource_id=resource.id,
+                    name=resource.name,
+                    capacity_percent=resource.capacity_percent,
+                )
+                for resource in selected
+            ),
+            demands=(),
+        )
 
 
 class _Calendar:
+    def is_working_day(self, target_date: date) -> bool:
+        return target_date.weekday() < 5
+
     def working_days_between(self, from_date: date, to_date: date) -> int:
         return max(0, (to_date - from_date).days)
 
@@ -141,12 +149,8 @@ def _build_service(
         user_session=session,
         context_policy=SaaSTenantContextPolicy(),
     )
-    resource_repo = _ResourceRepo(resources, tenant_context_service=tenant_context)
     return PortfolioResourcePoolService(
-        resource_repo=resource_repo,
-        assignment_repo=_AssignmentRepo(),
-        task_repo=_TaskRepo(),
-        project_repo=_ProjectRepo(),
+        reader=_ResourcePoolReader(resources),
         calendar=_Calendar(),
         tenant_context_service=tenant_context,
         user_session=session,
@@ -241,7 +245,7 @@ def test_missing_organization_context_fails_closed() -> None:
     with pytest.raises(BusinessRuleError, match="Active organization context") as exc:
         service.get_pool_report(_FROM_DATE, _TO_DATE)
 
-    assert exc.value.code == "TENANT_CONTEXT_REQUIRED"
+    assert exc.value.code == "ORGANIZATION_CONTEXT_REQUIRED"
 
 
 # ---------------------------------------------------------------------------

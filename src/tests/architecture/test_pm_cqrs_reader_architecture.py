@@ -30,6 +30,9 @@ from src.core.modules.project_management.infrastructure.reporting.builders.cost_
 from src.core.modules.project_management.infrastructure.reporting.builders.evm_core import (
     ReportingEvmCoreMixin,
 )
+from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import (
+    PortfolioResourcePoolService,
+)
 from src.tests.path_rewrites import REPO_ROOT
 
 
@@ -43,6 +46,10 @@ PROJECT_REGISTRY = REPO_ROOT / "src/infra/composition/project_registry.py"
 PHASE1_TEST = REPO_ROOT / "src/tests/project_management/test_finance_snapshot_phase1_reader.py"
 PHASE3A_TEST = REPO_ROOT / "src/tests/project_management/test_evm_series_phase3a_parity.py"
 PHASE3B_TEST = REPO_ROOT / "src/tests/project_management/test_reporting_financials_phase3b_parity.py"
+PORTFOLIO_POOL_READER = (
+    PM_ROOT
+    / "infrastructure/persistence/reads/portfolio/sqlalchemy_resource_pool_reader.py"
+)
 
 FORBIDDEN_CONTRACT_IMPORTS = (
     "src.core.modules.project_management.application",
@@ -367,6 +374,29 @@ def test_phase3b_removed_repository_backed_financial_transition_paths() -> None:
         "_get_actual_cost",
     ):
         assert forbidden not in evm_source
+
+
+def test_portfolio_capacity_uses_one_scoped_reader_and_bulk_calendar_snapshot() -> None:
+    source = inspect.getsource(PortfolioResourcePoolService)
+    get_pool_source = inspect.getsource(PortfolioResourcePoolService.get_pool_report)
+    registry = PROJECT_REGISTRY.read_text(encoding="utf-8")
+    reader_source = PORTFOLIO_POOL_READER.read_text(encoding="utf-8")
+
+    assert get_pool_source.count("self._reader.read_facts(") == 1
+    assert get_pool_source.count("self._working_dates(") == 1
+    for forbidden in (
+        "self._resources",
+        "self._assignments",
+        "self._tasks",
+        "self._projects",
+        "ResourceAvailabilityService",
+    ):
+        assert forbidden not in source
+    assert "reader=SqlAlchemyPortfolioResourcePoolReader(session=session)" in registry
+    assert "ResourceORM.tenant_id == tenant_id" in reader_source
+    assert "ResourceORM.organization_id == organization_id" in reader_source
+    assert "ProjectORM.tenant_id == tenant_id" in reader_source
+    assert "ProjectORM.organization_id == organization_id" in reader_source
 
 
 def test_guard_detectors_reject_deliberately_broken_in_memory_examples() -> None:
