@@ -144,6 +144,7 @@ def tenant_context(org_id):
     context.get_active_organization_id.return_value = org_id
     context.get_active_organization.return_value = FakeOrg()
     context.get_active_tenant_id.return_value = "tenant-pm-calendar-integration"
+    context.require_active_scope_ids.return_value = FakeContext(organization=FakeOrg())
     context.require_organization_context.return_value = FakeContext(
         organization=FakeOrg()
     )

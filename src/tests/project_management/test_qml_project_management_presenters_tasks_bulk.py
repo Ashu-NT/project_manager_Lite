@@ -104,6 +104,24 @@ class _FakeTaskService:
         task.status = status
         task.version += 1
 
+    def set_tasks_status(
+        self,
+        task_ids: tuple[str, ...],
+        status: TaskStatus,
+        *,
+        reopen_percent_complete: float | None = None,
+    ) -> list[SimpleNamespace]:
+        changed: list[SimpleNamespace] = []
+        for task_id in task_ids:
+            task = self._tasks.get(task_id)
+            if task is None or task.status == status:
+                continue
+            if reopen_percent_complete is not None and status == TaskStatus.IN_PROGRESS:
+                task.percent_complete = reopen_percent_complete
+            self.set_status(task_id, status)
+            changed.append(task)
+        return changed
+
     def update_progress(self, task_id, *, percent_complete=None, actual_start=None, actual_end=None, status=None, expected_version=None) -> SimpleNamespace:
         task = self._tasks[task_id]
         if percent_complete is not None:
@@ -119,6 +137,14 @@ class _FakeTaskService:
 
     def delete_task(self, task_id: str) -> None:
         del self._tasks[task_id]
+
+    def delete_tasks(self, task_ids: tuple[str, ...]) -> tuple[str, ...]:
+        deleted: list[str] = []
+        for task_id in task_ids:
+            if task_id in self._tasks:
+                self.delete_task(task_id)
+                deleted.append(task_id)
+        return tuple(deleted)
 
     def register_project_resource(self, project_resource_id: str, resource_id: str) -> None:
         self._project_resource_lookup[project_resource_id] = resource_id
