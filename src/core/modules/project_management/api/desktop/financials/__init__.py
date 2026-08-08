@@ -20,8 +20,6 @@ from src.core.modules.project_management.api.desktop.financials.models import (
     FinancialProjectOptionDescriptor,
     FinancialSnapshotDto,
     FinancialTaskOptionDescriptor,
-    ProjectProcurementCommitmentSummary,
-    ProjectRequisitionDesktopDto,
 )
 
 __all__ = [
@@ -39,7 +37,5 @@ __all__ = [
     "FinancialTaskOptionDescriptor",
     "FinancialUpdateCommand",
     "ProjectManagementFinancialsDesktopApi",
-    "ProjectProcurementCommitmentSummary",
-    "ProjectRequisitionDesktopDto",
     "build_project_management_financials_desktop_api",
 ]

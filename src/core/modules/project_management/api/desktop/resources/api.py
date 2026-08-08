@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
-
 from src.core.modules.project_management.api.desktop.resources.builders.assignment_builder import (
     build_resource_assignments,
 )
@@ -57,9 +55,6 @@ from src.core.modules.project_management.api.desktop.resources.serializers.resou
 from src.core.modules.project_management.api.desktop.resources.serializers.skill_serializer import (
     serialize_skill,
 )
-from src.core.modules.project_management.api.desktop.resources.services.availability_resolution_service import (
-    resolve_availability_service,
-)
 from src.core.modules.project_management.api.desktop.resources.utils.date_utils import (
     parse_date,
 )
@@ -70,9 +65,6 @@ from src.core.modules.project_management.api.desktop.resources.utils.resource_en
 from src.core.modules.project_management.application.resources import (
     ResourceAvailabilityService,
     ResourceService,
-)
-from src.core.modules.project_management.contracts.repositories.task import (
-    AssignmentRepository,
 )
 from src.core.platform.application.master_data.employee.employee_service import EmployeeService
 
@@ -85,17 +77,13 @@ class ProjectManagementResourcesDesktopApi:
         employee_service: EmployeeService | None = None,
         availability_service: ResourceAvailabilityService | None = None,
         task_service: object | None = None,
-        assignment_repo: AssignmentRepository | None = None,
         project_service: object | None = None,
-        work_calendar_engine: CalendarProtocol | None = None,
     ) -> None:
         self._resource_service = resource_service
         self._employee_service = employee_service
         self._availability_service = availability_service
         self._task_service = task_service
-        self._assignment_repo = assignment_repo
         self._project_service = project_service
-        self._work_calendar_engine = work_calendar_engine
 
     def list_worker_types(self) -> tuple[ResourceWorkerTypeDescriptor, ...]:
         return build_worker_type_options()
@@ -266,8 +254,6 @@ class ProjectManagementResourcesDesktopApi:
     ) -> tuple[ResourceAssignmentDesktopDto, ...]:
         return build_resource_assignments(
             resource_id,
-            assignment_repo=self._assignment_repo,
-            availability_service=self._availability_service,
             task_service=self._task_service,
             project_service=self._project_service,
         )
@@ -276,16 +262,9 @@ class ProjectManagementResourcesDesktopApi:
         self,
         resource_id: str,
     ) -> ResourceAvailabilityDto | None:
-        availability_service = resolve_availability_service(
-            availability_service=self._availability_service,
-            resource_service=self._resource_service,
-            task_service=self._task_service,
-            assignment_repo=self._assignment_repo,
-            work_calendar_engine=self._work_calendar_engine,
-        )
         return build_resource_availability(
             resource_id,
-            availability_service=availability_service,
+            availability_service=self._availability_service,
         )
 
     def _require_resource_service(self) -> ResourceService:

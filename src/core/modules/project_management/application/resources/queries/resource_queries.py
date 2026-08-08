@@ -4,6 +4,9 @@ from src.core.modules.project_management.domain.resources.resource import Resour
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
+from src.core.modules.project_management.access.scope_permissions import (
+    require_any_project_permission,
+)
 
 
 class ResourceQueryMixin:
@@ -12,6 +15,29 @@ class ResourceQueryMixin:
     def list_resources(self) -> list[Resource]:
         require_permission(self._user_session, "resource.read", operation_label="list resources")
         return self._resource_repo.list()
+
+    def list_for_project_workspace(
+        self,
+        project_id: str,
+        *,
+        resource_ids: tuple[str, ...] = (),
+    ) -> list[Resource]:
+        require_any_project_permission(
+            self._user_session,
+            project_id,
+            ("project.read", "project.manage"),
+            operation_label="list project resources",
+        )
+        self._active_organization_id(operation_label="list project resources")
+        resources = self._resource_repo.list()
+        normalized_ids = {
+            str(resource_id or "").strip()
+            for resource_id in resource_ids
+            if str(resource_id or "").strip()
+        }
+        if not normalized_ids:
+            return resources
+        return [resource for resource in resources if resource.id in normalized_ids]
 
     def get_resource(self, resource_id: str) -> Resource:
         require_permission(self._user_session, "resource.read", operation_label="view resource")

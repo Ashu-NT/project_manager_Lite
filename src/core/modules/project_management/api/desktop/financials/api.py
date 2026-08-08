@@ -21,10 +21,6 @@ from src.core.modules.project_management.api.desktop.financials.models.options i
     FinancialProjectOptionDescriptor,
     FinancialTaskOptionDescriptor,
 )
-from src.core.modules.project_management.api.desktop.financials.models.procurement import (
-    ProjectProcurementCommitmentSummary,
-    ProjectRequisitionDesktopDto,
-)
 from src.core.modules.project_management.api.desktop.financials.models.snapshots import FinancialSnapshotDto
 from src.core.modules.project_management.api.desktop.financials.commands.create_cost_item import FinancialCreateCommand
 from src.core.modules.project_management.api.desktop.financials.commands.update_cost_item import FinancialUpdateCommand
@@ -47,7 +43,6 @@ from src.core.modules.project_management.api.desktop.financials.serializers.snap
     empty_snapshot,
     serialize_snapshot,
 )
-from src.core.modules.project_management.api.desktop.financials.serializers.procurement_serializer import serialize_requisition
 from src.core.modules.project_management.api.desktop.financials.utils.cost_type_utils import coerce_cost_type
 
 
@@ -60,7 +55,6 @@ class ProjectManagementFinancialsDesktopApi:
         cost_service: CostService | None = None,
         finance_service: FinanceService | None = None,
         forecast_service: ForecastCostService | None = None,
-        procurement_service: object | None = None,
         baseline_service: BaselineService | None = None,
     ) -> None:
         self._project_service = project_service
@@ -68,7 +62,6 @@ class ProjectManagementFinancialsDesktopApi:
         self._cost_service = cost_service
         self._finance_service = finance_service
         self._forecast_service = forecast_service
-        self._procurement_service = procurement_service
         self._baseline_service = baseline_service
 
     def list_projects(self) -> tuple[FinancialProjectOptionDescriptor, ...]:
@@ -157,41 +150,6 @@ class ProjectManagementFinancialsDesktopApi:
             project_id,
             forecast_service=self._require_forecast_service(),
             currency=currency,
-        )
-
-    def list_project_requisitions(self, project_id: str) -> tuple[ProjectRequisitionDesktopDto, ...]:
-        if not project_id or self._procurement_service is None:
-            return ()
-        list_fn = getattr(self._procurement_service, "list_requisitions", None)
-        if not callable(list_fn):
-            return ()
-        try:
-            all_reqs = list_fn(limit=500)
-        except Exception:
-            return ()
-        project_reqs = [
-            r for r in all_reqs
-            if getattr(r, "source_reference_type", "") == "project"
-            and getattr(r, "source_reference_id", "") == project_id
-        ]
-        return tuple(
-            serialize_requisition(r)
-            for r in sorted(project_reqs, key=lambda r: getattr(r, "needed_by_date", None) or date.max)
-        )
-
-    def get_project_procurement_commitments(self, project_id: str) -> ProjectProcurementCommitmentSummary:
-        requisitions = self.list_project_requisitions(project_id)
-        open_statuses = {"DRAFT", "SUBMITTED", "UNDER_REVIEW", "PARTIALLY_SOURCED"}
-        approved_statuses = {"APPROVED"}
-        closed_statuses = {"FULLY_SOURCED", "CLOSED"}
-        cancelled_statuses = {"REJECTED", "CANCELLED"}
-        return ProjectProcurementCommitmentSummary(
-            project_id=project_id,
-            total_requisitions=len(requisitions),
-            open_count=sum(1 for r in requisitions if r.status in open_statuses),
-            approved_count=sum(1 for r in requisitions if r.status in approved_statuses),
-            closed_count=sum(1 for r in requisitions if r.status in closed_statuses),
-            cancelled_count=sum(1 for r in requisitions if r.status in cancelled_statuses),
         )
 
     def build_baseline_variance(self, project_id: str) -> tuple[BaselineVarianceRecordDto, ...]:

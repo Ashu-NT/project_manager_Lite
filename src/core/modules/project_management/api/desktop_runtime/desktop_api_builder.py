@@ -74,7 +74,6 @@ def build_project_management_desktop_runtime_apis(
             ),
             finance_service=resolved.finance_service,
             forecast_service=resolved.forecast_service,
-            procurement_service=procurement_service,
             baseline_service=resolved.baseline_service,
         ),
         project_management_portfolio=build_project_management_portfolio_desktop_api(
@@ -95,9 +94,7 @@ def build_project_management_desktop_runtime_apis(
             employee_service=platform_dependencies.employee_service,
             availability_service=resolved.availability_service,
             task_service=resolved.task_service,
-            assignment_repo=getattr(resolved.task_service, "_assignment_repo", None),
             project_service=resolved.project_service,
-            work_calendar_engine=resolved.work_calendar_engine,
         ),
         project_management_scheduling=build_project_management_scheduling_desktop_api(
             project_service=resolved.project_service,

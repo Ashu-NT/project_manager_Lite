@@ -4097,6 +4097,12 @@ data.
 | **P3** | Portfolio | `api/desktop/portfolio/builders/capacity_pool_builder.py::build_capacity_pool` | Hardcodes a fixed 90-day window (`date.today()` to `+90 days`) rather than accepting it as a parameter | PRESENTATION/APPLICATION boundary gap (minor — not a business-rule leak, just an unparameterized default) | Leave as an application-layer default if the product truly always wants 90 days; make it a parameter on `PortfolioResourcePoolService.get_pool_report` if a caller-configurable window is ever needed | Low risk today; flagged only because a future desktop method wanting a different window would have to duplicate this constant rather than pass one in | No | No test found for a non-default window |
 | **P3** (cleanup) | Financials | `api/desktop/financials/api.py::list_project_requisitions`, `get_project_procurement_commitments` | See P1 rows above — repeated here to make the cleanup recommendation explicit | DEAD/UNUSED | Delete, after one more usage-verification pass (a fresh repo-wide grep immediately before removal, since QML wiring can change between audit and implementation) | Carrying dead adapter code with real (if unreachable) logic inside it is a maintenance and audit-noise cost with no offsetting benefit | N/A | N/A — deletion, not migration |
 
+**Implementation delta (2026-08-08):** the table above remains the audited pre-migration evidence.
+The two Financials procurement rows and their repeated P3 cleanup row are now closed by deletion
+after a fresh no-caller verification. Dashboard high-risk filtering now uses canonical
+`RegisterEntryStatus.IN_PROGRESS` instead of the nonexistent `IN_REVIEW`; its contents/order are
+covered against the Register workspace. All remaining P0/P1 rows have characterization coverage.
+
 **Findings deliberately not added to this table** (reviewed and judged legitimate, per the instruction
 not to over-flag formatting/mapping):
 - Dashboard's fully-synthetic "preview" `build_snapshot` fallback when `dashboard_service` is
@@ -4277,14 +4283,16 @@ fix is a deliberate, reviewed behavior change, not an unnoticed one.
 
 ### Phase DA0 — Guardrails and characterization
 
-**Status: IN PROGRESS (2026-08-08).** The architecture guardrails are implemented in
+**Status: COMPLETE (2026-08-08).** The architecture guardrails are implemented in
 `src/tests/architecture/test_pm_desktop_adapter_architecture.py` with an exact, fail-on-addition
 and fail-on-stale-removal exception register for verified pre-existing DA1 violations. All six P0
-themes are characterized by
+rows and all ten P1 rows are characterized by
 `src/tests/project_management/test_pm_desktop_adapter_da0_characterization.py` plus the existing
-Dashboard failure-propagation coverage in `test_phase0a4_other_safety_corrections.py`. The focused
-checkpoint is 20 passing tests. DA0 remains open for characterization of the nine P1 findings;
-DA1 has not started.
+Dashboard failure-propagation coverage in `test_phase0a4_other_safety_corrections.py`. The two
+P1/P3 Financials findings were confirmed caller-free and deleted instead of preserving dead
+behavior; the architecture suite holds a deletion guard. DA0 also corrected Dashboard's stale
+`IN_REVIEW` reference to canonical `IN_PROGRESS`. The focused checkpoint is 31 passing tests.
+Every exit gate below is satisfied; DA1 has not started.
 
 - Add tests pinning current desktop DTO output for every finding in the master table (a
   characterization test per P0/P1 row, at minimum) — so no migration in later phases can silently
@@ -4308,7 +4316,28 @@ DA1 has not started.
 behavior; the four new guardrails are active and would fail against a deliberately-reintroduced
 violation (prove this with one throwaway violation per guardrail, then remove it).
 
+**Exit result (2026-08-08): PASS.** Synthetic repository-import, private-access,
+application-construction, and private-module violations are detected by the same scanner helpers
+used against the repository. Existing DA1 exceptions are exact-set checked, so both new debt and
+stale exemptions fail the suite.
+
 ### Phase DA1 — Composition leaks
+
+**Status: IN PROGRESS (2026-08-08); Resources and Projects COMPLETE.** Resources now obtains
+assignments through public, tenant/RBAC-aware
+`TaskService.list_assignments_for_resource()` and uses the availability service supplied by
+composition. The desktop API/factory no longer imports `AssignmentRepository`; the private
+`_assignments` fallback, desktop-side `ResourceAvailabilityService` construction, private
+repository/calendar discovery, runtime `_assignment_repo` reach-through, and obsolete resolution
+module are deleted. The exact-set architecture register now contains zero repository imports and
+no Resources private/construction exceptions. Projects now uses public
+`ResourceService.list_for_project_workspace()` and
+`ProjectResourceService.list_for_project_workspace()` queries guarded by canonical
+`require_any_project_permission()` denial recording. The desktop access helper and all Projects
+private collaborator/repository/tenant-context reach-throughs are deleted. A project-scoped manager
+without global `resource.read` is covered end to end. Resources checkpoint: 22 passing tests;
+Projects targeted checkpoint: 21 passing tests; combined desktop/architecture regression: 63
+passing tests. Tasks remains open in DA1.
 
 Migrate: `resolve_availability_service`'s fallback construction (Resources); the
 `_resource_repo`/`_assignments` private-attribute fallbacks (Resources); `access_resolution_service.py`/
@@ -4360,8 +4389,8 @@ above, per the Correct-destination rules, not a shared catch-all.
 
 Migrate only measured or clearly problematic reads, per the migration constraints:
 
-- Financials' dead procurement methods are **deleted** here (after DA0's usage-verification
-  re-check), not migrated to a Reader — there is no live consumer to build a Reader for.
+- Financials' dead procurement methods were **deleted early in DA0** after usage re-verification,
+  not migrated to a Reader; there was no live consumer to justify one.
 - Timesheets' period-total recomputation (`period_serializer.py`) becomes a service-level aggregate
   on `TimeService`, removing the extra query.
 - Timesheets' assignment-options cross-service Python join becomes one application-layer query.
@@ -4379,8 +4408,9 @@ what §5-§7 already covered.
 
 After DA1-DA4's parity/usage tests pass:
 
-- Delete `get_project_procurement_commitments`/`list_project_requisitions` (confirmed dead, twice
-  now — original audit and this pass's DA0 re-verification).
+- **Completed early in DA0:** deleted
+  `get_project_procurement_commitments`/`list_project_requisitions`, their DTOs/serializer/exports,
+  and unused composition wiring after the required second usage-verification pass.
 - Remove the duplicate rate/currency-precedence fallback from one of its two locations
   (`resource_serializer.py` or `resource_options_builder.py`) once both read from the same resolved
   source.
@@ -4482,8 +4512,9 @@ Legitimate presentation behaviors retained (reviewed, not flagged): 4 (Dashboard
   synthetic-preview fallback; scheduling_facade_service.py's engine/task-list dual path;
   constraint_serializer.py/dependency_serializer.py's clean external-classification consumption;
   change_impact_serializer.py's borderline-acceptable derived arithmetic)
-Confirmed misplaced responsibilities: 30 rows in the master finding table
-  (5 P0, 9 P1, 12 P2, 3 P3/cleanup, one P1/P3 dual-classified dead-code pair counted once)
+Master finding table rows: 33
+  (6 P0, 10 P1, 15 P2, 2 P3/cleanup; the Financials P3 cleanup row repeats the two P1 dead-code
+  findings and is not an additional runtime behavior)
 Count by target owner:
   application service: 11 (rate-affecting decision, tenant-scope resolution, permission-filtering
     fallback, availability-service construction, assignment-preview batching, dashboard

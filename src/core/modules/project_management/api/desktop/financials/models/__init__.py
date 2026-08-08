@@ -9,10 +9,6 @@ from src.core.modules.project_management.api.desktop.financials.models.options i
     FinancialProjectOptionDescriptor,
     FinancialTaskOptionDescriptor,
 )
-from src.core.modules.project_management.api.desktop.financials.models.procurement import (
-    ProjectProcurementCommitmentSummary,
-    ProjectRequisitionDesktopDto,
-)
 from src.core.modules.project_management.api.desktop.financials.models.snapshots import (
     FinancialAnalyticsRowDto,
     FinancialLedgerRowDto,
@@ -32,6 +28,4 @@ __all__ = [
     "FinancialProjectOptionDescriptor",
     "FinancialSnapshotDto",
     "FinancialTaskOptionDescriptor",
-    "ProjectProcurementCommitmentSummary",
-    "ProjectRequisitionDesktopDto",
 ]

@@ -22,31 +22,8 @@ FORBIDDEN_REPOSITORY_IMPORT_PREFIXES = (
 )
 
 # DA0 transition register. Every entry must be removed with its DA1 runtime fix.
-KNOWN_REPOSITORY_IMPORTS = {
-    "src/core/modules/project_management/api/desktop/resources/api.py:"
-    "src.core.modules.project_management.contracts.repositories.task",
-    "src/core/modules/project_management/api/desktop/resources/factories/"
-    "resources_api_factory.py:"
-    "src.core.modules.project_management.contracts.repositories.task",
-    "src/core/modules/project_management/api/desktop/resources/services/"
-    "availability_resolution_service.py:"
-    "src.core.modules.project_management.contracts.repositories.task",
-}
+KNOWN_REPOSITORY_IMPORTS: set[str] = set()
 KNOWN_PRIVATE_COLLABORATOR_ACCESS = {
-    "src/core/modules/project_management/api/desktop/projects/api.py:_project_resource_repo",
-    "src/core/modules/project_management/api/desktop/projects/builders/resource_builder.py:_resource_repo",
-    "src/core/modules/project_management/api/desktop/projects/builders/resource_builder.py:"
-    "_tenant_context_service",
-    "src/core/modules/project_management/api/desktop/projects/services/access_service.py:_user_session",
-    "src/core/modules/project_management/api/desktop/resources/builders/assignment_builder.py:_assignments",
-    "src/core/modules/project_management/api/desktop/resources/services/"
-    "availability_resolution_service.py:_calendar",
-    "src/core/modules/project_management/api/desktop/resources/services/"
-    "availability_resolution_service.py:_resource_repo",
-    "src/core/modules/project_management/api/desktop/resources/services/"
-    "availability_resolution_service.py:_task_repo",
-    "src/core/modules/project_management/api/desktop/resources/services/"
-    "availability_resolution_service.py:_work_calendar_engine",
     "src/core/modules/project_management/api/desktop/tasks/builders/"
     "resource_options_builder.py:_project_resource_repo",
     "src/core/modules/project_management/api/desktop/tasks/builders/"
@@ -63,9 +40,6 @@ KNOWN_PRIVATE_COLLABORATOR_ACCESS = {
     "resource_lookup_service.py:_tenant_context_service",
 }
 KNOWN_APPLICATION_CONSTRUCTION = {
-    "src/core/modules/project_management/api/desktop/resources/services/"
-    "availability_resolution_service.py:"
-    "src.core.modules.project_management.application.resources.ResourceAvailabilityService",
     "src/core/modules/project_management/api/desktop/scheduling/builders/constraint_builder.py:"
     "src.core.modules.project_management.application.scheduling.cpm.constraint_validator."
     "ConstraintValidator",
@@ -227,6 +201,16 @@ def test_application_and_domain_do_not_import_desktop_adapters() -> None:
     for root in (*APPLICATION_ROOTS, *DOMAIN_ROOTS):
         violations.update(_desktop_import_violations(root))
     assert violations == set()
+
+
+def test_dead_financial_procurement_desktop_projection_stays_deleted() -> None:
+    financials_root = DESKTOP_ROOT / "financials"
+    api_source = (financials_root / "api.py").read_text(encoding="utf-8")
+
+    assert "list_project_requisitions" not in api_source
+    assert "get_project_procurement_commitments" not in api_source
+    assert not (financials_root / "models/procurement.py").exists()
+    assert not (financials_root / "serializers/procurement_serializer.py").exists()
 
 
 def test_da0_scanners_detect_synthetic_violations() -> None:

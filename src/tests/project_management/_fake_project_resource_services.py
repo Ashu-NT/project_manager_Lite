@@ -100,6 +100,18 @@ class _FakeResourceService:
     def list_resources(self) -> list[SimpleNamespace]:
         return list(self._resources.values())
 
+    def list_for_project_workspace(
+        self,
+        _project_id: str,
+        *,
+        resource_ids: tuple[str, ...] = (),
+    ) -> list[SimpleNamespace]:
+        resources = self.list_resources()
+        if not resource_ids:
+            return resources
+        selected = set(resource_ids)
+        return [resource for resource in resources if resource.id in selected]
+
     def create_resource(
         self,
         *,
@@ -182,6 +194,9 @@ class _FakeProjectResourceService:
 
     def list_by_project(self, project_id: str) -> list[SimpleNamespace]:
         return [pr for pr in self._project_resources.values() if pr.project_id == project_id]
+
+    def list_for_project_workspace(self, project_id: str) -> list[SimpleNamespace]:
+        return self.list_by_project(project_id)
 
     def get(self, project_resource_id: str) -> SimpleNamespace | None:
         return self._project_resources.get(project_resource_id)

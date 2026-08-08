@@ -51,6 +51,20 @@ class TaskQueryMixin:
                 tasks.append(task)
         return tasks
 
+    def list_assignments_for_resource(self, resource_id: str) -> list[TaskAssignment]:
+        require_permission(
+            self._user_session,
+            "task.read",
+            operation_label="list resource assignments",
+        )
+        assignments = self._assignment_repo.list_by_resource(resource_id)
+        allowed: list[TaskAssignment] = []
+        for assignment in assignments:
+            task = self._task_repo.get(assignment.task_id)
+            if task and self._user_session.has_project_permission(task.project_id, "task.read"):
+                allowed.append(assignment)
+        return allowed
+
     def list_assignments_for_tasks(self, task_ids: list[str]) -> list[TaskAssignment]:
         require_permission(self._user_session, "task.read", operation_label="list task assignments")
         if not task_ids:

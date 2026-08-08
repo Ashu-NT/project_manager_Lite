@@ -8,8 +8,6 @@ from src.core.modules.project_management.api.desktop.resources.serializers.assig
 def build_resource_assignments(
     resource_id: str,
     *,
-    assignment_repo: object | None,
-    availability_service: object | None,
     task_service: object | None,
     project_service: object | None,
 ) -> tuple:
@@ -17,13 +15,7 @@ def build_resource_assignments(
     if not normalized_id:
         return ()
 
-    repo = assignment_repo
-    if repo is None and availability_service is not None:
-        repo = getattr(availability_service, "_assignments", None)
-    if repo is None:
-        return ()
-
-    list_by_resource = getattr(repo, "list_by_resource", None)
+    list_by_resource = getattr(task_service, "list_assignments_for_resource", None)
     if not callable(list_by_resource):
         return ()
     try:

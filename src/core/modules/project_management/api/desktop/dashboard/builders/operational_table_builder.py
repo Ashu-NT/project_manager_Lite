@@ -138,7 +138,8 @@ def _build_high_risks_table(dashboard_data: Any, *, register_service=None) -> Pr
         rows=tuple(
             ProjectDashboardTableRowDescriptor(id=i.id, route_id="project_management.register", state={"entryId": i.id, "projectId": i.project_id}, values={"title": i.title, "severityLabel": as_register_entry_severity(i.severity).value.title(), "owner": i.owner_name or "Unassigned", "dueDate": fmt_date(i.due_date), "statusLabel": as_register_entry_status(i.status).value.replace("_", " ").title(), "response": i.response_plan or i.impact_summary or i.description or ""})
             for i in risk_rows
-            if i.severity in (RegisterEntrySeverity.HIGH, RegisterEntrySeverity.CRITICAL) and i.status in (RegisterEntryStatus.OPEN, RegisterEntryStatus.IN_REVIEW)
+            if i.severity in (RegisterEntrySeverity.HIGH, RegisterEntrySeverity.CRITICAL)
+            and i.status in (RegisterEntryStatus.OPEN, RegisterEntryStatus.IN_PROGRESS)
         ),
     )
 

@@ -8,7 +8,6 @@ from src.core.modules.project_management.application.resources import (
     ResourceService,
 )
 from src.core.platform.application.master_data.site.site_service import SiteService
-from src.core.platform.common.exceptions import BusinessRuleError
 
 from src.core.modules.project_management.api.desktop.projects.models.project import (
     ProjectDesktopDto,
@@ -35,10 +34,6 @@ from src.core.modules.project_management.api.desktop.projects.builders.resource_
 from src.core.modules.project_management.api.desktop.projects.serializers.project_serializer import serialize_project
 from src.core.modules.project_management.api.desktop.projects.serializers.resource_serializer import (
     serialize_project_resource,
-)
-from src.core.modules.project_management.api.desktop.projects.services.access_service import (
-    can_fallback_project_access,
-    resolve_user_session,
 )
 from src.core.modules.project_management.api.desktop.projects.utils.project_utils import (
     call_with_supported_kwargs,
@@ -158,24 +153,19 @@ class ProjectManagementProjectsDesktopApi:
         normalized_id = str(project_id or "").strip()
         if not normalized_id or self._project_resource_service is None:
             return ()
-        list_by_project = getattr(self._project_resource_service, "list_by_project", None)
+        list_by_project = getattr(
+            self._project_resource_service,
+            "list_for_project_workspace",
+            None,
+        )
         if not callable(list_by_project):
             return ()
-        try:
-            project_resources = list(list_by_project(normalized_id))
-        except BusinessRuleError as exc:
-            if not self._can_fallback(normalized_id, exc):
-                raise
-            pr_repo = getattr(self._project_resource_service, "_project_resource_repo", None)
-            if pr_repo is None:
-                return ()
-            project_resources = list(pr_repo.list_by_project(normalized_id))
+        project_resources = list(list_by_project(normalized_id))
 
         resource_ids = tuple(str(getattr(pr, "resource_id", "") or "") for pr in project_resources)
         resources_by_id = resource_lookup(
             normalized_id, resource_ids,
             resource_service=self._resource_service,
-            can_fallback_fn=self._can_fallback,
         )
         rows = [
             serialize_project_resource(
@@ -194,7 +184,6 @@ class ProjectManagementProjectsDesktopApi:
         return build_assignable_options(
             normalized_id, assigned_ids,
             resource_service=self._resource_service,
-            can_fallback_fn=self._can_fallback,
         )
 
     def add_project_resource(self, command: ProjectResourceAssignCommand) -> ProjectResourceDesktopDto:
@@ -219,7 +208,6 @@ class ProjectManagementProjectsDesktopApi:
         res = resource_lookup(
             normalized_project_id, (normalized_resource_id,),
             resource_service=self._resource_service,
-            can_fallback_fn=self._can_fallback,
         ).get(normalized_resource_id)
         return serialize_project_resource(project_resource, resource_by_id=res)
 
@@ -272,14 +260,5 @@ class ProjectManagementProjectsDesktopApi:
             }
         except Exception:
             return {}
-
-    def _can_fallback(self, project_id: str, exc: BusinessRuleError) -> bool:
-        user_session = resolve_user_session(
-            project_service=self._project_service,
-            project_resource_service=self._project_resource_service,
-            resource_service=self._resource_service,
-        )
-        return can_fallback_project_access(project_id, exc, user_session=user_session)
-
 
 __all__ = ["ProjectManagementProjectsDesktopApi"]

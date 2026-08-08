@@ -16,19 +16,21 @@ Source: `../CQRS/project_management_cqrs_existing_state_audit.md`, "Desktop Adap
 Responsibility Audit." This work was identified after the original consolidated TODO was
 generated and therefore takes priority over starting the much larger Finance Phase C.
 
-- **DA0 - Guardrails and characterization (in progress):** architecture guardrails are
-  implemented and all six P0 behavior themes are characterized. The nine P1 findings still
-  require characterization before DA0 closes.
-- **DA1 - Composition leaks (not started):** Resources first as the low-risk migration,
-  followed immediately by Projects and Tasks because their findings are tenant/RBAC
-  sensitive.
+- **DA0 - Guardrails and characterization (complete 2026-08-08):** architecture guardrails
+  are implemented and all six P0 plus ten P1 rows are characterized or, for the two confirmed
+  dead Financials methods, usage-verified and deleted.
+- **DA1 - Composition leaks (in progress):** Resources and Projects complete. Tasks is next
+  because its remaining fallbacks duplicate tenant/RBAC decisions.
 - **DA2 - Application orchestration (not started):** move assignment previews, task/project
   access resolution, dashboard partial-failure behavior, and other application decisions out
   of presentation builders.
 - **DA3 - Domain policy (not started):** remove lifecycle, certification, scheduling, and
   financial policy calculations from serializers/builders.
-- **DA4 - Read orchestration and cleanup (not started):** consolidate only measured duplicate
-  reads, remove dead procurement helpers, and preserve desktop DTO contracts.
+- **DA4 - Read/report extraction (not started):** move only measured or clearly problematic
+  reads; do not create speculative Readers.
+- **DA5 - Duplicate and dead-code removal (not started):** remove superseded duplicate
+  implementations after parity tests. The dead Financials procurement projection assigned to
+  this phase was completed early during DA0.
 
 ### DA0/DA1 exception deletion register
 
@@ -38,9 +40,9 @@ exception in the same change that removes its runtime violation.
 
 | Exception group | Current locations | Removal gate | Status |
 | --- | --- | --- | --- |
-| Repository contracts imported by desktop Resources | `resources/api.py`, `resources/factories/resources_api_factory.py`, `resources/services/availability_resolution_service.py` | DA1 injects public application collaborators from composition | OPEN |
-| Private collaborator access | Resources availability/assignment builders; Projects access/resource builders and API; Tasks access/resource lookup builders | DA1 replaces every private fallback with a public application method or injected collaborator | OPEN |
-| Application objects constructed in desktop code | `ResourceAvailabilityService`, `ConstraintValidator` | DA1/composition migration provides constructed collaborators | OPEN |
+| Repository contracts imported by desktop Resources | None; all three imports removed | Resources pilot | CLOSED 2026-08-08 |
+| Private collaborator access | Tasks access/resource lookup builders only | DA1 replaces every private fallback with public application queries | OPEN |
+| Application objects constructed in desktop code | `ConstraintValidator` only; Resources construction removed | Scheduling composition migration provides the constructed collaborator | OPEN |
 | Private platform module imports | `common/financial_formatting.py` imports `finance.money._decimal`; Dashboard imports `approval._approval_labels` | Expose and consume public platform contracts | OPEN |
 
 **DA0 exit gate:** all P0/P1 behaviors have characterization coverage; architecture scanners
@@ -56,7 +58,41 @@ Implementation checkpoint (2026-08-08):
   Scheduling placeholder-success behavior.
 - Dashboard authorization/infrastructure error propagation was already corrected and remains
   covered by `test_phase0a4_other_safety_corrections.py`.
-- Focused checkpoint: 20 tests passed. DA0 remains open only for P1 characterization.
+- All live P1 behaviors now have focused coverage: uniform calendar writes, desktop-owned rate
+  decisions, Resources composition fallbacks, duplicate rate precedence, assignment-preview
+  calculation/query behavior, overload thresholds, and Register/Dashboard risk parity.
+- Removed the caller-free PM Financials procurement methods, DTOs, serializer, exports, and
+  wiring. A deletion guard prevents their accidental restoration before Phase C introduces a
+  typed project-source Procurement contract.
+- Corrected Dashboard risk filtering from the nonexistent `IN_REVIEW` status to canonical
+  `IN_PROGRESS` and added parity coverage against Register ordering.
+- Focused checkpoint: 31 tests passed. DA0 is complete; DA1 Resources is next.
+
+DA1 Resources checkpoint (2026-08-08):
+
+- Added tenant/RBAC-aware `TaskService.list_assignments_for_resource()` as the public
+  application query used by the Resources workspace.
+- Removed `AssignmentRepository` from the desktop API/factory, the `_assignments` fallback,
+  desktop-side `ResourceAvailabilityService` construction, private repository/calendar
+  reach-through, and the now-empty resolution module.
+- Runtime composition now injects the existing availability service directly; absence produces
+  the existing unavailable/empty UI state rather than constructing a hidden service graph.
+- Focused checkpoint: 22 tests passed. Resources is complete; DA1 continues with Projects,
+  followed by Tasks.
+
+DA1 Projects checkpoint (2026-08-08):
+
+- Added canonical `require_any_project_permission()` with centralized denial evidence for
+  project-scoped read/manage alternatives.
+- Added public `ResourceService.list_for_project_workspace()` and
+  `ProjectResourceService.list_for_project_workspace()` queries. Tenant/organization scope and
+  project RBAC are now application responsibilities.
+- Deleted the desktop access helper and all `_user_session`, `_resource_repo`,
+  `_tenant_context_service`, and `_project_resource_repo` reach-throughs from Projects.
+- Verified a project-scoped manager can read the project's resources without receiving the
+  unrelated global `resource.read` permission. Targeted checkpoint: 21 tests passed.
+- Combined desktop/architecture regression: 63 tests passed. Projects is complete; DA1
+  continues with Tasks.
 
 ## 1. Finance — Phase B, remaining
 
