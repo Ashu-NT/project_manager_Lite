@@ -35,6 +35,9 @@ from src.core.modules.project_management.infrastructure.reporting.builders.cost_
 from src.core.modules.project_management.infrastructure.reporting.builders.evm_core import (
     ReportingEvmCoreMixin,
 )
+from src.core.modules.project_management.infrastructure.reporting.builders.evm_series import (
+    ReportingEvmSeriesMixin,
+)
 from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import (
     PortfolioResourcePoolService,
 )
@@ -289,20 +292,26 @@ def test_cost_aggregation_cannot_fan_out_across_independent_sources() -> None:
 
 def test_finance_service_keeps_reader_labor_policy_ownership_and_no_fallback() -> None:
     source = inspect.getsource(FinanceService.get_finance_snapshot)
+    service_source = inspect.getsource(FinanceService)
 
     assert source.count("self._finance_snapshot_reader.read_facts(") == 1
     assert source.count("self._labor.calculate_project_labor_details(") == 1
-    assert source.count("engine.compose_from_facts(") == 1
+    assert source.count("self._cost_policy.compose_from_facts(") == 1
+    assert "LaborCostEngine.for_facts(" in service_source
+    assert "CostPolicyEngine.for_facts(" in service_source
     for forbidden in (
-        "_cost_repo.list_by_project",
-        "_project_resource_repo.list_by_project",
-        "_task_repo.list_by_project",
-        "_project_repo.get",
+        "_project_repo",
+        "_task_repo",
+        "_resource_repo",
+        "_cost_repo",
+        "_project_resource_repo",
+        "_assignment_repo",
+        "_make_cost_policy_engine",
         "resolve_manual_labor_inclusion",
         "include_manual_labor_planned",
         "include_manual_labor_actual",
     ):
-        assert forbidden not in source
+        assert forbidden not in service_source
 
     policy_source = FINANCE_POLICY.read_text(encoding="utf-8")
     assert "def compose_from_facts(" in policy_source
@@ -361,6 +370,8 @@ def test_reporting_financial_reads_use_one_facts_policy_composition() -> None:
     for source in (finance_source, evm_source):
         assert source.count("calculate_project_labor_details(") == 1
         assert source.count("compose_from_facts(") == 1
+        assert "LaborCostEngine.for_facts(" in source
+        assert "CostPolicyEngine.for_facts(" in source
         for forbidden in (
             "_project_repo",
             "_baseline_repo",
@@ -368,6 +379,8 @@ def test_reporting_financial_reads_use_one_facts_policy_composition() -> None:
             "_cost_repo",
             "_assignment_repo",
             "_resource_repo",
+            "_make_labor_engine",
+            "_make_cost_policy_engine",
             "build_snapshot(",
         ):
             assert forbidden not in source
@@ -410,6 +423,21 @@ def test_phase3b_removed_repository_backed_financial_transition_paths() -> None:
         "_get_actual_cost",
     ):
         assert forbidden not in evm_source
+
+
+def test_phase6_retains_repository_engines_only_for_unmigrated_reporting_paths() -> None:
+    kpi_source = inspect.getsource(ReportingKpiMixin.get_project_kpis)
+    snapshot_source = inspect.getsource(ReportingCostPolicyMixin._build_cost_policy_snapshot)
+    series_factory_source = inspect.getsource(
+        ReportingEvmSeriesMixin._make_evm_series_calculator
+    )
+
+    assert "_build_cost_policy_snapshot(" in kpi_source
+    assert ".build_snapshot(" in snapshot_source
+    assert "LaborCostEngine.for_facts(" in series_factory_source
+    assert "CostPolicyEngine.for_facts(" in series_factory_source
+    assert "_make_labor_engine(" not in series_factory_source
+    assert "_make_cost_policy_engine(" not in series_factory_source
 
 
 def test_portfolio_capacity_uses_one_scoped_reader_and_bulk_calendar_snapshot() -> None:

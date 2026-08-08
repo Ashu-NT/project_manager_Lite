@@ -27,6 +27,9 @@ from src.core.modules.project_management.application.financials.costs.cost_polic
     CostPolicyEngine,
     CostPolicySnapshot,
 )
+from src.core.modules.project_management.application.financials.costs.labor_cost import (
+    LaborCostEngine,
+)
 
 # Re-export so existing imports of these from reporting.builders.cost_policy still work.
 from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
@@ -111,12 +114,18 @@ class ReportingCostPolicyMixin:
         )
         if facts is None:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
-        labor = self._make_labor_engine().calculate_project_labor_details(
+        labor = LaborCostEngine.for_facts(
+            rate_resolver=self._rate_resolver,
+            tenant_context_service=self._tenant_context_service,
+        ).calculate_project_labor_details(
             project_id,
             as_of,
             facts=facts,
         )
-        policy = self._make_cost_policy_engine().compose_from_facts(facts, labor)
+        policy = CostPolicyEngine.for_facts(
+            rate_resolver=self._rate_resolver,
+            tenant_context_service=self._tenant_context_service,
+        ).compose_from_facts(facts, labor)
         return facts, policy
 
     def _compose_evm_policy(
@@ -138,12 +147,18 @@ class ReportingCostPolicyMixin:
         )
         if facts is None:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
-        labor = self._make_labor_engine().calculate_project_labor_details(
+        labor = LaborCostEngine.for_facts(
+            rate_resolver=self._rate_resolver,
+            tenant_context_service=self._tenant_context_service,
+        ).calculate_project_labor_details(
             project_id,
             as_of,
             facts=facts.finance,
         )
-        policy = self._make_cost_policy_engine().compose_from_facts(facts.finance, labor)
+        policy = CostPolicyEngine.for_facts(
+            rate_resolver=self._rate_resolver,
+            tenant_context_service=self._tenant_context_service,
+        ).compose_from_facts(facts.finance, labor)
         return facts, policy
 
     # Proxy helpers for mixins that call self._xxx() ─────────────────────────

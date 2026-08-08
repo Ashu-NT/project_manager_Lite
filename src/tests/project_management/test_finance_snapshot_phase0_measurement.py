@@ -219,14 +219,20 @@ def test_phase0_measure_get_finance_snapshot(services, size_name, capsys):
     session = services["session"]
     as_of = date(2024, 6, 1)
 
+    removed_dependencies = (
+        "_project_repo",
+        "_task_repo",
+        "_resource_repo",
+        "_cost_repo",
+        "_project_resource_repo",
+        "_assignment_repo",
+        "_rate_resolver",
+    )
+    assert all(not hasattr(finance, name) for name in removed_dependencies)
     call_targets = [
         (finance._finance_snapshot_reader, "read_facts", "FinanceSnapshotReader.read_facts"),
-        (finance._cost_repo, "list_by_project", "cost_repo.list_by_project"),
-        (finance._project_resource_repo, "list_by_project", "project_resource_repo.list_by_project"),
-        (finance._task_repo, "list_by_project", "task_repo.list_by_project"),
-        (finance._rate_resolver, "resolve_many", "rate_resolver.resolve_many"),
+        (finance._labor._rate_resolver, "resolve_many", "rate_resolver.resolve_many"),
         (finance._labor, "calculate_project_labor_details", "LaborCostEngine.calculate_project_labor_details"),
-        (finance._project_repo, "get", "project_repo.get"),
     ]
 
     identity_before = len(session.identity_map)
@@ -248,16 +254,9 @@ def test_phase0_measure_get_finance_snapshot(services, size_name, capsys):
         f"identity_map_delta={identity_after - identity_before}",
         f"named_call_counts: "
         f"FinanceSnapshotReader.read_facts={call_log.count('FinanceSnapshotReader.read_facts')} "
-        f"cost_repo.list_by_project={call_log.count('cost_repo.list_by_project')} "
-        f"project_resource_repo.list_by_project={call_log.count('project_resource_repo.list_by_project')} "
-        f"task_repo.list_by_project={call_log.count('task_repo.list_by_project')} "
         f"rate_resolver.resolve_many={call_log.count('rate_resolver.resolve_many')} "
-        f"LaborCostEngine.calculate_project_labor_details={call_log.count('LaborCostEngine.calculate_project_labor_details')} "
-        f"project_repo.get={call_log.count('project_repo.get')}",
-        f"named_call_rows_returned: "
-        f"cost_repo.list_by_project={call_log.rows('cost_repo.list_by_project')} "
-        f"project_resource_repo.list_by_project={call_log.rows('project_resource_repo.list_by_project')} "
-        f"task_repo.list_by_project={call_log.rows('task_repo.list_by_project')}",
+        f"LaborCostEngine.calculate_project_labor_details={call_log.count('LaborCostEngine.calculate_project_labor_details')}",
+        f"superseded_repo_dependencies_present=False",
         f"snapshot_ledger_rows={len(snapshot.ledger)}",
     ]
     report = "\n".join(report_lines)
@@ -266,10 +265,6 @@ def test_phase0_measure_get_finance_snapshot(services, size_name, capsys):
         print(report)
 
     assert call_log.count("FinanceSnapshotReader.read_facts") == 1
-    assert call_log.count("cost_repo.list_by_project") == 0
-    assert call_log.count("project_resource_repo.list_by_project") == 0
-    assert call_log.count("task_repo.list_by_project") == 0
-    assert call_log.count("project_repo.get") == 0
     assert call_log.count("rate_resolver.resolve_many") == 1
     assert call_log.count("LaborCostEngine.calculate_project_labor_details") == 1
     assert sql_stats.total_statements <= 70

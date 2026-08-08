@@ -10,6 +10,12 @@ from datetime import date
 from src.core.modules.project_management.contracts.reads.financials.evm_series_reader import (
     EvmSeriesReader,
 )
+from src.core.modules.project_management.application.financials.costs.cost_policy_engine import (
+    CostPolicyEngine,
+)
+from src.core.modules.project_management.application.financials.costs.labor_cost import (
+    LaborCostEngine,
+)
 from src.core.modules.project_management.application.financials.earned_value.evm_series import (
     EarnedValueSeriesCalculator,
 )
@@ -24,8 +30,14 @@ class ReportingEvmSeriesMixin:
         return EarnedValueSeriesCalculator(
             reader=self._evm_series_reader,
             tenant_context_service=self._tenant_context_service,
-            labor_engine=self._make_labor_engine(),
-            cost_policy_engine=self._make_cost_policy_engine(),
+            labor_engine=LaborCostEngine.for_facts(
+                rate_resolver=self._rate_resolver,
+                tenant_context_service=self._tenant_context_service,
+            ),
+            cost_policy_engine=CostPolicyEngine.for_facts(
+                rate_resolver=self._rate_resolver,
+                tenant_context_service=self._tenant_context_service,
+            ),
             evm_calculator=self._make_evm_calculator(),
         )
 

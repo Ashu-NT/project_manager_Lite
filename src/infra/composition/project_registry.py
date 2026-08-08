@@ -397,12 +397,6 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
     )
     finance_service = FinanceService(
-        project_repo=repositories.project_repo,
-        task_repo=repositories.task_repo,
-        resource_repo=repositories.resource_repo,
-        cost_repo=repositories.cost_repo,
-        project_resource_repo=repositories.project_resource_repo,
-        assignment_repo=repositories.assignment_repo,
         rate_resolver=rate_card_resolver,
         finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session),
         tenant_context_service=platform_services.tenant_context_service,

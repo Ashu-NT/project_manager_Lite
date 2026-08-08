@@ -153,13 +153,14 @@ def test_phase1_removes_resource_lookup_growth_after_scope_remediation(
     finance = services["finance_service"]
     tenant_context = services["tenant_context_service"]
     resource_repo = finance._labor._resource_repo
+    assert resource_repo is None
+    assert not hasattr(finance, "_rate_resolver")
     as_of = date(2024, 6, 1)
 
     call_targets = [
         (tenant_context, "get_active_tenant", "tenant_context.get_active_tenant"),
         (tenant_context, "get_active_organization", "tenant_context.get_active_organization"),
-        (resource_repo, "get", "resource_repo.get"),
-        (finance._rate_resolver, "resolve_many", "rate_resolver.resolve_many"),
+        (finance._labor._rate_resolver, "resolve_many", "rate_resolver.resolve_many"),
         (finance._labor, "calculate_project_labor_details", "LaborCostEngine.calculate_project_labor_details"),
     ]
 
@@ -176,7 +177,7 @@ def test_phase1_removes_resource_lookup_growth_after_scope_remediation(
         f"sql_by_table={dict(sql_stats.by_table)}",
         f"tenant_context.get_active_tenant_calls={call_log.count('tenant_context.get_active_tenant')}",
         f"tenant_context.get_active_organization_calls={call_log.count('tenant_context.get_active_organization')}",
-        f"resource_repo.get_calls={call_log.count('resource_repo.get')}",
+        f"fact_only_resource_repo=True",
         f"rate_resolver.resolve_many_calls={call_log.count('rate_resolver.resolve_many')}",
         f"LaborCostEngine_invocations={call_log.count('LaborCostEngine.calculate_project_labor_details')}",
     ])
@@ -186,7 +187,6 @@ def test_phase1_removes_resource_lookup_growth_after_scope_remediation(
 
     labor_invocations = call_log.count("LaborCostEngine.calculate_project_labor_details")
     assert labor_invocations == 1
-    assert call_log.count("resource_repo.get") == 0
     assert call_log.count("rate_resolver.resolve_many") == 1
     assert sql_stats.total_statements <= 70
 
