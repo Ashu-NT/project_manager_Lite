@@ -144,8 +144,8 @@ DA3 Resources checkpoint (2026-08-08):
   returns typed `CertificationStatus`; the desktop serializer only maps its value into the
   unchanged DTO.
 - An architecture deletion guard prevents the removed policy from returning to adapters.
-  Resources checkpoint: 44 passed with the unrelated stale schedule-impact characterization
-  deselected. DA3 remains in progress; Scheduling lifecycle/derived-state extraction is next.
+  Combined Resources, characterization, and architecture checkpoint: 54 passed. DA3 remains in
+  progress; Scheduling lifecycle/derived-state extraction is next.
 
 ## 1. Finance — Phase B, remaining
 

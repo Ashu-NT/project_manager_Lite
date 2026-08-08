@@ -4383,8 +4383,8 @@ dedicated future/backdated rate-card workflows. `ResourceCertification.status_on
 context-free valid/expiring-soon/expired rule through typed `CertificationStatus`; the serializer
 only projects the returned value into the unchanged desktop DTO. Duplicate CSV/desktop policy and
 the obsolete `RESOURCE_RATE_EFFECTIVE_ON_REQUIRED` branch were deleted, and an architecture guard
-prevents restoration. Focused Resources checkpoint: 44 passed with one unrelated stale Scheduling
-characterization deselected. Scheduling is the next capability.
+prevents restoration. Combined Resources, characterization, and architecture checkpoint: 54
+passed. Scheduling is the next capability.
 
 One capability at a time, per the migration constraints ("do not migrate all capabilities in one
 phase"):
