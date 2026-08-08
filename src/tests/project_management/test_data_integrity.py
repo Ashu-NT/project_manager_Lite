@@ -78,7 +78,10 @@ def _project(session, pid):
 
 
 def _task(session, tid, pid):
-    return _add(session, TaskORM(id=tid, project_id=pid, name=tid.upper()))
+    return _add(
+        session,
+        TaskORM(id=tid, project_id=pid, wbs_code=tid.upper(), name=tid.upper()),
+    )
 
 
 def _resource(session, rid):

@@ -7,12 +7,11 @@ on an already-constructed instance for the duration of one measurement, then res
 Measures, at three fixture sizes, the exact dimensions Phase 0 requires: SQL statement count
 (grouped by table), database execution time, python-side time, wall-clock total, session
 identity-map growth (an ORM-object-construction proxy), and the repeated-call counts the audit
-document's canonical table (§7) predicts statically from the source
+document's canonical table (§7) originally predicted from the source
 (``FinanceService.get_finance_snapshot`` / ``CostPolicyEngine`` / ``LaborCostEngine``).
 
-This file intentionally asserts only that the measured counts match the canonical table (closing
-the "must confirm the measured counts match" requirement in §18) — it does not assert a query-count
-budget, since §18/§20 both say that budget must come from these results, not be assumed in advance.
+The historical Phase 0 baseline remains in the audit. These assertions now enforce the accepted
+Phase 1 budget and one-call orchestration contract across all three fixture sizes.
 """
 
 from __future__ import annotations
@@ -220,10 +219,8 @@ def test_phase0_measure_get_finance_snapshot(services, size_name, capsys):
     session = services["session"]
     as_of = date(2024, 6, 1)
 
-    # Build the target list against FinanceService's own collaborators — these are
-    # private attributes on the System Under Test itself, wrapped for measurement only,
-    # inspected the same way the audit's static source-reading already did.
     call_targets = [
+        (finance._finance_snapshot_reader, "read_facts", "FinanceSnapshotReader.read_facts"),
         (finance._cost_repo, "list_by_project", "cost_repo.list_by_project"),
         (finance._project_resource_repo, "list_by_project", "project_resource_repo.list_by_project"),
         (finance._task_repo, "list_by_project", "task_repo.list_by_project"),
@@ -250,6 +247,7 @@ def test_phase0_measure_get_finance_snapshot(services, size_name, capsys):
         f"sql_by_table={dict(sql_stats.by_table)}",
         f"identity_map_delta={identity_after - identity_before}",
         f"named_call_counts: "
+        f"FinanceSnapshotReader.read_facts={call_log.count('FinanceSnapshotReader.read_facts')} "
         f"cost_repo.list_by_project={call_log.count('cost_repo.list_by_project')} "
         f"project_resource_repo.list_by_project={call_log.count('project_resource_repo.list_by_project')} "
         f"task_repo.list_by_project={call_log.count('task_repo.list_by_project')} "
@@ -267,17 +265,11 @@ def test_phase0_measure_get_finance_snapshot(services, size_name, capsys):
     with capsys.disabled():
         print(report)
 
-    # --- Confirm the measured counts match the audit's canonical table (§7) ---
-    # These are the exact, source-verified figures: cost_repo.list_by_project=5 (not 4, not 6),
-    # project_resource_repo.list_by_project=3, task_repo.list_by_project=4,
-    # project_repo.get=6 (FinanceService's own direct call at line 133 PLUS CostPolicyEngine's
-    # 2 build_snapshot calls PLUS LaborCostEngine's 3 executions — the audit document's table
-    # originally said 5, missing FinanceService's own direct call; corrected after this
-    # measurement caught the discrepancy, per §18's own stated purpose for Phase 0),
-    # rate_resolver.resolve_many=6, LaborCostEngine.calculate_project_labor_details=3.
-    assert call_log.count("cost_repo.list_by_project") == 5
-    assert call_log.count("project_resource_repo.list_by_project") == 3
-    assert call_log.count("task_repo.list_by_project") == 4
-    assert call_log.count("project_repo.get") == 6
-    assert call_log.count("rate_resolver.resolve_many") == 6
-    assert call_log.count("LaborCostEngine.calculate_project_labor_details") == 3
+    assert call_log.count("FinanceSnapshotReader.read_facts") == 1
+    assert call_log.count("cost_repo.list_by_project") == 0
+    assert call_log.count("project_resource_repo.list_by_project") == 0
+    assert call_log.count("task_repo.list_by_project") == 0
+    assert call_log.count("project_repo.get") == 0
+    assert call_log.count("rate_resolver.resolve_many") == 1
+    assert call_log.count("LaborCostEngine.calculate_project_labor_details") == 1
+    assert sql_stats.total_statements <= 70

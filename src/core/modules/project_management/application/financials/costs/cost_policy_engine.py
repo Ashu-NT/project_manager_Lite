@@ -26,6 +26,9 @@ from src.core.modules.project_management.contracts.repositories.rate_resolution 
     LaborRateResolver,
     UnresolvedLaborRate,
 )
+from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
+    FinanceSnapshotFacts,
+)
 from src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
@@ -34,6 +37,9 @@ from src.core.modules.project_management.application.financials.models.finance_m
     CostSourceBreakdown,
     CostSourceRow,
     LaborDetailsResult,
+)
+from src.core.modules.project_management.application.financials.utils.helpers import (
+    is_effectively_equal,
 )
 
 CostBucketKey = tuple[CostType, str]
@@ -68,6 +74,14 @@ class CostControlTotals:
     exposure: float
     available: float | None
     unresolved_labor_rates: tuple[UnresolvedLaborRate, ...] = ()
+
+
+@dataclass(frozen=True)
+class CostPolicyComposition:
+    snapshot: CostPolicySnapshot
+    totals: CostControlTotals
+    source_breakdown: CostSourceBreakdown
+    manual_labor_included: dict[str, bool]
 
 
 class CostPolicyEngine:
@@ -243,23 +257,7 @@ class CostPolicyEngine:
         as_of: date,
     ) -> CostControlTotals:
         snapshot = self.build_snapshot(project_id, as_of=as_of)
-        planned = self._sum_bucket_map(snapshot.planned_map, snapshot.project_currency)
-        committed = self._sum_bucket_map(snapshot.committed_map, snapshot.project_currency)
-        actual = self._sum_bucket_map(snapshot.actual_map, snapshot.project_currency)
-        exposure = float(max(committed, actual))
-        available = float(snapshot.budget - exposure) if snapshot.budget > 0 else None
-
-        return CostControlTotals(
-            project_id=project_id,
-            project_currency=snapshot.project_currency,
-            budget=float(snapshot.budget),
-            planned=planned,
-            committed=committed,
-            actual=actual,
-            exposure=exposure,
-            available=available,
-            unresolved_labor_rates=snapshot.unresolved_labor_rates,
-        )
+        return self._totals_from_snapshot(snapshot)
 
     def get_actual_cost(self, project_id: str, as_of: date) -> float:
         """Return policy-applied actual cost as a single float (for EVM).
@@ -285,6 +283,163 @@ class CostPolicyEngine:
     ) -> CostSourceBreakdown:
         snapshot = self.build_snapshot(project_id, as_of=as_of)
 
+        manual_raw = {"planned": 0.0, "committed": 0.0, "actual": 0.0}
+        for item in self._cost_repo.list_by_project(project_id):
+            if (getattr(item, "cost_type", None) or CostType.OTHER) != CostType.LABOR:
+                continue
+            cur = self._normalize_currency(
+                getattr(item, "currency_code", None), snapshot.project_currency
+            )
+            if not self._currency_in_scope(cur, snapshot.project_currency):
+                continue
+            manual_raw["planned"] += float(getattr(item, "planned_amount", 0.0) or 0.0)
+            manual_raw["committed"] += float(getattr(item, "committed_amount", 0.0) or 0.0)
+            incurred = getattr(item, "incurred_date", None)
+            if incurred is None or incurred <= as_of:
+                manual_raw["actual"] += float(getattr(item, "actual_amount", 0.0) or 0.0)
+        return self._source_breakdown_from_snapshot(snapshot, manual_raw=manual_raw)
+
+    def compose_from_facts(
+        self,
+        facts: FinanceSnapshotFacts,
+        labor_details: LaborDetailsResult,
+    ) -> CostPolicyComposition:
+        """Apply existing cost policy to reader facts and one labor result."""
+        project_currency = self._normalize_currency(facts.project.currency, None)
+        if project_currency == "-":
+            project_currency = None
+
+        planned_labor_by_currency: dict[str, float] = {}
+        for row in labor_details.planned_rows:
+            currency = self._normalize_currency(row.currency_code, project_currency)
+            planned_labor_by_currency[currency] = float(
+                planned_labor_by_currency.get(currency, 0.0) + row.total_cost
+            )
+        actual_labor_by_currency: dict[str, float] = {}
+        for row in labor_details.rows:
+            if row.total_cost <= 0.0:
+                continue
+            currency = self._normalize_currency(row.currency_code, project_currency)
+            actual_labor_by_currency[currency] = float(
+                actual_labor_by_currency.get(currency, 0.0) + row.total_cost
+            )
+
+        planned_labor_total = float(sum(planned_labor_by_currency.values()))
+        actual_labor_total = float(sum(actual_labor_by_currency.values()))
+        include_planned = planned_labor_total <= 0.0
+        include_actual = actual_labor_total <= 0.0
+        include_committed = include_planned and include_actual
+        planned_map: dict[CostBucketKey, float] = {}
+        committed_map: dict[CostBucketKey, float] = {}
+        actual_map: dict[CostBucketKey, float] = {}
+        manual_raw_all = {"planned": 0.0, "committed": 0.0, "actual": 0.0}
+        manual_raw_in_scope = {"planned": 0.0, "committed": 0.0, "actual": 0.0}
+
+        for aggregate in facts.cost_aggregates:
+            try:
+                cost_type = CostType(aggregate.cost_type)
+            except ValueError:
+                cost_type = CostType.OTHER
+            currency = self._normalize_currency(aggregate.currency_code, project_currency)
+            if cost_type == CostType.LABOR:
+                manual_raw_all["planned"] += aggregate.raw_planned
+                manual_raw_all["committed"] += aggregate.raw_committed
+                manual_raw_all["actual"] += aggregate.raw_actual_as_of
+                if self._currency_in_scope(currency, project_currency):
+                    manual_raw_in_scope["planned"] += aggregate.raw_planned
+                    manual_raw_in_scope["committed"] += aggregate.raw_committed
+                    manual_raw_in_scope["actual"] += aggregate.raw_actual_as_of
+            if cost_type != CostType.LABOR or include_planned:
+                self._add_bucket(
+                    planned_map,
+                    cost_type=cost_type,
+                    currency=currency,
+                    amount=aggregate.positive_planned,
+                )
+            if cost_type != CostType.LABOR or include_committed:
+                self._add_bucket(
+                    committed_map,
+                    cost_type=cost_type,
+                    currency=currency,
+                    amount=aggregate.positive_committed,
+                )
+            if cost_type != CostType.LABOR or include_actual:
+                self._add_bucket(
+                    actual_map,
+                    cost_type=cost_type,
+                    currency=currency,
+                    amount=aggregate.positive_actual_as_of,
+                )
+
+        for currency, amount in planned_labor_by_currency.items():
+            self._add_bucket(planned_map, cost_type=CostType.LABOR, currency=currency, amount=amount)
+        for currency, amount in actual_labor_by_currency.items():
+            self._add_bucket(actual_map, cost_type=CostType.LABOR, currency=currency, amount=amount)
+
+        snapshot = CostPolicySnapshot(
+            project_id=facts.project_id,
+            project_currency=project_currency,
+            budget=float(facts.project.planned_budget),
+            planned_map=planned_map,
+            committed_map=committed_map,
+            actual_map=actual_map,
+            planned_labor_total=planned_labor_total,
+            actual_labor_total=actual_labor_total,
+            include_manual_labor_planned=include_planned,
+            include_manual_labor_committed=include_committed,
+            include_manual_labor_actual=include_actual,
+            unresolved_labor_rates=(
+                tuple(labor_details.planned_unresolved_rates)
+                + tuple(labor_details.unresolved_rates)
+            ),
+        )
+        source_breakdown = self._source_breakdown_from_snapshot(
+            snapshot,
+            manual_raw=manual_raw_in_scope,
+        )
+        source_manual = next(
+            row for row in source_breakdown.rows if row.source_key == "LABOR_ADJUSTMENT"
+        )
+        manual_included = {
+            stage: (
+                manual_raw_all[stage] <= 0.0
+                or is_effectively_equal(
+                    manual_raw_all[stage],
+                    float(getattr(source_manual, stage)),
+                )
+            )
+            for stage in ("planned", "committed", "actual")
+        }
+        return CostPolicyComposition(
+            snapshot=snapshot,
+            totals=self._totals_from_snapshot(snapshot),
+            source_breakdown=source_breakdown,
+            manual_labor_included=manual_included,
+        )
+
+    def _totals_from_snapshot(self, snapshot: CostPolicySnapshot) -> CostControlTotals:
+        planned = self._sum_bucket_map(snapshot.planned_map, snapshot.project_currency)
+        committed = self._sum_bucket_map(snapshot.committed_map, snapshot.project_currency)
+        actual = self._sum_bucket_map(snapshot.actual_map, snapshot.project_currency)
+        exposure = float(max(committed, actual))
+        return CostControlTotals(
+            project_id=snapshot.project_id,
+            project_currency=snapshot.project_currency,
+            budget=float(snapshot.budget),
+            planned=planned,
+            committed=committed,
+            actual=actual,
+            exposure=exposure,
+            available=(float(snapshot.budget - exposure) if snapshot.budget > 0 else None),
+            unresolved_labor_rates=snapshot.unresolved_labor_rates,
+        )
+
+    def _source_breakdown_from_snapshot(
+        self,
+        snapshot: CostPolicySnapshot,
+        *,
+        manual_raw: dict[str, float],
+    ) -> CostSourceBreakdown:
         direct_planned = self._sum_bucket_excluding_type(
             snapshot.planned_map,
             excluded_type=CostType.LABOR,
@@ -317,23 +472,9 @@ class CostPolicyEngine:
             project_currency=snapshot.project_currency,
         )
 
-        manual_raw_planned = 0.0
-        manual_raw_committed = 0.0
-        manual_raw_actual = 0.0
-        for item in self._cost_repo.list_by_project(project_id):
-            if (getattr(item, "cost_type", None) or CostType.OTHER) != CostType.LABOR:
-                continue
-            cur = self._normalize_currency(
-                getattr(item, "currency_code", None), snapshot.project_currency
-            )
-            if not self._currency_in_scope(cur, snapshot.project_currency):
-                continue
-            manual_raw_planned += float(getattr(item, "planned_amount", 0.0) or 0.0)
-            manual_raw_committed += float(getattr(item, "committed_amount", 0.0) or 0.0)
-            actual_amt = float(getattr(item, "actual_amount", 0.0) or 0.0)
-            incurred = getattr(item, "incurred_date", None)
-            if incurred is None or incurred <= as_of:
-                manual_raw_actual += actual_amt
+        manual_raw_planned = manual_raw["planned"]
+        manual_raw_committed = manual_raw["committed"]
+        manual_raw_actual = manual_raw["actual"]
 
         manual_planned = manual_raw_planned if snapshot.include_manual_labor_planned else 0.0
         manual_actual = manual_raw_actual if snapshot.include_manual_labor_actual else 0.0
@@ -380,7 +521,7 @@ class CostPolicyEngine:
                 notes.append("Manual labor adjustment entries are active in current totals.")
 
         return CostSourceBreakdown(
-            project_id=project_id,
+            project_id=snapshot.project_id,
             project_currency=snapshot.project_currency,
             rows=rows,
             total_planned=float(direct_planned + computed_planned + manual_planned),
@@ -530,4 +671,9 @@ class CostPolicyEngine:
         return actual_labor_by_currency, result.unresolved_rates
 
 
-__all__ = ["CostPolicyEngine", "CostPolicySnapshot", "CostControlTotals"]
+__all__ = [
+    "CostControlTotals",
+    "CostPolicyComposition",
+    "CostPolicyEngine",
+    "CostPolicySnapshot",
+]

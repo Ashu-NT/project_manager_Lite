@@ -53,7 +53,7 @@ def test_project_management_financials_desktop_api_lists_and_mutates_cost_items(
 
     assert api.list_projects()[0].label == "Plant Upgrade"
     assert api.list_cost_types()[0].value == "LABOR"
-    assert api.list_tasks(project.id)[0].label == "Cable Pull"
+    assert api.list_tasks(project.id)[0].label == "TASK-1  Cable Pull"
 
     created = api.create_cost_item(
         SimpleNamespace(
@@ -71,7 +71,7 @@ def test_project_management_financials_desktop_api_lists_and_mutates_cost_items(
     listed = api.list_cost_items(project.id)
     assert created.cost_type == "MATERIAL"
     assert listed[0].planned_amount_label == "EUR 1,500.00"
-    assert listed[0].task_name == "Cable Pull"
+    assert listed[0].task_name == "TASK-1  Cable Pull"
 
     updated = api.update_cost_item(
         SimpleNamespace(

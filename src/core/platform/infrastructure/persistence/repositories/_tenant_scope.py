@@ -10,6 +10,9 @@ from src.core.platform.application.tenant.tenancy.tenant_context import (
 )
 
 
+_ScopeIds = ActiveScopeIds | TenantContext
+
+
 class TenantScopedRepositorySupport:
     _repository_label = "Repository"
     _tenant_context_service: TenantContextService | None
@@ -36,16 +39,16 @@ class TenantScopedRepositorySupport:
 
     @staticmethod
     def _organization_in_scope(
-        ctx: TenantContext,
+        ctx: _ScopeIds,
         organization_id: str | None,
     ) -> bool:
         return bool(organization_id) and organization_id == ctx.organization_id
 
     @staticmethod
-    def _tenant_in_scope(ctx: TenantContext, tenant_id: str | None) -> bool:
+    def _tenant_in_scope(ctx: _ScopeIds, tenant_id: str | None) -> bool:
         return bool(tenant_id) and tenant_id == ctx.tenant_id
 
-    def _apply_scope(self, stmt, orm_model, ctx: TenantContext):
+    def _apply_scope(self, stmt, orm_model, ctx: _ScopeIds):
         organization_column = getattr(orm_model, "organization_id", None)
         if organization_column is not None:
             stmt = stmt.where(organization_column == ctx.organization_id)
@@ -80,7 +83,7 @@ class TenantScopedRepositorySupport:
             raise NotFoundError(not_found_message)
         return obj
 
-    def _stamp_scope(self, ctx: TenantContext, orm: object) -> None:
+    def _stamp_scope(self, ctx: _ScopeIds, orm: object) -> None:
         if hasattr(orm, "organization_id"):
             organization_id = getattr(orm, "organization_id", None)
             if not organization_id:

@@ -145,13 +145,13 @@ class SqlAlchemyAssignmentRepository(AssignmentRepository):
         self.session = session
         self._tenant_context_service: TenantContextService | None = None
 
-    def _context(self) -> TenantContext:
+    def _context(self) -> ActiveScopeIds:
         if self._tenant_context_service is None:
             raise BusinessRuleError(
                 "AssignmentRepository requires TenantContextService.",
                 code="TENANT_CONTEXT_REQUIRED",
             )
-        return self._tenant_context_service.require_organization_context(
+        return self._tenant_context_service.require_active_scope_ids(
             operation_label="access assignments"
         )
 
@@ -199,13 +199,14 @@ class SqlAlchemyAssignmentRepository(AssignmentRepository):
         assignment_id: str | None = None,
         task_id: str | None = None,
     ):
+        ctx = self._context()
         stmt = (
             select(TaskAssignmentORM.id)
             .join(TaskORM, TaskAssignmentORM.task_id == TaskORM.id)
             .join(ProjectORM, TaskORM.project_id == ProjectORM.id)
             .where(
-                ProjectORM.tenant_id == self._context().tenant_id,
-                ProjectORM.organization_id == self._context().organization_id,
+                ProjectORM.tenant_id == ctx.tenant_id,
+                ProjectORM.organization_id == ctx.organization_id,
             )
         )
         if assignment_id is not None:
@@ -312,13 +313,13 @@ class SqlAlchemyDependencyRepository(DependencyRepository):
         self.session = session
         self._tenant_context_service: TenantContextService | None = None
 
-    def _context(self) -> TenantContext:
+    def _context(self) -> ActiveScopeIds:
         if self._tenant_context_service is None:
             raise BusinessRuleError(
                 "DependencyRepository requires TenantContextService.",
                 code="TENANT_CONTEXT_REQUIRED",
             )
-        return self._tenant_context_service.require_organization_context(
+        return self._tenant_context_service.require_active_scope_ids(
             operation_label="access dependencies"
         )
 

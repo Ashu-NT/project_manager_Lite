@@ -72,6 +72,7 @@ def _build_priority_core_rows(default_org, other_org, other_tenant_id):
     task_a1 = TaskORM(
         id="task-a-1",
         project_id=project_a.id,
+        wbs_code="1",
         name="Task A1",
         status=TaskStatus.TODO,
         version=1,
@@ -79,6 +80,7 @@ def _build_priority_core_rows(default_org, other_org, other_tenant_id):
     task_a2 = TaskORM(
         id="task-a-2",
         project_id=project_a.id,
+        wbs_code="2",
         name="Task A2",
         status=TaskStatus.TODO,
         version=1,
@@ -86,6 +88,7 @@ def _build_priority_core_rows(default_org, other_org, other_tenant_id):
     task_b1 = TaskORM(
         id="task-b-1",
         project_id=project_b.id,
+        wbs_code="1",
         name="Task B1",
         status=TaskStatus.TODO,
         version=1,
@@ -93,6 +96,7 @@ def _build_priority_core_rows(default_org, other_org, other_tenant_id):
     task_b2 = TaskORM(
         id="task-b-2",
         project_id=project_b.id,
+        wbs_code="2",
         name="Task B2",
         status=TaskStatus.TODO,
         version=1,

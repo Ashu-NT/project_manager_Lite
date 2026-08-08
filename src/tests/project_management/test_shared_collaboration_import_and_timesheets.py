@@ -347,13 +347,18 @@ def test_data_import_service_imports_projects_resources_tasks_and_costs(services
 
 def test_data_import_service_requires_import_manage_permission_from_live_session(services):
     importer = services["data_import_service"]
-    services["user_session"].set_principal(
+    user_session = services["user_session"]
+    active_tenant_id = user_session.stored_active_tenant_id()
+    active_organization_id = user_session.stored_active_organization_id()
+    user_session.set_principal(
         UserSessionPrincipal(
             user_id="u-import",
             username="pm-reader",
             display_name="PM Reader",
             role_names=frozenset({"viewer"}),
             permissions=frozenset({"project.read"}),
+            active_tenant_id=active_tenant_id,
+            active_organization_id=active_organization_id,
         )
     )
 
