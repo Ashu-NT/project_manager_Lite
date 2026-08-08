@@ -3389,20 +3389,53 @@ evidence, temporary file, or migration-only code remains.
 error semantics and transaction ownership are preserved, and unrelated write contracts are
 unchanged.
 
-**Phase 5 — Connect stable desktop DTOs to QML.** Not applicable to the Phase 1 pilot (its DTO
-doesn't change), but relevant once/if a later phase's read model *does* warrant a DTO shape change
-(e.g. finally moving Financials DTOs off `float` onto Decimal-safe types, addressing the
-`TRANSITION(PF-A1-DESKTOP-FLOAT)` marker) — that QML-facing change is explicitly a **later,
-separate** phase, never bundled with a reader introduction.
+**Phase 5 - NOT TRIGGERED (2026-08-08) — connect stable desktop DTOs to QML only when required.**
+Phases 1 and 3A-3D preserved every desktop DTO and QML contract, and Phase 4's selected command
+result has no production desktop/QML caller. There is therefore no responsible Phase 5 source
+change to make. A future Decimal-safe Financials DTO migration addressing
+`TRANSITION(PF-A1-DESKTOP-FLOAT)` remains a separately measured, end-to-end desktop/QML phase; this
+conditional phase is closed for the current CQRS plan rather than filled with speculative churn.
 
-**Phase 6 — Remove superseded entity-based read paths.** Removes only paths that a prior phase has
-actually migrated and proven unused — **not** a blanket claim that shared engines "now call the
-reader" as a side effect of Phase 1, since Phase 1 explicitly does not change `ReportingService`'s
-own call sites (§15b, §17 correction above). Concretely: once Phase 3B has migrated and tested
-`ReportingService`'s cost/EVM builders, *then* this phase removes their now-dead direct
-`CostPolicyEngine.build_snapshot`/`LaborCostEngine.calculate_project_labor_details` call sites — not
-before, and not for any capability whose own migration sub-phase (3A-3D) hasn't yet landed and been
-verified.
+**Phase 6 - COMPLETE 2026-08-08 — remove superseded entity-based read paths.**
+
+- `FinanceService` is now structurally Reader/fact-only. Its constructor and composition no longer
+  accept project, task, resource, cost, project-resource, or assignment repositories. The stored
+  repository attributes and `_make_cost_policy_engine` repository-capable factory were deleted;
+  `LaborCostEngine.for_facts` and `CostPolicyEngine.for_facts` are constructed once and can only
+  compose the scoped `FinanceSnapshotReader` result.
+- Reporting's migrated cost totals, source breakdown, cost breakdown, earned value, and EVM series
+  paths now construct fact-only engines explicitly. They cannot silently fall back to aggregate
+  repositories if facts are omitted. Existing Phase 3B methods removed from `CostPolicyEngine` and
+  `CostBreakdownEngine`, plus the repository-owning `EarnedValueCalculator` dependencies, remain
+  absent under architecture guard.
+- **Retained live-path register:** `ReportingKpiMixin.get_project_kpis` still calls
+  `_build_cost_policy_snapshot`, and standalone `ReportingLaborMixin` APIs still use
+  repository-capable `LaborCostEngine`. Those reads were not migrated by Phases 1 or 3A-3D and are
+  consumed by Dashboard/reporting/export surfaces. They are intentionally retained, not dead code;
+  removing them requires a separately measured Reader migration and is outside deletion-only Phase
+  6. The architecture guard locks this distinction so neither a fallback regression nor premature
+  deletion can pass unnoticed.
+- Persistent Phase 0/0B measurement harnesses now inspect the live Reader/fact-only graph. They
+  assert superseded Finance repository dependencies are absent and the fact-only labor engine has
+  no resource repository, instead of depending on deleted private attributes.
+
+Verification completed on 2026-08-08: the focused Finance/Reporting/EVM/architecture selection
+passes **34 tests**; the updated persistent measurement cases pass **6 tests** and retain a constant
+**60-statement** snapshot budget across small/medium/large fixtures; the full PM suite passes
+**560 tests** in bounded partitions (**215 + 218 + 127**); and the full architecture suite reports
+**139 passed** with only the same pre-existing hard-size guard failure listing generated
+`resources/shared_resources_rc.py` and the documented 1,408-line `enterprise_calendar.py`.
+`compileall` and `git diff --check` are clean.
+
+**Phase 6 deletion register - COMPLETE:** the six Finance repository constructor dependencies and
+attributes, repository-capable Finance policy factory, composition arguments, and repository-capable
+engine construction from every migrated Reporting/EVM path were removed in the same cutover. No
+compatibility constructor, fallback engine, feature flag, transition evidence, temporary file, or
+migration-only code remains.
+
+**Phase 6 exit gate: PASSED.** Every migrated read path is fact-only, every retained aggregate path
+has a verified live owner outside the migrated scope, runtime composition and query budgets pass,
+and the numbered CQRS implementation plan is complete without speculative DTO or QML changes.
 
 *(The future, separately-scoped Session/Unit-of-Work modernization is deliberately not a numbered
 phase in this plan — see the note immediately after §14's findings table.)*
