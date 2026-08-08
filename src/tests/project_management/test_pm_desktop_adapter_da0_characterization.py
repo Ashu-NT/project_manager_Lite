@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import date
 from types import SimpleNamespace
 
+import pytest
+
 from src.core.modules.project_management.api.desktop.projects.builders.resource_builder import (
     list_resources_for_context,
 )
@@ -28,11 +30,11 @@ from src.core.modules.project_management.api.desktop.scheduling.builders.change_
 from src.core.modules.project_management.api.desktop.scheduling.formatters.status_formatter import (
     resource_load_status_label,
 )
-from src.core.modules.project_management.api.desktop.scheduling.services.calendar_adapter_service import (
-    update_platform_calendar_working_days,
-)
 from src.core.modules.project_management.api.desktop.tasks.api import (
     ProjectManagementTasksDesktopApi,
+)
+from src.core.modules.project_management.api.desktop.tasks.models.task import (
+    TaskDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.tasks.builders.assignment_preview_builder import (
     build_assignment_preview,
@@ -66,6 +68,9 @@ from src.core.modules.project_management.domain.risk.register import (
 )
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
+from src.ui_qml.modules.project_management.presenters.tasks.workspace_builder import (
+    build_workspace_state,
+)
 
 
 class _ImpactService:
@@ -212,7 +217,7 @@ def test_da1_task_reader_queries_only_its_scoped_project_resources(services) -> 
     assert [row.id for row in resources] == [resource.id]
 
 
-def test_da0_characterizes_task_list_silently_omitting_denied_project() -> None:
+def test_da2_task_list_reports_permission_denied_project_as_partial() -> None:
     api = ProjectManagementTasksDesktopApi(task_service=object())
     api._project_name_by_id = lambda: {
         "project-allowed": "Allowed",
@@ -226,7 +231,71 @@ def test_da0_characterizes_task_list_silently_omitting_denied_project() -> None:
 
     api._serialize_project_tasks = _serialize
 
-    assert [row.id for row in api.list_all_tasks()] == ["task-allowed"]
+    result = api.list_all_tasks()
+
+    assert [row.id for row in result.tasks] == ["task-allowed"]
+    assert result.skipped_project_ids == ("project-denied",)
+    assert result.is_partial is True
+
+
+def test_da2_task_list_preserves_non_permission_business_errors() -> None:
+    api = ProjectManagementTasksDesktopApi(task_service=object())
+    api._project_name_by_id = lambda: {"project-1": "Project"}
+    api._serialize_project_tasks = lambda *_args: (_ for _ in ()).throw(
+        BusinessRuleError(
+            "Active organization is required.",
+            code="TENANT_CONTEXT_REQUIRED",
+        )
+    )
+
+    with pytest.raises(BusinessRuleError) as exc_info:
+        api.list_all_tasks()
+
+    assert exc_info.value.code == "TENANT_CONTEXT_REQUIRED"
+
+
+def test_da2_task_presenter_surfaces_partial_scope_warning() -> None:
+    allowed_task = TaskDesktopDto(
+        id="task-allowed",
+        project_id="project-allowed",
+        project_name="Allowed",
+        name="Allowed Task",
+        code="TASK-001",
+        description="",
+        status="TODO",
+        status_label="To Do",
+        start_date=None,
+        end_date=None,
+        duration_days=None,
+        priority=0,
+        percent_complete=0.0,
+        actual_start=None,
+        actual_end=None,
+        deadline=None,
+        version=1,
+    )
+    api = ProjectManagementTasksDesktopApi(
+        project_service=SimpleNamespace(
+            list_for_task_workspace=lambda: (
+                SimpleNamespace(id="project-allowed", name="Allowed"),
+                SimpleNamespace(id="project-denied", name="Denied"),
+            )
+        ),
+        task_service=object(),
+    )
+
+    def _serialize(project_id: str, _project_name: str):
+        if project_id == "project-denied":
+            raise BusinessRuleError("Permission denied", code="PERMISSION_DENIED")
+        return (allowed_task,)
+
+    api._serialize_project_tasks = _serialize
+
+    workspace = build_workspace_state(api)
+
+    assert [row.id for row in workspace.tasks] == [allowed_task.id]
+    assert workspace.skipped_project_ids == ("project-denied",)
+    assert "access changed" in workspace.partial_load_message
 
 
 def test_da1_task_project_scope_resolution_uses_public_application_query() -> None:
@@ -242,70 +311,6 @@ def test_da1_task_project_scope_resolution_uses_public_application_query() -> No
     )
 
     assert [row.id for row in rows] == ["project-task-read"]
-
-
-def test_da0_characterizes_unpersisted_calendar_placeholder_success() -> None:
-    api = ProjectManagementSchedulingDesktopApi()
-
-    unchanged_snapshot = api.update_calendar(
-        SimpleNamespace(calendar_id="", working_days=(0, 1, 2, 3, 4), hours_per_day=8.0)
-    )
-    fabricated_holiday = api.add_holiday(
-        SimpleNamespace(calendar_id="", holiday_date=date(2026, 8, 8), name="Founders Day")
-    )
-
-    assert unchanged_snapshot.calendar_id == "default"
-    assert fabricated_holiday.id == ""
-    assert fabricated_holiday.date == date(2026, 8, 8)
-
-
-class _PlatformCalendarApi:
-    def __init__(self) -> None:
-        self.rules = {
-            weekday: SimpleNamespace(
-                weekday=weekday,
-                is_working_day=weekday < 5,
-                computed_hours=4.0 if weekday == 4 else 8.0,
-            )
-            for weekday in range(7)
-        }
-        self.saved_commands = []
-
-    @staticmethod
-    def _result(data):
-        return SimpleNamespace(ok=True, data=data)
-
-    def save_working_rule(self, command):
-        self.saved_commands.append(command)
-        self.rules[command.weekday] = SimpleNamespace(
-            weekday=command.weekday,
-            is_working_day=command.is_working_day,
-            computed_hours=command.hours_override,
-        )
-        return self._result(self.rules[command.weekday])
-
-    def get_calendar(self, calendar_id: str):
-        return self._result(SimpleNamespace(id=calendar_id, name="Enterprise Calendar"))
-
-    def list_working_rules(self, _calendar_id: str):
-        return self._result(tuple(self.rules.values()))
-
-    def list_exceptions(self, _calendar_id: str):
-        return self._result(())
-
-
-def test_da0_characterizes_uniform_calendar_update_overwriting_day_specific_hours() -> None:
-    platform_api = _PlatformCalendarApi()
-
-    snapshot = update_platform_calendar_working_days(
-        platform_api,
-        "calendar-1",
-        SimpleNamespace(working_days=(0, 1, 2, 3, 4), hours_per_day=8.0),
-    )
-
-    assert [command.weekday for command in platform_api.saved_commands] == list(range(7))
-    assert [platform_api.rules[weekday].computed_hours for weekday in range(5)] == [8.0] * 5
-    assert snapshot.hours_per_day == 8.0
 
 
 class _CapturingResourceService:
@@ -338,7 +343,7 @@ class _CapturingResourceService:
         return self.resource
 
 
-def test_da0_characterizes_desktop_rate_change_effective_date_decision() -> None:
+def test_da3_desktop_forwards_rate_fields_without_policy_decision() -> None:
     service = _CapturingResourceService()
     api = ProjectManagementResourcesDesktopApi(resource_service=service)
 
@@ -355,7 +360,7 @@ def test_da0_characterizes_desktop_rate_change_effective_date_decision() -> None
 
     assert service.update_kwargs["hourly_rate"] == 120.0
     assert service.update_kwargs["currency_code"] == "USD"
-    assert service.update_kwargs["effective_on"] == date.today()
+    assert "effective_on" not in service.update_kwargs
 
 
 def test_da1_resource_assignments_use_public_task_service_query() -> None:

@@ -308,21 +308,6 @@ class ResourceCommandMixin:
         if not resource:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
 
-        rate_affecting_change = hourly_rate is not None or currency_code is not None
-        if rate_affecting_change:
-            if expected_version is None:
-                raise ValidationError(
-                    "expected_version is required when changing the resource rate "
-                    "or currency.",
-                    code="RESOURCE_RATE_VERSION_REQUIRED",
-                )
-            if effective_on is None:
-                raise ValidationError(
-                    "effective_on is required when changing the resource rate or "
-                    "currency.",
-                    code="RESOURCE_RATE_EFFECTIVE_ON_REQUIRED",
-                )
-
         if expected_version is not None and resource.version != expected_version:
             raise ConcurrencyError(
                 "Resource changed since you opened it. Refresh and try again.",
@@ -386,13 +371,34 @@ class ResourceCommandMixin:
                 code=self._resolve_resource_code(code, candidate.name, exclude_id=resource.id),
             )
 
+        rate_affecting_change = (
+            candidate.hourly_rate != resource.hourly_rate
+            or candidate.currency_code != resource.currency_code
+        )
+        resolved_effective_on = effective_on
+        if rate_affecting_change:
+            if expected_version is None:
+                raise ValidationError(
+                    "expected_version is required when changing the resource rate "
+                    "or currency.",
+                    code="RESOURCE_RATE_VERSION_REQUIRED",
+                )
+            if resolved_effective_on is None:
+                clock = getattr(self, "_clock", None)
+                if clock is None:
+                    raise BusinessRuleError(
+                        "A clock is required to date a resource rate change.",
+                        code="RATE_CLOCK_REQUIRED",
+                    )
+                resolved_effective_on = clock.today()
+
         try:
             self._resource_repo.update(candidate)
             if rate_affecting_change:
                 self._supersede_legacy_rate_line(
                     resource=candidate,
                     previous_hourly_rate=resource.hourly_rate,
-                    effective_on=effective_on,
+                    effective_on=resolved_effective_on,
                 )
             self._session.commit()
             record_activity(

@@ -32,4 +32,14 @@ class TaskDesktopDto:
     ancestor_ids: tuple[str, ...] = ()
 
 
-__all__ = ["TaskDesktopDto"]
+@dataclass(frozen=True)
+class TaskListResultDto:
+    tasks: tuple[TaskDesktopDto, ...] = ()
+    skipped_project_ids: tuple[str, ...] = ()
+
+    @property
+    def is_partial(self) -> bool:
+        return bool(self.skipped_project_ids)
+
+
+__all__ = ["TaskDesktopDto", "TaskListResultDto"]

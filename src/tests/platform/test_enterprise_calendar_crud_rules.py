@@ -71,6 +71,10 @@ def tenant_context(org_id):
     from unittest.mock import MagicMock
     from dataclasses import dataclass
 
+    from src.core.platform.application.tenant.tenancy.tenant_context import (
+        ActiveScopeIds,
+    )
+
     @dataclass
     class FakeOrg:
         id: str = org_id
@@ -86,6 +90,10 @@ def tenant_context(org_id):
     context.get_active_organization_id.return_value = org_id
     context.get_active_organization.return_value = FakeOrg()
     context.get_active_tenant_id.return_value = "tenant-platform-foundation"
+    context.require_active_scope_ids.return_value = ActiveScopeIds(
+        tenant_id="tenant-platform-foundation",
+        organization_id=org_id,
+    )
     context.require_organization_context.return_value = FakeContext(organization=FakeOrg())
     return context
 

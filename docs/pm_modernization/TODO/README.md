@@ -22,11 +22,13 @@ generated and therefore takes priority over starting the much larger Finance Pha
 - **DA1 - Composition leaks (complete 2026-08-08):** Resources, Projects, and Tasks now use
   explicit public application queries; the desktop architecture register contains no repository
   imports or private collaborator access exceptions.
-- **DA2 - Application orchestration (not started):** move assignment previews, task/project
-  access resolution, dashboard partial-failure behavior, and other application decisions out
-  of presentation builders.
-- **DA3 - Domain policy (not started):** remove lifecycle, certification, scheduling, and
-  financial policy calculations from serializers/builders.
+- **DA2 - Security and error boundaries (complete 2026-08-08):** Tasks reports partial
+  permission-scoped loads, Dashboard propagates approval failures, and dead PM calendar mutation
+  compatibility stubs were deleted in favor of Platform Admin's canonical calendar CRUD.
+- **DA3 - Domain policy (in progress):** Resources is complete: normalized persisted-value
+  comparison and rate effective-date resolution now belong to `ResourceService`, while
+  certification lifecycle status belongs to `ResourceCertification`. Scheduling is next,
+  followed by Register and Dashboard.
 - **DA4 - Read/report extraction (not started):** move only measured or clearly problematic
   reads; do not create speculative Readers.
 - **DA5 - Duplicate and dead-code removal (not started):** remove superseded duplicate
@@ -55,12 +57,12 @@ Implementation checkpoint (2026-08-08):
   application-construction, and private-module exception sets; it also blocks reverse
   application/domain imports and proves the scanners detect synthetic violations.
 - `test_pm_desktop_adapter_da0_characterization.py` pins the schedule-impact baseline
-  divergence, Projects tenant-context fallback, both Tasks authorization fallbacks, and the
-  Scheduling placeholder-success behavior.
+  divergence and the former Projects/Tasks adapter-boundary behavior. Migrated cases are converted
+  to assertions against their replacement public contracts rather than retained as legacy tests.
 - Dashboard authorization/infrastructure error propagation was already corrected and remains
   covered by `test_phase0a4_other_safety_corrections.py`.
-- All live P1 behaviors now have focused coverage: uniform calendar writes, desktop-owned rate
-  decisions, Resources composition fallbacks, duplicate rate precedence, assignment-preview
+- All live P1 behaviors now have focused coverage: desktop-owned rate decisions, Resources
+  composition fallbacks, duplicate rate precedence, assignment-preview
   calculation/query behavior, overload thresholds, and Register/Dashboard risk parity.
 - Removed the caller-free PM Financials procurement methods, DTOs, serializer, exports, and
   wiring. A deletion guard prevents their accidental restoration before Phase C introduces a
@@ -110,6 +112,40 @@ DA1 Tasks checkpoint (2026-08-08):
   private-collaborator architecture exception set to zero.
 - Focused checkpoint: 28 tests passed. Broader task/desktop-adapter checkpoint: 124 tests passed,
   458 deselected, with three pre-existing warnings. DA1 is complete; DA2 is next.
+
+DA2 checkpoint (2026-08-08):
+
+- Added `TaskListResultDto` with `tasks`, `skipped_project_ids`, and `is_partial`. Only
+  `PERMISSION_DENIED` is converted to a partial result; tenant/context and all other business errors
+  remain typed failures and propagate.
+- Carried the partial-load signal through the Tasks presenter/view model/controller and display a
+  warning above the task table without presenting raw project IDs to the user.
+- Confirmed Dashboard approval failures already propagate under the Phase 0A4 correction and kept
+  its regression coverage instead of adding a second partial-failure mechanism.
+- Removed caller-free PM Scheduling `update_calendar`, `add_holiday`, and `delete_holiday` methods,
+  their command DTOs, duplicate adapter helpers, exports, and transition tests. Calendar mutation
+  remains available only through the canonical Platform Admin calendar API/controller; PM retains
+  calendar reads and working-day calculation.
+- Focused DA2 checkpoint: 42 tests passed. Broader Tasks/Scheduling/adapter checkpoint: 145
+  passed, 436 deselected, with three pre-existing warnings. Canonical Platform Admin calendar CRUD:
+  14 passed after updating its test fixture to the hardened `ActiveScopeIds` repository contract.
+  DA2 is complete; DA3 is next.
+
+DA3 Resources checkpoint (2026-08-08):
+
+- `ResourceService.update_resource()` now decides whether normalized hourly-rate/currency values
+  actually differ from the persisted resource. Actual rate changes still require optimistic
+  concurrency and retain the optional explicit effective date for dedicated rate-card workflows;
+  ordinary callers default through the service's injected `Clock`.
+- Desktop Resources and the CSV importer now forward full-form values without pre-reading,
+  comparing persisted rates, or calling `date.today()`. The duplicate adapter/importer policy
+  and the obsolete `RESOURCE_RATE_EFFECTIVE_ON_REQUIRED` path are removed.
+- `ResourceCertification.status_on()` owns valid, expiring-soon, and expired boundary rules and
+  returns typed `CertificationStatus`; the desktop serializer only maps its value into the
+  unchanged DTO.
+- An architecture deletion guard prevents the removed policy from returning to adapters.
+  Resources checkpoint: 44 passed with the unrelated stale schedule-impact characterization
+  deselected. DA3 remains in progress; Scheduling lifecycle/derived-state extraction is next.
 
 ## 1. Finance — Phase B, remaining
 

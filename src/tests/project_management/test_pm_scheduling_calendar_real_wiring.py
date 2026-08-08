@@ -39,10 +39,6 @@ from src.core.platform.api.desktop.time_management.calendar.enterprise_calendar 
 from src.core.modules.project_management.api.desktop.scheduling.api import (
     ProjectManagementSchedulingDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.scheduling.commands.calendar_commands import (
-    SchedulingCalendarUpdateCommand,
-    SchedulingHolidayCreateCommand,
-)
 
 
 @pytest.fixture
@@ -226,48 +222,6 @@ def test_get_calendar_snapshot_falls_back_to_default_when_no_id_given(desktop_ap
     api, global_cal = desktop_api
     snapshot = api.get_calendar_snapshot()
     assert snapshot.calendar_id == global_cal.id
-
-
-def test_update_calendar_writes_real_working_rules(desktop_api):
-    api, global_cal = desktop_api
-    updated = api.update_calendar(
-        SchedulingCalendarUpdateCommand(
-            working_days=(0, 1, 2, 3, 4, 5),
-            hours_per_day=10.0,
-            calendar_id=global_cal.id,
-        )
-    )
-    working_labels = [d.label for d in updated.working_days if d.checked]
-    assert working_labels == ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    assert updated.hours_per_day == 10.0
-
-    # confirm it actually persisted, not just returned
-    reread = api.get_calendar_snapshot(global_cal.id)
-    assert [d.label for d in reread.working_days if d.checked] == [
-        "Mon", "Tue", "Wed", "Thu", "Fri", "Sat",
-    ]
-
-
-def test_add_and_delete_holiday_round_trips_through_real_exceptions(desktop_api):
-    api, global_cal = desktop_api
-    holiday = api.add_holiday(
-        SchedulingHolidayCreateCommand(
-            holiday_date=date(2026, 12, 25),
-            name="Christmas",
-            calendar_id=global_cal.id,
-        )
-    )
-    assert holiday.id
-    assert holiday.date == date(2026, 12, 25)
-    assert holiday.name == "Christmas"
-
-    snapshot = api.get_calendar_snapshot(global_cal.id)
-    assert len(snapshot.holidays) == 1
-    assert snapshot.holidays[0].name == "Christmas"
-
-    api.delete_holiday(holiday.id)
-    snapshot_after = api.get_calendar_snapshot(global_cal.id)
-    assert snapshot_after.holidays == ()
 
 
 def test_calculate_working_days_uses_real_calendar(desktop_api):

@@ -67,7 +67,10 @@ from src.core.modules.project_management.api.desktop.tasks.models.reservation im
 from src.core.modules.project_management.api.desktop.tasks.models.skill import (
     TaskSkillRequirementDesktopDto,
 )
-from src.core.modules.project_management.api.desktop.tasks.models.task import TaskDesktopDto
+from src.core.modules.project_management.api.desktop.tasks.models.task import (
+    TaskDesktopDto,
+    TaskListResultDto,
+)
 from src.core.modules.project_management.api.desktop.tasks.models.validation import (
     AssignmentPreviewDesktopDto,
     AssignmentValidationDesktopDto,
@@ -224,22 +227,33 @@ class ProjectManagementTasksDesktopApi:
         project_name = self._project_name_by_id().get(project_id, "")
         return self._serialize_project_tasks(project_id, project_name)
 
-    def list_all_tasks(self) -> tuple[TaskDesktopDto, ...]:
+    def list_all_tasks(self) -> TaskListResultDto:
         service = self._require_task_service()
         project_name_lookup = self._project_name_by_id()
         if not project_name_lookup:
-            return ()
+            return TaskListResultDto()
         all_tasks: list[TaskDesktopDto] = []
+        skipped_project_ids: list[str] = []
         for project_id, project_name in sorted(
             project_name_lookup.items(),
             key=lambda item: (item[1].casefold(), item[0]),
         ):
             try:
                 tasks = self._serialize_project_tasks(project_id, project_name)
-            except BusinessRuleError:
+            except BusinessRuleError as exc:
+                if getattr(exc, "code", "") != "PERMISSION_DENIED":
+                    raise
+                skipped_project_ids.append(project_id)
+                logger.warning(
+                    "Task project omitted after permission denial project_id=%s",
+                    project_id,
+                )
                 continue
             all_tasks.extend(tasks)
-        return tuple(all_tasks)
+        return TaskListResultDto(
+            tasks=tuple(all_tasks),
+            skipped_project_ids=tuple(skipped_project_ids),
+        )
 
     def create_task(self, command: TaskCreateCommand) -> TaskDesktopDto:
         service = self._require_task_service()

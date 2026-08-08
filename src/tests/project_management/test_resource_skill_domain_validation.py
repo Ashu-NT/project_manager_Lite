@@ -9,6 +9,7 @@ from src.core.modules.project_management.application.resources.resource_service 
     ResourceService,
 )
 from src.core.modules.project_management.domain.resources.skills import (
+    CertificationStatus,
     ResourceCertification,
     ResourceSkill,
     SkillProficiencyLevel,
@@ -135,6 +136,33 @@ def test_resource_certification_dto_normalizes_and_validates_ranges() -> None:
             expiry_date=date(2026, 1, 1),
         )
     assert exc_range.value.code == "RESOURCE_CERTIFICATION_DATE_RANGE_INVALID"
+
+
+def test_resource_certification_owns_lifecycle_status_boundaries() -> None:
+    as_of = date(2026, 6, 1)
+
+    def certification(expiry_date: date | None) -> ResourceCertification:
+        return ResourceCertification.create(
+            resource_id="res-1",
+            certification_code="pmp",
+            certification_name="PMP",
+            expiry_date=expiry_date,
+        )
+
+    assert certification(None).status_on(as_of) == CertificationStatus.VALID
+    assert certification(date(2026, 5, 31)).status_on(as_of) == CertificationStatus.EXPIRED
+    assert (
+        certification(date(2026, 6, 1)).status_on(as_of)
+        == CertificationStatus.EXPIRING_SOON
+    )
+    assert (
+        certification(date(2026, 7, 1)).status_on(as_of)
+        == CertificationStatus.EXPIRING_SOON
+    )
+    assert certification(date(2026, 7, 2)).status_on(as_of) == CertificationStatus.VALID
+
+    with pytest.raises(ValueError, match="cannot be negative"):
+        certification(None).status_on(as_of, expiring_within_days=-1)
 
 
 def test_task_skill_requirement_dto_normalizes_and_validates_shape() -> None:

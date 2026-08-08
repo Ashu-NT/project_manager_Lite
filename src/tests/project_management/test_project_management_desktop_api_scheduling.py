@@ -59,16 +59,6 @@ def test_project_management_scheduling_desktop_api_supports_schedule_calendar_an
     assert api.list_projects()[0].label == "Plant Upgrade"
     assert api.get_calendar_snapshot().working_days[0].label == "Mon"
 
-    calendar_stub = api.update_calendar(
-        SimpleNamespace(working_days=(0, 1, 2, 3, 4, 5), hours_per_day=10.0)
-    )
-    assert calendar_stub is not None
-
-    holiday_stub = api.add_holiday(
-        SimpleNamespace(holiday_date=date(2026, 5, 1), name="Labor Day")
-    )
-    assert holiday_stub is not None
-
     calculation = api.calculate_working_days(
         SimpleNamespace(start_date=date(2026, 5, 4), working_days=3)
     )
@@ -102,7 +92,6 @@ def test_project_management_scheduling_desktop_api_supports_schedule_calendar_an
     assert comparison_rows[0].task_name == "Cable Pull"
     assert comparison_rows[0].start_shift_days == 1
 
-    api.delete_holiday(getattr(holiday_stub, "id", ""))
     api.delete_baseline(created_a.value)
 
     assert api.get_calendar_snapshot().holidays == ()

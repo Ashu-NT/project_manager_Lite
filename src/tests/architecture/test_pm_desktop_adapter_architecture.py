@@ -198,6 +198,56 @@ def test_dead_financial_procurement_desktop_projection_stays_deleted() -> None:
     assert not (financials_root / "serializers/procurement_serializer.py").exists()
 
 
+def test_dead_pm_calendar_mutation_surface_stays_deleted() -> None:
+    scheduling_root = DESKTOP_ROOT / "scheduling"
+    api_source = (scheduling_root / "api.py").read_text(encoding="utf-8")
+    adapter_source = (
+        scheduling_root / "services/calendar_adapter_service.py"
+    ).read_text(encoding="utf-8")
+    package_source = (scheduling_root / "__init__.py").read_text(encoding="utf-8")
+
+    for symbol in (
+        "update_calendar",
+        "add_holiday",
+        "delete_holiday",
+        "SchedulingCalendarUpdateCommand",
+        "SchedulingHolidayCreateCommand",
+    ):
+        assert symbol not in api_source
+        assert symbol not in package_source
+    for helper in (
+        "update_platform_calendar_working_days",
+        "add_platform_holiday",
+        "delete_platform_holiday",
+    ):
+        assert helper not in adapter_source
+    assert not (scheduling_root / "commands/calendar_commands.py").exists()
+
+
+def test_resource_rate_and_certification_policy_stays_out_of_adapters() -> None:
+    resource_api_source = (DESKTOP_ROOT / "resources/api.py").read_text(encoding="utf-8")
+    importer_source = (
+        REPO_ROOT
+        / "src/core/modules/project_management/infrastructure/importers/resources/csv/"
+        "resource_csv_importer.py"
+    ).read_text(encoding="utf-8")
+    certification_source = (
+        DESKTOP_ROOT / "resources/serializers/certification_serializer.py"
+    ).read_text(encoding="utf-8")
+
+    for source in (resource_api_source, importer_source):
+        for policy_token in (
+            "hourly_rate_changed",
+            "currency_changed",
+            "rate_affecting_change",
+            "effective_on=date.today",
+        ):
+            assert policy_token not in source
+    assert "status_on(today)" in certification_source
+    assert "expiry < today" not in certification_source
+    assert "(expiry - today).days" not in certification_source
+
+
 def test_da0_scanners_detect_synthetic_violations() -> None:
     path_label = "synthetic.py"
     repository_tree = ast.parse(

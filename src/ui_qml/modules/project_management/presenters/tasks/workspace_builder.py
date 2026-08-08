@@ -16,7 +16,7 @@ from .overview_builder import build_overview
 from .pagination import paginate_tasks
 from .selection import resolve_project_id, resolve_task_id
 from .task_mapper import to_task_record_view_model
-from .utils import load_tasks_for_project
+from .utils import load_task_scope
 
 
 def build_workspace_state(
@@ -42,7 +42,8 @@ def build_workspace_state(
         priority_options=options.priority_options,
         schedule_options=options.schedule_options,
     )
-    all_tasks = load_tasks_for_project(desktop_api, resolved_project_id)
+    task_scope = load_task_scope(desktop_api, resolved_project_id)
+    all_tasks = task_scope.tasks
     filtered_tasks = filter_tasks(all_tasks, filters)
     paged_tasks = paginate_tasks(filtered_tasks, page=page, page_size=page_size)
     resolved_task_id = resolve_task_id(selected_task_id, filtered_tasks)
@@ -90,6 +91,13 @@ def build_workspace_state(
             assignment_count=0,
             dependency_count=0,
         ),
+        partial_load_message=(
+            "Some projects could not be loaded because your access changed. "
+            "Refresh the session or contact an administrator if this continues."
+            if task_scope.skipped_project_ids
+            else ""
+        ),
+        skipped_project_ids=task_scope.skipped_project_ids,
         empty_state=build_empty_state(
             project_options=options.project_options,
             all_tasks=all_tasks,

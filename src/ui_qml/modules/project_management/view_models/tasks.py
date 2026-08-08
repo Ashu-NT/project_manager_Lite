@@ -79,6 +79,8 @@ class TaskCatalogWorkspaceViewModel:
     selected_priority_filter: str = "all"
     selected_schedule_filter: str = "all"
     search_text: str = ""
+    partial_load_message: str = ""
+    skipped_project_ids: tuple[str, ...] = field(default_factory=tuple)
     tasks: tuple[TaskRecordViewModel, ...] = field(default_factory=tuple)
     wbs_parent_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
     selected_task_id: str = ""

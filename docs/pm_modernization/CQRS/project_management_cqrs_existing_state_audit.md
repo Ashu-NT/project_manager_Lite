@@ -278,7 +278,7 @@ src/core/modules/project_management/
 │       │   └── services/availability_resolution_service.py   # RED FLAG: constructs a new ResourceAvailabilityService from private attrs
 │       ├── scheduling/
 │       │   ├── api.py                    # ProjectManagementSchedulingDesktopApi
-│       │   ├── commands/{calendar_commands.py, working_day_commands.py, dependency_commands.py, baseline_commands.py}
+│       │   ├── commands/{working_day_commands.py, dependency_commands.py, baseline_commands.py}   # calendar mutation commands deleted in DA2
 │       │   ├── models/{schedule.py, calendars.py, dependencies.py, baselines.py, constraints.py, change_impact.py, resources.py}
 │       │   ├── serializers/ (6 files — verified in "Desktop Adapter Responsibility Audit"; presentation-shaped, one real finding: baseline_formatter.py's can_submit/can_approve/can_reject via string comparison)
 │       │   ├── builders/{project_options_builder.py, activity_options_builder.py, calendar_snapshot_builder.py, baseline_builder.py, constraint_builder.py, change_impact_builder.py, resource_load_builder.py}
@@ -612,9 +612,9 @@ method body**, including a module-level `_date_range` helper defined in `api.py`
 `list_project_dependencies` builds task/dependency lookups and loops `list_dependencies_for_task`
 **per task** inline in the API method (N+1, bypassing the builder/serializer pattern used
 elsewhere in the same file). `create_baseline` deliberately resolves `rate_as_of=date.today()` in
-the API layer (documented, intentional). `update_calendar`/`add_holiday`/`delete_holiday` silently
-no-op or fabricate an unpersisted placeholder DTO when the platform calendar API isn't wired
-("moved to Platform Admin" legacy retained for QML compatibility).
+the API layer (documented, intentional). The former
+`update_calendar`/`add_holiday`/`delete_holiday` compatibility methods were deleted in DA2 after
+usage verification confirmed that Platform Admin owns all live calendar mutation calls.
 **Coverage gap, closed in a later pass**: `services/scheduling_facade_service.py`,
 `services/dependency_resolution_service.py`, and `services/calendar_adapter_service.py` — the three
 files most likely to hold real orchestration logic given how many `api.py` call sites depend on
@@ -3925,9 +3925,6 @@ behavior rather than treating the "unverified" notes below as still accurate.)*
 | `list_activity_options` | `project_id, exclude_task_id` | descriptor[] | `TaskService.list_leaf_tasks_for_project`/`list_tasks_for_project` | LOOKUP | — |
 | `list_calendars` | none | `SchedulingCalendarOptionDescriptor[]` | `calendar_adapter_service.list_platform_calendar_options` or legacy path | LOOKUP/INTEGRATION | dual-path fallback, adapter internals unverified |
 | `get_calendar_snapshot` | `calendar_id` | `SchedulingCalendarSnapshotDto` | `calendar_adapter_service` (platform or legacy) | QUERY/INTEGRATION | adapter internals unverified |
-| `update_calendar` | `SchedulingCalendarUpdateCommand` | `SchedulingCalendarSnapshotDto` | `calendar_adapter_service.update_platform_calendar_working_days`, else no-op returning unchanged snapshot | COMMAND degrading to no-op | "moved to Platform Admin" legacy stub |
-| `add_holiday` | `SchedulingHolidayCreateCommand` | `SchedulingHolidayDto` | platform calendar API, else fabricates an unpersisted DTO inline | COMMAND degrading to fake response | — |
-| `delete_holiday` | `holiday_id` | none | platform calendar API, else `pass` | COMMAND, silent no-op fallback | — |
 | `calculate_working_days` | `SchedulingWorkingDayCalculationCommand` | `SchedulingWorkingDayCalculationDto` | platform calendar API or `CalendarProtocol.add_working_days` | MIXED/INTEGRATION | real calendar arithmetic performed **in the API layer** (`_date_range` helper defined in `api.py`) |
 | `list_dependency_types` | none | `SchedulingDependencyTypeDescriptor[]` | none (enum) | LOOKUP | — |
 | `list_project_dependencies` | `project_id` | `SchedulingProjectDependencyDto[]` | `TaskService.list_tasks_for_project` + per-task `list_dependencies_for_task` | QUERY (N+1, inline in api.py) | bypasses the builder/serializer pattern used elsewhere in this file |
@@ -4253,31 +4250,22 @@ surfaces the new signal or the approved typed error — not silently empty outpu
 
 ---
 
-**Current:**
+**Historical finding:**
 `api/desktop/scheduling/api.py::add_holiday`/`update_calendar` (legacy/no-platform-API branches)
 
-**Behavior:** Fabricates a placeholder success DTO, or returns an unchanged snapshot, when
+**Resolution (DA2, 2026-08-08):** Removed after repo-wide usage verification. PM has no calendar
+mutation consumer; Platform Admin is the canonical live owner. The PM command DTOs, duplicate
+adapter helpers, exports, and transition tests were deleted with the methods.
+
+**Former behavior:** Fabricated a placeholder success DTO, or returned an unchanged snapshot, when
 `platform_calendar_api` isn't wired — presenting an unpersisted operation as if it succeeded.
 
-**Target:** `api/desktop/scheduling/api.py` itself — this is a desktop-adapter error-boundary fix,
-not a relocation; the correct owner of "raise instead of fake-succeed" is the adapter method's own
-error handling.
+**Target (superseded):** The original target was a typed desktop-adapter error. Since there are no
+callers and no client compatibility requirement, retaining fail-only methods would itself be dead
+transition code; deletion is the stricter resolution.
 
-**Proposed flow:**
-```text
-ProjectManagementSchedulingDesktopApi.add_holiday(command)
-  → if platform_calendar_api is None: raise BusinessRuleError(code="CALENDAR_API_NOT_AVAILABLE")
-  → else: unchanged (delegates to calendar_adapter_service.add_platform_holiday)
-```
-
-**Compatibility:** **This changes current error behavior**, which the migration constraints require
-to be a separately approved correction, not a silent default. Until approved, DA2 (below) should at
-minimum add a test that makes the current behavior explicit and intentional-looking rather than an
-accidental gap, without changing the behavior itself — the actual fix is gated on product/architecture
-sign-off given it changes what callers observe on this branch.
-
-**Tests:** A test asserting today's actual behavior (fabricated success) exists first, so any future
-fix is a deliberate, reviewed behavior change, not an unnoticed one.
+**Compatibility:** No live consumer or deployed client exists. Platform calendar CRUD coverage is
+retained under the Platform Admin API/controller tests; PM retains read and calculation coverage.
 
 ---
 
@@ -4361,23 +4349,50 @@ DTO-shape consequence, confirmed per-finding in the master table's "DTO impact" 
 
 ### Phase DA2 — Security and error-boundary corrections
 
-Migrate: `list_all_tasks`'s silent per-project swallow (add a `skipped_project_ids` signal);
-`_list_pending_approvals`'s broad except (add a partial-failure signal or propagate, per product
-decision); the Scheduling placeholder-success branches (gated on separate approval, per the
-migration constraints, since it changes observable error behavior).
+**Status: COMPLETE (2026-08-08).** `list_all_tasks()` now returns `TaskListResultDto` with the
+loaded tasks and `skipped_project_ids`. Only `PERMISSION_DENIED` is eligible for a partial result;
+tenant/context and other business failures propagate. The Tasks presenter, view model, controller,
+and QML list page carry this signal to a fixed warning above the table without showing raw IDs in
+the user-facing message.
+
+Dashboard's `_list_pending_approvals` broad-exception issue was already corrected in Phase 0A4:
+failures propagate, and `test_phase0a4_other_safety_corrections.py` guards that behavior. DA2 did
+not add a competing partial-failure contract.
+
+The PM Scheduling calendar mutation methods had no runtime/QML consumers and calendar ownership
+already lives in Platform Admin. Because this app is still pre-client and the project forbids dead
+transition code, DA2 deleted `update_calendar`, `add_holiday`, and `delete_holiday`, their PM command
+DTOs, duplicate adapter helpers/exports, and tests instead of retaining permanent fail-only stubs.
+PM keeps calendar options/snapshots and working-day calculation; canonical calendar CRUD remains
+covered in the Platform Admin API/controller. Focused DA2 checkpoint: 42 passing tests.
+The broader Tasks/Scheduling/adapter checkpoint passed 145 tests (436 deselected, three
+pre-existing warnings), and the canonical Platform Admin calendar CRUD suite passed all 14 tests
+after its fixture was aligned with the hardened `ActiveScopeIds` repository contract.
 
 **Preserve typed errors through the desktop API** — this phase adds missing error/partial-failure
 signals, it does not invent new ones that weren't already possible at the application layer.
 
 ### Phase DA3 — Application/domain policy extraction
 
+**Status: IN PROGRESS (2026-08-08); Resources COMPLETE.** The desktop Resources API and CSV
+importer no longer pre-read a resource, compare hourly rate/currency, or choose an effective date.
+`ResourceService.update_resource()` compares the fully normalized candidate to persisted values,
+requires optimistic concurrency only for an actual rate-affecting change, and resolves an omitted
+effective date through its injected `Clock`. Explicit effective dates remain supported for
+dedicated future/backdated rate-card workflows. `ResourceCertification.status_on()` now owns the
+context-free valid/expiring-soon/expired rule through typed `CertificationStatus`; the serializer
+only projects the returned value into the unchanged desktop DTO. Duplicate CSV/desktop policy and
+the obsolete `RESOURCE_RATE_EFFECTIVE_ON_REQUIRED` branch were deleted, and an architecture guard
+prevents restoration. Focused Resources checkpoint: 44 passed with one unrelated stale Scheduling
+characterization deselected. Scheduling is the next capability.
+
 One capability at a time, per the migration constraints ("do not migrate all capabilities in one
 phase"):
 
-1. **Resources** — the rate-affecting-change decision moves to `ResourceService` (application
-   service — it's a use-case decision, not a stable invariant).
-2. **Resources** — certification status/expiring-soon moves to `ResourceCertification` (domain — a
-   context-free function of the entity's own dates).
+1. **Resources — COMPLETE 2026-08-08:** the rate-affecting-change decision moved to
+   `ResourceService` (application service — it is a use-case decision, not a stable invariant).
+2. **Resources — COMPLETE 2026-08-08:** certification status/expiring-soon moved to
+   `ResourceCertification` (domain — a context-free function of the entity's own dates).
 3. **Scheduling** — baseline can-submit/can-approve/can-reject moves to `ProjectBaseline` (domain);
    `remaining_duration_days` moves to `Task` (domain); the uniform-hours-per-week calendar policy
    moves to the platform calendar service (application, in the platform module, not PM); the
@@ -4467,8 +4482,7 @@ only a deletion-usage-check, not this full list):
    already-separate Finance Snapshot pilot.
 8. **QML presenter test** only where the desktop DTO contract itself changes — per this audit, that
    is limited to: Tasks' `list_all_tasks` (additive `skipped_project_ids` field, if adopted),
-   Dashboard's `_list_pending_approvals` (additive partial-failure field, if adopted), and
-   Scheduling's calendar placeholder-success fix (gated on separate approval).
+   Dashboard's `_list_pending_approvals` (additive partial-failure field, if adopted).
 9. **Query-count test** for any read migrated in DA4 — none are currently recommended for a Reader
    in this pass (see DA4's scope note), so this requirement is dormant here, reserved for if/when a
    capability's read redundancy is later measured to justify one.
