@@ -871,7 +871,7 @@ Ownership: **PROJECT FINANCE + PLATFORM TIME + INVENTORY PROCUREMENT + PLATFORM 
 ADR gate: ADR-PF-004, ADR-PF-006, ADR-PF-007, and ADR-PF-008 must be accepted before ledger/source integration cutover.
 
 1. **Complete 2026-08-09:** add organization financial periods and closure/lock policy. Keep them separate from operational scheduling calendars.
-2. Add ProjectCostEntry draft/approval/post/reversal lifecycle with direct scope, Money/base-Money/FX snapshot, source, period, dimensions, actor/timestamps, and scoped idempotency constraints.
+2. **Complete 2026-08-09:** add ProjectCostEntry draft/approval/post/reversal lifecycle with direct scope, Money/base-Money/FX snapshot, source, period, dimensions, actor/timestamps, and scoped idempotency constraints.
 3. Add PM commitment projections/lines, matching, cancellation/closure, and remaining-balance policy.
 4. Add an approved-Time contract/event and idempotent labor-cost consumer. Snapshot rate and reverse/replace corrected approvals.
 5. Add typed Procurement project-source queries/events for PO lines, changes, cancellation, receipts, and supplier invoice references when available. PM creates projections/postings; Procurement remains owner.
@@ -904,7 +904,32 @@ Implementation progress:
   remains single-headed; the final selected C.1/PM-finance/migration/graph checkpoint passes 30
   tests. The broader desktop-registry/PM-finance run passed 24 tests; its two
   failures are the pre-existing Site timezone-comparison and inactive-organization provisioning
-  defects. Item 2, the canonical `ProjectCostEntry` lifecycle, is next.
+  defects.
+- Item 2 is complete. `ProjectCostEntry` is a validated signed aggregate with dedicated manual
+  actual/adjustment draft commands, explicit submit/approve/reject/post transitions, and a
+  separate equal-and-opposite posted reversal. Submitted facts are frozen; posting captures the
+  open financial period, transaction and base Money, base-per-transaction FX rate/date/source/
+  capture timestamp, dimensions, source identity/content hash, actor metadata, and optimistic
+  row version. Rejection returns the entry to an editable draft while preserving rejection
+  evidence. A reversal preserves the original currencies and FX conversion snapshot but posts
+  into the open period selected by its own posting date.
+- The canonical service applies `project_cost.create`, `.update_draft`, `.submit`, `.approve`,
+  `.post`, and `.reverse` globally and at project scope. Finance Controller and project-owner
+  authority support posting/reversal; planners/project leads prepare and submit; approvers decide.
+  Optional governed approval stages mutations under ApprovalService's outer Unit of Work and
+  records the deciding principal. Every mutation writes fail-closed Enterprise Audit and emits a
+  dedicated post-commit cost-entry event.
+- `project_cost_entries` has direct tenant/organization/project ownership, Numeric Money/FX
+  columns, scoped project/cost-code/period/reversal foreign keys, deterministic source
+  idempotency, one-reversal uniqueness, database-side filtered pagination/counts, RLS metadata,
+  and PostgreSQL/SQLite update/delete guards for posted financial facts. Normal posting rejects
+  missing/closed/locked periods; cross-currency posting requires a complete immutable FX
+  snapshot. The migration graph is single-headed at `p3q4r5s6t7u8`.
+- C.2 introduced no dual-write, legacy adapter, feature flag, or temporary file. Legacy
+  `CostItem` remains deliberately unchanged until items 6-8 perform command cutover, deterministic
+  migration/reconciliation, read cutover, and QML redesign; its deletion-register rows therefore
+  remain open. Verification: 7 focused C.2 tests pass, and the combined period/ledger/budget/
+  authorization/security checkpoint passes 105 tests. Item 3, canonical commitments, is next.
 
 ### Phase D - Forecasts, ETC, change control, and enterprise reporting
 
@@ -948,7 +973,7 @@ The audit itself created no migration. Implementation revision `j8k9l0m1n2o3` no
 | Rates | `project_rate_cards`, `project_rate_card_lines` | version/effective interval; rate type; Money currency; no invalid overlap for same selection key |
 | Budgets/plans | `project_budgets`, `project_budget_lines`, `project_planned_cost_versions`, `project_planned_cost_lines` | immutable approved/superseded versions; dimension scope; version uniqueness |
 | Commitments | `project_commitments`, `project_commitment_lines`, `project_commitment_matches` | unique source type/system/id/line; matched amount cannot exceed committed amount |
-| Actual ledger | `project_cost_entries` | direct tenant/org; posting/reversal state; source uniqueness; reversal target same scope/currency; immutable posted rows |
+| Actual ledger | `project_cost_entries` | IMPLEMENTED in C.2: direct tenant/org/project scope; posting/reversal state; source idempotency; scoped reversal links; one full reversal; Numeric Money/FX snapshots; immutable posted financial facts and delete guards |
 | Periods | organization fiscal calendar/period tables | non-overlapping dates per calendar; controlled status transitions |
 | Forecast/change | `project_forecasts`, `project_forecast_lines`, `project_financial_changes`, impact/apply references | immutable approved versions; one application result per approved change |
 | Billing/integration | billing preparation/line and accounting export/inbox records | source-selection uniqueness; idempotency; acknowledgement/reconciliation state |
@@ -1041,7 +1066,7 @@ Use the repository's canonical permission catalog and policy evaluation; do not 
 | `report.view` for FinanceService | Grant finance read to intended existing PM roles before code switch | `finance.read`; `finance.read_sensitive` |
 | `report.export` / `finance.export` | Retain alias only during rollout | `project_finance.export` |
 | `cost.read` | Map to non-sensitive finance read | `cost.read` or canonical `finance.read` by query responsibility |
-| `cost.manage` | Temporary umbrella with telemetry | `project_cost.create`, `.update_draft`, `.submit`, `.post`, `.reverse` |
+| `cost.manage` | Canonical ProjectCostEntry commands use target permissions; retain the umbrella only for unmigrated legacy CostItem callers until C.6-C.8 cutover | `project_cost.create`, `.update_draft`, `.submit`, `.approve`, `.post`, `.reverse` |
 | `finance.manage` | Temporary administrative umbrella, no automatic approval | profile/cost-code/rate/budget/forecast/change-specific manage permissions |
 | `approval.decide` | Require request-type policy as well | `project_budget.approve`, `project_cost.approve`, `project_forecast.approve`, `project_change.approve` |
 | Admin session bypass | No compatibility mapping | Explicit `project_finance.emergency_override`, reason required, Enterprise Audit mandatory |
@@ -1132,7 +1157,7 @@ The repository already uses global ADR-001 through ADR-004, so Project Finance d
 | [ADR-PF-001](../architecture_decisions/ADR-PF-001-money-currency-precision-rounding.md) | Money, currency, precision, quantities, rates, and rounding | ACCEPTED; PHASE A1 FOUNDATION IMPLEMENTED | A1 implementation |
 | [ADR-PF-002](../architecture_decisions/ADR-PF-002-project-finance-bounded-context.md) | Project Finance bounded-context and module ownership | ACCEPTED; PHASE A2 BOUNDARY CONTRACTS IMPLEMENTED | A2/B contracts |
 | [ADR-PF-003](../architecture_decisions/ADR-PF-003-wbs-and-hierarchical-tasks.md) | WBS versus hierarchical Tasks | ACCEPTED; TASK-OWNED WBS IMPLEMENTED | B WBS/planned-cost dimensions |
-| [ADR-PF-004](../architecture_decisions/ADR-PF-004-financial-posting-and-reversal.md) | Posting and signed reversal model | ACCEPTED; LEDGER IMPLEMENTATION DEFERRED TO C | A1/C ledger schema |
+| [ADR-PF-004](../architecture_decisions/ADR-PF-004-financial-posting-and-reversal.md) | Posting and signed reversal model | ACCEPTED; PROJECT COST LEDGER IMPLEMENTED IN C.2 | A1/C ledger schema |
 | [ADR-PF-005](../architecture_decisions/ADR-PF-005-rate-card-precedence.md) | Rate-card precedence | ACCEPTED; IMPLEMENTED INCLUDING COST-ENGINE CUTOVER (2026-08-05) | B rate-card implementation |
 | [ADR-PF-006](../architecture_decisions/ADR-PF-006-approved-time-posting-trigger.md) | Approved-time posting trigger | ACCEPTED; PHASE A2 SOURCE CONTRACT IMPLEMENTED | A2 contract/C consumer |
 | [ADR-PF-007](../architecture_decisions/ADR-PF-007-procurement-financial-triggers.md) | Procurement commitment and actual triggers | ACCEPTED; PHASE A2 SOURCE CONTRACTS IMPLEMENTED | A2 contract/C consumer |
@@ -1152,7 +1177,7 @@ These are genuine product/ownership decisions. Questions mapped to A0/A1/A2 ADRs
 5. Resolved by ADR-PF-005: cost and billing are separate; deterministic customer/project/resource/role-skill-department/organization precedence applies; overtime/holiday behavior is an explicit snapshotted modifier.
 6. Resolved by ADR-PF-006: labor cost originates from an APPROVED period snapshot; LOCKED is an idempotent administrative control.
 7. Resolved by ADR-PF-007: PO SENT creates commitment and receipt POSTED creates accrual actual; a later invoice reclassifies that accrual.
-8. Are manual actual costs allowed, and who may post or reverse them?
+8. Implementation baseline: manual actuals are allowed through the canonical governed lifecycle; Finance Controller authority plus project-owner scope may post/reverse. Confirm whether tenants may disable manual actuals or require stricter amount/department separation-of-duties policy.
 9. Which approval thresholds and separation-of-duties rules vary by tenant, organization, department, project, amount, and currency?
 10. Are expense claims in this product, a future Expenses module, or external-only?
 11. Which billing methods are in the first PM scope, and does PM only prepare billing or issue official invoices?
@@ -1163,7 +1188,7 @@ These are genuine product/ownership decisions. Questions mapped to A0/A1/A2 ADRs
 
 ## 25. Final Recommendation
 
-Proceed with the upgrade, but do not extend the current combined CostItem model. Phase A0 security/transaction correctness, A1 monetary foundations, A2 canonical application foundations, the Phase B1 configuration foundation, Task-owned WBS, effective-dated rate cards with the `CostPolicyEngine`/`LaborCostEngine` cutover, the versioned Budget/BudgetLine lifecycle, tactical assignment-labor planned-cost snapshots, and the five-view QML finance configuration replacement are implemented. Item 7's source cutover remains explicitly blocked by planning semantics and freshness ownership; do not force it. Continue with Phase C's actual ledger/commitments/time/procurement work while preserving that decision gate.
+Proceed with the upgrade, but do not extend the current combined CostItem model. Phase A0 security/transaction correctness, A1 monetary foundations, A2 canonical application foundations, the Phase B1 configuration foundation, Task-owned WBS, effective-dated rate cards with the `CostPolicyEngine`/`LaborCostEngine` cutover, the versioned Budget/BudgetLine lifecycle, tactical assignment-labor planned-cost snapshots, the five-view QML finance configuration replacement, organization financial periods, and the canonical `ProjectCostEntry` actual-ledger lifecycle are implemented. Item 7's planned-cost source cutover remains explicitly blocked by planning semantics and freshness ownership; do not force it. Continue with Phase C.3 commitments, then approved-Time and Procurement consumers, while deferring legacy CostItem/QML cutover to the named C.6-C.8 gates.
 
 Then build Project Finance as explicit PM-owned aggregates while preserving valid module ownership: Time supplies approved hours, Procurement supplies PO/receipt facts, Party supplies identities, Approval and Audit remain platform services, and external accounting owns official ledger/payment behavior. Use additive persistence and temporary compatibility only to migrate verified data; delete every fallback, dual-write, alias, and transition adapter at its named phase gate.
 

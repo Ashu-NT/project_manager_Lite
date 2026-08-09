@@ -102,6 +102,7 @@ from src.core.modules.project_management.application.financials import (
     FinanceService,
     ForecastCostService,
     PlannedCostService,
+    ProjectCostEntryService,
     ProjectFinanceWorkspaceQuery,
     ProjectRateCardService,
     RateCardResolver,
@@ -224,6 +225,7 @@ class ServiceGraph:
     rate_card_service: ProjectRateCardService
     rate_card_resolver: RateCardResolver
     budget_service: BudgetService
+    cost_entry_service: ProjectCostEntryService
     planned_cost_service: PlannedCostService
     finance_workspace_query: ProjectFinanceWorkspaceQuery
     finance_service: FinanceService
@@ -330,6 +332,7 @@ class ServiceGraph:
             "rate_card_service": self.rate_card_service,
             "rate_card_resolver": self.rate_card_resolver,
             "budget_service": self.budget_service,
+            "cost_entry_service": self.cost_entry_service,
             "planned_cost_service": self.planned_cost_service,
             "finance_workspace_query": self.finance_workspace_query,
             "finance_service": self.finance_service,
@@ -478,6 +481,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         rate_card_service=project_management_services.rate_card_service,
         rate_card_resolver=project_management_services.rate_card_resolver,
         budget_service=project_management_services.budget_service,
+        cost_entry_service=project_management_services.cost_entry_service,
         planned_cost_service=project_management_services.planned_cost_service,
         finance_workspace_query=project_management_services.finance_workspace_query,
         finance_service=project_management_services.finance_service,

@@ -50,6 +50,9 @@ PROJECT_SCOPE_ROLE_PERMISSIONS: dict[str, set[str]] = {
         "collaboration.manage",
         "timesheet.submit",
         "approval.request",
+        "project_cost.create",
+        "project_cost.update_draft",
+        "project_cost.submit",
     },
     "owner": {
         "project.read",
@@ -71,6 +74,12 @@ PROJECT_SCOPE_ROLE_PERMISSIONS: dict[str, set[str]] = {
         "timesheet.approve",
         "timesheet.lock",
         "approval.request",
+        "project_cost.create",
+        "project_cost.update_draft",
+        "project_cost.submit",
+        "project_cost.approve",
+        "project_cost.post",
+        "project_cost.reverse",
     },
 }
 

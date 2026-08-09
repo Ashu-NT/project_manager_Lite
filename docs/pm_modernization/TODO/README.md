@@ -359,7 +359,7 @@ product/architecture decision gate and must not be implemented as a mechanical s
 
 ## 2. Finance — Phase C: actual ledger, commitments, time, procurement, periods (in progress)
 
-Source: same doc, §19 Phase C. Item 1's permanent foundation is complete; items 2-8 are
+Source: same doc, §19 Phase C. Items 1-2's permanent foundations are complete; items 3-8 are
 unstarted. The prerequisite
 `TRANSITION(PF-A0-UOW-BRIDGE)` cleanup that items 2/6 depend on is done (governed
 commands now own their own Unit of Work). ADR gate: ADR-PF-004/006/007/008 already
@@ -375,8 +375,16 @@ ACCEPTED, so the ADR gate itself is not blocking.
    the coarse initial close/lock boundary; a dedicated authority/separation-of-duties rule and
    late-adjustment policy remain the explicit product gate in section 5 before such commands may
    be added.
-2. `ProjectCostEntry` draft/approval/post/reversal lifecycle with Money/base-Money/FX
-   snapshot, source, period, dimensions, actor/timestamps, scoped idempotency.
+2. **Canonical ProjectCostEntry lifecycle (complete 2026-08-09).** Manual actual and signed
+   adjustment drafts use dedicated create/update/delete-draft/submit/approve/reject/post/reverse
+   commands. The aggregate owns transaction Money, immutable base-Money and FX snapshots,
+   posting period/date, cost-code/task/resource dimensions, source identity/content hash,
+   actor/timestamps, row version, and exact linked negative reversals. Persistence has direct
+   tenant/org/project scope, database pagination/counts, composite scoped foreign keys, source and
+   reversal uniqueness, RLS metadata, and database triggers that reject posted financial-fact
+   updates or deletion. The service enforces active project finance configuration, effective and
+   allowed cost codes, dimension scope, open periods, canonical command permissions, fail-closed
+   audit, approval-owned Unit of Work, and deterministic source retry/conflict behavior.
 3. PM commitment projections/lines, matching, cancellation/closure, remaining-balance policy.
 4. Approved-Time contract/event + idempotent labor-cost consumer (snapshot rate,
    reverse/replace on corrected approvals).
@@ -397,6 +405,13 @@ The broader desktop-registry/PM-finance check passed 24 tests; its two failures 
 unrelated Site datetime and inactive-organization provisioning defects. No temporary C.1 code or
 deletion-register entry was introduced.
 
+Phase C.2 verification checkpoint: all 7 new domain/service/governance/tenant/FX/reversal/
+migration tests pass. The combined C.1/C.2, budget lifecycle, authorization hierarchy, project
+scope, role reconciliation, and Phase-A finance security run passes 105 tests. Alembic remains
+single-headed at `p3q4r5s6t7u8`. No legacy `CostItem` reader or writer was modified, no dual-write
+or compatibility adapter was introduced, and no C.2 code is temporary. Items 6-8 remain the named
+cutover/removal gates for legacy writes, reads, and QML. **Item 3, canonical commitments, is next.**
+
 ## 3. Finance — Phase D and E (future, not started)
 
 - **Phase D** (forecasts/ETC/change control/reporting): forecast versions+lines, ETC source
@@ -413,7 +428,7 @@ Source: same doc §20 "Transition-code deletion register." `OPEN`/`NOT CREATED` 
 
 | Component | Removal gate |
 | --- | --- |
-| `cost.manage` umbrella/alias | Target command permissions active across desktop/services |
+| `cost.manage` umbrella/alias | Canonical cost-entry service uses target permissions; remove after C.6-C.8 migrate remaining legacy desktop/service callers |
 | Legacy combined `CostItem` write API | Phase C distinct commands + QML cutover |
 | Legacy `CostItem` reader/projection | Phase D ledger/report reconciliation complete |
 | `Project.planned_budget` compatibility projection | Budget read cutover + reconciliation complete |

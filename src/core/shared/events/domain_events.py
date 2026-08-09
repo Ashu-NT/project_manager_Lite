@@ -28,6 +28,13 @@ class DomainEvents:
             "timesheet_periods_changed",
         ),
         ("costs_changed", "module", "project_management", "project_costs", "costs_changed"),
+        (
+            "cost_entries_changed",
+            "module",
+            "project_management",
+            "project_cost_entry",
+            "cost_entries_changed",
+        ),
         ("resources_changed", "module", "project_management", "resource", "resources_changed"),
         ("baseline_changed", "module", "project_management", "project_baseline", "baseline_changed"),
         ("budgets_changed", "module", "project_management", "project_budget", "budgets_changed"),
@@ -136,6 +143,7 @@ class DomainEvents:
     tasks_changed: Signal[str] = field(default_factory=Signal)
     timesheet_periods_changed: Signal[str] = field(default_factory=Signal)
     costs_changed: Signal[str] = field(default_factory=Signal)
+    cost_entries_changed: Signal[str] = field(default_factory=Signal)
     resources_changed: Signal[str] = field(default_factory=Signal)
     baseline_changed: Signal[str] = field(default_factory=Signal)
     budgets_changed: Signal[str] = field(default_factory=Signal)

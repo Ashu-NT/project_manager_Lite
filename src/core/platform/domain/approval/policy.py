@@ -10,6 +10,7 @@ DEFAULT_GOVERNED_ACTIONS = {
     "cost.delete",
     "dependency.add",
     "dependency.remove",
+    "project_cost.approve",
 }
 
 

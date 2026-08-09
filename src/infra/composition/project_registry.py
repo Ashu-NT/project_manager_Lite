@@ -35,6 +35,7 @@ from src.core.modules.project_management.application.financials import (
     FinanceService,
     ForecastCostService,
     PlannedCostService,
+    ProjectCostEntryService,
     ProjectFinanceWorkspaceQuery,
     ProjectRateCardService,
     RateCardResolver,
@@ -134,6 +135,7 @@ class ProjectManagementServiceBundle:
     rate_card_service: ProjectRateCardService
     rate_card_resolver: RateCardResolver
     budget_service: BudgetService
+    cost_entry_service: ProjectCostEntryService
     planned_cost_service: PlannedCostService
     finance_workspace_query: ProjectFinanceWorkspaceQuery
     finance_service: FinanceService
@@ -386,6 +388,22 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         approval_service=platform_services.approval_service,
     )
+    cost_entry_service = ProjectCostEntryService(
+        session=session,
+        entry_repo=repositories.project_cost_entry_repo,
+        project_repo=repositories.project_repo,
+        financial_profile_repo=repositories.project_financial_profile_repo,
+        cost_code_repo=repositories.project_cost_code_repo,
+        task_repo=repositories.task_repo,
+        resource_repo=repositories.resource_repo,
+        financial_period_service=platform_services.financial_period_service,
+        clock=system_clock,
+        user_session=platform_services.user_session,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
+        module_catalog_service=platform_services.module_catalog_service,
+        tenant_context_service=platform_services.tenant_context_service,
+        approval_service=platform_services.approval_service,
+    )
     planned_cost_service = PlannedCostService(
         session=session,
         planned_cost_repo=repositories.planned_cost_repo,
@@ -529,6 +547,7 @@ def build_project_management_service_bundle(
         task_service=task_service,
         cost_service=cost_service,
         budget_service=budget_service,
+        cost_entry_service=cost_entry_service,
         user_session=platform_services.user_session,
     )
     logger.debug("Project Management approval handlers registered")
@@ -549,6 +568,7 @@ def build_project_management_service_bundle(
         rate_card_service=rate_card_service,
         rate_card_resolver=rate_card_resolver,
         budget_service=budget_service,
+        cost_entry_service=cost_entry_service,
         planned_cost_service=planned_cost_service,
         finance_workspace_query=finance_workspace_query,
         finance_service=finance_service,
@@ -576,6 +596,7 @@ def _register_project_management_approval_handlers(
     task_service: TaskService,
     cost_service: CostService,
     budget_service: BudgetService,
+    cost_entry_service: ProjectCostEntryService,
     user_session=None,
 ) -> None:
     def _result(signal_name: str, payload: str) -> ApprovalHandlerResult:
@@ -657,19 +678,19 @@ def _register_project_management_approval_handlers(
         )
         return _result("costs_changed", req.project_id or "")
 
-    def _require_budget_decision_actor() -> str:
+    def _require_financial_decision_actor() -> str:
         principal = user_session.principal if user_session else None
         if principal is None:
             raise BusinessRuleError(
-                "An authenticated principal is required to decide a budget approval.",
-                code="PROJECT_BUDGET_ACTOR_REQUIRED",
+                "An authenticated principal is required to decide a financial approval.",
+                code="PROJECT_FINANCIAL_APPROVAL_ACTOR_REQUIRED",
             )
         return principal.user_id
 
     def _apply_budget_approval(req) -> ApprovalHandlerResult:
         budget = budget_service._apply_approval_decision(
             budget_id=req.payload["budget_id"],
-            approved_by=_require_budget_decision_actor(),
+            approved_by=_require_financial_decision_actor(),
             expected_version=req.payload["expected_version"],
             notes=req.payload.get("notes", ""),
             commit=False,
@@ -679,12 +700,31 @@ def _register_project_management_approval_handlers(
     def _apply_budget_rejection(req) -> ApprovalHandlerResult:
         budget = budget_service._apply_rejection_decision(
             budget_id=req.payload["budget_id"],
-            rejected_by=_require_budget_decision_actor(),
+            rejected_by=_require_financial_decision_actor(),
             expected_version=req.payload["expected_version"],
             notes=req.payload.get("notes", ""),
             commit=False,
         )
         return _result("budgets_changed", budget.project_id)
+
+    def _apply_cost_entry_approval(req) -> ApprovalHandlerResult:
+        entry = cost_entry_service._apply_approval_decision(
+            entry_id=req.payload["entry_id"],
+            expected_version=req.payload["expected_version"],
+            actor_id=_require_financial_decision_actor(),
+            commit=False,
+        )
+        return _result("cost_entries_changed", entry.project_id)
+
+    def _apply_cost_entry_rejection(req) -> ApprovalHandlerResult:
+        entry = cost_entry_service._apply_rejection_decision(
+            entry_id=req.payload["entry_id"],
+            expected_version=req.payload["expected_version"],
+            actor_id=_require_financial_decision_actor(),
+            notes=req.payload.get("notes", ""),
+            commit=False,
+        )
+        return _result("cost_entries_changed", entry.project_id)
 
     approval_service.register_apply_handler(
         "baseline.create",
@@ -717,6 +757,14 @@ def _register_project_management_approval_handlers(
     approval_service.register_reject_handler(
         "budget.approve",
         _apply_budget_rejection,
+    )
+    approval_service.register_apply_handler(
+        "project_cost.approve",
+        _apply_cost_entry_approval,
+    )
+    approval_service.register_reject_handler(
+        "project_cost.approve",
+        _apply_cost_entry_rejection,
     )
 
 
