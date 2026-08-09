@@ -28,6 +28,7 @@ ITEM_STATUS_VALUES = frozenset({"DRAFT", "ACTIVE", "INACTIVE", "OBSOLETE"})
 STOREROOM_STATUS_VALUES = frozenset({"DRAFT", "ACTIVE", "INACTIVE", "CLOSED"})
 PROCUREMENT_PRIORITY_VALUES = frozenset({"LOW", "NORMAL", "HIGH", "URGENT"})
 INVENTORY_SOURCE_REFERENCE_TYPES: tuple[str, ...] = (
+    "project",
     "task",
     "work_order",
     "maintenance_task",

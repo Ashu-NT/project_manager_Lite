@@ -11,6 +11,9 @@ from src.core.modules.inventory_procurement.application.inventory import (
 from src.core.modules.inventory_procurement.application.procurement.purchasing_lifecycle import (
     PurchasingLifecycleMixin,
 )
+from src.core.modules.inventory_procurement.application.procurement.purchasing_financial_events import (
+    PurchasingFinancialEventsMixin,
+)
 from src.core.modules.inventory_procurement.application.procurement.purchasing_queries import (
     PurchasingQueryMixin,
 )
@@ -32,6 +35,7 @@ from src.core.modules.inventory_procurement.contracts.repositories.procurement i
     ReceiptLineRepository,
 )
 from src.core.platform.application.approval.approval_service import ApprovalService
+from src.core.platform.application.integration import IntegrationOutboxService
 from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
 from src.core.platform.application.master_data.documents import DocumentIntegrationService
 from src.core.platform.domain.master_data.documents import Document, DocumentLink
@@ -48,6 +52,7 @@ from src.core.shared.events.domain_events import domain_events
 class PurchasingService(
     PurchasingSupportMixin,
     PurchasingQueryMixin,
+    PurchasingFinancialEventsMixin,
     PurchasingLifecycleMixin,
     PurchasingReceivingMixin,
 ):
@@ -74,6 +79,7 @@ class PurchasingService(
         user_session=None,
         activity_service=None,
         document_integration_service: DocumentIntegrationService | None = None,
+        procurement_financial_outbox_service: IntegrationOutboxService | None = None,
     ) -> None:
         self._session: Session = session
         self._purchase_order_repo: PurchaseOrderRepository = purchase_order_repo
@@ -96,6 +102,11 @@ class PurchasingService(
         self._user_session = user_session
         self._activity_service = activity_service
         self._document_integration_service: DocumentIntegrationService | None = document_integration_service
+        self._procurement_financial_outbox_service = procurement_financial_outbox_service
+        self._procurement_financial_dispatcher = None
+
+    def set_procurement_financial_dispatcher(self, dispatcher) -> None:
+        self._procurement_financial_dispatcher = dispatcher
 
     def list_purchase_order_documents(
         self,

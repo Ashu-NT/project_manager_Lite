@@ -347,7 +347,25 @@ class PurchasingLifecycleMixin:
         expected_version: int | None = None,
     ) -> PurchaseOrder:
         self._require_manage("cancel purchase order")
-        purchase_order = self._require_draft_purchase_order(purchase_order_id)
+        purchase_order = self.get_purchase_order(purchase_order_id)
+        if purchase_order.status not in {
+            PurchaseOrderStatus.DRAFT,
+            PurchaseOrderStatus.APPROVED,
+            PurchaseOrderStatus.SENT,
+            PurchaseOrderStatus.PARTIALLY_RECEIVED,
+        }:
+            raise ValidationError(
+                "Purchase order cannot be cancelled from its current status.",
+                code="INVENTORY_PURCHASE_ORDER_CANCEL_STATUS_INVALID",
+            )
+        if (
+            purchase_order.status != PurchaseOrderStatus.DRAFT
+            and not normalize_optional_text(note)
+        ):
+            raise ValidationError(
+                "A cancellation reason is required after purchase-order approval.",
+                code="INVENTORY_PURCHASE_ORDER_CANCEL_REASON_REQUIRED",
+            )
         if expected_version is not None and purchase_order.version != expected_version:
             raise ConcurrencyError(
                 "Purchase order changed since you opened it. Refresh and try again.",
@@ -358,6 +376,7 @@ class PurchasingLifecycleMixin:
             next_status=PurchaseOrderStatus.CANCELLED.value,
             transitions=PURCHASE_ORDER_STATUS_TRANSITIONS,
         )
+        prior_status = purchase_order.status
         effective_at = datetime.now(timezone.utc)
         purchase_order = replace(
             purchase_order,
@@ -367,10 +386,21 @@ class PurchasingLifecycleMixin:
         )
         lines = self._purchase_order_line_repo.list_for_purchase_order(purchase_order.id)
         for line in lines:
+            outstanding = self._line_outstanding_qty(line)
+            if outstanding > 0 and prior_status != PurchaseOrderStatus.DRAFT:
+                self._adjust_on_order_balance(
+                    organization_id=purchase_order.organization_id,
+                    item=self._item_service.get_item_for_internal_use(line.stock_item_id),
+                    storeroom_id=line.destination_storeroom_id,
+                    uom=line.uom,
+                    delta=-outstanding,
+                    effective_at=effective_at,
+                )
             line = replace(line, status=PurchaseOrderLineStatus.CANCELLED)
             self._purchase_order_line_repo.update(line)
         try:
             self._purchase_order_repo.update(purchase_order)
+            self._enqueue_purchase_order_financial_events(purchase_order, lines)
             self._session.commit()
         except Exception:
             self._session.rollback()
@@ -387,6 +417,7 @@ class PurchasingLifecycleMixin:
             },
         )
         domain_events.inventory_purchase_orders_changed.emit(purchase_order.id)
+        self._dispatch_procurement_financial_events()
         return purchase_order
 
     def send_purchase_order(
@@ -414,8 +445,10 @@ class PurchasingLifecycleMixin:
             ),
             updated_at=effective_at,
         )
+        lines = self._purchase_order_line_repo.list_for_purchase_order(purchase_order.id)
         try:
             self._purchase_order_repo.update(purchase_order)
+            self._enqueue_purchase_order_financial_events(purchase_order, lines)
             self._session.commit()
         except Exception:
             self._session.rollback()
@@ -432,6 +465,7 @@ class PurchasingLifecycleMixin:
             },
         )
         domain_events.inventory_purchase_orders_changed.emit(purchase_order.id)
+        self._dispatch_procurement_financial_events()
         return purchase_order
 
     def close_purchase_order(
@@ -467,6 +501,7 @@ class PurchasingLifecycleMixin:
         )
         try:
             self._purchase_order_repo.update(purchase_order)
+            self._enqueue_purchase_order_financial_events(purchase_order, lines)
             self._session.commit()
         except Exception:
             self._session.rollback()
@@ -483,6 +518,7 @@ class PurchasingLifecycleMixin:
             },
         )
         domain_events.inventory_purchase_orders_changed.emit(purchase_order.id)
+        self._dispatch_procurement_financial_events()
         return purchase_order
 
 

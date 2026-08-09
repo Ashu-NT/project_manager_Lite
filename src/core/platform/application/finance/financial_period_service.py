@@ -198,6 +198,13 @@ class FinancialPeriodService:
             "finance.read",
             operation_label="resolve financial posting period",
         )
+        return self._resolve_open_period_for_date(posting_date)
+
+    def require_open_period_for_integration(self, posting_date: date) -> FinancialPeriod:
+        """Resolve an open period for an already-authenticated trusted consumer."""
+        return self._resolve_open_period_for_date(posting_date)
+
+    def _resolve_open_period_for_date(self, posting_date: date) -> FinancialPeriod:
         if not isinstance(posting_date, date) or isinstance(posting_date, datetime):
             raise ValidationError(
                 "Posting date must be a valid date.",

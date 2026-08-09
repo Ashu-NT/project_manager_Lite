@@ -39,6 +39,7 @@ from src.core.modules.project_management.application.financials import (
     PlannedCostService,
     ProjectCostEntryService,
     ProjectCommitmentService,
+    ProcurementFinancialConsumer,
     ProjectFinanceWorkspaceQuery,
     ProjectRateCardService,
     RateCardResolver,
@@ -140,6 +141,7 @@ class ProjectManagementServiceBundle:
     budget_service: BudgetService
     cost_entry_service: ProjectCostEntryService
     approved_time_labor_cost_consumer: ApprovedTimeLaborCostConsumer
+    procurement_financial_consumer: ProcurementFinancialConsumer
     commitment_service: ProjectCommitmentService
     planned_cost_service: PlannedCostService
     finance_workspace_query: ProjectFinanceWorkspaceQuery
@@ -431,6 +433,11 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
+    procurement_financial_consumer = ProcurementFinancialConsumer(
+        commitment_service=commitment_service,
+        cost_entry_service=cost_entry_service,
+        task_repo=repositories.task_repo,
+    )
     planned_cost_service = PlannedCostService(
         session=session,
         planned_cost_repo=repositories.planned_cost_repo,
@@ -597,6 +604,7 @@ def build_project_management_service_bundle(
         budget_service=budget_service,
         cost_entry_service=cost_entry_service,
         approved_time_labor_cost_consumer=approved_time_labor_cost_consumer,
+        procurement_financial_consumer=procurement_financial_consumer,
         commitment_service=commitment_service,
         planned_cost_service=planned_cost_service,
         finance_workspace_query=finance_workspace_query,

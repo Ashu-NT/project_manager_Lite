@@ -1,6 +1,6 @@
 # ADR-PF-011: Durable Integration Outbox and Inbox
 
-- Status: accepted; durable foundation and C.4 approved-Time delivery implemented, C.5 Procurement delivery pending
+- Status: accepted; durable foundation and Phase C.4/C.5 financial delivery implemented
 - Date: 2026-08-02
 - Implementation gate: Phase A2 decision and contract; Phase C persistence/consumers
 
@@ -31,7 +31,7 @@ The domain-event half of that observation — giving each bounded context typed,
 
 ## Consequences
 
-The source modules and PM Finance now have additive owned outbox/inbox persistence and lifecycle services with operational retry/dead-letter state. Message delivery identity and financial source identity remain intentionally separate. C.4 applies this design to approved Time; C.5 must apply the same permanent foundation to Procurement lifecycle events without replacing or bypassing it.
+The source modules and PM Finance now have additive owned outbox/inbox persistence and lifecycle services with operational retry/dead-letter state. Message delivery identity and financial source identity remain intentionally separate. C.4 applies this design to approved Time and C.5 applies it to project-linked Procurement PO/receipt lifecycle facts without replacing or bypassing the permanent foundation.
 
 ## Migration Impact
 
@@ -51,4 +51,5 @@ Test atomic outbox writes, duplicate transport delivery, duplicate semantic sour
 - Platform Time writes approved-entry events atomically with approval and audit. `ApprovedTimeFinancialDispatcher` claims the Time outbox, applies the PM Finance inbox and financial mutation transactionally, acknowledges only after commit, and is replayed in a bounded startup pass without threads or timers.
 - Failed consumption rolls back the financial transaction, then persists matching retry/dead-letter evidence in the PM inbox and Time outbox using the canonical domain error code. It does not expose a raw exception to QML or lose the committed source fact.
 - PM Finance independently enforces semantic source revision/content identity, snapshots the selected rate, writes the posted labor actual and immutable posting detail, and reverses/replaces corrected approvals. Process-local cost signals remain post-commit UI refresh only.
-- `src/tests/platform/test_integration_delivery_foundation.py` verifies the generic delivery guarantees. `src/tests/project_management/test_approved_time_labor_integration.py` adds source aggregate atomicity, approved-only generation, correction, LOCKED no-op, durable inbox/outbox completion, consumer financial rollback behavior, closed-period retry evidence, post-commit UI refresh isolation, rate evidence, and migration reversibility for C.4. Equivalent Procurement source/consumer coverage remains C.5.
+- Procurement writes PO-line and receipt-line events to its owned outbox in the same transaction as source lifecycle, stock, and receipt changes. PM applies commitment revision or receipt actual/match plus inbox/audit atomically; non-project POs never enter the financial channel.
+- `src/tests/platform/test_integration_delivery_foundation.py` verifies the generic delivery guarantees. `src/tests/project_management/test_approved_time_labor_integration.py` covers C.4 and `src/tests/project_management/test_procurement_financial_integration.py` covers C.5 source atomicity, lifecycle projection, accrual/matching, variance, retry, isolation, and replay behavior.

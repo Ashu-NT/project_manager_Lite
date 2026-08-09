@@ -1493,9 +1493,9 @@ actual pattern, not an imagined one).
 serves purely as a local UI-refresh trigger. No existing signal carries a durable payload or is
 consumed outside the current process. The accepted `ADR-PF-011` distinction is now physically
 established by source-owned Time/Procurement outboxes and the PM Finance-owned inbox; no legacy
-signal has been promoted or connected to those stores. Phase C.4 now uses that boundary for
-durable approved-Time emission, PM Finance consumption, and post-commit UI refresh. Procurement
-source emission and consumption remain Phase C.5 work.
+signal has been promoted or connected to those stores. Phase C.4 uses that boundary for durable
+approved-Time emission and Phase C.5 uses it for project-linked Procurement PO/receipt facts.
+Both PM Finance consumers emit local UI refresh only after durable financial completion.
 
 ### 12b. Activity vs. Enterprise Audit
 

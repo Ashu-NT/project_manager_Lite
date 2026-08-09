@@ -142,6 +142,65 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
     ) -> ProjectCommitmentLine:
         """Apply one ordered PO-line revision; delivery transport is owned by Phase C.5."""
 
+        return self._ingest_procurement_source(
+            source,
+            cost_code_id=cost_code_id,
+            exchange_rate=exchange_rate,
+            exchange_rate_date=exchange_rate_date,
+            exchange_rate_source=exchange_rate_source,
+            exchange_rate_captured_at=exchange_rate_captured_at,
+            actor_id=self._actor_id(),
+            authorize=True,
+            commit=True,
+        )
+
+    def apply_procurement_source(
+        self,
+        source: ProcurementCommitmentFinancialSource,
+        *,
+        exchange_rate: Decimal | None = None,
+        exchange_rate_date: date | None = None,
+        exchange_rate_source: str | None = None,
+        exchange_rate_captured_at: datetime | None = None,
+    ) -> ProjectCommitmentLine:
+        """Apply one trusted inbox delivery without committing its transaction."""
+        profile = self._financial_profile_repo.get_by_project(source.reference.project_id)
+        if profile is None or profile.status != FinancialProfileStatus.ACTIVE:
+            raise BusinessRuleError(
+                "An active project financial profile is required for commitments.",
+                code="PROJECT_FINANCIAL_PROFILE_NOT_ACTIVE",
+            )
+        if not profile.default_cost_code_id:
+            raise BusinessRuleError(
+                "Project requires a default cost code before commitments can synchronize.",
+                code="PROJECT_COMMITMENT_DEFAULT_COST_CODE_REQUIRED",
+            )
+        return self._ingest_procurement_source(
+            source,
+            cost_code_id=profile.default_cost_code_id,
+            exchange_rate=exchange_rate,
+            exchange_rate_date=exchange_rate_date,
+            exchange_rate_source=exchange_rate_source,
+            exchange_rate_captured_at=exchange_rate_captured_at,
+            actor_id="integration:project_finance",
+            authorize=False,
+            commit=False,
+        )
+
+    def _ingest_procurement_source(
+        self,
+        source: ProcurementCommitmentFinancialSource,
+        *,
+        cost_code_id: str,
+        exchange_rate: Decimal | None,
+        exchange_rate_date: date | None,
+        exchange_rate_source: str | None,
+        exchange_rate_captured_at: datetime | None,
+        actor_id: str,
+        authorize: bool,
+        commit: bool,
+    ) -> ProjectCommitmentLine:
+
         reference = source.reference
         context = self._require_full_context("synchronize project commitment")
         if (
@@ -152,7 +211,10 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
                 "Commitment source scope does not match the active organization.",
                 code="PROJECT_COMMITMENT_SOURCE_SCOPE_MISMATCH",
             )
-        self._require_manage_permission(reference.project_id, "synchronize project commitment")
+        if authorize:
+            self._require_manage_permission(
+                reference.project_id, "synchronize project commitment"
+            )
         self._require_dimensions(
             project_id=reference.project_id,
             cost_code_id=cost_code_id,
@@ -176,7 +238,6 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
         base_money = Money.of(
             money.amount * fx_rate, context.organization.base_currency
         ).rounded()
-        actor_id = self._actor_id()
         now = self._clock.now()
         snapshot_json = json.dumps(source.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
 
@@ -207,7 +268,10 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
         if replay:
             return line
         self._record_line_audit(operation, line)
-        self._commit_and_emit(line.project_id)
+        if commit:
+            self._commit_and_emit(line.project_id)
+        else:
+            self._session.flush()
         return line
 
     def _apply_source_projection(
@@ -323,6 +387,65 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
             raise NotFoundError(
                 "Project cost entry not found.", code="PROJECT_COST_ENTRY_NOT_FOUND"
             )
+        return self._create_match(
+            line=line,
+            entry=entry,
+            actor_id=self._actor_id(),
+            commit=True,
+        )
+
+    def apply_procurement_receipt_match(
+        self,
+        *,
+        purchase_order_id: str,
+        purchase_order_line_id: str,
+        cost_entry_id: str,
+        supplier_party_id: str,
+        site_id: str,
+    ) -> ProjectCommitmentMatch:
+        """Match one trusted receipt posting without committing the inbox transaction."""
+        line = self._commitment_repo.get_line_by_source(
+            purchase_order_id, purchase_order_line_id, for_update=True
+        )
+        if line is None:
+            raise BusinessRuleError(
+                "Receipt accrual requires its purchase-order commitment projection.",
+                code="PROJECT_COMMITMENT_RECEIPT_SOURCE_NOT_FOUND",
+            )
+        commitment = self._commitment_repo.get(line.commitment_id)
+        if commitment is None:
+            raise BusinessRuleError(
+                "Receipt accrual commitment header is missing.",
+                code="PROJECT_COMMITMENT_HEADER_INTEGRITY_FAILED",
+            )
+        if (
+            commitment.supplier_party_id != supplier_party_id
+            or commitment.site_id != site_id
+        ):
+            raise BusinessRuleError(
+                "Receipt supplier or site does not match the purchase-order commitment.",
+                code="PROJECT_COMMITMENT_RECEIPT_DIMENSION_MISMATCH",
+            )
+        entry = self._cost_entry_repo.get(cost_entry_id, for_update=True)
+        if entry is None:
+            raise NotFoundError(
+                "Project cost entry not found.", code="PROJECT_COST_ENTRY_NOT_FOUND"
+            )
+        return self._create_match(
+            line=line,
+            entry=entry,
+            actor_id="integration:project_finance",
+            commit=False,
+        )
+
+    def _create_match(
+        self,
+        *,
+        line: ProjectCommitmentLine,
+        entry,
+        actor_id: str,
+        commit: bool,
+    ) -> ProjectCommitmentMatch:
         if (
             entry.status != ProjectCostEntryStatus.POSTED
             or entry.entry_kind == ProjectCostEntryKind.REVERSAL
@@ -349,9 +472,15 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
                 "This cost entry is already matched to another commitment line.",
                 code="PROJECT_COMMITMENT_COST_ENTRY_ALREADY_MATCHED",
             )
-        actor_id = self._actor_id()
         now = self._clock.now()
-        amount = entry.money
+        remaining_amount = line.amount - line.matched_amount
+        matched_amount = min(entry.amount, remaining_amount)
+        if matched_amount <= 0:
+            raise BusinessRuleError(
+                "Commitment line has no remaining amount available for this receipt.",
+                code="PROJECT_COMMITMENT_NO_REMAINING_MATCH_AMOUNT",
+            )
+        amount = Money.of(matched_amount, entry.currency_code)
         expected_version = line.row_version
         line.apply_match(amount, actor_id=actor_id, occurred_at=now)
         match = ProjectCommitmentMatch(
@@ -372,7 +501,10 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
                 code="PROJECT_COMMITMENT_MATCH_CONFLICT",
             ) from exc
         self._record_match_audit("match", match, line)
-        self._commit_and_emit(line.project_id)
+        if commit:
+            self._commit_and_emit(line.project_id)
+        else:
+            self._session.flush()
         return match
 
     def reverse_match(
@@ -395,11 +527,11 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
             entry.status != ProjectCostEntryStatus.POSTED
             or entry.entry_kind != ProjectCostEntryKind.REVERSAL
             or entry.reverses_entry_id != original.cost_entry_id
-            or entry.amount != -original.amount
+            or abs(entry.amount) < original.amount
             or entry.currency_code != original.currency_code
         ):
             raise BusinessRuleError(
-                "The reversal entry must exactly reverse the matched cost entry.",
+                "The reversal entry must reverse at least the matched commitment amount.",
                 code="PROJECT_COMMITMENT_MATCH_REVERSAL_INVALID",
             )
         idempotency_key = self._match_idempotency_key(

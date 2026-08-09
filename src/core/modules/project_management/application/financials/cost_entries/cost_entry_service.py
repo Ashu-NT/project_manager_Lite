@@ -22,6 +22,7 @@ from src.core.modules.project_management.contracts.financial_sources import (
     FinancialSourceModule,
     FinancialSourceReference,
     FinancialSourceType,
+    ProcurementReceiptAccrualFinancialSource,
     financial_source_content_hash,
 )
 from src.core.modules.project_management.contracts.repositories.labor_posting import ApprovedTimeLaborPostingRepository
@@ -167,7 +168,9 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         money = Money.of(hours * rate_money.amount, rate_money.currency.code).rounded()
         if money.amount <= 0:
             raise BusinessRuleError("Approved labor cost must be positive.", code="APPROVED_TIME_COST_INVALID")
-        period = self._financial_period_service.require_open_period_for_date(source.work_date)
+        period = self._financial_period_service.require_open_period_for_integration(
+            source.work_date
+        )
         actor_id = "integration:project_finance"
         now = self._clock.now()
         reversal = None
@@ -254,6 +257,90 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         if reversal is not None:
             self._record_audit("create_approved_time_reversal", reversal)
         self._record_audit("post_approved_time", entry)
+        return entry
+
+    def apply_procurement_receipt_source(
+        self, source: ProcurementReceiptAccrualFinancialSource
+    ) -> ProjectCostEntry:
+        """Post one trusted Procurement receipt fact without committing the inbox transaction."""
+        context = self._require_full_context("post Procurement receipt accrual")
+        reference = source.reference
+        if (
+            reference.tenant_id != context.tenant_id
+            or reference.organization_id != context.organization_id
+        ):
+            raise BusinessRuleError(
+                "Procurement receipt source is outside the active scope.",
+                code="PROCUREMENT_RECEIPT_SCOPE_MISMATCH",
+            )
+        self._require_project(reference.project_id)
+        profile = self._require_active_profile(reference.project_id)
+        if not profile.default_cost_code_id:
+            raise BusinessRuleError(
+                "Project requires a default cost code before receipt accruals can post.",
+                code="PROCUREMENT_RECEIPT_DEFAULT_COST_CODE_REQUIRED",
+            )
+        posting_date = source.posted_at.date()
+        self._require_dimensions(
+            project_id=reference.project_id,
+            cost_code_id=profile.default_cost_code_id,
+            transaction_date=posting_date,
+            task_id=source.task_id,
+            resource_id=None,
+            organization_id=context.organization_id,
+        )
+        quantity = source.accepted_quantity.to_domain()
+        rate = source.unit_cost.to_domain()
+        money = rate.apply(quantity).rounded()
+        if money.currency.code != context.organization.base_currency:
+            raise BusinessRuleError(
+                "Cross-currency receipt accruals require an enterprise FX provider.",
+                code="PROCUREMENT_RECEIPT_FX_PROVIDER_REQUIRED",
+            )
+        if money.amount <= 0:
+            raise BusinessRuleError(
+                "Procurement receipt accrual must be positive.",
+                code="PROCUREMENT_RECEIPT_AMOUNT_INVALID",
+            )
+        existing = self._entry_repo.get_by_idempotency_key(reference.idempotency_key)
+        if existing is not None:
+            return self._resolve_replay(existing, reference)
+        period = self._financial_period_service.require_open_period_for_integration(
+            posting_date
+        )
+        actor_id = "integration:project_finance"
+        now = self._clock.now()
+        entry = ProjectCostEntry.create_draft(
+            tenant_id=reference.tenant_id,
+            organization_id=reference.organization_id,
+            project_id=reference.project_id,
+            description=f"Receipt accrual {source.receipt_number}",
+            kind=ProjectCostEntryKind.ACTUAL,
+            money=money,
+            transaction_date=posting_date,
+            cost_code_id=profile.default_cost_code_id,
+            task_id=source.task_id,
+            resource_id=None,
+            source=reference,
+            actor_id=actor_id,
+            occurred_at=now,
+        )
+        entry.submit(actor_id=actor_id, occurred_at=now)
+        entry.approve(actor_id=actor_id, occurred_at=now)
+        entry.post(
+            actor_id=actor_id,
+            occurred_at=now,
+            posting_date=posting_date,
+            financial_period_id=period.id,
+            base_money=money,
+            exchange_rate=Decimal("1"),
+            exchange_rate_date=posting_date,
+            exchange_rate_source="identity",
+            exchange_rate_captured_at=now,
+        )
+        self._entry_repo.add(entry)
+        self._entry_repo.flush()
+        self._record_audit("post_procurement_receipt", entry)
         return entry
 
     def get_entry(self, entry_id: str) -> ProjectCostEntry:

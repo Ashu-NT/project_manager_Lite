@@ -1,6 +1,6 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: audit complete; Phase A0-A2, Phase B item 8, and Phase C items 1-4 code gates complete; hosted PostgreSQL validation pending
+Status: audit complete; Phase A0-A2, Phase B item 8, and Phase C items 1-5 code gates complete; hosted PostgreSQL validation pending
 Last updated: 2026-08-09
 Scope: Project Management finance plus reusable platform financial foundations
 Current increment: Task-owned WBS, effective-dated rate cards (ADR-PF-005) with the
@@ -23,8 +23,8 @@ order. Both rate-card and budget Numeric columns now declare it.
 Remaining Phase B scope: item 7's planning-report source decision remains blocked on the
 documented envelope-versus-allocation product decision and a snapshot freshness mechanism.
 Item 8's QML combined-Budget replacement is complete. Phase C item 1's organization financial-
-period, actual-ledger, commitment, and approved-Time labor-posting foundations are complete.
-Phase C item 5's typed Procurement event delivery and PM consumer are next.
+period, actual-ledger, commitment, approved-Time, and Procurement financial-delivery foundations
+are complete. Phase C item 6's canonical command cutover from combined `CostItem` is next.
 
 ## 1. Executive Summary
 
@@ -876,7 +876,7 @@ ADR gate: ADR-PF-004, ADR-PF-006, ADR-PF-007, and ADR-PF-008 must be accepted be
 3. **Complete 2026-08-09:** add PM commitment projections/lines, monotonic immutable source
    revisions, receipt-actual matching/reversal, cancellation/closure, and remaining-balance policy.
 4. **Complete 2026-08-09:** add an approved-Time contract/event and idempotent labor-cost consumer. Snapshot rate and reverse/replace corrected approvals.
-5. Add typed Procurement project-source queries/events for PO lines, changes, cancellation, receipts, and supplier invoice references when available. PM creates projections/postings; Procurement remains owner.
+5. **Complete 2026-08-09 for available source lifecycles:** add typed Procurement project-source events for PO SENT/status/cancellation/closure and POSTED receipts. PM creates projections/postings; Procurement remains owner. Governed post-send amendment and supplier-invoice sources remain future because those source aggregates/commands do not yet exist.
 6. Replace manual combined CostItem writes with distinct planned, commitment, and manual-actual commands. Posted actuals are never editable/deletable.
 7. Backfill/split legacy CostItem rows, dual-read for reports, reconcile totals, and quarantine unresolved currency/source cases.
 8. Redesign QML Actuals and Commitments as ledgers with status, source, period, matching, approval, posting, and reversal actions. Remove the generic edit/delete behavior from posted rows.
@@ -936,9 +936,8 @@ Implementation progress:
   Procurement purchase-order ID and a `ProjectCommitmentLine` per opaque purchase-order-line ID.
   It does not import Inventory packages, query Inventory repositories, or create cross-module
   foreign keys. The typed PM inbound source contract is consumed at the application boundary;
-  C.5 remains responsible for a provider/outbox/inbox adapter located outside both business
-  modules. A permanent architecture test rejects direct PM-to-Inventory and Inventory-to-PM
-  imports.
+  C.5 now supplies the outbox/inbox dispatcher outside both business modules. A permanent
+  architecture test rejects direct PM-to-Inventory and Inventory-to-PM imports.
 - Each line snapshots Decimal quantity/rate, transaction and organization-base Money, FX rate/
   date/source/capture timestamp, project/cost-code/task/supplier/site dimensions, source content
   hash and positive integer revision, lifecycle, matched amount, actors/timestamps, and optimistic
@@ -988,8 +987,27 @@ Implementation progress:
   verification passes 43 tests; the selected related Time lifecycle/workspace verification passes
   17 tests. C.4 introduced no transition file, temporary adapter, dual-write,
   legacy `CostItem` mutation, or deletion-register item. The typed desktop correction command is
-  complete; its final QML reason dialog/action remains at item 8's ledger redesign gate. Item 5,
-  typed Procurement event delivery and PM consumers, is next.
+  complete; its final QML reason dialog/action remains at item 8's ledger redesign gate.
+- Item 5 is complete for the Procurement lifecycles that exist. Project/task-linked PO SENT and
+  later status revisions atomically write immutable Decimal quantity/rate snapshots to the
+  Procurement-owned outbox. POSTED accepted receipt lines emit accrual facts; rejected quantities
+  do not create actuals. Unlinked purchasing remains outside Project Finance.
+- PM resolves opaque task references inside its own boundary, applies active project/profile/
+  default-cost-code/supplier/site/currency validation, creates monotonic commitment revisions,
+  posts receipt accruals into open periods, and matches no more than remaining commitment value.
+  Receipt price variance remains fully visible in actual cost rather than being dropped or
+  overmatched. Reason-required active cancellation releases on-order quantity and financial
+  exposure while preserving source and match history.
+- Source mutation plus outbox is atomic, and PM inbox plus commitment/actual/match/audit is atomic.
+  Delivery uses bounded immediate/startup replay with durable retry/dead-letter and canonical
+  failure codes; local QML refresh is post-commit only. Seven focused C.5 tests and the selected
+  C.1-C.5/Procurement/architecture checkpoint pass 73 tests. No direct cross-module business
+  import, foreign key, temporary adapter, dual-write, thread/timer, migration, legacy `CostItem`
+  mutation, or deletion-register entry was added.
+- Procurement does not yet own a governed post-send commercial amendment command or supplier-
+  invoice aggregate. Those future source capabilities must publish later revisions/reclassification
+  through this same contract; they are not simulated in PM. Item 6, canonical command cutover from
+  combined `CostItem`, is next.
 
 ### Phase D - Forecasts, ETC, change control, and enterprise reporting
 
@@ -1220,11 +1238,11 @@ The repository already uses global ADR-001 through ADR-004, so Project Finance d
 | [ADR-PF-004](../architecture_decisions/ADR-PF-004-financial-posting-and-reversal.md) | Posting and signed reversal model | ACCEPTED; PROJECT COST LEDGER IMPLEMENTED IN C.2 | A1/C ledger schema |
 | [ADR-PF-005](../architecture_decisions/ADR-PF-005-rate-card-precedence.md) | Rate-card precedence | ACCEPTED; IMPLEMENTED INCLUDING COST-ENGINE CUTOVER (2026-08-05) | B rate-card implementation |
 | [ADR-PF-006](../architecture_decisions/ADR-PF-006-approved-time-posting-trigger.md) | Approved-time posting trigger | ACCEPTED; PHASE C.4 SOURCE EVENT AND CONSUMER IMPLEMENTED | A2 contract/C consumer |
-| [ADR-PF-007](../architecture_decisions/ADR-PF-007-procurement-financial-triggers.md) | Procurement commitment and actual triggers | ACCEPTED; PHASE A2 SOURCE CONTRACTS IMPLEMENTED | A2 contract/C consumer |
+| [ADR-PF-007](../architecture_decisions/ADR-PF-007-procurement-financial-triggers.md) | Procurement commitment and actual triggers | ACCEPTED; PHASE C.5 PO/RECEIPT DELIVERY IMPLEMENTED | A2 contract/C consumer |
 | [ADR-PF-008](../architecture_decisions/ADR-PF-008-approval-unit-of-work.md) | Approval and unit-of-work transaction model | ACCEPTED; INITIAL TRANSACTION CUTOVER IMPLEMENTED | A0 approval refactor |
 | [ADR-PF-009](../architecture_decisions/ADR-PF-009-cost-code-ownership.md) | Cost-code ownership and hierarchy | ACCEPTED; PHASE B1 FOUNDATION IMPLEMENTED | B cost-code schema |
 | [ADR-PF-010](../architecture_decisions/ADR-PF-010-billing-and-accounting-boundary.md) | Billing versus external accounting ownership | PROPOSED | E implementation |
-| [ADR-PF-011](../architecture_decisions/ADR-PF-011-durable-integration-outbox-inbox.md) | Durable outbox/inbox ownership and delivery semantics | ACCEPTED; ENVELOPE CONTRACT IMPLEMENTED, STORES DEFERRED TO C | A2 decision/C consumers |
+| [ADR-PF-011](../architecture_decisions/ADR-PF-011-durable-integration-outbox-inbox.md) | Durable outbox/inbox ownership and delivery semantics | ACCEPTED; C.4/C.5 OWNED STORES AND CONSUMERS IMPLEMENTED | A2 decision/C consumers |
 
 ### Product questions
 
@@ -1248,7 +1266,7 @@ These are genuine product/ownership decisions. Questions mapped to A0/A1/A2 ADRs
 
 ## 25. Final Recommendation
 
-Proceed with the upgrade, but do not extend the current combined CostItem model. Phase A0 security/transaction correctness, A1 monetary foundations, A2 canonical application foundations, the Phase B1 configuration foundation, Task-owned WBS, effective-dated rate cards with the `CostPolicyEngine`/`LaborCostEngine` cutover, the versioned Budget/BudgetLine lifecycle, tactical assignment-labor planned-cost snapshots, the five-view QML finance configuration replacement, organization financial periods, the canonical `ProjectCostEntry` actual ledger, PM commitment projections, and approved-Time labor posting are implemented. Item 7's planned-cost source cutover remains explicitly blocked by planning semantics and freshness ownership; do not force it. Continue with Phase C.5 typed Procurement event delivery and PM consumers, while deferring legacy CostItem/QML cutover to the named C.6-C.8 gates.
+Proceed with the upgrade, but do not extend the current combined CostItem model. Phase A0 security/transaction correctness, A1 monetary foundations, A2 canonical application foundations, the Phase B1 configuration foundation, Task-owned WBS, effective-dated rate cards with the `CostPolicyEngine`/`LaborCostEngine` cutover, the versioned Budget/BudgetLine lifecycle, tactical assignment-labor planned-cost snapshots, the five-view QML finance configuration replacement, organization financial periods, the canonical `ProjectCostEntry` actual ledger, PM commitment projections, approved-Time labor posting, and Procurement PO/receipt financial delivery are implemented. Item 7's planned-cost source cutover remains explicitly blocked by planning semantics and freshness ownership; do not force it. Continue with Phase C.6 canonical command cutover, while deferring legacy data/read/QML removal to the named C.7-C.8 gates.
 
 Then build Project Finance as explicit PM-owned aggregates while preserving valid module ownership: Time supplies approved hours, Procurement supplies PO/receipt facts, Party supplies identities, Approval and Audit remain platform services, and external accounting owns official ledger/payment behavior. Use additive persistence and temporary compatibility only to migrate verified data; delete every fallback, dual-write, alias, and transition adapter at its named phase gate.
 

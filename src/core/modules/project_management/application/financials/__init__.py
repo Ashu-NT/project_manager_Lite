@@ -55,6 +55,9 @@ from src.core.modules.project_management.application.financials.cost_entries imp
 from src.core.modules.project_management.application.financials.commitments import (
     ProjectCommitmentService,
 )
+from src.core.modules.project_management.application.financials.procurement_consumer import (
+    ProcurementFinancialConsumer,
+)
 from src.core.modules.project_management.application.financials.workspace_query import (
     ProjectFinanceWorkspaceQuery,
     ProjectFinanceWorkspaceRead,
@@ -90,6 +93,7 @@ __all__ = [
     "ProjectRateCardService",
     "ProjectCostEntryService",
     "ProjectCommitmentService",
+    "ProcurementFinancialConsumer",
     "ProjectFinanceWorkspaceQuery",
     "ProjectFinanceWorkspaceRead",
     "RateCardResolver",

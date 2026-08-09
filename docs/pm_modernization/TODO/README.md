@@ -401,9 +401,9 @@ ACCEPTED, so the ADR gate itself is not blocking.
    the boundary. The permanent ADR-PF-011 owned-store foundation is now complete: Time and
    Procurement have separate tenant/org-scoped outboxes and PM Finance owns its inbox, with
    leasing, bounded retry/dead-letter, deduplication, ordering, quarantine, RLS, immutable-envelope
-   guards, and composition wiring. C.5 still owns Procurement event creation, dispatch, and the
-   financial consumer; those adapters must live at contracts/composition boundaries without direct
-   PM-to-Inventory implementation imports.
+   guards, and composition wiring. C.5 now supplies Procurement event creation, dispatch, and the
+   financial consumer at contracts/composition boundaries without direct PM-to-Inventory
+   implementation imports.
 4. **Approved-Time event + idempotent labor-cost consumer (complete 2026-08-09).** Platform
    Time approval atomically writes immutable, monotonic per-entry snapshots to its owned outbox.
    PM Finance consumes through its inbox, validates scope/revision, resolves and snapshots the
@@ -411,8 +411,15 @@ ACCEPTED, so the ADR gate itself is not blocking.
    posted actual plus immutable labor detail. Corrected approval creates an equal reversal and
    replacement; later LOCKED/unlocked transitions create no posting. Database transport supports
    immediate bounded dispatch and startup replay with retry/dead-letter state.
-5. Typed Procurement project-source queries/events (PO lines, changes, cancellation,
-   receipts, supplier invoice references).
+5. **Procurement project-source events and PM consumers (complete 2026-08-09).** PO SENT and
+   later recognized status revisions create/update PM commitment projections; POSTED accepted
+   receipt lines create canonical accrual actuals and match remaining commitment value. Project
+   and task references remain opaque to Procurement and are resolved by PM. Reason-required
+   cancellation after approval releases remaining operational/financial exposure; full receipt
+   and close preserve source/match history.
+   Source/outbox and inbox/financial mutations are atomic with durable retry/dead-letter state.
+   Post-send commercial amendment approval and supplier-invoice reclassification remain named
+   future source-owner capabilities because neither aggregate/command exists yet.
 6. Replace manual combined `CostItem` writes with distinct planned/commitment/manual-actual
    commands; posted actuals never editable/deletable.
 7. Backfill/split legacy `CostItem` rows, dual-read for reports, reconcile totals, quarantine
@@ -460,12 +467,19 @@ retention, LOCKED no-op, closed-period rejection with durable retry evidence, in
 completion, post-commit UI refresh isolation, and reversible immutable migration. The combined
 C.1-C.4 period/ledger/commitment/delivery/architecture checkpoint passes 43 tests and Alembic
 remains single-headed at `s6t7u8v9w0x1`; the selected related Time lifecycle/workspace checkpoint
-passes 17 tests. No
-process-local financial delivery, thread/timer, direct cross-module implementation
+passes 17 tests. No process-local financial delivery, thread/timer, direct cross-module implementation
 import, temporary file, dual-write, legacy `CostItem` mutation, or deletion-register item was
 introduced. The desktop correction command is available; final QML ledger action/dialog work
-remains at the existing C.8 UI cutover gate. **Item 5, typed Procurement events and PM consumers,
-is next.**
+remains at the existing C.8 UI cutover gate.
+
+Phase C.5 verification checkpoint: seven focused tests cover SENT commitment creation, partial and
+full receipt accrual/matching, close/cancel, price variance, task/project source resolution,
+non-project isolation, duplicate empty replay, closed-period retry evidence, and PO/receipt outbox
+atomic rollback. The selected C.1-C.5 plus existing Procurement lifecycle/domain/composition/
+architecture checkpoint passes 73 tests. No direct PM <-> Inventory business-package import,
+cross-module foreign key, temporary adapter, dual-write, background thread/timer, legacy
+`CostItem` mutation, migration, or deletion-register item was introduced. **Item 6, canonical
+manual/planned/commitment command cutover from combined `CostItem`, is next.**
 
 ## 3. Finance — Phase D and E (future, not started)
 

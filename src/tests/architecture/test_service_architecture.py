@@ -294,7 +294,8 @@ def test_services_module_delegates_to_modular_registration_builders():
     assert "from src.infra.composition.repositories import build_repository_bundle" in text
     assert "build_repository_bundle(session)" in text
     assert "build_platform_service_bundle(session, repositories)" in text
-    assert "build_inventory_procurement_service_bundle(platform_services)" in text
+    assert "build_inventory_procurement_service_bundle(" in text
+    assert "procurement_financial_outbox_service=_procurement_financial_outbox_service" in text
     assert "build_maintenance_service_bundle(" in text
     assert "build_project_management_service_bundle(" in text
 

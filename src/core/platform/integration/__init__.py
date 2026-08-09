@@ -10,6 +10,12 @@ from src.core.platform.integration.time_events import (
     APPROVED_TIME_ENTRY_EVENT_TYPE,
     ApprovedTimeEntryEventPayload,
 )
+from src.core.platform.integration.procurement_events import (
+    PROCUREMENT_COMMITMENT_EVENT_TYPE,
+    PROCUREMENT_RECEIPT_ACCRUAL_EVENT_TYPE,
+    ProcurementCommitmentEventPayload,
+    ProcurementReceiptAccrualEventPayload,
+)
 from src.core.platform.integration.delivery import (
     InboxProcessingStatus,
     IntegrationInboxReceipt,
@@ -24,6 +30,10 @@ __all__ = [
     "IntegrationEventEnvelope",
     "APPROVED_TIME_ENTRY_EVENT_TYPE",
     "ApprovedTimeEntryEventPayload",
+    "PROCUREMENT_COMMITMENT_EVENT_TYPE",
+    "PROCUREMENT_RECEIPT_ACCRUAL_EVENT_TYPE",
+    "ProcurementCommitmentEventPayload",
+    "ProcurementReceiptAccrualEventPayload",
     "InboxProcessingStatus",
     "IntegrationInboxReceipt",
     "IntegrationOutboxRecord",
