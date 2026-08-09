@@ -24,6 +24,8 @@ def refresh_timesheets_workspace(controller) -> None:
             queue_status=controller._selected_queue_status,
             selected_entry_id=controller._selected_entry_id or None,
             selected_queue_period_id=controller._selected_queue_period_id or None,
+            queue_page=controller._queue_page,
+            queue_page_size=controller._queue_page_size,
         )
         controller._set_overview(
             serialize_timesheet_overview_view_model(workspace_state.overview)
@@ -58,7 +60,7 @@ def refresh_timesheets_workspace(controller) -> None:
         controller._set_review_queue(
             serialize_timesheet_collection_view_model(workspace_state.review_queue)
         )
-        controller._set_queue_total_count(len(controller._review_queue.get("items") or []))
+        controller._set_queue_total_count(workspace_state.queue_total_count)
         controller._set_review_detail(
             serialize_timesheet_detail_view_model(workspace_state.review_detail)
         )

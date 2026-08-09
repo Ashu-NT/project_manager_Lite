@@ -97,6 +97,9 @@ class ModuleCatalogContextMixin:
         return self._organization_context_provider()
 
     def _has_active_organization_context(self) -> bool:
+        if self._user_session is not None:
+            organization_id = self._user_session.active_organization_id()
+            return bool(str(organization_id or "").strip())
         return self._current_organization() is not None
 
 

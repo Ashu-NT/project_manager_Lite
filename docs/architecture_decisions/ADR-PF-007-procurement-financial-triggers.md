@@ -1,6 +1,6 @@
 # ADR-PF-007: Procurement Financial Triggers
 
-- Status: accepted; Phase A2 source contracts implemented
+- Status: accepted; Phase C.5 PO/receipt events and PM consumers implemented
 - Date: 2026-08-02
 - Implementation gate: Phase A2 contract and Phase C consumer
 
@@ -40,4 +40,11 @@ Test each PO/receipt transition, partial receipt/matching, cancellation, price/q
 
 - `ProcurementCommitmentFinancialSource` carries scoped PO/line revision identity, SENT and later lifecycle state, canonical ordered quantity/unit price, supplier/site, dates, and source requisition links.
 - `ProcurementReceiptAccrualFinancialSource` requires POSTED receipt/line identity, linked PO/line, canonical accepted quantity/unit cost, supplier/site, and an aware posting timestamp.
-- Quantity/rate units and source document/line IDs are validated at the contract boundary. Provider adapters and PM commitment/actual consumers remain Phase C work.
+- Quantity/rate units and source document/line IDs are validated at the contract boundary.
+- Procurement now emits immutable line-level financial snapshots for project/task-linked POs at SENT and later recognized lifecycle revisions. Receipt POSTED emits one accrual event per accepted line; rejected quantity emits no actual.
+- PO status, line/stock mutation, receipt, audit-adjacent activity state, and source-owned outbox writes share the source transaction. An outbox failure rolls all source mutations back. Non-project purchasing remains unchanged and emits no PM event.
+- PM resolves opaque task references inside its own boundary, validates project/profile/default cost code/supplier/site/period/currency, writes the commitment projection or posted accrual, and matches the receipt in the PM inbox transaction.
+- Receipt price variance is preserved as actual cost while matching no more than the remaining commitment. Reason-required cancellation after approval releases operational on-order quantity and PM committed exposure without deleting source or match history.
+- `ProcurementFinancialDispatcher` provides bounded immediate/startup database delivery, persistent retry/dead-letter evidence, canonical error codes, and post-commit-only UI refresh without threads or timers.
+- Post-send commercial amendment approval is not yet a source capability, and no supplier-invoice aggregate exists. Their future commands must emit later monotonic revisions/reclassification events through this same permanent contract; C.5 does not invent a bypass.
+- Seven focused integration tests cover SENT, partial/full receipt, close/cancel, price variance, task/project resolution, non-project isolation, closed-period retry, duplicate replay, and send/receipt outbox atomicity.

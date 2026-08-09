@@ -3,5 +3,12 @@ from src.core.modules.project_management.contracts.repositories.financial_config
     ProjectCostCodeRepository,
     ProjectFinancialProfileRepository,
 )
+from src.core.modules.project_management.contracts.repositories.commitment import (
+    ProjectCommitmentRepository,
+)
 
-__all__ = ["ProjectCostCodeRepository", "ProjectFinancialProfileRepository"]
+__all__ = [
+    "ProjectCommitmentRepository",
+    "ProjectCostCodeRepository",
+    "ProjectFinancialProfileRepository",
+]

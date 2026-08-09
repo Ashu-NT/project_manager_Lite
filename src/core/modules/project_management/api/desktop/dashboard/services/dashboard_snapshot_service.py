@@ -63,7 +63,6 @@ class DashboardSnapshotService:
         dashboard_service=None,
         baseline_service=None,
         reporting_service=None,
-        register_service=None,
         collaboration_service=None,
         approval_service=None,
     ) -> None:
@@ -71,7 +70,6 @@ class DashboardSnapshotService:
         self._dashboard_service = dashboard_service
         self._baseline_service = baseline_service
         self._reporting_service = reporting_service
-        self._register_service = register_service
         self._collaboration_service = collaboration_service
         self._approval_service = approval_service
 
@@ -87,6 +85,7 @@ class DashboardSnapshotService:
         selected_project_id = resolve_project_id(project_id, project_options)
         baseline_options = build_baseline_options(selected_project_id, self._baseline_service)
         selected_baseline_id = resolve_baseline_id(baseline_id, baseline_options)
+        has_baseline = any(option.value for option in baseline_options)
         period_options = build_period_options()
         selected_period_key = resolve_period_key(period_key, period_options)
         view_options = build_view_options()
@@ -127,7 +126,7 @@ class DashboardSnapshotService:
         if portfolio_mode:
             dashboard_data = self._dashboard_service.get_portfolio_data()
             pending_approvals = self._list_pending_approvals(project_id=None)
-            operational_tables = build_operational_tables(dashboard_data=dashboard_data, pending_approvals=pending_approvals, selected_period_key=selected_period_key, portfolio_mode=True, register_service=self._register_service)
+            operational_tables = build_operational_tables(dashboard_data=dashboard_data, pending_approvals=pending_approvals, selected_period_key=selected_period_key, portfolio_mode=True)
             return ProjectDashboardSnapshotDescriptor(
                 overview=build_contextual_overview(project_name="Portfolio Overview", dashboard_data=dashboard_data, pending_approval_count=len(pending_approvals), selected_view_key=selected_view_key, portfolio_mode=True),
                 **_selectors,
@@ -147,9 +146,13 @@ class DashboardSnapshotService:
 
         project_label = project_label_for_id(selected_project_id, project_options)
         baseline_label = baseline_label_for_id(selected_baseline_id, baseline_options)
-        dashboard_data = self._dashboard_service.get_dashboard_data(selected_project_id, baseline_id=selected_baseline_id or None)
+        dashboard_data = self._dashboard_service.get_dashboard_data(
+            selected_project_id,
+            baseline_id=selected_baseline_id or None,
+            include_evm=has_baseline,
+        )
         pending_approvals = self._list_pending_approvals(project_id=selected_project_id)
-        operational_tables = build_operational_tables(dashboard_data=dashboard_data, pending_approvals=pending_approvals, selected_period_key=selected_period_key, portfolio_mode=False, register_service=self._register_service)
+        operational_tables = build_operational_tables(dashboard_data=dashboard_data, pending_approvals=pending_approvals, selected_period_key=selected_period_key, portfolio_mode=False)
         return ProjectDashboardSnapshotDescriptor(
             overview=build_contextual_overview(project_name=project_label, dashboard_data=dashboard_data, pending_approval_count=len(pending_approvals), selected_view_key=selected_view_key, portfolio_mode=False),
             **_selectors,
@@ -158,7 +161,12 @@ class DashboardSnapshotService:
             operational_tables=operational_tables,
             activity_feed=build_activity_feed(project_id=selected_project_id, selected_period_key=selected_period_key, portfolio_mode=False, collaboration_service=self._collaboration_service),
             panels=build_panels_from_dashboard_data(dashboard_data=dashboard_data, baseline_label=baseline_label, selected_baseline_id=selected_baseline_id, portfolio_mode=False, baseline_service=self._baseline_service),
-            charts=build_charts_from_dashboard_data(dashboard_data=dashboard_data, selected_period_key=selected_period_key, portfolio_mode=False, reporting_service=self._reporting_service),
+            charts=build_charts_from_dashboard_data(
+                dashboard_data=dashboard_data,
+                selected_period_key=selected_period_key,
+                portfolio_mode=False,
+                reporting_service=(self._reporting_service if has_baseline else None),
+            ),
             sections=build_sections_from_dashboard_data(dashboard_data=dashboard_data, portfolio_mode=False),
             empty_state="Add tasks, baselines, and resource assignments to populate the dashboard sections.",
         )

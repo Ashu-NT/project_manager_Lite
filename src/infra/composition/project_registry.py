@@ -16,25 +16,31 @@ from src.core.platform.contract.approval.contracts import (
     ApprovalHandlerResult,
     ApprovalPostCommitEvent,
 )
-from src.core.modules.project_management.domain.enums import CostType, DependencyType
+from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.access.policy import (
     PROJECT_SCOPE_ROLE_CHOICES,
     normalize_project_scope_role,
     resolve_project_scope_permissions,
 )
 from src.core.platform.application.time_management.time import TimeService
+from src.core.platform.application.integration import IntegrationOutboxService
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
 )
 from src.core.modules.project_management.application.common.clock import SystemClock
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import (
+    ApprovedTimeLaborCostConsumer,
     BudgetService,
     CostService,
     FinancialConfigurationService,
     FinanceService,
     ForecastCostService,
     PlannedCostService,
+    ProjectCostEntryService,
+    ProjectCommitmentService,
+    ProcurementFinancialConsumer,
+    ProjectFinanceWorkspaceQuery,
     ProjectRateCardService,
     RateCardResolver,
 )
@@ -42,6 +48,7 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     SqlAlchemyRateResolutionReader,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.financials import (
+    SqlAlchemyEvmSeriesReader,
     SqlAlchemyFinanceSnapshotReader,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
@@ -66,27 +73,34 @@ from src.core.modules.project_management.application.scheduling.calendars.projec
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
 from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
 from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import PortfolioResourcePoolService
+from src.core.modules.project_management.infrastructure.persistence.reads.portfolio import (
+    SqlAlchemyPortfolioHeatmapReader,
+    SqlAlchemyPortfolioResourcePoolReader,
+    SqlAlchemyPortfolioScenarioReader,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.projects import (
+    SqlAlchemyProjectCatalogReader,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.resources import (
+    SqlAlchemyResourceCatalogReader,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.register import (
+    SqlAlchemyRegisterCatalogReader,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.timesheets import (
+    SqlAlchemyTimesheetReviewReader,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.tasks import (
+    SqlAlchemyTaskWorkspaceReader,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.collaboration import (
+    SqlAlchemyCollaborationWorkspaceReader,
+)
 from src.infra.composition.platform_registry import PlatformServiceBundle
 from src.infra.composition.repositories import RepositoryBundle
 
 
 logger = logging.getLogger(__name__)
-
-
-def _parse_date(value: Any) -> date | None:
-    if value in (None, ""):
-        return None
-    if isinstance(value, date):
-        return value
-    if isinstance(value, str):
-        return date.fromisoformat(value)
-    raise ValueError(f"Unsupported date value: {value!r}")
-
-
-def _as_cost_type(value: Any) -> CostType:
-    if isinstance(value, CostType):
-        return value
-    return CostType((value or CostType.OVERHEAD.value))
 
 
 def _as_dependency_type(value: Any) -> DependencyType:
@@ -109,7 +123,12 @@ class ProjectManagementServiceBundle:
     rate_card_service: ProjectRateCardService
     rate_card_resolver: RateCardResolver
     budget_service: BudgetService
+    cost_entry_service: ProjectCostEntryService
+    approved_time_labor_cost_consumer: ApprovedTimeLaborCostConsumer
+    procurement_financial_consumer: ProcurementFinancialConsumer
+    commitment_service: ProjectCommitmentService
     planned_cost_service: PlannedCostService
+    finance_workspace_query: ProjectFinanceWorkspaceQuery
     finance_service: FinanceService
     work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
     scheduling_engine: SchedulingEngine
@@ -131,6 +150,8 @@ def build_project_management_service_bundle(
     session: Session,
     repositories: RepositoryBundle,
     platform_services: PlatformServiceBundle,
+    *,
+    approved_time_outbox_service: IntegrationOutboxService | None = None,
 ) -> ProjectManagementServiceBundle:
     started = perf_counter()
     logger.debug("Project Management service bundle build begin")
@@ -182,6 +203,7 @@ def build_project_management_service_bundle(
         enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
+        project_catalog_reader=SqlAlchemyProjectCatalogReader(session=session),
     )
 
     def _time_scope_organization_id(scope_type: str, scope_id: str) -> str | None:
@@ -210,6 +232,8 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
         scope_organization_resolver=_time_scope_organization_id,
+        approved_time_outbox_service=approved_time_outbox_service,
+        timesheet_review_reader=SqlAlchemyTimesheetReviewReader(session=session),
     )
     time_service: TimeService = timesheet_service
     project_resource_service = ProjectResourceService(
@@ -231,6 +255,8 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
         module_catalog_service=platform_services.module_catalog_service,
+        tenant_context_service=platform_services.tenant_context_service,
+        register_catalog_reader=SqlAlchemyRegisterCatalogReader(session=session),
     )
     # Build enterprise calendar adapter here so it can be injected into SchedulingEngine.
     # Instantiated before scheduling_engine so we pass it in during construction.
@@ -274,6 +300,8 @@ def build_project_management_service_bundle(
         notification_service=platform_services.notification_service,
         employee_repo=repositories.employee_repo,
         assignment_skill_validator=assignment_skill_validator,
+        tenant_context_service=platform_services.tenant_context_service,
+        task_workspace_reader=SqlAlchemyTaskWorkspaceReader(session=session),
     )
     # Shared by ResourceService (legacy rate-line seeding/supersession) and
     # RateCardResolver (RateSelectionSnapshot.resolved_at) — one time source,
@@ -294,18 +322,13 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         project_rate_card_repo=repositories.project_rate_card_repo,
         clock=system_clock,
+        resource_catalog_reader=SqlAlchemyResourceCatalogReader(session=session),
     )
     cost_service = CostService(
-        session,
         repositories.cost_repo,
         repositories.project_repo,
-        repositories.task_repo,
         user_session=platform_services.user_session,
-        activity_service=platform_services.activity_service,
-        approval_service=platform_services.approval_service,
-        enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_catalog_service,
-        tenant_context_service=platform_services.tenant_context_service,
     )
     financial_configuration_service = FinancialConfigurationService(
         session=session,
@@ -353,6 +376,46 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         approval_service=platform_services.approval_service,
     )
+    cost_entry_service = ProjectCostEntryService(
+        session=session,
+        entry_repo=repositories.project_cost_entry_repo,
+        project_repo=repositories.project_repo,
+        financial_profile_repo=repositories.project_financial_profile_repo,
+        cost_code_repo=repositories.project_cost_code_repo,
+        task_repo=repositories.task_repo,
+        resource_repo=repositories.resource_repo,
+        financial_period_service=platform_services.financial_period_service,
+        clock=system_clock,
+        user_session=platform_services.user_session,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
+        module_catalog_service=platform_services.module_catalog_service,
+        tenant_context_service=platform_services.tenant_context_service,
+        approval_service=platform_services.approval_service,
+        rate_resolver=rate_card_resolver,
+        labor_posting_repo=repositories.approved_time_labor_posting_repo,
+    )
+    approved_time_labor_cost_consumer = ApprovedTimeLaborCostConsumer(cost_entry_service)
+    commitment_service = ProjectCommitmentService(
+        session=session,
+        commitment_repo=repositories.project_commitment_repo,
+        cost_entry_repo=repositories.project_cost_entry_repo,
+        project_repo=repositories.project_repo,
+        financial_profile_repo=repositories.project_financial_profile_repo,
+        cost_code_repo=repositories.project_cost_code_repo,
+        task_repo=repositories.task_repo,
+        party_repo=repositories.party_repo,
+        site_repo=repositories.site_repo,
+        clock=system_clock,
+        user_session=platform_services.user_session,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
+        module_catalog_service=platform_services.module_catalog_service,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    procurement_financial_consumer = ProcurementFinancialConsumer(
+        commitment_service=commitment_service,
+        cost_entry_service=cost_entry_service,
+        task_repo=repositories.task_repo,
+    )
     planned_cost_service = PlannedCostService(
         session=session,
         planned_cost_repo=repositories.planned_cost_repo,
@@ -369,6 +432,17 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
+    finance_workspace_query = ProjectFinanceWorkspaceQuery(
+        profile_repo=repositories.project_financial_profile_repo,
+        cost_code_repo=repositories.project_cost_code_repo,
+        budget_repo=repositories.project_budget_repo,
+        rate_card_repo=repositories.project_rate_card_repo,
+        planned_cost_repo=repositories.planned_cost_repo,
+        task_repo=repositories.task_repo,
+        resource_repo=repositories.resource_repo,
+        user_session=platform_services.user_session,
+        module_catalog_service=platform_services.module_catalog_service,
+    )
     reporting_service = ReportingService(
         session=session,
         project_repo=repositories.project_repo,
@@ -382,16 +456,12 @@ def build_project_management_service_bundle(
         project_resource_repo=repositories.project_resource_repo,
         rate_resolver=rate_card_resolver,
         tenant_context_service=platform_services.tenant_context_service,
+        evm_series_reader=SqlAlchemyEvmSeriesReader(session=session),
+        finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session),
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
     )
     finance_service = FinanceService(
-        project_repo=repositories.project_repo,
-        task_repo=repositories.task_repo,
-        resource_repo=repositories.resource_repo,
-        cost_repo=repositories.cost_repo,
-        project_resource_repo=repositories.project_resource_repo,
-        assignment_repo=repositories.assignment_repo,
         rate_resolver=rate_card_resolver,
         finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session),
         tenant_context_service=platform_services.tenant_context_service,
@@ -406,6 +476,7 @@ def build_project_management_service_bundle(
         project_repo=repositories.project_repo,
         user_repo=repositories.user_repo,
         audit_repo=repositories.audit_entry_repo,
+        workspace_reader=SqlAlchemyCollaborationWorkspaceReader(session=session),
         document_integration_service=platform_services.document_integration_service,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
@@ -422,8 +493,11 @@ def build_project_management_service_bundle(
         scenario_repo=repositories.portfolio_scenario_repo,
         audit_repo=repositories.audit_entry_repo,
         project_repo=repositories.project_repo,
-        resource_repo=repositories.resource_repo,
-        reporting_service=reporting_service,
+        heatmap_reader=SqlAlchemyPortfolioHeatmapReader(session=session),
+        scenario_reader=SqlAlchemyPortfolioScenarioReader(session=session),
+        calendar=platform_services.global_calendar_shim,
+        project_calendar_adapter=_pre_project_calendar_adapter,
+        rate_resolver=rate_card_resolver,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
@@ -460,7 +534,6 @@ def build_project_management_service_bundle(
         project_service=project_service,
         task_service=task_service,
         resource_service=resource_service,
-        cost_service=cost_service,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
     )
@@ -473,10 +546,7 @@ def build_project_management_service_bundle(
         availability_service=enterprise_resource_availability,
     )
     portfolio_resource_pool_service = PortfolioResourcePoolService(
-        resource_repo=repositories.resource_repo,
-        assignment_repo=repositories.assignment_repo,
-        task_repo=repositories.task_repo,
-        project_repo=repositories.project_repo,
+        reader=SqlAlchemyPortfolioResourcePoolReader(session=session),
         calendar=platform_services.global_calendar_shim,
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
@@ -486,8 +556,8 @@ def build_project_management_service_bundle(
         approval_service=platform_services.approval_service,
         baseline_service=baseline_service,
         task_service=task_service,
-        cost_service=cost_service,
         budget_service=budget_service,
+        cost_entry_service=cost_entry_service,
         user_session=platform_services.user_session,
     )
     logger.debug("Project Management approval handlers registered")
@@ -508,7 +578,12 @@ def build_project_management_service_bundle(
         rate_card_service=rate_card_service,
         rate_card_resolver=rate_card_resolver,
         budget_service=budget_service,
+        cost_entry_service=cost_entry_service,
+        approved_time_labor_cost_consumer=approved_time_labor_cost_consumer,
+        procurement_financial_consumer=procurement_financial_consumer,
+        commitment_service=commitment_service,
         planned_cost_service=planned_cost_service,
+        finance_workspace_query=finance_workspace_query,
         finance_service=finance_service,
         work_calendar_engine=work_calendar_engine,
         scheduling_engine=scheduling_engine,
@@ -532,8 +607,8 @@ def _register_project_management_approval_handlers(
     approval_service,
     baseline_service: BaselineService,
     task_service: TaskService,
-    cost_service: CostService,
     budget_service: BudgetService,
+    cost_entry_service: ProjectCostEntryService,
     user_session=None,
 ) -> None:
     def _result(signal_name: str, payload: str) -> ApprovalHandlerResult:
@@ -569,65 +644,19 @@ def _register_project_management_approval_handlers(
         )
         return _result("tasks_changed", req.project_id or "")
 
-    def _apply_cost_add(req) -> ApprovalHandlerResult:
-        project_id = req.payload["project_id"]
-        cost_service._apply_cost_add_decision(
-            project_id=project_id,
-            description=req.payload.get("description", ""),
-            planned_amount=float(req.payload.get("planned_amount", 0.0) or 0.0),
-            task_id=req.payload.get("task_id"),
-            cost_type=_as_cost_type(req.payload.get("cost_type", "OVERHEAD")),
-            committed_amount=float(req.payload.get("committed_amount", 0.0) or 0.0),
-            actual_amount=float(req.payload.get("actual_amount", 0.0) or 0.0),
-            incurred_date=_parse_date(req.payload.get("incurred_date")),
-            currency_code=req.payload.get("currency_code"),
-            code=req.payload.get("code", ""),
-            commit=False,
-            approval_request_id=req.id,
-        )
-        return _result("costs_changed", project_id)
-
-    def _apply_cost_update(req) -> ApprovalHandlerResult:
-        cost_service._apply_cost_update_decision(
-            cost_id=req.payload["cost_id"],
-            description=req.payload.get("description"),
-            planned_amount=req.payload.get("planned_amount"),
-            committed_amount=req.payload.get("committed_amount"),
-            actual_amount=req.payload.get("actual_amount"),
-            cost_type=(
-                _as_cost_type(req.payload.get("cost_type"))
-                if req.payload.get("cost_type") is not None
-                else None
-            ),
-            incurred_date=_parse_date(req.payload.get("incurred_date")),
-            currency_code=req.payload.get("currency_code"),
-            code=req.payload.get("code"),
-            commit=False,
-            approval_request_id=req.id,
-        )
-        return _result("costs_changed", req.project_id or "")
-
-    def _apply_cost_delete(req) -> ApprovalHandlerResult:
-        cost_service._apply_cost_delete_decision(
-            cost_id=req.payload["cost_id"],
-            commit=False,
-            approval_request_id=req.id,
-        )
-        return _result("costs_changed", req.project_id or "")
-
-    def _require_budget_decision_actor() -> str:
+    def _require_financial_decision_actor() -> str:
         principal = user_session.principal if user_session else None
         if principal is None:
             raise BusinessRuleError(
-                "An authenticated principal is required to decide a budget approval.",
-                code="PROJECT_BUDGET_ACTOR_REQUIRED",
+                "An authenticated principal is required to decide a financial approval.",
+                code="PROJECT_FINANCIAL_APPROVAL_ACTOR_REQUIRED",
             )
         return principal.user_id
 
     def _apply_budget_approval(req) -> ApprovalHandlerResult:
         budget = budget_service._apply_approval_decision(
             budget_id=req.payload["budget_id"],
-            approved_by=_require_budget_decision_actor(),
+            approved_by=_require_financial_decision_actor(),
             expected_version=req.payload["expected_version"],
             notes=req.payload.get("notes", ""),
             commit=False,
@@ -637,12 +666,31 @@ def _register_project_management_approval_handlers(
     def _apply_budget_rejection(req) -> ApprovalHandlerResult:
         budget = budget_service._apply_rejection_decision(
             budget_id=req.payload["budget_id"],
-            rejected_by=_require_budget_decision_actor(),
+            rejected_by=_require_financial_decision_actor(),
             expected_version=req.payload["expected_version"],
             notes=req.payload.get("notes", ""),
             commit=False,
         )
         return _result("budgets_changed", budget.project_id)
+
+    def _apply_cost_entry_approval(req) -> ApprovalHandlerResult:
+        entry = cost_entry_service._apply_approval_decision(
+            entry_id=req.payload["entry_id"],
+            expected_version=req.payload["expected_version"],
+            actor_id=_require_financial_decision_actor(),
+            commit=False,
+        )
+        return _result("cost_entries_changed", entry.project_id)
+
+    def _apply_cost_entry_rejection(req) -> ApprovalHandlerResult:
+        entry = cost_entry_service._apply_rejection_decision(
+            entry_id=req.payload["entry_id"],
+            expected_version=req.payload["expected_version"],
+            actor_id=_require_financial_decision_actor(),
+            notes=req.payload.get("notes", ""),
+            commit=False,
+        )
+        return _result("cost_entries_changed", entry.project_id)
 
     approval_service.register_apply_handler(
         "baseline.create",
@@ -657,24 +705,20 @@ def _register_project_management_approval_handlers(
         _apply_dependency_remove,
     )
     approval_service.register_apply_handler(
-        "cost.add",
-        _apply_cost_add,
-    )
-    approval_service.register_apply_handler(
-        "cost.update",
-        _apply_cost_update,
-    )
-    approval_service.register_apply_handler(
-        "cost.delete",
-        _apply_cost_delete,
-    )
-    approval_service.register_apply_handler(
         "budget.approve",
         _apply_budget_approval,
     )
     approval_service.register_reject_handler(
         "budget.approve",
         _apply_budget_rejection,
+    )
+    approval_service.register_apply_handler(
+        "project_cost.approve",
+        _apply_cost_entry_approval,
+    )
+    approval_service.register_reject_handler(
+        "project_cost.approve",
+        _apply_cost_entry_rejection,
     )
 
 

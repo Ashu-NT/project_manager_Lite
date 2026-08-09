@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
@@ -89,28 +90,33 @@ def test_task_update_emits_tasks_changed(services):
     assert seen == [project.id]
 
 
-def test_cost_add_emits_costs_changed(services):
+def test_manual_actual_draft_emits_cost_entries_changed(services):
     ps = services["project_service"]
-    ts = services["task_service"]
-    cs = services["cost_service"]
+    cs = services["cost_entry_service"]
 
     project = ps.create_project("Event Cost", "")
-    task = ts.create_task(project.id, "Task A", start_date=date(2024, 1, 1), duration_days=1)
+    organization = services["organization_service"].get_active_organization()
+    cost_code = services["financial_configuration_service"].create_cost_code(
+        code="EVENT-ACTUAL", name="Event actual"
+    )
     seen: list[str] = []
 
     def _on_costs_changed(project_id: str) -> None:
         seen.append(project_id)
 
-    domain_events.costs_changed.connect(_on_costs_changed)
+    domain_events.cost_entries_changed.connect(_on_costs_changed)
     try:
-        cs.add_cost_item(
+        cs.create_manual_entry(
             project_id=project.id,
+            command_id="event-manual-actual",
             description="Capex",
-            planned_amount=100.0,
-            task_id=task.id,
+            amount=Decimal("100"),
+            currency_code=organization.base_currency,
+            transaction_date=date(2026, 1, 1),
+            cost_code_id=cost_code.id,
         )
     finally:
-        domain_events.costs_changed.disconnect(_on_costs_changed)
+        domain_events.cost_entries_changed.disconnect(_on_costs_changed)
 
     assert seen == [project.id]
 
@@ -133,17 +139,30 @@ def test_resource_create_update_delete_emit_resources_changed(services):
     assert seen == [resource.id, resource.id, resource.id]
 
 
-def test_cost_governance_request_emits_approvals_changed(services, monkeypatch):
+def test_cost_entry_governance_request_emits_approvals_changed(services, monkeypatch):
     monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")
-    monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "cost.update")
+    monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "project_cost.approve")
     auth = services["auth_service"]
     auth.register_user("planner-events", "StrongPass123", role_names=["planner"])
     _login_as(services, "admin", "ChangeMe123!")
 
     ps = services["project_service"]
-    cs = services["cost_service"]
+    cs = services["cost_entry_service"]
     project = ps.create_project("Approval events")
-    item = cs.add_cost_item(project.id, "Travel", planned_amount=100.0, actual_amount=20.0)
+    organization = services["organization_service"].get_active_organization()
+    cost_code = services["financial_configuration_service"].create_cost_code(
+        code="EVENT-APPROVAL", name="Event approval"
+    )
+    item = cs.create_manual_entry(
+        project_id=project.id,
+        command_id="event-governed-actual",
+        description="Travel",
+        amount=Decimal("20"),
+        currency_code=organization.base_currency,
+        transaction_date=date(2026, 1, 1),
+        cost_code_id=cost_code.id,
+    )
+    item = cs.submit(item.id, expected_version=item.row_version)
     _login_as(services, "planner-events", "StrongPass123")
 
     seen: list[str] = []
@@ -153,8 +172,8 @@ def test_cost_governance_request_emits_approvals_changed(services, monkeypatch):
 
     domain_events.approvals_changed.connect(_on_approvals_changed)
     try:
-        with pytest.raises(BusinessRuleError, match="Approval required"):
-            cs.update_cost_item(item.id, actual_amount=30.0)
+        result = cs.approve(item.id, expected_version=item.row_version)
+        assert result.outcome.value == "pending_approval"
     finally:
         domain_events.approvals_changed.disconnect(_on_approvals_changed)
 

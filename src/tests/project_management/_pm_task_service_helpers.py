@@ -17,6 +17,9 @@ from src.ui_qml.modules.project_management.context import ProjectManagementWorks
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementTaskViewStore,
 )
+from src.tests.project_management._fake_task_workspace_query import (
+    build_fake_task_workspace_page,
+)
 
 
 class _FakePmRuntimeApi:
@@ -238,6 +241,9 @@ class _FakeTaskService:
 
     def list_tasks_for_project(self, project_id: str) -> list[SimpleNamespace]:
         return [task for task in self._tasks.values() if task.project_id == project_id]
+
+    def query_workspace_page(self, **kwargs):
+        return build_fake_task_workspace_page(self._tasks.values(), **kwargs)
 
     def get_task(self, task_id: str) -> SimpleNamespace | None:
         return self._tasks.get(task_id)
@@ -570,14 +576,14 @@ def build_task_controller_bundle(tmp_path: Path) -> dict:
     )
     tasks_api = build_project_management_tasks_desktop_api(
         project_service=SimpleNamespace(
-            list_projects=lambda: [
+            list_for_task_workspace=lambda: [
                 SimpleNamespace(id="proj-1", name="Plant Upgrade"),
                 SimpleNamespace(id="proj-2", name="Warehouse Retrofit"),
             ]
         ),
         task_service=task_service,
         project_resource_service=SimpleNamespace(
-            list_by_project=lambda project_id: [
+            list_for_task_workspace=lambda project_id: [
                 SimpleNamespace(
                     id="pr-1",
                     project_id="proj-1",
@@ -591,7 +597,7 @@ def build_task_controller_bundle(tmp_path: Path) -> dict:
             else []
         ),
         resource_service=SimpleNamespace(
-            list_resources=lambda: [
+            list_for_task_workspace=lambda **_kwargs: [
                 SimpleNamespace(
                     id="res-1",
                     name="Alex Taylor",

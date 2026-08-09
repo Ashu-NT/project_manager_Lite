@@ -76,6 +76,9 @@ class TimesheetsWorkspaceViewModel:
     review_queue: TimesheetCollectionViewModel = field(default_factory=lambda: TimesheetCollectionViewModel("", "", ""))
     review_detail: TimesheetDetailViewModel = field(default_factory=TimesheetDetailViewModel)
     empty_state: str = ""
+    queue_total_count: int = 0
+    queue_page: int = 1
+    queue_page_size: int = 25
 
 __all__ = [
     "TimesheetCollectionViewModel",

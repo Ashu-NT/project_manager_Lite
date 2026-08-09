@@ -10,7 +10,7 @@ from src.ui_qml.modules.project_management.view_models.projects import (
 )
 
 from .detail_builder import build_detail_view_model
-from .filtering import build_empty_state, matches_search, matches_status, normalize_status_filter
+from .filtering import build_empty_state, normalize_status_filter
 from .overview_builder import build_overview
 from .project_mapper import to_project_record
 from .selection import resolve_selected_project_id
@@ -25,7 +25,6 @@ def build_workspace_state(
     page: int = 1,
     page_size: int = 25,
 ) -> ProjectCatalogWorkspaceViewModel:
-    all_projects = desktop_api.list_projects()
     status_options = (
         ProjectStatusOptionViewModel(value="all", label="All statuses"),
         *(
@@ -35,28 +34,28 @@ def build_workspace_state(
     )
     normalized_search = (search_text or "").strip()
     normalized_status_filter = normalize_status_filter(status_filter, status_options)
-    filtered_projects = tuple(
-        project
-        for project in all_projects
-        if matches_status(project, normalized_status_filter)
-        and matches_search(project, normalized_search)
+    project_page = desktop_api.list_project_page(
+        search_text=normalized_search,
+        status=normalized_status_filter,
+        page=page,
+        page_size=page_size,
     )
-    total_count = len(filtered_projects)
-    _page = max(1, page)
-    _page_size = max(1, page_size)
-    _offset = (_page - 1) * _page_size
-    paged_projects = filtered_projects[_offset: _offset + _page_size]
+    paged_projects = project_page.items
     resolved_selected_project_id = resolve_selected_project_id(
-        selected_project_id, filtered_projects
+        selected_project_id, paged_projects
     )
     selected_project = next(
-        (p for p in filtered_projects if p.id == resolved_selected_project_id),
+        (p for p in paged_projects if p.id == resolved_selected_project_id),
         None,
     )
     return ProjectCatalogWorkspaceViewModel(
         overview=build_overview(
-            all_projects=all_projects,
-            filtered_projects=filtered_projects,
+            total=project_page.total,
+            filtered_total=project_page.filtered_total,
+            active=project_page.active,
+            planned=project_page.planned,
+            on_hold=project_page.on_hold,
+            completed=project_page.completed,
         ),
         status_options=status_options,
         selected_status_filter=normalized_status_filter,
@@ -65,14 +64,14 @@ def build_workspace_state(
         selected_project_id=resolved_selected_project_id,
         selected_project_detail=build_detail_view_model(selected_project),
         empty_state=build_empty_state(
-            all_projects=all_projects,
-            filtered_projects=filtered_projects,
+            total=project_page.total,
+            filtered_total=project_page.filtered_total,
             search_text=normalized_search,
             status_filter=normalized_status_filter,
         ),
-        total_count=total_count,
-        page=_page,
-        page_size=_page_size,
+        total_count=project_page.filtered_total,
+        page=project_page.page,
+        page_size=project_page.page_size,
     )
 
 

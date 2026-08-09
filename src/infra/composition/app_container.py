@@ -11,12 +11,14 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from src.core.platform.application.platform_runtime import PlatformRuntimeApplicationService
+from src.core.platform.application.integration import IntegrationInboxService, IntegrationOutboxService
 from src.core.platform.access import AccessControlService
 from src.core.platform.integration.module_registry import ModuleRegistry
 from src.core.platform.integration.resolver import IntegrationResolver
 from src.core.platform.application.history.activity.activity_service import ActivityService
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.history.audit import EnterpriseAuditService
+from src.core.platform.application.finance import FinancialPeriodService
 from src.core.platform.application.events.notifications.notification_service import NotificationService
 from src.core.platform.application.security.auth import AuthService
 from src.core.platform.application.security.authorization.roles import (
@@ -101,6 +103,9 @@ from src.core.modules.project_management.application.financials import (
     FinanceService,
     ForecastCostService,
     PlannedCostService,
+    ProjectCommitmentService,
+    ProjectCostEntryService,
+    ProjectFinanceWorkspaceQuery,
     ProjectRateCardService,
     RateCardResolver,
 )
@@ -138,6 +143,11 @@ from src.infra.composition.maintenance_registry import build_maintenance_service
 from src.infra.composition.platform_registry import build_platform_service_bundle
 from src.infra.composition.project_registry import build_project_management_service_bundle
 from src.infra.composition.repositories import build_repository_bundle
+from src.infra.integration.delivery import SystemDeliveryClock
+from src.infra.integration.approved_time_dispatcher import ApprovedTimeFinancialDispatcher
+from src.infra.integration.procurement_financial_dispatcher import (
+    ProcurementFinancialDispatcher,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -151,6 +161,11 @@ class ServiceGraph:
     module_catalog_service: ModuleCatalogService
     module_registry: ModuleRegistry
     integration_resolver: IntegrationResolver
+    time_financial_outbox_service: IntegrationOutboxService
+    procurement_financial_outbox_service: IntegrationOutboxService
+    project_finance_inbox_service: IntegrationInboxService
+    approved_time_financial_dispatcher: ApprovedTimeFinancialDispatcher
+    procurement_financial_dispatcher: ProcurementFinancialDispatcher
     time_service: TimeService
     auth_service: AuthService
     role_governance_service: RoleGovernanceService
@@ -208,6 +223,7 @@ class ServiceGraph:
     access_service: AccessControlService
     activity_service: ActivityService
     enterprise_audit_service: EnterpriseAuditService
+    financial_period_service: FinancialPeriodService
     notification_service: NotificationService
     approval_service: ApprovalService
     collaboration_service: CollaborationService
@@ -221,7 +237,10 @@ class ServiceGraph:
     rate_card_service: ProjectRateCardService
     rate_card_resolver: RateCardResolver
     budget_service: BudgetService
+    cost_entry_service: ProjectCostEntryService
+    commitment_service: ProjectCommitmentService
     planned_cost_service: PlannedCostService
+    finance_workspace_query: ProjectFinanceWorkspaceQuery
     finance_service: FinanceService
     work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
     scheduling_engine: SchedulingEngine
@@ -253,6 +272,11 @@ class ServiceGraph:
             "module_catalog_service": self.module_catalog_service,
             "module_registry": self.module_registry,
             "integration_resolver": self.integration_resolver,
+            "time_financial_outbox_service": self.time_financial_outbox_service,
+            "procurement_financial_outbox_service": self.procurement_financial_outbox_service,
+            "project_finance_inbox_service": self.project_finance_inbox_service,
+            "approved_time_financial_dispatcher": self.approved_time_financial_dispatcher,
+            "procurement_financial_dispatcher": self.procurement_financial_dispatcher,
             "time_service": self.time_service,
             "auth_service": self.auth_service,
             "role_governance_service": self.role_governance_service,
@@ -312,6 +336,7 @@ class ServiceGraph:
             "access_service": self.access_service,
             "activity_service": self.activity_service,
             "enterprise_audit_service": self.enterprise_audit_service,
+            "financial_period_service": self.financial_period_service,
             "notification_service": self.notification_service,
             "approval_service": self.approval_service,
             "collaboration_service": self.collaboration_service,
@@ -325,7 +350,10 @@ class ServiceGraph:
             "rate_card_service": self.rate_card_service,
             "rate_card_resolver": self.rate_card_resolver,
             "budget_service": self.budget_service,
+            "cost_entry_service": self.cost_entry_service,
+            "commitment_service": self.commitment_service,
             "planned_cost_service": self.planned_cost_service,
+            "finance_workspace_query": self.finance_workspace_query,
             "finance_service": self.finance_service,
             "work_calendar_engine": self.work_calendar_engine,
             "scheduling_engine": self.scheduling_engine,
@@ -366,7 +394,21 @@ def build_service_graph(session: Session) -> ServiceGraph:
         "Platform service bundle built duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
-    inventory_procurement_services = build_inventory_procurement_service_bundle(platform_services)
+    _delivery_clock = SystemDeliveryClock()
+    _time_financial_outbox_service = IntegrationOutboxService(
+        repository=repositories.time_financial_outbox_repo,
+        owner_module="platform_time",
+        clock=_delivery_clock,
+    )
+    _procurement_financial_outbox_service = IntegrationOutboxService(
+        repository=repositories.procurement_financial_outbox_repo,
+        owner_module="inventory_procurement",
+        clock=_delivery_clock,
+    )
+    inventory_procurement_services = build_inventory_procurement_service_bundle(
+        platform_services,
+        procurement_financial_outbox_service=_procurement_financial_outbox_service,
+    )
     logger.debug(
         "Inventory/Procurement service bundle built duration_ms=%.1f",
         (perf_counter() - started) * 1000,
@@ -383,6 +425,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         session,
         repositories,
         platform_services,
+        approved_time_outbox_service=_time_financial_outbox_service,
     )
     logger.debug(
         "Project Management service bundle built duration_ms=%.1f",
@@ -390,6 +433,39 @@ def build_service_graph(session: Session) -> ServiceGraph:
     )
     _module_registry = ModuleRegistry(platform_services.module_catalog_service)
     _integration_resolver = IntegrationResolver(_module_registry)
+    _project_finance_inbox_service = IntegrationInboxService(
+        repository=repositories.project_finance_inbox_repo,
+        consumer_name="project_finance",
+        clock=_delivery_clock,
+    )
+    _approved_time_financial_dispatcher = ApprovedTimeFinancialDispatcher(
+        session=session,
+        outbox_service=_time_financial_outbox_service,
+        inbox_service=_project_finance_inbox_service,
+        consumer=project_management_services.approved_time_labor_cost_consumer,
+    )
+    _procurement_financial_dispatcher = ProcurementFinancialDispatcher(
+        session=session,
+        outbox_service=_procurement_financial_outbox_service,
+        inbox_service=_project_finance_inbox_service,
+        consumer=project_management_services.procurement_financial_consumer,
+    )
+    project_management_services.time_service.set_approved_time_dispatcher(
+        _approved_time_financial_dispatcher.dispatch_pending
+    )
+    inventory_procurement_services.inventory_purchasing_service.set_procurement_financial_dispatcher(
+        _procurement_financial_dispatcher.dispatch_pending
+    )
+    try:
+        _approved_time_financial_dispatcher.dispatch_pending(limit=50)
+    except Exception:
+        session.rollback()
+        logger.exception("Approved Time startup replay failed; durable events remain pending")
+    try:
+        _procurement_financial_dispatcher.dispatch_pending(limit=50)
+    except Exception:
+        session.rollback()
+        logger.exception("Procurement startup replay failed; durable events remain pending")
     graph = ServiceGraph(
         session=session,
         user_session=platform_services.user_session,
@@ -397,6 +473,11 @@ def build_service_graph(session: Session) -> ServiceGraph:
         module_catalog_service=platform_services.module_catalog_service,
         module_registry=_module_registry,
         integration_resolver=_integration_resolver,
+        time_financial_outbox_service=_time_financial_outbox_service,
+        procurement_financial_outbox_service=_procurement_financial_outbox_service,
+        project_finance_inbox_service=_project_finance_inbox_service,
+        approved_time_financial_dispatcher=_approved_time_financial_dispatcher,
+        procurement_financial_dispatcher=_procurement_financial_dispatcher,
         time_service=project_management_services.time_service,
         auth_service=platform_services.auth_service,
         role_governance_service=platform_services.role_governance_service,
@@ -456,6 +537,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         access_service=platform_services.access_service,
         activity_service=platform_services.activity_service,
         enterprise_audit_service=platform_services.enterprise_audit_service,
+        financial_period_service=platform_services.financial_period_service,
         notification_service=platform_services.notification_service,
         approval_service=platform_services.approval_service,
         collaboration_service=project_management_services.collaboration_service,
@@ -471,7 +553,10 @@ def build_service_graph(session: Session) -> ServiceGraph:
         rate_card_service=project_management_services.rate_card_service,
         rate_card_resolver=project_management_services.rate_card_resolver,
         budget_service=project_management_services.budget_service,
+        cost_entry_service=project_management_services.cost_entry_service,
+        commitment_service=project_management_services.commitment_service,
         planned_cost_service=project_management_services.planned_cost_service,
+        finance_workspace_query=project_management_services.finance_workspace_query,
         finance_service=project_management_services.finance_service,
         work_calendar_engine=project_management_services.work_calendar_engine,
         scheduling_engine=project_management_services.scheduling_engine,

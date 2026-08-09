@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.modules.project_management.api.desktop.projects.models.resources import (
     ProjectAssignableResourceOptionDescriptor,
 )
@@ -16,11 +15,10 @@ def resource_lookup(
     resource_ids: tuple[str, ...],
     *,
     resource_service=None,
-    can_fallback_fn=None,
 ) -> dict[str, object]:
     resources = list_resources_for_context(
         project_id, resource_ids=resource_ids,
-        resource_service=resource_service, can_fallback_fn=can_fallback_fn,
+        resource_service=resource_service,
     )
     return {
         str(r.id): r
@@ -34,43 +32,18 @@ def list_resources_for_context(
     *,
     resource_ids: tuple[str, ...] | None = None,
     resource_service=None,
-    can_fallback_fn=None,
 ) -> tuple[object, ...]:
     if resource_service is None:
         return ()
-    list_resources = getattr(resource_service, "list_resources", None)
+    list_resources = getattr(resource_service, "list_for_project_workspace", None)
     if not callable(list_resources):
         return ()
-    try:
-        resources = list(list_resources())
-    except BusinessRuleError as exc:
-        if can_fallback_fn is None or not can_fallback_fn(project_id, exc):
-            raise
-        resource_repo = getattr(resource_service, "_resource_repo", None)
-        if resource_repo is None:
-            return ()
-        tenant_context = getattr(resource_service, "_tenant_context_service", None)
-        organization_id = (
-            tenant_context.require_active_organization_id(operation_label="list project resources")
-            if tenant_context is not None
-            else None
+    resources = list(
+        list_resources(
+            project_id,
+            resource_ids=tuple(resource_ids or ()),
         )
-        if not organization_id:
-            return ()
-        normalized_ids = tuple({
-            str(rid or "").strip()
-            for rid in (resource_ids or ())
-            if str(rid or "").strip()
-        })
-        scoped_resources = list(resource_repo.list())
-        if normalized_ids:
-            resources = [
-                resource
-                for resource in scoped_resources
-                if str(getattr(resource, "id", "") or "").strip() in normalized_ids
-            ]
-        else:
-            resources = scoped_resources
+    )
     return tuple(r for r in resources if r is not None)
 
 
@@ -79,10 +52,9 @@ def build_assignable_options(
     assigned_resource_ids: set[str],
     *,
     resource_service=None,
-    can_fallback_fn=None,
 ) -> tuple[ProjectAssignableResourceOptionDescriptor, ...]:
     resources = list_resources_for_context(
-        project_id, resource_service=resource_service, can_fallback_fn=can_fallback_fn
+        project_id, resource_service=resource_service
     )
     options = [
         ProjectAssignableResourceOptionDescriptor(

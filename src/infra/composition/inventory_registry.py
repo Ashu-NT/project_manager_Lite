@@ -52,6 +52,7 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.repositor
 )
 from src.core.modules.inventory_procurement.infrastructure.reporting import InventoryReportingService
 from src.infra.composition.platform_registry import PlatformServiceBundle
+from src.core.platform.application.integration import IntegrationOutboxService
 
 
 logger = logging.getLogger(__name__)
@@ -75,6 +76,8 @@ class InventoryProcurementServiceBundle:
 
 def build_inventory_procurement_service_bundle(
     platform_services: PlatformServiceBundle,
+    *,
+    procurement_financial_outbox_service: IntegrationOutboxService | None = None,
 ) -> InventoryProcurementServiceBundle:
     started = perf_counter()
     logger.debug("Inventory/Procurement service bundle build begin")
@@ -222,6 +225,7 @@ def build_inventory_procurement_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
         document_integration_service=platform_services.document_integration_service,
+        procurement_financial_outbox_service=procurement_financial_outbox_service,
     )
     inventory_reservation_service = ReservationService(
         platform_services.session,

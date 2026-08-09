@@ -15,6 +15,8 @@ import src.core.platform.infrastructure.persistence.orm.master_data.documents.do
 import src.core.platform.infrastructure.persistence.orm.master_data.party.party  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.tenant.modules.modules  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.time_management.time.time  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.time_management.time_financial_outbox  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.finance.financial_period  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.security.auth.auth  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.security.identity.identity  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant  # noqa: F401
@@ -28,6 +30,10 @@ import src.core.modules.project_management.infrastructure.persistence.orm.projec
 import src.core.modules.project_management.infrastructure.persistence.orm.resource  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.task  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.cost  # noqa: F401
+import src.core.modules.project_management.infrastructure.persistence.orm.cost_entry  # noqa: F401
+import src.core.modules.project_management.infrastructure.persistence.orm.commitment  # noqa: F401
+import src.core.modules.project_management.infrastructure.persistence.orm.finance_inbox  # noqa: F401
+import src.core.modules.project_management.infrastructure.persistence.orm.labor_posting  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.financial_configuration  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.baseline  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.calendar_assignment  # noqa: F401
@@ -37,5 +43,6 @@ import src.core.modules.project_management.infrastructure.persistence.orm.portfo
 import src.core.modules.inventory_procurement.infrastructure.persistence.orm.catalog  # noqa: F401
 import src.core.modules.inventory_procurement.infrastructure.persistence.orm.inventory  # noqa: F401
 import src.core.modules.inventory_procurement.infrastructure.persistence.orm.procurement  # noqa: F401
+import src.core.modules.inventory_procurement.infrastructure.persistence.orm.integration_outbox  # noqa: F401
 
 __all__ = ["Base"]

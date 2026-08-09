@@ -69,7 +69,7 @@ def peak_utilization_percent(rows: tuple[Any, ...]) -> float:
 def overloaded_resource_count(rows: tuple[Any, ...]) -> int:
     return sum(
         1 for r in rows
-        if float(getattr(r, "utilization_percent", getattr(r, "total_allocation_percent", 0.0)) or 0.0) > 100.0
+        if bool(getattr(r, "is_overloaded", False))
     )
 
 

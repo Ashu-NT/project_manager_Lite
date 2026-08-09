@@ -1,6 +1,11 @@
 ﻿module workspaces.financials.sections
 FinancialsMetricsSection 1.0 FinancialsMetricsSection.qml
-FinancialsBudgetSection 1.0 FinancialsBudgetSection.qml
+FinancialsCollectionBlock 1.0 FinancialsCollectionBlock.qml
+FinancialsProfileSection 1.0 FinancialsProfileSection.qml
+FinancialsBudgetVersionsSection 1.0 FinancialsBudgetVersionsSection.qml
+FinancialsBudgetLinesSection 1.0 FinancialsBudgetLinesSection.qml
+FinancialsRateCardsSection 1.0 FinancialsRateCardsSection.qml
+FinancialsPlannedCostsSection 1.0 FinancialsPlannedCostsSection.qml
 FinancialsActualsSection 1.0 FinancialsActualsSection.qml
 FinancialsForecastSection 1.0 FinancialsForecastSection.qml
 FinancialsCommitmentsSection 1.0 FinancialsCommitmentsSection.qml

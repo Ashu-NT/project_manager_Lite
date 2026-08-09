@@ -193,6 +193,18 @@ class ProjectBaseline:
         for field_name in self.__dataclass_fields__:
             object.__setattr__(self, field_name, getattr(candidate, field_name))
 
+    @property
+    def can_submit(self) -> bool:
+        return self.status == BaselineStatus.DRAFT
+
+    @property
+    def can_approve(self) -> bool:
+        return self.status == BaselineStatus.SUBMITTED
+
+    @property
+    def can_reject(self) -> bool:
+        return self.status == BaselineStatus.SUBMITTED
+
     @staticmethod
     def create(project_id: str, name: str) -> "ProjectBaseline":
         return ProjectBaseline(
@@ -205,7 +217,7 @@ class ProjectBaseline:
         )
 
     def submit(self, submitted_by: str, notes: str = "") -> None:
-        if self.status != BaselineStatus.DRAFT:
+        if not self.can_submit:
             raise ValidationError(
                 f"Cannot submit baseline in status '{self.status.value}'.",
                 code="BASELINE_SUBMIT_STATUS_INVALID",
@@ -221,7 +233,7 @@ class ProjectBaseline:
         self._apply_validated_changes(**changes)
 
     def approve(self, approved_by: str, notes: str = "") -> None:
-        if self.status != BaselineStatus.SUBMITTED:
+        if not self.can_approve:
             raise ValidationError(
                 f"Cannot approve baseline in status '{self.status.value}'.",
                 code="BASELINE_APPROVE_STATUS_INVALID",
@@ -237,7 +249,7 @@ class ProjectBaseline:
         self._apply_validated_changes(**changes)
 
     def reject(self, notes: str = "") -> None:
-        if self.status != BaselineStatus.SUBMITTED:
+        if not self.can_reject:
             raise ValidationError(
                 f"Cannot reject baseline in status '{self.status.value}'.",
                 code="BASELINE_REJECT_STATUS_INVALID",

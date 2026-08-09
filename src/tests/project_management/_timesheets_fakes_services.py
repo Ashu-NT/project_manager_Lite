@@ -9,6 +9,9 @@ from src.core.modules.project_management.domain.enums import (
 )
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
+from src.core.modules.project_management.contracts.repositories.task import (
+    TimesheetAssignmentContext,
+)
 
 
 class _FakeProjectService:
@@ -184,6 +187,45 @@ class _FakeTaskService:
 
     def get_task(self, task_id: str) -> Task | None:
         return self._tasks.get(task_id)
+
+    def list_timesheet_assignment_contexts(
+        self,
+        *,
+        project_id: str | None = None,
+    ) -> list[TimesheetAssignmentContext]:
+        project_service = getattr(self, "_project_service", None)
+        resource_service = getattr(self, "_resource_service", None)
+        rows: list[TimesheetAssignmentContext] = []
+        for assignment in self._assignments.values():
+            task = self._tasks.get(assignment.task_id)
+            if task is None or (project_id and task.project_id != project_id):
+                continue
+            project = project_service.get_project(task.project_id) if project_service else None
+            resource = resource_service.get_resource(assignment.resource_id) if resource_service else None
+            rows.append(
+                TimesheetAssignmentContext(
+                    assignment_id=assignment.id,
+                    project_id=task.project_id,
+                    project_name=getattr(project, "name", task.project_id),
+                    task_id=task.id,
+                    task_name=task.name,
+                    resource_id=assignment.resource_id,
+                    resource_name=getattr(resource, "name", assignment.resource_id),
+                )
+            )
+        return rows
+
+    def get_timesheet_assignment_context(
+        self, assignment_id: str
+    ) -> TimesheetAssignmentContext | None:
+        return next(
+            (
+                row
+                for row in self.list_timesheet_assignment_contexts()
+                if row.assignment_id == assignment_id
+            ),
+            None,
+        )
 
 
 def _test_period_end(period_start: date) -> date:

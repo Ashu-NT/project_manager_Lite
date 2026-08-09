@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import date
 
 from src.core.modules.project_management.domain.risk.register import (
+    RegisterEntry,
     RegisterEntrySeverity,
     RegisterEntryStatus,
     RegisterEntryType,
@@ -31,4 +32,14 @@ class RegisterProjectSummary:
     urgent_items: list[RegisterUrgentItem] = field(default_factory=list)
 
 
-__all__ = ["RegisterProjectSummary", "RegisterUrgentItem"]
+@dataclass(frozen=True)
+class RegisterDashboardSnapshot:
+    summary: RegisterProjectSummary
+    high_risks: tuple[RegisterEntry, ...] = ()
+
+
+__all__ = [
+    "RegisterDashboardSnapshot",
+    "RegisterProjectSummary",
+    "RegisterUrgentItem",
+]

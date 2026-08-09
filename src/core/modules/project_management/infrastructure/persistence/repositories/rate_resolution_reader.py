@@ -137,5 +137,51 @@ class SqlAlchemyRateResolutionReader:
             for line_row, card_row in rows
         )
 
+    def list_candidates_for_range(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str | None,
+        rate_type: RateType,
+        unit: str,
+        starts_on: date,
+        ends_on: date,
+    ) -> tuple[RateResolutionCandidate, ...]:
+        card_scope = ProjectRateCardORM.project_id.is_(None)
+        if project_id is not None:
+            card_scope = or_(card_scope, ProjectRateCardORM.project_id == project_id)
+
+        stmt = (
+            select(RateCardLineORM, ProjectRateCardORM)
+            .join(ProjectRateCardORM, ProjectRateCardORM.id == RateCardLineORM.rate_card_id)
+            .where(
+                RateCardLineORM.tenant_id == tenant_id,
+                RateCardLineORM.organization_id == organization_id,
+                RateCardLineORM.rate_type == RateType(rate_type).value,
+                RateCardLineORM.unit == unit,
+                RateCardLineORM.is_active.is_(True),
+                ProjectRateCardORM.is_active.is_(True),
+                or_(
+                    RateCardLineORM.effective_from.is_(None),
+                    RateCardLineORM.effective_from <= ends_on,
+                ),
+                or_(
+                    RateCardLineORM.effective_to.is_(None),
+                    RateCardLineORM.effective_to >= starts_on,
+                ),
+                card_scope,
+            )
+        )
+        rows = self._session.execute(stmt).all()
+        return tuple(
+            RateResolutionCandidate(
+                line=rate_card_line_from_orm(line_row),
+                card_project_id=card_row.project_id,
+                card_version=card_row.version,
+            )
+            for line_row, card_row in rows
+        )
+
 
 __all__ = ["SqlAlchemyRateResolutionReader"]

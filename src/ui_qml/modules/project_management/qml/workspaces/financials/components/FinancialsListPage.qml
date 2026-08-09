@@ -14,11 +14,10 @@ Item {
     property var costsModel: ({ "emptyState": "No cost items available." })
     property var columns: []
     property string tableId: "pm.financials.costs.table"
-    property var bulkChangeProperties: []
 
     signal rowActivated(string rowId)
     signal columnsStateChanged(var cols)
-    signal createRequested()
+    signal configurationViewRequested(string sectionName)
 
     function _optionIndex(options, value) {
         const list = options || []
@@ -72,14 +71,12 @@ Item {
             Layout.fillWidth: true
             searchText: root.workspaceController ? root.workspaceController.searchText : ""
             searchPlaceholder: "Search cost items..."
-            showCreate: true
-            createEnabled: root.workspaceController ? root.workspaceController.selectedProjectId.length > 0 : false
-            createLabel: "Add Cost"
+            showCreate: false
             showFilter: true
             showCustomize: true
             showViews: true
             showRefresh: true
-            showExport: true
+            showExport: false
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
             onSearchChanged: function(text) { if (root.workspaceController !== null) root.workspaceController.setSearchText(text) }
@@ -88,7 +85,6 @@ Item {
             onViewsClicked: viewsPopup.open()
             onRefreshRequested: { if (root.workspaceController !== null) root.workspaceController.refresh() }
             onExportRequested: { if (root.workspaceController !== null) root.workspaceController.exportFinancials() }
-            onCreateRequested: root.createRequested()
         }
 
         Item {
@@ -99,14 +95,13 @@ Item {
             AppWidgets.DataTable {
                 id: costsTable
                 anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: _paginationBar.top
-                multiSelect: true
+                multiSelect: false
                 tableId: root.tableId
                 columns: root.columns
                 sourceModel: root.workspaceController ? root.workspaceController.costsTableModel : null
                 loading: root.workspaceController ? root.workspaceController.isLoading : false
                 emptyText: root.costsModel.emptyState || "No cost items available."
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedCostId : ""
-                selectedRowIds: root.workspaceController ? (root.workspaceController.selectedCostIds || []) : []
                 onColumnsStateChanged: function(cols) { root.columnsStateChanged(cols) }
                 onRowSelected: function(rowId) { if (root.workspaceController !== null) root.workspaceController.selectCost(rowId) }
                 onRowActivated: function(rowId) {
@@ -116,12 +111,6 @@ Item {
                 onViewDetailRequested: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectCost(rowId)
                     root.rowActivated(rowId)
-                }
-                onRowSelectionToggled: function(rowId, selected) { if (root.workspaceController !== null) root.workspaceController.setCostBulkSelection(rowId, selected) }
-                onSelectAllToggled: function(allSelected) {
-                    if (root.workspaceController === null) return
-                    if (allSelected) root.workspaceController.selectVisibleCosts()
-                    else root.workspaceController.clearCostBulkSelection()
                 }
             }
 
@@ -134,40 +123,6 @@ Item {
                 busy: root.workspaceController ? root.workspaceController.isBusy : false
                 onPageRequested: function(page) { if (root.workspaceController !== null) root.workspaceController.setCostPage(page) }
                 onPageSizeRequested: function(pageSize) { if (root.workspaceController !== null) root.workspaceController.setCostPageSize(pageSize) }
-            }
-
-            AppWidgets.BulkActionBar {
-                id: _bulkActionBar
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottom: _paginationBar.top
-                anchors.bottomMargin: Theme.AppTheme.spacingMd
-                z: 10
-                selectedCount: root.workspaceController ? root.workspaceController.selectedCostCount : 0
-                busy: root.workspaceController ? root.workspaceController.isBusy : false
-                actions: [
-                    { "id": "delete", "label": "Delete", "icon": "delete", "danger": true, "enabled": true },
-                    { "id": "change_property", "label": "Change Cost Type", "icon": "edit", "danger": false, "enabled": true }
-                ]
-                onCancelRequested: { if (root.workspaceController !== null) root.workspaceController.clearCostBulkSelection() }
-                onActionTriggered: function(actionId) {
-                    if (actionId === "delete") {
-                        root.workspaceController.bulkDeleteCosts(root.workspaceController ? (root.workspaceController.selectedCostIds || []) : [])
-                    } else if (actionId === "change_property") {
-                        _bulkChangePropertyPopup.open()
-                    }
-                }
-            }
-
-            AppWidgets.BulkChangePropertyPopup {
-                id: _bulkChangePropertyPopup
-                anchorItem: _bulkActionBar.actionButtonForId("change_property")
-                selectedCount: root.workspaceController ? root.workspaceController.selectedCostCount : 0
-                busy: root.workspaceController ? root.workspaceController.isBusy : false
-                properties: root.bulkChangeProperties
-                onApplyRequested: function(payload) {
-                    if (root.workspaceController === null) return
-                    if (payload.propertyId === "costType") root.workspaceController.applyBulkCostType({ "value": payload.value })
-                }
             }
 
             // ── Filter popup ──────────────────────────────────────────────
@@ -225,7 +180,25 @@ Item {
 
                 contentItem: ColumnLayout {
                     spacing: Theme.AppTheme.spacingSm
-                    AppControls.Label { text: "Cost View"; font.bold: true; font.pixelSize: Theme.AppTheme.captionSize; font.family: Theme.AppTheme.fontFamily; color: Theme.AppTheme.textMuted }
+                    AppControls.Label { text: "Project Finance"; font.bold: true; font.pixelSize: Theme.AppTheme.captionSize; font.family: Theme.AppTheme.fontFamily; color: Theme.AppTheme.textMuted }
+                    Repeater {
+                        model: ["Profile", "Budget Versions", "Budget Lines", "Rate Cards", "Planned Costs"]
+                        delegate: AppControls.SecondaryButton {
+                            required property string modelData
+                            Layout.fillWidth: true
+                            text: modelData
+                            enabled: root.workspaceController
+                                ? root.workspaceController.selectedProjectId.length > 0
+                                : false
+                            onClicked: {
+                                root.configurationViewRequested(modelData)
+                                viewsPopup.close()
+                            }
+                        }
+                    }
+
+                    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.AppTheme.divider }
+                    AppControls.Label { text: "Cost Register View"; font.bold: true; font.pixelSize: Theme.AppTheme.captionSize; font.family: Theme.AppTheme.fontFamily; color: Theme.AppTheme.textMuted }
                     AppControls.ComboBox {
                         Layout.fillWidth: true
                         model: root.workspaceController ? (root.workspaceController.costTypeOptions || []) : []

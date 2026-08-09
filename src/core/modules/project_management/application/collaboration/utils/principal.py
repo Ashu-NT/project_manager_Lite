@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+from src.core.modules.project_management.contracts.reads.collaboration.models.workspace_facts import (
+    CollaborationCommentFact,
+)
 from src.core.modules.project_management.domain.collaboration import TaskComment
 
 
 class CollaborationPrincipalMixin:
-    def _comment_mentions_principal(self, comment: TaskComment) -> bool:
+    def _comment_mentions_principal(
+        self,
+        comment: TaskComment | CollaborationCommentFact,
+    ) -> bool:
         principal = self._user_session.principal if self._user_session is not None else None
         principal_user_id = str(getattr(principal, "user_id", "") or "").strip()
         mentioned_user_ids = {str(item).strip() for item in comment.mentioned_user_ids if str(item).strip()}
@@ -14,7 +20,10 @@ class CollaborationPrincipalMixin:
         aliases = self._principal_aliases()
         return bool(aliases and not mentions.isdisjoint(aliases))
 
-    def _comment_is_unread_for_principal(self, comment: TaskComment) -> bool:
+    def _comment_is_unread_for_principal(
+        self,
+        comment: TaskComment | CollaborationCommentFact,
+    ) -> bool:
         if not self._comment_mentions_principal(comment):
             return False
         principal = self._user_session.principal if self._user_session is not None else None

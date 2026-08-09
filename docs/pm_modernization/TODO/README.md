@@ -3,9 +3,333 @@
 Generated 2026-08-06 by reading every file in `docs/pm_modernization/` and separating
 done/partial/pending. This is the single place to look for what's left; the other docs
 in this folder describe what already exists and why. Three fully-superseded implementation
-logs (`rate_card_cost_engine_cutover_plan.md`, `project_budget_lifecycle_plan.md`,
-`project_planned_cost_snapshot_plan.md`) were deleted as part of this cleanup — see
-"Deleted docs" at the bottom for what happened to their content.
+logs were deleted as part of the cleanup; their disposition is recorded at the bottom.
+
+Updated 2026-08-08 after completing the numbered CQRS plan and reconciling the subsequent
+Desktop Adapter Responsibility Audit. CQRS Phases 0A-0C and 1-6 are complete. The
+Session/Unit-of-Work investigation remains a separate future architecture decision; it is
+not an unfinished CQRS phase.
+
+## 0. Desktop adapter responsibility hardening (complete 2026-08-09)
+
+Source: `../CQRS/project_management_cqrs_existing_state_audit.md`, "Desktop Adapter
+Responsibility Audit." This work was identified after the original consolidated TODO was
+generated and therefore takes priority over starting the much larger Finance Phase C.
+
+- **DA0 - Guardrails and characterization (complete 2026-08-08):** architecture guardrails
+  are implemented and all six P0 plus ten P1 rows are characterized or, for the two confirmed
+  dead Financials methods, usage-verified and deleted.
+- **DA1 - Composition leaks (complete 2026-08-08):** Resources, Projects, and Tasks now use
+  explicit public application queries; the desktop architecture register contains no repository
+  imports or private collaborator access exceptions.
+- **DA2 - Security and error boundaries (complete 2026-08-08):** Tasks reports partial
+  permission-scoped loads, Dashboard propagates approval failures, and dead PM calendar mutation
+  compatibility stubs were deleted in favor of Platform Admin's canonical calendar CRUD.
+- **DA3 - Domain policy (complete 2026-08-08):** Resources, Scheduling, Register, and Dashboard are complete. Normalized
+  resource-rate decisions belong to `ResourceService`, certification lifecycle status belongs
+  to `ResourceCertification`, baseline actions belong to `ProjectBaseline`, task remaining
+  duration belongs to `Task`, and default-calendar selection belongs to Platform's
+  `EnterpriseCalendarService`. Register overdue/triage policy belongs to `RegisterEntry`, and
+  `RegisterService` applies it after RBAC scope filtering. Dashboard consumes the same Register
+  snapshot and canonical resource-utilization policy across every desktop projection.
+- **DA4 - Read/report extraction (complete 2026-08-08):** Timesheet period transitions now
+  return immutable aggregate facts built from the entries already loaded by the command, and
+  assignment options/details use one tenant-scoped joined application query. No speculative
+  Reader was introduced.
+- **DA5 - Duplicate and dead-code removal (complete 2026-08-08):** removed the remaining
+  schedule-impact wrapper and Projects reflection fallback after parity tests. The Resources
+  rate/currency options fallback and dead Financials procurement projection had already been
+  deleted in DA1/DA0 respectively.
+
+### DA0/DA1 exception deletion register
+
+These are verified pre-existing violations, not permanent exemptions. The architecture suite
+holds the exact set so both additions and removals require an explicit update. Delete each test
+exception in the same change that removes its runtime violation.
+
+| Exception group | Current locations | Removal gate | Status |
+| --- | --- | --- | --- |
+| Repository contracts imported by desktop Resources | None; all three imports removed | Resources pilot | CLOSED 2026-08-08 |
+| Private collaborator access | None; all Tasks access/resource lookup reach-throughs removed | DA1 Tasks migration | CLOSED 2026-08-08 |
+| Application objects constructed in desktop code | None; runtime composition injects `ConstraintValidator` | Scheduling composition migration provides the constructed collaborator | CLOSED 2026-08-09 |
+| Private platform module imports | None; PM consumes public money and approval-label package exports | Expose and consume public platform contracts | CLOSED 2026-08-09 |
+
+**DA0 exit gate:** all P0/P1 behaviors have characterization coverage; architecture scanners
+reject synthetic violations; every remaining exception above has a named DA1 removal owner.
+
+Implementation checkpoint (2026-08-08):
+
+- `test_pm_desktop_adapter_architecture.py` pins the exact repository-import, private-access,
+  application-construction, and private-module exception sets; it also blocks reverse
+  application/domain imports and proves the scanners detect synthetic violations.
+- `test_pm_desktop_adapter_da0_characterization.py` pins the schedule-impact baseline
+  divergence and the former Projects/Tasks adapter-boundary behavior. Migrated cases are converted
+  to assertions against their replacement public contracts rather than retained as legacy tests.
+- Dashboard authorization/infrastructure error propagation was already corrected and remains
+  covered by `test_phase0a4_other_safety_corrections.py`.
+- All live P1 behaviors now have focused coverage: desktop-owned rate decisions, Resources
+  composition fallbacks, duplicate rate precedence, assignment-preview
+  calculation/query behavior, overload thresholds, and Register/Dashboard risk parity.
+- Removed the caller-free PM Financials procurement methods, DTOs, serializer, exports, and
+  wiring. A deletion guard prevents their accidental restoration before Phase C introduces a
+  typed project-source Procurement contract.
+- Corrected Dashboard risk filtering from the nonexistent `IN_REVIEW` status to canonical
+  `IN_PROGRESS` and added parity coverage against Register ordering.
+- Focused checkpoint: 31 tests passed. DA0 is complete; DA1 Resources is next.
+
+DA1 Resources checkpoint (2026-08-08):
+
+- Added tenant/RBAC-aware `TaskService.list_assignments_for_resource()` as the public
+  application query used by the Resources workspace.
+- Removed `AssignmentRepository` from the desktop API/factory, the `_assignments` fallback,
+  desktop-side `ResourceAvailabilityService` construction, private repository/calendar
+  reach-through, and the now-empty resolution module.
+- Runtime composition now injects the existing availability service directly; absence produces
+  the existing unavailable/empty UI state rather than constructing a hidden service graph.
+- Focused checkpoint: 22 tests passed. Resources is complete; DA1 continues with Projects,
+  followed by Tasks.
+
+DA1 Projects checkpoint (2026-08-08):
+
+- Added canonical `require_any_project_permission()` with centralized denial evidence for
+  project-scoped read/manage alternatives.
+- Added public `ResourceService.list_for_project_workspace()` and
+  `ProjectResourceService.list_for_project_workspace()` queries. Tenant/organization scope and
+  project RBAC are now application responsibilities.
+- Deleted the desktop access helper and all `_user_session`, `_resource_repo`,
+  `_tenant_context_service`, and `_project_resource_repo` reach-throughs from Projects.
+- Verified a project-scoped manager can read the project's resources without receiving the
+  unrelated global `resource.read` permission. Targeted checkpoint: 21 tests passed.
+- Combined desktop/architecture regression: 63 tests passed. Projects is complete; DA1
+  continues with Tasks.
+
+DA1 Tasks checkpoint (2026-08-08):
+
+- Added public `ProjectService.list_for_task_workspace()`,
+  `ProjectResourceService.list_for_task_workspace()`, and
+  `ResourceService.list_for_task_workspace()` queries. They enforce canonical global/project RBAC
+  while repositories retain tenant/organization isolation.
+- Removed exception-message parsing and all `_project_repo`, `_resource_repo`,
+  `_project_resource_repo`, `_tenant_context_service`, and `_user_session` access from the Tasks
+  desktop adapter. Obsolete fallback helpers and their parameters were deleted rather than retained
+  as transition code.
+- Added a real-service scoped `task.read` test proving project filtering and resource/membership
+  access, converted desktop characterization tests to the public contracts, and reduced the
+  private-collaborator architecture exception set to zero.
+- Focused checkpoint: 28 tests passed. Broader task/desktop-adapter checkpoint: 124 tests passed,
+  458 deselected, with three pre-existing warnings. DA1 is complete; DA2 is next.
+
+DA2 checkpoint (2026-08-08; transition mechanism removed 2026-08-09):
+
+- DA2 originally added a partial-load result around the adapter's per-project loop. Section 0A's
+  atomic scoped Task SQL query made that loop and its failure mode obsolete. `TaskListResultDto`,
+  `list_all_tasks()`, skipped-project state, QML warning, and transition tests are deleted; tenant,
+  organization, and project RBAC are now resolved before one catalog query executes.
+- Confirmed Dashboard approval failures already propagate under the Phase 0A4 correction and kept
+  its regression coverage instead of adding a second partial-failure mechanism.
+- Removed caller-free PM Scheduling `update_calendar`, `add_holiday`, and `delete_holiday` methods,
+  their command DTOs, duplicate adapter helpers, exports, and transition tests. Calendar mutation
+  remains available only through the canonical Platform Admin calendar API/controller; PM retains
+  calendar reads and working-day calculation.
+- Focused DA2 checkpoint: 42 tests passed. Broader Tasks/Scheduling/adapter checkpoint: 145
+  passed, 436 deselected, with three pre-existing warnings. Canonical Platform Admin calendar CRUD:
+  14 passed after updating its test fixture to the hardened `ActiveScopeIds` repository contract.
+  DA2 is complete; DA3 is next.
+
+DA3 Resources checkpoint (2026-08-08):
+
+- `ResourceService.update_resource()` now decides whether normalized hourly-rate/currency values
+  actually differ from the persisted resource. Actual rate changes still require optimistic
+  concurrency and retain the optional explicit effective date for dedicated rate-card workflows;
+  ordinary callers default through the service's injected `Clock`.
+- Desktop Resources and the CSV importer now forward full-form values without pre-reading,
+  comparing persisted rates, or calling `date.today()`. The duplicate adapter/importer policy
+  and the obsolete `RESOURCE_RATE_EFFECTIVE_ON_REQUIRED` path are removed.
+- `ResourceCertification.status_on()` owns valid, expiring-soon, and expired boundary rules and
+  returns typed `CertificationStatus`; the desktop serializer only maps its value into the
+  unchanged DTO.
+- An architecture deletion guard prevents the removed policy from returning to adapters.
+  Combined Resources, characterization, and architecture checkpoint: 54 passed. DA3 remains in
+  progress; Scheduling lifecycle/derived-state extraction is next.
+
+DA3 Scheduling checkpoint (2026-08-08):
+
+- `ProjectBaseline.can_submit/can_approve/can_reject` now expose the same lifecycle legality
+  enforced by its transition methods; the desktop formatter only projects those properties.
+- `Task.remaining_duration_days` owns the progress-based duration calculation. The duplicate
+  desktop `scheduling_utils.py` implementation was deleted, not retained as compatibility code.
+- Platform `EnterpriseCalendarService.get_default_calendar()` now resolves the active
+  organization's canonical active GLOBAL calendar under `task.read` and tenant/organization
+  scope. Platform's desktop API exposes the query and PM consumes it instead of independently
+  listing/filtering calendars.
+- The former uniform-hours calendar mutation policy requires no migration because DA2 deleted its
+  caller-free PM mutation surface. The separate first-working-day `hours_per_day` snapshot
+  approximation remains the documented P2 DTO-design follow-up; changing that response shape is
+  outside this no-DTO-change tranche.
+- Domain, Platform service, real PM-to-Platform wiring, QML presenter, and architecture checkpoint:
+  45 passed. The broader PM Scheduling/Baseline/architecture regression passed 69 tests with 658
+  unrelated tests deselected. DA3 remains in progress; Register triage ownership is next.
+
+DA3 Register checkpoint (2026-08-08):
+
+- `RegisterEntry.is_overdue_on()` now owns terminal-status and due-date interpretation, while
+  `RegisterEntry.triage_key()` owns severity-first, overdue-first, due-date, and title ordering for
+  an explicit as-of date.
+- `RegisterService.list_entries()` applies the canonical ordering only after project RBAC filtering;
+  `get_project_summary()` reuses the same domain rule for urgent ordering and overdue totals.
+- The desktop Register builder now only coerces filters and forwards the service result. Its
+  duplicate `register_status_utils.py` policy helper was deleted rather than retained as transition
+  code, and the serializer projects `RegisterEntry.is_overdue_on()` into the unchanged DTO.
+- Domain, application query, desktop API, QML presenter, DA0 characterization, and architecture
+  checkpoint: 33 passed. The complete PM/architecture regression passed 729 tests; its one
+  unrelated existing failure is the hard line-limit guard for generated `shared_resources_rc.py`
+  and Platform `enterprise_calendar.py`. That checkpoint closed Register; Dashboard followed below.
+
+DA3 Dashboard and workspace-performance checkpoint (2026-08-08):
+
+- `ResourceUtilizationBand` now owns the canonical idle/stable/hot/near-capacity/overloaded
+  boundaries. Reporting rows expose policy facts; Dashboard and Scheduling desktop serializers
+  only project those facts. The duplicate Scheduling status formatter was deleted.
+- `RegisterService.get_dashboard_snapshot()` returns summary and high-risk rows from one
+  RBAC-filtered load using `RegisterEntry.triage_key()`. Dashboard no longer injects or calls
+  `RegisterService` from its desktop adapter.
+- Dashboard loads tasks, batch assignments, resources, KPI, schedule, and Register data once per
+  snapshot. A no-baseline view no longer executes EVM/EVM-series queries. Portfolio obtains its
+  heatmap and dependency projection from one typed executive snapshot.
+- Repeated permission checks now use a 30-second validated-principal lease. The QML runtime
+  heartbeat and application activation force persisted revalidation, preserving revocation and
+  graceful re-login behavior. Same-process authority changes still rebuild or clear the principal
+  immediately.
+- Repository entitlement reads use the existing ID-only active scope contract. Full tenant and
+  organization entity validation remains on login, context switch, mutation, and explicit runtime
+  revalidation paths.
+- Scheduling uses the previously-unused bounded `WorkingDaySnapshotCalendar`; CPM calculations run
+  against one range load. Resource-load reporting also uses range resolution instead of one
+  calendar query per day.
+- Persistent evidence is in
+  `test_dashboard_portfolio_workspace_performance_measurement.py`. On the single-project SQLite
+  fixture, Dashboard improved from approximately 0.70s/1,501 SQL statements to 0.08s/96, and
+  Portfolio from approximately 0.30s/494 to 0.06s/68. These are regression evidence, not a
+  production SLA.
+- Existing scale fixtures confirm the authorization lease removes fixed per-operation overhead:
+  Collaboration inbox/workspace reads moved from 53/56 SQL statements to 3/6, EVM series from 50
+  to 15, Portfolio scenario comparison from 62 to 12, capacity pool from 20 to 5, and Finance
+  snapshot/EVM reads from 45/47 to 10/12. Their persistent budgets now pin the lower counts.
+- Focused resource, Dashboard, architecture, auth, and runtime checkpoint: 68 passed. The broad PM
+  and architecture run covered 599 tests: 596 passed in the complete run and its three stale
+  Phase 3B measurement budgets passed after recalibration. The directly affected Platform security
+  set passed 126 tests; its one unrelated existing failure is the global PostgreSQL RLS inventory,
+  which does not yet classify newly added Project Finance tenant tables. DA3 is complete; DA4
+  followed below.
+
+DA4 Timesheets checkpoint (2026-08-08):
+
+- `TimesheetPeriodAggregate` is an immutable Platform application result containing period state,
+  entry count, total hours, and project IDs. Submit/approve/reject/lock/unlock build it from the
+  same entries already required for validation, audit, and events; the desktop serializer no
+  longer fetches entries or calculates totals.
+- `TaskService.list_timesheet_assignment_contexts()` and
+  `get_timesheet_assignment_context()` enforce canonical `task.read` plus project RBAC before
+  returning contract-owned immutable rows. `SqlAlchemyAssignmentRepository` obtains project,
+  task, assignment, and resource context in one tenant/organization-scoped joined query.
+- Both the assignment picker and assignment snapshot consume that application query. Their prior
+  project-to-task-to-assignment loops and per-assignment resource lookups were deleted rather than
+  retained as fallbacks.
+- The QML-facing `TimesheetPeriodSummaryDesktopDto` and assignment descriptor fields are unchanged.
+  Persistent measurement verifies one joined assignment data query, with at most one additional
+  bounded runtime-session lease statement; transition characterization verifies desktop
+  serialization performs no second resource-period entry read.
+- Focused Platform, PM desktop, isolation, architecture, and measurement checkpoint: 52 passed.
+  DA4 is complete; DA5 duplicate/dead-code removal is next.
+
+DA5 cleanup checkpoint (2026-08-08):
+
+- `ScheduleChangeImpactService` now owns approved-baseline resolution and the standard delayed-task
+  scenario. Tasks and Scheduling therefore cannot disagree about `requires_approval` based on
+  entry point. The standalone `compute_schedule_impact` function and all exports were deleted.
+- Projects `create_project` and `update_project` explicitly forward every declared command field
+  to the exact `ProjectService` contract. `call_with_supported_kwargs` and its `inspect.signature`
+  filtering were deleted, so field/signature drift now fails tests instead of silently dropping
+  data.
+- The Resources `resource_options_builder.py` fallback named by the original DA5 register had
+  already been removed during DA1/DA3; the current option builder contains only enum presentation
+  options and no rate/currency precedence.
+- Focused Projects, Scheduling, Tasks, characterization, and architecture checkpoint: 35 passed.
+  DA5 is complete.
+- Bounded DA4/DA5 regression matrix: 195 passed. Two unrelated existing architecture size guards
+  remain red in untouched files: `scheduling_engine.py` is 449 lines against its 410-line growth
+  budget, while the hard 1,200-line inventory flags generated `shared_resources_rc.py` and Platform
+  `enterprise_calendar.py`. Four existing SQLAlchemy delete-count warnings remain in cascading
+  time-entry cleanup tests.
+
+Architecture exception closure checkpoint (2026-08-09):
+
+- Platform Money publicly exports its decimal conversion helpers, and Platform Approval publicly
+  exports its display/context/module label helpers. PM no longer imports underscore-prefixed
+  modules from either platform package.
+- Runtime composition constructs and injects `ConstraintValidator`; the Scheduling desktop
+  builder no longer instantiates an application object.
+- The architecture exception sets are empty. Desktop adapter responsibility hardening DA0-DA5 is
+  complete. Public-export, Dashboard/Financials, Scheduling-injection, and architecture closure
+  checkpoint: 20 passed. Finance Phase B item 8 was completed next and is recorded in section 1.
+
+## 0A. Database-side workspace queries and pagination (complete 2026-08-09)
+
+This post-CQRS phase is the next PM modernization priority before Finance Phase C. The desktop
+presenter must not load an entire growing collection merely to filter, sort, count, and slice 25
+rows. Pagination belongs to an application read contract and its infrastructure reader, not QML,
+the presenter, or a generic command repository.
+
+Rules for every migrated collection:
+
+- apply tenant and organization scope, project-level RBAC, search, filters, and deterministic
+  ordering before the page boundary;
+- return immutable read rows plus explicit page metadata and filtered totals; obtain overview
+  metrics from separate scoped aggregate queries rather than reconstructing them from one page;
+- use a unique ordering tie-breaker. The current numbered desktop controls use deterministic
+  database offset pages; introduce a cursor/keyset HTTP contract when measured concurrent churn or
+  page depth makes offset paging unsuitable, without moving filtering back into the presenter;
+- fetch selected-row detail independently, and replace unbounded dropdown payloads with bounded
+  searchable option queries where their cardinality can grow;
+- stream or batch exports independently. `page_size=99999` and similar interactive-pagination
+  bypasses are forbidden; and
+- preserve fail-closed authorization. A count, empty state, page boundary, or option lookup must
+  not disclose rows outside the active tenant/organization/project scope.
+
+| Workspace collection | Current disposition | Approved action |
+| --- | --- | --- |
+| Tasks, including All Projects | Database-side tenant/org/RBAC scope, structured/free-text filters, WBS-effective rollups, aggregates, ordering, and page boundary | **COMPLETE.** Cross-project loading and partial-load transition DTOs were deleted. WBS parent options use a separate selected-project hierarchy query; exports iterate bounded 500-row database pages. |
+| Projects catalog | Database search/status/order/count and offset page under tenant/org/project RBAC | **COMPLETE.** Overview status metrics are scoped SQL aggregates; exports iterate bounded 500-row pages. |
+| Resources catalog | Database active/category/search filters, employee/department/site joins, aggregates, ordering, and offset page | **COMPLETE.** Employee dialog options remain a distinct selector contract and are not used to filter or page the catalog; exports iterate bounded 500-row pages. |
+| Register and Risk catalogs | Shared database project/type/status/severity/search query with aggregates, real page metadata, and database-limited urgent queue | **COMPLETE.** Previously cosmetic QML paging now reaches SQL and reports the filtered total. |
+| Timesheets review queue | Fixed-query database page joined through period/resource/assignment/task/project, with tenant/org/project RBAC and aggregate hours | **COMPLETE.** Removed the 200-row desktop ceiling; one assignment-period's detail entries remain a bounded detail read. |
+| Financial configuration line views | Database offset pagination, scope, counts, and deterministic ordering are already implemented | **Keep.** Do not regress these readers to presenter slicing. |
+| Legacy Financials combined `CostItem` list | Complete project list is filtered in the presenter; model is scheduled for Phase C removal | **Do not modernize dead-end code.** Phase C replaces it with typed Actual and Commitment ledger readers with their own database page contracts. |
+| Scheduling activities/timeline | CPM, float, criticality, delay, hierarchy, and diagnostics are calculated from the complete selected-project graph before display paging | **Do not page source tasks before calculation.** Keep the authoritative schedule calculation complete; introduce a persisted/materialized schedule read model only if measured scale requires database-side interactive filtering. |
+| Dashboard operational tables | Bounded rows are derived from cross-service KPI/report aggregates | **Do not mechanically push paging into entity repositories.** Keep bounded aggregate contracts; create a dedicated operational Reader only when realistic-scale measurement exceeds the recorded budget. |
+| Portfolio heatmap/scenario/capacity | Values are calculated from complete accessible-portfolio facts; Phase 3C already removed N+1 acquisition | **Do not page facts before portfolio calculations.** A future materialized portfolio projection may add cursor pagination without corrupting totals/rankings. |
+| Collaboration feeds | Recent activity/mentions/presence use explicit bounded read limits | **Keep bounded.** Add cursor delivery only when cross-session notification delivery becomes a user-facing feature. |
+
+Implementation sequence: Tasks -> Projects -> Resources -> Register/Risk -> Timesheet review queue.
+Each cutover deletes its presenter-side filter/pagination helper in the same change after parity,
+tenant-isolation, RBAC, ordering, total-count, and query-growth tests pass. Calculated-projection
+exceptions above are permanent semantic decisions unless a separately measured materialized read
+model replaces them; they are not permission to return unbounded entity rows.
+
+Completion checkpoint (2026-08-09): all five growing workspace collections above now cross a
+typed application read contract and execute scope, filtering, aggregate counts, deterministic
+ordering, and page boundaries in SQL. Real-composition integration coverage lives in
+`test_workspace_database_pagination.py`. Scheduling, Dashboard, Portfolio, bounded collaboration
+feeds, and the Phase-C-bound legacy Finance list retain the dispositions recorded in this table;
+they are not unfinished 0A work.
+
+Verification checkpoint: 65 focused database/desktop/presenter/architecture tests passed, followed
+by 165 tests covering the remaining QML-through-PM functional segment. The full PM directory run
+reached 62% without failure before its five-minute measurement-suite timeout; a second functional
+run exposed one stale task test fake, which was migrated to the shared fake workspace query and
+then passed with its affected six-test cluster. Query budgets are pinned at 4/4/4/5/3 statements
+for Projects/Tasks/Resources/Register/empty Timesheet review, including the shared entitlement
+guard statement.
 
 ## 1. Finance — Phase B, remaining
 
@@ -21,30 +345,141 @@ Source: `../project_finance_existing_state_and_implementation_plan.md` §19 Phas
   "planned," and build an assignment-change-triggered recalculation mechanism.
 - Baseline provenance (which exact rate-card line/version valued each baseline task) is not
   recorded — would need a baseline financial-snapshot extension.
-- **Item 8 (not started):** replace the QML combined "Budget" cost-line section with
-  separate Profile, Budget Versions, Budget Lines, Rate Cards, and Planned Costs views.
+- **Item 8 (complete 2026-08-09):** replaced the QML combined "Budget" cost-line section with
+  separate project-level Profile, Budget Versions, Budget Lines, Rate Cards, and Planned Costs
+  views. A canonical application projection owns RBAC, scope, totals, and label resolution with a
+  warm-path ceiling of 14 SQL statements. Growing line collections use explicit 50-row offset
+  pages with totals and in-section navigation. The Views menu reaches configuration when no legacy cost
+  row exists; cost rows open Actuals. `FinancialsBudgetSection.qml` was deleted with no temporary
+  fallback. Underlying Phase B regression: 86 passed; projection/isolation/pagination: 6 passed;
+  combined application/desktop/QML/architecture checkpoint: 51 passed.
 
-## 2. Finance — Phase C: actual ledger, commitments, time, procurement, periods (not started)
+The next unblocked consolidated phase is Finance Phase C in section 2. Item 7 remains a deliberate
+product/architecture decision gate and must not be implemented as a mechanical source swap.
 
-Source: same doc, §19 Phase C. All 8 items are unstarted; only the prerequisite
+## 2. Finance — Phase C: actual ledger, commitments, time, procurement, periods (in progress)
+
+Source: same doc, §19 Phase C. Items 1-3's permanent foundations are complete; items 4-8 are
+unstarted. The prerequisite
 `TRANSITION(PF-A0-UOW-BRIDGE)` cleanup that items 2/6 depend on is done (governed
 commands now own their own Unit of Work). ADR gate: ADR-PF-004/006/007/008 already
 ACCEPTED, so the ADR gate itself is not blocking.
 
-1. Organization financial periods + closure/lock policy (separate from scheduling calendars).
-2. `ProjectCostEntry` draft/approval/post/reversal lifecycle with Money/base-Money/FX
-   snapshot, source, period, dimensions, actor/timestamps, scoped idempotency.
-3. PM commitment projections/lines, matching, cancellation/closure, remaining-balance policy.
-4. Approved-Time contract/event + idempotent labor-cost consumer (snapshot rate,
-   reverse/replace on corrected approvals).
-5. Typed Procurement project-source queries/events (PO lines, changes, cancellation,
-   receipts, supplier invoice references).
+1. **Organization financial periods + closure/lock policy (foundation complete 2026-08-09).**
+   Platform-owned periods are separate from scheduling calendars and have direct tenant/org
+   scope, RLS metadata/migration, organization-serialized non-overlap checks, optimistic
+   concurrency, immutable open -> closed -> locked lifecycle metadata, fail-closed Enterprise
+   Audit, `finance.read`/`finance.manage` enforcement, normal-posting rejection for missing or
+   non-open periods, composition wiring, and a typed desktop adapter. There is deliberately no
+   delete, reopen, or late-post compatibility path. The existing `finance.manage` permission is
+   the coarse initial close/lock boundary; a dedicated authority/separation-of-duties rule and
+   late-adjustment policy remain the explicit product gate in section 5 before such commands may
+   be added.
+2. **Canonical ProjectCostEntry lifecycle (complete 2026-08-09).** Manual actual and signed
+   adjustment drafts use dedicated create/update/delete-draft/submit/approve/reject/post/reverse
+   commands. The aggregate owns transaction Money, immutable base-Money and FX snapshots,
+   posting period/date, cost-code/task/resource dimensions, source identity/content hash,
+   actor/timestamps, row version, and exact linked negative reversals. Persistence has direct
+   tenant/org/project scope, database pagination/counts, composite scoped foreign keys, source and
+   reversal uniqueness, RLS metadata, and database triggers that reject posted financial-fact
+   updates or deletion. The service enforces active project finance configuration, effective and
+   allowed cost codes, dimension scope, open periods, canonical command permissions, fail-closed
+   audit, approval-owned Unit of Work, and deterministic source retry/conflict behavior.
+3. **Canonical PM commitments (complete 2026-08-09).** One PM-owned projection header per
+   Procurement purchase order and one versioned line per purchase-order line preserve opaque
+   source identity without importing or foreign-keying Inventory implementation packages.
+   Monotonic immutable source-revision snapshots make retry idempotent and reject conflicting or
+   out-of-order delivery. Lines own Decimal quantity/rate, transaction/base Money and immutable FX
+   snapshot, project/cost-code/task/supplier/site dimensions, lifecycle, matched amount, and
+   optimistic row version. Sent/partially received/fully received exposure is committed minus
+   matched; closure/cancellation releases unmatched exposure, while fully received does not hide
+   exposure before a delayed actual arrives. Immutable signed match/reversal rows link only posted
+   Procurement receipt-accrual `ProjectCostEntry` facts and prevent duplicate actual matching.
+   Four directly scoped/RLS tables, composite foreign keys, database amount/source/match
+   constraints, immutable revision/match triggers, stable database pagination, fail-closed Audit,
+   RBAC/project authorization, savepoint conflict handling, and migration `q4r5s6t7u8v9` complete
+   the boundary. The permanent ADR-PF-011 owned-store foundation is now complete: Time and
+   Procurement have separate tenant/org-scoped outboxes and PM Finance owns its inbox, with
+   leasing, bounded retry/dead-letter, deduplication, ordering, quarantine, RLS, immutable-envelope
+   guards, and composition wiring. C.5 now supplies Procurement event creation, dispatch, and the
+   financial consumer at contracts/composition boundaries without direct PM-to-Inventory
+   implementation imports.
+4. **Approved-Time event + idempotent labor-cost consumer (complete 2026-08-09).** Platform
+   Time approval atomically writes immutable, monotonic per-entry snapshots to its owned outbox.
+   PM Finance consumes through its inbox, validates scope/revision, resolves and snapshots the
+   effective COST/HOUR rate, requires an open period and project default cost code, and writes a
+   posted actual plus immutable labor detail. Corrected approval creates an equal reversal and
+   replacement; later LOCKED/unlocked transitions create no posting. Database transport supports
+   immediate bounded dispatch and startup replay with retry/dead-letter state.
+5. **Procurement project-source events and PM consumers (complete 2026-08-09).** PO SENT and
+   later recognized status revisions create/update PM commitment projections; POSTED accepted
+   receipt lines create canonical accrual actuals and match remaining commitment value. Project
+   and task references remain opaque to Procurement and are resolved by PM. Reason-required
+   cancellation after approval releases remaining operational/financial exposure; full receipt
+   and close preserve source/match history.
+   Source/outbox and inbox/financial mutations are atomic with durable retry/dead-letter state.
+   Post-send commercial amendment approval and supplier-invoice reclassification remain named
+   future source-owner capabilities because neither aggregate/command exists yet.
 6. Replace manual combined `CostItem` writes with distinct planned/commitment/manual-actual
    commands; posted actuals never editable/deletable.
 7. Backfill/split legacy `CostItem` rows, dual-read for reports, reconcile totals, quarantine
    unresolved currency/source cases.
 8. Redesign QML Actuals/Commitments as ledgers (status, source, period, matching, approval,
    posting, reversal); remove generic edit/delete on posted rows.
+
+Phase C.1 verification checkpoint: all 9 new domain/service/tenant/RBAC/desktop/migration/
+architecture tests pass; the combined period and Project Finance persistence-guard suite passes
+19 tests. Fresh-database Alembic upgrade/downgrade passed and the graph remains single-headed.
+The final selected C.1/PM-finance/migration/graph checkpoint passes 30 tests.
+The broader desktop-registry/PM-finance check passed 24 tests; its two failures are pre-existing,
+unrelated Site datetime and inactive-organization provisioning defects. No temporary C.1 code or
+deletion-register entry was introduced.
+
+Phase C.2 verification checkpoint: all 7 new domain/service/governance/tenant/FX/reversal/
+migration tests pass. The combined C.1/C.2, budget lifecycle, authorization hierarchy, project
+scope, role reconciliation, and Phase-A finance security run passes 105 tests. Alembic remains
+single-headed at `p3q4r5s6t7u8`. No legacy `CostItem` reader or writer was modified, no dual-write
+or compatibility adapter was introduced, and no C.2 code is temporary. Items 6-8 remain the named
+cutover/removal gates for legacy writes, reads, and QML.
+
+Phase C.3 verification checkpoint: all 5 focused domain/source-revision/lifecycle/matching/tenant/
+migration tests pass, plus the permanent architecture test forbidding direct PM <-> Inventory
+module imports. The combined C.3 and Project Finance persistence/period architecture checkpoint
+passes 20 tests, and the existing 7-test C.2 actual-ledger suite remains green against the new
+schema. A fresh Alembic upgrade reaches the single head `q4r5s6t7u8v9`; immutable source-history
+and match triggers are present. No legacy `CostItem` path changed, no direct cross-module import,
+dual-write, in-memory event bridge, compatibility adapter, temporary file, or deletion-register
+item was introduced. One pre-existing PM desktop runtime import used only for Inventory runtime
+type checks was removed; composition continues to supply the opaque reservation capability.
+The migration also downgrades independently to C.2 revision `p3q4r5s6t7u8` while preserving the
+actual ledger.
+
+ADR-PF-011 delivery-foundation checkpoint (complete 2026-08-09): migration `r5s6t7u8v9w0` adds
+the two source-owned outboxes and PM Finance-owned inbox. Five focused lifecycle/migration tests
+pass, including atomic rollback, active-scope isolation, lease ownership, retry/dead-letter,
+transport deduplication, conflict/stale quarantine, reversible schema, and immutable-envelope
+guards; Alembic remains single-headed. There is no process-local delivery shim, cross-module
+implementation import, temporary file, or deletion-register item.
+
+Phase C.4 verification checkpoint: six focused approved-Time tests cover first approval,
+rejection no-op, approval/outbox rollback atomicity, correction reversal/replacement, rate snapshot
+retention, LOCKED no-op, closed-period rejection with durable retry evidence, inbox/outbox
+completion, post-commit UI refresh isolation, and reversible immutable migration. The combined
+C.1-C.4 period/ledger/commitment/delivery/architecture checkpoint passes 43 tests and Alembic
+remains single-headed at `s6t7u8v9w0x1`; the selected related Time lifecycle/workspace checkpoint
+passes 17 tests. No process-local financial delivery, thread/timer, direct cross-module implementation
+import, temporary file, dual-write, legacy `CostItem` mutation, or deletion-register item was
+introduced. The desktop correction command is available; final QML ledger action/dialog work
+remains at the existing C.8 UI cutover gate.
+
+Phase C.5 verification checkpoint: seven focused tests cover SENT commitment creation, partial and
+full receipt accrual/matching, close/cancel, price variance, task/project source resolution,
+non-project isolation, duplicate empty replay, closed-period retry evidence, and PO/receipt outbox
+atomic rollback. The selected C.1-C.5 plus existing Procurement lifecycle/domain/composition/
+architecture checkpoint passes 73 tests. No direct PM <-> Inventory business-package import,
+cross-module foreign key, temporary adapter, dual-write, background thread/timer, legacy
+`CostItem` mutation, migration, or deletion-register item was introduced. **Item 6, canonical
+manual/planned/commitment command cutover from combined `CostItem`, is next.**
 
 ## 3. Finance — Phase D and E (future, not started)
 
@@ -62,7 +497,7 @@ Source: same doc §20 "Transition-code deletion register." `OPEN`/`NOT CREATED` 
 
 | Component | Removal gate |
 | --- | --- |
-| `cost.manage` umbrella/alias | Target command permissions active across desktop/services |
+| `cost.manage` umbrella/alias | Canonical cost-entry service uses target permissions; remove after C.6-C.8 migrate remaining legacy desktop/service callers |
 | Legacy combined `CostItem` write API | Phase C distinct commands + QML cutover |
 | Legacy `CostItem` reader/projection | Phase D ledger/report reconciliation complete |
 | `Project.planned_budget` compatibility projection | Budget read cutover + reconciliation complete |

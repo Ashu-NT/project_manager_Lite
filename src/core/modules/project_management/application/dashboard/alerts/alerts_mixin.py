@@ -20,6 +20,8 @@ class DashboardAlertsMixin:
         project_id: str,
         kpi: ProjectKPI,
         resource_load: list[ResourceLoadRow],
+        *,
+        tasks: list[object] | None = None,
     ) -> list[str]:
         alerts: list[str] = []
         today = date.today()
@@ -44,7 +46,11 @@ class DashboardAlertsMixin:
                     f"across {row.tasks_count} tasks)."
                 )
 
-        tasks = select_leaf_tasks(self._tasks.list_tasks_for_project(project_id))
+        tasks = (
+            tasks
+            if tasks is not None
+            else select_leaf_tasks(self._tasks.list_tasks_for_project(project_id))
+        )
         def _status_value(task) -> str:
             raw = getattr(task, "status", "")
             value = getattr(raw, "value", raw)

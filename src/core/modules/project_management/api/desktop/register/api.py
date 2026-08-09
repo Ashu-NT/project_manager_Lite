@@ -14,6 +14,7 @@ from src.core.modules.project_management.api.desktop.register.commands.entry_com
     RegisterEntryUpdateCommand,
 )
 from src.core.modules.project_management.api.desktop.register.models.entries import (
+    RegisterCatalogPageDesktopDto,
     RegisterEntryDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.register.models.options import (
@@ -80,6 +81,55 @@ class ProjectManagementRegisterDesktopApi:
         return tuple(
             serialize_entry(entry, project_name_by_id=project_name_by_id)
             for entry in entries
+        )
+
+    def list_entry_page(
+        self,
+        *,
+        project_id: str = "all",
+        entry_type: str = "all",
+        status: str = "all",
+        severity: str = "all",
+        search_text: str = "",
+        page: int = 1,
+        page_size: int = 25,
+    ) -> RegisterCatalogPageDesktopDto:
+        service = self._require_register_service()
+        result = service.query_catalog_page(
+            project_id=None if project_id in ("", "all", "ALL") else project_id,
+            entry_type=(
+                None if entry_type in ("", "all", "ALL") else coerce_entry_type(entry_type)
+            ),
+            status=None if status in ("", "all", "ALL") else coerce_entry_status(status),
+            severity=(
+                None if severity in ("", "all", "ALL") else coerce_entry_severity(severity)
+            ),
+            search_text=search_text,
+            page=page,
+            page_size=page_size,
+        )
+
+        def serialize_item(item) -> RegisterEntryDesktopDto:
+            return serialize_entry(
+                item.entry,
+                project_name_by_id={item.entry.project_id: item.project_name},
+            )
+
+        return RegisterCatalogPageDesktopDto(
+            items=tuple(serialize_item(item) for item in result.items),
+            urgent_items=tuple(serialize_item(item) for item in result.urgent_items),
+            filtered_total=result.filtered_total,
+            scope_total=result.summary.scope_total,
+            scope_risk_total=result.summary.scope_risk_total,
+            open_risks=result.summary.open_risks,
+            open_issues=result.summary.open_issues,
+            pending_changes=result.summary.pending_changes,
+            active=result.summary.active,
+            critical=result.summary.critical,
+            overdue=result.summary.overdue,
+            due_soon=result.summary.due_soon,
+            page=result.page,
+            page_size=result.page_size,
         )
 
     def create_entry(

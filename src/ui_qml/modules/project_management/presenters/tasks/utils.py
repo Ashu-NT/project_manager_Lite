@@ -7,6 +7,7 @@ from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskSelectorOptionViewModel,
 )
 
+
 @dataclass(frozen=True)
 class TaskFilterOptions:
     project_options: tuple[TaskSelectorOptionViewModel, ...]
@@ -15,6 +16,7 @@ class TaskFilterOptions:
     priority_options: tuple[TaskSelectorOptionViewModel, ...]
     schedule_options: tuple[TaskSelectorOptionViewModel, ...]
 
+
 @dataclass(frozen=True)
 class NormalizedTaskFilters:
     search_text: str
@@ -22,11 +24,13 @@ class NormalizedTaskFilters:
     priority_filter: str
     schedule_filter: str
 
-def load_tasks_for_project(desktop_api: Any, project_id: str | None) -> Any:
+
+def load_tasks_for_project(desktop_api: Any, project_id: str | None) -> tuple[Any, ...]:
     normalized_project_id = (project_id or "").strip()
-    if normalized_project_id:
-        return desktop_api.list_tasks(normalized_project_id)
-    return desktop_api.list_all_tasks()
+    if not normalized_project_id:
+        return ()
+    return tuple(desktop_api.list_tasks(normalized_project_id))
+
 
 def find_task(tasks: Any, task_id: str | None) -> Any:
     normalized_task_id = (task_id or "").strip()
@@ -37,7 +41,13 @@ def find_task(tasks: Any, task_id: str | None) -> Any:
         None,
     )
 
-def resolve_selected_task(desktop_api: Any, *, task_id: str, project_id: str | None = None) -> Any:
+
+def resolve_selected_task(
+    desktop_api: Any,
+    *,
+    task_id: str,
+    project_id: str | None = None,
+) -> Any:
     normalized_task_id = (task_id or "").strip()
     if not normalized_task_id:
         return None

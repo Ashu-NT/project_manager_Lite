@@ -10,45 +10,44 @@ from src.core.platform.application.security.authorization.enforcement.permission
 class CollaborationInboxQueryMixin:
     def list_inbox(self, *, limit: int = 200) -> list[CollaborationInboxItem]:
         require_permission(self._user_session, "collaboration.read", operation_label="view collaboration inbox")
-        tasks, project_name_by_id = self._accessible_task_context_for_collaboration()
+        facts, _project_names = self._read_cross_project_collaboration_facts(comment_limit=limit)
         return self._build_comment_items(
             limit=limit,
-            tasks=tasks,
-            project_name_by_id=project_name_by_id,
+            comments=facts.comments,
             mentions_only=True,
         )
 
     def list_recent_activity(self, *, limit: int = 200) -> list[CollaborationInboxItem]:
         require_permission(self._user_session, "collaboration.read", operation_label="view collaboration activity")
-        tasks, project_name_by_id = self._accessible_task_context_for_collaboration()
+        facts, _project_names = self._read_cross_project_collaboration_facts(comment_limit=limit)
         return self._build_comment_items(
             limit=limit,
-            tasks=tasks,
-            project_name_by_id=project_name_by_id,
+            comments=facts.comments,
             mentions_only=False,
         )
 
     def list_workspace_snapshot(self, *, limit: int = 200) -> CollaborationWorkspaceSnapshot:
         require_permission(self._user_session, "collaboration.read", operation_label="view collaboration workspace")
-        tasks, project_name_by_id = self._accessible_task_context_for_collaboration()
+        facts, project_name_by_id = self._read_cross_project_collaboration_facts(
+            comment_limit=limit,
+            presence_limit=limit,
+        )
         inbox = self._build_comment_items(
             limit=limit,
-            tasks=tasks,
-            project_name_by_id=project_name_by_id,
+            comments=facts.comments,
             mentions_only=True,
         )
         activity = self._build_comment_items(
             limit=limit,
-            tasks=tasks,
-            project_name_by_id=project_name_by_id,
+            comments=facts.comments,
             mentions_only=False,
         )
-        notifications = self._build_notifications(limit=limit, inbox_items=inbox)
-        active_presence = self._presence_items_for_tasks(
-            tasks=tasks,
-            project_name_by_id=project_name_by_id,
+        notifications = self._build_notifications(
             limit=limit,
+            inbox_items=inbox,
+            project_name_by_id=project_name_by_id,
         )
+        active_presence = self._presence_items_from_facts(facts.active_presence)
         return CollaborationWorkspaceSnapshot(
             notifications=notifications,
             inbox=inbox,
@@ -60,27 +59,20 @@ class CollaborationInboxQueryMixin:
         self,
         *,
         limit: int,
-        tasks,
-        project_name_by_id: dict[str, str],
+        comments,
         mentions_only: bool,
     ) -> list[CollaborationInboxItem]:
         items: list[CollaborationInboxItem] = []
-        task_by_id = {task.id: task for task in tasks}
-        if not task_by_id:
-            return items
-        for comment in self._list_accessible_comments(limit=limit, tasks=tasks):
+        for comment in comments:
             if mentions_only and not self._comment_mentions_principal(comment):
-                continue
-            task = task_by_id.get(comment.task_id)
-            if task is None:
                 continue
             items.append(
                 CollaborationInboxItem(
-                    comment_id=comment.id,
-                    task_id=task.id,
-                    task_name=task.name,
-                    project_id=task.project_id,
-                    project_name=project_name_by_id.get(task.project_id, ""),
+                    comment_id=comment.comment_id,
+                    task_id=comment.task_id,
+                    task_name=comment.task_name,
+                    project_id=comment.project_id,
+                    project_name=comment.project_name,
                     author_username=comment.author_username or "unknown",
                     body_preview=self._body_preview(comment.body),
                     mentions=list(comment.mentions or []),

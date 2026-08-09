@@ -48,67 +48,48 @@ def _make_services() -> tuple:
     return api, project, task, cost_service
 
 
-def test_project_management_financials_desktop_api_lists_and_mutates_cost_items() -> None:
+def test_project_management_financials_desktop_api_keeps_legacy_costs_read_only() -> None:
     api, project, task, cost_service = _make_services()
 
     assert api.list_projects()[0].label == "Plant Upgrade"
     assert api.list_cost_types()[0].value == "LABOR"
     assert api.list_tasks(project.id)[0].label == "TASK-1  Cable Pull"
 
-    created = api.create_cost_item(
-        SimpleNamespace(
-            project_id=project.id,
-            description="Electrical material package",
-            planned_amount=1500.0,
-            task_id=task.id,
-            cost_type="MATERIAL",
-            committed_amount=900.0,
-            actual_amount=450.0,
-            incurred_date=date(2026, 5, 4),
-            currency_code="eur",
-        )
+    created = cost_service.add_cost_item(
+        project.id,
+        description="Electrical material package",
+        planned_amount=1500.0,
+        task_id=task.id,
+        cost_type=CostType.MATERIAL,
+        committed_amount=900.0,
+        actual_amount=450.0,
+        incurred_date=date(2026, 5, 4),
+        currency_code="eur",
     )
     listed = api.list_cost_items(project.id)
     assert created.cost_type == "MATERIAL"
     assert listed[0].planned_amount_label == "EUR 1,500.00"
     assert listed[0].task_name == "TASK-1  Cable Pull"
 
-    updated = api.update_cost_item(
-        SimpleNamespace(
-            cost_id=created.id,
-            description="Electrical material package rev A",
-            planned_amount=1600.0,
-            task_id=task.id,
-            cost_type="MATERIAL",
-            committed_amount=1000.0,
-            actual_amount=650.0,
-            incurred_date=date(2026, 5, 5),
-            currency_code="usd",
-            expected_version=cost_service.get_item(created.id).version,
-        )
-    )
-    assert updated.description == "Electrical material package rev A"
-    assert updated.actual_amount_label == "USD 650.00"
-
-    api.delete_cost_item(created.id)
-    assert api.list_cost_items(project.id) == ()
+    assert created.id == listed[0].id
+    assert not hasattr(api, "create_cost_item")
+    assert not hasattr(api, "update_cost_item")
+    assert not hasattr(api, "delete_cost_item")
 
 
 def test_project_management_financials_desktop_api_builds_snapshot() -> None:
     api, project, task, _cost_service = _make_services()
 
-    api.create_cost_item(
-        SimpleNamespace(
-            project_id=project.id,
-            description="Electrical material package rev A",
-            planned_amount=1600.0,
-            task_id=task.id,
-            cost_type="MATERIAL",
-            committed_amount=1000.0,
-            actual_amount=650.0,
-            incurred_date=date(2026, 5, 5),
-            currency_code="usd",
-        )
+    _cost_service.add_cost_item(
+        project.id,
+        description="Electrical material package rev A",
+        planned_amount=1600.0,
+        task_id=task.id,
+        cost_type=CostType.MATERIAL,
+        committed_amount=1000.0,
+        actual_amount=650.0,
+        incurred_date=date(2026, 5, 5),
+        currency_code="usd",
     )
     snapshot = api.get_finance_snapshot(project.id)
 

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from sqlalchemy import select
+from decimal import Decimal
+
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.repositories.planned_cost import (
@@ -168,6 +170,53 @@ class SqlAlchemyProjectPlannedCostVersionRepository(
             .all()
         )
         return [planned_cost_line_from_orm(row) for row in rows]
+
+    def list_lines_for_project(
+        self, project_id: str, *, offset: int = 0, limit: int = 50
+    ) -> list[ProjectPlannedCostLine]:
+        context = self._context(operation_label="list project planned-cost lines")
+        rows = (
+            self.session.execute(
+                select(ProjectPlannedCostLineORM)
+                .where(
+                    ProjectPlannedCostLineORM.project_id == project_id,
+                    ProjectPlannedCostLineORM.tenant_id == context.tenant_id,
+                    ProjectPlannedCostLineORM.organization_id == context.organization_id,
+                )
+                .order_by(
+                    ProjectPlannedCostLineORM.created_at.desc(),
+                    ProjectPlannedCostLineORM.id.asc(),
+                )
+                .offset(max(0, offset))
+                .limit(max(1, limit))
+            )
+            .scalars()
+            .all()
+        )
+        return [planned_cost_line_from_orm(row) for row in rows]
+
+    def summarize_lines_for_project(
+        self, project_id: str
+    ) -> dict[str, tuple[int, Decimal, Decimal]]:
+        context = self._context(operation_label="summarize project planned-cost lines")
+        rows = self.session.execute(
+            select(
+                ProjectPlannedCostLineORM.version_id,
+                func.count(ProjectPlannedCostLineORM.id),
+                func.coalesce(func.sum(ProjectPlannedCostLineORM.planned_hours), 0),
+                func.coalesce(func.sum(ProjectPlannedCostLineORM.amount), 0),
+            )
+            .where(
+                    ProjectPlannedCostLineORM.project_id == project_id,
+                    ProjectPlannedCostLineORM.tenant_id == context.tenant_id,
+                    ProjectPlannedCostLineORM.organization_id == context.organization_id,
+                )
+            .group_by(ProjectPlannedCostLineORM.version_id)
+        ).all()
+        return {
+            str(version_id): (int(line_count), total_hours, total_amount)
+            for version_id, line_count, total_hours, total_amount in rows
+        }
 
     def flush(self) -> None:
         self.session.flush()

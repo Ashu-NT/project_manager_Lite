@@ -71,6 +71,10 @@ def tenant_context(org_id):
     from unittest.mock import MagicMock
     from dataclasses import dataclass
 
+    from src.core.platform.application.tenant.tenancy.tenant_context import (
+        ActiveScopeIds,
+    )
+
     @dataclass
     class FakeOrg:
         id: str = org_id
@@ -86,6 +90,10 @@ def tenant_context(org_id):
     context.get_active_organization_id.return_value = org_id
     context.get_active_organization.return_value = FakeOrg()
     context.get_active_tenant_id.return_value = "tenant-platform-foundation"
+    context.require_active_scope_ids.return_value = ActiveScopeIds(
+        tenant_id="tenant-platform-foundation",
+        organization_id=org_id,
+    )
     context.require_organization_context.return_value = FakeContext(organization=FakeOrg())
     return context
 
@@ -194,6 +202,25 @@ def test_global_calendar_idempotent(cal_service, org_id):
     cal1 = cal_service.ensure_global_calendar(org_id)
     cal2 = cal_service.ensure_global_calendar(org_id)
     assert cal1.id == cal2.id
+
+
+def test_get_default_calendar_returns_canonical_global(cal_service, org_id):
+    cal_service.create_calendar(
+        code="SITE-FIRST",
+        name="Site First",
+        calendar_type=CalendarType.SITE.value,
+        is_default=True,
+    )
+    global_calendar = cal_service.ensure_global_calendar(org_id)
+
+    assert cal_service.get_default_calendar().id == global_calendar.id
+
+
+def test_get_default_calendar_fails_when_global_is_missing(cal_service):
+    with pytest.raises(NotFoundError) as exc_info:
+        cal_service.get_default_calendar()
+
+    assert exc_info.value.code == "DEFAULT_CALENDAR_NOT_FOUND"
 
 
 def test_create_site_calendar(cal_service, org_id):

@@ -62,7 +62,7 @@ def test_security_admin_can_revoke_live_user_sessions(services):
         note="Offboarding test",
     )
 
-    assert stale_session.is_authenticated() is False
+    assert stale_session.revalidate_principal() is False
     assert stale_session.principal is None
 
 

@@ -196,6 +196,17 @@ class PurchasingReceivingMixin:
                 ),
             )
             self._purchase_order_repo.update(purchase_order)
+            updated_order_lines = self._purchase_order_line_repo.list_for_purchase_order(
+                purchase_order.id
+            )
+            self._enqueue_purchase_order_financial_events(
+                purchase_order, updated_order_lines
+            )
+            self._enqueue_receipt_financial_events(
+                purchase_order=purchase_order,
+                receipt=receipt,
+                receipt_lines=created_receipt_lines,
+            )
             self._session.commit()
         except Exception:
             self._session.rollback()
@@ -234,6 +245,7 @@ class PurchasingReceivingMixin:
         domain_events.inventory_purchase_orders_changed.emit(purchase_order.id)
         for balance_id in touched_balance_ids:
             domain_events.inventory_balances_changed.emit(balance_id)
+        self._dispatch_procurement_financial_events()
         return receipt
 
     def apply_submitted_purchase_order_approval(

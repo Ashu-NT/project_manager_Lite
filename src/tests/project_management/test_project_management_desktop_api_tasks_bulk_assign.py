@@ -17,11 +17,6 @@ from src.core.modules.project_management.domain.tasks.task import (
     TaskAssignment,
     TaskDependency,
 )
-from src.core.platform.domain.security.auth.session import (
-    UserSessionContext,
-    UserSessionPrincipal,
-)
-from src.core.platform.common.exceptions import BusinessRuleError
 from src.tests.project_management._fake_project_resource_services import (
     _FakeProjectResourceService,
     _FakeProjectService,
@@ -183,27 +178,15 @@ def test_project_management_tasks_desktop_api_supports_assignments_and_dependenc
 
 
 def test_project_management_tasks_desktop_api_lists_assignments_without_resource_read() -> None:
-    class _ResourceRepo:
+    class _TaskScopedResourceService:
         def __init__(self, resources):
-            self._resources = {resource.id: resource for resource in resources}
+            self._resources = list(resources)
 
-        def list(self):
-            return list(self._resources.values())
-
-        def get(self, resource_id):
-            return self._resources.get(resource_id)
-
-    class _ResourceReadDeniedService:
-        def __init__(self, resources):
-            self._resource_repo = _ResourceRepo(resources)
-            self._tenant_context_service = SimpleNamespace(
-                require_active_organization_id=lambda **_kwargs: "org-test",
-            )
-
-        def list_resources(self):
-            raise BusinessRuleError(
-                "Permission denied for list resources. Missing 'resource.read'."
-            )
+        def list_for_task_workspace(self, *, resource_ids=()):
+            selected = set(resource_ids)
+            if not selected:
+                return list(self._resources)
+            return [resource for resource in self._resources if resource.id in selected]
 
     project_service = _FakeProjectService()
     project = project_service.create_project(
@@ -240,24 +223,11 @@ def test_project_management_tasks_desktop_api_lists_assignments_without_resource
         project_resource_id=project_resource.id,
         allocation_percent=55.0,
     )
-    user_session = UserSessionContext()
-    user_session.set_principal(
-        UserSessionPrincipal(
-            user_id="user-1",
-            username="task-reader",
-            display_name="Task Reader",
-            role_names=frozenset({"viewer"}),
-            permissions=frozenset({"task.read"}),
-            scoped_access={"project": {project.id: frozenset({"task.read"})}},
-        )
-    )
-    task_service._user_session = user_session
-
     api = build_project_management_tasks_desktop_api(
         project_service=project_service,
         task_service=task_service,
         project_resource_service=project_resource_service,
-        resource_service=_ResourceReadDeniedService([resource]),
+        resource_service=_TaskScopedResourceService([resource]),
     )
 
     assert api.list_project_resources(project.id)[0].label == "Alex Taylor (90.00 EUR/hr)"

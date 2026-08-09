@@ -1,13 +1,12 @@
 from __future__ import annotations
 
+from datetime import date
+
 from src.core.modules.project_management.api.desktop.register.formatters.enum_formatter import (
     format_enum_label,
 )
 from src.core.modules.project_management.api.desktop.register.models.entries import (
     RegisterEntryDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.register.utils.register_status_utils import (
-    is_overdue,
 )
 from src.core.modules.project_management.domain.risk.register import (
     as_register_entry_severity,
@@ -42,7 +41,7 @@ def serialize_entry(
         due_date_label=entry.due_date.isoformat() if entry.due_date else "No due date",
         impact_summary=entry.impact_summary or "",
         response_plan=entry.response_plan or "",
-        is_overdue=is_overdue(entry.due_date, status),
+        is_overdue=entry.is_overdue_on(date.today()),
         version=int(entry.version or 1),
     )
 

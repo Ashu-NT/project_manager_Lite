@@ -26,6 +26,24 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.modules.project_management.infrastructure.persistence.repositories.cost import (
     SqlAlchemyCostRepository,
 )
+from src.core.modules.project_management.infrastructure.persistence.repositories.cost_entry import (
+    SqlAlchemyProjectCostEntryRepository,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.commitment import (
+    SqlAlchemyProjectCommitmentRepository,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance_inbox import (
+    SqlAlchemyProjectFinanceInboxRepository,
+)
+from src.core.modules.project_management.infrastructure.persistence.repositories.labor_posting import (
+    SqlAlchemyApprovedTimeLaborPostingRepository,
+)
+from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.integration_outbox import (
+    SqlAlchemyProcurementFinancialOutboxRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.time_management.time_financial_outbox import (
+    SqlAlchemyTimeFinancialOutboxRepository,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.financial_configuration import (
     SqlAlchemyProjectCostCodeRepository,
     SqlAlchemyProjectFinancialProfileRepository,
@@ -40,6 +58,9 @@ from src.core.platform.infrastructure.persistence.repositories.time_management.c
     SqlAlchemyCalendarWorkingRuleRepository,
     SqlAlchemyPlatformCalendarRepository,
     SqlAlchemyShiftPatternRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.finance import (
+    SqlAlchemyFinancialPeriodRepository,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.calendar_assignment import (
     SqlAlchemyProjectCalendarAssignmentRepository,
@@ -121,11 +142,14 @@ class RepositoryBundle:
     timesheet_period_repo: SqlAlchemyTimesheetPeriodRepository
     dependency_repo: SqlAlchemyDependencyRepository
     cost_repo: SqlAlchemyCostRepository
+    project_cost_entry_repo: SqlAlchemyProjectCostEntryRepository
+    project_commitment_repo: SqlAlchemyProjectCommitmentRepository
     project_financial_profile_repo: SqlAlchemyProjectFinancialProfileRepository
     project_cost_code_repo: SqlAlchemyProjectCostCodeRepository
     project_rate_card_repo: SqlAlchemyProjectRateCardRepository
     project_budget_repo: SqlAlchemyProjectBudgetRepository
     planned_cost_repo: SqlAlchemyProjectPlannedCostVersionRepository
+    financial_period_repo: SqlAlchemyFinancialPeriodRepository
     platform_calendar_repo: SqlAlchemyPlatformCalendarRepository
     calendar_working_rule_repo: SqlAlchemyCalendarWorkingRuleRepository
     calendar_exception_repo: SqlAlchemyCalendarExceptionRepository
@@ -161,6 +185,10 @@ class RepositoryBundle:
     task_skill_req_repo: SqlAlchemyTaskSkillRequirementRepository
     service_principal_repo: SqlAlchemyServicePrincipalRepository
     api_key_credential_repo: SqlAlchemyApiKeyCredentialRepository
+    time_financial_outbox_repo: SqlAlchemyTimeFinancialOutboxRepository
+    procurement_financial_outbox_repo: SqlAlchemyProcurementFinancialOutboxRepository
+    project_finance_inbox_repo: SqlAlchemyProjectFinanceInboxRepository
+    approved_time_labor_posting_repo: SqlAlchemyApprovedTimeLaborPostingRepository
 
 
 def build_repository_bundle(session: Session) -> RepositoryBundle:
@@ -185,11 +213,14 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         timesheet_period_repo=SqlAlchemyTimesheetPeriodRepository(session),
         dependency_repo=SqlAlchemyDependencyRepository(session),
         cost_repo=SqlAlchemyCostRepository(session),
+        project_cost_entry_repo=SqlAlchemyProjectCostEntryRepository(session),
+        project_commitment_repo=SqlAlchemyProjectCommitmentRepository(session),
         project_financial_profile_repo=SqlAlchemyProjectFinancialProfileRepository(session),
         project_cost_code_repo=SqlAlchemyProjectCostCodeRepository(session),
         project_rate_card_repo=SqlAlchemyProjectRateCardRepository(session),
         project_budget_repo=SqlAlchemyProjectBudgetRepository(session),
         planned_cost_repo=SqlAlchemyProjectPlannedCostVersionRepository(session),
+        financial_period_repo=SqlAlchemyFinancialPeriodRepository(session),
         platform_calendar_repo=SqlAlchemyPlatformCalendarRepository(session),
         calendar_working_rule_repo=SqlAlchemyCalendarWorkingRuleRepository(session),
         calendar_exception_repo=SqlAlchemyCalendarExceptionRepository(session),
@@ -235,6 +266,10 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
             session,
             tenant_context_service=None,
         ),
+        time_financial_outbox_repo=SqlAlchemyTimeFinancialOutboxRepository(session),
+        procurement_financial_outbox_repo=SqlAlchemyProcurementFinancialOutboxRepository(session),
+        project_finance_inbox_repo=SqlAlchemyProjectFinanceInboxRepository(session),
+        approved_time_labor_posting_repo=SqlAlchemyApprovedTimeLaborPostingRepository(session),
     )
     logger.debug(
         "Repository bundle build complete duration_ms=%.1f repository_count=%s",

@@ -7,8 +7,15 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
+from src.core.modules.project_management.contracts.reads.financials.evm_series_reader import (
+    EvmSeriesReader,
+)
+from src.core.modules.project_management.application.financials.costs.cost_policy_engine import (
+    CostPolicyEngine,
+)
+from src.core.modules.project_management.application.financials.costs.labor_cost import (
+    LaborCostEngine,
+)
 from src.core.modules.project_management.application.financials.earned_value.evm_series import (
     EarnedValueSeriesCalculator,
 )
@@ -17,13 +24,20 @@ from src.core.modules.project_management.infrastructure.reporting.models.report_
 )
 
 class ReportingEvmSeriesMixin:
-    _project_repo: ProjectRepository
-    _baseline_repo: BaselineRepository
+    _evm_series_reader: EvmSeriesReader
 
     def _make_evm_series_calculator(self) -> EarnedValueSeriesCalculator:
         return EarnedValueSeriesCalculator(
-            project_repo=self._project_repo,
-            baseline_repo=self._baseline_repo,
+            reader=self._evm_series_reader,
+            tenant_context_service=self._tenant_context_service,
+            labor_engine=LaborCostEngine.for_facts(
+                rate_resolver=self._rate_resolver,
+                tenant_context_service=self._tenant_context_service,
+            ),
+            cost_policy_engine=CostPolicyEngine.for_facts(
+                rate_resolver=self._rate_resolver,
+                tenant_context_service=self._tenant_context_service,
+            ),
             evm_calculator=self._make_evm_calculator(),
         )
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
+from time import monotonic
 from typing import TYPE_CHECKING, Callable
 
 from pydantic import field_validator
@@ -224,9 +225,15 @@ class UserSessionContext:
         security_denial_listener: (
             Callable[["SecurityDenialEvent"], None] | None
         ) = None,
+        validation_interval_seconds: float = 30.0,
     ):
         self._principal: UserSessionPrincipal | None = None
         self._principal_validator = principal_validator
+        self._validation_interval_seconds = max(
+            0.0,
+            float(validation_interval_seconds),
+        )
+        self._last_principal_validation_at: float | None = None
         self._context_listener = context_listener
         self._security_denial_listener = security_denial_listener
         self._active_tenant_id: str | None = None
@@ -239,6 +246,7 @@ class UserSessionContext:
     def set_principal(self, principal: UserSessionPrincipal) -> None:
         normalized = self._normalize_principal(principal)
         self._principal = normalized
+        self._last_principal_validation_at = monotonic()
         self._restore_active_context_from_principal(normalized)
         self._notify_context_changed()
 
@@ -247,6 +255,7 @@ class UserSessionContext:
         validator: Callable[[UserSessionPrincipal], UserSessionPrincipal | None] | None,
     ) -> None:
         self._principal_validator = validator
+        self._last_principal_validation_at = None
 
     def set_context_listener(
         self,
@@ -293,12 +302,17 @@ class UserSessionContext:
 
     def clear(self) -> None:
         self._principal = None
+        self._last_principal_validation_at = None
         self._active_tenant_id = None
         self._active_organization_id = None
         self._notify_context_changed()
 
     def is_authenticated(self) -> bool:
         return self._active_principal() is not None
+
+    def revalidate_principal(self) -> bool:
+        """Force persisted session and authority validation for runtime heartbeats."""
+        return self._active_principal(force_validation=True) is not None
 
     def has_permission(self, permission_code: str) -> bool:
         principal = self._active_principal()
@@ -439,7 +453,11 @@ class UserSessionContext:
     def is_project_restricted(self) -> bool:
         return self.is_scope_restricted("project")
 
-    def _active_principal(self) -> UserSessionPrincipal | None:
+    def _active_principal(
+        self,
+        *,
+        force_validation: bool = False,
+    ) -> UserSessionPrincipal | None:
         principal = self._principal
         if principal is None:
             return None
@@ -451,12 +469,19 @@ class UserSessionContext:
             self.clear()
             return None
         validator = self._principal_validator
-        if validator is not None and principal.session_id:
+        validation_due = (
+            force_validation
+            or self._last_principal_validation_at is None
+            or monotonic() - self._last_principal_validation_at
+            >= self._validation_interval_seconds
+        )
+        if validator is not None and principal.session_id and validation_due:
             validated = validator(principal)
             if validated is None:
                 self.clear()
                 return None
             normalized = self._normalize_principal(validated)
+            self._last_principal_validation_at = monotonic()
             if normalized != principal:
                 principal = normalized
                 self._principal = principal

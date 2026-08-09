@@ -31,53 +31,30 @@ def build_assignment_snapshot(
     assignment_id: str,
     *,
     period_start: date | None = None,
-    project_service=None,
     task_service,
-    resource_service=None,
     timesheet_service,
 ) -> TimesheetAssignmentSnapshotDesktopDto:
     normalized_assignment_id = str(assignment_id or "").strip()
-    assignment = task_service.get_assignment(normalized_assignment_id)
-    if assignment is None:
+    context = task_service.get_timesheet_assignment_context(normalized_assignment_id)
+    if context is None:
         raise RuntimeError("The selected task assignment could not be found.")
-    task = task_service.get_task(assignment.task_id)
-    if task is None:
-        raise RuntimeError("The selected assignment task could not be found.")
-    project = (
-        project_service.get_project(task.project_id)
-        if project_service is not None
-        else None
-    )
-    resource = (
-        resource_service.get_resource(assignment.resource_id)
-        if resource_service is not None
-        else None
-    )
     assignment_option = TimesheetAssignmentOptionDescriptor(
-        value=assignment.id,
-        label=" | ".join(
-            value
-            for value in (
-                getattr(project, "name", task.project_id),
-                task.name,
-                getattr(resource, "name", assignment.resource_id),
-            )
-            if value
-        ),
-        project_id=task.project_id,
-        project_name=getattr(project, "name", task.project_id),
-        task_id=task.id,
-        task_name=task.name,
-        resource_id=assignment.resource_id,
-        resource_name=getattr(resource, "name", assignment.resource_id),
+        value=context.assignment_id,
+        label=f"{context.project_name} | {context.task_name} | {context.resource_name}",
+        project_id=context.project_id,
+        project_name=context.project_name,
+        task_id=context.task_id,
+        task_name=context.task_name,
+        resource_id=context.resource_id,
+        resource_name=context.resource_name,
     )
     selected_period_start = period_start or default_period_start(
-        assignment.id,
+        context.assignment_id,
         timesheet_service=timesheet_service,
     )
     period_options = build_period_options(
-        assignment.id,
-        resource_id=assignment.resource_id,
+        context.assignment_id,
+        resource_id=context.resource_id,
         timesheet_service=timesheet_service,
     )
     if not period_options:
@@ -93,33 +70,35 @@ def build_assignment_snapshot(
     ):
         selected_period_start = date.fromisoformat(period_options[0].value)
     task_entries = timesheet_service.list_time_entries_for_assignment_period(
-        assignment.id,
+        context.assignment_id,
         period_start=selected_period_start,
     )
     resource_entries = timesheet_service.list_time_entries_for_resource_period(
-        assignment.resource_id,
+        context.resource_id,
         period_start=selected_period_start,
     )
     period = timesheet_service.get_timesheet_period(
-        assignment.resource_id,
+        context.resource_id,
         period_start=selected_period_start,
     )
-    resource_period_total_hours = sum(float(entry.hours or 0.0) for entry in resource_entries)
-    resource_period_total_hours_label = format_hours(resource_period_total_hours)
+    period_aggregate = timesheet_service.summarize_timesheet_period(
+        context.resource_id,
+        period_start=selected_period_start,
+        period=period,
+        entries=resource_entries,
+    )
+    resource_period_total_hours_label = format_hours(period_aggregate.total_hours)
     return TimesheetAssignmentSnapshotDesktopDto(
         assignment=assignment_option,
         period_options=period_options,
         selected_period_start=selected_period_start.isoformat(),
         period_summary=serialize_period_summary(
-            period=period,
-            resource_id=assignment.resource_id,
+            aggregate=period_aggregate,
             resource_name=assignment_option.resource_name,
-            period_start=selected_period_start,
-            entries=resource_entries,
             project_names=(assignment_option.project_name,),
         ),
         entries=tuple(
-            serialize_entry(entry, assignment.id)
+            serialize_entry(entry, context.assignment_id)
             for entry in task_entries
         ),
         resource_period_total_hours_label=resource_period_total_hours_label,

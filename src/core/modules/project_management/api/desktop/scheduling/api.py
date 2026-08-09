@@ -9,6 +9,9 @@ from src.core.modules.project_management.application.projects import ProjectServ
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import BaselineService
 from src.core.modules.project_management.application.scheduling.forecasting.schedule_change_impact_service import ScheduleChangeImpactService
+from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
+    ConstraintValidator,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 
@@ -23,7 +26,6 @@ from src.core.modules.project_management.api.desktop.scheduling.models import (
     SchedulingConstraintViolationDto,
     SchedulingDependencyDto,
     SchedulingDependencyTypeDescriptor,
-    SchedulingHolidayDto,
     SchedulingProjectDependencyDto,
     SchedulingProjectOptionDescriptor,
     SchedulingResourceLoadDto,
@@ -39,10 +41,6 @@ from src.core.modules.project_management.api.desktop.scheduling.commands.baselin
     SchedulingBaselineCreateCommand,
     SchedulingBaselineRejectCommand,
     SchedulingBaselineSubmitCommand,
-)
-from src.core.modules.project_management.api.desktop.scheduling.commands.calendar_commands import (
-    SchedulingCalendarUpdateCommand,
-    SchedulingHolidayCreateCommand,
 )
 from src.core.modules.project_management.api.desktop.scheduling.commands.working_day_commands import (
     SchedulingWorkingDayCalculationCommand,
@@ -63,10 +61,7 @@ from src.core.modules.project_management.api.desktop.scheduling.builders.constra
 from src.core.modules.project_management.api.desktop.scheduling.builders.change_impact_builder import build_change_impact
 from src.core.modules.project_management.api.desktop.scheduling.serializers.dependency_serializer import serialize_dependency
 from src.core.modules.project_management.api.desktop.scheduling.services.calendar_adapter_service import (
-    add_platform_holiday,
-    delete_platform_holiday,
     unwrap_platform_calendar_result,
-    update_platform_calendar_working_days,
 )
 from src.core.modules.project_management.api.desktop.scheduling.services.dependency_resolution_service import (
     build_tasks_by_id,
@@ -98,6 +93,7 @@ class ProjectManagementSchedulingDesktopApi:
         baseline_service: BaselineService | None = None,
         reporting_service: ReportingService | None = None,
         change_impact_service: ScheduleChangeImpactService | None = None,
+        constraint_validator: ConstraintValidator | None = None,
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
@@ -108,6 +104,7 @@ class ProjectManagementSchedulingDesktopApi:
         self._baseline_service = baseline_service
         self._reporting_service = reporting_service
         self._change_impact_service = change_impact_service
+        self._constraint_validator = constraint_validator
 
     # ── Project / Activity options ────────────────────────────────────────────
 
@@ -128,34 +125,6 @@ class ProjectManagementSchedulingDesktopApi:
         return build_calendar_snapshot(
             self._platform_calendar_api, self._work_calendar_service, calendar_id
         )
-
-    def update_calendar(self, command: SchedulingCalendarUpdateCommand) -> SchedulingCalendarSnapshotDto:
-        if self._platform_calendar_api is not None:
-            return update_platform_calendar_working_days(
-                self._platform_calendar_api, command.calendar_id, command
-            )
-        # Calendar editing moved to Platform Admin → Calendar Management.
-        # Stub kept for QML compatibility during transition.
-        return self.get_calendar_snapshot()
-
-    def add_holiday(self, command: SchedulingHolidayCreateCommand) -> SchedulingHolidayDto:
-        if self._platform_calendar_api is not None:
-            return add_platform_holiday(
-                self._platform_calendar_api, command.calendar_id, command
-            )
-        # Holiday management moved to Platform Admin → Calendar Management.
-        from datetime import datetime as _dt
-        return SchedulingHolidayDto(
-            id="",
-            date=command.holiday_date if hasattr(command, "holiday_date") else _dt.today().date(),
-            name=getattr(command, "name", ""),
-        )
-
-    def delete_holiday(self, holiday_id: str) -> None:
-        if self._platform_calendar_api is not None:
-            delete_platform_holiday(self._platform_calendar_api, holiday_id)
-            return
-        pass  # Holiday management moved to Platform Admin → Calendar Management.
 
     def calculate_working_days(self, command: SchedulingWorkingDayCalculationCommand) -> SchedulingWorkingDayCalculationDto:
         if self._platform_calendar_api is not None:
@@ -361,7 +330,7 @@ class ProjectManagementSchedulingDesktopApi:
             (project_id or "").strip(),
             scheduling_engine=self._scheduling_engine,
             task_service=self._task_service,
-            work_calendar_engine=self._work_calendar_engine,
+            constraint_validator=self._constraint_validator,
         )
 
     # ── Change impact ─────────────────────────────────────────────────────────
@@ -378,7 +347,6 @@ class ProjectManagementSchedulingDesktopApi:
             project_id, task_id,
             proposed_start, proposed_finish, proposed_duration_days,
             change_impact_service=self._change_impact_service,
-            baseline_service=self._baseline_service,
         )
 
     # ── Internal guards ───────────────────────────────────────────────────────

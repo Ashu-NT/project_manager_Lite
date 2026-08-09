@@ -28,6 +28,10 @@ class FinancialsRefreshMixin:
                 selected_cost_type=self._selected_cost_type,
                 search_text=self._search_text,
                 selected_cost_id=self._selected_cost_id or None,
+                budget_line_page=self._budget_line_page,
+                rate_line_page=self._rate_line_page,
+                planned_cost_line_page=self._planned_cost_line_page,
+                configuration_page_size=self._configuration_page_size,
             )
             self._set_overview(
                 serialize_financials_overview_view_model(workspace_state.overview)
@@ -40,6 +44,17 @@ class FinancialsRefreshMixin:
             )
             self._set_task_options(
                 serialize_selector_options(workspace_state.task_options)
+            )
+            self._set_manual_actual_options(
+                {
+                    "currencyCode": workspace_state.manual_actual_options.currency_code,
+                    "costCodes": serialize_selector_options(
+                        workspace_state.manual_actual_options.cost_codes
+                    ),
+                    "entryKinds": serialize_selector_options(
+                        workspace_state.manual_actual_options.entry_kinds
+                    ),
+                }
             )
             self._set_selected_project_id(workspace_state.selected_project_id)
             self._set_selected_cost_type(workspace_state.selected_cost_type)
@@ -85,6 +100,29 @@ class FinancialsRefreshMixin:
                     workspace_state.baseline_variance
                 )
             )
+            self._set_financial_profile(
+                serialize_financials_detail_view_model(workspace_state.financial_profile)
+            )
+            self._set_budget_versions(
+                serialize_financials_collection_view_model(workspace_state.budget_versions)
+            )
+            self._set_budget_lines(
+                serialize_financials_collection_view_model(workspace_state.budget_lines)
+            )
+            self._set_rate_cards(
+                serialize_financials_collection_view_model(workspace_state.rate_cards)
+            )
+            self._set_rate_lines(
+                serialize_financials_collection_view_model(workspace_state.rate_lines)
+            )
+            self._set_planned_cost_versions(
+                serialize_financials_collection_view_model(
+                    workspace_state.planned_cost_versions
+                )
+            )
+            self._set_planned_cost_lines(
+                serialize_financials_collection_view_model(workspace_state.planned_cost_lines)
+            )
         except Exception as exc:  # pragma: no cover - defensive fallback
             self._set_error_message(str(exc))
         finally:
@@ -95,6 +133,8 @@ class FinancialsRefreshMixin:
             "project",
             "project_tasks",
             "project_costs",
+            "project_budget",
+            "project_planned_cost",
             scope_code="project_management",
         )
 

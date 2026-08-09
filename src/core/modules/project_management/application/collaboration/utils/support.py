@@ -1,32 +1,48 @@
 from __future__ import annotations
 
-from src.core.platform.common.exceptions import NotFoundError
-from src.core.modules.project_management.domain.collaboration import (
-    CollaborationMentionCandidate,
-    TaskComment,
-)
+from datetime import datetime, timedelta, timezone
+
+from src.core.modules.project_management.access.scope_permissions import filter_project_rows
+from src.core.modules.project_management.domain.collaboration import CollaborationMentionCandidate
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
 
 class CollaborationSupportMixin:
-    def _list_accessible_comments(self, *, limit: int, tasks=None) -> list[TaskComment]:
-        tasks = list(tasks) if tasks is not None else self._accessible_tasks_for_collaboration()
-        return self._comment_repo.list_recent_for_tasks([task.id for task in tasks], limit=limit)
-
-    def _accessible_tasks_for_collaboration(self):
-        tasks, _project_name_by_id = self._accessible_task_context_for_collaboration()
-        return tasks
-
-    def _accessible_task_context_for_collaboration(self):
-        tasks = []
-        project_name_by_id: dict[str, str] = {}
-        for project in self._collaboration_projects():
-            if self._user_session is None:
-                continue
-            if not self._user_session.has_project_permission(project.id, "collaboration.read"):
-                continue
-            project_name_by_id[project.id] = project.name
-            tasks.extend(self._task_repo.list_by_project(project.id))
-        return tasks, project_name_by_id
+    def _read_cross_project_collaboration_facts(
+        self,
+        *,
+        comment_limit: int,
+        presence_limit: int = 0,
+    ):
+        tenant_context = getattr(self, "_tenant_context_service", None)
+        if tenant_context is None:
+            raise BusinessRuleError(
+                "Active tenant context is required to view collaboration workspace.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        scope = tenant_context.require_active_scope_ids(
+            operation_label="view collaboration workspace"
+        )
+        projects = filter_project_rows(
+            self._project_repo.list(),
+            self._user_session,
+            permission_code="collaboration.read",
+            project_id_getter=lambda project: project.id,
+        )
+        project_names = {project.id: project.name for project in projects}
+        facts = self._workspace_reader.read_facts(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            accessible_project_ids=tuple(project_names),
+            comment_limit=max(0, int(comment_limit)),
+            presence_since=(
+                datetime.now(timezone.utc) - timedelta(seconds=self._presence_ttl_seconds)
+                if presence_limit > 0
+                else None
+            ),
+            presence_limit=max(0, int(presence_limit)),
+        )
+        return facts, project_names
 
     def _list_mention_candidates_for_project(self, project_id: str) -> list[CollaborationMentionCandidate]:
         candidates: list[CollaborationMentionCandidate] = []
@@ -94,44 +110,14 @@ class CollaborationSupportMixin:
                         ("collaboration.read",),
                     )
 
-    def _principal_can_access_project(self, project_id: str | None) -> bool:
-        if not project_id or self._user_session is None:
-            return False
-        return (
-            self._project_in_active_organization(project_id)
-            and self._user_session.has_project_permission(project_id, "collaboration.read")
-        )
-
-    def _project_name(self, project_id: str | None) -> str:
-        if not project_id:
-            return ""
-        project = self._project_repo.get(project_id)
-        if project is None or not self._project_in_active_organization(project.id):
-            return ""
-        return project.name if project is not None else ""
-
-    def _collaboration_projects(self):
-        self._active_collaboration_organization_id(
-            operation_label="view collaboration projects"
-        )
-        return self._project_repo.list()
-
     def _active_collaboration_organization_id(self, *, operation_label: str) -> str | None:
         tenant_context = getattr(self, "_tenant_context_service", None)
         if tenant_context is None:
-            from src.core.platform.common.exceptions import BusinessRuleError
             raise BusinessRuleError(
                 f"Active organization context is required for {operation_label}.",
                 code="TENANT_CONTEXT_REQUIRED",
             )
         return tenant_context.require_active_organization_id(operation_label=operation_label)
-
-    def _project_in_active_organization(self, project_id: str) -> bool:
-        organization_id = self._active_collaboration_organization_id(
-            operation_label="view collaboration project"
-        )
-        project = self._project_repo.get(project_id)
-        return bool(project is not None and getattr(project, "organization_id", None) == organization_id)
 
     def _recent_audit_rows_for_collaboration(self, *, limit: int):
         organization_id = self._active_collaboration_organization_id(
@@ -141,8 +127,12 @@ class CollaborationSupportMixin:
             return self._audit_repo.list_recent_for_organization(organization_id, limit=limit)
         return self._audit_repo.list_recent(limit=limit)
 
-    def _project_names_label(self, project_ids: list[str]) -> str:
-        names = [project_name for project_id in project_ids if (project_name := self._project_name(project_id))]
+    @staticmethod
+    def _project_names_label(
+        project_ids: list[str],
+        project_name_by_id: dict[str, str],
+    ) -> str:
+        names = [project_name_by_id[project_id] for project_id in project_ids if project_id in project_name_by_id]
         if len(names) == 1:
             return names[0]
         if names:

@@ -28,6 +28,12 @@ class SkillValidationMode(str, Enum):
     OVERRIDE = "override"  # allow with approval + recorded justification
 
 
+class CertificationStatus(str, Enum):
+    VALID = "valid"
+    EXPIRING_SOON = "expiring-soon"
+    EXPIRED = "expired"
+
+
 def _normalize_optional_date(value: object) -> date | None:
     if value in (None, ""):
         return None
@@ -313,6 +319,23 @@ class ResourceCertification:
             return True
         return finish <= self.expiry_date
 
+    def status_on(
+        self,
+        check_date: date,
+        *,
+        expiring_within_days: int = 30,
+    ) -> CertificationStatus:
+        """Return the certification lifecycle state on a given date."""
+        if expiring_within_days < 0:
+            raise ValueError("expiring_within_days cannot be negative")
+        if self.expiry_date is None or (
+            self.expiry_date - check_date
+        ).days > expiring_within_days:
+            return CertificationStatus.VALID
+        if self.expiry_date < check_date:
+            return CertificationStatus.EXPIRED
+        return CertificationStatus.EXPIRING_SOON
+
 
 @validated_dataclass
 class TaskSkillRequirement:
@@ -429,6 +452,7 @@ class TaskSkillRequirement:
 
 
 __all__ = [
+    "CertificationStatus",
     "ResourceSkill",
     "ResourceCertification",
     "TaskSkillRequirement",

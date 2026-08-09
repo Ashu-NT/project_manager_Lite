@@ -1,6 +1,6 @@
 # ADR-PF-006: Approved-Time Posting Trigger
 
-- Status: accepted; Phase A2 source contract implemented
+- Status: accepted; Phase C.4 source event and labor-cost consumer implemented
 - Date: 2026-08-02
 - Implementation gate: Phase A2 contract and Phase C consumer
 
@@ -39,4 +39,11 @@ Test approved-only generation, LOCKED no-op, retry/out-of-order handling, source
 
 - `ApprovedTimeFinancialSource` requires an APPROVED snapshot ID, source revision/content hash, tenant/organization/project scope, TimeEntry and period identity, work allocation/resource dimensions, work date, and canonical Decimal hours.
 - The contract intentionally contains no labor rate or amount. Time owns the approved quantity; PM Finance selects and snapshots the financial rate when the Phase C consumer posts it.
-- The provider protocol is tenant/organization/project scoped and cursor paginated. The adapter and durable consumer remain Phase C work.
+- Platform Time emits one canonical `platform_time.time_entry.approved.v1` envelope per changed approved entry. The Time-owned outbox preserves immutable snapshots and monotonic revisions; approval, audit, and outbox writes share one transaction.
+- PM Finance consumes through its owned inbox, resolves and snapshots the effective COST/HOUR rate, requires the default cost code and open financial period, and atomically writes the posted actual, immutable labor detail, audit, and receipt.
+- Correction reapproval references the latest source revision and creates an equal posted reversal plus replacement. `LOCKED` is a later administrative transition and emits no financial event; unlocking returns to APPROVED, while a reason-required correction command reopens to OPEN.
+- Database transport dispatches immediately after approval and replays a bounded pending batch at composition startup. Failures remain retryable/dead-letterable and never roll back an already committed approval.
+- A closed financial period creates no PM posting. The approved Time fact remains committed while both owned delivery stores retain retry state and the canonical `FINANCIAL_PERIOD_POSTING_BLOCKED` operator code.
+- Migration `s6t7u8v9w0x1` adds the directly scoped/RLS `project_approved_time_labor_postings` table with immutable update/delete guards and complete quantity/rate-card selection evidence.
+- The typed desktop correction adapter is implemented. Its final QML reason dialog/action is deliberately owned by Phase C.8's ledger redesign, not a temporary C.4 component.
+- No temporary files, in-memory delivery adapters, direct PM-to-Time implementation imports, or new deletion-register entries were added.

@@ -10,20 +10,14 @@ def export_tasks(controller, columns: list, file_path: str) -> dict[str, object]
 
     controller._set_error_message("")
     try:
-        all_ws = controller._tasks_workspace_presenter.build_workspace_state(
+        records = controller._tasks_workspace_presenter.list_export_records(
             project_id=controller._selected_project_id or None,
             search_text=controller._search_text,
             status_filter=controller._selected_status_filter,
             priority_filter=controller._selected_priority_filter,
             schedule_filter=controller._selected_schedule_filter,
-            selected_task_id=None,
-            selected_assignment_id=None,
-            selected_time_period_start=controller._selected_time_period_start,
-            selected_time_entry_id=None,
-            page=1,
-            page_size=99999,
         )
-        rows = serialize_task_record_view_models(all_ws.tasks)
+        rows = serialize_task_record_view_models(records)
         result = export_to_file(rows, list(columns), (file_path or "").strip())
         if result.get("ok"):
             controller._set_feedback_message(result.get("message", "Export complete."))

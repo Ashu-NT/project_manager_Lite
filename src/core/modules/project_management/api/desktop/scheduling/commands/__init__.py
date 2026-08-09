@@ -6,10 +6,6 @@ from src.core.modules.project_management.api.desktop.scheduling.commands.baselin
     SchedulingBaselineRejectCommand,
     SchedulingBaselineSubmitCommand,
 )
-from src.core.modules.project_management.api.desktop.scheduling.commands.calendar_commands import (
-    SchedulingCalendarUpdateCommand,
-    SchedulingHolidayCreateCommand,
-)
 from src.core.modules.project_management.api.desktop.scheduling.commands.dependency_commands import (
     SchedulingDependencyCreateCommand,
     SchedulingDependencyUpdateCommand,
@@ -23,9 +19,7 @@ __all__ = [
     "SchedulingBaselineCreateCommand",
     "SchedulingBaselineRejectCommand",
     "SchedulingBaselineSubmitCommand",
-    "SchedulingCalendarUpdateCommand",
     "SchedulingDependencyCreateCommand",
     "SchedulingDependencyUpdateCommand",
-    "SchedulingHolidayCreateCommand",
     "SchedulingWorkingDayCalculationCommand",
 ]

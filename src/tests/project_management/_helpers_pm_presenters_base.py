@@ -37,6 +37,7 @@ from src.core.modules.project_management.domain.enums import (
     WorkerType,
 )
 from src.core.modules.project_management.domain.risk.register import (
+    RegisterEntry,
     RegisterEntrySeverity,
     RegisterEntryStatus,
     RegisterEntryType,
@@ -319,7 +320,7 @@ class _FakeResourceService:
 
 
 class _FakeRegisterService:
-    def __init__(self, entries: list[SimpleNamespace] | None = None) -> None:
+    def __init__(self, entries: list[RegisterEntry] | None = None) -> None:
         self._entries = {
             entry.id: entry
             for entry in (entries or [])
@@ -332,8 +333,8 @@ class _FakeRegisterService:
         entry_type: RegisterEntryType | None = None,
         status: RegisterEntryStatus | None = None,
         severity: RegisterEntrySeverity | None = None,
-    ) -> list[SimpleNamespace]:
-        return [
+    ) -> list[RegisterEntry]:
+        entries = [
             entry
             for entry in self._entries.values()
             if (project_id is None or entry.project_id == project_id)
@@ -341,6 +342,7 @@ class _FakeRegisterService:
             and (status is None or entry.status == status)
             and (severity is None or entry.severity == severity)
         ]
+        return sorted(entries, key=lambda entry: entry.triage_key(date.today()))
 
 
 def _build_register_record(
@@ -357,8 +359,8 @@ def _build_register_record(
     impact_summary: str,
     response_plan: str,
     version: int,
-) -> SimpleNamespace:
-    return SimpleNamespace(
+) -> RegisterEntry:
+    return RegisterEntry(
         id=entry_id,
         project_id=project_id,
         entry_type=entry_type,

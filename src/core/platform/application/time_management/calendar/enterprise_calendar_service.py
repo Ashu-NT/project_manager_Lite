@@ -92,6 +92,21 @@ class EnterpriseCalendarService:
         require_permission(self._user_session, "task.read", operation_label="get calendar")
         return self._require_calendar_in_active_organization(calendar_id)
 
+    def get_default_calendar(self) -> PlatformCalendar:
+        require_permission(
+            self._user_session,
+            "task.read",
+            operation_label="get default calendar",
+        )
+        org_id = self._active_org_id()
+        calendar = self._calendar_repo.get_global(org_id)
+        if calendar is None:
+            raise NotFoundError(
+                "The active organization has no default global calendar.",
+                code="DEFAULT_CALENDAR_NOT_FOUND",
+            )
+        return calendar
+
     def create_calendar(
         self,
         *,

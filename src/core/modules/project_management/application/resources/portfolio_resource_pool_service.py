@@ -2,21 +2,15 @@ from __future__ import annotations
 
 from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 
-from dataclasses import dataclass, field
-from datetime import date
+from dataclasses import dataclass
+from datetime import date, timedelta
 
-from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from src.core.modules.project_management.contracts.repositories.task import (
-    AssignmentRepository,
-    TaskRepository,
+from src.core.modules.project_management.contracts.reads.portfolio.resource_pool_reader import (
+    PortfolioResourcePoolReader,
 )
-from src.core.modules.project_management.contracts.repositories.project import (
-    ProjectRepository,
-)
-from src.core.modules.project_management.domain.resources.resource import Resource
-from src.core.modules.project_management.application.resources.resource_availability_service import (
-    ResourceAvailabilityService,
-    ResourceAvailabilityWindow,
+from src.core.modules.project_management.contracts.reads.portfolio.models.resource_pool_facts import (
+    PortfolioDemandFact,
+    PortfolioResourceFact,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
@@ -78,33 +72,21 @@ class PortfolioResourcePoolService:
     Shows shared resource demand across all active projects, enabling PMO-level
     capacity vs demand visibility and prioritization decisions.
 
-    Builds on ResourceAvailabilityService for per-resource load calculation
-    and adds project-level attribution and portfolio aggregation.
+    Uses one scoped capacity fact set and one working-day snapshot for
+    project attribution and portfolio aggregation.
     """
 
     def __init__(
         self,
-        resource_repo: ResourceRepository,
-        assignment_repo: AssignmentRepository,
-        task_repo: TaskRepository,
-        project_repo: ProjectRepository,
+        reader: PortfolioResourcePoolReader,
         calendar: CalendarProtocol,
         tenant_context_service=None,
         user_session=None,
     ) -> None:
-        self._resources = resource_repo
-        self._assignments = assignment_repo
-        self._tasks = task_repo
-        self._projects = project_repo
+        self._reader = reader
         self._calendar = calendar
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
-        self._availability = ResourceAvailabilityService(
-            resource_repo=resource_repo,
-            assignment_repo=assignment_repo,
-            task_repo=task_repo,
-            calendar=calendar,
-        )
 
     def get_pool_report(
         self,
@@ -116,22 +98,32 @@ class PortfolioResourcePoolService:
         Build a portfolio resource pool report for the given date range.
         If resource_ids is None, includes all active resources.
         """
-        self._require_scope(operation_label="build portfolio resource pool")
-        if resource_ids is None:
-            all_resources = self._resources.list()
-            resource_ids = [r.id for r in all_resources if getattr(r, "is_active", True)]
-        else:
-            scoped_resource_ids = {
-                resource.id
-                for resource in self._resources.list()
-            }
-            resource_ids = [resource_id for resource_id in resource_ids if resource_id in scoped_resource_ids]
-
-        summaries: list[ResourcePoolSummary] = []
-        for rid in resource_ids:
-            summary = self._build_summary(rid, from_date, to_date)
-            if summary is not None:
-                summaries.append(summary)
+        scope = self._require_scope(operation_label="build portfolio resource pool")
+        facts = self._reader.read_facts(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            from_date=from_date,
+            to_date=to_date,
+            resource_ids=(
+                None
+                if resource_ids is None
+                else tuple(dict.fromkeys(str(value) for value in resource_ids if value))
+            ),
+        )
+        working_dates = self._working_dates(from_date, to_date)
+        demands_by_resource: dict[str, list[PortfolioDemandFact]] = {}
+        for demand in facts.demands:
+            demands_by_resource.setdefault(demand.resource_id, []).append(demand)
+        summaries = [
+            self._build_summary(
+                resource,
+                demands_by_resource.get(resource.resource_id, []),
+                from_date,
+                to_date,
+                working_dates,
+            )
+            for resource in facts.resources
+        ]
 
         return PortfolioResourcePoolReport(
             from_date=from_date,
@@ -146,83 +138,88 @@ class PortfolioResourcePoolService:
         to_date: date,
     ) -> list[ResourceDemandEntry]:
         """Return per-project demand breakdown for a single resource."""
-        self._require_scope(operation_label="view portfolio resource demand")
-        return self._build_demands(resource_id, from_date, to_date)
+        scope = self._require_scope(operation_label="view portfolio resource demand")
+        facts = self._reader.read_facts(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            from_date=from_date,
+            to_date=to_date,
+            resource_ids=(str(resource_id),),
+        )
+        return self._build_demands(facts.demands, from_date, to_date)
 
     # ── internal ────────────────────────────────────────────────────────────
 
     def _build_summary(
         self,
-        resource_id: str,
+        resource: PortfolioResourceFact,
+        demand_facts: list[PortfolioDemandFact],
         from_date: date,
         to_date: date,
-    ) -> ResourcePoolSummary | None:
-        resource = self._resources.get(resource_id)
-        if resource is None:
-            return None
-
-        capacity = float(getattr(resource, "capacity_percent", 100.0) or 100.0)
+        working_dates: frozenset[date],
+    ) -> ResourcePoolSummary:
+        capacity = float(resource.capacity_percent or 100.0)
         if capacity <= 0:
             capacity = 100.0
 
-        availability: ResourceAvailabilityWindow = self._availability._compute_window(
-            resource_id, from_date, to_date
-        )  # type: ignore[assignment]
-        if availability is None:
-            return None
-
-        demands = self._build_demands(resource_id, from_date, to_date)
+        demands = self._build_demands(demand_facts, from_date, to_date)
+        daily_loads = {
+            day: sum(
+                demand.allocation_percent
+                for demand in demand_facts
+                if demand.start_date <= day <= demand.end_date
+            )
+            for day in working_dates
+        }
+        peak_load = max(daily_loads.values(), default=0.0)
+        average_load = (
+            sum(daily_loads.values()) / len(working_dates)
+            if working_dates
+            else 0.0
+        )
 
         return ResourcePoolSummary(
-            resource_id=resource_id,
+            resource_id=resource.resource_id,
             resource_name=resource.name,
             capacity_percent=capacity,
             demands=demands,
-            peak_load_percent=availability.peak_load_percent,
-            average_load_percent=availability.average_load_percent,
-            overloaded=not availability.is_available,
+            peak_load_percent=peak_load,
+            average_load_percent=average_load,
+            overloaded=peak_load >= capacity,
         )
 
     def _build_demands(
         self,
-        resource_id: str,
+        demand_facts: tuple[PortfolioDemandFact, ...] | list[PortfolioDemandFact],
         from_date: date,
         to_date: date,
     ) -> list[ResourceDemandEntry]:
-        assignments = self._assignments.list_by_resource(resource_id)
-        demands: list[ResourceDemandEntry] = []
-        seen_projects: dict[str, str] = {}  # project_id → project_name
-
-        for asgn in assignments:
-            task = self._tasks.get(asgn.task_id)
-            if task is None:
-                continue
-            task_start = task.start_date or task.actual_start
-            task_end = task.end_date or task.actual_end
-            if task_start is None or task_end is None:
-                continue
-            # Only include tasks that overlap the requested window
-            if task_end < from_date or task_start > to_date:
-                continue
-
-            project_id = task.project_id
-            if project_id not in seen_projects:
-                project = self._projects.get(project_id)
-                seen_projects[project_id] = project.name if project else project_id
-
-            demands.append(ResourceDemandEntry(
-                resource_id=resource_id,
+        return [
+            ResourceDemandEntry(
+                resource_id=fact.resource_id,
                 resource_name="",  # caller can look up from pool summary
-                project_id=project_id,
-                project_name=seen_projects[project_id],
-                from_date=max(task_start, from_date),
-                to_date=min(task_end, to_date),
-                total_allocation_percent=float(asgn.allocation_percent or 100.0),
-            ))
+                project_id=fact.project_id,
+                project_name=fact.project_name,
+                from_date=max(fact.start_date, from_date),
+                to_date=min(fact.end_date, to_date),
+                total_allocation_percent=fact.allocation_percent,
+            )
+            for fact in demand_facts
+        ]
 
-        return demands
+    def _working_dates(self, from_date: date, to_date: date) -> frozenset[date]:
+        bulk_loader = getattr(self._calendar, "working_day_dates_between", None)
+        if callable(bulk_loader):
+            return frozenset(bulk_loader(from_date, to_date))
+        current = from_date
+        working: set[date] = set()
+        while current <= to_date:
+            if self._calendar.is_working_day(current):
+                working.add(current)
+            current += timedelta(days=1)
+        return frozenset(working)
 
-    def _require_scope(self, *, operation_label: str) -> None:
+    def _require_scope(self, *, operation_label: str):
         """Enforce the missing application-layer guard for this cross-project report."""
         require_permission(self._user_session, "portfolio.read", operation_label=operation_label)
         tenant_context = self._tenant_context_service
@@ -231,7 +228,7 @@ class PortfolioResourcePoolService:
                 f"Active tenant and organization context is required for {operation_label}.",
                 code="TENANT_CONTEXT_REQUIRED",
             )
-        tenant_context.require_organization_context(operation_label=operation_label)
+        return tenant_context.require_active_scope_ids(operation_label=operation_label)
 
 
 __all__ = [

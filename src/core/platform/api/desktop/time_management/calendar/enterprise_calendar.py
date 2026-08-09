@@ -243,6 +243,11 @@ class EnterpriseCalendarDesktopApi:
             lambda: _serialize_calendar(self._calendar_service.get_calendar(calendar_id))
         )
 
+    def get_default_calendar(self) -> DesktopApiResult:
+        return execute_desktop_operation(
+            lambda: _serialize_calendar(self._calendar_service.get_default_calendar())
+        )
+
     def create_calendar(self, command: CalendarCreateCommand) -> DesktopApiResult:
         return execute_desktop_operation(
             lambda: _serialize_calendar(

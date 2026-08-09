@@ -1,8 +1,20 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment, TaskDependency
+
+
+@dataclass(frozen=True, slots=True)
+class TimesheetAssignmentContext:
+    assignment_id: str
+    project_id: str
+    project_name: str
+    task_id: str
+    task_name: str
+    resource_id: str
+    resource_name: str
 
 
 class TaskRepository(ABC):
@@ -60,6 +72,14 @@ class AssignmentRepository(ABC):
 
     @abstractmethod
     def list_by_tasks(self, task_ids: list[str]) -> list[TaskAssignment]: ...
+
+    @abstractmethod
+    def list_timesheet_contexts(
+        self,
+        *,
+        project_id: str | None = None,
+        assignment_id: str | None = None,
+    ) -> list[TimesheetAssignmentContext]: ...
 
 
 class DependencyRepository(ABC):

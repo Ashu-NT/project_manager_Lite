@@ -1,6 +1,6 @@
 # ADR-PF-011: Durable Integration Outbox and Inbox
 
-- Status: accepted; envelope contract implemented, durable stores deferred to Phase C
+- Status: accepted; durable foundation and Phase C.4/C.5 financial delivery implemented
 - Date: 2026-08-02
 - Implementation gate: Phase A2 decision and contract; Phase C persistence/consumers
 
@@ -31,7 +31,7 @@ The domain-event half of that observation — giving each bounded context typed,
 
 ## Consequences
 
-The source modules and PM Finance require additive outbox/inbox persistence and operational retry/dead-letter visibility in Phase C. Message delivery identity and financial source identity remain intentionally separate. The accepted `IntegrationEventEnvelope` is permanent platform contract code; no temporary integration implementation is introduced in Phase A2.
+The source modules and PM Finance now have additive owned outbox/inbox persistence and lifecycle services with operational retry/dead-letter state. Message delivery identity and financial source identity remain intentionally separate. C.4 applies this design to approved Time and C.5 applies it to project-linked Procurement PO/receipt lifecycle facts without replacing or bypassing the permanent foundation.
 
 ## Migration Impact
 
@@ -45,4 +45,11 @@ Test atomic outbox writes, duplicate transport delivery, duplicate semantic sour
 
 - `src/core/platform/integration/events.py` defines the immutable versioned envelope, UTC normalization, payload hashing, and consumer/tenant/event inbox deduplication key.
 - `src/core/modules/project_management/contracts/financial_sources.py` defines the separate scoped semantic source identity and source content hash required by Project Finance.
-- Durable outbox/inbox repositories, dispatchers, and consumers are Phase C deliverables and are not represented by an in-memory compatibility shim.
+- `src/core/platform/integration/delivery.py` and `src/core/platform/application/integration/delivery_service.py` define commit-neutral outbox/inbox records, leasing, bounded retry/dead-letter, deduplication, ordering, and quarantine behavior.
+- Migration `r5s6t7u8v9w0` creates Time-owned and Procurement-owned outboxes plus the PM Finance-owned inbox with direct tenant/organization scope, forced PostgreSQL RLS, claim/aggregate indexes, and immutable-envelope database guards.
+- The three scoped SQLAlchemy repositories and composition services are permanent infrastructure. No in-memory bridge or direct PM-to-source implementation import was introduced.
+- Platform Time writes approved-entry events atomically with approval and audit. `ApprovedTimeFinancialDispatcher` claims the Time outbox, applies the PM Finance inbox and financial mutation transactionally, acknowledges only after commit, and is replayed in a bounded startup pass without threads or timers.
+- Failed consumption rolls back the financial transaction, then persists matching retry/dead-letter evidence in the PM inbox and Time outbox using the canonical domain error code. It does not expose a raw exception to QML or lose the committed source fact.
+- PM Finance independently enforces semantic source revision/content identity, snapshots the selected rate, writes the posted labor actual and immutable posting detail, and reverses/replaces corrected approvals. Process-local cost signals remain post-commit UI refresh only.
+- Procurement writes PO-line and receipt-line events to its owned outbox in the same transaction as source lifecycle, stock, and receipt changes. PM applies commitment revision or receipt actual/match plus inbox/audit atomically; non-project POs never enter the financial channel.
+- `src/tests/platform/test_integration_delivery_foundation.py` verifies the generic delivery guarantees. `src/tests/project_management/test_approved_time_labor_integration.py` covers C.4 and `src/tests/project_management/test_procurement_financial_integration.py` covers C.5 source atomicity, lifecycle projection, accrual/matching, variance, retry, isolation, and replay behavior.

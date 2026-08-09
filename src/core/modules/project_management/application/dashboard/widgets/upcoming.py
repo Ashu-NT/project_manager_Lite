@@ -12,12 +12,26 @@ class DashboardUpcomingMixin:
     _tasks: TaskService
     _resources: ResourceService
 
-    def _build_upcoming_tasks(self, project_id: str) -> list[UpcomingTask]:
+    def _build_upcoming_tasks(
+        self,
+        project_id: str,
+        *,
+        tasks: list[object] | None = None,
+        assignments_by_task: dict[str, list[object]] | None = None,
+        resources_by_id: dict[str, object] | None = None,
+    ) -> list[UpcomingTask]:
         today = date.today()
         horizon = today + timedelta(days=14)
 
-        tasks = select_leaf_tasks(self._tasks.list_tasks_for_project(project_id))
-        resources_by_id = {r.id: r for r in self._resources.list_resources()}
+        tasks = (
+            tasks
+            if tasks is not None
+            else select_leaf_tasks(self._tasks.list_tasks_for_project(project_id))
+        )
+        if resources_by_id is None:
+            resources_by_id = {
+                resource.id: resource for resource in self._resources.list_resources()
+            }
         upcoming: list[UpcomingTask] = []
 
         for task in tasks:
@@ -32,7 +46,11 @@ class DashboardUpcomingMixin:
             if str(task.status) in ("TaskStatus.BLOCKED", "BLOCKED"):
                 continue
 
-            assignments = self._tasks.list_assignments_for_task(task.id)
+            assignments = (
+                assignments_by_task.get(task.id, [])
+                if assignments_by_task is not None
+                else self._tasks.list_assignments_for_task(task.id)
+            )
             main_resource = None
             if assignments:
                 assignment = max(assignments, key=lambda item: item.allocation_percent or 0.0)

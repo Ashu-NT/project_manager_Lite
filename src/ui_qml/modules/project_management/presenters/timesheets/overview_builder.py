@@ -11,7 +11,7 @@ def build_overview(
     *,
     assignment_options: Any,
     snapshot: Any,
-    review_queue_rows: Any,
+    review_queue_total: int,
 ) -> TimesheetOverviewViewModel:
     return TimesheetOverviewViewModel(
         title="Timesheets",
@@ -33,7 +33,7 @@ def build_overview(
             ),
             TimesheetMetricViewModel(
                 label="Review queue",
-                value=str(len(review_queue_rows)),
+                value=str(review_queue_total),
                 supporting_text="Periods currently visible in the review lane.",
             ),
             TimesheetMetricViewModel(

@@ -8,9 +8,9 @@ from src.core.modules.project_management.application.resources import (
     ResourceService,
 )
 from src.core.platform.application.master_data.site.site_service import SiteService
-from src.core.platform.common.exceptions import BusinessRuleError
 
 from src.core.modules.project_management.api.desktop.projects.models.project import (
+    ProjectCatalogPageDesktopDto,
     ProjectDesktopDto,
     ProjectStatusDescriptor,
 )
@@ -36,12 +36,7 @@ from src.core.modules.project_management.api.desktop.projects.serializers.projec
 from src.core.modules.project_management.api.desktop.projects.serializers.resource_serializer import (
     serialize_project_resource,
 )
-from src.core.modules.project_management.api.desktop.projects.services.access_service import (
-    can_fallback_project_access,
-    resolve_user_session,
-)
 from src.core.modules.project_management.api.desktop.projects.utils.project_utils import (
-    call_with_supported_kwargs,
     coerce_project_status,
 )
 
@@ -77,6 +72,45 @@ class ProjectManagementProjectsDesktopApi:
         )
         return tuple(serialize_project(p, site_lookup=site_lookup) for p in projects)
 
+    def list_project_page(
+        self,
+        *,
+        search_text: str = "",
+        status: str = "all",
+        page: int = 1,
+        page_size: int = 25,
+    ) -> ProjectCatalogPageDesktopDto:
+        service = self._require_project_service()
+        normalized_status = str(status or "all").strip().lower()
+        status_value = (
+            None
+            if normalized_status == "all"
+            else coerce_project_status(normalized_status)
+        )
+        result = service.query_catalog_page(
+            search_text=search_text,
+            status=status_value,
+            page=page,
+            page_size=page_size,
+        )
+        return ProjectCatalogPageDesktopDto(
+            items=tuple(
+                serialize_project(
+                    item.project,
+                    site_lookup={str(item.project.site_id or ""): item.site_label},
+                )
+                for item in result.items
+            ),
+            filtered_total=result.filtered_total,
+            total=result.summary.total,
+            active=result.summary.active,
+            planned=result.summary.planned,
+            on_hold=result.summary.on_hold,
+            completed=result.summary.completed,
+            page=result.page,
+            page_size=result.page_size,
+        )
+
     def list_projects_by_status(self, status: str) -> tuple[ProjectDesktopDto, ...]:
         if self._project_service is None:
             return ()
@@ -99,10 +133,9 @@ class ProjectManagementProjectsDesktopApi:
 
     def create_project(self, command: ProjectCreateCommand) -> ProjectDesktopDto:
         service = self._require_project_service()
-        project = call_with_supported_kwargs(
-            service.create_project,
+        project = service.create_project(
             name=command.name,
-            code=getattr(command, "code", ""),
+            code=command.code,
             description=command.description,
             status=coerce_project_status(command.status),
             client_name=command.client_name,
@@ -111,21 +144,20 @@ class ProjectManagementProjectsDesktopApi:
             currency=command.currency,
             start_date=command.start_date,
             end_date=command.end_date,
-            organization_id=getattr(command, "organization_id", None),
-            site_id=getattr(command, "site_id", None),
-            client_party_id=getattr(command, "client_party_id", None),
-            manager_user_id=getattr(command, "manager_user_id", None),
+            organization_id=command.organization_id,
+            site_id=command.site_id,
+            client_party_id=command.client_party_id,
+            manager_user_id=command.manager_user_id,
         )
         return serialize_project(project, site_lookup=self._site_lookup())
 
     def update_project(self, command: ProjectUpdateCommand) -> ProjectDesktopDto:
         service = self._require_project_service()
-        project = call_with_supported_kwargs(
-            service.update_project,
+        project = service.update_project(
             command.project_id,
             expected_version=command.expected_version,
             name=command.name,
-            code=getattr(command, "code", ""),
+            code=command.code,
             description=command.description,
             status=coerce_project_status(command.status),
             start_date=command.start_date,
@@ -134,10 +166,10 @@ class ProjectManagementProjectsDesktopApi:
             client_contact=command.client_contact,
             planned_budget=command.planned_budget,
             currency=command.currency,
-            organization_id=getattr(command, "organization_id", None),
-            site_id=getattr(command, "site_id", None),
-            client_party_id=getattr(command, "client_party_id", None),
-            manager_user_id=getattr(command, "manager_user_id", None),
+            organization_id=command.organization_id,
+            site_id=command.site_id,
+            client_party_id=command.client_party_id,
+            manager_user_id=command.manager_user_id,
         )
         return serialize_project(project, site_lookup=self._site_lookup())
 
@@ -158,24 +190,19 @@ class ProjectManagementProjectsDesktopApi:
         normalized_id = str(project_id or "").strip()
         if not normalized_id or self._project_resource_service is None:
             return ()
-        list_by_project = getattr(self._project_resource_service, "list_by_project", None)
+        list_by_project = getattr(
+            self._project_resource_service,
+            "list_for_project_workspace",
+            None,
+        )
         if not callable(list_by_project):
             return ()
-        try:
-            project_resources = list(list_by_project(normalized_id))
-        except BusinessRuleError as exc:
-            if not self._can_fallback(normalized_id, exc):
-                raise
-            pr_repo = getattr(self._project_resource_service, "_project_resource_repo", None)
-            if pr_repo is None:
-                return ()
-            project_resources = list(pr_repo.list_by_project(normalized_id))
+        project_resources = list(list_by_project(normalized_id))
 
         resource_ids = tuple(str(getattr(pr, "resource_id", "") or "") for pr in project_resources)
         resources_by_id = resource_lookup(
             normalized_id, resource_ids,
             resource_service=self._resource_service,
-            can_fallback_fn=self._can_fallback,
         )
         rows = [
             serialize_project_resource(
@@ -194,7 +221,6 @@ class ProjectManagementProjectsDesktopApi:
         return build_assignable_options(
             normalized_id, assigned_ids,
             resource_service=self._resource_service,
-            can_fallback_fn=self._can_fallback,
         )
 
     def add_project_resource(self, command: ProjectResourceAssignCommand) -> ProjectResourceDesktopDto:
@@ -219,7 +245,6 @@ class ProjectManagementProjectsDesktopApi:
         res = resource_lookup(
             normalized_project_id, (normalized_resource_id,),
             resource_service=self._resource_service,
-            can_fallback_fn=self._can_fallback,
         ).get(normalized_resource_id)
         return serialize_project_resource(project_resource, resource_by_id=res)
 
@@ -272,14 +297,5 @@ class ProjectManagementProjectsDesktopApi:
             }
         except Exception:
             return {}
-
-    def _can_fallback(self, project_id: str, exc: BusinessRuleError) -> bool:
-        user_session = resolve_user_session(
-            project_service=self._project_service,
-            project_resource_service=self._project_resource_service,
-            resource_service=self._resource_service,
-        )
-        return can_fallback_project_access(project_id, exc, user_session=user_session)
-
 
 __all__ = ["ProjectManagementProjectsDesktopApi"]

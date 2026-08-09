@@ -11,7 +11,7 @@ from src.ui_qml.modules.project_management.view_models.financials import (
     FinancialsWorkspaceViewModel,
 )
 
-from .command_handler import create_cost_item, delete_cost_item, suggest_code, update_cost_item
+from .command_handler import create_manual_actual
 from .workspace_builder import build_workspace_state, compute_forecast
 
 class ProjectFinancialsWorkspacePresenter:
@@ -29,6 +29,10 @@ class ProjectFinancialsWorkspacePresenter:
         selected_cost_type: str = "all",
         search_text: str = "",
         selected_cost_id: str | None = None,
+        budget_line_page: int = 1,
+        rate_line_page: int = 1,
+        planned_cost_line_page: int = 1,
+        configuration_page_size: int = 50,
     ) -> FinancialsWorkspaceViewModel:
         return build_workspace_state(
             self._desktop_api,
@@ -36,19 +40,14 @@ class ProjectFinancialsWorkspacePresenter:
             selected_cost_type=selected_cost_type,
             search_text=search_text,
             selected_cost_id=selected_cost_id,
+            budget_line_page=budget_line_page,
+            rate_line_page=rate_line_page,
+            planned_cost_line_page=planned_cost_line_page,
+            configuration_page_size=configuration_page_size,
         )
 
-    def suggest_code(self, payload: dict[str, Any]) -> str:
-        return suggest_code(self._desktop_api, payload)
-
-    def create_cost_item(self, payload: dict[str, Any]) -> None:
-        create_cost_item(self._desktop_api, payload)
-
-    def update_cost_item(self, payload: dict[str, Any]) -> None:
-        update_cost_item(self._desktop_api, payload)
-
-    def delete_cost_item(self, cost_id: str) -> None:
-        delete_cost_item(self._desktop_api, cost_id)
+    def create_manual_actual(self, payload: dict[str, Any]) -> None:
+        create_manual_actual(self._desktop_api, payload)
 
     def compute_forecast(
         self,

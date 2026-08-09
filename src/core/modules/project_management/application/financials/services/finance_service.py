@@ -3,16 +3,6 @@ from __future__ import annotations
 from datetime import date
 
 from src.core.platform.common.exceptions import NotFoundError
-from src.core.modules.project_management.contracts.repositories.project import (
-    ProjectRepository,
-    ProjectResourceRepository,
-)
-from src.core.modules.project_management.contracts.repositories.task import (
-    AssignmentRepository,
-    TaskRepository,
-)
-from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from src.core.modules.project_management.contracts.repositories.cost import CostRepository
 from src.core.modules.project_management.contracts.repositories.rate_resolution import (
     LaborRateResolver,
 )
@@ -59,49 +49,24 @@ class FinanceService(ProjectManagementModuleGuardMixin):
     def __init__(
         self,
         *,
-        project_repo: ProjectRepository,
-        task_repo: TaskRepository,
-        resource_repo: ResourceRepository,
-        cost_repo: CostRepository,
-        project_resource_repo: ProjectResourceRepository,
-        assignment_repo: AssignmentRepository,
         rate_resolver: LaborRateResolver,
         finance_snapshot_reader: FinanceSnapshotReader,
         tenant_context_service: TenantContextService,
         user_session=None,
         module_catalog_service=None,
     ) -> None:
-        self._project_repo: ProjectRepository = project_repo
-        self._task_repo: TaskRepository = task_repo
-        self._resource_repo: ResourceRepository = resource_repo
-        self._cost_repo: CostRepository = cost_repo
-        self._project_resource_repo: ProjectResourceRepository = project_resource_repo
-        self._rate_resolver: LaborRateResolver = rate_resolver
-        self._finance_snapshot_reader = finance_snapshot_reader
+        self._finance_snapshot_reader: FinanceSnapshotReader = finance_snapshot_reader
         self._tenant_context_service: TenantContextService = tenant_context_service
-        self._labor = LaborCostEngine(
-            project_repo=project_repo,
-            task_repo=task_repo,
-            assignment_repo=assignment_repo,
-            resource_repo=resource_repo,
-            project_resource_repo=project_resource_repo,
+        self._labor = LaborCostEngine.for_facts(
+            rate_resolver=rate_resolver,
+            tenant_context_service=tenant_context_service,
+        )
+        self._cost_policy = CostPolicyEngine.for_facts(
             rate_resolver=rate_resolver,
             tenant_context_service=tenant_context_service,
         )
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
-
-    def _make_cost_policy_engine(self) -> CostPolicyEngine:
-        """Build a CostPolicyEngine with labor details provider wired in."""
-        return CostPolicyEngine(
-            project_repo=self._project_repo,
-            cost_repo=self._cost_repo,
-            project_resource_repo=self._project_resource_repo,
-            resource_repo=self._resource_repo,
-            rate_resolver=self._rate_resolver,
-            tenant_context_service=self._tenant_context_service,
-            get_labor_details=self._labor.calculate_project_labor_details,
-        )
 
     def get_finance_snapshot(
         self,
@@ -130,13 +95,12 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         if facts is None:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
 
-        engine = self._make_cost_policy_engine()
         labor_details = self._labor.calculate_project_labor_details(
             project_id,
             as_of,
             facts=facts,
         )
-        policy = engine.compose_from_facts(facts, labor_details)
+        policy = self._cost_policy.compose_from_facts(facts, labor_details)
         source_breakdown = policy.source_breakdown
         totals = policy.totals
 

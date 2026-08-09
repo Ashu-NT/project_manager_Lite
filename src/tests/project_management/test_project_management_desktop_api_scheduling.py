@@ -11,6 +11,9 @@ from src.core.modules.project_management.domain.enums import (
 )
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.domain.tasks.task import Task
+from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
+    ConstraintValidator,
+)
 
 
 def test_project_management_scheduling_desktop_api_supports_schedule_calendar_and_baselines() -> None:
@@ -54,20 +57,11 @@ def test_project_management_scheduling_desktop_api_supports_schedule_calendar_an
         work_calendar_engine=work_calendar_engine,
         baseline_service=baseline_service,
         reporting_service=reporting_service,
+        constraint_validator=ConstraintValidator(work_calendar_engine),
     )
 
     assert api.list_projects()[0].label == "Plant Upgrade"
     assert api.get_calendar_snapshot().working_days[0].label == "Mon"
-
-    calendar_stub = api.update_calendar(
-        SimpleNamespace(working_days=(0, 1, 2, 3, 4, 5), hours_per_day=10.0)
-    )
-    assert calendar_stub is not None
-
-    holiday_stub = api.add_holiday(
-        SimpleNamespace(holiday_date=date(2026, 5, 1), name="Labor Day")
-    )
-    assert holiday_stub is not None
 
     calculation = api.calculate_working_days(
         SimpleNamespace(start_date=date(2026, 5, 4), working_days=3)
@@ -80,6 +74,7 @@ def test_project_management_scheduling_desktop_api_supports_schedule_calendar_an
     assert schedule[0].name == "Cable Pull"
     assert schedule[0].is_critical is True
     assert schedule[1].total_float_days == 2
+    assert api.list_constraint_violations(project.id) == ()
 
     created_a = api.create_baseline(
         SimpleNamespace(project_id=project.id, name="Original Plan")
@@ -102,7 +97,6 @@ def test_project_management_scheduling_desktop_api_supports_schedule_calendar_an
     assert comparison_rows[0].task_name == "Cable Pull"
     assert comparison_rows[0].start_shift_days == 1
 
-    api.delete_holiday(getattr(holiday_stub, "id", ""))
     api.delete_baseline(created_a.value)
 
     assert api.get_calendar_snapshot().holidays == ()

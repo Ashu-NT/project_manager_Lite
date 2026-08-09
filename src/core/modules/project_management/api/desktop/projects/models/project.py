@@ -32,4 +32,17 @@ class ProjectDesktopDto:
     version: int
 
 
-__all__ = ["ProjectDesktopDto", "ProjectStatusDescriptor"]
+@dataclass(frozen=True)
+class ProjectCatalogPageDesktopDto:
+    items: tuple[ProjectDesktopDto, ...] = ()
+    filtered_total: int = 0
+    total: int = 0
+    active: int = 0
+    planned: int = 0
+    on_hold: int = 0
+    completed: int = 0
+    page: int = 1
+    page_size: int = 25
+
+
+__all__ = ["ProjectCatalogPageDesktopDto", "ProjectDesktopDto", "ProjectStatusDescriptor"]

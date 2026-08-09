@@ -11,14 +11,7 @@ def serialize_certification(certification) -> ResourceCertificationDesktopDto:
     today = date.today()
     expiry = getattr(certification, "expiry_date", None)
     issued = getattr(certification, "issued_date", None)
-    if expiry is None:
-        status = "valid"
-    elif expiry < today:
-        status = "expired"
-    elif (expiry - today).days <= 30:
-        status = "expiring-soon"
-    else:
-        status = "valid"
+    status = certification.status_on(today).value
     return ResourceCertificationDesktopDto(
         id=certification.id,
         resource_id=certification.resource_id,

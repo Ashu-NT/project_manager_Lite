@@ -73,6 +73,28 @@ class ProjectProjectsWorkspacePresenter:
             page_size=page_size,
         )
 
+    def list_export_records(
+        self,
+        *,
+        search_text: str = "",
+        status_filter: str = "all",
+        batch_size: int = 500,
+    ):
+        page = 1
+        rows = []
+        while True:
+            state = self.build_workspace_state(
+                search_text=search_text,
+                status_filter=status_filter,
+                selected_project_id=None,
+                page=page,
+                page_size=batch_size,
+            )
+            rows.extend(state.projects)
+            if page * state.page_size >= state.total_count:
+                return tuple(rows)
+            page += 1
+
     def build_project_detail_state(self, *, project_id: str) -> ProjectCatalogWorkspaceViewModel:
         return build_project_detail_state(self._desktop_api, project_id=project_id)
 

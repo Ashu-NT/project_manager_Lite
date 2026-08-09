@@ -2,6 +2,7 @@
 
 from src.core.modules.project_management.api.desktop.portfolio.models.capacity import PortfolioCapacityResourceDto
 from src.core.modules.project_management.api.desktop.portfolio.models.dependencies import PortfolioDependencyDesktopDto
+from src.core.modules.project_management.api.desktop.portfolio.models.executive import PortfolioExecutiveDesktopSnapshot
 from src.core.modules.project_management.api.desktop.portfolio.models.heatmap import PortfolioHeatmapDesktopDto
 from src.core.modules.project_management.api.desktop.portfolio.models.intake import PortfolioIntakeDesktopDto
 from src.core.modules.project_management.api.desktop.portfolio.models.options import (
@@ -19,6 +20,7 @@ from src.core.modules.project_management.api.desktop.portfolio.models.templates 
 __all__ = [
     "PortfolioCapacityResourceDto",
     "PortfolioDependencyDesktopDto",
+    "PortfolioExecutiveDesktopSnapshot",
     "PortfolioHeatmapDesktopDto",
     "PortfolioIntakeDesktopDto",
     "PortfolioOptionDescriptor",

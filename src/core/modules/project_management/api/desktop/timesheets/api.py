@@ -25,6 +25,7 @@ from src.core.modules.project_management.api.desktop.timesheets.models.options i
 )
 from src.core.modules.project_management.api.desktop.timesheets.models.periods import (
     TimesheetPeriodSummaryDesktopDto,
+    TimesheetReviewPageDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.timesheets.models.review import (
     TimesheetReviewDetailDesktopDto,
@@ -36,7 +37,7 @@ from src.core.modules.project_management.api.desktop.timesheets.serializers.entr
     serialize_entry,
 )
 from src.core.modules.project_management.api.desktop.timesheets.serializers.period_serializer import (
-    serialize_period_from_service,
+    serialize_period_aggregate,
 )
 from src.core.modules.project_management.api.desktop.timesheets.serializers.review_serializer import (
     serialize_review_detail,
@@ -90,9 +91,7 @@ class ProjectManagementTimesheetsDesktopApi:
     ) -> tuple[TimesheetAssignmentOptionDescriptor, ...]:
         return build_assignment_options(
             project_id=project_id,
-            project_service=self._project_service,
             task_service=self._task_service,
-            resource_service=self._resource_service,
         )
 
     def build_assignment_snapshot(
@@ -104,25 +103,32 @@ class ProjectManagementTimesheetsDesktopApi:
         return build_assignment_snapshot(
             assignment_id,
             period_start=period_start,
-            project_service=self._project_service,
             task_service=self._require_task_service(),
-            resource_service=self._resource_service,
             timesheet_service=self._require_timesheet_service(),
         )
 
-    def list_review_queue(
+    def list_review_queue_page(
         self,
         *,
         status: str = TimesheetPeriodStatus.SUBMITTED.value,
-    ) -> tuple[TimesheetPeriodSummaryDesktopDto, ...]:
-        service = self._timesheet_service
-        if service is None:
-            return ()
+        page: int = 1,
+        page_size: int = 25,
+    ) -> TimesheetReviewPageDesktopDto:
+        service = self._require_timesheet_service()
         normalized_status = coerce_queue_status(status)
-        rows = service.list_timesheet_review_queue(status=normalized_status, limit=200)
-        return tuple(
-            serialize_review_summary(row, project_service=self._project_service)
-            for row in rows
+        result = service.query_review_queue_page(
+            status=normalized_status,
+            page=page,
+            page_size=page_size,
+        )
+        return TimesheetReviewPageDesktopDto(
+            items=tuple(
+                serialize_review_summary(row, project_service=self._project_service)
+                for row in result.items
+            ),
+            total=result.total,
+            page=result.page,
+            page_size=result.page_size,
         )
 
     def get_review_detail(self, period_id: str) -> TimesheetReviewDetailDesktopDto:
@@ -171,14 +177,13 @@ class ProjectManagementTimesheetsDesktopApi:
         period_start: date,
         note: str = "",
     ) -> TimesheetPeriodSummaryDesktopDto:
-        period = self._require_timesheet_service().submit_timesheet_period(
+        aggregate = self._require_timesheet_service().submit_timesheet_period(
             str(resource_id or "").strip(),
             period_start=period_start,
             note=note,
         )
-        return serialize_period_from_service(
-            period,
-            timesheet_service=self._require_timesheet_service(),
+        return serialize_period_aggregate(
+            aggregate,
             resource_service=self._resource_service,
             project_service=self._project_service,
         )
@@ -189,13 +194,12 @@ class ProjectManagementTimesheetsDesktopApi:
         *,
         note: str = "",
     ) -> TimesheetPeriodSummaryDesktopDto:
-        period = self._require_timesheet_service().approve_timesheet_period(
+        aggregate = self._require_timesheet_service().approve_timesheet_period(
             str(period_id or "").strip(),
             note=note,
         )
-        return serialize_period_from_service(
-            period,
-            timesheet_service=self._require_timesheet_service(),
+        return serialize_period_aggregate(
+            aggregate,
             resource_service=self._resource_service,
             project_service=self._project_service,
         )
@@ -206,13 +210,12 @@ class ProjectManagementTimesheetsDesktopApi:
         *,
         note: str = "",
     ) -> TimesheetPeriodSummaryDesktopDto:
-        period = self._require_timesheet_service().reject_timesheet_period(
+        aggregate = self._require_timesheet_service().reject_timesheet_period(
             str(period_id or "").strip(),
             note=note,
         )
-        return serialize_period_from_service(
-            period,
-            timesheet_service=self._require_timesheet_service(),
+        return serialize_period_aggregate(
+            aggregate,
             resource_service=self._resource_service,
             project_service=self._project_service,
         )
@@ -224,14 +227,13 @@ class ProjectManagementTimesheetsDesktopApi:
         period_start: date,
         note: str = "",
     ) -> TimesheetPeriodSummaryDesktopDto:
-        period = self._require_timesheet_service().lock_timesheet_period(
+        aggregate = self._require_timesheet_service().lock_timesheet_period(
             str(resource_id or "").strip(),
             period_start=period_start,
             note=note,
         )
-        return serialize_period_from_service(
-            period,
-            timesheet_service=self._require_timesheet_service(),
+        return serialize_period_aggregate(
+            aggregate,
             resource_service=self._resource_service,
             project_service=self._project_service,
         )
@@ -242,13 +244,28 @@ class ProjectManagementTimesheetsDesktopApi:
         *,
         note: str = "",
     ) -> TimesheetPeriodSummaryDesktopDto:
-        period = self._require_timesheet_service().unlock_timesheet_period(
+        aggregate = self._require_timesheet_service().unlock_timesheet_period(
             str(period_id or "").strip(),
             note=note,
         )
-        return serialize_period_from_service(
-            period,
-            timesheet_service=self._require_timesheet_service(),
+        return serialize_period_aggregate(
+            aggregate,
+            resource_service=self._resource_service,
+            project_service=self._project_service,
+        )
+
+    def reopen_period_for_correction(
+        self,
+        period_id: str,
+        *,
+        reason: str,
+    ) -> TimesheetPeriodSummaryDesktopDto:
+        aggregate = self._require_timesheet_service().reopen_approved_timesheet_period_for_correction(
+            str(period_id or "").strip(),
+            note=str(reason or "").strip(),
+        )
+        return serialize_period_aggregate(
+            aggregate,
             resource_service=self._resource_service,
             project_service=self._project_service,
         )

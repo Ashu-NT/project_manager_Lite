@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from src.core.modules.project_management.application.timesheets import TimesheetService
+from src.core.platform.application.time_management.time import TimesheetPeriodAggregate
 from src.core.platform.domain.time_management.time import TimeEntry, TimesheetPeriod
 
 
@@ -91,17 +92,21 @@ class TaskTimeEntryMixin:
         *,
         period_start: date,
         note: str = "",
-    ) -> TimesheetPeriod:
+    ) -> TimesheetPeriodAggregate:
         return self._require_timesheet_service().submit_timesheet_period(
             resource_id,
             period_start=period_start,
             note=note,
         )
 
-    def approve_timesheet_period(self, period_id: str, *, note: str = "") -> TimesheetPeriod:
+    def approve_timesheet_period(
+        self, period_id: str, *, note: str = ""
+    ) -> TimesheetPeriodAggregate:
         return self._require_timesheet_service().approve_timesheet_period(period_id, note=note)
 
-    def reject_timesheet_period(self, period_id: str, *, note: str = "") -> TimesheetPeriod:
+    def reject_timesheet_period(
+        self, period_id: str, *, note: str = ""
+    ) -> TimesheetPeriodAggregate:
         return self._require_timesheet_service().reject_timesheet_period(period_id, note=note)
 
     def lock_timesheet_period(
@@ -110,15 +115,24 @@ class TaskTimeEntryMixin:
         *,
         period_start: date,
         note: str = "",
-    ) -> TimesheetPeriod:
+    ) -> TimesheetPeriodAggregate:
         return self._require_timesheet_service().lock_timesheet_period(
             resource_id,
             period_start=period_start,
             note=note,
         )
 
-    def unlock_timesheet_period(self, period_id: str, *, note: str = "") -> TimesheetPeriod:
+    def unlock_timesheet_period(
+        self, period_id: str, *, note: str = ""
+    ) -> TimesheetPeriodAggregate:
         return self._require_timesheet_service().unlock_timesheet_period(period_id, note=note)
+
+    def reopen_approved_timesheet_period_for_correction(
+        self, period_id: str, *, note: str
+    ) -> TimesheetPeriodAggregate:
+        return self._require_timesheet_service().reopen_approved_timesheet_period_for_correction(
+            period_id, note=note
+        )
 
 
 __all__ = ["TaskTimeEntryMixin"]

@@ -19,6 +19,7 @@ from src.core.platform.api.desktop.security.identity.identity import PlatformIde
 from src.core.platform.api.desktop.support.support import PlatformSupportDesktopApi
 from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
 from src.core.platform.api.desktop.history.audit.audit_enterprise import PlatformEnterpriseAuditDesktopApi
+from src.core.platform.api.desktop.finance import FinancialPeriodDesktopApi
 from src.core.platform.api.desktop.time_management.calendar.enterprise_calendar import EnterpriseCalendarDesktopApi
 from src.core.platform.application.platform_runtime import (
     PlatformRuntimeApplicationService,
@@ -71,6 +72,7 @@ from src.core.platform.access import AccessControlService
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.history.activity.activity_service import ActivityService
 from src.core.platform.application.history.audit import EnterpriseAuditService
+from src.core.platform.application.finance import FinancialPeriodService
 from src.core.platform.application.security.auth import AuthService
 from src.core.platform.application.time_management.calendar.assignment.calendar_assignment_service import (
     CalendarAssignmentService,
@@ -115,6 +117,7 @@ class DesktopApiRegistry:
     platform_approval: PlatformApprovalDesktopApi
     platform_activity: PlatformActivityDesktopApi | None
     platform_enterprise_audit: PlatformEnterpriseAuditDesktopApi | None
+    platform_financial_periods: FinancialPeriodDesktopApi
     platform_document: PlatformDocumentDesktopApi
     platform_party: PlatformPartyDesktopApi
     platform_support: PlatformSupportDesktopApi
@@ -181,6 +184,9 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     if not isinstance(approval_service, ApprovalService):
         raise RuntimeError("Platform approval service is not configured.")
     enterprise_audit_service = services.get("enterprise_audit_service")
+    financial_period_service = services.get("financial_period_service")
+    if not isinstance(financial_period_service, FinancialPeriodService):
+        raise RuntimeError("Platform financial-period service is not configured.")
     activity_service = services.get("activity_service")
     document_service = services.get("document_service")
     if not isinstance(document_service, DocumentService):
@@ -365,6 +371,9 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         ),
         platform_activity=PlatformActivityDesktopApi(activity_service=activity_service) if isinstance(activity_service, ActivityService) else None,
         platform_enterprise_audit=PlatformEnterpriseAuditDesktopApi(enterprise_audit_service=enterprise_audit_service) if isinstance(enterprise_audit_service, EnterpriseAuditService) else None,
+        platform_financial_periods=FinancialPeriodDesktopApi(
+            financial_period_service=financial_period_service,
+        ),
         platform_document=PlatformDocumentDesktopApi(
             document_service=document_service,
         ),

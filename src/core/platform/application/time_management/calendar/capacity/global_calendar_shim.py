@@ -111,5 +111,21 @@ class GlobalCalendarShim:
                 current += timedelta(days=1)
             return count
 
+    def working_day_dates_between(self, start: date, end: date) -> frozenset[date]:
+        """Load one immutable working-day snapshot for a bounded range."""
+        if end < start:
+            return frozenset()
+        try:
+            days = self._resolver.resolve_range(start=start, end=end)
+            return frozenset(day.date for day in days if day.available_hours > 0)
+        except Exception:
+            working: set[date] = set()
+            current = start
+            while current <= end:
+                if self.is_working_day(current):
+                    working.add(current)
+                current += timedelta(days=1)
+            return frozenset(working)
+
 
 __all__ = ["GlobalCalendarShim"]

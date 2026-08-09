@@ -56,6 +56,8 @@ def test_project_management_timesheets_desktop_api_supports_assignment_periods_a
         task_service=task_service,
         resource_service=resource_service,
     )
+    task_service._project_service = project_service
+    task_service._resource_service = resource_service
     api = build_project_management_timesheets_desktop_api(
         project_service=project_service,
         task_service=task_service,
@@ -94,12 +96,14 @@ def test_project_management_timesheets_desktop_api_supports_assignment_periods_a
         )
     )
     snapshot = api.build_assignment_snapshot(assignment.id)
+    timesheet_service.resource_period_read_count = 0
     submitted_period = api.submit_period(
         resource_id=resource.id,
         period_start=date(2026, 5, 1),
         note="Submitted for supervisor review.",
     )
-    review_queue = api.list_review_queue()
+    assert timesheet_service.resource_period_read_count == 1
+    review_queue = api.list_review_queue_page().items
     review_detail = api.get_review_detail(submitted_period.period_id)
     approved_period = api.approve_period(
         submitted_period.period_id,

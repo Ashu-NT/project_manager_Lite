@@ -9,6 +9,7 @@ from src.core.modules.project_management.application.resources import PortfolioR
 
 from src.core.modules.project_management.api.desktop.portfolio.models.capacity import PortfolioCapacityResourceDto
 from src.core.modules.project_management.api.desktop.portfolio.models.dependencies import PortfolioDependencyDesktopDto
+from src.core.modules.project_management.api.desktop.portfolio.models.executive import PortfolioExecutiveDesktopSnapshot
 from src.core.modules.project_management.api.desktop.portfolio.models.heatmap import PortfolioHeatmapDesktopDto
 from src.core.modules.project_management.api.desktop.portfolio.models.intake import PortfolioIntakeDesktopDto
 from src.core.modules.project_management.api.desktop.portfolio.models.options import (
@@ -118,6 +119,17 @@ class ProjectManagementPortfolioDesktopApi:
         if service is None:
             return ()
         return tuple(serialize_heatmap_row(row) for row in service.list_portfolio_heatmap())
+
+    def get_executive_snapshot(self) -> PortfolioExecutiveDesktopSnapshot:
+        service = self._portfolio_service
+        if service is None:
+            return PortfolioExecutiveDesktopSnapshot()
+        heatmap_rows = service.list_portfolio_heatmap()
+        dependency_rows = service.list_project_dependencies(heatmap_rows=heatmap_rows)
+        return PortfolioExecutiveDesktopSnapshot(
+            heatmap=tuple(serialize_heatmap_row(row) for row in heatmap_rows),
+            dependencies=tuple(serialize_dependency(row) for row in dependency_rows),
+        )
 
     def list_dependencies(self) -> tuple[PortfolioDependencyDesktopDto, ...]:
         service = self._portfolio_service

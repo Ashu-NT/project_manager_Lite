@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
+from src.core.modules.project_management.contracts.reads.tasks import TaskWorkspaceReader
 
 import os
 
@@ -116,6 +117,8 @@ class TaskService(
         notification_service=None,
         employee_repo=None,
         assignment_skill_validator=None,
+        tenant_context_service=None,
+        task_workspace_reader: TaskWorkspaceReader | None = None,
     ):
         self._session: Session = session
         self._task_repo: TaskRepository = task_repo
@@ -137,6 +140,8 @@ class TaskService(
         self._notification_service = notification_service
         self._employee_repo = employee_repo
         self._assignment_skill_validator = assignment_skill_validator
+        self._tenant_context_service = tenant_context_service
+        self._task_workspace_reader = task_workspace_reader
         policy = os.getenv("PM_OVERALLOCATION_POLICY", "warn").strip().lower()
         self._overallocation_policy: str = "strict" if policy == "strict" else "warn"
         self._last_overallocation_warning: str | None = None

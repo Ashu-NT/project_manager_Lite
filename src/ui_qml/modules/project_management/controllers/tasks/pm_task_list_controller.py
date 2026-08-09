@@ -62,7 +62,7 @@ class PMTaskListController(QObject):
         self._schedule_options: list[dict[str, str]] = []
         self._wbs_parent_options: list[dict[str, str]] = []
         self._tasks: dict[str, object] = {
-            "title": "", "subtitle": "", "emptyState": "", "items": []
+            "title": "", "subtitle": "", "emptyState": "", "items": [],
         }
         self._selected_task: dict[str, object] = {
             "id": "", "title": "", "statusLabel": "", "subtitle": "",

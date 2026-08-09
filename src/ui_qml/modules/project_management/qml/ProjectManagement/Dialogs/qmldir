@@ -1,5 +1,5 @@
 module ProjectManagement.Dialogs
-CostItemEditorDialog 1.0 CostItemEditorDialog.qml
+ManualActualEditorDialog 1.0 ManualActualEditorDialog.qml
 ProjectEditorDialog 1.0 ProjectEditorDialog.qml
 ProjectsImportDialog 1.0 ProjectsImportDialog.qml
 ProjectStatusDialog 1.0 ProjectStatusDialog.qml

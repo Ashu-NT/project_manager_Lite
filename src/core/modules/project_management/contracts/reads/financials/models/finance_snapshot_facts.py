@@ -25,6 +25,7 @@ class FinanceProjectFact:
 class TaskFact:
     task_id: str
     name: str
+    percent_complete: float
     start_date: date | None
     end_date: date | None
     actual_start: date | None
@@ -111,3 +112,18 @@ class FinanceSnapshotFacts:
             if row.currency_code and row.currency_code.strip()
         )
 
+
+@dataclass(frozen=True, slots=True)
+class EvmBaselineTaskFact:
+    task_id: str
+    baseline_start: date | None
+    baseline_finish: date | None
+    baseline_duration_days: int
+    baseline_planned_cost: float
+
+
+@dataclass(frozen=True, slots=True)
+class EvmSeriesFacts:
+    finance: FinanceSnapshotFacts
+    baseline_id: str | None
+    baseline_tasks: tuple[EvmBaselineTaskFact, ...]

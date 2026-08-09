@@ -31,6 +31,12 @@ class FinancialsStateMixin:
         self._task_options = task_options
         self.taskOptionsChanged.emit()
 
+    def _set_manual_actual_options(self, options: FinancialsMap) -> None:
+        if options == self._manual_actual_options:
+            return
+        self._manual_actual_options = options
+        self.manualActualOptionsChanged.emit()
+
     def _set_selected_project_id(self, selected_project_id: str) -> None:
         if selected_project_id == self._selected_project_id:
             return
@@ -117,13 +123,6 @@ class FinancialsStateMixin:
         self._cost_total_count = value
         self.costTotalCountChanged.emit()
 
-    def _set_selected_cost_ids(self, ids: list[str]) -> None:
-        if ids == self._selected_cost_ids:
-            return
-        self._selected_cost_ids = ids
-        self.selectedCostIdsChanged.emit()
-        self.selectedCostCountChanged.emit()
-
     def _set_forecast(self, forecast: FinancialsMap) -> None:
         if forecast == self._forecast:
             return
@@ -141,6 +140,41 @@ class FinancialsStateMixin:
             return
         self._baseline_variance = rows
         self.baselineVarianceChanged.emit()
+
+    def _set_financial_profile(self, value: FinancialsMap) -> None:
+        if value != self._financial_profile:
+            self._financial_profile = value
+            self.financialProfileChanged.emit()
+
+    def _set_budget_versions(self, value: FinancialsMap) -> None:
+        if value != self._budget_versions:
+            self._budget_versions = value
+            self.budgetVersionsChanged.emit()
+
+    def _set_budget_lines(self, value: FinancialsMap) -> None:
+        if value != self._budget_lines:
+            self._budget_lines = value
+            self.budgetLinesChanged.emit()
+
+    def _set_rate_cards(self, value: FinancialsMap) -> None:
+        if value != self._rate_cards:
+            self._rate_cards = value
+            self.rateCardsChanged.emit()
+
+    def _set_rate_lines(self, value: FinancialsMap) -> None:
+        if value != self._rate_lines:
+            self._rate_lines = value
+            self.rateLinesChanged.emit()
+
+    def _set_planned_cost_versions(self, value: FinancialsMap) -> None:
+        if value != self._planned_cost_versions:
+            self._planned_cost_versions = value
+            self.plannedCostVersionsChanged.emit()
+
+    def _set_planned_cost_lines(self, value: FinancialsMap) -> None:
+        if value != self._planned_cost_lines:
+            self._planned_cost_lines = value
+            self.plannedCostLinesChanged.emit()
 
 
 __all__ = ["FinancialsStateMixin"]

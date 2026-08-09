@@ -151,8 +151,8 @@ def _build_resource_overload_panel(*, dashboard_data: Any, portfolio_mode: bool)
     def _util(r):
         return float(getattr(r, "utilization_percent", getattr(r, "total_allocation_percent", 0.0)) or 0.0)
 
-    overloaded = [r for r in rows if _util(r) > 100.0]
-    at_risk = [r for r in rows if 90.0 <= _util(r) <= 100.0]
+    overloaded = [r for r in rows if bool(getattr(r, "is_overloaded", False))]
+    at_risk = [r for r in rows if bool(getattr(r, "is_near_capacity", False))]
     if not rows:
         return ProjectDashboardPanelDescriptor(title="Resource Overloads", subtitle="Resources that exceed capacity across assigned activities.", empty_state="No resource loading data is available yet.")
     if not overloaded and not at_risk:
@@ -164,7 +164,7 @@ def _build_resource_overload_panel(*, dashboard_data: Any, portfolio_mode: bool)
     return ProjectDashboardPanelDescriptor(
         title="Resource Overloads", subtitle=f"{fmt_int(len(overloaded))} overloaded, {fmt_int(len(at_risk))} near-capacity.",
         metrics=(ProjectDashboardMetricDescriptor("Resources", fmt_int(len(rows)), "In scope"), ProjectDashboardMetricDescriptor("Overloaded", fmt_int(len(overloaded)), "Above 100% capacity"), ProjectDashboardMetricDescriptor("At Risk", fmt_int(len(at_risk)), "90–100% utilization")),
-        rows=tuple(ProjectDashboardPanelRowDescriptor(label=str(getattr(r, "resource_name", "") or "Resource"), value=fmt_percent(_util(r), 0), supporting_text=f"Capacity: {fmt_percent(getattr(r, 'capacity_percent', 100.0), 0)}", tone="danger" if _util(r) > 100.0 else "warning") for r in display),
+        rows=tuple(ProjectDashboardPanelRowDescriptor(label=str(getattr(r, "resource_name", "") or "Resource"), value=fmt_percent(_util(r), 0), supporting_text=f"Capacity: {fmt_percent(getattr(r, 'capacity_percent', 100.0), 0)}", tone="danger" if bool(getattr(r, "is_overloaded", False)) else "warning") for r in display),
     )
 
 

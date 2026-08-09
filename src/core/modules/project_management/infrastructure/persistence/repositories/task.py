@@ -7,6 +7,7 @@ from src.core.modules.project_management.contracts.repositories.task import (
     AssignmentRepository,
     DependencyRepository,
     TaskRepository,
+    TimesheetAssignmentContext,
 )
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment, TaskDependency
 from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
@@ -306,6 +307,53 @@ class SqlAlchemyAssignmentRepository(AssignmentRepository):
         )
         rows = self.session.execute(stmt).scalars().all()
         return [assignment_from_orm(row) for row in rows]
+
+    def list_timesheet_contexts(
+        self,
+        *,
+        project_id: str | None = None,
+        assignment_id: str | None = None,
+    ) -> list[TimesheetAssignmentContext]:
+        ctx = self._context()
+        stmt = (
+            select(
+                TaskAssignmentORM.id,
+                ProjectORM.id,
+                ProjectORM.name,
+                TaskORM.id,
+                TaskORM.name,
+                ResourceORM.id,
+                ResourceORM.name,
+            )
+            .join(TaskORM, TaskAssignmentORM.task_id == TaskORM.id)
+            .join(ProjectORM, TaskORM.project_id == ProjectORM.id)
+            .join(ResourceORM, TaskAssignmentORM.resource_id == ResourceORM.id)
+            .where(
+                ProjectORM.tenant_id == ctx.tenant_id,
+                ProjectORM.organization_id == ctx.organization_id,
+                ResourceORM.tenant_id == ctx.tenant_id,
+                ResourceORM.organization_id == ctx.organization_id,
+            )
+        )
+        if project_id is not None:
+            stmt = stmt.where(ProjectORM.id == project_id)
+        if assignment_id is not None:
+            stmt = stmt.where(TaskAssignmentORM.id == assignment_id)
+        rows = self.session.execute(
+            stmt.order_by(ProjectORM.name, TaskORM.name, ResourceORM.name)
+        ).all()
+        return [
+            TimesheetAssignmentContext(
+                assignment_id=row[0],
+                project_id=row[1],
+                project_name=row[2],
+                task_id=row[3],
+                task_name=row[4],
+                resource_id=row[5],
+                resource_name=row[6],
+            )
+            for row in rows
+        ]
 
 
 class SqlAlchemyDependencyRepository(DependencyRepository):

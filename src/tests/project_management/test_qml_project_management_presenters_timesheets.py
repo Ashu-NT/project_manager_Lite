@@ -77,9 +77,9 @@ class _FakeTimesheetsDesktopApi:
             scope_summary="Task period entries: 2 | Resource month total: 16.00h",
         )
 
-    def list_review_queue(self, *, status="SUBMITTED"):
+    def list_review_queue_page(self, *, status="SUBMITTED", page=1, page_size=25):
         if status == "all":
-            return (
+            rows = (
                 SimpleNamespace(
                     period_id="period-1",
                     resource_name="Electrical Crew",
@@ -95,7 +95,8 @@ class _FakeTimesheetsDesktopApi:
                     period_start=date(2026, 5, 1),
                 ),
             )
-        return (
+            return SimpleNamespace(items=rows, total=len(rows), page=page, page_size=page_size)
+        rows = (
             SimpleNamespace(
                 period_id="period-1",
                 resource_name="Electrical Crew",
@@ -111,6 +112,7 @@ class _FakeTimesheetsDesktopApi:
                 period_start=date(2026, 5, 1),
             ),
         )
+        return SimpleNamespace(items=rows, total=len(rows), page=page, page_size=page_size)
 
     def get_review_detail(self, period_id):
         assert period_id == "period-1"

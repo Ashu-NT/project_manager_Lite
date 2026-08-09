@@ -5,10 +5,64 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
+from src.core.platform.domain.security.auth import (
+    UserSessionContext,
+    UserSessionPrincipal,
+)
 from src.core.platform.domain.security.auth.credentials.mfa import generate_totp_code
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.infrastructure.persistence.orm.security.auth.auth import AuthSessionORM
 from src.infra.composition.app_container import build_service_dict
+
+
+def test_session_principal_validation_lease_avoids_repeated_authority_rebuilds() -> None:
+    calls: list[str] = []
+    principal = UserSessionPrincipal(
+        user_id="user-1",
+        username="planner",
+        display_name="Planner",
+        role_names=frozenset({"planner"}),
+        permissions=frozenset({"project.read"}),
+        session_id="session-1",
+    )
+
+    def _validate(current: UserSessionPrincipal) -> UserSessionPrincipal:
+        calls.append(current.session_id or "")
+        return current
+
+    context = UserSessionContext(
+        principal_validator=_validate,
+        validation_interval_seconds=30.0,
+    )
+    context.set_principal(principal)
+
+    assert context.has_permission("project.read") is True
+    assert context.has_permission("project.read") is True
+    assert calls == []
+
+    assert context.revalidate_principal() is True
+    assert context.has_permission("project.read") is True
+    assert calls == ["session-1"]
+
+
+def test_session_principal_forced_revalidation_clears_revoked_session() -> None:
+    context = UserSessionContext(
+        validation_interval_seconds=30.0,
+    )
+    context.set_principal(
+        UserSessionPrincipal(
+            user_id="user-1",
+            username="planner",
+            display_name="Planner",
+            role_names=frozenset({"planner"}),
+            permissions=frozenset({"project.read"}),
+            session_id="session-1",
+        )
+    )
+    context.set_validator(lambda _principal: None)
+
+    assert context.revalidate_principal() is False
+    assert context.principal is None
 
 
 def test_bootstrap_creates_admin_and_permissions(services):

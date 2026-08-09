@@ -37,14 +37,37 @@ from src.core.modules.project_management.application.financials.rate_cards impor
     RateCardResolver,
     RateSelectionSnapshot,
 )
-from src.core.modules.project_management.application.financials.budgets import BudgetService
+from src.core.modules.project_management.application.financials.budgets import (
+    BudgetApprovalOutcome,
+    BudgetApprovalResult,
+    BudgetService,
+)
 from src.core.modules.project_management.application.financials.planned_costs import (
     PlannedCostCalculationResult,
     PlannedCostService,
 )
+from src.core.modules.project_management.application.financials.cost_entries import (
+    ApprovedTimeLaborCostConsumer,
+    CostEntryApprovalOutcome,
+    CostEntryApprovalResult,
+    ProjectCostEntryService,
+)
+from src.core.modules.project_management.application.financials.commitments import (
+    ProjectCommitmentService,
+)
+from src.core.modules.project_management.application.financials.procurement_consumer import (
+    ProcurementFinancialConsumer,
+)
+from src.core.modules.project_management.application.financials.workspace_query import (
+    ProjectFinanceWorkspaceQuery,
+    ProjectFinanceWorkspaceRead,
+)
 
 __all__ = [
     "BudgetService",
+    "ApprovedTimeLaborCostConsumer",
+    "BudgetApprovalOutcome",
+    "BudgetApprovalResult",
     "PlannedCostCalculationResult",
     "PlannedCostService",
     "CommitmentSummary",
@@ -53,6 +76,8 @@ __all__ = [
     "CostPolicyEngine",
     "CostPolicySnapshot",
     "CostService",
+    "CostEntryApprovalOutcome",
+    "CostEntryApprovalResult",
     "EACMethod",
     "EarnedValueCalculator",
     "EarnedValueSeriesCalculator",
@@ -66,6 +91,11 @@ __all__ = [
     "MaterialRollup",
     "FinancialConfigurationService",
     "ProjectRateCardService",
+    "ProjectCostEntryService",
+    "ProjectCommitmentService",
+    "ProcurementFinancialConsumer",
+    "ProjectFinanceWorkspaceQuery",
+    "ProjectFinanceWorkspaceRead",
     "RateCardResolver",
     "RateSelectionSnapshot",
 ]

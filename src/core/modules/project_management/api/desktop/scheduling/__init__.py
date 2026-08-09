@@ -7,10 +7,6 @@ from src.core.modules.project_management.api.desktop.scheduling.commands.baselin
     SchedulingBaselineRejectCommand,
     SchedulingBaselineSubmitCommand,
 )
-from src.core.modules.project_management.api.desktop.scheduling.commands.calendar_commands import (
-    SchedulingCalendarUpdateCommand,
-    SchedulingHolidayCreateCommand,
-)
 from src.core.modules.project_management.api.desktop.scheduling.commands.dependency_commands import (
     SchedulingDependencyCreateCommand,
     SchedulingDependencyUpdateCommand,
@@ -20,9 +16,6 @@ from src.core.modules.project_management.api.desktop.scheduling.commands.working
 )
 from src.core.modules.project_management.api.desktop.scheduling.factories.scheduling_api_factory import (
     build_project_management_scheduling_desktop_api,
-)
-from src.core.modules.project_management.api.desktop.scheduling.builders.change_impact_builder import (
-    compute_schedule_impact,
 )
 from src.core.modules.project_management.api.desktop.scheduling.models import (
     ScheduleImpactAffectedTaskDto,
@@ -61,7 +54,6 @@ __all__ = [
     "SchedulingBaselineVarianceRowDto",
     "SchedulingCalendarOptionDescriptor",
     "SchedulingCalendarSnapshotDto",
-    "SchedulingCalendarUpdateCommand",
     "SchedulingChangeImpactAffectedTaskDto",
     "SchedulingChangeImpactDto",
     "SchedulingConstraintViolationDto",
@@ -70,7 +62,6 @@ __all__ = [
     "SchedulingDependencyDto",
     "SchedulingDependencyTypeDescriptor",
     "SchedulingDependencyUpdateCommand",
-    "SchedulingHolidayCreateCommand",
     "SchedulingHolidayDto",
     "SchedulingProjectDependencyDto",
     "SchedulingProjectOptionDescriptor",
@@ -79,5 +70,4 @@ __all__ = [
     "SchedulingWorkingDayCalculationCommand",
     "SchedulingWorkingDayCalculationDto",
     "build_project_management_scheduling_desktop_api",
-    "compute_schedule_impact",
 ]

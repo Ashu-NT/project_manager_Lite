@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -202,6 +202,78 @@ class SqlAlchemyProjectRateCardRepository(_RateCardScope, ProjectRateCardReposit
             stmt = stmt.where(RateCardLineORM.is_active.is_(True))
         rows = self.session.execute(stmt).scalars().all()
         return [rate_card_line_from_orm(row) for row in rows]
+
+    def list_visible_for_project(
+        self,
+        project_id: str,
+        *,
+        include_inactive: bool = False,
+    ) -> list[ProjectRateCard]:
+        context = self._context(operation_label="list project-visible rate cards")
+        stmt = select(ProjectRateCardORM).where(
+            ProjectRateCardORM.tenant_id == context.tenant_id,
+            ProjectRateCardORM.organization_id == context.organization_id,
+            or_(
+                ProjectRateCardORM.project_id.is_(None),
+                ProjectRateCardORM.project_id == project_id,
+            ),
+        )
+        if not include_inactive:
+            stmt = stmt.where(ProjectRateCardORM.is_active.is_(True))
+        rows = self.session.execute(
+            stmt.order_by(ProjectRateCardORM.project_id.desc(), ProjectRateCardORM.name.asc())
+        ).scalars().all()
+        return [rate_card_from_orm(row) for row in rows]
+
+    def list_lines_for_cards(
+        self,
+        rate_card_ids: tuple[str, ...],
+        *,
+        include_inactive: bool = False,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> list[RateCardLine]:
+        if not rate_card_ids:
+            return []
+        context = self._context(operation_label="list project-visible rate card lines")
+        stmt = select(RateCardLineORM).where(
+            RateCardLineORM.tenant_id == context.tenant_id,
+            RateCardLineORM.organization_id == context.organization_id,
+            RateCardLineORM.rate_card_id.in_(rate_card_ids),
+        )
+        if not include_inactive:
+            stmt = stmt.where(RateCardLineORM.is_active.is_(True))
+        rows = self.session.execute(
+            stmt.order_by(
+                RateCardLineORM.rate_card_id.asc(),
+                RateCardLineORM.created_at.asc(),
+                RateCardLineORM.id.asc(),
+            )
+            .offset(max(0, offset))
+            .limit(max(1, limit))
+        ).scalars().all()
+        return [rate_card_line_from_orm(row) for row in rows]
+
+    def count_lines_by_card(
+        self,
+        rate_card_ids: tuple[str, ...],
+        *,
+        include_inactive: bool = False,
+    ) -> dict[str, int]:
+        if not rate_card_ids:
+            return {}
+        context = self._context(operation_label="summarize project-visible rate card lines")
+        stmt = select(
+            RateCardLineORM.rate_card_id, func.count(RateCardLineORM.id)
+        ).where(
+            RateCardLineORM.tenant_id == context.tenant_id,
+            RateCardLineORM.organization_id == context.organization_id,
+            RateCardLineORM.rate_card_id.in_(rate_card_ids),
+        )
+        if not include_inactive:
+            stmt = stmt.where(RateCardLineORM.is_active.is_(True))
+        rows = self.session.execute(stmt.group_by(RateCardLineORM.rate_card_id)).all()
+        return {str(card_id): int(line_count) for card_id, line_count in rows}
 
     def list_effective_lines(
         self,

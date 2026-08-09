@@ -29,6 +29,8 @@ def build_workspace_state(
     queue_status: str = "SUBMITTED",
     selected_entry_id: str | None = None,
     selected_queue_period_id: str | None = None,
+    queue_page: int = 1,
+    queue_page_size: int = 25,
 ) -> TimesheetsWorkspaceViewModel:
     project_options = (
         TimesheetSelectorOptionViewModel(value="all", label="All projects"),
@@ -78,7 +80,12 @@ def build_workspace_state(
         ),
         None,
     )
-    review_queue_rows = desktop_api.list_review_queue(status=normalized_queue_status)
+    review_page = desktop_api.list_review_queue_page(
+        status=normalized_queue_status,
+        page=queue_page,
+        page_size=queue_page_size,
+    )
+    review_queue_rows = review_page.items
     review_queue = TimesheetCollectionViewModel(
         title="Review Queue",
         subtitle="Submitted or locked periods waiting for review or follow-up.",
@@ -118,7 +125,7 @@ def build_workspace_state(
         overview=build_overview(
             assignment_options=assignment_options,
             snapshot=snapshot,
-            review_queue_rows=review_queue_rows,
+            review_queue_total=review_page.total,
         ),
         project_options=project_options,
         assignment_options=assignment_options,
@@ -136,4 +143,7 @@ def build_workspace_state(
         review_queue=review_queue,
         review_detail=build_review_detail(desktop_api, resolved_queue_period_id),
         empty_state=empty_state,
+        queue_total_count=review_page.total,
+        queue_page=review_page.page,
+        queue_page_size=review_page.page_size,
     )

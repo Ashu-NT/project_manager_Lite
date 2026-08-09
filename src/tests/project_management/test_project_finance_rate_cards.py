@@ -485,16 +485,45 @@ def test_update_resource_requires_expected_version_for_rate_change(services) -> 
     assert exc.value.code == "RESOURCE_RATE_VERSION_REQUIRED"
 
 
-def test_update_resource_requires_effective_on_for_rate_change(services) -> None:
+def test_update_resource_defaults_rate_change_effective_date_from_service_clock(
+    services,
+) -> None:
     resource_service = services["resource_service"]
     resource = resource_service.create_resource(
         "Effective On Required Dev", role="Developer", hourly_rate=90.0
     )
-    with pytest.raises(ValidationError) as exc:
-        resource_service.update_resource(
-            resource.id, hourly_rate=100.0, expected_version=resource.version
-        )
-    assert exc.value.code == "RESOURCE_RATE_EFFECTIVE_ON_REQUIRED"
+    effective_on = resource_service._clock.today()
+
+    resource_service.update_resource(
+        resource.id,
+        hourly_rate=100.0,
+        expected_version=resource.version,
+    )
+
+    replacement = next(
+        line
+        for line in _legacy_lines_for_resource(services, resource.id)
+        if line.rate_amount == Decimal("100.0")
+    )
+    assert replacement.effective_from == effective_on
+
+
+def test_update_resource_ignores_unchanged_rate_fields_for_rate_policy(services) -> None:
+    resource_service = services["resource_service"]
+    resource = resource_service.create_resource(
+        "Unchanged Rate Dev", role="Developer", hourly_rate=90.0, currency_code="usd"
+    )
+
+    updated = resource_service.update_resource(
+        resource.id,
+        name="Renamed Unchanged Rate Dev",
+        hourly_rate=90.0,
+        currency_code="USD",
+        expected_version=resource.version,
+    )
+
+    assert updated.name == "Renamed Unchanged Rate Dev"
+    assert len(_legacy_lines_for_resource(services, resource.id)) == 1
 
 
 def test_update_resource_same_day_positive_to_positive_deactivates_and_replaces(

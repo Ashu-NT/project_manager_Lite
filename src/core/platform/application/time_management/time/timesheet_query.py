@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date, datetime, timezone
 
 from src.core.platform.common.exceptions import NotFoundError
@@ -8,7 +9,31 @@ from src.core.platform.contract.time_management.time.contracts import (
     TimesheetPeriodRepository,
     WorkAllocationRepository,
 )
-from src.core.platform.domain.time_management.time import TimeEntry, TimesheetPeriod
+from src.core.platform.domain.time_management.time import (
+    TimeEntry,
+    TimesheetPeriod,
+    TimesheetPeriodStatus,
+)
+
+
+@dataclass(frozen=True, slots=True)
+class TimesheetPeriodAggregate:
+    period_id: str
+    resource_id: str
+    period_start: date
+    period_end: date
+    status: TimesheetPeriodStatus
+    submitted_at: datetime | None
+    submitted_by_user_id: str | None
+    submitted_by_username: str | None
+    decided_at: datetime | None
+    decided_by_user_id: str | None
+    decided_by_username: str | None
+    decision_note: str
+    locked_at: datetime | None
+    entry_count: int
+    total_hours: float
+    project_ids: tuple[str, ...]
 
 
 class TimesheetQueryMixin:
@@ -85,5 +110,59 @@ class TimesheetQueryMixin:
         rows.sort(key=lambda item: (item.entry_date, item.created_at or datetime.min.replace(tzinfo=timezone.utc)))
         return rows
 
+    def summarize_timesheet_period(
+        self,
+        resource_id: str,
+        *,
+        period_start: date,
+        period: TimesheetPeriod | None = None,
+        entries: list[TimeEntry] | None = None,
+    ) -> TimesheetPeriodAggregate:
+        self._require_time_read_permission("summarize timesheet period")
+        rows = entries if entries is not None else self.list_time_entries_for_resource_period(
+            resource_id,
+            period_start=period_start,
+        )
+        return self._build_timesheet_period_aggregate(
+            resource_id=resource_id,
+            period_start=period_start,
+            period=period,
+            entries=rows,
+        )
 
-__all__ = ["TimesheetQueryMixin"]
+    def _build_timesheet_period_aggregate(
+        self,
+        *,
+        resource_id: str,
+        period_start: date,
+        period: TimesheetPeriod | None,
+        entries: list[TimeEntry],
+    ) -> TimesheetPeriodAggregate:
+        normalized_start, normalized_end = self._timesheet_period_bounds(period_start)
+        return TimesheetPeriodAggregate(
+            period_id=period.id if period is not None else "",
+            resource_id=resource_id,
+            period_start=normalized_start,
+            period_end=period.period_end if period is not None else normalized_end,
+            status=period.status if period is not None else TimesheetPeriodStatus.OPEN,
+            submitted_at=period.submitted_at if period is not None else None,
+            submitted_by_user_id=(
+                period.submitted_by_user_id if period is not None else None
+            ),
+            submitted_by_username=(
+                period.submitted_by_username if period is not None else None
+            ),
+            decided_at=period.decided_at if period is not None else None,
+            decided_by_user_id=period.decided_by_user_id if period is not None else None,
+            decided_by_username=(
+                period.decided_by_username if period is not None else None
+            ),
+            decision_note=period.decision_note if period is not None else "",
+            locked_at=period.locked_at if period is not None else None,
+            entry_count=len(entries),
+            total_hours=self._sum_entry_hours(entries),
+            project_ids=tuple(self._project_ids_for_entries(entries)),
+        )
+
+
+__all__ = ["TimesheetPeriodAggregate", "TimesheetQueryMixin"]

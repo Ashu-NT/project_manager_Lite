@@ -104,7 +104,7 @@ class ModuleCatalogQueryMixin:
         record = records_by_code.get(module.code)
         missing_organization_context = (
             getattr(self, "_entitlement_repo", None) is not None
-            and getattr(self, "_current_organization", lambda: None)() is None
+            and not getattr(self, "_has_active_organization_context", lambda: False)()
         )
         if record is None:
             if missing_organization_context:

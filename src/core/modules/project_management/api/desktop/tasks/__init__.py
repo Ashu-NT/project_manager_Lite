@@ -46,7 +46,9 @@ from src.core.modules.project_management.api.desktop.tasks.models.reservation im
 from src.core.modules.project_management.api.desktop.tasks.models.skill import (
     TaskSkillRequirementDesktopDto,
 )
-from src.core.modules.project_management.api.desktop.tasks.models.task import TaskDesktopDto
+from src.core.modules.project_management.api.desktop.tasks.models.task import (
+    TaskDesktopDto,
+)
 from src.core.modules.project_management.api.desktop.tasks.models.validation import (
     AssignmentPreviewDesktopDto,
     AssignmentValidationDesktopDto,

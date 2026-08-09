@@ -47,22 +47,15 @@ def unwrap_platform_calendar_result(result):
     raise RuntimeError("Platform calendar operation failed.")
 
 
-def _default_platform_calendar_id(platform_calendar_api) -> str:
-    global_calendars = unwrap_platform_calendar_result(
-        platform_calendar_api.list_calendars(calendar_type="GLOBAL")
-    ) or ()
-    if global_calendars:
-        return global_calendars[0].id
-    any_calendars = unwrap_platform_calendar_result(platform_calendar_api.list_calendars()) or ()
-    return any_calendars[0].id if any_calendars else ""
-
-
 def _resolve_calendar_id(platform_calendar_api, calendar_id: str) -> str:
     # "default" is the QML view model's fallback sentinel (never a real
     # platform calendar id) — treat it the same as "no id supplied".
     if calendar_id and calendar_id != "default":
         return calendar_id
-    return _default_platform_calendar_id(platform_calendar_api)
+    default_calendar = unwrap_platform_calendar_result(
+        platform_calendar_api.get_default_calendar()
+    )
+    return default_calendar.id
 
 
 def list_platform_calendar_options(
@@ -131,63 +124,10 @@ def get_platform_calendar_snapshot(
     )
 
 
-def update_platform_calendar_working_days(
-    platform_calendar_api, calendar_id: str, command
-) -> SchedulingCalendarSnapshotDto:
-    from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import WorkingRuleSaveCommand
-
-    resolved_id = _resolve_calendar_id(platform_calendar_api, calendar_id)
-    working_days = set(command.working_days or ())
-    for weekday in range(7):
-        is_working_day = weekday in working_days
-        platform_calendar_api.save_working_rule(
-            WorkingRuleSaveCommand(
-                calendar_id=resolved_id,
-                weekday=weekday,
-                is_working_day=is_working_day,
-                hours_override=command.hours_per_day if is_working_day else 0.0,
-            )
-        )
-    return get_platform_calendar_snapshot(platform_calendar_api, resolved_id)
-
-
-def add_platform_holiday(
-    platform_calendar_api, calendar_id: str, command
-) -> SchedulingHolidayDto:
-    from src.core.platform.api.desktop.time_management.calendar.models.enterprise_calendar import ExceptionCreateCommand
-
-    resolved_id = _resolve_calendar_id(platform_calendar_api, calendar_id)
-    exc = unwrap_platform_calendar_result(
-        platform_calendar_api.add_exception(
-            ExceptionCreateCommand(
-                calendar_id=resolved_id,
-                exception_date=command.holiday_date.isoformat(),
-                exception_type="HOLIDAY",
-                name=command.name or "",
-                impact_type="UNAVAILABLE",
-            )
-        )
-    )
-    return SchedulingHolidayDto(
-        id=exc.id,
-        date=date.fromisoformat(exc.exception_date),
-        name=exc.name or "",
-    )
-
-
-def delete_platform_holiday(platform_calendar_api, holiday_id: str) -> None:
-    if not holiday_id:
-        return
-    unwrap_platform_calendar_result(platform_calendar_api.delete_exception(holiday_id))
-
-
 __all__ = [
-    "add_platform_holiday",
-    "delete_platform_holiday",
     "get_legacy_calendar",
     "get_platform_calendar_snapshot",
     "list_legacy_holidays",
     "list_platform_calendar_options",
     "unwrap_platform_calendar_result",
-    "update_platform_calendar_working_days",
 ]

@@ -27,4 +27,22 @@ class RegisterEntryDesktopDto:
     version: int
 
 
-__all__ = ["RegisterEntryDesktopDto"]
+@dataclass(frozen=True)
+class RegisterCatalogPageDesktopDto:
+    items: tuple[RegisterEntryDesktopDto, ...] = ()
+    urgent_items: tuple[RegisterEntryDesktopDto, ...] = ()
+    filtered_total: int = 0
+    scope_total: int = 0
+    scope_risk_total: int = 0
+    open_risks: int = 0
+    open_issues: int = 0
+    pending_changes: int = 0
+    active: int = 0
+    critical: int = 0
+    overdue: int = 0
+    due_soon: int = 0
+    page: int = 1
+    page_size: int = 25
+
+
+__all__ = ["RegisterCatalogPageDesktopDto", "RegisterEntryDesktopDto"]

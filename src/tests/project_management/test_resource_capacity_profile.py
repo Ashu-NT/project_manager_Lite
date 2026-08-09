@@ -2,6 +2,38 @@ from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.application.resources import (
+    ResourceUtilizationBand,
+    is_resource_near_capacity,
+    is_resource_overloaded,
+    resource_utilization_band,
+)
+
+
+@pytest.mark.parametrize(
+    ("utilization", "expected"),
+    (
+        (0.0, ResourceUtilizationBand.IDLE),
+        (84.9, ResourceUtilizationBand.STABLE),
+        (85.0, ResourceUtilizationBand.HOT),
+        (89.9, ResourceUtilizationBand.HOT),
+        (90.0, ResourceUtilizationBand.NEAR_CAPACITY),
+        (100.0, ResourceUtilizationBand.NEAR_CAPACITY),
+        (100.1, ResourceUtilizationBand.OVERLOADED),
+    ),
+)
+def test_resource_utilization_policy_has_canonical_boundaries(
+    utilization,
+    expected,
+) -> None:
+    assert resource_utilization_band(utilization) is expected
+    assert is_resource_overloaded(utilization) is (
+        expected is ResourceUtilizationBand.OVERLOADED
+    )
+    assert is_resource_near_capacity(utilization) is (
+        expected is ResourceUtilizationBand.NEAR_CAPACITY
+    )
+
 
 def test_resource_profile_fields_roundtrip(services):
     rs = services["resource_service"]

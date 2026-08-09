@@ -5,11 +5,9 @@ import os
 
 DEFAULT_GOVERNED_ACTIONS = {
     "baseline.create",
-    "cost.add",
-    "cost.update",
-    "cost.delete",
     "dependency.add",
     "dependency.remove",
+    "project_cost.approve",
 }
 
 

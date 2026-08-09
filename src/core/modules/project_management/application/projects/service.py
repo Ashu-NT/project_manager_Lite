@@ -6,6 +6,7 @@ from src.core.modules.project_management.contracts.repositories.cost import (
     CostRepository,
 )
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
+from src.core.modules.project_management.contracts.reads.projects import ProjectCatalogReader
 from src.core.modules.project_management.contracts.repositories.financial_configuration import (
     ProjectFinancialProfileRepository,
 )
@@ -44,6 +45,7 @@ class ProjectService(ProjectManagementModuleGuardMixin, ProjectLifecycleMixin, P
         enterprise_audit_service=None,
         module_catalog_service=None,
         tenant_context_service=None,
+        project_catalog_reader: ProjectCatalogReader | None = None,
     ):
         self._session: Session = session
         self._project_repo: ProjectRepository = project_repo
@@ -58,6 +60,7 @@ class ProjectService(ProjectManagementModuleGuardMixin, ProjectLifecycleMixin, P
         self._enterprise_audit_service = enterprise_audit_service
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
+        self._project_catalog_reader = project_catalog_reader
 
 
 __all__ = ["ProjectService"]

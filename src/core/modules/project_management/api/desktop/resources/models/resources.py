@@ -29,4 +29,17 @@ class ResourceDesktopDto:
     version: int
 
 
-__all__ = ["ResourceDesktopDto"]
+@dataclass(frozen=True)
+class ResourceCatalogPageDesktopDto:
+    items: tuple[ResourceDesktopDto, ...] = ()
+    filtered_total: int = 0
+    total: int = 0
+    active: int = 0
+    employees: int = 0
+    external: int = 0
+    average_capacity: float = 0.0
+    page: int = 1
+    page_size: int = 25
+
+
+__all__ = ["ResourceCatalogPageDesktopDto", "ResourceDesktopDto"]

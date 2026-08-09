@@ -6,12 +6,12 @@ Reporting delegates here rather than owning cost breakdown logic.
 
 from __future__ import annotations
 
-from datetime import date
+from typing import Iterable
 
-from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
 from src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.application.financials.costs.cost_policy_engine import (
     CostPolicyEngine,
+    CostPolicySnapshot,
 )
 
 from src.core.modules.project_management.application.financials.models.finance_models import (
@@ -30,32 +30,21 @@ class CostBreakdownEngine:
     def __init__(
         self,
         *,
-        baseline_repo: BaselineRepository,
         cost_policy_engine: CostPolicyEngine,
     ) -> None:
-        self._baseline_repo = baseline_repo
         self._engine = cost_policy_engine
 
-    def build_breakdown(
+    def build_breakdown_from_snapshot(
         self,
-        project_id: str,
+        snapshot: CostPolicySnapshot,
         *,
-        as_of: date | None = None,
-        baseline_id: str | None = None,
+        baseline_tasks: Iterable[object] = (),
     ) -> list[CostBreakdownRow]:
-        as_of = as_of or date.today()
-        snapshot = self._engine.build_snapshot(project_id, as_of=as_of)
-
+        """Build rows from one policy snapshot and optional baseline facts."""
         planned_map = dict(snapshot.planned_map)
         actual_map = dict(snapshot.actual_map)
 
-        # Historical fallback for projects with no explicit planning data.
         if not planned_map:
-            if baseline_id:
-                baseline = self._baseline_repo.get_baseline(baseline_id)
-            else:
-                baseline = self._baseline_repo.get_latest_for_project(project_id)
-            baseline_tasks = self._baseline_repo.list_tasks(baseline.id) if baseline else []
             baseline_total = float(
                 sum(
                     float(getattr(bt, "baseline_planned_cost", 0.0) or 0.0)

@@ -9,6 +9,10 @@ import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
 
+from src.core.modules.project_management.application.financials.budgets import (
+    BudgetApprovalOutcome,
+    BudgetApprovalResult,
+)
 from src.core.modules.project_management.domain.financials.budget import (
     BudgetLine,
     BudgetStatus,
@@ -196,6 +200,25 @@ def _submit_with_line(services, budget: ProjectBudget) -> ProjectBudget:
     )
 
 
+def _approve_directly(services, budget: ProjectBudget) -> ProjectBudget:
+    budget_service = services["budget_service"]
+    result = budget_service.approve_budget(
+        budget.id,
+        approved_by="admin",
+        expected_version=budget.row_version,
+    )
+    assert isinstance(result, BudgetApprovalResult)
+    assert result.outcome is BudgetApprovalOutcome.APPLIED
+    assert result.is_applied
+    assert not result.is_pending_approval
+    assert result.budget_id == budget.id
+    assert result.project_id == budget.project_id
+    assert result.budget_status is BudgetStatus.APPROVED
+    assert result.row_version > budget.row_version
+    assert result.approval_request_id is None
+    return budget_service.get_budget(result.budget_id)
+
+
 def test_create_budget_requires_financial_profile(services, monkeypatch) -> None:
     _login(services, "admin", "ChangeMe123!")
     project = _make_project(services)
@@ -231,7 +254,7 @@ def test_new_draft_allowed_after_rejection_but_not_while_another_is_approved(ser
     assert v2.revision == 2
 
     v2 = _submit_with_line(services, v2)
-    v2 = budget_service.approve_budget(v2.id, approved_by="admin", expected_version=v2.row_version)
+    v2 = _approve_directly(services, v2)
     assert v2.status == BudgetStatus.APPROVED
 
     v3 = budget_service.create_budget(project.id, "v3")
@@ -685,12 +708,12 @@ def test_ordered_approve_supersedes_prior_approved_budget(services) -> None:
 
     v1 = budget_service.create_budget(project.id, "v1")
     v1 = _submit_with_line(services, v1)
-    v1 = budget_service.approve_budget(v1.id, approved_by="admin", expected_version=v1.row_version)
+    v1 = _approve_directly(services, v1)
     assert v1.status == BudgetStatus.APPROVED
 
     v2 = budget_service.create_budget(project.id, "v2")
     v2 = _submit_with_line(services, v2)
-    v2 = budget_service.approve_budget(v2.id, approved_by="admin", expected_version=v2.row_version)
+    v2 = _approve_directly(services, v2)
     assert v2.status == BudgetStatus.APPROVED
 
     v1_reloaded = budget_service._budget_repo.get(v1.id)
@@ -708,7 +731,7 @@ def test_approve_conflict_translates_to_named_business_error(services, monkeypat
 
     v1 = budget_service.create_budget(project.id, "v1")
     v1 = _submit_with_line(services, v1)
-    v1 = budget_service.approve_budget(v1.id, approved_by="admin", expected_version=v1.row_version)
+    v1 = _approve_directly(services, v1)
 
     v2 = budget_service.create_budget(project.id, "v2")
     v2 = _submit_with_line(services, v2)
@@ -761,9 +784,7 @@ def test_close_budget_only_valid_from_approved(services) -> None:
         budget_service.close_budget(budget.id, "admin", expected_version=budget.row_version)
 
     budget = _submit_with_line(services, budget)
-    budget = budget_service.approve_budget(
-        budget.id, approved_by="admin", expected_version=budget.row_version
-    )
+    budget = _approve_directly(services, budget)
     closed = budget_service.close_budget(budget.id, "admin", expected_version=budget.row_version)
     assert closed.status == BudgetStatus.CLOSED
 
@@ -791,13 +812,19 @@ def test_governed_approve_creates_request_and_actor_is_the_deciding_principal(
     auth.register_user("budget-requester", "StrongPass123", role_names=["planner"])
     _login(services, "budget-requester", "StrongPass123")
 
-    with pytest.raises(BusinessRuleError, match="Approval required") as exc:
-        budget_service.approve_budget(
-            budget.id, approved_by="budget-requester", expected_version=budget.row_version
-        )
-    assert exc.value.code == "APPROVAL_REQUIRED"
+    result = budget_service.approve_budget(
+        budget.id, approved_by="budget-requester", expected_version=budget.row_version
+    )
+    assert result.outcome is BudgetApprovalOutcome.PENDING_APPROVAL
+    assert result.is_pending_approval
+    assert not result.is_applied
+    assert result.budget_id == budget.id
+    assert result.project_id == project.id
+    assert result.budget_status is BudgetStatus.SUBMITTED
+    assert result.row_version == budget.row_version
 
     req = approvals.list_pending(project_id=project.id)[0]
+    assert result.approval_request_id == req.id
     assert req.request_type == "budget.approve"
     assert req.requested_by_username == "budget-requester"
     requester_user_id = req.requested_by_user_id
@@ -831,11 +858,12 @@ def test_governed_reject_drives_domain_reject(services, monkeypatch) -> None:
 
     auth.register_user("budget-requester-2", "StrongPass123", role_names=["planner"])
     _login(services, "budget-requester-2", "StrongPass123")
-    with pytest.raises(BusinessRuleError, match="Approval required"):
-        budget_service.approve_budget(
-            budget.id, approved_by="budget-requester-2", expected_version=budget.row_version
-        )
+    result = budget_service.approve_budget(
+        budget.id, approved_by="budget-requester-2", expected_version=budget.row_version
+    )
+    assert result.outcome is BudgetApprovalOutcome.PENDING_APPROVAL
     req = approvals.list_pending(project_id=project.id)[0]
+    assert result.approval_request_id == req.id
     requester_user_id = req.requested_by_user_id
 
     _login(services, "admin", "ChangeMe123!")

@@ -1,8 +1,6 @@
 """Schedule item serializers."""
 
 from src.core.modules.project_management.api.desktop.scheduling.models.schedule import SchedulingTaskDto
-from src.core.modules.project_management.api.desktop.scheduling.utils.scheduling_utils import remaining_duration_days
-from datetime import date
 
 
 def serialize_schedule_item(item) -> SchedulingTaskDto:
@@ -20,10 +18,7 @@ def serialize_schedule_item(item) -> SchedulingTaskDto:
         latest_start=item.latest_start,
         latest_finish=item.latest_finish,
         duration_days=getattr(task, "duration_days", None),
-        remaining_duration_days=remaining_duration_days(
-            getattr(task, "duration_days", None),
-            float(task.percent_complete or 0.0),
-        ),
+        remaining_duration_days=task.remaining_duration_days,
         total_float_days=item.total_float_days,
         is_critical=item.is_critical,
         deadline=item.deadline,
@@ -50,10 +45,7 @@ def serialize_task_as_schedule_item(task) -> SchedulingTaskDto:
         latest_start=None,
         latest_finish=None,
         duration_days=getattr(task, "duration_days", None),
-        remaining_duration_days=remaining_duration_days(
-            getattr(task, "duration_days", None),
-            float(task.percent_complete or 0.0),
-        ),
+        remaining_duration_days=task.remaining_duration_days,
         total_float_days=None,
         is_critical=False,
         deadline=getattr(task, "deadline", None),

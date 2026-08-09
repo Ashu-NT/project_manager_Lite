@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-from datetime import date
-
-from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
-
 from src.core.modules.project_management.api.desktop.resources.builders.assignment_builder import (
     build_resource_assignments,
 )
@@ -43,6 +39,7 @@ from src.core.modules.project_management.api.desktop.resources.models.options im
     ResourceWorkerTypeDescriptor,
 )
 from src.core.modules.project_management.api.desktop.resources.models.resources import (
+    ResourceCatalogPageDesktopDto,
     ResourceDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.resources.models.skills import (
@@ -57,9 +54,6 @@ from src.core.modules.project_management.api.desktop.resources.serializers.resou
 from src.core.modules.project_management.api.desktop.resources.serializers.skill_serializer import (
     serialize_skill,
 )
-from src.core.modules.project_management.api.desktop.resources.services.availability_resolution_service import (
-    resolve_availability_service,
-)
 from src.core.modules.project_management.api.desktop.resources.utils.date_utils import (
     parse_date,
 )
@@ -70,9 +64,6 @@ from src.core.modules.project_management.api.desktop.resources.utils.resource_en
 from src.core.modules.project_management.application.resources import (
     ResourceAvailabilityService,
     ResourceService,
-)
-from src.core.modules.project_management.contracts.repositories.task import (
-    AssignmentRepository,
 )
 from src.core.platform.application.master_data.employee.employee_service import EmployeeService
 
@@ -85,17 +76,13 @@ class ProjectManagementResourcesDesktopApi:
         employee_service: EmployeeService | None = None,
         availability_service: ResourceAvailabilityService | None = None,
         task_service: object | None = None,
-        assignment_repo: AssignmentRepository | None = None,
         project_service: object | None = None,
-        work_calendar_engine: CalendarProtocol | None = None,
     ) -> None:
         self._resource_service = resource_service
         self._employee_service = employee_service
         self._availability_service = availability_service
         self._task_service = task_service
-        self._assignment_repo = assignment_repo
         self._project_service = project_service
-        self._work_calendar_engine = work_calendar_engine
 
     def list_worker_types(self) -> tuple[ResourceWorkerTypeDescriptor, ...]:
         return build_worker_type_options()
@@ -122,6 +109,65 @@ class ProjectManagementResourcesDesktopApi:
             for resource in resources
         )
 
+    def list_resource_page(
+        self,
+        *,
+        search_text: str = "",
+        active: str = "all",
+        category: str = "all",
+        page: int = 1,
+        page_size: int = 25,
+    ) -> ResourceCatalogPageDesktopDto:
+        service = self._require_resource_service()
+        normalized_active = str(active or "all").strip().lower()
+        active_value = (
+            True if normalized_active == "active"
+            else False if normalized_active == "inactive"
+            else None
+        )
+        normalized_category = str(category or "all").strip().upper()
+        category_value = (
+            None if normalized_category == "ALL" else coerce_cost_type(normalized_category)
+        )
+        result = service.query_catalog_page(
+            search_text=search_text,
+            active=active_value,
+            category=category_value,
+            page=page,
+            page_size=page_size,
+        )
+        items: list[ResourceDesktopDto] = []
+        for item in result.items:
+            employee_lookup: dict[str, ResourceEmployeeOptionDescriptor] = {}
+            employee_id = str(getattr(item.resource, "employee_id", "") or "")
+            if employee_id:
+                context = " | ".join(
+                    value for value in (item.department_label, item.site_label) if value
+                ) or "-"
+                employee_lookup[employee_id] = ResourceEmployeeOptionDescriptor(
+                    value=employee_id,
+                    label=item.employee_name or item.resource.name,
+                    name=item.employee_name or item.resource.name,
+                    title=item.employee_title,
+                    contact=item.employee_contact,
+                    context=context,
+                    department=item.department_label,
+                    site=item.site_label,
+                    is_active=bool(item.resource.is_active),
+                )
+            items.append(serialize_resource(item.resource, employee_lookup=employee_lookup))
+        return ResourceCatalogPageDesktopDto(
+            items=tuple(items),
+            filtered_total=result.filtered_total,
+            total=result.summary.total,
+            active=result.summary.active,
+            employees=result.summary.employees,
+            external=result.summary.external,
+            average_capacity=result.summary.average_capacity,
+            page=result.page,
+            page_size=result.page_size,
+        )
+
     def create_resource(self, command: ResourceCreateCommand) -> ResourceDesktopDto:
         service = self._require_resource_service()
         resource = service.create_resource(
@@ -145,29 +191,21 @@ class ProjectManagementResourcesDesktopApi:
 
     def update_resource(self, command: ResourceUpdateCommand) -> ResourceDesktopDto:
         service = self._require_resource_service()
-        current = service.get_resource(command.resource_id)
-        hourly_rate_changed = current is None or command.hourly_rate != current.hourly_rate
-        currency_changed = current is None or (
-            command.currency_code is not None
-            and command.currency_code.strip().upper() != (current.currency_code or "")
-        )
-        rate_affecting_change = hourly_rate_changed or currency_changed
         resource = service.update_resource(
             command.resource_id,
             name=command.name,
             code=getattr(command, "code", ""),
             role=command.role,
-            hourly_rate=command.hourly_rate if hourly_rate_changed else None,
+            hourly_rate=command.hourly_rate,
             is_active=command.is_active,
             cost_type=coerce_cost_type(command.cost_type),
-            currency_code=command.currency_code if currency_changed else None,
+            currency_code=command.currency_code,
             capacity_percent=command.capacity_percent,
             address=command.address,
             contact=command.contact,
             worker_type=coerce_worker_type(command.worker_type),
             employee_id=command.employee_id,
             expected_version=command.expected_version,
-            effective_on=date.today() if rate_affecting_change else None,
         )
         return serialize_resource(
             resource,
@@ -266,8 +304,6 @@ class ProjectManagementResourcesDesktopApi:
     ) -> tuple[ResourceAssignmentDesktopDto, ...]:
         return build_resource_assignments(
             resource_id,
-            assignment_repo=self._assignment_repo,
-            availability_service=self._availability_service,
             task_service=self._task_service,
             project_service=self._project_service,
         )
@@ -276,16 +312,9 @@ class ProjectManagementResourcesDesktopApi:
         self,
         resource_id: str,
     ) -> ResourceAvailabilityDto | None:
-        availability_service = resolve_availability_service(
-            availability_service=self._availability_service,
-            resource_service=self._resource_service,
-            task_service=self._task_service,
-            assignment_repo=self._assignment_repo,
-            work_calendar_engine=self._work_calendar_engine,
-        )
         return build_resource_availability(
             resource_id,
-            availability_service=availability_service,
+            availability_service=self._availability_service,
         )
 
     def _require_resource_service(self) -> ResourceService:

@@ -75,6 +75,12 @@ class IntegrationEventEnvelope(BaseModel):
     def payload_hash(self) -> str:
         return canonical_json_sha256(self.payload)
 
+    @property
+    def envelope_hash(self) -> str:
+        """Hash every immutable transport fact for conflicting-event detection."""
+
+        return canonical_json_sha256(self.model_dump(mode="json"))
+
     def inbox_deduplication_key(self, consumer_name: str) -> str:
         consumer = _required_text(consumer_name, label="Consumer name")
         identity = {

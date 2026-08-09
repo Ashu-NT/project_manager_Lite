@@ -9,8 +9,11 @@ from src.core.modules.project_management.application.collaboration import (
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import (
+    FinancialConfigurationService,
     FinanceService,
     ForecastCostService,
+    ProjectCostEntryService,
+    ProjectFinanceWorkspaceQuery,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
@@ -56,6 +59,9 @@ class ProjectManagementDesktopRuntimeServices:
     dashboard_service: DashboardService | None
     finance_service: FinanceService | None
     forecast_service: ForecastCostService | None
+    finance_workspace_query: ProjectFinanceWorkspaceQuery | None
+    financial_configuration_service: FinancialConfigurationService | None
+    cost_entry_service: ProjectCostEntryService | None
     baseline_service: BaselineService | None
     reporting_service: ReportingService | None
     cost_service: object | None
@@ -80,6 +86,9 @@ def resolve_project_management_desktop_runtime_services(
     dashboard_service = services.get("dashboard_service")
     finance_service = services.get("finance_service")
     forecast_service = services.get("forecast_service")
+    finance_workspace_query = services.get("finance_workspace_query")
+    financial_configuration_service = services.get("financial_configuration_service")
+    cost_entry_service = services.get("cost_entry_service")
     baseline_service = services.get("baseline_service")
     reporting_service = services.get("reporting_service")
 
@@ -157,6 +166,21 @@ def resolve_project_management_desktop_runtime_services(
         forecast_service=(
             forecast_service
             if isinstance(forecast_service, ForecastCostService)
+            else None
+        ),
+        finance_workspace_query=(
+            finance_workspace_query
+            if isinstance(finance_workspace_query, ProjectFinanceWorkspaceQuery)
+            else None
+        ),
+        financial_configuration_service=(
+            financial_configuration_service
+            if isinstance(financial_configuration_service, FinancialConfigurationService)
+            else None
+        ),
+        cost_entry_service=(
+            cost_entry_service
+            if isinstance(cost_entry_service, ProjectCostEntryService)
             else None
         ),
         baseline_service=(

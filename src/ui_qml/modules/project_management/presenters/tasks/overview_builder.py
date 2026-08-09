@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import date
 from typing import Any
 
 from src.ui_qml.modules.project_management.view_models.tasks import (
@@ -20,24 +19,16 @@ def build_empty_overview() -> TaskCatalogOverviewViewModel:
 
 def build_overview(
     *,
-    all_tasks: Any,
-    filtered_tasks: Any,
+    total: int,
+    filtered_total: int,
+    in_progress: int,
+    blocked: int,
+    done: int,
+    overdue: int,
     collaboration_workspace_snapshot: Any,
     collaboration_snapshot: Any,
     has_selected_task: bool,
 ) -> TaskCatalogOverviewViewModel:
-    today = date.today()
-
-    def count_by_status(status: str) -> int:
-        return sum(1 for task in all_tasks if task.status == status)
-
-    overdue_count = sum(
-        1
-        for task in all_tasks
-        if task.deadline is not None
-        and task.deadline < today
-        and task.status != "DONE"
-    )
     unread_mentions_count = sum(
         1
         for item in getattr(collaboration_workspace_snapshot, "inbox", ())
@@ -60,29 +51,29 @@ def build_overview(
         metrics=(
             TaskCatalogMetricViewModel(
                 label="Total tasks",
-                value=str(len(all_tasks)),
+                value=str(total),
                 supporting_text=(
-                    f"Showing {len(filtered_tasks)} with the current filters."
+                    f"Showing {filtered_total} with the current filters."
                 ),
             ),
             TaskCatalogMetricViewModel(
                 label="In progress",
-                value=str(count_by_status("IN_PROGRESS")),
+                value=str(in_progress),
                 supporting_text="Active execution tasks.",
             ),
             TaskCatalogMetricViewModel(
                 label="Blocked",
-                value=str(count_by_status("BLOCKED")),
+                value=str(blocked),
                 supporting_text="Needs intervention.",
             ),
             TaskCatalogMetricViewModel(
                 label="Done",
-                value=str(count_by_status("DONE")),
+                value=str(done),
                 supporting_text="Completed scope.",
             ),
             TaskCatalogMetricViewModel(
                 label="Overdue",
-                value=str(overdue_count),
+                value=str(overdue),
                 supporting_text="Past deadline and not done.",
             ),
             TaskCatalogMetricViewModel(

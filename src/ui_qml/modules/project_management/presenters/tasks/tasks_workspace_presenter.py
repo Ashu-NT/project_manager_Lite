@@ -68,6 +68,7 @@ from .time_command_handler import (
     update_task_time_entry,
 )
 from .workspace_builder import build_workspace_state
+from .task_mapper import to_task_record_view_model
 
 class ProjectTasksWorkspacePresenter:
     def __init__(
@@ -113,6 +114,34 @@ class ProjectTasksWorkspacePresenter:
             page=page,
             page_size=page_size,
         )
+
+    def list_export_records(
+        self,
+        *,
+        project_id: str | None = None,
+        search_text: str = "",
+        status_filter: str = "all",
+        priority_filter: str = "all",
+        schedule_filter: str = "all",
+        batch_size: int = 500,
+    ) -> tuple:
+        records = []
+        page = 1
+        while True:
+            result = self._desktop_api.list_task_page(
+                project_id=project_id,
+                search_text=search_text,
+                status=status_filter,
+                priority=priority_filter,
+                schedule=schedule_filter,
+                page=page,
+                page_size=batch_size,
+            )
+            records.extend(to_task_record_view_model(item) for item in result.items)
+            if page * result.page_size >= result.filtered_total:
+                break
+            page += 1
+        return tuple(records)
 
     def build_task_basic_detail_state(
         self,

@@ -2,6 +2,7 @@
 
 from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.modules.project_management.domain.resources.skills import (
+    CertificationStatus,
     ResourceCertification,
     ResourceSkill,
     SkillProficiencyLevel,
@@ -10,6 +11,7 @@ from src.core.modules.project_management.domain.resources.skills import (
 )
 
 __all__ = [
+    "CertificationStatus",
     "Resource",
     "ResourceCertification",
     "ResourceSkill",

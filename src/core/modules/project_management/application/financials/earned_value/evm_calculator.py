@@ -11,9 +11,9 @@ from typing import Callable
 
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
-from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.task import TaskRepository
-from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
+from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
+    EvmSeriesFacts,
+)
 
 from src.core.modules.project_management.application.financials.models.finance_models import (
     EarnedValueMetrics,
@@ -26,36 +26,25 @@ class EarnedValueCalculator:
 
     Parameters
     ----------
-    baseline_repo, task_repo, project_repo:
-        Repository dependencies.
     calendar:
         Enterprise calendar for working-day calculations.
-    get_actual_cost:
-        Callable ``(project_id: str, as_of: date) -> float``.
-        Supplied by CostPolicyEngine; if None, AC defaults to 0.
     """
 
     def __init__(
         self,
         *,
-        baseline_repo: BaselineRepository,
-        task_repo: TaskRepository,
-        project_repo: ProjectRepository,
         calendar: CalendarProtocol,
-        get_actual_cost: Callable[[str, date], float] | None = None,
     ) -> None:
-        self._baseline_repo = baseline_repo
-        self._task_repo = task_repo
-        self._project_repo = project_repo
         self._calendar = calendar
-        self._get_actual_cost = get_actual_cost
 
     def calculate(
         self,
         project_id: str,
         *,
-        as_of: date | None = None,
-        baseline_id: str | None = None,
+        as_of: date,
+        prepared_facts: EvmSeriesFacts,
+        actual_cost: float,
+        working_days_between: Callable[[date, date], int] | None = None,
     ) -> EarnedValueMetrics:
         """
         Compute EVM metrics for the project.
@@ -66,35 +55,36 @@ class EarnedValueCalculator:
         - AC: from CostPolicyEngine (policy-applied actual cost).
         - CPI, SPI, EAC, ETC, VAC, TCPI derived from above.
         """
-        as_of = as_of or date.today()
         notes: list[str] = []
 
-        if baseline_id:
-            baseline = self._baseline_repo.get_baseline(baseline_id)
-        else:
-            baseline = self._baseline_repo.get_latest_for_project(project_id)
+        if prepared_facts.finance.project_id != project_id:
+            raise BusinessRuleError(
+                "EVM facts do not match the requested project.",
+                code="EVM_FACT_SCOPE_MISMATCH",
+            )
+        resolved_baseline_id = prepared_facts.baseline_id
+        b_tasks = prepared_facts.baseline_tasks
+        tasks = {task.task_id: task for task in prepared_facts.finance.tasks}
+        project = prepared_facts.finance.project
 
-        if not baseline:
+        if not resolved_baseline_id:
             raise BusinessRuleError(
                 "No baseline found. Create a baseline first.", code="NO_BASELINE"
             )
 
-        b_tasks = self._baseline_repo.list_tasks(baseline.id)
         if not b_tasks:
             raise BusinessRuleError(
                 "Baseline has no tasks. Recreate baseline.", code="BASELINE_EMPTY"
             )
 
-        tasks = {t.id: t for t in self._task_repo.list_by_project(project_id)}
-
         def clamp01(x: float) -> float:
             return max(0.0, min(1.0, x))
 
         def working_days_inclusive(start: date, end: date) -> int:
-            return max(0, self._calendar.working_days_between(start, end))
+            counter = working_days_between or self._calendar.working_days_between
+            return max(0, counter(start, end))
 
         BAC = float(sum(bt.baseline_planned_cost for bt in b_tasks))
-        project = self._project_repo.get(project_id)
         if BAC <= 0 and project and getattr(project, "planned_budget", None):
             BAC = float(project.planned_budget or 0.0)
             notes.append("BAC set from project planned budget (project.planned_budget).")
@@ -196,11 +186,7 @@ class EarnedValueCalculator:
             notes.append("EV is 0 (tasks may have 0% progress or baseline budget is missing).")
 
         # ── Actual Cost (AC) from CostPolicyEngine ────────────────────────────
-        if self._get_actual_cost is not None:
-            AC = float(self._get_actual_cost(project_id, as_of))
-        else:
-            AC = 0.0
-            notes.append("AC is 0 (no cost policy engine provided).")
+        AC = float(actual_cost)
 
         if AC <= 0:
             notes.append(
@@ -236,7 +222,7 @@ class EarnedValueCalculator:
 
         return EarnedValueMetrics(
             as_of=as_of,
-            baseline_id=baseline.id,
+            baseline_id=resolved_baseline_id,
             BAC=BAC,
             PV=PV,
             EV=EV,
@@ -250,6 +236,25 @@ class EarnedValueCalculator:
             TCPI_to_EAC=TCPI_to_EAC,
             notes=" ".join(notes) if notes else None,
         )
+
+    def prepare_working_days(
+        self,
+        *,
+        starts_on: date,
+        ends_on: date,
+    ) -> Callable[[date, date], int]:
+        """Prepare request-scoped calendar data when bulk reads are available."""
+        loader = getattr(self._calendar, "working_day_dates_between", None)
+        if not callable(loader):
+            return self._calendar.working_days_between
+        working_dates = loader(starts_on, ends_on)
+
+        def _count(start: date, end: date) -> int:
+            if end < start:
+                return 0
+            return sum(1 for day in working_dates if start <= day <= end)
+
+        return _count
 
 
 __all__ = ["EarnedValueCalculator"]

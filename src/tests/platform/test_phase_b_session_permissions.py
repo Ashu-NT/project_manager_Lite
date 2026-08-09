@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
@@ -49,7 +50,6 @@ def test_cleared_session_denies_core_read_models(services):
     project = ps.create_project("Read Permission Project")
     task = ts.create_task(project.id, "Read Permission Task", start_date=date(2026, 5, 1), duration_days=2)
     resource = rs.create_resource("Read Permission Resource", hourly_rate=120.0)
-    cs.add_cost_item(project.id, "Read Permission Cost", planned_amount=100.0)
 
     services["user_session"].clear()
 
@@ -82,7 +82,7 @@ def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
     ps = services["project_service"]
     rs = services["resource_service"]
     ts = services["task_service"]
-    cs = services["cost_service"]
+    cost_entries = services["cost_entry_service"]
     prs = services["project_resource_service"]
 
     project = ps.create_project("Permission project")
@@ -104,10 +104,14 @@ def test_viewer_cannot_manage_resources_costs_tasks_or_assignments(services):
         rs.create_resource("Forbidden resource")
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
-        cs.add_cost_item(
+        cost_entries.create_manual_entry(
             project_id=project.id,
+            command_id="viewer-forbidden-cost",
             description="Forbidden cost",
-            planned_amount=100.0,
+            amount=Decimal("100"),
+            currency_code="EUR",
+            transaction_date=date(2026, 1, 1),
+            cost_code_id="forbidden-cost-code",
         )
 
     with pytest.raises(BusinessRuleError, match="Permission denied"):
@@ -186,26 +190,38 @@ def test_viewer_cannot_manage_project_resources_or_calendar_or_leveling(services
 
 def test_governance_permissions_are_split_between_request_and_decide(services, monkeypatch):
     monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")
-    monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "cost.update")
+    monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "project_cost.approve")
     auth = services["auth_service"]
     auth.register_user("planner4", "StrongPass123", role_names=["planner"])
     auth.register_user("viewer4", "StrongPass123", role_names=["viewer"])
     _login_as(services, "admin", "ChangeMe123!")
 
     ps = services["project_service"]
-    cs = services["cost_service"]
+    cost_entries = services["cost_entry_service"]
+    configuration = services["financial_configuration_service"]
     approvals = services["approval_service"]
 
     project = ps.create_project("Governance permission split")
-    item = cs.add_cost_item(project.id, "Hotel", planned_amount=200.0, actual_amount=20.0)
+    organization = services["organization_service"].get_active_organization()
+    cost_code = configuration.create_cost_code(code="HOTEL", name="Hotel")
+    item = cost_entries.create_manual_entry(
+        project_id=project.id,
+        command_id="governance-permission-split",
+        description="Hotel",
+        amount=Decimal("20"),
+        currency_code=organization.base_currency,
+        transaction_date=date(2026, 1, 1),
+        cost_code_id=cost_code.id,
+    )
+    item = cost_entries.submit(item.id, expected_version=item.row_version)
     _login_as(services, "planner4", "StrongPass123")
-    with pytest.raises(BusinessRuleError, match="Approval required"):
-        cs.update_cost_item(item.id, actual_amount=25.0)
+    result = cost_entries.approve(item.id, expected_version=item.row_version)
+    assert result.outcome.value == "pending_approval"
     request_id = approvals.list_pending(project_id=project.id)[0].id
 
     _login_as(services, "viewer4", "StrongPass123")
     with pytest.raises(BusinessRuleError, match="approval.request"):
-        cs.update_cost_item(item.id, actual_amount=30.0)
+        cost_entries.approve(item.id, expected_version=item.row_version)
     with pytest.raises(BusinessRuleError, match="approval.decide"):
         approvals.approve_and_apply(request_id)
 
@@ -236,7 +252,7 @@ def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(
     assert submitted.status.value == "SUBMITTED"
 
     with pytest.raises(BusinessRuleError, match="timesheet.approve"):
-        ts.approve_timesheet_period(submitted.id)
+        ts.approve_timesheet_period(submitted.period_id)
 
     with pytest.raises(BusinessRuleError, match="timesheet.lock"):
         ts.lock_timesheet_period(resource.id, period_start=date(2026, 7, 1))

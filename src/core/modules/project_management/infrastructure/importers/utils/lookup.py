@@ -44,23 +44,8 @@ def resolve_task(
     return None
 
 
-def resolve_cost(
-    cost_service: Any,
-    *,
-    project_id: str,
-    cost_id: str | None,
-) -> Any | None:
-    if not cost_id:
-        return None
-    return next(
-        (item for item in cost_service.list_cost_items_for_project(project_id) if item.id == cost_id),
-        None,
-    )
-
-
 __all__ = [
     "build_project_lookup",
-    "resolve_cost",
     "resolve_project",
     "resolve_task",
 ]

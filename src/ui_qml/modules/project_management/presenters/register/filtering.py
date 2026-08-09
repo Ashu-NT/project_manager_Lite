@@ -6,35 +6,6 @@ from src.core.modules.project_management.domain.risk.register import RegisterEnt
 
 from .utils import WorkspaceMode
 
-def matches_project(entry: Any, project_id: str) -> bool:
-    return project_id == "all" or entry.project_id == project_id
-
-def matches_type(entry: Any, type_filter: str) -> bool:
-    return type_filter == "all" or entry.entry_type == type_filter
-
-def matches_status(entry: Any, status_filter: str) -> bool:
-    return status_filter == "all" or entry.status == status_filter
-
-def matches_severity(entry: Any, severity_filter: str) -> bool:
-    return severity_filter == "all" or entry.severity == severity_filter
-
-def matches_search(entry: Any, search_text: str) -> bool:
-    if not search_text:
-        return True
-    normalized_search = search_text.casefold()
-    haystacks = (
-        entry.title or "",
-        entry.project_name or "",
-        entry.description or "",
-        entry.owner_name or "",
-        entry.impact_summary or "",
-        entry.response_plan or "",
-        entry.entry_type_label or "",
-        entry.status_label or "",
-        entry.severity_label or "",
-    )
-    return any(normalized_search in value.casefold() for value in haystacks)
-
 def normalize_filter(value: str, options: Any, *, default_value: str) -> str:
     normalized_value = (value or default_value).strip().lower()
     available_values = {
@@ -55,8 +26,8 @@ def normalize_type_filter(
 
 def build_empty_state(
     *,
-    all_entries: Any,
-    filtered_entries: Any,
+    total: int,
+    filtered_total: int,
     project_id: str,
     type_filter: str,
     status_filter: str,
@@ -64,9 +35,9 @@ def build_empty_state(
     search_text: str,
     workspace_mode: WorkspaceMode,
 ) -> str:
-    if filtered_entries:
+    if filtered_total:
         return ""
-    if not all_entries:
+    if not total:
         return (
             "No risks are available yet. Add the first project risk to start tracking mitigation."
             if workspace_mode == "risk"

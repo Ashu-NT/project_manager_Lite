@@ -19,7 +19,12 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "department.read": "View shared department directory records",
     "party.read": "View shared supplier, vendor, and contractor directory records",
     "cost.read": "View costs",
-    "cost.manage": "Create and edit costs",
+    "project_cost.create": "Create canonical project cost-entry drafts",
+    "project_cost.update_draft": "Update or delete canonical project cost-entry drafts",
+    "project_cost.submit": "Submit canonical project cost entries for approval",
+    "project_cost.approve": "Approve or reject canonical project cost entries",
+    "project_cost.post": "Post approved project cost entries to the actual-cost ledger",
+    "project_cost.reverse": "Reverse posted project cost entries",
     "finance.read": "View finance snapshots and ledgers",
     "finance.read_sensitive": "View sensitive finance rates and labor details",
     "finance.manage": "Manage finance controls and adjustments",
@@ -93,12 +98,14 @@ _PLANNER = _TEAM_MEMBER | {
     "portfolio.read",
     "approval.request",
     "import.manage",
+    "project_cost.create",
+    "project_cost.update_draft",
+    "project_cost.submit",
 }
 
 _PROJECT_MANAGER = _PLANNER | {
     "baseline.approve",
     "budget.approve",
-    "cost.manage",
     "finance.read",
     "finance.export",
     "timesheet.approve",
@@ -127,7 +134,6 @@ _FINANCE_CONTROLLER = {
     "time.read",
     "resource.read",
     "cost.read",
-    "cost.manage",
     "party.read",
     "register.read",
     "report.view",
@@ -141,6 +147,12 @@ _FINANCE_CONTROLLER = {
     "budget.manage",
     "plannedcost.manage",
     "budget.approve",
+    "project_cost.create",
+    "project_cost.update_draft",
+    "project_cost.submit",
+    "project_cost.approve",
+    "project_cost.post",
+    "project_cost.reverse",
 }
 
 _INVENTORY_MANAGER = {
@@ -217,6 +229,7 @@ _APPROVER = {
     "finance.read",
     "payroll.read",
     "approval.decide",
+    "project_cost.approve",
 }
 
 _AUDITOR = {
@@ -301,7 +314,6 @@ _PROJECT_CONTRIBUTOR = _PROJECT_VIEWER | {
 }
 
 _PROJECT_LEAD = _PROJECT_CONTRIBUTOR | {
-    "cost.manage",
     "baseline.manage",
     "budget.manage",
     "plannedcost.manage",
@@ -309,6 +321,9 @@ _PROJECT_LEAD = _PROJECT_CONTRIBUTOR | {
     "report.export",
     "approval.request",
     "finance.read",
+    "project_cost.create",
+    "project_cost.update_draft",
+    "project_cost.submit",
 }
 
 _PROJECT_OWNER = _PROJECT_LEAD | {
@@ -316,6 +331,9 @@ _PROJECT_OWNER = _PROJECT_LEAD | {
     "budget.approve",
     "timesheet.approve",
     "timesheet.lock",
+    "project_cost.approve",
+    "project_cost.post",
+    "project_cost.reverse",
 }
 
 _SITE_VIEWER = {
@@ -396,7 +414,7 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
 }
 
 SYSTEM_ROLE_POLICY_NAME = "system-role-permissions"
-SYSTEM_ROLE_POLICY_VERSION = 8
+SYSTEM_ROLE_POLICY_VERSION = 9
 
 __all__ = [
     "DEFAULT_PERMISSIONS",
