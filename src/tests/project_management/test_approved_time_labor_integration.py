@@ -14,6 +14,7 @@ from src.core.platform.integration import InboxProcessingStatus, OutboxDeliveryS
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 from src.core.platform.infrastructure.persistence.orm.time_management.time_financial_outbox import TimeFinancialOutboxORM
 from src.core.modules.project_management.infrastructure.persistence.orm.finance_inbox import ProjectFinanceInboxORM
+from src.core.shared.events.domain_events import domain_events
 
 
 def _setup(services):
@@ -133,6 +134,60 @@ def test_approval_rolls_back_when_atomic_outbox_write_fails(services, monkeypatc
     persisted = services["timesheet_service"]._timesheet_period_repo.get(submitted.period_id)
     assert persisted.status is TimesheetPeriodStatus.SUBMITTED
     assert services["session"].execute(select(TimeFinancialOutboxORM)).scalars().all() == []
+
+
+def test_closed_financial_period_keeps_approved_time_retryable_without_posting(services) -> None:
+    _, project, resource, _, assignment = _setup(services)
+    period_service = services["financial_period_service"]
+    financial_period = period_service.list_periods()[0]
+    period_service.close_period(financial_period.id, expected_version=financial_period.version)
+
+    services["task_service"].add_time_entry(
+        assignment.id, entry_date=date(2026, 5, 7), hours=Decimal("2")
+    )
+    submitted = services["timesheet_service"].submit_timesheet_period(
+        resource.id, period_start=date(2026, 5, 1)
+    )
+    approved = services["timesheet_service"].approve_timesheet_period(
+        submitted.period_id, note="Approved source fact"
+    )
+
+    assert approved.status is TimesheetPeriodStatus.APPROVED
+    _, total = services["cost_entry_service"].list_for_project(project.id)
+    assert total == 0
+    outbox = services["session"].execute(select(TimeFinancialOutboxORM)).scalar_one()
+    assert outbox.status == OutboxDeliveryStatus.RETRY.value
+    assert outbox.last_error_code == "FINANCIAL_PERIOD_POSTING_BLOCKED"
+    inbox = services["session"].execute(select(ProjectFinanceInboxORM)).scalar_one()
+    assert inbox.status == InboxProcessingStatus.RETRY.value
+    assert inbox.last_error_code == "FINANCIAL_PERIOD_POSTING_BLOCKED"
+
+
+def test_post_commit_ui_refresh_failure_does_not_retry_financial_delivery(services) -> None:
+    _, project, resource, _, assignment = _setup(services)
+    services["task_service"].add_time_entry(
+        assignment.id, entry_date=date(2026, 5, 8), hours=Decimal("1")
+    )
+    submitted = services["timesheet_service"].submit_timesheet_period(
+        resource.id, period_start=date(2026, 5, 1)
+    )
+
+    def _fail_refresh(_project_id: str) -> None:
+        raise RuntimeError("local refresh unavailable")
+
+    domain_events.cost_entries_changed.connect(_fail_refresh)
+    try:
+        services["timesheet_service"].approve_timesheet_period(submitted.period_id)
+    finally:
+        domain_events.cost_entries_changed.disconnect(_fail_refresh)
+
+    _, total = services["cost_entry_service"].list_for_project(project.id)
+    assert total == 1
+    outbox = services["session"].execute(select(TimeFinancialOutboxORM)).scalar_one()
+    inbox = services["session"].execute(select(ProjectFinanceInboxORM)).scalar_one()
+    assert outbox.status == OutboxDeliveryStatus.PUBLISHED.value
+    assert outbox.last_error_code is None
+    assert inbox.status == InboxProcessingStatus.PROCESSED.value
 
 
 def test_labor_posting_migration_is_reversible_and_immutable(tmp_path) -> None:

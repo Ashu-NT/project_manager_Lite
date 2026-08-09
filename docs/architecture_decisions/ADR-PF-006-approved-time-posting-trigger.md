@@ -43,6 +43,7 @@ Test approved-only generation, LOCKED no-op, retry/out-of-order handling, source
 - PM Finance consumes through its owned inbox, resolves and snapshots the effective COST/HOUR rate, requires the default cost code and open financial period, and atomically writes the posted actual, immutable labor detail, audit, and receipt.
 - Correction reapproval references the latest source revision and creates an equal posted reversal plus replacement. `LOCKED` is a later administrative transition and emits no financial event; unlocking returns to APPROVED, while a reason-required correction command reopens to OPEN.
 - Database transport dispatches immediately after approval and replays a bounded pending batch at composition startup. Failures remain retryable/dead-letterable and never roll back an already committed approval.
+- A closed financial period creates no PM posting. The approved Time fact remains committed while both owned delivery stores retain retry state and the canonical `FINANCIAL_PERIOD_POSTING_BLOCKED` operator code.
 - Migration `s6t7u8v9w0x1` adds the directly scoped/RLS `project_approved_time_labor_postings` table with immutable update/delete guards and complete quantity/rate-card selection evidence.
 - The typed desktop correction adapter is implemented. Its final QML reason dialog/action is deliberately owned by Phase C.8's ledger redesign, not a temporary C.4 component.
 - No temporary files, in-memory delivery adapters, direct PM-to-Time implementation imports, or new deletion-register entries were added.

@@ -454,12 +454,14 @@ transport deduplication, conflict/stale quarantine, reversible schema, and immut
 guards; Alembic remains single-headed. There is no process-local delivery shim, cross-module
 implementation import, temporary file, or deletion-register item.
 
-Phase C.4 verification checkpoint: four focused approved-Time tests cover first approval,
+Phase C.4 verification checkpoint: six focused approved-Time tests cover first approval,
 rejection no-op, approval/outbox rollback atomicity, correction reversal/replacement, rate snapshot
-retention, LOCKED no-op, inbox/outbox completion, and reversible immutable migration. The combined
-C.1-C.4 ledger/commitment/delivery/architecture checkpoint passes 33 tests and Alembic remains
-single-headed at `s6t7u8v9w0x1`; the related Time lifecycle/RBAC/workspace checkpoint passes 23
-tests. No process-local financial delivery, thread/timer, direct cross-module implementation
+retention, LOCKED no-op, closed-period rejection with durable retry evidence, inbox/outbox
+completion, post-commit UI refresh isolation, and reversible immutable migration. The combined
+C.1-C.4 period/ledger/commitment/delivery/architecture checkpoint passes 43 tests and Alembic
+remains single-headed at `s6t7u8v9w0x1`; the selected related Time lifecycle/workspace checkpoint
+passes 17 tests. No
+process-local financial delivery, thread/timer, direct cross-module implementation
 import, temporary file, dual-write, legacy `CostItem` mutation, or deletion-register item was
 introduced. The desktop correction command is available; final QML ledger action/dialog work
 remains at the existing C.8 UI cutover gate. **Item 5, typed Procurement events and PM consumers,

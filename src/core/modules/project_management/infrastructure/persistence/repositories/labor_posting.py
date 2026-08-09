@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.contracts.repositories.labor_posting import ApprovedTimeLaborPostingRepository
 from src.core.modules.project_management.domain.financials.labor_posting import ApprovedTimeLaborPosting
 from src.core.modules.project_management.infrastructure.persistence.orm.labor_posting import ApprovedTimeLaborPostingORM
+from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import TenantScopedRepositorySupport
 
 
@@ -23,7 +24,7 @@ class SqlAlchemyApprovedTimeLaborPostingRepository(TenantScopedRepositorySupport
     def add(self, posting: ApprovedTimeLaborPosting) -> None:
         ctx = self._context(operation_label="record approved time labor posting")
         if posting.tenant_id != ctx.tenant_id or posting.organization_id != ctx.organization_id:
-            raise ValueError("Approved Time labor posting is outside the active scope.")
+            raise BusinessRuleError("Approved Time labor posting is outside the active scope.")
         self.session.add(ApprovedTimeLaborPostingORM(**posting.__dict__))
 
     def get_latest(self, time_entry_id: str, *, for_update: bool = False) -> ApprovedTimeLaborPosting | None:

@@ -60,15 +60,34 @@ class ApprovedTimeFinancialDispatcher:
                     published += 1
                 self._session.commit()
                 if project_id:
-                    domain_events.cost_entries_changed.emit(project_id)
+                    try:
+                        domain_events.cost_entries_changed.emit(project_id)
+                    except Exception:
+                        logger.warning(
+                            "Approved Time posting committed but local cost refresh failed "
+                            "project_id=%s",
+                            project_id,
+                            exc_info=True,
+                        )
             except Exception as exc:
                 self._session.rollback()
+                error_code = str(
+                    getattr(exc, "code", None) or type(exc).__name__.upper()
+                )[:96]
+                error_message = str(exc) or "Approved Time financial delivery failed."
                 try:
+                    failure_decision = self._inbox_service.begin_delivery(record.envelope)
+                    if failure_decision.disposition is InboxDeliveryDisposition.READY:
+                        self._inbox_service.record_failure(
+                            failure_decision.receipt.id,
+                            error_code=error_code,
+                            error_message=error_message,
+                        )
                     self._outbox_service.mark_failed(
                         record.id,
                         lease_token=lease_token,
-                        error_code=type(exc).__name__.upper(),
-                        error_message=str(exc),
+                        error_code=error_code,
+                        error_message=error_message,
                     )
                     self._session.commit()
                 except Exception:

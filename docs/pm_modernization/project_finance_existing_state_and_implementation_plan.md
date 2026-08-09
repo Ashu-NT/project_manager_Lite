@@ -1,6 +1,6 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: audit complete; Phase A0, A1, A2, Phase B item 8, and Phase C item 1 foundation code gates complete; hosted PostgreSQL validation pending
+Status: audit complete; Phase A0-A2, Phase B item 8, and Phase C items 1-4 code gates complete; hosted PostgreSQL validation pending
 Last updated: 2026-08-09
 Scope: Project Management finance plus reusable platform financial foundations
 Current increment: Task-owned WBS, effective-dated rate cards (ADR-PF-005) with the
@@ -23,7 +23,8 @@ order. Both rate-card and budget Numeric columns now declare it.
 Remaining Phase B scope: item 7's planning-report source decision remains blocked on the
 documented envelope-versus-allocation product decision and a snapshot freshness mechanism.
 Item 8's QML combined-Budget replacement is complete. Phase C item 1's organization financial-
-period foundation is complete; item 2's canonical actual-ledger lifecycle is next.
+period, actual-ledger, commitment, and approved-Time labor-posting foundations are complete.
+Phase C item 5's typed Procurement event delivery and PM consumer are next.
 
 ## 1. Executive Summary
 
@@ -874,7 +875,7 @@ ADR gate: ADR-PF-004, ADR-PF-006, ADR-PF-007, and ADR-PF-008 must be accepted be
 2. **Complete 2026-08-09:** add ProjectCostEntry draft/approval/post/reversal lifecycle with direct scope, Money/base-Money/FX snapshot, source, period, dimensions, actor/timestamps, and scoped idempotency constraints.
 3. **Complete 2026-08-09:** add PM commitment projections/lines, monotonic immutable source
    revisions, receipt-actual matching/reversal, cancellation/closure, and remaining-balance policy.
-4. Add an approved-Time contract/event and idempotent labor-cost consumer. Snapshot rate and reverse/replace corrected approvals.
+4. **Complete 2026-08-09:** add an approved-Time contract/event and idempotent labor-cost consumer. Snapshot rate and reverse/replace corrected approvals.
 5. Add typed Procurement project-source queries/events for PO lines, changes, cancellation, receipts, and supplier invoice references when available. PM creates projections/postings; Procurement remains owner.
 6. Replace manual combined CostItem writes with distinct planned, commitment, and manual-actual commands. Posted actuals are never editable/deletable.
 7. Backfill/split legacy CostItem rows, dual-read for reports, reconcile totals, and quarantine unresolved currency/source cases.
@@ -965,8 +966,30 @@ Implementation progress:
   test pass; the combined C.3/persistence/period architecture checkpoint passes 20 tests and C.2's
   7-test suite remains green. The migration downgrades independently to C.2 revision
   `p3q4r5s6t7u8` while preserving the actual ledger. C.3 introduced no transition code,
-  dual-write, temporary adapter, or legacy `CostItem` change. Item 4, the approved-Time labor-cost
-  consumer, is next.
+  dual-write, temporary adapter, or legacy `CostItem` change.
+- Item 4 is complete. Platform Time approval atomically writes one immutable, content-addressed
+  event per changed approved entry to its owned outbox. Reapproval after a reason-required
+  correction creates a monotonic source revision; rejection emits nothing and LOCKED is an
+  administrative no-op for Finance.
+- The infrastructure dispatcher uses the PM-owned durable inbox and applies the inbox receipt,
+  rate/financial-period validation, posted actual, immutable labor posting detail, reversal or
+  replacement, and fail-closed audit in one transaction. Source acknowledgement occurs only after
+  that commit. Delivery failures retain retry/dead-letter state, and a bounded startup replay plus
+  post-approval dispatch provide desktop operation without a task-specific thread or timer.
+- PM Finance resolves the effective COST/HOUR rate as of the work date and snapshots the complete
+  rate-card selection evidence. The Time contract carries hours and identity only; no Time
+  implementation type, repository, or rate crosses the boundary. The directly scoped labor table
+  has composite tenant/organization/project references, RLS, immutable database guards, and a
+  reversible `s6t7u8v9w0x1` migration.
+- Six focused C.4 integration tests cover first approval, rejection no-op, approval/outbox
+  rollback atomicity, correction reversal/replacement, rate evidence, LOCKED no-op, closed-period
+  rejection with durable retry evidence, inbox/outbox completion, post-commit UI refresh isolation,
+  and migration reversibility. Combined C.1-C.4 period/ledger/commitment/delivery/architecture
+  verification passes 43 tests; the selected related Time lifecycle/workspace verification passes
+  17 tests. C.4 introduced no transition file, temporary adapter, dual-write,
+  legacy `CostItem` mutation, or deletion-register item. The typed desktop correction command is
+  complete; its final QML reason dialog/action remains at item 8's ledger redesign gate. Item 5,
+  typed Procurement event delivery and PM consumers, is next.
 
 ### Phase D - Forecasts, ETC, change control, and enterprise reporting
 
@@ -1196,7 +1219,7 @@ The repository already uses global ADR-001 through ADR-004, so Project Finance d
 | [ADR-PF-003](../architecture_decisions/ADR-PF-003-wbs-and-hierarchical-tasks.md) | WBS versus hierarchical Tasks | ACCEPTED; TASK-OWNED WBS IMPLEMENTED | B WBS/planned-cost dimensions |
 | [ADR-PF-004](../architecture_decisions/ADR-PF-004-financial-posting-and-reversal.md) | Posting and signed reversal model | ACCEPTED; PROJECT COST LEDGER IMPLEMENTED IN C.2 | A1/C ledger schema |
 | [ADR-PF-005](../architecture_decisions/ADR-PF-005-rate-card-precedence.md) | Rate-card precedence | ACCEPTED; IMPLEMENTED INCLUDING COST-ENGINE CUTOVER (2026-08-05) | B rate-card implementation |
-| [ADR-PF-006](../architecture_decisions/ADR-PF-006-approved-time-posting-trigger.md) | Approved-time posting trigger | ACCEPTED; PHASE A2 SOURCE CONTRACT IMPLEMENTED | A2 contract/C consumer |
+| [ADR-PF-006](../architecture_decisions/ADR-PF-006-approved-time-posting-trigger.md) | Approved-time posting trigger | ACCEPTED; PHASE C.4 SOURCE EVENT AND CONSUMER IMPLEMENTED | A2 contract/C consumer |
 | [ADR-PF-007](../architecture_decisions/ADR-PF-007-procurement-financial-triggers.md) | Procurement commitment and actual triggers | ACCEPTED; PHASE A2 SOURCE CONTRACTS IMPLEMENTED | A2 contract/C consumer |
 | [ADR-PF-008](../architecture_decisions/ADR-PF-008-approval-unit-of-work.md) | Approval and unit-of-work transaction model | ACCEPTED; INITIAL TRANSACTION CUTOVER IMPLEMENTED | A0 approval refactor |
 | [ADR-PF-009](../architecture_decisions/ADR-PF-009-cost-code-ownership.md) | Cost-code ownership and hierarchy | ACCEPTED; PHASE B1 FOUNDATION IMPLEMENTED | B cost-code schema |
@@ -1225,7 +1248,7 @@ These are genuine product/ownership decisions. Questions mapped to A0/A1/A2 ADRs
 
 ## 25. Final Recommendation
 
-Proceed with the upgrade, but do not extend the current combined CostItem model. Phase A0 security/transaction correctness, A1 monetary foundations, A2 canonical application foundations, the Phase B1 configuration foundation, Task-owned WBS, effective-dated rate cards with the `CostPolicyEngine`/`LaborCostEngine` cutover, the versioned Budget/BudgetLine lifecycle, tactical assignment-labor planned-cost snapshots, the five-view QML finance configuration replacement, organization financial periods, and the canonical `ProjectCostEntry` actual-ledger lifecycle are implemented. Item 7's planned-cost source cutover remains explicitly blocked by planning semantics and freshness ownership; do not force it. Continue with Phase C.3 commitments, then approved-Time and Procurement consumers, while deferring legacy CostItem/QML cutover to the named C.6-C.8 gates.
+Proceed with the upgrade, but do not extend the current combined CostItem model. Phase A0 security/transaction correctness, A1 monetary foundations, A2 canonical application foundations, the Phase B1 configuration foundation, Task-owned WBS, effective-dated rate cards with the `CostPolicyEngine`/`LaborCostEngine` cutover, the versioned Budget/BudgetLine lifecycle, tactical assignment-labor planned-cost snapshots, the five-view QML finance configuration replacement, organization financial periods, the canonical `ProjectCostEntry` actual ledger, PM commitment projections, and approved-Time labor posting are implemented. Item 7's planned-cost source cutover remains explicitly blocked by planning semantics and freshness ownership; do not force it. Continue with Phase C.5 typed Procurement event delivery and PM consumers, while deferring legacy CostItem/QML cutover to the named C.6-C.8 gates.
 
 Then build Project Finance as explicit PM-owned aggregates while preserving valid module ownership: Time supplies approved hours, Procurement supplies PO/receipt facts, Party supplies identities, Approval and Audit remain platform services, and external accounting owns official ledger/payment behavior. Use additive persistence and temporary compatibility only to migrate verified data; delete every fallback, dual-write, alias, and transition adapter at its named phase gate.
 
