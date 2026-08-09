@@ -82,14 +82,6 @@ Item {
             message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
         }
 
-        AppWidgets.InlineMessage {
-            Layout.fillWidth: true
-            visible: String(root.tasksModel.warningMessage || "").length > 0
-                && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
-            tone: "warning"
-            message: String(root.tasksModel.warningMessage || "")
-        }
-
         AppWidgets.TableToolbar {
             id: tableToolbar
             Layout.fillWidth: true

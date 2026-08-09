@@ -41,6 +41,8 @@ class ProjectTimesheetsWorkspacePresenter:
         queue_status: str = "SUBMITTED",
         selected_entry_id: str | None = None,
         selected_queue_period_id: str | None = None,
+        queue_page: int = 1,
+        queue_page_size: int = 25,
     ) -> TimesheetsWorkspaceViewModel:
         return build_workspace_state(
             self._desktop_api,
@@ -50,6 +52,8 @@ class ProjectTimesheetsWorkspacePresenter:
             queue_status=queue_status,
             selected_entry_id=selected_entry_id,
             selected_queue_period_id=selected_queue_period_id,
+            queue_page=queue_page,
+            queue_page_size=queue_page_size,
         )
 
     def build_review_period_detail(self, period_id: str) -> TimesheetDetailViewModel:

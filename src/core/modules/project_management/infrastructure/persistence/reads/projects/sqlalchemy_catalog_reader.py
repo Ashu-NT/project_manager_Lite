@@ -1,0 +1,109 @@
+from __future__ import annotations
+
+from sqlalchemy import func, or_, select
+from sqlalchemy.orm import Session
+
+from src.core.modules.project_management.contracts.reads.projects import (
+    ProjectCatalogReadItem,
+    ProjectCatalogReadPage,
+    ProjectCatalogSummary,
+)
+from src.core.modules.project_management.domain.enums import ProjectStatus
+from src.core.modules.project_management.infrastructure.persistence.mappers.project import (
+    project_from_orm,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
+from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
+
+
+def _contains_pattern(value: str) -> str:
+    escaped = value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped.lower()}%"
+
+
+class SqlAlchemyProjectCatalogReader:
+    def __init__(self, *, session: Session) -> None:
+        self._session = session
+
+    def read_page(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        allowed_project_ids: tuple[str, ...] | None,
+        search_text: str,
+        status: ProjectStatus | None,
+        page: int,
+        page_size: int,
+    ) -> ProjectCatalogReadPage:
+        if allowed_project_ids == ():
+            return ProjectCatalogReadPage(page=page, page_size=page_size)
+
+        scope_filters = (
+            ProjectORM.tenant_id == tenant_id,
+            ProjectORM.organization_id == organization_id,
+        )
+        if allowed_project_ids is not None:
+            scope_filters = (*scope_filters, ProjectORM.id.in_(allowed_project_ids))
+
+        status_rows = self._session.execute(
+            select(ProjectORM.status, func.count(ProjectORM.id))
+            .where(*scope_filters)
+            .group_by(ProjectORM.status)
+        ).all()
+        status_counts = {status_value: int(count or 0) for status_value, count in status_rows}
+        summary = ProjectCatalogSummary(
+            total=sum(status_counts.values()),
+            active=status_counts.get(ProjectStatus.ACTIVE, 0),
+            planned=status_counts.get(ProjectStatus.PLANNED, 0),
+            on_hold=status_counts.get(ProjectStatus.ON_HOLD, 0),
+            completed=status_counts.get(ProjectStatus.COMPLETED, 0),
+        )
+
+        filtered = list(scope_filters)
+        if status is not None:
+            filtered.append(ProjectORM.status == status)
+        normalized_search = str(search_text or "").strip()
+        if normalized_search:
+            pattern = _contains_pattern(normalized_search)
+            filtered.append(
+                or_(
+                    func.lower(ProjectORM.name).like(pattern, escape="\\"),
+                    func.lower(func.coalesce(ProjectORM.client_name, "")).like(pattern, escape="\\"),
+                    func.lower(func.coalesce(ProjectORM.client_contact, "")).like(pattern, escape="\\"),
+                    func.lower(func.coalesce(ProjectORM.description, "")).like(pattern, escape="\\"),
+                )
+            )
+
+        filtered_total = int(
+            self._session.scalar(select(func.count(ProjectORM.id)).where(*filtered)) or 0
+        )
+        rows = self._session.execute(
+            select(ProjectORM, SiteORM.name)
+            .outerjoin(
+                SiteORM,
+                (SiteORM.id == ProjectORM.site_id)
+                & (SiteORM.tenant_id == ProjectORM.tenant_id)
+                & (SiteORM.organization_id == ProjectORM.organization_id),
+            )
+            .where(*filtered)
+            .order_by(func.lower(ProjectORM.name), ProjectORM.id)
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        ).all()
+        return ProjectCatalogReadPage(
+            items=tuple(
+                ProjectCatalogReadItem(
+                    project=project_from_orm(project_row),
+                    site_label=str(site_name or ""),
+                )
+                for project_row, site_name in rows
+            ),
+            filtered_total=filtered_total,
+            page=page,
+            page_size=page_size,
+            summary=summary,
+        )
+
+
+__all__ = ["SqlAlchemyProjectCatalogReader"]

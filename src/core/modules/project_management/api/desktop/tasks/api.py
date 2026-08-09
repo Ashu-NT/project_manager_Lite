@@ -69,7 +69,7 @@ from src.core.modules.project_management.api.desktop.tasks.models.skill import (
 )
 from src.core.modules.project_management.api.desktop.tasks.models.task import (
     TaskDesktopDto,
-    TaskListResultDto,
+    TaskWorkspacePageDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.tasks.models.validation import (
     AssignmentPreviewDesktopDto,
@@ -227,32 +227,64 @@ class ProjectManagementTasksDesktopApi:
         project_name = self._project_name_by_id().get(project_id, "")
         return self._serialize_project_tasks(project_id, project_name)
 
-    def list_all_tasks(self) -> TaskListResultDto:
+    def list_task_page(
+        self,
+        *,
+        project_id: str | None = None,
+        search_text: str = "",
+        status: str = "all",
+        priority: str = "all",
+        schedule: str = "all",
+        page: int = 1,
+        page_size: int = 25,
+    ) -> TaskWorkspacePageDesktopDto:
         service = self._require_task_service()
-        project_name_lookup = self._project_name_by_id()
-        if not project_name_lookup:
-            return TaskListResultDto()
-        all_tasks: list[TaskDesktopDto] = []
-        skipped_project_ids: list[str] = []
-        for project_id, project_name in sorted(
-            project_name_lookup.items(),
-            key=lambda item: (item[1].casefold(), item[0]),
-        ):
-            try:
-                tasks = self._serialize_project_tasks(project_id, project_name)
-            except BusinessRuleError as exc:
-                if getattr(exc, "code", "") != "PERMISSION_DENIED":
-                    raise
-                skipped_project_ids.append(project_id)
-                logger.warning(
-                    "Task project omitted after permission denial project_id=%s",
-                    project_id,
+        result = service.query_workspace_page(
+            project_id=project_id,
+            search_text=search_text,
+            status=status,
+            priority=priority,
+            schedule=schedule,
+            page=page,
+            page_size=page_size,
+        )
+        return TaskWorkspacePageDesktopDto(
+            items=tuple(
+                TaskDesktopDto(
+                    id=item.id,
+                    project_id=item.project_id,
+                    project_name=item.project_name,
+                    name=item.name,
+                    code=item.code,
+                    description=item.description,
+                    status=item.status,
+                    status_label=item.status.replace("_", " ").title(),
+                    start_date=item.start_date,
+                    end_date=item.end_date,
+                    duration_days=item.duration_days,
+                    priority=item.priority,
+                    percent_complete=item.percent_complete,
+                    actual_start=item.actual_start,
+                    actual_end=item.actual_end,
+                    deadline=item.deadline,
+                    version=item.version,
+                    parent_task_id=item.parent_task_id,
+                    wbs_code=item.wbs_code,
+                    sort_order=item.sort_order,
+                    is_summary=item.is_summary,
+                    hierarchy_depth=item.hierarchy_depth,
+                    child_count=item.child_count,
                 )
-                continue
-            all_tasks.extend(tasks)
-        return TaskListResultDto(
-            tasks=tuple(all_tasks),
-            skipped_project_ids=tuple(skipped_project_ids),
+                for item in result.items
+            ),
+            filtered_total=result.filtered_total,
+            total=result.summary.total,
+            in_progress=result.summary.in_progress,
+            blocked=result.summary.blocked,
+            done=result.summary.done,
+            overdue=result.summary.overdue,
+            page=result.page,
+            page_size=result.page_size,
         )
 
     def create_task(self, command: TaskCreateCommand) -> TaskDesktopDto:

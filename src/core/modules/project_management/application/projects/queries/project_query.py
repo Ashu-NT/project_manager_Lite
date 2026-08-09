@@ -7,6 +7,11 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.contracts.repositories.project import (
     ProjectRepository,
 )
+from src.core.modules.project_management.application.common.pagination import PageRequest
+from src.core.modules.project_management.contracts.reads.projects import (
+    ProjectCatalogReadPage,
+    ProjectCatalogReader,
+)
 from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
@@ -17,6 +22,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
 
 class ProjectQueryMixin:
     _project_repo: ProjectRepository
+    _project_catalog_reader: ProjectCatalogReader | None
 
     def list_projects(self) -> list[Project]:
         require_permission(self._user_session, "project.read", operation_label="list projects")
@@ -26,6 +32,40 @@ class ProjectQueryMixin:
             self._user_session,
             permission_code="project.read",
             project_id_getter=lambda project: project.id,
+        )
+
+    def query_catalog_page(
+        self,
+        *,
+        search_text: str = "",
+        status: ProjectStatus | None = None,
+        page: int = 1,
+        page_size: int = 25,
+    ) -> ProjectCatalogReadPage:
+        require_permission(
+            self._user_session,
+            "project.read",
+            operation_label="list project catalog",
+        )
+        if self._project_catalog_reader is None or self._tenant_context_service is None:
+            raise RuntimeError("Project catalog reader is not configured.")
+        page_request = PageRequest(page=page, page_size=page_size)
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="list project catalog"
+        )
+        allowed_project_ids: tuple[str, ...] | None = None
+        if self._user_session is not None and self._user_session.is_project_restricted():
+            allowed_project_ids = tuple(
+                sorted(self._user_session.project_ids_for("project.read"))
+            )
+        return self._project_catalog_reader.read_page(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            allowed_project_ids=allowed_project_ids,
+            search_text=str(search_text or "").strip(),
+            status=status,
+            page=page_request.page,
+            page_size=page_request.page_size,
         )
 
     def list_for_task_workspace(self) -> list[Project]:

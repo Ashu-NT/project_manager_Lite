@@ -32,6 +32,7 @@ from src.core.modules.project_management.api.desktop.resources.models.options im
     ResourceWorkerTypeDescriptor,
 )
 from src.core.modules.project_management.api.desktop.resources.models.resources import (
+    ResourceCatalogPageDesktopDto,
     ResourceDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.resources.models.skills import (
@@ -46,6 +47,7 @@ __all__ = [
     "ResourceAvailabilityDayDto",
     "ResourceAvailabilityDto",
     "ResourceCategoryDescriptor",
+    "ResourceCatalogPageDesktopDto",
     "ResourceCertificationDesktopDto",
     "ResourceCreateCommand",
     "ResourceDesktopDto",

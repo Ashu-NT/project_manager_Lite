@@ -74,6 +74,9 @@ class RegisterWorkspaceViewModel:
     selected_entry_detail: RegisterDetailViewModel = field(default_factory=RegisterDetailViewModel)
     urgent_entries: RegisterCollectionViewModel = field(default_factory=lambda: RegisterCollectionViewModel("", "", ""))
     empty_state: str = ""
+    total_count: int = 0
+    page: int = 1
+    page_size: int = 25
 
 __all__ = [
     "RegisterCollectionViewModel",

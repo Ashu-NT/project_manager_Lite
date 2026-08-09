@@ -103,7 +103,7 @@ def test_project_management_timesheets_desktop_api_supports_assignment_periods_a
         note="Submitted for supervisor review.",
     )
     assert timesheet_service.resource_period_read_count == 1
-    review_queue = api.list_review_queue()
+    review_queue = api.list_review_queue_page().items
     review_detail = api.get_review_detail(submitted_period.period_id)
     approved_period = api.approve_period(
         submitted_period.period_id,

@@ -25,4 +25,12 @@ class TimesheetPeriodSummaryDesktopDto:
     project_names: tuple[str, ...]
 
 
-__all__ = ["TimesheetPeriodSummaryDesktopDto"]
+@dataclass(frozen=True)
+class TimesheetReviewPageDesktopDto:
+    items: tuple[TimesheetPeriodSummaryDesktopDto, ...] = ()
+    total: int = 0
+    page: int = 1
+    page_size: int = 25
+
+
+__all__ = ["TimesheetPeriodSummaryDesktopDto", "TimesheetReviewPageDesktopDto"]

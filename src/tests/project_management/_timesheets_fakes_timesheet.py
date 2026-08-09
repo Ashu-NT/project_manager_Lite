@@ -206,6 +206,22 @@ class _FakeTimesheetService:
             rows.append(self._build_review_summary(period))
         return rows[:limit]
 
+    def query_review_queue_page(
+        self,
+        *,
+        status=TimesheetPeriodStatus.SUBMITTED,
+        page=1,
+        page_size=25,
+    ) -> SimpleNamespace:
+        rows = self.list_timesheet_review_queue(status=status, limit=10000)
+        offset = (page - 1) * page_size
+        return SimpleNamespace(
+            items=tuple(rows[offset:offset + page_size]),
+            total=len(rows),
+            page=page,
+            page_size=page_size,
+        )
+
     def get_timesheet_review_detail(self, period_id: str) -> SimpleNamespace:
         period = self._period_by_id(period_id)
         summary = self._build_review_summary(period)

@@ -63,7 +63,6 @@ class PMTaskListController(QObject):
         self._wbs_parent_options: list[dict[str, str]] = []
         self._tasks: dict[str, object] = {
             "title": "", "subtitle": "", "emptyState": "", "items": [],
-            "warningMessage": "", "skippedProjectIds": [],
         }
         self._selected_task: dict[str, object] = {
             "id": "", "title": "", "statusLabel": "", "subtitle": "",
@@ -106,8 +105,6 @@ class PMTaskListController(QObject):
                 "Edit delivery tasks, progress, and execution priorities."
             ),
             "emptyState": workspace_state.empty_state,
-            "warningMessage": workspace_state.partial_load_message,
-            "skippedProjectIds": list(workspace_state.skipped_project_ids),
             "items": items,
         })
         self._set_selected_task(

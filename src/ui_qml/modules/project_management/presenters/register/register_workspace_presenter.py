@@ -33,6 +33,8 @@ class ProjectRegisterWorkspacePresenter:
         severity_filter: str = "all",
         search_text: str = "",
         selected_entry_id: str | None = None,
+        page: int = 1,
+        page_size: int = 25,
     ) -> RegisterWorkspaceViewModel:
         return build_workspace_state(
             self._desktop_api,
@@ -42,6 +44,8 @@ class ProjectRegisterWorkspacePresenter:
             severity_filter=severity_filter,
             search_text=search_text,
             selected_entry_id=selected_entry_id,
+            page=page,
+            page_size=page_size,
             workspace_mode=self._workspace_mode,
         )
 

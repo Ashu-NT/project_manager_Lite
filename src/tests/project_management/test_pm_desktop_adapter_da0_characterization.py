@@ -29,9 +29,6 @@ from src.core.modules.project_management.api.desktop.scheduling.builders.change_
 from src.core.modules.project_management.api.desktop.tasks.api import (
     ProjectManagementTasksDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.tasks.models.task import (
-    TaskDesktopDto,
-)
 from src.core.modules.project_management.api.desktop.tasks.builders.assignment_preview_builder import (
     build_assignment_preview,
 )
@@ -65,11 +62,7 @@ from src.core.modules.project_management.domain.risk.register import (
 from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
     ResourceLoadRow,
 )
-from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
-from src.ui_qml.modules.project_management.presenters.tasks.workspace_builder import (
-    build_workspace_state,
-)
 
 
 class _ImpactService:
@@ -210,87 +203,6 @@ def test_da1_task_reader_queries_only_its_scoped_project_resources(services) -> 
     assert [row.id for row in projects] == [project.id]
     assert [row.id for row in memberships] == [membership.id]
     assert [row.id for row in resources] == [resource.id]
-
-
-def test_da2_task_list_reports_permission_denied_project_as_partial() -> None:
-    api = ProjectManagementTasksDesktopApi(task_service=object())
-    api._project_name_by_id = lambda: {
-        "project-allowed": "Allowed",
-        "project-denied": "Denied",
-    }
-
-    def _serialize(project_id: str, _project_name: str):
-        if project_id == "project-denied":
-            raise BusinessRuleError("Permission denied", code="PERMISSION_DENIED")
-        return (SimpleNamespace(id="task-allowed"),)
-
-    api._serialize_project_tasks = _serialize
-
-    result = api.list_all_tasks()
-
-    assert [row.id for row in result.tasks] == ["task-allowed"]
-    assert result.skipped_project_ids == ("project-denied",)
-    assert result.is_partial is True
-
-
-def test_da2_task_list_preserves_non_permission_business_errors() -> None:
-    api = ProjectManagementTasksDesktopApi(task_service=object())
-    api._project_name_by_id = lambda: {"project-1": "Project"}
-    api._serialize_project_tasks = lambda *_args: (_ for _ in ()).throw(
-        BusinessRuleError(
-            "Active organization is required.",
-            code="TENANT_CONTEXT_REQUIRED",
-        )
-    )
-
-    with pytest.raises(BusinessRuleError) as exc_info:
-        api.list_all_tasks()
-
-    assert exc_info.value.code == "TENANT_CONTEXT_REQUIRED"
-
-
-def test_da2_task_presenter_surfaces_partial_scope_warning() -> None:
-    allowed_task = TaskDesktopDto(
-        id="task-allowed",
-        project_id="project-allowed",
-        project_name="Allowed",
-        name="Allowed Task",
-        code="TASK-001",
-        description="",
-        status="TODO",
-        status_label="To Do",
-        start_date=None,
-        end_date=None,
-        duration_days=None,
-        priority=0,
-        percent_complete=0.0,
-        actual_start=None,
-        actual_end=None,
-        deadline=None,
-        version=1,
-    )
-    api = ProjectManagementTasksDesktopApi(
-        project_service=SimpleNamespace(
-            list_for_task_workspace=lambda: (
-                SimpleNamespace(id="project-allowed", name="Allowed"),
-                SimpleNamespace(id="project-denied", name="Denied"),
-            )
-        ),
-        task_service=object(),
-    )
-
-    def _serialize(project_id: str, _project_name: str):
-        if project_id == "project-denied":
-            raise BusinessRuleError("Permission denied", code="PERMISSION_DENIED")
-        return (allowed_task,)
-
-    api._serialize_project_tasks = _serialize
-
-    workspace = build_workspace_state(api)
-
-    assert [row.id for row in workspace.tasks] == [allowed_task.id]
-    assert workspace.skipped_project_ids == ("project-denied",)
-    assert "access changed" in workspace.partial_load_message
 
 
 def test_da1_task_project_scope_resolution_uses_public_application_query() -> None:

@@ -10,6 +10,7 @@ from src.core.modules.project_management.application.resources import (
 from src.core.platform.application.master_data.site.site_service import SiteService
 
 from src.core.modules.project_management.api.desktop.projects.models.project import (
+    ProjectCatalogPageDesktopDto,
     ProjectDesktopDto,
     ProjectStatusDescriptor,
 )
@@ -70,6 +71,45 @@ class ProjectManagementProjectsDesktopApi:
             key=lambda p: (p.name or "").casefold(),
         )
         return tuple(serialize_project(p, site_lookup=site_lookup) for p in projects)
+
+    def list_project_page(
+        self,
+        *,
+        search_text: str = "",
+        status: str = "all",
+        page: int = 1,
+        page_size: int = 25,
+    ) -> ProjectCatalogPageDesktopDto:
+        service = self._require_project_service()
+        normalized_status = str(status or "all").strip().lower()
+        status_value = (
+            None
+            if normalized_status == "all"
+            else coerce_project_status(normalized_status)
+        )
+        result = service.query_catalog_page(
+            search_text=search_text,
+            status=status_value,
+            page=page,
+            page_size=page_size,
+        )
+        return ProjectCatalogPageDesktopDto(
+            items=tuple(
+                serialize_project(
+                    item.project,
+                    site_lookup={str(item.project.site_id or ""): item.site_label},
+                )
+                for item in result.items
+            ),
+            filtered_total=result.filtered_total,
+            total=result.summary.total,
+            active=result.summary.active,
+            planned=result.summary.planned,
+            on_hold=result.summary.on_hold,
+            completed=result.summary.completed,
+            page=result.page,
+            page_size=result.page_size,
+        )
 
     def list_projects_by_status(self, status: str) -> tuple[ProjectDesktopDto, ...]:
         if self._project_service is None:

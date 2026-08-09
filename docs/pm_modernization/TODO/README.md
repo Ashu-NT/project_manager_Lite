@@ -119,13 +119,12 @@ DA1 Tasks checkpoint (2026-08-08):
 - Focused checkpoint: 28 tests passed. Broader task/desktop-adapter checkpoint: 124 tests passed,
   458 deselected, with three pre-existing warnings. DA1 is complete; DA2 is next.
 
-DA2 checkpoint (2026-08-08):
+DA2 checkpoint (2026-08-08; transition mechanism removed 2026-08-09):
 
-- Added `TaskListResultDto` with `tasks`, `skipped_project_ids`, and `is_partial`. Only
-  `PERMISSION_DENIED` is converted to a partial result; tenant/context and all other business errors
-  remain typed failures and propagate.
-- Carried the partial-load signal through the Tasks presenter/view model/controller and display a
-  warning above the task table without presenting raw project IDs to the user.
+- DA2 originally added a partial-load result around the adapter's per-project loop. Section 0A's
+  atomic scoped Task SQL query made that loop and its failure mode obsolete. `TaskListResultDto`,
+  `list_all_tasks()`, skipped-project state, QML warning, and transition tests are deleted; tenant,
+  organization, and project RBAC are now resolved before one catalog query executes.
 - Confirmed Dashboard approval failures already propagate under the Phase 0A4 correction and kept
   its regression coverage instead of adding a second partial-failure mechanism.
 - Removed caller-free PM Scheduling `update_calendar`, `add_holiday`, and `delete_holiday` methods,
@@ -273,6 +272,56 @@ Architecture exception closure checkpoint (2026-08-09):
 - The architecture exception sets are empty. Desktop adapter responsibility hardening DA0-DA5 is
   complete. Public-export, Dashboard/Financials, Scheduling-injection, and architecture closure
   checkpoint: 20 passed. Finance Phase B item 8 was completed next and is recorded in section 1.
+
+## 0A. Database-side workspace queries and pagination (complete 2026-08-09)
+
+This post-CQRS phase is the next PM modernization priority before Finance Phase C. The desktop
+presenter must not load an entire growing collection merely to filter, sort, count, and slice 25
+rows. Pagination belongs to an application read contract and its infrastructure reader, not QML,
+the presenter, or a generic command repository.
+
+Rules for every migrated collection:
+
+- apply tenant and organization scope, project-level RBAC, search, filters, and deterministic
+  ordering before the page boundary;
+- return immutable read rows plus explicit page metadata and filtered totals; obtain overview
+  metrics from separate scoped aggregate queries rather than reconstructing them from one page;
+- use a unique ordering tie-breaker. The current numbered desktop controls use deterministic
+  database offset pages; introduce a cursor/keyset HTTP contract when measured concurrent churn or
+  page depth makes offset paging unsuitable, without moving filtering back into the presenter;
+- fetch selected-row detail independently, and replace unbounded dropdown payloads with bounded
+  searchable option queries where their cardinality can grow;
+- stream or batch exports independently. `page_size=99999` and similar interactive-pagination
+  bypasses are forbidden; and
+- preserve fail-closed authorization. A count, empty state, page boundary, or option lookup must
+  not disclose rows outside the active tenant/organization/project scope.
+
+| Workspace collection | Current disposition | Approved action |
+| --- | --- | --- |
+| Tasks, including All Projects | Database-side tenant/org/RBAC scope, structured/free-text filters, WBS-effective rollups, aggregates, ordering, and page boundary | **COMPLETE.** Cross-project loading and partial-load transition DTOs were deleted. WBS parent options use a separate selected-project hierarchy query; exports iterate bounded 500-row database pages. |
+| Projects catalog | Database search/status/order/count and offset page under tenant/org/project RBAC | **COMPLETE.** Overview status metrics are scoped SQL aggregates; exports iterate bounded 500-row pages. |
+| Resources catalog | Database active/category/search filters, employee/department/site joins, aggregates, ordering, and offset page | **COMPLETE.** Employee dialog options remain a distinct selector contract and are not used to filter or page the catalog; exports iterate bounded 500-row pages. |
+| Register and Risk catalogs | Shared database project/type/status/severity/search query with aggregates, real page metadata, and database-limited urgent queue | **COMPLETE.** Previously cosmetic QML paging now reaches SQL and reports the filtered total. |
+| Timesheets review queue | Fixed-query database page joined through period/resource/assignment/task/project, with tenant/org/project RBAC and aggregate hours | **COMPLETE.** Removed the 200-row desktop ceiling; one assignment-period's detail entries remain a bounded detail read. |
+| Financial configuration line views | Database offset pagination, scope, counts, and deterministic ordering are already implemented | **Keep.** Do not regress these readers to presenter slicing. |
+| Legacy Financials combined `CostItem` list | Complete project list is filtered in the presenter; model is scheduled for Phase C removal | **Do not modernize dead-end code.** Phase C replaces it with typed Actual and Commitment ledger readers with their own database page contracts. |
+| Scheduling activities/timeline | CPM, float, criticality, delay, hierarchy, and diagnostics are calculated from the complete selected-project graph before display paging | **Do not page source tasks before calculation.** Keep the authoritative schedule calculation complete; introduce a persisted/materialized schedule read model only if measured scale requires database-side interactive filtering. |
+| Dashboard operational tables | Bounded rows are derived from cross-service KPI/report aggregates | **Do not mechanically push paging into entity repositories.** Keep bounded aggregate contracts; create a dedicated operational Reader only when realistic-scale measurement exceeds the recorded budget. |
+| Portfolio heatmap/scenario/capacity | Values are calculated from complete accessible-portfolio facts; Phase 3C already removed N+1 acquisition | **Do not page facts before portfolio calculations.** A future materialized portfolio projection may add cursor pagination without corrupting totals/rankings. |
+| Collaboration feeds | Recent activity/mentions/presence use explicit bounded read limits | **Keep bounded.** Add cursor delivery only when cross-session notification delivery becomes a user-facing feature. |
+
+Implementation sequence: Tasks -> Projects -> Resources -> Register/Risk -> Timesheet review queue.
+Each cutover deletes its presenter-side filter/pagination helper in the same change after parity,
+tenant-isolation, RBAC, ordering, total-count, and query-growth tests pass. Calculated-projection
+exceptions above are permanent semantic decisions unless a separately measured materialized read
+model replaces them; they are not permission to return unbounded entity rows.
+
+Completion checkpoint (2026-08-09): all five growing workspace collections above now cross a
+typed application read contract and execute scope, filtering, aggregate counts, deterministic
+ordering, and page boundaries in SQL. Real-composition integration coverage lives in
+`test_workspace_database_pagination.py`. Scheduling, Dashboard, Portfolio, bounded collaboration
+feeds, and the Phase-C-bound legacy Finance list retain the dispositions recorded in this table;
+they are not unfinished 0A work.
 
 ## 1. Finance — Phase B, remaining
 

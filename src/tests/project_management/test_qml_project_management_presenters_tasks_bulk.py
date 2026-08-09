@@ -18,6 +18,9 @@ from src.core.modules.project_management.domain.enums import (
     TaskStatus,
 )
 from src.core.platform.domain.master_data.documents import DocumentStorageKind
+from src.tests.project_management._fake_task_workspace_query import (
+    build_fake_task_workspace_page,
+)
 
 
 class _FakePmRuntimeApi:
@@ -95,6 +98,9 @@ class _FakeTaskService:
 
     def list_tasks_for_project(self, project_id: str) -> list[SimpleNamespace]:
         return [t for t in self._tasks.values() if t.project_id == project_id]
+
+    def query_workspace_page(self, **kwargs):
+        return build_fake_task_workspace_page(self._tasks.values(), **kwargs)
 
     def get_task(self, task_id: str) -> SimpleNamespace | None:
         return self._tasks.get(task_id)

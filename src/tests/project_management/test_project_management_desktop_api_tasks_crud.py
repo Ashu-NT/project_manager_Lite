@@ -140,5 +140,5 @@ def test_project_management_tasks_desktop_api_uses_task_scoped_project_query() -
     )
 
     assert [option.label for option in api.list_projects()] == ["Plant Upgrade"]
-    assert [row.id for row in api.list_all_tasks().tasks] == [task.id]
+    assert [row.id for row in api.list_tasks(project.id)] == [task.id]
     assert api.get_task(task.id).project_name == "Plant Upgrade"

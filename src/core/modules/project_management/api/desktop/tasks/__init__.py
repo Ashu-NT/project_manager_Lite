@@ -48,7 +48,6 @@ from src.core.modules.project_management.api.desktop.tasks.models.skill import (
 )
 from src.core.modules.project_management.api.desktop.tasks.models.task import (
     TaskDesktopDto,
-    TaskListResultDto,
 )
 from src.core.modules.project_management.api.desktop.tasks.models.validation import (
     AssignmentPreviewDesktopDto,
@@ -71,7 +70,6 @@ __all__ = [
     "TaskDependencyTypeDescriptor",
     "TaskDependencyUpdateCommand",
     "TaskDesktopDto",
-    "TaskListResultDto",
     "TaskMaterialDemandSummary",
     "TaskProgressCommand",
     "TaskProjectOptionDescriptor",

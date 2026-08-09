@@ -1,8 +1,9 @@
 # Project Management — CQRS Existing-State Audit and Design-Mapping
 
-Status: **audit and prerequisite Phases 0, 0A, 0B, and 0C complete; Phases 1 and 2 complete**
-(2026-08-08). CQRS pilot selection, PM finance design, and the desktop-adapter responsibility audit
-are complete. This document began as read-only design-mapping and now also records exact
+Status: **CQRS prerequisite Phases 0, 0A, 0B, and 0C and implementation Phases 1-6 complete**
+(2026-08-09). CQRS pilot selection, PM finance design, and the desktop-adapter responsibility audit
+are complete. A separately governed post-CQRS workspace-query pagination phase is recorded after
+Phase 6 and in `../TODO/README.md` section 0A. This document began as read-only design-mapping and now also records exact
 implementation evidence for the prerequisite phases; proposed CQRS Reader work remains separated
 into §15-20 and is explicitly not built until its phase is marked complete. Everything stated as
 fact below was verified by opening the file and following the call chain to its concrete runtime
@@ -3293,7 +3294,7 @@ until its own sub-phase explicitly migrates and re-tests it.
     cross-organization rejection, and the existing stable-row behavior when one project's facts are
     invalid. Desktop DTO and QML shapes remain unchanged.
   - the heatmap remains a growing collection and therefore inherits this audit's pagination rule:
-    the future desktop query-service pagination cutover must use stable cursor/keyset semantics and
+    the future HTTP/query-service pagination cutover should use stable cursor/keyset semantics and
     preserve the current pressure/late/name ordering. Pagination was not silently added to the
     existing no-argument desktop contract in this optimization sub-phase.
 
@@ -3438,6 +3439,26 @@ migration-only code remains.
 **Phase 6 exit gate: PASSED.** Every migrated read path is fact-only, every retained aggregate path
 has a verified live owner outside the migrated scope, runtime composition and query budgets pass,
 and the numbered CQRS implementation plan is complete without speculative DTO or QML changes.
+
+### Post-CQRS workspace-query pagination phase - COMPLETE 2026-08-09
+
+The numbered CQRS plan is complete; this capability-by-capability follow-up is not Phase 7 of the
+Finance Snapshot pilot. Projects, Resources, Tasks, Register/Risk, and Timesheet review now use
+typed application read contracts backed by scoped SQL readers. Presenters map page rows and UI
+options only; they no longer filter or slice those growing catalogs.
+
+The completed readers apply active tenant/organization scope, project RBAC where applicable,
+filters, deterministic ordering, aggregate totals, and the page boundary before returning rows.
+Task WBS rollups are calculated before filtering/paging; Register's urgent queue is independently
+bounded in SQL; Timesheet review aggregates only entries visible through allowed projects. Project
+and Task exports iterate bounded pages rather than bypassing pagination with synthetic page sizes.
+
+Scheduling, Dashboard, and Portfolio are explicitly not mechanical database-pagination targets:
+their rows are calculated from complete graph/aggregate facts, and paging those inputs would make
+CPM, critical path, KPI totals, rankings, or heatmap values incorrect. They retain bounded aggregate
+contracts until measurement justifies a persisted/materialized read model. Finance configuration
+lines are already database-paged; the legacy combined `CostItem` UI is replaced rather than
+modernized in Finance Phase C.
 
 *(The future, separately-scoped Session/Unit-of-Work modernization is deliberately not a numbered
 phase in this plan — see the note immediately after §14's findings table.)*
@@ -4351,11 +4372,12 @@ DTO-shape consequence, confirmed per-finding in the master table's "DTO impact" 
 
 ### Phase DA2 — Security and error-boundary corrections
 
-**Status: COMPLETE (2026-08-08).** `list_all_tasks()` now returns `TaskListResultDto` with the
-loaded tasks and `skipped_project_ids`. Only `PERMISSION_DENIED` is eligible for a partial result;
-tenant/context and other business failures propagate. The Tasks presenter, view model, controller,
-and QML list page carry this signal to a fixed warning above the table without showing raw IDs in
-the user-facing message.
+**Status: COMPLETE (2026-08-08; superseded transition deleted 2026-08-09).** DA2 initially wrapped
+the desktop adapter's per-project loop in `TaskListResultDto`. The post-CQRS workspace-query phase
+replaced that loop with one application-owned, tenant/org/RBAC-scoped SQL query. Consequently
+`list_all_tasks()`, `TaskListResultDto`, skipped-project state, the QML warning, and their transition
+tests were deleted. Tenant/context/authorization failures now occur before the atomic catalog read
+instead of being converted into partial data.
 
 Dashboard's `_list_pending_approvals` broad-exception issue was already corrected in Phase 0A4:
 failures propagate, and `test_phase0a4_other_safety_corrections.py` guards that behavior. DA2 did

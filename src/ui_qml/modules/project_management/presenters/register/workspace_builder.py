@@ -14,11 +14,6 @@ from .detail_builder import build_detail_view_model
 from .entry_mapper import to_record_view_model
 from .filtering import (
     build_empty_state,
-    matches_project,
-    matches_search,
-    matches_severity,
-    matches_status,
-    matches_type,
     normalize_filter,
     normalize_type_filter,
 )
@@ -69,8 +64,9 @@ def build_workspace_state(
     search_text: str = "",
     selected_entry_id: str | None = None,
     workspace_mode: WorkspaceMode = "register",
+    page: int = 1,
+    page_size: int = 25,
 ) -> RegisterWorkspaceViewModel:
-    all_entries = desktop_api.list_entries()
     project_options = (
         RegisterSelectorOptionViewModel(value="all", label="All projects"),
         *(
@@ -102,23 +98,23 @@ def build_workspace_state(
         severity_filter, severity_options, default_value="all"
     )
     normalized_search = (search_text or "").strip()
-    filtered_entries = tuple(
-        entry
-        for entry in all_entries
-        if matches_project(entry, normalized_project_id)
-        and matches_type(entry, normalized_type_filter)
-        and matches_status(entry, normalized_status_filter)
-        and matches_severity(entry, normalized_severity_filter)
-        and matches_search(entry, normalized_search)
+    entry_page = desktop_api.list_entry_page(
+        project_id=normalized_project_id,
+        entry_type=normalized_type_filter,
+        status=normalized_status_filter,
+        severity=normalized_severity_filter,
+        search_text=normalized_search,
+        page=page,
+        page_size=page_size,
     )
-    resolved_selected_entry_id = resolve_selected_entry_id(selected_entry_id, filtered_entries)
+    resolved_selected_entry_id = resolve_selected_entry_id(selected_entry_id, entry_page.items)
     selected_entry = next(
-        (entry for entry in filtered_entries if entry.id == resolved_selected_entry_id),
+        (entry for entry in entry_page.items if entry.id == resolved_selected_entry_id),
         None,
     )
     empty_state = build_empty_state(
-        all_entries=all_entries,
-        filtered_entries=filtered_entries,
+        total=entry_page.scope_total,
+        filtered_total=entry_page.filtered_total,
         project_id=normalized_project_id,
         type_filter=normalized_type_filter,
         status_filter=normalized_status_filter,
@@ -128,9 +124,7 @@ def build_workspace_state(
     )
     return RegisterWorkspaceViewModel(
         overview=build_overview(
-            all_entries=all_entries,
-            filtered_entries=filtered_entries,
-            project_id=normalized_project_id,
+            entry_page=entry_page,
             workspace_mode=workspace_mode,
         ),
         project_options=project_options,
@@ -148,11 +142,18 @@ def build_workspace_state(
             empty_state=empty_state,
             items=tuple(
                 to_record_view_model(entry, workspace_mode=workspace_mode)
-                for entry in filtered_entries
+                for entry in entry_page.items
             ),
         ),
         selected_entry_id=resolved_selected_entry_id,
         selected_entry_detail=build_detail_view_model(selected_entry, workspace_mode=workspace_mode),
-        urgent_entries=build_urgent_collection(filtered_entries, workspace_mode=workspace_mode),
+        urgent_entries=build_urgent_collection(
+            entry_page.urgent_items,
+            filtered_total=entry_page.filtered_total,
+            workspace_mode=workspace_mode,
+        ),
         empty_state=empty_state,
+        total_count=entry_page.filtered_total,
+        page=entry_page.page,
+        page_size=entry_page.page_size,
     )

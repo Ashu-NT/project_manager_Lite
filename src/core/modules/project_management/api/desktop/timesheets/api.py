@@ -25,6 +25,7 @@ from src.core.modules.project_management.api.desktop.timesheets.models.options i
 )
 from src.core.modules.project_management.api.desktop.timesheets.models.periods import (
     TimesheetPeriodSummaryDesktopDto,
+    TimesheetReviewPageDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.timesheets.models.review import (
     TimesheetReviewDetailDesktopDto,
@@ -106,19 +107,28 @@ class ProjectManagementTimesheetsDesktopApi:
             timesheet_service=self._require_timesheet_service(),
         )
 
-    def list_review_queue(
+    def list_review_queue_page(
         self,
         *,
         status: str = TimesheetPeriodStatus.SUBMITTED.value,
-    ) -> tuple[TimesheetPeriodSummaryDesktopDto, ...]:
-        service = self._timesheet_service
-        if service is None:
-            return ()
+        page: int = 1,
+        page_size: int = 25,
+    ) -> TimesheetReviewPageDesktopDto:
+        service = self._require_timesheet_service()
         normalized_status = coerce_queue_status(status)
-        rows = service.list_timesheet_review_queue(status=normalized_status, limit=200)
-        return tuple(
-            serialize_review_summary(row, project_service=self._project_service)
-            for row in rows
+        result = service.query_review_queue_page(
+            status=normalized_status,
+            page=page,
+            page_size=page_size,
+        )
+        return TimesheetReviewPageDesktopDto(
+            items=tuple(
+                serialize_review_summary(row, project_service=self._project_service)
+                for row in result.items
+            ),
+            total=result.total,
+            page=result.page,
+            page_size=result.page_size,
         )
 
     def get_review_detail(self, period_id: str) -> TimesheetReviewDetailDesktopDto:

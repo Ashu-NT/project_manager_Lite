@@ -9,7 +9,6 @@ from src.ui_qml.modules.project_management.view_models.tasks import (
 from .task_filters import (
     build_task_priority_options,
     build_task_schedule_options,
-    matches_task_filters,
     normalize_task_filter,
 )
 from .utils import NormalizedTaskFilters, TaskFilterOptions
@@ -70,24 +69,11 @@ def normalize_workspace_filters(
         schedule_filter=normalize_task_filter(schedule_filter, schedule_options),
     )
 
-def filter_tasks(all_tasks: Any, filters: NormalizedTaskFilters) -> tuple[Any, ...]:
-    return tuple(
-        task
-        for task in all_tasks
-        if matches_task_filters(
-            task,
-            search_text=filters.search_text,
-            status_filter=filters.status_filter,
-            priority_filter=filters.priority_filter,
-            schedule_filter=filters.schedule_filter,
-        )
-    )
-
 def build_empty_state(
     *,
     project_options: Any,
-    all_tasks: Any,
-    filtered_tasks: Any,
+    total: int,
+    filtered_total: int,
     search_text: str,
     status_filter: str,
     priority_filter: str,
@@ -95,9 +81,9 @@ def build_empty_state(
 ) -> str:
     if not project_options:
         return "No projects are available yet. Create a project before planning tasks."
-    if filtered_tasks:
+    if filtered_total:
         return ""
-    if not all_tasks:
+    if not total:
         return "No tasks are available for the selected project yet."
     if (
         search_text

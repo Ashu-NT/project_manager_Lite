@@ -5,6 +5,11 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_resources_desktop_api,
 )
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
+from src.core.modules.project_management.contracts.reads.resources import (
+    ResourceCatalogReadItem,
+    ResourceCatalogReadPage,
+    ResourceCatalogSummary,
+)
 
 
 class _FakeResourceService:
@@ -13,6 +18,55 @@ class _FakeResourceService:
 
     def list_resources(self) -> list[SimpleNamespace]:
         return list(self._resources.values())
+
+    def query_catalog_page(
+        self,
+        *,
+        search_text="",
+        active=None,
+        category=None,
+        page=1,
+        page_size=25,
+    ) -> ResourceCatalogReadPage:
+        all_resources = list(self._resources.values())
+        filtered = [
+            resource
+            for resource in all_resources
+            if (active is None or resource.is_active is active)
+            and (category is None or resource.cost_type == category)
+            and (
+                not search_text
+                or search_text.casefold() in resource.name.casefold()
+                or search_text.casefold() in resource.role.casefold()
+            )
+        ]
+        offset = (page - 1) * page_size
+        return ResourceCatalogReadPage(
+            items=tuple(
+                ResourceCatalogReadItem(resource=resource)
+                for resource in filtered[offset:offset + page_size]
+            ),
+            filtered_total=len(filtered),
+            page=page,
+            page_size=page_size,
+            summary=ResourceCatalogSummary(
+                total=len(all_resources),
+                active=sum(1 for resource in all_resources if resource.is_active),
+                employees=sum(
+                    1 for resource in all_resources
+                    if resource.worker_type == WorkerType.EMPLOYEE
+                ),
+                external=sum(
+                    1 for resource in all_resources
+                    if resource.worker_type == WorkerType.EXTERNAL
+                ),
+                average_capacity=(
+                    sum(resource.capacity_percent for resource in all_resources)
+                    / len(all_resources)
+                    if all_resources else 0.0
+                ),
+            ),
+        )
 
 
 class _FakeEmployeeService:

@@ -17,6 +17,7 @@ from src.core.modules.project_management.application.resources.queries.skill_que
 from src.core.modules.project_management.contracts.repositories.project import ProjectResourceRepository
 from src.core.modules.project_management.contracts.repositories.rate_cards import ProjectRateCardRepository
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
+from src.core.modules.project_management.contracts.reads.resources import ResourceCatalogReader
 from src.core.modules.project_management.contracts.repositories.skills import (
     ResourceCertificationRepository,
     ResourceSkillRepository,
@@ -53,6 +54,7 @@ class ResourceService(
         tenant_context_service=None,
         project_rate_card_repo: ProjectRateCardRepository | None = None,
         clock: Clock | None = None,
+        resource_catalog_reader: ResourceCatalogReader | None = None,
     ):
         self._session: Session = session
         self._resource_repo: ResourceRepository = resource_repo
@@ -68,6 +70,7 @@ class ResourceService(
         self._tenant_context_service = tenant_context_service
         self._project_rate_card_repo: ProjectRateCardRepository | None = project_rate_card_repo
         self._clock: Clock | None = clock
+        self._resource_catalog_reader = resource_catalog_reader
 
 
 __all__ = ["ResourceService"]

@@ -28,6 +28,7 @@ from .command_handler import (
 )
 from .skills_builder import add_skill, build_skills_state, remove_skill
 from .workspace_builder import build_workspace_state
+from .resource_mapper import to_resource_record_view_model
 
 class ProjectResourcesWorkspacePresenter:
     def __init__(
@@ -56,6 +57,30 @@ class ProjectResourcesWorkspacePresenter:
             page=page,
             page_size=page_size,
         )
+
+    def list_export_records(
+        self,
+        *,
+        search_text: str = "",
+        active_filter: str = "all",
+        category_filter: str = "all",
+        batch_size: int = 500,
+    ) -> tuple:
+        records = []
+        page = 1
+        while True:
+            result = self._desktop_api.list_resource_page(
+                search_text=search_text,
+                active=active_filter,
+                category=category_filter,
+                page=page,
+                page_size=batch_size,
+            )
+            records.extend(to_resource_record_view_model(item) for item in result.items)
+            if page * result.page_size >= result.filtered_total:
+                break
+            page += 1
+        return tuple(records)
 
     def suggest_code(self, payload: dict[str, Any]) -> str:
         return suggest_code(self._desktop_api, payload)

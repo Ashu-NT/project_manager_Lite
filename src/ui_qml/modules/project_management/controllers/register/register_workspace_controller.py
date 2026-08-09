@@ -223,6 +223,8 @@ class ProjectManagementRegisterWorkspaceController(
                 severity_filter=self._selected_severity_filter,
                 search_text=self._search_text,
                 selected_entry_id=self._selected_entry_id or None,
+                page=self._entry_page,
+                page_size=self._entry_page_size,
             )
             self._set_overview(
                 serialize_register_overview_view_model(workspace_state.overview)
@@ -247,7 +249,7 @@ class ProjectManagementRegisterWorkspaceController(
             self._set_entries(
                 serialize_register_collection_view_model(workspace_state.entries)
             )
-            self._set_entry_total_count(len(self._entries.get("items") or []))
+            self._set_entry_total_count(workspace_state.total_count)
             self._set_selected_entry_id(workspace_state.selected_entry_id)
             self._set_selected_entry(
                 serialize_register_detail_view_model(

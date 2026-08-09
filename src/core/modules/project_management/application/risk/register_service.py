@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.register import RegisterEntryRepository
+from src.core.modules.project_management.contracts.reads.register import RegisterCatalogReader
 from src.core.platform.application.history.activity.activity_service import ActivityService
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
@@ -25,6 +26,8 @@ class RegisterService(ProjectManagementModuleGuardMixin, RegisterLifecycleMixin,
         user_session: UserSessionContext | None = None,
         activity_service: ActivityService | None = None,
         module_catalog_service=None,
+        tenant_context_service=None,
+        register_catalog_reader: RegisterCatalogReader | None = None,
     ) -> None:
         self._session: Session = session
         self._project_repo: ProjectRepository = project_repo
@@ -32,6 +35,8 @@ class RegisterService(ProjectManagementModuleGuardMixin, RegisterLifecycleMixin,
         self._user_session: UserSessionContext | None = user_session
         self._activity_service: ActivityService | None = activity_service
         self._module_catalog_service = module_catalog_service
+        self._tenant_context_service = tenant_context_service
+        self._register_catalog_reader = register_catalog_reader
 
 
 __all__ = ["RegisterService"]

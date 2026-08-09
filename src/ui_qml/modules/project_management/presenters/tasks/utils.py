@@ -25,25 +25,11 @@ class NormalizedTaskFilters:
     schedule_filter: str
 
 
-@dataclass(frozen=True)
-class TaskScopeLoadResult:
-    tasks: tuple[Any, ...]
-    skipped_project_ids: tuple[str, ...] = ()
-
-
-def load_task_scope(desktop_api: Any, project_id: str | None) -> TaskScopeLoadResult:
-    normalized_project_id = (project_id or "").strip()
-    if normalized_project_id:
-        return TaskScopeLoadResult(tasks=tuple(desktop_api.list_tasks(normalized_project_id)))
-    result = desktop_api.list_all_tasks()
-    return TaskScopeLoadResult(
-        tasks=tuple(result.tasks),
-        skipped_project_ids=tuple(result.skipped_project_ids),
-    )
-
-
 def load_tasks_for_project(desktop_api: Any, project_id: str | None) -> tuple[Any, ...]:
-    return load_task_scope(desktop_api, project_id).tasks
+    normalized_project_id = (project_id or "").strip()
+    if not normalized_project_id:
+        return ()
+    return tuple(desktop_api.list_tasks(normalized_project_id))
 
 
 def find_task(tasks: Any, task_id: str | None) -> Any:

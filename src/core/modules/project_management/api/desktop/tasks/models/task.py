@@ -33,13 +33,16 @@ class TaskDesktopDto:
 
 
 @dataclass(frozen=True)
-class TaskListResultDto:
-    tasks: tuple[TaskDesktopDto, ...] = ()
-    skipped_project_ids: tuple[str, ...] = ()
+class TaskWorkspacePageDesktopDto:
+    items: tuple[TaskDesktopDto, ...] = ()
+    filtered_total: int = 0
+    total: int = 0
+    in_progress: int = 0
+    blocked: int = 0
+    done: int = 0
+    overdue: int = 0
+    page: int = 1
+    page_size: int = 25
 
-    @property
-    def is_partial(self) -> bool:
-        return bool(self.skipped_project_ids)
 
-
-__all__ = ["TaskDesktopDto", "TaskListResultDto"]
+__all__ = ["TaskDesktopDto", "TaskWorkspacePageDesktopDto"]

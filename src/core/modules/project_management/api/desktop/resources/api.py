@@ -39,6 +39,7 @@ from src.core.modules.project_management.api.desktop.resources.models.options im
     ResourceWorkerTypeDescriptor,
 )
 from src.core.modules.project_management.api.desktop.resources.models.resources import (
+    ResourceCatalogPageDesktopDto,
     ResourceDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.resources.models.skills import (
@@ -106,6 +107,65 @@ class ProjectManagementResourcesDesktopApi:
         return tuple(
             serialize_resource(resource, employee_lookup=employee_lookup)
             for resource in resources
+        )
+
+    def list_resource_page(
+        self,
+        *,
+        search_text: str = "",
+        active: str = "all",
+        category: str = "all",
+        page: int = 1,
+        page_size: int = 25,
+    ) -> ResourceCatalogPageDesktopDto:
+        service = self._require_resource_service()
+        normalized_active = str(active or "all").strip().lower()
+        active_value = (
+            True if normalized_active == "active"
+            else False if normalized_active == "inactive"
+            else None
+        )
+        normalized_category = str(category or "all").strip().upper()
+        category_value = (
+            None if normalized_category == "ALL" else coerce_cost_type(normalized_category)
+        )
+        result = service.query_catalog_page(
+            search_text=search_text,
+            active=active_value,
+            category=category_value,
+            page=page,
+            page_size=page_size,
+        )
+        items: list[ResourceDesktopDto] = []
+        for item in result.items:
+            employee_lookup: dict[str, ResourceEmployeeOptionDescriptor] = {}
+            employee_id = str(getattr(item.resource, "employee_id", "") or "")
+            if employee_id:
+                context = " | ".join(
+                    value for value in (item.department_label, item.site_label) if value
+                ) or "-"
+                employee_lookup[employee_id] = ResourceEmployeeOptionDescriptor(
+                    value=employee_id,
+                    label=item.employee_name or item.resource.name,
+                    name=item.employee_name or item.resource.name,
+                    title=item.employee_title,
+                    contact=item.employee_contact,
+                    context=context,
+                    department=item.department_label,
+                    site=item.site_label,
+                    is_active=bool(item.resource.is_active),
+                )
+            items.append(serialize_resource(item.resource, employee_lookup=employee_lookup))
+        return ResourceCatalogPageDesktopDto(
+            items=tuple(items),
+            filtered_total=result.filtered_total,
+            total=result.summary.total,
+            active=result.summary.active,
+            employees=result.summary.employees,
+            external=result.summary.external,
+            average_capacity=result.summary.average_capacity,
+            page=result.page,
+            page_size=result.page_size,
         )
 
     def create_resource(self, command: ResourceCreateCommand) -> ResourceDesktopDto:

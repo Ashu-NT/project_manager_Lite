@@ -6,6 +6,11 @@ from src.core.modules.project_management.domain.risk.register import RegisterEnt
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.register import RegisterEntryRepository
+from src.core.modules.project_management.application.common.pagination import PageRequest
+from src.core.modules.project_management.contracts.reads.register import (
+    RegisterCatalogReadPage,
+    RegisterCatalogReader,
+)
 from src.core.modules.project_management.access.scope_permissions import filter_project_rows, require_project_permission
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.modules.project_management.application.risk.dto.register_summary import (
@@ -22,6 +27,56 @@ _ACTIVE_STATUSES = {
 class RegisterQueryMixin:
     _project_repo: ProjectRepository
     _register_repo: RegisterEntryRepository
+    _register_catalog_reader: RegisterCatalogReader | None
+
+    def query_catalog_page(
+        self,
+        *,
+        project_id: str | None = None,
+        entry_type: RegisterEntryType | None = None,
+        status: RegisterEntryStatus | None = None,
+        severity: RegisterEntrySeverity | None = None,
+        search_text: str = "",
+        as_of: date | None = None,
+        page: int = 1,
+        page_size: int = 25,
+    ) -> RegisterCatalogReadPage:
+        require_permission(
+            self._user_session,
+            "register.read",
+            operation_label="view register catalog",
+        )
+        if project_id:
+            require_project_permission(
+                self._user_session,
+                project_id,
+                "register.read",
+                operation_label="view register catalog",
+            )
+        if self._register_catalog_reader is None or self._tenant_context_service is None:
+            raise RuntimeError("Register catalog reader is not configured.")
+        page_request = PageRequest(page=page, page_size=page_size)
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view register catalog"
+        )
+        allowed_project_ids: tuple[str, ...] | None = None
+        if self._user_session is not None and self._user_session.is_project_restricted():
+            allowed_project_ids = tuple(
+                sorted(self._user_session.project_ids_for("register.read"))
+            )
+        return self._register_catalog_reader.read_page(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            allowed_project_ids=allowed_project_ids,
+            project_id=project_id,
+            entry_type=entry_type,
+            status=status,
+            severity=severity,
+            search_text=str(search_text or "").strip(),
+            as_of=as_of or date.today(),
+            page=page_request.page,
+            page_size=page_request.page_size,
+        )
 
     def get_entry(self, entry_id: str) -> RegisterEntry:
         require_permission(self._user_session, "register.read", operation_label="view register entry")

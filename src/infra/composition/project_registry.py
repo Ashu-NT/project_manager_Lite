@@ -73,6 +73,21 @@ from src.core.modules.project_management.infrastructure.persistence.reads.portfo
     SqlAlchemyPortfolioResourcePoolReader,
     SqlAlchemyPortfolioScenarioReader,
 )
+from src.core.modules.project_management.infrastructure.persistence.reads.projects import (
+    SqlAlchemyProjectCatalogReader,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.resources import (
+    SqlAlchemyResourceCatalogReader,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.register import (
+    SqlAlchemyRegisterCatalogReader,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.timesheets import (
+    SqlAlchemyTimesheetReviewReader,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.tasks import (
+    SqlAlchemyTaskWorkspaceReader,
+)
 from src.core.modules.project_management.infrastructure.persistence.reads.collaboration import (
     SqlAlchemyCollaborationWorkspaceReader,
 )
@@ -193,6 +208,7 @@ def build_project_management_service_bundle(
         enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
+        project_catalog_reader=SqlAlchemyProjectCatalogReader(session=session),
     )
 
     def _time_scope_organization_id(scope_type: str, scope_id: str) -> str | None:
@@ -221,6 +237,7 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
         scope_organization_resolver=_time_scope_organization_id,
+        timesheet_review_reader=SqlAlchemyTimesheetReviewReader(session=session),
     )
     time_service: TimeService = timesheet_service
     project_resource_service = ProjectResourceService(
@@ -242,6 +259,8 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
         module_catalog_service=platform_services.module_catalog_service,
+        tenant_context_service=platform_services.tenant_context_service,
+        register_catalog_reader=SqlAlchemyRegisterCatalogReader(session=session),
     )
     # Build enterprise calendar adapter here so it can be injected into SchedulingEngine.
     # Instantiated before scheduling_engine so we pass it in during construction.
@@ -285,6 +304,8 @@ def build_project_management_service_bundle(
         notification_service=platform_services.notification_service,
         employee_repo=repositories.employee_repo,
         assignment_skill_validator=assignment_skill_validator,
+        tenant_context_service=platform_services.tenant_context_service,
+        task_workspace_reader=SqlAlchemyTaskWorkspaceReader(session=session),
     )
     # Shared by ResourceService (legacy rate-line seeding/supersession) and
     # RateCardResolver (RateSelectionSnapshot.resolved_at) — one time source,
@@ -305,6 +326,7 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         project_rate_card_repo=repositories.project_rate_card_repo,
         clock=system_clock,
+        resource_catalog_reader=SqlAlchemyResourceCatalogReader(session=session),
     )
     cost_service = CostService(
         session,

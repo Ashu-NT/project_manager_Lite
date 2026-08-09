@@ -11,6 +11,7 @@ from src.core.modules.project_management.api.desktop.register.factories.register
     build_project_management_register_desktop_api,
 )
 from src.core.modules.project_management.api.desktop.register.models.entries import (
+    RegisterCatalogPageDesktopDto,
     RegisterEntryDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.register.models.options import (
@@ -23,6 +24,7 @@ from src.core.modules.project_management.api.desktop.register.models.options imp
 __all__ = [
     "ProjectManagementRegisterDesktopApi",
     "RegisterEntryCreateCommand",
+    "RegisterCatalogPageDesktopDto",
     "RegisterEntryDesktopDto",
     "RegisterEntrySeverityDescriptor",
     "RegisterEntryStatusDescriptor",

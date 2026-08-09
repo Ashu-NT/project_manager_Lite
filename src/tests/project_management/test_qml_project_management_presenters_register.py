@@ -11,6 +11,11 @@ from src.core.modules.project_management.domain.risk.register import (
     RegisterEntryStatus,
     RegisterEntryType,
 )
+from src.core.modules.project_management.contracts.reads.register import (
+    RegisterCatalogReadItem,
+    RegisterCatalogReadPage,
+    RegisterCatalogSummary,
+)
 
 
 class _FakeRegisterService:
@@ -34,6 +39,76 @@ class _FakeRegisterService:
             and (severity is None or entry.severity == severity)
         ]
         return sorted(entries, key=lambda entry: entry.triage_key(date.today()))
+
+    def query_catalog_page(
+        self,
+        *,
+        project_id=None,
+        entry_type=None,
+        status=None,
+        severity=None,
+        search_text="",
+        page=1,
+        page_size=25,
+        **_kwargs,
+    ) -> RegisterCatalogReadPage:
+        scope = [
+            entry for entry in self._entries.values()
+            if project_id is None or entry.project_id == project_id
+        ]
+        filtered = [
+            entry for entry in scope
+            if (entry_type is None or entry.entry_type == entry_type)
+            and (status is None or entry.status == status)
+            and (severity is None or entry.severity == severity)
+            and (
+                not search_text
+                or search_text.casefold() in entry.title.casefold()
+                or search_text.casefold() in entry.description.casefold()
+            )
+        ]
+        filtered.sort(key=lambda entry: entry.triage_key(date.today()))
+        active_statuses = {
+            RegisterEntryStatus.OPEN,
+            RegisterEntryStatus.IN_PROGRESS,
+            RegisterEntryStatus.MITIGATED,
+        }
+        active = [entry for entry in filtered if entry.status in active_statuses]
+        offset = (page - 1) * page_size
+        to_item = lambda entry: RegisterCatalogReadItem(
+            entry=entry,
+            project_name=entry.project_id,
+        )
+        return RegisterCatalogReadPage(
+            items=tuple(to_item(entry) for entry in filtered[offset:offset + page_size]),
+            urgent_items=tuple(to_item(entry) for entry in active[:5]),
+            filtered_total=len(filtered),
+            page=page,
+            page_size=page_size,
+            summary=RegisterCatalogSummary(
+                scope_total=len(scope),
+                scope_risk_total=sum(
+                    1 for entry in scope if entry.entry_type == RegisterEntryType.RISK
+                ),
+                open_risks=sum(
+                    1 for entry in active if entry.entry_type == RegisterEntryType.RISK
+                ),
+                open_issues=sum(
+                    1 for entry in active if entry.entry_type == RegisterEntryType.ISSUE
+                ),
+                pending_changes=sum(
+                    1 for entry in filtered
+                    if entry.entry_type == RegisterEntryType.CHANGE
+                    and entry.status in {RegisterEntryStatus.OPEN, RegisterEntryStatus.IN_PROGRESS}
+                ),
+                active=len(active),
+                critical=sum(
+                    1 for entry in filtered
+                    if entry.severity == RegisterEntrySeverity.CRITICAL
+                ),
+                overdue=sum(1 for entry in active if entry.is_overdue_on(date.today())),
+            ),
+        )
 
 
 def _build_register_record(
