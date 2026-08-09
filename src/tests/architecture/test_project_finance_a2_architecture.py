@@ -18,6 +18,15 @@ def _import_names(path: Path) -> set[str]:
     return names
 
 
+def _call_keywords(source: str, function_name: str) -> set[str]:
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            if node.func.id == function_name:
+                return {keyword.arg for keyword in node.keywords if keyword.arg is not None}
+    raise AssertionError(f"Factory call not found: {function_name}")
+
+
 def test_financial_source_contracts_do_not_import_source_modules_or_ui() -> None:
     path = (
         ROOT
@@ -94,6 +103,16 @@ def test_forecast_service_is_composed_and_desktop_builders_are_mapping_only() ->
     assert "forecast_service = ForecastCostService(" in project_registry
     assert "forecast_service: ForecastCostService" in app_container
     assert "forecast_service=resolved.forecast_service" in runtime_builder
+    dashboard_keywords = _call_keywords(
+        runtime_builder,
+        "build_project_management_dashboard_desktop_api",
+    )
+    financials_keywords = _call_keywords(
+        runtime_builder,
+        "build_project_management_financials_desktop_api",
+    )
+    assert "finance_workspace_query" not in dashboard_keywords
+    assert "finance_workspace_query" in financials_keywords
     assert "list_cost_items_for_project" not in desktop_builders
     assert "_compute_etc_eac" not in desktop_builders
     assert "result.bac *" not in desktop_builders
