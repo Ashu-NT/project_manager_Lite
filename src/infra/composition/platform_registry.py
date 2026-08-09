@@ -18,6 +18,7 @@ from src.core.platform.access import AccessControlService, ScopedRolePolicy, Sco
 from src.core.platform.application.history.activity import ActivityService
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.history.audit import EnterpriseAuditService
+from src.core.platform.application.finance import FinancialPeriodService
 from src.core.platform.application.events.notifications.notification_service import NotificationService
 from src.core.platform.application.security.auth import AuthService
 from src.core.platform.application.security.authorization.roles import (
@@ -171,6 +172,7 @@ class PlatformServiceBundle:
     access_service: AccessControlService
     activity_service: ActivityService
     enterprise_audit_service: EnterpriseAuditService
+    financial_period_service: FinancialPeriodService
     notification_service: NotificationService
     approval_service: ApprovalService
     enterprise_calendar_service: EnterpriseCalendarService
@@ -231,6 +233,13 @@ def build_platform_service_bundle(
         audit_repo=repositories.audit_entry_repo,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
+    )
+    financial_period_service = FinancialPeriodService(
+        session=session,
+        period_repo=repositories.financial_period_repo,
+        tenant_context_service=tenant_context_service,
+        user_session=user_session,
+        enterprise_audit_service=enterprise_audit_service,
     )
     notification_service = NotificationService(
         session=session,
@@ -645,6 +654,7 @@ def build_platform_service_bundle(
         access_service=access_service,
         activity_service=activity_service,
         enterprise_audit_service=enterprise_audit_service,
+        financial_period_service=financial_period_service,
         notification_service=notification_service,
         approval_service=approval_service,
         enterprise_calendar_service=enterprise_calendar_service,

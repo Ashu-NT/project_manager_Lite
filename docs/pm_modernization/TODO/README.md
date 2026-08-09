@@ -323,6 +323,14 @@ ordering, and page boundaries in SQL. Real-composition integration coverage live
 feeds, and the Phase-C-bound legacy Finance list retain the dispositions recorded in this table;
 they are not unfinished 0A work.
 
+Verification checkpoint: 65 focused database/desktop/presenter/architecture tests passed, followed
+by 165 tests covering the remaining QML-through-PM functional segment. The full PM directory run
+reached 62% without failure before its five-minute measurement-suite timeout; a second functional
+run exposed one stale task test fake, which was migrated to the shared fake workspace query and
+then passed with its affected six-test cluster. Query budgets are pinned at 4/4/4/5/3 statements
+for Projects/Tasks/Resources/Register/empty Timesheet review, including the shared entitlement
+guard statement.
+
 ## 1. Finance — Phase B, remaining
 
 Source: `../project_finance_existing_state_and_implementation_plan.md` §19 Phase B, items 7-8.
@@ -349,14 +357,24 @@ Source: `../project_finance_existing_state_and_implementation_plan.md` §19 Phas
 The next unblocked consolidated phase is Finance Phase C in section 2. Item 7 remains a deliberate
 product/architecture decision gate and must not be implemented as a mechanical source swap.
 
-## 2. Finance — Phase C: actual ledger, commitments, time, procurement, periods (not started)
+## 2. Finance — Phase C: actual ledger, commitments, time, procurement, periods (in progress)
 
-Source: same doc, §19 Phase C. All 8 items are unstarted; only the prerequisite
+Source: same doc, §19 Phase C. Item 1's permanent foundation is complete; items 2-8 are
+unstarted. The prerequisite
 `TRANSITION(PF-A0-UOW-BRIDGE)` cleanup that items 2/6 depend on is done (governed
 commands now own their own Unit of Work). ADR gate: ADR-PF-004/006/007/008 already
 ACCEPTED, so the ADR gate itself is not blocking.
 
-1. Organization financial periods + closure/lock policy (separate from scheduling calendars).
+1. **Organization financial periods + closure/lock policy (foundation complete 2026-08-09).**
+   Platform-owned periods are separate from scheduling calendars and have direct tenant/org
+   scope, RLS metadata/migration, organization-serialized non-overlap checks, optimistic
+   concurrency, immutable open -> closed -> locked lifecycle metadata, fail-closed Enterprise
+   Audit, `finance.read`/`finance.manage` enforcement, normal-posting rejection for missing or
+   non-open periods, composition wiring, and a typed desktop adapter. There is deliberately no
+   delete, reopen, or late-post compatibility path. The existing `finance.manage` permission is
+   the coarse initial close/lock boundary; a dedicated authority/separation-of-duties rule and
+   late-adjustment policy remain the explicit product gate in section 5 before such commands may
+   be added.
 2. `ProjectCostEntry` draft/approval/post/reversal lifecycle with Money/base-Money/FX
    snapshot, source, period, dimensions, actor/timestamps, scoped idempotency.
 3. PM commitment projections/lines, matching, cancellation/closure, remaining-balance policy.
@@ -370,6 +388,14 @@ ACCEPTED, so the ADR gate itself is not blocking.
    unresolved currency/source cases.
 8. Redesign QML Actuals/Commitments as ledgers (status, source, period, matching, approval,
    posting, reversal); remove generic edit/delete on posted rows.
+
+Phase C.1 verification checkpoint: all 9 new domain/service/tenant/RBAC/desktop/migration/
+architecture tests pass; the combined period and Project Finance persistence-guard suite passes
+19 tests. Fresh-database Alembic upgrade/downgrade passed and the graph remains single-headed.
+The final selected C.1/PM-finance/migration/graph checkpoint passes 30 tests.
+The broader desktop-registry/PM-finance check passed 24 tests; its two failures are pre-existing,
+unrelated Site datetime and inactive-organization provisioning defects. No temporary C.1 code or
+deletion-register entry was introduced.
 
 ## 3. Finance — Phase D and E (future, not started)
 

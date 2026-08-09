@@ -17,6 +17,7 @@ from src.core.platform.integration.resolver import IntegrationResolver
 from src.core.platform.application.history.activity.activity_service import ActivityService
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.history.audit import EnterpriseAuditService
+from src.core.platform.application.finance import FinancialPeriodService
 from src.core.platform.application.events.notifications.notification_service import NotificationService
 from src.core.platform.application.security.auth import AuthService
 from src.core.platform.application.security.authorization.roles import (
@@ -209,6 +210,7 @@ class ServiceGraph:
     access_service: AccessControlService
     activity_service: ActivityService
     enterprise_audit_service: EnterpriseAuditService
+    financial_period_service: FinancialPeriodService
     notification_service: NotificationService
     approval_service: ApprovalService
     collaboration_service: CollaborationService
@@ -314,6 +316,7 @@ class ServiceGraph:
             "access_service": self.access_service,
             "activity_service": self.activity_service,
             "enterprise_audit_service": self.enterprise_audit_service,
+            "financial_period_service": self.financial_period_service,
             "notification_service": self.notification_service,
             "approval_service": self.approval_service,
             "collaboration_service": self.collaboration_service,
@@ -459,6 +462,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         access_service=platform_services.access_service,
         activity_service=platform_services.activity_service,
         enterprise_audit_service=platform_services.enterprise_audit_service,
+        financial_period_service=platform_services.financial_period_service,
         notification_service=platform_services.notification_service,
         approval_service=platform_services.approval_service,
         collaboration_service=project_management_services.collaboration_service,

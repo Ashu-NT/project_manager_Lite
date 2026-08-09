@@ -1,6 +1,6 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: audit complete; Phase A0, A1, A2, and Phase B item 8 code gates complete; hosted PostgreSQL validation pending
+Status: audit complete; Phase A0, A1, A2, Phase B item 8, and Phase C item 1 foundation code gates complete; hosted PostgreSQL validation pending
 Last updated: 2026-08-09
 Scope: Project Management finance plus reusable platform financial foundations
 Current increment: Task-owned WBS, effective-dated rate cards (ADR-PF-005) with the
@@ -22,8 +22,8 @@ gap masked by ORM-table import order, only surfaced once the new budget table ch
 order. Both rate-card and budget Numeric columns now declare it.
 Remaining Phase B scope: item 7's planning-report source decision remains blocked on the
 documented envelope-versus-allocation product decision and a snapshot freshness mechanism.
-Item 8's QML combined-Budget replacement is complete. Phase C remains the next unblocked
-implementation phase.
+Item 8's QML combined-Budget replacement is complete. Phase C item 1's organization financial-
+period foundation is complete; item 2's canonical actual-ledger lifecycle is next.
 
 ## 1. Executive Summary
 
@@ -870,7 +870,7 @@ Ownership: **PROJECT FINANCE + PLATFORM TIME + INVENTORY PROCUREMENT + PLATFORM 
 
 ADR gate: ADR-PF-004, ADR-PF-006, ADR-PF-007, and ADR-PF-008 must be accepted before ledger/source integration cutover.
 
-1. Add organization financial periods and closure/lock policy. Keep them separate from operational scheduling calendars.
+1. **Complete 2026-08-09:** add organization financial periods and closure/lock policy. Keep them separate from operational scheduling calendars.
 2. Add ProjectCostEntry draft/approval/post/reversal lifecycle with direct scope, Money/base-Money/FX snapshot, source, period, dimensions, actor/timestamps, and scoped idempotency constraints.
 3. Add PM commitment projections/lines, matching, cancellation/closure, and remaining-balance policy.
 4. Add an approved-Time contract/event and idempotent labor-cost consumer. Snapshot rate and reverse/replace corrected approvals.
@@ -881,10 +881,30 @@ ADR gate: ADR-PF-004, ADR-PF-006, ADR-PF-007, and ADR-PF-008 must be accepted be
 
 Exit gate: only approved time generates actuals; one source/version cannot duplicate; rate/FX changes do not change history; commitment matching avoids double count; closed periods reject normal posting; RLS and tenant tests pass; legacy and new totals reconcile.
 
-Prep work only (2026-08-06): the `TRANSITION(PF-A0-UOW-BRIDGE)` cleanup this
-phase's items 2/6 depend on (dedicated approved commands owning their own
-Unit of Work) is done — see the transition-code register above. None of
-Phase C's 8 items themselves have started.
+Implementation progress:
+
+- The 2026-08-06 `TRANSITION(PF-A0-UOW-BRIDGE)` cleanup that items 2/6 depend on
+  remains complete: dedicated approved commands own their Unit of Work.
+- Item 1 is complete. The reusable Platform Finance period aggregate is independent of
+  operational calendars and owns code/year/number/date identity plus an irreversible normal
+  open -> closed -> locked lifecycle. Persistence has direct tenant/organization ownership,
+  composite organization foreign keys, RLS metadata/migration, scoped uniqueness, optimistic
+  concurrency, and an organization-row write lock before overlap validation. PostgreSQL thereby
+  serializes concurrent catalog writers; local SQLite retains the same application invariant.
+- `FinancialPeriodService` applies `finance.read`/`finance.manage`, fail-closed Enterprise Audit,
+  and a canonical `require_open_period_for_date()` policy for item 2 and later source consumers.
+  The typed desktop adapter exposes list/get/create/update/close/lock without carrying domain
+  policy into QML. No delete, reopen, late-post adapter, fallback, or temporary transition file
+  exists.
+- The current `finance.manage` close/lock boundary is deliberately coarse. Dedicated close
+  authority, separation of duties, reopen, and late-adjustment behavior remain blocked on the
+  section 24 product decision; item 2 may implement normal posting without inventing those paths.
+- Verification: all 9 new C.1 tests pass; the combined C.1 plus Project Finance persistence
+  guardrail suite passes 19 tests. A fresh SQLite Alembic upgrade/downgrade passed and the graph
+  remains single-headed; the final selected C.1/PM-finance/migration/graph checkpoint passes 30
+  tests. The broader desktop-registry/PM-finance run passed 24 tests; its two
+  failures are the pre-existing Site timezone-comparison and inactive-organization provisioning
+  defects. Item 2, the canonical `ProjectCostEntry` lifecycle, is next.
 
 ### Phase D - Forecasts, ETC, change control, and enterprise reporting
 

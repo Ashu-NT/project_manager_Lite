@@ -15,6 +15,7 @@ import src.core.platform.infrastructure.persistence.orm.master_data.documents.do
 import src.core.platform.infrastructure.persistence.orm.master_data.party.party  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.tenant.modules.modules  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.time_management.time.time  # noqa: F401
+import src.core.platform.infrastructure.persistence.orm.finance.financial_period  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.security.auth.auth  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.security.identity.identity  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant  # noqa: F401
