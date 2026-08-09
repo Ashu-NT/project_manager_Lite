@@ -3,11 +3,11 @@ from __future__ import annotations
 import logging
 from datetime import date
 
-from src.core.modules.project_management.api.desktop.scheduling.builders.change_impact_builder import (
-    compute_schedule_impact,
-)
 from src.core.modules.project_management.api.desktop.scheduling.models.change_impact import (
     ScheduleImpactReportDto,
+)
+from src.core.modules.project_management.api.desktop.scheduling.serializers.change_impact_serializer import (
+    serialize_schedule_impact_report,
 )
 from src.core.modules.project_management.api.desktop.tasks.builders.assignment_preview_builder import (
     build_assignment_preview,
@@ -681,11 +681,37 @@ class ProjectManagementTasksDesktopApi:
         task_id: str,
         project_id: str,
     ) -> ScheduleImpactReportDto:
-        return compute_schedule_impact(
-            task_id,
-            project_id,
-            task_service=self._task_service,
-            schedule_change_impact_service=self._schedule_change_impact_service,
+        normalized_task_id = str(task_id or "").strip()
+        normalized_project_id = str(project_id or "").strip()
+        unavailable = serialize_schedule_impact_report(
+            task_id=normalized_task_id,
+            project_id=normalized_project_id,
+            simulated_delay_days=1,
+        )
+        if (
+            not normalized_task_id
+            or not normalized_project_id
+            or self._task_service is None
+            or self._schedule_change_impact_service is None
+        ):
+            return unavailable
+        try:
+            task = self._task_service.get_task(normalized_task_id)
+            if task is None or task.start_date is None:
+                return unavailable
+            report = self._schedule_change_impact_service.analyse_delay(
+                project_id=normalized_project_id,
+                changed_task_id=normalized_task_id,
+                current_start=task.start_date,
+                delay_days=1,
+            )
+        except Exception:
+            return unavailable
+        return serialize_schedule_impact_report(
+            task_id=normalized_task_id,
+            project_id=normalized_project_id,
+            simulated_delay_days=1,
+            report=report,
         )
 
     def _require_task_service(self) -> TaskService:

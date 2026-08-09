@@ -14,6 +14,7 @@ def build_project_management_scheduling_desktop_api(
     baseline_service=None,
     reporting_service=None,
     change_impact_service=None,
+    constraint_validator=None,
 ) -> ProjectManagementSchedulingDesktopApi:
     return ProjectManagementSchedulingDesktopApi(
         project_service=project_service,
@@ -25,6 +26,7 @@ def build_project_management_scheduling_desktop_api(
         baseline_service=baseline_service,
         reporting_service=reporting_service,
         change_impact_service=change_impact_service,
+        constraint_validator=constraint_validator,
     )
 
 

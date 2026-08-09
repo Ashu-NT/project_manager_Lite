@@ -9,6 +9,9 @@ from src.core.modules.project_management.application.projects import ProjectServ
 from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import BaselineService
 from src.core.modules.project_management.application.scheduling.forecasting.schedule_change_impact_service import ScheduleChangeImpactService
+from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
+    ConstraintValidator,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 
@@ -90,6 +93,7 @@ class ProjectManagementSchedulingDesktopApi:
         baseline_service: BaselineService | None = None,
         reporting_service: ReportingService | None = None,
         change_impact_service: ScheduleChangeImpactService | None = None,
+        constraint_validator: ConstraintValidator | None = None,
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
@@ -100,6 +104,7 @@ class ProjectManagementSchedulingDesktopApi:
         self._baseline_service = baseline_service
         self._reporting_service = reporting_service
         self._change_impact_service = change_impact_service
+        self._constraint_validator = constraint_validator
 
     # ── Project / Activity options ────────────────────────────────────────────
 
@@ -325,7 +330,7 @@ class ProjectManagementSchedulingDesktopApi:
             (project_id or "").strip(),
             scheduling_engine=self._scheduling_engine,
             task_service=self._task_service,
-            work_calendar_engine=self._work_calendar_engine,
+            constraint_validator=self._constraint_validator,
         )
 
     # ── Change impact ─────────────────────────────────────────────────────────
@@ -342,7 +347,6 @@ class ProjectManagementSchedulingDesktopApi:
             project_id, task_id,
             proposed_start, proposed_finish, proposed_duration_days,
             change_impact_service=self._change_impact_service,
-            baseline_service=self._baseline_service,
         )
 
     # ── Internal guards ───────────────────────────────────────────────────────

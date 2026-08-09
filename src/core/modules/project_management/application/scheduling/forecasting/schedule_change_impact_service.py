@@ -3,7 +3,8 @@ from __future__ import annotations
 from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
+from typing import Protocol
 
 from src.core.modules.project_management.contracts.repositories.task import (
     DependencyRepository,
@@ -52,6 +53,10 @@ class ScheduleChangeImpactReport:
     requires_approval: bool                   # true if approved baseline exists and shift > threshold
 
 
+class ApprovedBaselineLookup(Protocol):
+    def get_approved_baseline(self, project_id: str) -> object | None: ...
+
+
 class ScheduleChangeImpactService:
     """
     Analyses the downstream impact of a proposed schedule change before persisting.
@@ -72,11 +77,13 @@ class ScheduleChangeImpactService:
         task_repo: TaskRepository,
         dependency_repo: DependencyRepository,
         calendar: CalendarProtocol,
+        baseline_lookup: ApprovedBaselineLookup,
         approval_threshold_days: int = 5,
     ) -> None:
         self._task_repo = task_repo
         self._dependency_repo = dependency_repo
         self._calendar = calendar
+        self._baseline_lookup = baseline_lookup
         self._approval_threshold_days = approval_threshold_days
         self._cpm = CPMCalculator(calendar)
 
@@ -87,7 +94,6 @@ class ScheduleChangeImpactService:
         proposed_start: date | None = None,
         proposed_finish: date | None = None,
         proposed_duration_days: int | None = None,
-        has_approved_baseline: bool = False,
     ) -> ScheduleChangeImpactReport:
         """
         Run two CPM passes (original vs proposed) and return the delta.
@@ -173,7 +179,7 @@ class ScheduleChangeImpactService:
         no_longer_critical = sorted(orig_critical - prop_critical)
 
         requires_approval = (
-            has_approved_baseline
+            self._has_approved_baseline(project_id)
             and abs(project_finish_shift) >= self._approval_threshold_days
         )
 
@@ -189,6 +195,23 @@ class ScheduleChangeImpactService:
             requires_approval=requires_approval,
         )
 
+    def analyse_delay(
+        self,
+        *,
+        project_id: str,
+        changed_task_id: str,
+        current_start: date,
+        delay_days: int = 1,
+    ) -> ScheduleChangeImpactReport:
+        return self.analyse(
+            project_id=project_id,
+            changed_task_id=changed_task_id,
+            proposed_start=current_start + timedelta(days=max(1, delay_days)),
+        )
+
+    def _has_approved_baseline(self, project_id: str) -> bool:
+        return self._baseline_lookup.get_approved_baseline(project_id) is not None
+
     # ── internal ─────────────────────────────────────────────────────────────
 
     def _day_shift(self, original: date | None, proposed: date | None) -> int:
@@ -201,4 +224,9 @@ class ScheduleChangeImpactService:
         return -(self._calendar.working_days_between(proposed, original) - 1)
 
 
-__all__ = ["ScheduleChangeImpactService", "ScheduleChangeImpactReport", "TaskImpact"]
+__all__ = [
+    "ApprovedBaselineLookup",
+    "ScheduleChangeImpactService",
+    "ScheduleChangeImpactReport",
+    "TaskImpact",
+]

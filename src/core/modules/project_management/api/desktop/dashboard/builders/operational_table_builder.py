@@ -190,7 +190,11 @@ def _build_resource_overloads_table(dashboard_data: Any) -> ProjectDashboardOper
 
 
 def _build_pending_approvals_table(pending_approvals: tuple[Any, ...]) -> ProjectDashboardOperationalTableDescriptor:
-    from src.core.platform.api.desktop.approval._approval_labels import approval_context_label, approval_display_label, approval_module_label
+    from src.core.platform.api.desktop.approval import (
+        approval_context_label,
+        approval_display_label,
+        approval_module_label,
+    )
     return ProjectDashboardOperationalTableDescriptor(
         id="pending_approvals", title="Pending Approvals",
         subtitle="Governed changes waiting for decision or application.",

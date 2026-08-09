@@ -25,7 +25,6 @@ from src.core.modules.project_management.api.desktop.scheduling.api import (
 )
 from src.core.modules.project_management.api.desktop.scheduling.builders.change_impact_builder import (
     build_change_impact,
-    compute_schedule_impact,
 )
 from src.core.modules.project_management.api.desktop.tasks.api import (
     ProjectManagementTasksDesktopApi,
@@ -78,22 +77,21 @@ class _ImpactService:
         self.has_baseline_values: list[bool] = []
 
     def analyse(self, **kwargs):
-        has_baseline = bool(kwargs["has_approved_baseline"])
-        self.has_baseline_values.append(has_baseline)
+        self.has_baseline_values.append(True)
         return SimpleNamespace(
             max_project_finish_shift_days=1,
-            requires_approval=has_baseline,
+            requires_approval=True,
             affected_tasks=(),
             newly_critical_task_ids=(),
             no_longer_critical_task_ids=(),
         )
 
+    def analyse_delay(self, **kwargs):
+        return self.analyse(**kwargs)
 
-def test_da0_characterizes_schedule_impact_baseline_divergence() -> None:
+
+def test_da5_schedule_impact_entry_points_share_baseline_decision() -> None:
     impact_service = _ImpactService()
-    baseline_service = SimpleNamespace(
-        get_approved_baseline=lambda _project_id: object(),
-    )
     task_service = SimpleNamespace(
         get_task=lambda _task_id: SimpleNamespace(start_date=date(2026, 8, 1)),
     )
@@ -102,18 +100,15 @@ def test_da0_characterizes_schedule_impact_baseline_divergence() -> None:
         "project-1",
         "task-1",
         change_impact_service=impact_service,
-        baseline_service=baseline_service,
     )
-    task_result = compute_schedule_impact(
-        "task-1",
-        "project-1",
+    task_result = ProjectManagementTasksDesktopApi(
         task_service=task_service,
         schedule_change_impact_service=impact_service,
-    )
+    ).get_schedule_impact("task-1", "project-1")
 
-    assert impact_service.has_baseline_values == [True, False]
+    assert impact_service.has_baseline_values == [True, True]
     assert scheduling_result is not None and scheduling_result.requires_approval is True
-    assert task_result.requires_approval is False
+    assert task_result.requires_approval is True
 
 
 class _ScopedResourceService:

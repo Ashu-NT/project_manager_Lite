@@ -17,9 +17,6 @@ from src.core.modules.project_management.api.desktop.scheduling.commands.working
 from src.core.modules.project_management.api.desktop.scheduling.factories.scheduling_api_factory import (
     build_project_management_scheduling_desktop_api,
 )
-from src.core.modules.project_management.api.desktop.scheduling.builders.change_impact_builder import (
-    compute_schedule_impact,
-)
 from src.core.modules.project_management.api.desktop.scheduling.models import (
     ScheduleImpactAffectedTaskDto,
     ScheduleImpactReportDto,
@@ -73,5 +70,4 @@ __all__ = [
     "SchedulingWorkingDayCalculationCommand",
     "SchedulingWorkingDayCalculationDto",
     "build_project_management_scheduling_desktop_api",
-    "compute_schedule_impact",
 ]

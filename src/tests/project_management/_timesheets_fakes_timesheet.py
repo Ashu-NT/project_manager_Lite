@@ -10,6 +10,7 @@ from src.core.modules.project_management.domain.enums import (
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
 from src.core.platform.domain.time_management.time import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
+from src.core.platform.application.time_management.time import TimesheetPeriodAggregate
 from src.tests.project_management._timesheets_fakes_services import (
     _FakeResourceService,
     _FakeTaskService,
@@ -28,6 +29,7 @@ class _FakeTimesheetService:
         self._resource_service = resource_service
         self._entries: dict[str, TimeEntry] = {}
         self._periods: dict[tuple[str, date], TimesheetPeriod] = {}
+        self.resource_period_read_count = 0
 
     def list_time_entries_for_assignment(self, assignment_id: str) -> list[TimeEntry]:
         return [e for e in self._entries.values() if e.assignment_id == assignment_id]
@@ -49,6 +51,7 @@ class _FakeTimesheetService:
         *,
         period_start: date,
     ) -> list[TimeEntry]:
+        self.resource_period_read_count += 1
         return [
             e for e in self._entries.values()
             if self._resource_id_for_entry(e) == resource_id
@@ -120,29 +123,33 @@ class _FakeTimesheetService:
         *,
         period_start: date,
         note: str = "",
-    ) -> TimesheetPeriod:
+    ) -> TimesheetPeriodAggregate:
         period = self._ensure_period(resource_id, period_start)
         period.status = TimesheetPeriodStatus.SUBMITTED
         period.submitted_at = datetime(2026, 5, 4, 17, 0)
         period.submitted_by_username = "alex"
         period.decision_note = note
-        return period
+        return self._aggregate(period)
 
-    def approve_timesheet_period(self, period_id: str, *, note: str = "") -> TimesheetPeriod:
+    def approve_timesheet_period(
+        self, period_id: str, *, note: str = ""
+    ) -> TimesheetPeriodAggregate:
         period = self._period_by_id(period_id)
         period.status = TimesheetPeriodStatus.APPROVED
         period.decided_at = datetime(2026, 5, 5, 9, 0)
         period.decided_by_username = "jamie"
         period.decision_note = note
-        return period
+        return self._aggregate(period)
 
-    def reject_timesheet_period(self, period_id: str, *, note: str = "") -> TimesheetPeriod:
+    def reject_timesheet_period(
+        self, period_id: str, *, note: str = ""
+    ) -> TimesheetPeriodAggregate:
         period = self._period_by_id(period_id)
         period.status = TimesheetPeriodStatus.REJECTED
         period.decided_at = datetime(2026, 5, 5, 9, 0)
         period.decided_by_username = "jamie"
         period.decision_note = note
-        return period
+        return self._aggregate(period)
 
     def lock_timesheet_period(
         self,
@@ -150,19 +157,41 @@ class _FakeTimesheetService:
         *,
         period_start: date,
         note: str = "",
-    ) -> TimesheetPeriod:
+    ) -> TimesheetPeriodAggregate:
         period = self._ensure_period(resource_id, period_start)
         period.status = TimesheetPeriodStatus.LOCKED
         period.locked_at = datetime(2026, 5, 6, 18, 0)
         period.decision_note = note
-        return period
+        return self._aggregate(period)
 
-    def unlock_timesheet_period(self, period_id: str, *, note: str = "") -> TimesheetPeriod:
+    def unlock_timesheet_period(
+        self, period_id: str, *, note: str = ""
+    ) -> TimesheetPeriodAggregate:
         period = self._period_by_id(period_id)
         period.status = TimesheetPeriodStatus.OPEN
         period.decision_note = note
         period.locked_at = None
-        return period
+        return self._aggregate(period)
+
+    def summarize_timesheet_period(
+        self,
+        resource_id: str,
+        *,
+        period_start: date,
+        period: TimesheetPeriod | None = None,
+        entries: list[TimeEntry] | None = None,
+    ) -> TimesheetPeriodAggregate:
+        current_period = period or self._periods.get((resource_id, period_start))
+        rows = entries if entries is not None else self.list_time_entries_for_resource_period(
+            resource_id,
+            period_start=period_start,
+        )
+        return self._aggregate_from_rows(
+            resource_id=resource_id,
+            period_start=period_start,
+            period=current_period,
+            entries=rows,
+        )
 
     def list_timesheet_review_queue(
         self,
@@ -241,6 +270,54 @@ class _FakeTimesheetService:
                 period_end=_test_period_end(period_start),
             )
         return self._periods[key]
+
+    def _aggregate(self, period: TimesheetPeriod) -> TimesheetPeriodAggregate:
+        entries = self.list_time_entries_for_resource_period(
+            period.resource_id,
+            period_start=period.period_start,
+        )
+        return self._aggregate_from_rows(
+            resource_id=period.resource_id,
+            period_start=period.period_start,
+            period=period,
+            entries=entries,
+        )
+
+    @staticmethod
+    def _aggregate_from_rows(
+        *,
+        resource_id: str,
+        period_start: date,
+        period: TimesheetPeriod | None,
+        entries: list[TimeEntry],
+    ) -> TimesheetPeriodAggregate:
+        project_ids = tuple(
+            sorted(
+                {
+                    entry.scope_id
+                    for entry in entries
+                    if entry.scope_type == "project" and entry.scope_id
+                }
+            )
+        )
+        return TimesheetPeriodAggregate(
+            period_id=period.id if period else "",
+            resource_id=resource_id,
+            period_start=period_start,
+            period_end=period.period_end if period else _test_period_end(period_start),
+            status=period.status if period else TimesheetPeriodStatus.OPEN,
+            submitted_at=period.submitted_at if period else None,
+            submitted_by_user_id=period.submitted_by_user_id if period else None,
+            submitted_by_username=period.submitted_by_username if period else None,
+            decided_at=period.decided_at if period else None,
+            decided_by_user_id=period.decided_by_user_id if period else None,
+            decided_by_username=period.decided_by_username if period else None,
+            decision_note=period.decision_note if period else "",
+            locked_at=period.locked_at if period else None,
+            entry_count=len(entries),
+            total_hours=sum(float(entry.hours or 0.0) for entry in entries),
+            project_ids=project_ids,
+        )
 
     def _period_by_id(self, period_id: str) -> TimesheetPeriod:
         for period in self._periods.values():

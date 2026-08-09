@@ -10,7 +10,7 @@ Desktop Adapter Responsibility Audit. CQRS Phases 0A-0C and 1-6 are complete. Th
 Session/Unit-of-Work investigation remains a separate future architecture decision; it is
 not an unfinished CQRS phase.
 
-## 0. Desktop adapter responsibility hardening (in progress)
+## 0. Desktop adapter responsibility hardening (complete 2026-08-09)
 
 Source: `../CQRS/project_management_cqrs_existing_state_audit.md`, "Desktop Adapter
 Responsibility Audit." This work was identified after the original consolidated TODO was
@@ -32,11 +32,14 @@ generated and therefore takes priority over starting the much larger Finance Pha
   `EnterpriseCalendarService`. Register overdue/triage policy belongs to `RegisterEntry`, and
   `RegisterService` applies it after RBAC scope filtering. Dashboard consumes the same Register
   snapshot and canonical resource-utilization policy across every desktop projection.
-- **DA4 - Read/report extraction (not started):** move only measured or clearly problematic
-  reads; do not create speculative Readers.
-- **DA5 - Duplicate and dead-code removal (not started):** remove superseded duplicate
-  implementations after parity tests. The dead Financials procurement projection assigned to
-  this phase was completed early during DA0.
+- **DA4 - Read/report extraction (complete 2026-08-08):** Timesheet period transitions now
+  return immutable aggregate facts built from the entries already loaded by the command, and
+  assignment options/details use one tenant-scoped joined application query. No speculative
+  Reader was introduced.
+- **DA5 - Duplicate and dead-code removal (complete 2026-08-08):** removed the remaining
+  schedule-impact wrapper and Projects reflection fallback after parity tests. The Resources
+  rate/currency options fallback and dead Financials procurement projection had already been
+  deleted in DA1/DA0 respectively.
 
 ### DA0/DA1 exception deletion register
 
@@ -48,8 +51,8 @@ exception in the same change that removes its runtime violation.
 | --- | --- | --- | --- |
 | Repository contracts imported by desktop Resources | None; all three imports removed | Resources pilot | CLOSED 2026-08-08 |
 | Private collaborator access | None; all Tasks access/resource lookup reach-throughs removed | DA1 Tasks migration | CLOSED 2026-08-08 |
-| Application objects constructed in desktop code | `ConstraintValidator` only; Resources construction removed | Scheduling composition migration provides the constructed collaborator | OPEN |
-| Private platform module imports | `common/financial_formatting.py` imports `finance.money._decimal`; Dashboard imports `approval._approval_labels` | Expose and consume public platform contracts | OPEN |
+| Application objects constructed in desktop code | None; runtime composition injects `ConstraintValidator` | Scheduling composition migration provides the constructed collaborator | CLOSED 2026-08-09 |
+| Private platform module imports | None; PM consumes public money and approval-label package exports | Expose and consume public platform contracts | CLOSED 2026-08-09 |
 
 **DA0 exit gate:** all P0/P1 behaviors have characterization coverage; architecture scanners
 reject synthetic violations; every remaining exception above has a named DA1 removal owner.
@@ -218,7 +221,59 @@ DA3 Dashboard and workspace-performance checkpoint (2026-08-08):
   Phase 3B measurement budgets passed after recalibration. The directly affected Platform security
   set passed 126 tests; its one unrelated existing failure is the global PostgreSQL RLS inventory,
   which does not yet classify newly added Project Finance tenant tables. DA3 is complete; DA4
-  remains the next responsibility-audit phase.
+  followed below.
+
+DA4 Timesheets checkpoint (2026-08-08):
+
+- `TimesheetPeriodAggregate` is an immutable Platform application result containing period state,
+  entry count, total hours, and project IDs. Submit/approve/reject/lock/unlock build it from the
+  same entries already required for validation, audit, and events; the desktop serializer no
+  longer fetches entries or calculates totals.
+- `TaskService.list_timesheet_assignment_contexts()` and
+  `get_timesheet_assignment_context()` enforce canonical `task.read` plus project RBAC before
+  returning contract-owned immutable rows. `SqlAlchemyAssignmentRepository` obtains project,
+  task, assignment, and resource context in one tenant/organization-scoped joined query.
+- Both the assignment picker and assignment snapshot consume that application query. Their prior
+  project-to-task-to-assignment loops and per-assignment resource lookups were deleted rather than
+  retained as fallbacks.
+- The QML-facing `TimesheetPeriodSummaryDesktopDto` and assignment descriptor fields are unchanged.
+  Persistent measurement verifies one joined assignment data query, with at most one additional
+  bounded runtime-session lease statement; transition characterization verifies desktop
+  serialization performs no second resource-period entry read.
+- Focused Platform, PM desktop, isolation, architecture, and measurement checkpoint: 52 passed.
+  DA4 is complete; DA5 duplicate/dead-code removal is next.
+
+DA5 cleanup checkpoint (2026-08-08):
+
+- `ScheduleChangeImpactService` now owns approved-baseline resolution and the standard delayed-task
+  scenario. Tasks and Scheduling therefore cannot disagree about `requires_approval` based on
+  entry point. The standalone `compute_schedule_impact` function and all exports were deleted.
+- Projects `create_project` and `update_project` explicitly forward every declared command field
+  to the exact `ProjectService` contract. `call_with_supported_kwargs` and its `inspect.signature`
+  filtering were deleted, so field/signature drift now fails tests instead of silently dropping
+  data.
+- The Resources `resource_options_builder.py` fallback named by the original DA5 register had
+  already been removed during DA1/DA3; the current option builder contains only enum presentation
+  options and no rate/currency precedence.
+- Focused Projects, Scheduling, Tasks, characterization, and architecture checkpoint: 35 passed.
+  DA5 is complete.
+- Bounded DA4/DA5 regression matrix: 195 passed. Two unrelated existing architecture size guards
+  remain red in untouched files: `scheduling_engine.py` is 449 lines against its 410-line growth
+  budget, while the hard 1,200-line inventory flags generated `shared_resources_rc.py` and Platform
+  `enterprise_calendar.py`. Four existing SQLAlchemy delete-count warnings remain in cascading
+  time-entry cleanup tests.
+
+Architecture exception closure checkpoint (2026-08-09):
+
+- Platform Money publicly exports its decimal conversion helpers, and Platform Approval publicly
+  exports its display/context/module label helpers. PM no longer imports underscore-prefixed
+  modules from either platform package.
+- Runtime composition constructs and injects `ConstraintValidator`; the Scheduling desktop
+  builder no longer instantiates an application object.
+- The architecture exception sets are empty. Desktop adapter responsibility hardening DA0-DA5 is
+  complete. Public-export, Dashboard/Financials, Scheduling-injection, and architecture closure
+  checkpoint: 20 passed. The next consolidated priority is the remaining Finance Phase B work in
+  section 1.
 
 ## 1. Finance — Phase B, remaining
 

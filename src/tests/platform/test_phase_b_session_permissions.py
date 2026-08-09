@@ -236,7 +236,7 @@ def test_timesheet_period_permissions_are_split_between_submit_approve_and_lock(
     assert submitted.status.value == "SUBMITTED"
 
     with pytest.raises(BusinessRuleError, match="timesheet.approve"):
-        ts.approve_timesheet_period(submitted.id)
+        ts.approve_timesheet_period(submitted.period_id)
 
     with pytest.raises(BusinessRuleError, match="timesheet.lock"):
         ts.lock_timesheet_period(resource.id, period_start=date(2026, 7, 1))

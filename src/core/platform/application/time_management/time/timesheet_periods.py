@@ -7,6 +7,9 @@ from src.core.platform.application.security.authorization.enforcement.permission
 from src.core.platform.common.exceptions import ValidationError
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.domain.time_management.time import TimesheetPeriod, TimesheetPeriodStatus
+from src.core.platform.application.time_management.time.timesheet_query import (
+    TimesheetPeriodAggregate,
+)
 
 
 class TimesheetPeriodsMixin:
@@ -16,7 +19,7 @@ class TimesheetPeriodsMixin:
         *,
         period_start: date,
         note: str = "",
-    ) -> TimesheetPeriod:
+    ) -> TimesheetPeriodAggregate:
         require_permission(self._user_session, "timesheet.submit", operation_label="submit timesheet period")
         entries = self.list_time_entries_for_resource_period(resource_id, period_start=period_start)
         if not entries:
@@ -58,9 +61,16 @@ class TimesheetPeriodsMixin:
             },
         )
         self._emit_timesheet_period_events(period.id, project_ids)
-        return period
+        return self._build_timesheet_period_aggregate(
+            resource_id=resource_id,
+            period_start=period_start,
+            period=period,
+            entries=entries,
+        )
 
-    def approve_timesheet_period(self, period_id: str, *, note: str = "") -> TimesheetPeriod:
+    def approve_timesheet_period(
+        self, period_id: str, *, note: str = ""
+    ) -> TimesheetPeriodAggregate:
         require_permission(self._user_session, "timesheet.approve", operation_label="approve timesheet period")
         period = self._require_timesheet_period(period_id)
         if period.status != TimesheetPeriodStatus.SUBMITTED:
@@ -95,9 +105,16 @@ class TimesheetPeriodsMixin:
             },
         )
         self._emit_timesheet_period_events(period.id, project_ids)
-        return period
+        return self._build_timesheet_period_aggregate(
+            resource_id=period.resource_id,
+            period_start=period.period_start,
+            period=period,
+            entries=entries,
+        )
 
-    def reject_timesheet_period(self, period_id: str, *, note: str = "") -> TimesheetPeriod:
+    def reject_timesheet_period(
+        self, period_id: str, *, note: str = ""
+    ) -> TimesheetPeriodAggregate:
         require_permission(self._user_session, "timesheet.approve", operation_label="reject timesheet period")
         period = self._require_timesheet_period(period_id)
         if period.status != TimesheetPeriodStatus.SUBMITTED:
@@ -132,7 +149,12 @@ class TimesheetPeriodsMixin:
             },
         )
         self._emit_timesheet_period_events(period.id, project_ids)
-        return period
+        return self._build_timesheet_period_aggregate(
+            resource_id=period.resource_id,
+            period_start=period.period_start,
+            period=period,
+            entries=entries,
+        )
 
     def lock_timesheet_period(
         self,
@@ -140,7 +162,7 @@ class TimesheetPeriodsMixin:
         *,
         period_start: date,
         note: str = "",
-    ) -> TimesheetPeriod:
+    ) -> TimesheetPeriodAggregate:
         require_permission(self._user_session, "timesheet.lock", operation_label="lock timesheet period")
         period = self._get_or_create_timesheet_period(resource_id=resource_id, period_start=period_start)
         if period.status == TimesheetPeriodStatus.APPROVED:
@@ -171,9 +193,16 @@ class TimesheetPeriodsMixin:
             },
         )
         self._emit_timesheet_period_events(period.id, project_ids)
-        return period
+        return self._build_timesheet_period_aggregate(
+            resource_id=resource_id,
+            period_start=period_start,
+            period=period,
+            entries=entries,
+        )
 
-    def unlock_timesheet_period(self, period_id: str, *, note: str = "") -> TimesheetPeriod:
+    def unlock_timesheet_period(
+        self, period_id: str, *, note: str = ""
+    ) -> TimesheetPeriodAggregate:
         require_permission(self._user_session, "timesheet.lock", operation_label="unlock timesheet period")
         period = self._require_timesheet_period(period_id)
         if period.status != TimesheetPeriodStatus.LOCKED:
@@ -204,7 +233,12 @@ class TimesheetPeriodsMixin:
             },
         )
         self._emit_timesheet_period_events(period.id, project_ids)
-        return period
+        return self._build_timesheet_period_aggregate(
+            resource_id=period.resource_id,
+            period_start=period.period_start,
+            period=period,
+            entries=entries,
+        )
 
     @staticmethod
     def _emit_timesheet_period_events(period_id: str, project_ids: list[str]) -> None:

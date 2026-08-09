@@ -5,6 +5,7 @@ from datetime import date
 from src.core.modules.project_management.contracts.repositories.task import (
     AssignmentRepository,
     TaskRepository,
+    TimesheetAssignmentContext,
 )
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
@@ -77,6 +78,58 @@ class TaskQueryMixin:
             if self._user_session.has_project_permission(task.project_id, "task.read"):
                 allowed_ids.append(task_id)
         return self._assignment_repo.list_by_tasks(allowed_ids)
+
+    def list_timesheet_assignment_contexts(
+        self,
+        *,
+        project_id: str | None = None,
+    ) -> list[TimesheetAssignmentContext]:
+        require_permission(
+            self._user_session,
+            "task.read",
+            operation_label="list timesheet assignments",
+        )
+        normalized_project_id = str(project_id or "").strip() or None
+        if normalized_project_id is not None:
+            require_project_permission(
+                self._user_session,
+                normalized_project_id,
+                "task.read",
+                operation_label="list timesheet assignments",
+            )
+        rows = self._assignment_repo.list_timesheet_contexts(
+            project_id=normalized_project_id
+        )
+        if normalized_project_id is not None:
+            return rows
+        return [
+            row
+            for row in rows
+            if self._user_session.has_project_permission(row.project_id, "task.read")
+        ]
+
+    def get_timesheet_assignment_context(
+        self,
+        assignment_id: str,
+    ) -> TimesheetAssignmentContext | None:
+        require_permission(
+            self._user_session,
+            "task.read",
+            operation_label="view timesheet assignment",
+        )
+        rows = self._assignment_repo.list_timesheet_contexts(
+            assignment_id=str(assignment_id or "").strip()
+        )
+        if not rows:
+            return None
+        row = rows[0]
+        require_project_permission(
+            self._user_session,
+            row.project_id,
+            "task.read",
+            operation_label="view timesheet assignment",
+        )
+        return row
 
     def query_tasks(
         self,

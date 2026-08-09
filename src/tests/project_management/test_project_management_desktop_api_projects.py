@@ -5,6 +5,10 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_projects_desktop_api,
     build_project_management_resources_desktop_api,
 )
+from src.core.modules.project_management.api.desktop.projects.commands.project_commands import (
+    ProjectCreateCommand,
+    ProjectUpdateCommand,
+)
 from src.core.modules.project_management.domain.enums import (
     CostType,
     ProjectStatus,
@@ -32,7 +36,7 @@ def test_project_management_projects_desktop_api_mutates_project_records() -> No
     api = build_project_management_projects_desktop_api(project_service=service)
 
     created = api.create_project(
-        SimpleNamespace(
+        ProjectCreateCommand(
             name="Plant Upgrade",
             description="Replace switchgear and commission the new line.",
             status="ACTIVE",
@@ -52,7 +56,7 @@ def test_project_management_projects_desktop_api_mutates_project_records() -> No
     assert listed[0].status_label == "Active"
 
     updated = api.update_project(
-        SimpleNamespace(
+        ProjectUpdateCommand(
             project_id=created.id,
             expected_version=service.get_project(created.id).version,
             name="Plant Upgrade Phase 1",
@@ -101,6 +105,11 @@ class _FakeProjectService:
         currency: str | None = None,
         start_date: date | None = None,
         end_date: date | None = None,
+        organization_id: str | None = None,
+        site_id: str | None = None,
+        client_party_id: str | None = None,
+        manager_user_id: str | None = None,
+        code: str = "",
     ) -> Project:
         project = Project(
             id=f"proj-{self._next_id}",
@@ -133,6 +142,11 @@ class _FakeProjectService:
         client_contact: str | None = None,
         planned_budget: float | None = None,
         currency: str | None = None,
+        organization_id: str | None = None,
+        site_id: str | None = None,
+        client_party_id: str | None = None,
+        manager_user_id: str | None = None,
+        code: str | None = None,
     ) -> Project:
         project = self._projects[project_id]
         if name is not None:

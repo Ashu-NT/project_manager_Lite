@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import TypeAlias
 
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.finance.money._decimal import (
+from src.core.platform.finance.money import (
     decimal_from_legacy_float,
     decimal_value,
 )

@@ -4459,13 +4459,21 @@ above, per the Correct-destination rules, not a shared catch-all.
 
 ### Phase DA4 — Read/report extraction
 
+**COMPLETE 2026-08-08.** Only the two measured Timesheets reads below were migrated. No new
+Reader was created.
+
 Migrate only measured or clearly problematic reads, per the migration constraints:
 
 - Financials' dead procurement methods were **deleted early in DA0** after usage re-verification,
   not migrated to a Reader; there was no live consumer to justify one.
-- Timesheets' period-total recomputation (`period_serializer.py`) becomes a service-level aggregate
-  on `TimeService`, removing the extra query.
-- Timesheets' assignment-options cross-service Python join becomes one application-layer query.
+- **Complete:** Timesheets' period-total recomputation became immutable
+  `TimesheetPeriodAggregate` facts on `TimeService`. Period transitions build the aggregate from
+  the entries already loaded for validation/audit/events, so desktop serialization performs no
+  second resource-period entry read and no authoritative sum.
+- **Complete:** Timesheets' assignment-options and assignment-detail cross-service Python joins
+  became `TaskService` application queries backed by one tenant/organization-scoped repository
+  join. Global/project `task.read` enforcement remains in the application service; the repository
+  returns contract-owned immutable `TimesheetAssignmentContext` rows.
 - Dashboard's Portfolio/Register-adjacent fan-out was measured with a persistent SQL/call-count
   harness. The redundancy was removed through existing application aggregates and bounded calendar
   snapshots; the resulting 0.08s/96-statement single-project fixture does not justify a dedicated
@@ -4478,18 +4486,28 @@ what §5-§7 already covered.
 
 ### Phase DA5 — Duplicate and dead-code removal
 
+**COMPLETE 2026-08-08.** The required second usage pass found two live duplicate/compatibility
+paths and one item already removed by earlier phases. No transition wrappers were retained.
+
 After DA1-DA4's parity/usage tests pass:
 
 - **Completed early in DA0:** deleted
   `get_project_procurement_commitments`/`list_project_requisitions`, their DTOs/serializer/exports,
   and unused composition wiring after the required second usage-verification pass.
-- Remove the duplicate rate/currency-precedence fallback from one of its two locations
-  (`resource_serializer.py` or `resource_options_builder.py`) once both read from the same resolved
-  source.
-- Remove `compute_schedule_impact` as a separate function once its behavior is folded into
-  `build_change_impact`/`ScheduleChangeImpactService.analyse` per the DA3-adjacent P0 fix above.
-- Remove `call_with_supported_kwargs` once Projects' `create_project`/`update_project` have explicit
-  field mappings (DA1-adjacent cleanup, low urgency per P2).
+- **Completed by earlier DA1/DA3 cleanup:** the Resources `resource_options_builder.py`
+  rate/currency fallback no longer exists; current options are enum-only and the serializer has
+  one persisted-resource source.
+- **Completed:** deleted `compute_schedule_impact` and its exports. The shared
+  `ScheduleChangeImpactService` now owns baseline lookup and delayed-task analysis, so Tasks and
+  Scheduling cannot diverge by passing different baseline flags.
+- **Completed:** Projects `create_project`/`update_project` now use explicit field mappings;
+  deleted `call_with_supported_kwargs` and reflection-based silent field filtering.
+- Verification: 35 focused DA5 tests passed. The combined DA4/DA5 bounded regression passed 195;
+  its two failures are unrelated pre-existing size guards in untouched `scheduling_engine.py`,
+  generated `shared_resources_rc.py`, and Platform `enterprise_calendar.py`.
+- **Exception closure 2026-08-09:** Platform Money and Approval now expose the required helpers
+  through public packages, and runtime composition injects `ConstraintValidator`. The desktop
+  private-module-import and application-construction exception sets are both empty.
 
 ## Per-capability migration sequence
 
@@ -4531,9 +4549,10 @@ only a deletion-usage-check, not this full list):
 8. **QML presenter test** only where the desktop DTO contract itself changes — per this audit, that
    is limited to: Tasks' `list_all_tasks` (additive `skipped_project_ids` field, if adopted),
    Dashboard's `_list_pending_approvals` (additive partial-failure field, if adopted).
-9. **Query-count test** for any read migrated in DA4 — none are currently recommended for a Reader
-   in this pass (see DA4's scope note), so this requirement is dormant here, reserved for if/when a
-   capability's read redundancy is later measured to justify one.
+9. **Query-count test** for any read migrated in DA4 - implemented for Timesheets. The assignment
+   projection executes one joined data statement plus at most the bounded runtime-session lease
+   check; transition characterization verifies serialization does not repeat the command's
+   resource-period entry read. No Reader was justified.
 
 ## Architecture guardrails (desktop-adapter specific, added in this pass)
 

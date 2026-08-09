@@ -25,24 +25,7 @@ def project_names_from_ids(
     return tuple(name for name in names if name)
 
 
-def project_names_for_entries(
-    entries,
-    *,
-    project_service,
-) -> tuple[str, ...]:
-    project_names = {
-        project_name_for_id(
-            getattr(entry, "scope_id", None),
-            project_service=project_service,
-        )
-        for entry in entries
-        if getattr(entry, "scope_type", None) == "project"
-    }
-    return tuple(sorted(name for name in project_names if name))
-
-
 __all__ = [
     "project_name_for_id",
-    "project_names_for_entries",
     "project_names_from_ids",
 ]

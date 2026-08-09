@@ -11,6 +11,9 @@ from src.core.modules.project_management.domain.enums import (
 )
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.modules.project_management.domain.tasks.task import Task
+from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
+    ConstraintValidator,
+)
 
 
 def test_project_management_scheduling_desktop_api_supports_schedule_calendar_and_baselines() -> None:
@@ -54,6 +57,7 @@ def test_project_management_scheduling_desktop_api_supports_schedule_calendar_an
         work_calendar_engine=work_calendar_engine,
         baseline_service=baseline_service,
         reporting_service=reporting_service,
+        constraint_validator=ConstraintValidator(work_calendar_engine),
     )
 
     assert api.list_projects()[0].label == "Plant Upgrade"
@@ -70,6 +74,7 @@ def test_project_management_scheduling_desktop_api_supports_schedule_calendar_an
     assert schedule[0].name == "Cable Pull"
     assert schedule[0].is_critical is True
     assert schedule[1].total_float_days == 2
+    assert api.list_constraint_violations(project.id) == ()
 
     created_a = api.create_baseline(
         SimpleNamespace(project_id=project.id, name="Original Plan")

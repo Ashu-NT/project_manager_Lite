@@ -24,18 +24,8 @@ FORBIDDEN_REPOSITORY_IMPORT_PREFIXES = (
 # DA0 transition register. Every entry must be removed with its DA1 runtime fix.
 KNOWN_REPOSITORY_IMPORTS: set[str] = set()
 KNOWN_PRIVATE_COLLABORATOR_ACCESS: set[str] = set()
-KNOWN_APPLICATION_CONSTRUCTION = {
-    "src/core/modules/project_management/api/desktop/scheduling/builders/constraint_builder.py:"
-    "src.core.modules.project_management.application.scheduling.cpm.constraint_validator."
-    "ConstraintValidator",
-}
-KNOWN_PRIVATE_MODULE_IMPORTS = {
-    "src/core/modules/project_management/api/desktop/common/financial_formatting.py:"
-    "src.core.platform.finance.money._decimal",
-    "src/core/modules/project_management/api/desktop/dashboard/builders/"
-    "operational_table_builder.py:"
-    "src.core.platform.api.desktop.approval._approval_labels",
-}
+KNOWN_APPLICATION_CONSTRUCTION: set[str] = set()
+KNOWN_PRIVATE_MODULE_IMPORTS: set[str] = set()
 
 
 def _python_files(root: Path) -> tuple[Path, ...]:

@@ -26,6 +26,9 @@ from src.core.modules.project_management.api.desktop_runtime.scheduling_helpers 
 from src.core.modules.project_management.api.desktop_runtime.service_resolver import (
     resolve_project_management_desktop_runtime_services,
 )
+from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
+    ConstraintValidator,
+)
 
 
 def build_project_management_desktop_runtime_apis(
@@ -50,6 +53,12 @@ def build_project_management_desktop_runtime_apis(
     change_impact_service = build_schedule_change_impact_service(
         resolved.task_service,
         resolved.work_calendar_engine,
+        resolved.baseline_service,
+    )
+    constraint_validator = (
+        ConstraintValidator(resolved.work_calendar_engine)
+        if resolved.work_calendar_engine is not None
+        else None
     )
     return ProjectManagementDesktopRuntimeApis(
         project_management_dashboard=build_project_management_dashboard_desktop_api(
@@ -105,6 +114,7 @@ def build_project_management_desktop_runtime_apis(
             baseline_service=resolved.baseline_service,
             reporting_service=resolved.reporting_service,
             change_impact_service=change_impact_service,
+            constraint_validator=constraint_validator,
         ),
         project_management_tasks=build_project_management_tasks_desktop_api(
             project_service=resolved.project_service,

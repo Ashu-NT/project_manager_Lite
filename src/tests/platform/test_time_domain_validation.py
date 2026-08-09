@@ -340,7 +340,7 @@ def test_time_service_uses_entity_validation_for_entries_and_periods(monkeypatch
     assert submitted.decision_note == "Submitted for approval"
 
     approved = service.approve_timesheet_period(
-        submitted.id,
+        submitted.period_id,
         note="  Approved  ",
     )
 

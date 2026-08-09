@@ -36,7 +36,6 @@ from src.core.modules.project_management.api.desktop.projects.serializers.resour
     serialize_project_resource,
 )
 from src.core.modules.project_management.api.desktop.projects.utils.project_utils import (
-    call_with_supported_kwargs,
     coerce_project_status,
 )
 
@@ -94,10 +93,9 @@ class ProjectManagementProjectsDesktopApi:
 
     def create_project(self, command: ProjectCreateCommand) -> ProjectDesktopDto:
         service = self._require_project_service()
-        project = call_with_supported_kwargs(
-            service.create_project,
+        project = service.create_project(
             name=command.name,
-            code=getattr(command, "code", ""),
+            code=command.code,
             description=command.description,
             status=coerce_project_status(command.status),
             client_name=command.client_name,
@@ -106,21 +104,20 @@ class ProjectManagementProjectsDesktopApi:
             currency=command.currency,
             start_date=command.start_date,
             end_date=command.end_date,
-            organization_id=getattr(command, "organization_id", None),
-            site_id=getattr(command, "site_id", None),
-            client_party_id=getattr(command, "client_party_id", None),
-            manager_user_id=getattr(command, "manager_user_id", None),
+            organization_id=command.organization_id,
+            site_id=command.site_id,
+            client_party_id=command.client_party_id,
+            manager_user_id=command.manager_user_id,
         )
         return serialize_project(project, site_lookup=self._site_lookup())
 
     def update_project(self, command: ProjectUpdateCommand) -> ProjectDesktopDto:
         service = self._require_project_service()
-        project = call_with_supported_kwargs(
-            service.update_project,
+        project = service.update_project(
             command.project_id,
             expected_version=command.expected_version,
             name=command.name,
-            code=getattr(command, "code", ""),
+            code=command.code,
             description=command.description,
             status=coerce_project_status(command.status),
             start_date=command.start_date,
@@ -129,10 +126,10 @@ class ProjectManagementProjectsDesktopApi:
             client_contact=command.client_contact,
             planned_budget=command.planned_budget,
             currency=command.currency,
-            organization_id=getattr(command, "organization_id", None),
-            site_id=getattr(command, "site_id", None),
-            client_party_id=getattr(command, "client_party_id", None),
-            manager_user_id=getattr(command, "manager_user_id", None),
+            organization_id=command.organization_id,
+            site_id=command.site_id,
+            client_party_id=command.client_party_id,
+            manager_user_id=command.manager_user_id,
         )
         return serialize_project(project, site_lookup=self._site_lookup())
 
