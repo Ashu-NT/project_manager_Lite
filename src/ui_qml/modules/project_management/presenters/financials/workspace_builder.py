@@ -31,6 +31,10 @@ def build_workspace_state(
     selected_cost_type: str = "all",
     search_text: str = "",
     selected_cost_id: str | None = None,
+    budget_line_page: int = 1,
+    rate_line_page: int = 1,
+    planned_cost_line_page: int = 1,
+    configuration_page_size: int = 50,
 ) -> FinancialsWorkspaceViewModel:
     project_options = tuple(
         FinancialsSelectorOptionViewModel(value=option.value, label=option.label)
@@ -76,7 +80,13 @@ def build_workspace_state(
     )
     forecast_dto = desktop_api.get_cost_forecast(resolved_project_id, method="bac_over_cpi")
     configuration_views = build_finance_configuration_views(
-        desktop_api.get_configuration_workspace(resolved_project_id)
+        desktop_api.get_configuration_workspace(
+            resolved_project_id,
+            budget_line_page=budget_line_page,
+            rate_line_page=rate_line_page,
+            planned_cost_line_page=planned_cost_line_page,
+            page_size=configuration_page_size,
+        )
     )
     return FinancialsWorkspaceViewModel(
         overview=build_overview(

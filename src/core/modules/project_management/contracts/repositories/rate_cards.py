@@ -61,8 +61,19 @@ class ProjectRateCardRepository(ABC):
         rate_card_ids: tuple[str, ...],
         *,
         include_inactive: bool = False,
+        offset: int = 0,
+        limit: int = 50,
     ) -> list[RateCardLine]:
-        """Return lines for a bounded card set without per-card queries."""
+        """Return a stable page of lines for a bounded card set."""
+        ...
+
+    @abstractmethod
+    def count_lines_by_card(
+        self,
+        rate_card_ids: tuple[str, ...],
+        *,
+        include_inactive: bool = False,
+    ) -> dict[str, int]:
         ...
 
     @abstractmethod

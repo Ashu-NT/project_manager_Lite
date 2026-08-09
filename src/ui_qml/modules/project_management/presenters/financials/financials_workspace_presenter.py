@@ -29,6 +29,10 @@ class ProjectFinancialsWorkspacePresenter:
         selected_cost_type: str = "all",
         search_text: str = "",
         selected_cost_id: str | None = None,
+        budget_line_page: int = 1,
+        rate_line_page: int = 1,
+        planned_cost_line_page: int = 1,
+        configuration_page_size: int = 50,
     ) -> FinancialsWorkspaceViewModel:
         return build_workspace_state(
             self._desktop_api,
@@ -36,6 +40,10 @@ class ProjectFinancialsWorkspacePresenter:
             selected_cost_type=selected_cost_type,
             search_text=search_text,
             selected_cost_id=selected_cost_id,
+            budget_line_page=budget_line_page,
+            rate_line_page=rate_line_page,
+            planned_cost_line_page=planned_cost_line_page,
+            configuration_page_size=configuration_page_size,
         )
 
     def suggest_code(self, payload: dict[str, Any]) -> str:

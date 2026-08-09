@@ -10,7 +10,9 @@ Item {
     id: root
 
     property var collection: ({ "title": "", "subtitle": "", "emptyState": "", "items": [] })
+    property bool busy: false
     readonly property var _items: root.collection.items || []
+    signal pageRequested(int page)
 
     implicitHeight: _column.implicitHeight
 
@@ -46,7 +48,8 @@ Item {
             }
 
             AppControls.Label {
-                text: String(root._items.length)
+                text: String(Number(root.collection.total || 0) > 0
+                    ? Number(root.collection.total) : root._items.length)
                 color: Theme.AppTheme.textSecondary
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.captionSize
@@ -147,6 +150,17 @@ Item {
                     }
                 }
             }
+        }
+
+
+        AppWidgets.TablePaginationBar {
+            Layout.fillWidth: true
+            visible: Number(root.collection.total || 0) > Number(root.collection.pageSize || 50)
+            currentPage: Number(root.collection.page || 1)
+            pageSize: Number(root.collection.pageSize || 50)
+            totalItems: Number(root.collection.total || 0)
+            busy: root.busy
+            onPageRequested: function(page) { root.pageRequested(page) }
         }
     }
 }

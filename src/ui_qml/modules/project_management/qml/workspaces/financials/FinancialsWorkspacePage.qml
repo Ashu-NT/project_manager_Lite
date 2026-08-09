@@ -288,6 +288,11 @@ AppLayouts.WorkspaceFrame {
                     plannedCostVersionsModel: root.workspaceController ? root.workspaceController.plannedCostVersions : ({ "items": [] })
                     plannedCostLinesModel: root.workspaceController ? root.workspaceController.plannedCostLines : ({ "items": [] })
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                    onConfigurationPageRequested: function(collection, page) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.setConfigurationPage(collection, page)
+                        }
+                    }
                 }
             }
         }

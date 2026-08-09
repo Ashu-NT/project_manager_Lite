@@ -56,6 +56,9 @@ class FinancialsCollectionViewModel:
     subtitle: str
     empty_state: str = ""
     items: tuple[FinancialsRecordViewModel, ...] = field(default_factory=tuple)
+    page: int = 1
+    page_size: int = 50
+    total: int = 0
 
 @dataclass(frozen=True)
 class FinancialsForecastMetricViewModel:

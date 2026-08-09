@@ -291,10 +291,11 @@ Source: `../project_finance_existing_state_and_implementation_plan.md` §19 Phas
 - **Item 8 (complete 2026-08-09):** replaced the QML combined "Budget" cost-line section with
   separate project-level Profile, Budget Versions, Budget Lines, Rate Cards, and Planned Costs
   views. A canonical application projection owns RBAC, scope, totals, and label resolution with a
-  warm-path ceiling of 11 SQL statements. The Views menu reaches configuration when no legacy cost
+  warm-path ceiling of 14 SQL statements. Growing line collections use explicit 50-row offset
+  pages with totals and in-section navigation. The Views menu reaches configuration when no legacy cost
   row exists; cost rows open Actuals. `FinancialsBudgetSection.qml` was deleted with no temporary
-  fallback. Phase B regression: 90 passed; focused projection/isolation/measurement: 5 passed;
-  desktop/QML architecture checkpoint: 30 passed.
+  fallback. Underlying Phase B regression: 86 passed; projection/isolation/pagination: 6 passed;
+  combined application/desktop/QML/architecture checkpoint: 51 passed.
 
 The next unblocked consolidated phase is Finance Phase C in section 2. Item 7 remains a deliberate
 product/architecture decision gate and must not be implemented as a mechanical source swap.

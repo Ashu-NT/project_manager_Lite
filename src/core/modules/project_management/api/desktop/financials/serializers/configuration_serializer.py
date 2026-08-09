@@ -36,41 +36,38 @@ def serialize_finance_configuration_workspace(
     source: ProjectFinanceWorkspaceRead,
 ) -> FinancialConfigurationWorkspaceDto:
     profile = source.profile
-    if profile is None:
-        profile_dto = FinancialProfileDto(project_id=source.project_id)
-    else:
-        profile_dto = FinancialProfileDto(
-            project_id=source.project_id,
-            status_label=_label(profile.status.value),
-            subtitle="Canonical project finance configuration and control policy.",
-            fields=(
-                FinancialConfigurationFieldDto("Currency", profile.currency_code),
-                FinancialConfigurationFieldDto(
-                    "Billing method", _label(profile.billing_method.value)
-                ),
-                FinancialConfigurationFieldDto(
-                    "Budget control", _label(profile.budget_control_mode.value)
-                ),
-                FinancialConfigurationFieldDto(
-                    "Cost-code policy", _label(profile.cost_code_policy.value)
-                ),
-                FinancialConfigurationFieldDto(
-                    "Financial period",
-                    f"{_date_label(profile.financial_start_date)} to "
-                    f"{_date_label(profile.financial_end_date)}",
-                ),
-                FinancialConfigurationFieldDto(
-                    "Funding", "Funded" if profile.is_funded else "Not funded"
-                ),
-                FinancialConfigurationFieldDto(
-                    "Billing", "Billable" if profile.is_billable else "Non-billable"
-                ),
-                FinancialConfigurationFieldDto(
-                    "Default cost code", source.default_cost_code or "Not set"
-                ),
-                FinancialConfigurationFieldDto("Version", str(profile.version)),
+    profile_dto = FinancialProfileDto(
+        project_id=source.project_id,
+        status_label=_label(profile.status.value),
+        subtitle="Canonical project finance configuration and control policy.",
+        fields=(
+            FinancialConfigurationFieldDto("Currency", profile.currency_code),
+            FinancialConfigurationFieldDto(
+                "Billing method", _label(profile.billing_method.value)
             ),
-        )
+            FinancialConfigurationFieldDto(
+                "Budget control", _label(profile.budget_control_mode.value)
+            ),
+            FinancialConfigurationFieldDto(
+                "Cost-code policy", _label(profile.cost_code_policy.value)
+            ),
+            FinancialConfigurationFieldDto(
+                "Financial period",
+                f"{_date_label(profile.financial_start_date)} to "
+                f"{_date_label(profile.financial_end_date)}",
+            ),
+            FinancialConfigurationFieldDto(
+                "Funding", "Funded" if profile.is_funded else "Not funded"
+            ),
+            FinancialConfigurationFieldDto(
+                "Billing", "Billable" if profile.is_billable else "Non-billable"
+            ),
+            FinancialConfigurationFieldDto(
+                "Default cost code", source.default_cost_code or "Not set"
+            ),
+            FinancialConfigurationFieldDto("Version", str(profile.version)),
+        ),
+    )
 
     return FinancialConfigurationWorkspaceDto(
         profile=profile_dto,
@@ -120,6 +117,9 @@ def serialize_finance_configuration_workspace(
             )
             for item in source.budget_lines
         ),
+        budget_line_page=source.budget_line_page,
+        budget_line_page_size=source.budget_line_page_size,
+        budget_line_total=source.budget_line_total,
         rate_cards=tuple(
             FinancialConfigurationRecordDto(
                 id=item.id,
@@ -164,6 +164,9 @@ def serialize_finance_configuration_workspace(
             )
             for item in source.rate_lines
         ),
+        rate_line_page=source.rate_line_page,
+        rate_line_page_size=source.rate_line_page_size,
+        rate_line_total=source.rate_line_total,
         planned_cost_versions=tuple(
             FinancialConfigurationRecordDto(
                 id=item.id,
@@ -218,6 +221,9 @@ def serialize_finance_configuration_workspace(
             )
             for item in source.planned_cost_lines
         ),
+        planned_cost_line_page=source.planned_cost_line_page,
+        planned_cost_line_page_size=source.planned_cost_line_page_size,
+        planned_cost_line_total=source.planned_cost_line_total,
     )
 
 

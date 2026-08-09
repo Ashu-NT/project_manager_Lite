@@ -28,6 +28,10 @@ class FinancialsRefreshMixin:
                 selected_cost_type=self._selected_cost_type,
                 search_text=self._search_text,
                 selected_cost_id=self._selected_cost_id or None,
+                budget_line_page=self._budget_line_page,
+                rate_line_page=self._rate_line_page,
+                planned_cost_line_page=self._planned_cost_line_page,
+                configuration_page_size=self._configuration_page_size,
             )
             self._set_overview(
                 serialize_financials_overview_view_model(workspace_state.overview)

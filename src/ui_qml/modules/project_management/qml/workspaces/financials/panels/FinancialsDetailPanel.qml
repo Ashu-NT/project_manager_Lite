@@ -34,6 +34,7 @@ Item {
     property var plannedCostLinesModel: ({ "items": [] })
     property bool isBusy: false
     property var detailPage: null
+    signal configurationPageRequested(string collection, int page)
 
     readonly property bool _hasCost: String(root.costDetail.id || "").length > 0
     readonly property int _idx: root.detailPage ? root.detailPage.activeSectionIndex : 0
@@ -110,6 +111,10 @@ Item {
             FinancialsBudgetLinesSection {
                 width: parent ? parent.width : 0
                 lines: root.budgetLinesModel
+                busy: root.isBusy
+                onPageRequested: function(page) {
+                    root.configurationPageRequested("budget_lines", page)
+                }
             }
         }
     }
@@ -125,6 +130,10 @@ Item {
                 width: parent ? parent.width : 0
                 cards: root.rateCardsModel
                 lines: root.rateLinesModel
+                busy: root.isBusy
+                onLinePageRequested: function(page) {
+                    root.configurationPageRequested("rate_lines", page)
+                }
             }
         }
     }
@@ -140,6 +149,10 @@ Item {
                 width: parent ? parent.width : 0
                 versions: root.plannedCostVersionsModel
                 lines: root.plannedCostLinesModel
+                busy: root.isBusy
+                onLinePageRequested: function(page) {
+                    root.configurationPageRequested("planned_cost_lines", page)
+                }
             }
         }
     }

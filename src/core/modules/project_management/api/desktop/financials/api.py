@@ -165,12 +165,24 @@ class ProjectManagementFinancialsDesktopApi:
         return build_baseline_variance(project_id, self._baseline_service)
 
     def get_configuration_workspace(
-        self, project_id: str
+        self,
+        project_id: str,
+        *,
+        budget_line_page: int = 1,
+        rate_line_page: int = 1,
+        planned_cost_line_page: int = 1,
+        page_size: int = 50,
     ) -> FinancialConfigurationWorkspaceDto:
         if not project_id or self._finance_workspace_query is None:
             return FinancialConfigurationWorkspaceDto()
         return serialize_finance_configuration_workspace(
-            self._finance_workspace_query.get(project_id)
+            self._finance_workspace_query.get(
+                project_id,
+                budget_line_page=budget_line_page,
+                rate_line_page=rate_line_page,
+                planned_cost_line_page=planned_cost_line_page,
+                page_size=page_size,
+            )
         )
 
     def _project_currency(self, project_id: str) -> str | None:

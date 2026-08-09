@@ -1,11 +1,22 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import date, datetime
 from decimal import Decimal
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_project_permission,
+)
+from src.core.modules.project_management.application.common.module_guard import (
+    ProjectManagementModuleGuardMixin,
+)
+from src.core.modules.project_management.application.common.pagination import PageRequest
+from src.core.modules.project_management.application.financials.workspace_models import (
+    FinanceBudgetLineRead,
+    FinanceBudgetVersionRead,
+    FinancePlannedCostLineRead,
+    FinancePlannedCostVersionRead,
+    FinanceRateCardRead,
+    FinanceRateLineRead,
+    ProjectFinanceWorkspaceRead,
 )
 from src.core.modules.project_management.contracts.repositories.budget import (
     ProjectBudgetRepository,
@@ -22,132 +33,13 @@ from src.core.modules.project_management.contracts.repositories.rate_cards impor
 )
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.task import TaskRepository
-from src.core.modules.project_management.domain.financials.configuration import (
-    ProjectFinancialProfile,
-)
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
 from src.core.platform.common.exceptions import NotFoundError
 
 
-@dataclass(frozen=True, slots=True)
-class FinanceBudgetVersionRead:
-    id: str
-    name: str
-    status: str
-    revision: int
-    row_version: int
-    currency_code: str
-    line_count: int
-    total_amount: Decimal
-    submitted_by: str | None
-    submitted_at: datetime | None
-    approved_by: str | None
-    approved_at: datetime | None
-    notes: str
-
-
-@dataclass(frozen=True, slots=True)
-class FinanceBudgetLineRead:
-    id: str
-    budget_id: str
-    budget_name: str
-    budget_revision: int
-    budget_status: str
-    description: str
-    cost_code: str
-    cost_code_name: str
-    task_name: str
-    wbs_code: str
-    amount: Decimal
-    currency_code: str
-
-
-@dataclass(frozen=True, slots=True)
-class FinanceRateCardRead:
-    id: str
-    name: str
-    scope: str
-    is_active: bool
-    is_legacy: bool
-    version: int
-    line_count: int
-
-
-@dataclass(frozen=True, slots=True)
-class FinanceRateLineRead:
-    id: str
-    rate_card_id: str
-    rate_card_name: str
-    card_scope: str
-    rate_type: str
-    origin: str
-    rate_amount: Decimal
-    rate_currency: str
-    unit: str
-    resource_name: str
-    role: str
-    skill_code: str
-    department_id: str
-    effective_from: date | None
-    effective_to: date | None
-    is_active: bool
-
-
-@dataclass(frozen=True, slots=True)
-class FinancePlannedCostVersionRead:
-    id: str
-    revision: int
-    status: str
-    currency_code: str
-    as_of: date
-    calculated_by: str
-    calculated_at: datetime
-    line_count: int
-    total_hours: Decimal
-    total_amount: Decimal
-    rates_complete: bool
-    allocations_complete: bool
-    cost_codes_complete: bool
-    unresolved_rate_count: int
-    partially_allocated_resource_count: int
-    unclassified_line_count: int
-
-
-@dataclass(frozen=True, slots=True)
-class FinancePlannedCostLineRead:
-    id: str
-    version_id: str
-    version_revision: int
-    version_status: str
-    task_name: str
-    wbs_code: str
-    resource_name: str
-    cost_code: str
-    cost_code_name: str
-    planned_hours: Decimal
-    rate_amount: Decimal
-    amount: Decimal
-    currency_code: str
-    rate_card_id: str
-    rate_card_version: int
-
-
-@dataclass(frozen=True, slots=True)
-class ProjectFinanceWorkspaceRead:
-    project_id: str
-    profile: ProjectFinancialProfile | None
-    default_cost_code: str
-    budget_versions: tuple[FinanceBudgetVersionRead, ...]
-    budget_lines: tuple[FinanceBudgetLineRead, ...]
-    rate_cards: tuple[FinanceRateCardRead, ...]
-    rate_lines: tuple[FinanceRateLineRead, ...]
-    planned_cost_versions: tuple[FinancePlannedCostVersionRead, ...]
-    planned_cost_lines: tuple[FinancePlannedCostLineRead, ...]
-
-
-class ProjectFinanceWorkspaceQuery:
+class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
     """Canonical project-level read projection for the Finance workspace."""
 
     def __init__(
@@ -161,6 +53,7 @@ class ProjectFinanceWorkspaceQuery:
         task_repo: TaskRepository,
         resource_repo: ResourceRepository,
         user_session=None,
+        module_catalog_service=None,
     ) -> None:
         self._profile_repo = profile_repo
         self._cost_code_repo = cost_code_repo
@@ -170,8 +63,17 @@ class ProjectFinanceWorkspaceQuery:
         self._task_repo = task_repo
         self._resource_repo = resource_repo
         self._user_session = user_session
+        self._module_catalog_service = module_catalog_service
 
-    def get(self, project_id: str) -> ProjectFinanceWorkspaceRead:
+    def get(
+        self,
+        project_id: str,
+        *,
+        budget_line_page: int = 1,
+        rate_line_page: int = 1,
+        planned_cost_line_page: int = 1,
+        page_size: int = 50,
+    ) -> ProjectFinanceWorkspaceRead:
         require_permission(
             self._user_session,
             "finance.read",
@@ -183,6 +85,10 @@ class ProjectFinanceWorkspaceQuery:
             "finance.read",
             operation_label="view project finance workspace",
         )
+
+        budget_page = PageRequest(page=budget_line_page, page_size=page_size)
+        rate_page = PageRequest(page=rate_line_page, page_size=page_size)
+        planned_page = PageRequest(page=planned_cost_line_page, page_size=page_size)
 
         profile = self._profile_repo.get_by_project(project_id)
         if profile is None:
@@ -199,31 +105,36 @@ class ProjectFinanceWorkspaceQuery:
 
         budgets = self._budget_repo.list_for_project(project_id, include_superseded=True)
         budget_by_id = {item.id: item for item in budgets}
-        budget_lines = self._budget_repo.list_lines_for_project(project_id)
-        budget_lines_by_id: dict[str, list] = {}
-        for line in budget_lines:
-            budget_lines_by_id.setdefault(line.budget_id, []).append(line)
-
+        budget_lines = self._budget_repo.list_lines_for_project(
+            project_id, offset=budget_page.offset, limit=budget_page.limit
+        )
+        budget_line_summaries = self._budget_repo.summarize_lines_for_project(project_id)
+        budget_line_total = sum(item[0] for item in budget_line_summaries.values())
         cards = self._rate_card_repo.list_visible_for_project(
             project_id, include_inactive=True
         )
         card_by_id = {item.id: item for item in cards}
         rate_lines = self._rate_card_repo.list_lines_for_cards(
+            tuple(card_by_id),
+            include_inactive=True,
+            offset=rate_page.offset,
+            limit=rate_page.limit,
+        )
+        rate_line_counts = self._rate_card_repo.count_lines_by_card(
             tuple(card_by_id), include_inactive=True
         )
-        rate_lines_by_id: dict[str, list] = {}
-        for line in rate_lines:
-            rate_lines_by_id.setdefault(line.rate_card_id, []).append(line)
-
+        rate_line_total = sum(rate_line_counts.values())
         planned_versions = self._planned_cost_repo.list_for_project(project_id)
         planned_version_by_id = {item.id: item for item in planned_versions}
-        planned_lines = self._planned_cost_repo.list_lines_for_project(project_id)
-        planned_lines_by_id: dict[str, list] = {}
-        for line in planned_lines:
-            planned_lines_by_id.setdefault(line.version_id, []).append(line)
-
+        planned_lines = self._planned_cost_repo.list_lines_for_project(
+            project_id, offset=planned_page.offset, limit=planned_page.limit
+        )
+        planned_line_summaries = self._planned_cost_repo.summarize_lines_for_project(
+            project_id
+        )
+        planned_line_total = sum(item[0] for item in planned_line_summaries.values())
         default_code = cost_code_by_id.get(
-            profile.default_cost_code_id if profile else ""
+            profile.default_cost_code_id
         )
         return ProjectFinanceWorkspaceRead(
             project_id=project_id,
@@ -239,11 +150,12 @@ class ProjectFinanceWorkspaceQuery:
                     revision=budget.revision,
                     row_version=budget.row_version,
                     currency_code=budget.currency_code,
-                    line_count=len(budget_lines_by_id.get(budget.id, ())),
-                    total_amount=sum(
-                        (line.amount for line in budget_lines_by_id.get(budget.id, ())),
-                        Decimal("0"),
-                    ),
+                    line_count=budget_line_summaries.get(
+                        budget.id, (0, Decimal("0"))
+                    )[0],
+                    total_amount=budget_line_summaries.get(
+                        budget.id, (0, Decimal("0"))
+                    )[1],
                     submitted_by=budget.submitted_by,
                     submitted_at=budget.submitted_at,
                     approved_by=budget.approved_by,
@@ -257,6 +169,9 @@ class ProjectFinanceWorkspaceQuery:
                 for line in budget_lines
                 if line.budget_id in budget_by_id
             ),
+            budget_line_page=budget_page.page,
+            budget_line_page_size=budget_page.page_size,
+            budget_line_total=budget_line_total,
             rate_cards=tuple(
                 FinanceRateCardRead(
                     id=card.id,
@@ -265,7 +180,7 @@ class ProjectFinanceWorkspaceQuery:
                     is_active=card.is_active,
                     is_legacy=card.is_legacy,
                     version=card.version,
-                    line_count=len(rate_lines_by_id.get(card.id, ())),
+                    line_count=rate_line_counts.get(card.id, 0),
                 )
                 for card in cards
             ),
@@ -274,6 +189,9 @@ class ProjectFinanceWorkspaceQuery:
                 for line in rate_lines
                 if line.rate_card_id in card_by_id
             ),
+            rate_line_page=rate_page.page,
+            rate_line_page_size=rate_page.page_size,
+            rate_line_total=rate_line_total,
             planned_cost_versions=tuple(
                 FinancePlannedCostVersionRead(
                     id=version.id,
@@ -283,15 +201,15 @@ class ProjectFinanceWorkspaceQuery:
                     as_of=version.as_of,
                     calculated_by=version.calculated_by,
                     calculated_at=version.calculated_at,
-                    line_count=len(planned_lines_by_id.get(version.id, ())),
-                    total_hours=sum(
-                        (line.planned_hours for line in planned_lines_by_id.get(version.id, ())),
-                        Decimal("0"),
-                    ),
-                    total_amount=sum(
-                        (line.amount for line in planned_lines_by_id.get(version.id, ())),
-                        Decimal("0"),
-                    ),
+                    line_count=planned_line_summaries.get(
+                        version.id, (0, Decimal("0"), Decimal("0"))
+                    )[0],
+                    total_hours=planned_line_summaries.get(
+                        version.id, (0, Decimal("0"), Decimal("0"))
+                    )[1],
+                    total_amount=planned_line_summaries.get(
+                        version.id, (0, Decimal("0"), Decimal("0"))
+                    )[2],
                     rates_complete=version.rates_complete,
                     allocations_complete=version.allocations_complete,
                     cost_codes_complete=version.cost_codes_complete,
@@ -314,6 +232,9 @@ class ProjectFinanceWorkspaceQuery:
                 for line in planned_lines
                 if line.version_id in planned_version_by_id
             ),
+            planned_cost_line_page=planned_page.page,
+            planned_cost_line_page_size=planned_page.page_size,
+            planned_cost_line_total=planned_line_total,
         )
 
     @staticmethod

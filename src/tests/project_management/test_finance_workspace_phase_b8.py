@@ -53,7 +53,17 @@ def _seed_workspace(services):
         cost_code_id=cost_code.id,
         task_id=task.id,
         description="Engineering allocation",
-        amount=Decimal("1250"),
+        amount=Decimal("750"),
+        currency_code="USD",
+        expected_budget_version=budget.row_version,
+    )
+    budget = services["budget_service"].get_budget(budget.id)
+    services["budget_service"].add_line(
+        budget.id,
+        cost_code_id=cost_code.id,
+        task_id=task.id,
+        description="Delivery allocation",
+        amount=Decimal("500"),
         currency_code="USD",
         expected_budget_version=budget.row_version,
     )
@@ -108,7 +118,7 @@ def test_workspace_query_reconciles_canonical_finance_views(services) -> None:
     assert result.default_cost_code == "LABOR - Project Labor"
     assert len(result.budget_versions) == 1
     assert result.budget_versions[0].total_amount == Decimal("1250")
-    assert result.budget_versions[0].line_count == 1
+    assert result.budget_versions[0].line_count == 2
     assert result.budget_lines[0].task_name == "Engineering"
     assert result.budget_lines[0].wbs_code == "1.1"
 
@@ -132,7 +142,28 @@ def test_workspace_query_has_bounded_statement_shape(services) -> None:
     with _statement_count(services["session"]) as statements:
         query.get(project.id)
 
-    assert len(statements) <= 11
+    assert len(statements) <= 14
+
+
+def test_workspace_query_paginates_lines_without_corrupting_version_totals(services) -> None:
+    project = _seed_workspace(services)
+
+    result = services["finance_workspace_query"].get(
+        project.id,
+        budget_line_page=2,
+        rate_line_page=1,
+        planned_cost_line_page=1,
+        page_size=1,
+    )
+
+    assert len(result.budget_lines) == 1
+    assert result.budget_line_page == 2
+    assert result.budget_line_page_size == 1
+    assert result.budget_line_total == 2
+    assert result.budget_versions[0].line_count == 2
+    assert result.budget_versions[0].total_amount == Decimal("1250")
+    assert len(result.rate_lines) == 1
+    assert result.rate_line_total >= 2
 
 
 def test_desktop_projection_formats_canonical_workspace_without_recalculation(services) -> None:

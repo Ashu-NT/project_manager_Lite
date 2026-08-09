@@ -389,6 +389,7 @@ def build_project_management_service_bundle(
         task_repo=repositories.task_repo,
         resource_repo=repositories.resource_repo,
         user_session=platform_services.user_session,
+        module_catalog_service=platform_services.module_catalog_service,
     )
     reporting_service = ReportingService(
         session=session,

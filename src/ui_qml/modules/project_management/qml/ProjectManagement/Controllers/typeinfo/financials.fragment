@@ -54,4 +54,5 @@ Component {
     Method { name: "createCostItem"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "updateCostItem"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "deleteCostItem"; type: "QVariantMap"; Parameter { name: "costId"; type: "QString" } }
+    Method { name: "setConfigurationPage"; Parameter { name: "collection"; type: "QString" } Parameter { name: "page"; type: "int" } }
 }

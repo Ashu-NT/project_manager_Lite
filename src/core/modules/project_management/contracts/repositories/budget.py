@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from decimal import Decimal
 
 from src.core.modules.project_management.domain.financials.budget import (
     BudgetLine,
@@ -70,8 +71,17 @@ class ProjectBudgetRepository(ABC):
     def list_lines(self, budget_id: str) -> list[BudgetLine]: ...
 
     @abstractmethod
-    def list_lines_for_project(self, project_id: str) -> list[BudgetLine]:
-        """Return every version's lines for one scoped project in one query."""
+    def list_lines_for_project(
+        self, project_id: str, *, offset: int = 0, limit: int = 50
+    ) -> list[BudgetLine]:
+        """Return a stable page of versioned lines for one scoped project."""
+        ...
+
+    @abstractmethod
+    def summarize_lines_for_project(
+        self, project_id: str
+    ) -> dict[str, tuple[int, Decimal]]:
+        """Map budget id to line count and authorized total."""
         ...
 
     @abstractmethod

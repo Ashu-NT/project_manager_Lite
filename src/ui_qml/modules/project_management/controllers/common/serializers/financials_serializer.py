@@ -119,6 +119,9 @@ def serialize_financials_collection_view_model(
         "subtitle": view_model.subtitle,
         "emptyState": view_model.empty_state,
         "items": serialize_financials_record_view_models(view_model.items),
+        "page": view_model.page,
+        "pageSize": view_model.page_size,
+        "total": view_model.total,
     }
 
 

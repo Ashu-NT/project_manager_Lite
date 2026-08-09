@@ -8,12 +8,19 @@ Item {
     id: root
     property var cards: ({ "title": "Rate Cards", "subtitle": "", "emptyState": "", "items": [] })
     property var lines: ({ "title": "Rate Lines", "subtitle": "", "emptyState": "", "items": [] })
+    property bool busy: false
+    signal linePageRequested(int page)
     implicitHeight: _column.implicitHeight
     ColumnLayout {
         id: _column; width: parent.width; spacing: Theme.AppTheme.spacingLg
         AppWidgets.SectionHeading { Layout.fillWidth: true; label: "Rate Cards" }
         FinancialsCollectionBlock { Layout.fillWidth: true; collection: root.cards }
         Rectangle { Layout.fillWidth: true; height: 1; color: Theme.AppTheme.divider }
-        FinancialsCollectionBlock { Layout.fillWidth: true; collection: root.lines }
+        FinancialsCollectionBlock {
+            Layout.fillWidth: true
+            collection: root.lines
+            busy: root.busy
+            onPageRequested: function(page) { root.linePageRequested(page) }
+        }
     }
 }

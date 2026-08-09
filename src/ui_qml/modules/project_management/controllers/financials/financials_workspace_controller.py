@@ -116,6 +116,10 @@ class ProjectManagementFinancialsWorkspaceController(
         self._rate_lines = default_collection()
         self._planned_cost_versions = default_collection()
         self._planned_cost_lines = default_collection()
+        self._budget_line_page = 1
+        self._rate_line_page = 1
+        self._planned_cost_line_page = 1
+        self._configuration_page_size = 50
         self._bind_domain_events()
         self.refresh()
 
@@ -272,6 +276,10 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Slot(str, result="QVariantMap")
     def deleteCostItem(self, cost_id: str) -> FinancialsMap: return self._delete_cost_item(cost_id)
+
+    @Slot(str, int)
+    def setConfigurationPage(self, collection: str, page: int) -> None:
+        self._set_configuration_page(collection, page)
 
 
 __all__ = ["ProjectManagementFinancialsWorkspaceController"]

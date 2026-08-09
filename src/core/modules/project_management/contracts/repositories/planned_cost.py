@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from decimal import Decimal
 
 from src.core.modules.project_management.domain.financials.planned_cost import (
     ProjectPlannedCostLine,
@@ -46,8 +47,17 @@ class ProjectPlannedCostVersionRepository(ABC):
     def list_lines(self, version_id: str) -> list[ProjectPlannedCostLine]: ...
 
     @abstractmethod
-    def list_lines_for_project(self, project_id: str) -> list[ProjectPlannedCostLine]:
-        """Return every snapshot version's lines for one scoped project."""
+    def list_lines_for_project(
+        self, project_id: str, *, offset: int = 0, limit: int = 50
+    ) -> list[ProjectPlannedCostLine]:
+        """Return a stable page of snapshot lines for one scoped project."""
+        ...
+
+    @abstractmethod
+    def summarize_lines_for_project(
+        self, project_id: str
+    ) -> dict[str, tuple[int, Decimal, Decimal]]:
+        """Map version id to line count, total hours, and total amount."""
         ...
 
     @abstractmethod

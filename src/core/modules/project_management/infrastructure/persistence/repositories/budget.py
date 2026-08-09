@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from sqlalchemy import select
+from decimal import Decimal
+
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.repositories.budget import (
@@ -265,7 +267,9 @@ class SqlAlchemyProjectBudgetRepository(_BudgetScope, ProjectBudgetRepository):
         ).scalars().all()
         return [budget_line_from_orm(row) for row in rows]
 
-    def list_lines_for_project(self, project_id: str) -> list[BudgetLine]:
+    def list_lines_for_project(
+        self, project_id: str, *, offset: int = 0, limit: int = 50
+    ) -> list[BudgetLine]:
         context = self._context(operation_label="list project budget lines")
         rows = (
             self.session.execute(
@@ -279,12 +283,40 @@ class SqlAlchemyProjectBudgetRepository(_BudgetScope, ProjectBudgetRepository):
                     ProjectBudgetORM.organization_id == context.organization_id,
                     ProjectBudgetORM.project_id == project_id,
                 )
-                .order_by(ProjectBudgetORM.revision.desc(), BudgetLineORM.created_at.asc())
+                .order_by(
+                    ProjectBudgetORM.revision.desc(),
+                    BudgetLineORM.created_at.asc(),
+                    BudgetLineORM.id.asc(),
+                )
+                .offset(max(0, offset))
+                .limit(max(1, limit))
             )
             .scalars()
             .all()
         )
         return [budget_line_from_orm(row) for row in rows]
+
+    def summarize_lines_for_project(
+        self, project_id: str
+    ) -> dict[str, tuple[int, Decimal]]:
+        context = self._context(operation_label="summarize project budget lines")
+        rows = self.session.execute(
+            select(
+                BudgetLineORM.budget_id,
+                func.count(BudgetLineORM.id),
+                func.coalesce(func.sum(BudgetLineORM.amount), 0),
+            )
+            .where(
+                    BudgetLineORM.project_id == project_id,
+                    BudgetLineORM.tenant_id == context.tenant_id,
+                    BudgetLineORM.organization_id == context.organization_id,
+                )
+            .group_by(BudgetLineORM.budget_id)
+        ).all()
+        return {
+            str(budget_id): (int(line_count), total_amount)
+            for budget_id, line_count, total_amount in rows
+        }
 
     def flush(self) -> None:
         self.session.flush()

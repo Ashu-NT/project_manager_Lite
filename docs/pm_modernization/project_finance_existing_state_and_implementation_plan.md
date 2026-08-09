@@ -846,8 +846,11 @@ Implementation checkpoint (Phase B item 8, 2026-08-09):
   global and project-scoped `finance.read`. It resolves profile, budget lifecycle versions and
   lines, organization/project-visible rate cards and lines, and planned-cost snapshots and lines.
 - Reconciliation totals and task/resource/cost-code labels are application-owned. Repository
-  bulk methods keep the warm projection bounded to at most 11 SQL statements regardless of the
-  number of versions, cards, or lines; cross-organization reads fail closed.
+  bulk methods and grouped summaries keep the warm projection bounded to at most 14 SQL statements
+  regardless of the number of versions, cards, or lines; cross-organization reads fail closed.
+  Growing budget, rate, and planned-cost line collections use explicit 50-row offset pages with
+  total counts and in-section pagination; profile/version/card administration lists remain small,
+  stable project configuration collections.
 - Desktop DTOs format the immutable projection only. Presenter/controller state exposes five
   distinct project-level collections, and the Views menu can open them even when the legacy cost
   register has no rows. Cost-row activation now opens Actuals rather than pretending the row is a
@@ -856,9 +859,10 @@ Implementation checkpoint (Phase B item 8, 2026-08-09):
   temporary component, or transition file was introduced. Canonical lifecycle mutations remain
   in their existing application services; this item intentionally adds lifecycle-aware views,
   not duplicate QML-owned write policy.
-- Verification: 90 Phase B configuration/rate-card/budget/planned-cost tests pass with two
+- Verification: 86 underlying Phase B configuration/rate-card/budget/planned-cost tests pass with two
   existing SQLite datetime-adapter deprecation warnings. The focused desktop/QML architecture
-  checkpoint passes 30 tests, and the new projection/isolation/measurement suite passes 5 tests.
+  checkpoint passes 30 tests, and the new projection/isolation/pagination/measurement suite passes 6 tests.
+  The combined final application/desktop/QML/architecture checkpoint passes 51 tests.
 
 ### Phase C - Actual ledger, commitments, time, procurement, and periods
 

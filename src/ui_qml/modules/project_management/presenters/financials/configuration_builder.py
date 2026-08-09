@@ -61,6 +61,9 @@ def build_finance_configuration_views(
             subtitle="Authorized amounts by cost code and WBS task.",
             empty_state="No budget lines exist for this project.",
             items=tuple(_record(item) for item in source.budget_lines),
+            page=source.budget_line_page,
+            page_size=source.budget_line_page_size,
+            total=source.budget_line_total,
         ),
         "rate_cards": FinancialsCollectionViewModel(
             title="Rate Cards",
@@ -73,6 +76,9 @@ def build_finance_configuration_views(
             subtitle="Effective cost and billing rate definitions.",
             empty_state="No rate lines exist on the visible cards.",
             items=tuple(_record(item) for item in source.rate_lines),
+            page=source.rate_line_page,
+            page_size=source.rate_line_page_size,
+            total=source.rate_line_total,
         ),
         "planned_cost_versions": FinancialsCollectionViewModel(
             title="Planned Cost Snapshots",
@@ -85,6 +91,9 @@ def build_finance_configuration_views(
             subtitle="Calculated labor cost by task, resource, and cost code.",
             empty_state="No planned-cost lines exist for this project.",
             items=tuple(_record(item) for item in source.planned_cost_lines),
+            page=source.planned_cost_line_page,
+            page_size=source.planned_cost_line_page_size,
+            total=source.planned_cost_line_total,
         ),
     }
 

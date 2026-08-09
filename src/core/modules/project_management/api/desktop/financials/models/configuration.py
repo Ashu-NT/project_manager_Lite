@@ -35,10 +35,19 @@ class FinancialConfigurationWorkspaceDto:
     profile: FinancialProfileDto = field(default_factory=FinancialProfileDto)
     budget_versions: tuple[FinancialConfigurationRecordDto, ...] = ()
     budget_lines: tuple[FinancialConfigurationRecordDto, ...] = ()
+    budget_line_page: int = 1
+    budget_line_page_size: int = 50
+    budget_line_total: int = 0
     rate_cards: tuple[FinancialConfigurationRecordDto, ...] = ()
     rate_lines: tuple[FinancialConfigurationRecordDto, ...] = ()
+    rate_line_page: int = 1
+    rate_line_page_size: int = 50
+    rate_line_total: int = 0
     planned_cost_versions: tuple[FinancialConfigurationRecordDto, ...] = ()
     planned_cost_lines: tuple[FinancialConfigurationRecordDto, ...] = ()
+    planned_cost_line_page: int = 1
+    planned_cost_line_page_size: int = 50
+    planned_cost_line_total: int = 0
 
 
 __all__ = [
