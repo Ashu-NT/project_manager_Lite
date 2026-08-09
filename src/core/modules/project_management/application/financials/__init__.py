@@ -46,6 +46,10 @@ from src.core.modules.project_management.application.financials.planned_costs im
     PlannedCostCalculationResult,
     PlannedCostService,
 )
+from src.core.modules.project_management.application.financials.workspace_query import (
+    ProjectFinanceWorkspaceQuery,
+    ProjectFinanceWorkspaceRead,
+)
 
 __all__ = [
     "BudgetService",
@@ -72,6 +76,8 @@ __all__ = [
     "MaterialRollup",
     "FinancialConfigurationService",
     "ProjectRateCardService",
+    "ProjectFinanceWorkspaceQuery",
+    "ProjectFinanceWorkspaceRead",
     "RateCardResolver",
     "RateSelectionSnapshot",
 ]

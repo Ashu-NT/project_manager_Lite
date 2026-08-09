@@ -169,6 +169,23 @@ class SqlAlchemyProjectPlannedCostVersionRepository(
         )
         return [planned_cost_line_from_orm(row) for row in rows]
 
+    def list_lines_for_project(self, project_id: str) -> list[ProjectPlannedCostLine]:
+        context = self._context(operation_label="list project planned-cost lines")
+        rows = (
+            self.session.execute(
+                select(ProjectPlannedCostLineORM)
+                .where(
+                    ProjectPlannedCostLineORM.project_id == project_id,
+                    ProjectPlannedCostLineORM.tenant_id == context.tenant_id,
+                    ProjectPlannedCostLineORM.organization_id == context.organization_id,
+                )
+                .order_by(ProjectPlannedCostLineORM.created_at.asc())
+            )
+            .scalars()
+            .all()
+        )
+        return [planned_cost_line_from_orm(row) for row in rows]
+
     def flush(self) -> None:
         self.session.flush()
 

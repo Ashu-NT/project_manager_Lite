@@ -14,6 +14,7 @@ from src.ui_qml.modules.project_management.view_models.financials import (
 from .analytics_builder import build_analytics_collection
 from .cashflow_builder import build_cashflow_collection
 from .commitment_builder import build_commitment_summary
+from .configuration_builder import build_finance_configuration_views
 from .detail_builder import build_detail_view_model
 from .filtering import build_empty_state, matches_cost_type, matches_search
 from .forecast_builder import build_forecast_view_model
@@ -74,6 +75,9 @@ def build_workspace_state(
         selected_cost_type=normalized_cost_type,
     )
     forecast_dto = desktop_api.get_cost_forecast(resolved_project_id, method="bac_over_cpi")
+    configuration_views = build_finance_configuration_views(
+        desktop_api.get_configuration_workspace(resolved_project_id)
+    )
     return FinancialsWorkspaceViewModel(
         overview=build_overview(
             project_options=project_options,
@@ -124,6 +128,13 @@ def build_workspace_state(
             )
             for rec in desktop_api.build_baseline_variance(resolved_project_id)
         ),
+        financial_profile=configuration_views["profile"],
+        budget_versions=configuration_views["budget_versions"],
+        budget_lines=configuration_views["budget_lines"],
+        rate_cards=configuration_views["rate_cards"],
+        rate_lines=configuration_views["rate_lines"],
+        planned_cost_versions=configuration_views["planned_cost_versions"],
+        planned_cost_lines=configuration_views["planned_cost_lines"],
         notes=tuple(snapshot.notes),
         empty_state=empty_state,
     )

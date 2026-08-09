@@ -265,6 +265,27 @@ class SqlAlchemyProjectBudgetRepository(_BudgetScope, ProjectBudgetRepository):
         ).scalars().all()
         return [budget_line_from_orm(row) for row in rows]
 
+    def list_lines_for_project(self, project_id: str) -> list[BudgetLine]:
+        context = self._context(operation_label="list project budget lines")
+        rows = (
+            self.session.execute(
+                select(BudgetLineORM)
+                .join(ProjectBudgetORM, ProjectBudgetORM.id == BudgetLineORM.budget_id)
+                .where(
+                    BudgetLineORM.tenant_id == context.tenant_id,
+                    BudgetLineORM.organization_id == context.organization_id,
+                    BudgetLineORM.project_id == project_id,
+                    ProjectBudgetORM.tenant_id == context.tenant_id,
+                    ProjectBudgetORM.organization_id == context.organization_id,
+                    ProjectBudgetORM.project_id == project_id,
+                )
+                .order_by(ProjectBudgetORM.revision.desc(), BudgetLineORM.created_at.asc())
+            )
+            .scalars()
+            .all()
+        )
+        return [budget_line_from_orm(row) for row in rows]
+
     def flush(self) -> None:
         self.session.flush()
 

@@ -11,6 +11,7 @@ from src.core.modules.project_management.application.dashboard import DashboardS
 from src.core.modules.project_management.application.financials import (
     FinanceService,
     ForecastCostService,
+    ProjectFinanceWorkspaceQuery,
 )
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
@@ -56,6 +57,7 @@ class ProjectManagementDesktopRuntimeServices:
     dashboard_service: DashboardService | None
     finance_service: FinanceService | None
     forecast_service: ForecastCostService | None
+    finance_workspace_query: ProjectFinanceWorkspaceQuery | None
     baseline_service: BaselineService | None
     reporting_service: ReportingService | None
     cost_service: object | None
@@ -80,6 +82,7 @@ def resolve_project_management_desktop_runtime_services(
     dashboard_service = services.get("dashboard_service")
     finance_service = services.get("finance_service")
     forecast_service = services.get("forecast_service")
+    finance_workspace_query = services.get("finance_workspace_query")
     baseline_service = services.get("baseline_service")
     reporting_service = services.get("reporting_service")
 
@@ -157,6 +160,11 @@ def resolve_project_management_desktop_runtime_services(
         forecast_service=(
             forecast_service
             if isinstance(forecast_service, ForecastCostService)
+            else None
+        ),
+        finance_workspace_query=(
+            finance_workspace_query
+            if isinstance(finance_workspace_query, ProjectFinanceWorkspaceQuery)
             else None
         ),
         baseline_service=(

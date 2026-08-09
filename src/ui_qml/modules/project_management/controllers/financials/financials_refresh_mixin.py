@@ -85,6 +85,29 @@ class FinancialsRefreshMixin:
                     workspace_state.baseline_variance
                 )
             )
+            self._set_financial_profile(
+                serialize_financials_detail_view_model(workspace_state.financial_profile)
+            )
+            self._set_budget_versions(
+                serialize_financials_collection_view_model(workspace_state.budget_versions)
+            )
+            self._set_budget_lines(
+                serialize_financials_collection_view_model(workspace_state.budget_lines)
+            )
+            self._set_rate_cards(
+                serialize_financials_collection_view_model(workspace_state.rate_cards)
+            )
+            self._set_rate_lines(
+                serialize_financials_collection_view_model(workspace_state.rate_lines)
+            )
+            self._set_planned_cost_versions(
+                serialize_financials_collection_view_model(
+                    workspace_state.planned_cost_versions
+                )
+            )
+            self._set_planned_cost_lines(
+                serialize_financials_collection_view_model(workspace_state.planned_cost_lines)
+            )
         except Exception as exc:  # pragma: no cover - defensive fallback
             self._set_error_message(str(exc))
         finally:
@@ -95,6 +118,8 @@ class FinancialsRefreshMixin:
             "project",
             "project_tasks",
             "project_costs",
+            "project_budget",
+            "project_planned_cost",
             scope_code="project_management",
         )
 

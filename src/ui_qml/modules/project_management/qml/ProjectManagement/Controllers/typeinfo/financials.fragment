@@ -23,6 +23,13 @@ Component {
     Property { name: "forecast"; type: "QVariantMap"; isReadonly: true }
     Property { name: "commitmentSummary"; type: "QVariantMap"; isReadonly: true }
     Property { name: "baselineVariance"; type: "QVariantList"; isReadonly: true }
+    Property { name: "financialProfile"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "budgetVersions"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "budgetLines"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "rateCards"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "rateLines"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "plannedCostVersions"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "plannedCostLines"; type: "QVariantMap"; isReadonly: true }
     Property { name: "bulkCostTypeOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "costPage"; type: "int"; isReadonly: true }
     Property { name: "costPageSize"; type: "int"; isReadonly: true }

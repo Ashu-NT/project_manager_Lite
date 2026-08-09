@@ -70,6 +70,11 @@ class ProjectBudgetRepository(ABC):
     def list_lines(self, budget_id: str) -> list[BudgetLine]: ...
 
     @abstractmethod
+    def list_lines_for_project(self, project_id: str) -> list[BudgetLine]:
+        """Return every version's lines for one scoped project in one query."""
+        ...
+
+    @abstractmethod
     def flush(self) -> None:
         """Exposes a session-flush point to the application service
         without the service depending on SQLAlchemy directly — needed so

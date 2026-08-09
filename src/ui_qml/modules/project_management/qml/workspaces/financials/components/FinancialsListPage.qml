@@ -19,6 +19,7 @@ Item {
     signal rowActivated(string rowId)
     signal columnsStateChanged(var cols)
     signal createRequested()
+    signal configurationViewRequested(string sectionName)
 
     function _optionIndex(options, value) {
         const list = options || []
@@ -79,7 +80,7 @@ Item {
             showCustomize: true
             showViews: true
             showRefresh: true
-            showExport: true
+            showExport: false
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
             onSearchChanged: function(text) { if (root.workspaceController !== null) root.workspaceController.setSearchText(text) }
@@ -225,7 +226,25 @@ Item {
 
                 contentItem: ColumnLayout {
                     spacing: Theme.AppTheme.spacingSm
-                    AppControls.Label { text: "Cost View"; font.bold: true; font.pixelSize: Theme.AppTheme.captionSize; font.family: Theme.AppTheme.fontFamily; color: Theme.AppTheme.textMuted }
+                    AppControls.Label { text: "Project Finance"; font.bold: true; font.pixelSize: Theme.AppTheme.captionSize; font.family: Theme.AppTheme.fontFamily; color: Theme.AppTheme.textMuted }
+                    Repeater {
+                        model: ["Profile", "Budget Versions", "Budget Lines", "Rate Cards", "Planned Costs"]
+                        delegate: AppControls.SecondaryButton {
+                            required property string modelData
+                            Layout.fillWidth: true
+                            text: modelData
+                            enabled: root.workspaceController
+                                ? root.workspaceController.selectedProjectId.length > 0
+                                : false
+                            onClicked: {
+                                root.configurationViewRequested(modelData)
+                                viewsPopup.close()
+                            }
+                        }
+                    }
+
+                    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.AppTheme.divider }
+                    AppControls.Label { text: "Cost Register View"; font.bold: true; font.pixelSize: Theme.AppTheme.captionSize; font.family: Theme.AppTheme.fontFamily; color: Theme.AppTheme.textMuted }
                     AppControls.ComboBox {
                         Layout.fillWidth: true
                         model: root.workspaceController ? (root.workspaceController.costTypeOptions || []) : []

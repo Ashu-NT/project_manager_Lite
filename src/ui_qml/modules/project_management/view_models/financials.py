@@ -119,6 +119,13 @@ class FinancialsWorkspaceViewModel:
     forecast: FinancialsForecastViewModel = field(default_factory=FinancialsForecastViewModel)
     commitment_summary: FinancialsCommitmentSummaryViewModel = field(default_factory=FinancialsCommitmentSummaryViewModel)
     baseline_variance: tuple[BaselineVarianceRowViewModel, ...] = field(default_factory=tuple)
+    financial_profile: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
+    budget_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    budget_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    rate_cards: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    rate_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    planned_cost_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    planned_cost_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     notes: tuple[str, ...] = field(default_factory=tuple)
     empty_state: str = ""
 

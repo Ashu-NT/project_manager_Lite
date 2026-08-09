@@ -63,6 +63,13 @@ class ProjectManagementFinancialsWorkspaceController(
     forecastChanged = Signal()
     commitmentSummaryChanged = Signal()
     baselineVarianceChanged = Signal()
+    financialProfileChanged = Signal()
+    budgetVersionsChanged = Signal()
+    budgetLinesChanged = Signal()
+    rateCardsChanged = Signal()
+    rateLinesChanged = Signal()
+    plannedCostVersionsChanged = Signal()
+    plannedCostLinesChanged = Signal()
 
     def __init__(
         self,
@@ -102,6 +109,13 @@ class ProjectManagementFinancialsWorkspaceController(
         self._forecast = default_forecast()
         self._commitment_summary = default_commitment_summary()
         self._baseline_variance: FinancialsObjectList = []
+        self._financial_profile = default_selected_cost()
+        self._budget_versions = default_collection()
+        self._budget_lines = default_collection()
+        self._rate_cards = default_collection()
+        self._rate_lines = default_collection()
+        self._planned_cost_versions = default_collection()
+        self._planned_cost_lines = default_collection()
         self._bind_domain_events()
         self.refresh()
 
@@ -164,6 +178,27 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Property("QVariantList", notify=baselineVarianceChanged)
     def baselineVariance(self) -> FinancialsObjectList: return self._baseline_variance
+
+    @Property("QVariantMap", notify=financialProfileChanged)
+    def financialProfile(self) -> FinancialsMap: return self._financial_profile
+
+    @Property("QVariantMap", notify=budgetVersionsChanged)
+    def budgetVersions(self) -> FinancialsMap: return self._budget_versions
+
+    @Property("QVariantMap", notify=budgetLinesChanged)
+    def budgetLines(self) -> FinancialsMap: return self._budget_lines
+
+    @Property("QVariantMap", notify=rateCardsChanged)
+    def rateCards(self) -> FinancialsMap: return self._rate_cards
+
+    @Property("QVariantMap", notify=rateLinesChanged)
+    def rateLines(self) -> FinancialsMap: return self._rate_lines
+
+    @Property("QVariantMap", notify=plannedCostVersionsChanged)
+    def plannedCostVersions(self) -> FinancialsMap: return self._planned_cost_versions
+
+    @Property("QVariantMap", notify=plannedCostLinesChanged)
+    def plannedCostLines(self) -> FinancialsMap: return self._planned_cost_lines
 
     @Property("QVariantList", notify=costTypeOptionsChanged)
     def bulkCostTypeOptions(self) -> FinancialsObjectList:

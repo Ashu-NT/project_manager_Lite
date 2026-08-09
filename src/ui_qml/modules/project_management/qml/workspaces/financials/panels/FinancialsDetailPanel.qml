@@ -25,6 +25,13 @@ Item {
         "invoicedLabel": "", "paidLabel": "", "exposureLabel": "", "commitmentRatePct": 0
     })
     property var baselineVarianceModel: []
+    property var financialProfileModel: ({ "id": "", "fields": [] })
+    property var budgetVersionsModel: ({ "items": [] })
+    property var budgetLinesModel: ({ "items": [] })
+    property var rateCardsModel: ({ "items": [] })
+    property var rateLinesModel: ({ "items": [] })
+    property var plannedCostVersionsModel: ({ "items": [] })
+    property var plannedCostLinesModel: ({ "items": [] })
     property bool isBusy: false
     property var detailPage: null
 
@@ -46,15 +53,19 @@ Item {
         const secs = root._sections
         const entry = (secs.length > root._idx) ? secs[root._idx] : null
         const name = entry ? ((typeof entry === "string") ? entry : (entry.label || "")) : ""
-        if (name === "Budget")          return _sec0.implicitHeight
-        if (name === "Actuals")         return _sec1.implicitHeight
-        if (name === "Forecast")        return _sec2.implicitHeight
-        if (name === "Commitments")     return _sec3.implicitHeight
-        if (name === "Invoices")        return _sec4.implicitHeight
-        if (name === "Purchase Orders") return _sec5.implicitHeight
-        if (name === "Earned Value")    return _sec6.implicitHeight
-        if (name === "Activity")        return _sec7.implicitHeight
-        if (name === "Variance")        return _sec8.implicitHeight
+        if (name === "Profile")         return _profile.implicitHeight
+        if (name === "Budget Versions") return _budgetVersions.implicitHeight
+        if (name === "Budget Lines")    return _budgetLines.implicitHeight
+        if (name === "Rate Cards")      return _rateCards.implicitHeight
+        if (name === "Planned Costs")   return _plannedCosts.implicitHeight
+        if (name === "Actuals")         return _actuals.implicitHeight
+        if (name === "Forecast")        return _forecast.implicitHeight
+        if (name === "Commitments")     return _commitments.implicitHeight
+        if (name === "Invoices")        return _invoices.implicitHeight
+        if (name === "Purchase Orders") return _purchaseOrders.implicitHeight
+        if (name === "Earned Value")    return _earnedValue.implicitHeight
+        if (name === "Activity")        return _activity.implicitHeight
+        if (name === "Variance")        return _variance.implicitHeight
         return 0
     }
 
@@ -62,21 +73,79 @@ Item {
     height: implicitHeight
 
     AppWidgets.LazySectionLoader {
-        id: _sec0
+        id: _profile
         anchors.left: parent.left
         anchors.right: parent.right
-        active: root._idx === root._secIdx("Budget")
+        active: root._idx === root._secIdx("Profile")
         loadingMessage: "Loading financials..."
         sourceComponent: Component {
-            FinancialsBudgetSection {
+            FinancialsProfileSection {
                 width: parent ? parent.width : 0
-                costDetail: root.costDetail
+                profile: root.financialProfileModel
             }
         }
     }
 
     AppWidgets.LazySectionLoader {
-        id: _sec1
+        id: _budgetVersions
+        anchors.left: parent.left
+        anchors.right: parent.right
+        active: root._idx === root._secIdx("Budget Versions")
+        loadingMessage: "Loading budget versions..."
+        sourceComponent: Component {
+            FinancialsBudgetVersionsSection {
+                width: parent ? parent.width : 0
+                versions: root.budgetVersionsModel
+            }
+        }
+    }
+
+    AppWidgets.LazySectionLoader {
+        id: _budgetLines
+        anchors.left: parent.left
+        anchors.right: parent.right
+        active: root._idx === root._secIdx("Budget Lines")
+        loadingMessage: "Loading budget lines..."
+        sourceComponent: Component {
+            FinancialsBudgetLinesSection {
+                width: parent ? parent.width : 0
+                lines: root.budgetLinesModel
+            }
+        }
+    }
+
+    AppWidgets.LazySectionLoader {
+        id: _rateCards
+        anchors.left: parent.left
+        anchors.right: parent.right
+        active: root._idx === root._secIdx("Rate Cards")
+        loadingMessage: "Loading rate cards..."
+        sourceComponent: Component {
+            FinancialsRateCardsSection {
+                width: parent ? parent.width : 0
+                cards: root.rateCardsModel
+                lines: root.rateLinesModel
+            }
+        }
+    }
+
+    AppWidgets.LazySectionLoader {
+        id: _plannedCosts
+        anchors.left: parent.left
+        anchors.right: parent.right
+        active: root._idx === root._secIdx("Planned Costs")
+        loadingMessage: "Loading planned costs..."
+        sourceComponent: Component {
+            FinancialsPlannedCostsSection {
+                width: parent ? parent.width : 0
+                versions: root.plannedCostVersionsModel
+                lines: root.plannedCostLinesModel
+            }
+        }
+    }
+
+    AppWidgets.LazySectionLoader {
+        id: _actuals
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Actuals")
@@ -92,7 +161,7 @@ Item {
     }
 
     AppWidgets.LazySectionLoader {
-        id: _sec2
+        id: _forecast
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Forecast")
@@ -107,7 +176,7 @@ Item {
     }
 
     AppWidgets.LazySectionLoader {
-        id: _sec3
+        id: _commitments
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Commitments")
@@ -122,7 +191,7 @@ Item {
     }
 
     AppWidgets.LazySectionLoader {
-        id: _sec4
+        id: _invoices
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Invoices")
@@ -133,7 +202,7 @@ Item {
     }
 
     AppWidgets.LazySectionLoader {
-        id: _sec5
+        id: _purchaseOrders
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Purchase Orders")
@@ -144,7 +213,7 @@ Item {
     }
 
     AppWidgets.LazySectionLoader {
-        id: _sec6
+        id: _earnedValue
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Earned Value")
@@ -159,7 +228,7 @@ Item {
     }
 
     AppWidgets.LazySectionLoader {
-        id: _sec7
+        id: _activity
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Activity")
@@ -173,7 +242,7 @@ Item {
     }
 
     AppWidgets.LazySectionLoader {
-        id: _sec8
+        id: _variance
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Variance")

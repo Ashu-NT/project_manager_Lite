@@ -272,8 +272,7 @@ Architecture exception closure checkpoint (2026-08-09):
   builder no longer instantiates an application object.
 - The architecture exception sets are empty. Desktop adapter responsibility hardening DA0-DA5 is
   complete. Public-export, Dashboard/Financials, Scheduling-injection, and architecture closure
-  checkpoint: 20 passed. The next consolidated priority is the remaining Finance Phase B work in
-  section 1.
+  checkpoint: 20 passed. Finance Phase B item 8 was completed next and is recorded in section 1.
 
 ## 1. Finance — Phase B, remaining
 
@@ -289,8 +288,16 @@ Source: `../project_finance_existing_state_and_implementation_plan.md` §19 Phas
   "planned," and build an assignment-change-triggered recalculation mechanism.
 - Baseline provenance (which exact rate-card line/version valued each baseline task) is not
   recorded — would need a baseline financial-snapshot extension.
-- **Item 8 (not started):** replace the QML combined "Budget" cost-line section with
-  separate Profile, Budget Versions, Budget Lines, Rate Cards, and Planned Costs views.
+- **Item 8 (complete 2026-08-09):** replaced the QML combined "Budget" cost-line section with
+  separate project-level Profile, Budget Versions, Budget Lines, Rate Cards, and Planned Costs
+  views. A canonical application projection owns RBAC, scope, totals, and label resolution with a
+  warm-path ceiling of 11 SQL statements. The Views menu reaches configuration when no legacy cost
+  row exists; cost rows open Actuals. `FinancialsBudgetSection.qml` was deleted with no temporary
+  fallback. Phase B regression: 90 passed; focused projection/isolation/measurement: 5 passed;
+  desktop/QML architecture checkpoint: 30 passed.
+
+The next unblocked consolidated phase is Finance Phase C in section 2. Item 7 remains a deliberate
+product/architecture decision gate and must not be implemented as a mechanical source swap.
 
 ## 2. Finance — Phase C: actual ledger, commitments, time, procurement, periods (not started)
 

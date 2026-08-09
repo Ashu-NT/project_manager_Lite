@@ -203,6 +203,49 @@ class SqlAlchemyProjectRateCardRepository(_RateCardScope, ProjectRateCardReposit
         rows = self.session.execute(stmt).scalars().all()
         return [rate_card_line_from_orm(row) for row in rows]
 
+    def list_visible_for_project(
+        self,
+        project_id: str,
+        *,
+        include_inactive: bool = False,
+    ) -> list[ProjectRateCard]:
+        context = self._context(operation_label="list project-visible rate cards")
+        stmt = select(ProjectRateCardORM).where(
+            ProjectRateCardORM.tenant_id == context.tenant_id,
+            ProjectRateCardORM.organization_id == context.organization_id,
+            or_(
+                ProjectRateCardORM.project_id.is_(None),
+                ProjectRateCardORM.project_id == project_id,
+            ),
+        )
+        if not include_inactive:
+            stmt = stmt.where(ProjectRateCardORM.is_active.is_(True))
+        rows = self.session.execute(
+            stmt.order_by(ProjectRateCardORM.project_id.desc(), ProjectRateCardORM.name.asc())
+        ).scalars().all()
+        return [rate_card_from_orm(row) for row in rows]
+
+    def list_lines_for_cards(
+        self,
+        rate_card_ids: tuple[str, ...],
+        *,
+        include_inactive: bool = False,
+    ) -> list[RateCardLine]:
+        if not rate_card_ids:
+            return []
+        context = self._context(operation_label="list project-visible rate card lines")
+        stmt = select(RateCardLineORM).where(
+            RateCardLineORM.tenant_id == context.tenant_id,
+            RateCardLineORM.organization_id == context.organization_id,
+            RateCardLineORM.rate_card_id.in_(rate_card_ids),
+        )
+        if not include_inactive:
+            stmt = stmt.where(RateCardLineORM.is_active.is_(True))
+        rows = self.session.execute(
+            stmt.order_by(RateCardLineORM.rate_card_id.asc(), RateCardLineORM.created_at.asc())
+        ).scalars().all()
+        return [rate_card_line_from_orm(row) for row in rows]
+
     def list_effective_lines(
         self,
         *,

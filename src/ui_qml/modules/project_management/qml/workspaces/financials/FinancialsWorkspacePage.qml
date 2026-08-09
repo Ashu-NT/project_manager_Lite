@@ -53,7 +53,10 @@ AppLayouts.WorkspaceFrame {
     readonly property bool _hasProcPoCap: root.pmCatalog
         ? root.pmCatalog.hasCapability("procurement.purchase_orders.read") : false
     readonly property var _detailSections: {
-        const secs = ["Budget", "Actuals", "Forecast", "Commitments", "Invoices"]
+        const secs = [
+            "Profile", "Budget Versions", "Budget Lines", "Rate Cards", "Planned Costs",
+            "Actuals", "Forecast", "Commitments", "Invoices"
+        ]
         if (root._hasProcPoCap) secs.push("Purchase Orders")
         secs.push("Earned Value")
         secs.push("Variance")
@@ -121,11 +124,19 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
-    readonly property var _detailActions: [
-        { "id": "edit",   "label": "Edit",         "icon": "edit",   "enabled": true, "danger": false },
+    readonly property string _activeDetailSection: {
+        if (!root.detailPage) return ""
+        const idx = root.detailPage.activeSectionIndex
+        return idx >= 0 && idx < root._detailSections.length
+            ? String(root._detailSections[idx]) : ""
+    }
+    readonly property bool _configurationSection: [
+        "Profile", "Budget Versions", "Budget Lines", "Rate Cards", "Planned Costs"
+    ].indexOf(root._activeDetailSection) >= 0
+    readonly property var _detailActions: root._configurationSection ? [] : [
+        { "id": "edit",   "label": "Edit",          "icon": "edit",   "enabled": String(root.selectedCostModel.id || "").length > 0, "danger": false },
         { "id": "add",    "label": "Add Cost Line", "icon": "add",    "enabled": true, "danger": false },
-        { "id": "export", "label": "Export",        "icon": "export", "enabled": true, "danger": false },
-        { "id": "delete", "label": "Delete",        "icon": "delete", "enabled": true, "danger": true  }
+        { "id": "delete", "label": "Delete",        "icon": "delete", "enabled": String(root.selectedCostModel.id || "").length > 0, "danger": true  }
     ]
 
     readonly property var _bulkChangeProperties: {
@@ -139,6 +150,21 @@ AppLayouts.WorkspaceFrame {
         root._pendingDetailSection = sectionIndex
         root._detailOpen = true
         if (detailPage) detailPage.scrollToSection(sectionIndex)
+    }
+
+    function _detailSectionIndex(sectionName) {
+        return root._detailSections.indexOf(sectionName)
+    }
+
+    function _selectedProjectLabel() {
+        const selectedId = root.workspaceController ? root.workspaceController.selectedProjectId : ""
+        const options = root.workspaceController ? (root.workspaceController.projectOptions || []) : []
+        for (let i = 0; i < options.length; i++) {
+            if (String(options[i].value || "") === String(selectedId || "")) {
+                return String(options[i].label || "")
+            }
+        }
+        return ""
     }
 
     // ── Dialog host ───────────────────────────────────────────────────────
@@ -173,7 +199,13 @@ AppLayouts.WorkspaceFrame {
                 columns: root._columns
                 tableId: root._tableId
                 bulkChangeProperties: root._bulkChangeProperties
-                onRowActivated: function(rowId) { root._openDetail(0) }
+                onRowActivated: function(rowId) {
+                    root._openDetail(root._detailSectionIndex("Actuals"))
+                }
+                onConfigurationViewRequested: function(sectionName) {
+                    const index = root._detailSectionIndex(sectionName)
+                    if (index >= 0) root._openDetail(index)
+                }
                 onColumnsStateChanged: function(cols) {
                     if (root.workspaceController) root.workspaceController.saveTableColumnState(root._tableId, root._buildColumnState(cols))
                     root._columns = cols
@@ -207,15 +239,18 @@ AppLayouts.WorkspaceFrame {
                     detailPagePinned: true
                     width: parent ? parent.width : 0
                     showBack: true
-                    title: root.selectedCostModel.title || "Cost Details"
-                    subtitle: root.selectedCostModel.statusLabel || root.selectedCostModel.subtitle || ""
+                    title: root._configurationSection
+                        ? (root._activeDetailSection || "Project Finance")
+                        : (root.selectedCostModel.title || "Cost Details")
+                    subtitle: root._configurationSection
+                        ? root._selectedProjectLabel()
+                        : (root.selectedCostModel.statusLabel || root.selectedCostModel.subtitle || "")
                     busy: root.workspaceController ? root.workspaceController.isBusy : false
                     actions: root._detailActions
                     onBackRequested: root._detailOpen = false
                     onActionTriggered: function(actionId) {
                         if (actionId === "edit") dialogHostLoader.invoke("openEditDialog", root.selectedCostModel)
                         else if (actionId === "add") dialogHostLoader.invoke("openCreateDialog")
-                        else if (actionId === "export") { if (root.workspaceController !== null) root.workspaceController.exportFinancials() }
                         else if (actionId === "delete") dialogHostLoader.invoke("openDeleteDialog", root.selectedCostModel)
                     }
                 }
@@ -245,6 +280,13 @@ AppLayouts.WorkspaceFrame {
                     forecastModel: root.workspaceController ? root.workspaceController.forecast : ({})
                     commitmentSummaryModel: root.workspaceController ? root.workspaceController.commitmentSummary : ({})
                     baselineVarianceModel: root.baselineVarianceModel
+                    financialProfileModel: root.workspaceController ? root.workspaceController.financialProfile : ({})
+                    budgetVersionsModel: root.workspaceController ? root.workspaceController.budgetVersions : ({ "items": [] })
+                    budgetLinesModel: root.workspaceController ? root.workspaceController.budgetLines : ({ "items": [] })
+                    rateCardsModel: root.workspaceController ? root.workspaceController.rateCards : ({ "items": [] })
+                    rateLinesModel: root.workspaceController ? root.workspaceController.rateLines : ({ "items": [] })
+                    plannedCostVersionsModel: root.workspaceController ? root.workspaceController.plannedCostVersions : ({ "items": [] })
+                    plannedCostLinesModel: root.workspaceController ? root.workspaceController.plannedCostLines : ({ "items": [] })
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                 }
             }

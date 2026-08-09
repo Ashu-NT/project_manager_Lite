@@ -46,6 +46,11 @@ class ProjectPlannedCostVersionRepository(ABC):
     def list_lines(self, version_id: str) -> list[ProjectPlannedCostLine]: ...
 
     @abstractmethod
+    def list_lines_for_project(self, project_id: str) -> list[ProjectPlannedCostLine]:
+        """Return every snapshot version's lines for one scoped project."""
+        ...
+
+    @abstractmethod
     def flush(self) -> None:
         """Exposes a session-flush point to the application service so the
         previous ``CURRENT`` version can be superseded and flushed before

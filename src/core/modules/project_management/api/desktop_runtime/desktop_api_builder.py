@@ -65,6 +65,7 @@ def build_project_management_desktop_runtime_apis(
             project_service=resolved.project_service,
             dashboard_service=resolved.dashboard_service,
             baseline_service=resolved.baseline_service,
+            finance_workspace_query=resolved.finance_workspace_query,
             reporting_service=resolved.reporting_service,
             collaboration_service=resolved.collaboration_service,
             approval_service=platform_dependencies.approval_service,

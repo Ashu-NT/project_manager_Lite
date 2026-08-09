@@ -46,6 +46,26 @@ class ProjectRateCardRepository(ABC):
     ) -> list[RateCardLine]: ...
 
     @abstractmethod
+    def list_visible_for_project(
+        self,
+        project_id: str,
+        *,
+        include_inactive: bool = False,
+    ) -> list[ProjectRateCard]:
+        """Return organization-wide and project-specific cards visible to a project."""
+        ...
+
+    @abstractmethod
+    def list_lines_for_cards(
+        self,
+        rate_card_ids: tuple[str, ...],
+        *,
+        include_inactive: bool = False,
+    ) -> list[RateCardLine]:
+        """Return lines for a bounded card set without per-card queries."""
+        ...
+
+    @abstractmethod
     def list_effective_lines(
         self,
         *,

@@ -7,6 +7,7 @@ from src.core.modules.project_management.application.financials import (
     CostService,
     FinanceService,
     ForecastCostService,
+    ProjectFinanceWorkspaceQuery,
 )
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import BaselineService
@@ -22,6 +23,9 @@ from src.core.modules.project_management.api.desktop.financials.models.options i
     FinancialTaskOptionDescriptor,
 )
 from src.core.modules.project_management.api.desktop.financials.models.snapshots import FinancialSnapshotDto
+from src.core.modules.project_management.api.desktop.financials.models.configuration import (
+    FinancialConfigurationWorkspaceDto,
+)
 from src.core.modules.project_management.api.desktop.financials.commands.create_cost_item import FinancialCreateCommand
 from src.core.modules.project_management.api.desktop.financials.commands.update_cost_item import FinancialUpdateCommand
 from src.core.modules.project_management.api.desktop.financials.builders.option_builder import (
@@ -43,6 +47,9 @@ from src.core.modules.project_management.api.desktop.financials.serializers.snap
     empty_snapshot,
     serialize_snapshot,
 )
+from src.core.modules.project_management.api.desktop.financials.serializers.configuration_serializer import (
+    serialize_finance_configuration_workspace,
+)
 from src.core.modules.project_management.api.desktop.financials.utils.cost_type_utils import coerce_cost_type
 
 
@@ -56,6 +63,7 @@ class ProjectManagementFinancialsDesktopApi:
         finance_service: FinanceService | None = None,
         forecast_service: ForecastCostService | None = None,
         baseline_service: BaselineService | None = None,
+        finance_workspace_query: ProjectFinanceWorkspaceQuery | None = None,
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
@@ -63,6 +71,7 @@ class ProjectManagementFinancialsDesktopApi:
         self._finance_service = finance_service
         self._forecast_service = forecast_service
         self._baseline_service = baseline_service
+        self._finance_workspace_query = finance_workspace_query
 
     def list_projects(self) -> tuple[FinancialProjectOptionDescriptor, ...]:
         return build_project_options(self._project_service)
@@ -154,6 +163,15 @@ class ProjectManagementFinancialsDesktopApi:
 
     def build_baseline_variance(self, project_id: str) -> tuple[BaselineVarianceRecordDto, ...]:
         return build_baseline_variance(project_id, self._baseline_service)
+
+    def get_configuration_workspace(
+        self, project_id: str
+    ) -> FinancialConfigurationWorkspaceDto:
+        if not project_id or self._finance_workspace_query is None:
+            return FinancialConfigurationWorkspaceDto()
+        return serialize_finance_configuration_workspace(
+            self._finance_workspace_query.get(project_id)
+        )
 
     def _project_currency(self, project_id: str) -> str | None:
         if not project_id or self._project_service is None:

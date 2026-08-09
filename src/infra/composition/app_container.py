@@ -101,6 +101,7 @@ from src.core.modules.project_management.application.financials import (
     FinanceService,
     ForecastCostService,
     PlannedCostService,
+    ProjectFinanceWorkspaceQuery,
     ProjectRateCardService,
     RateCardResolver,
 )
@@ -222,6 +223,7 @@ class ServiceGraph:
     rate_card_resolver: RateCardResolver
     budget_service: BudgetService
     planned_cost_service: PlannedCostService
+    finance_workspace_query: ProjectFinanceWorkspaceQuery
     finance_service: FinanceService
     work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
     scheduling_engine: SchedulingEngine
@@ -326,6 +328,7 @@ class ServiceGraph:
             "rate_card_resolver": self.rate_card_resolver,
             "budget_service": self.budget_service,
             "planned_cost_service": self.planned_cost_service,
+            "finance_workspace_query": self.finance_workspace_query,
             "finance_service": self.finance_service,
             "work_calendar_engine": self.work_calendar_engine,
             "scheduling_engine": self.scheduling_engine,
@@ -472,6 +475,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         rate_card_resolver=project_management_services.rate_card_resolver,
         budget_service=project_management_services.budget_service,
         planned_cost_service=project_management_services.planned_cost_service,
+        finance_workspace_query=project_management_services.finance_workspace_query,
         finance_service=project_management_services.finance_service,
         work_calendar_engine=project_management_services.work_calendar_engine,
         scheduling_engine=project_management_services.scheduling_engine,

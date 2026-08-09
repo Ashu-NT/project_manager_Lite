@@ -1,7 +1,7 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: audit complete; Phase A0, A1, A2, and Phase B1 configuration code gates complete; hosted PostgreSQL validation pending
-Last updated: 2026-08-06
+Status: audit complete; Phase A0, A1, A2, and Phase B item 8 code gates complete; hosted PostgreSQL validation pending
+Last updated: 2026-08-09
 Scope: Project Management finance plus reusable platform financial foundations
 Current increment: Task-owned WBS, effective-dated rate cards (ADR-PF-005) with the
 `CostPolicyEngine`/`LaborCostEngine` cutover, the versioned `ProjectBudget`/`BudgetLine`
@@ -20,9 +20,10 @@ of the budget slice's own verification: `project_finance_rate_card_lines`'s Nume
 the `info['financial_numeric']` marker the A1 architecture guardrail requires — a pre-existing
 gap masked by ORM-table import order, only surfaced once the new budget table changed that
 order. Both rate-card and budget Numeric columns now declare it.
-Remaining Phase B scope: repoint baseline comparison/planning reports onto Money and the new
-planned-cost snapshots, and replace the QML combined "Budget" section (items 7-8 below),
-before Phase C's actual ledger/commitments/time/procurement work.
+Remaining Phase B scope: item 7's planning-report source decision remains blocked on the
+documented envelope-versus-allocation product decision and a snapshot freshness mechanism.
+Item 8's QML combined-Budget replacement is complete. Phase C remains the next unblocked
+implementation phase.
 
 ## 1. Executive Summary
 
@@ -824,7 +825,7 @@ ADR gate: complete. ADR-PF-003, ADR-PF-005, and ADR-PF-009 are accepted.
    recalculation mechanism and a product decision on whether unallocated
    envelope hours should still count as "planned" — out of scope for this
    phase.
-8. Replace the QML combined "Budget" cost-line section with separate Profile, Budget Versions, Budget Lines, Rate Cards, and Planned Costs views. Current QML may be broken/replaced as contracts move; do not preserve false semantics.
+8. Complete (2026-08-09): replaced the QML combined "Budget" cost-line section with separate Profile, Budget Versions, Budget Lines, Rate Cards, and Planned Costs views. The false legacy component was deleted rather than retained as compatibility UI.
 
 Exit gate: approved budgets cannot mutate; rate selection is deterministic; historical snapshots remain stable after rate changes; plan totals reconcile by cost code/WBS/period; cross-tenant references fail.
 
@@ -838,6 +839,26 @@ Implementation progress (Phase B1, 2026-08-02):
 - Added global plus project-scoped `finance.read`/`finance.manage` enforcement, owner-only project financial configuration, mandatory optimistic versions, and fail-closed Enterprise Audit in the mutation transaction.
 - Verification: 23 focused B1 domain, service, repository, RBAC, architecture, transition-register, migration upgrade/backfill/downgrade, and audit rollback tests pass. The pre-existing Phase A0 finance/RBAC integration set also passes (14 tests in the combined check). The broader PM suite passes 345 tests with only the three known unrelated dashboard date-relative/entitlement-order cases deselected; Architecture passes 113 tests with only its two pre-existing size-budget breaches.
 - No temporary B1 files or in-memory adapters were added. The only B1 transition code is the two-way legacy `Project.currency` projection, marked `PROJECT-FINANCE-TRANSITION-ONLY(PF-B1-CURRENCY-DUAL-WRITE)` at both write paths and registered below for deletion.
+
+Implementation checkpoint (Phase B item 8, 2026-08-09):
+
+- Added a canonical `ProjectFinanceWorkspaceQuery` application read projection guarded by
+  global and project-scoped `finance.read`. It resolves profile, budget lifecycle versions and
+  lines, organization/project-visible rate cards and lines, and planned-cost snapshots and lines.
+- Reconciliation totals and task/resource/cost-code labels are application-owned. Repository
+  bulk methods keep the warm projection bounded to at most 11 SQL statements regardless of the
+  number of versions, cards, or lines; cross-organization reads fail closed.
+- Desktop DTOs format the immutable projection only. Presenter/controller state exposes five
+  distinct project-level collections, and the Views menu can open them even when the legacy cost
+  register has no rows. Cost-row activation now opens Actuals rather than pretending the row is a
+  budget.
+- Deleted `FinancialsBudgetSection.qml` and its registration. No fallback, dual-read adapter,
+  temporary component, or transition file was introduced. Canonical lifecycle mutations remain
+  in their existing application services; this item intentionally adds lifecycle-aware views,
+  not duplicate QML-owned write policy.
+- Verification: 90 Phase B configuration/rate-card/budget/planned-cost tests pass with two
+  existing SQLite datetime-adapter deprecation warnings. The focused desktop/QML architecture
+  checkpoint passes 30 tests, and the new projection/isolation/measurement suite passes 5 tests.
 
 ### Phase C - Actual ledger, commitments, time, procurement, and periods
 
@@ -1118,7 +1139,7 @@ These are genuine product/ownership decisions. Questions mapped to A0/A1/A2 ADRs
 
 ## 25. Final Recommendation
 
-Proceed with the upgrade, but do not extend the current combined CostItem/QML model. Phase A0 security/transaction correctness, A1 monetary foundations, A2 canonical application foundations, the Phase B1 configuration foundation, Task-owned WBS, effective-dated rate cards with the `CostPolicyEngine`/`LaborCostEngine` cutover, the versioned Budget/BudgetLine lifecycle, and tactical, assignment-labor-only versioned planned-cost snapshots are all implemented. Continue with repointing baseline/planning reports onto the new snapshots and the QML "Budget" section replacement (Phase B items 7-8) before Phase C's actual ledger/commitments/time/procurement work. This keeps security, Decimal Money/rate/quantity work, integration composition, and configuration aggregates independently testable.
+Proceed with the upgrade, but do not extend the current combined CostItem model. Phase A0 security/transaction correctness, A1 monetary foundations, A2 canonical application foundations, the Phase B1 configuration foundation, Task-owned WBS, effective-dated rate cards with the `CostPolicyEngine`/`LaborCostEngine` cutover, the versioned Budget/BudgetLine lifecycle, tactical assignment-labor planned-cost snapshots, and the five-view QML finance configuration replacement are implemented. Item 7's source cutover remains explicitly blocked by planning semantics and freshness ownership; do not force it. Continue with Phase C's actual ledger/commitments/time/procurement work while preserving that decision gate.
 
 Then build Project Finance as explicit PM-owned aggregates while preserving valid module ownership: Time supplies approved hours, Procurement supplies PO/receipt facts, Party supplies identities, Approval and Audit remain platform services, and external accounting owns official ledger/payment behavior. Use additive persistence and temporary compatibility only to migrate verified data; delete every fallback, dual-write, alias, and transition adapter at its named phase gate.
 

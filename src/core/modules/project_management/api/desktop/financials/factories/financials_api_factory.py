@@ -15,6 +15,7 @@ def build_project_management_financials_desktop_api(
     finance_service=None,
     forecast_service=None,
     baseline_service=None,
+    finance_workspace_query=None,
 ) -> ProjectManagementFinancialsDesktopApi:
     return ProjectManagementFinancialsDesktopApi(
         project_service=project_service,
@@ -23,6 +24,7 @@ def build_project_management_financials_desktop_api(
         finance_service=finance_service,
         forecast_service=forecast_service,
         baseline_service=baseline_service,
+        finance_workspace_query=finance_workspace_query,
     )
 
 

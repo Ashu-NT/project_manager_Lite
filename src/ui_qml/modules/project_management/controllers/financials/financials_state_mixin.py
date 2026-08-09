@@ -142,5 +142,40 @@ class FinancialsStateMixin:
         self._baseline_variance = rows
         self.baselineVarianceChanged.emit()
 
+    def _set_financial_profile(self, value: FinancialsMap) -> None:
+        if value != self._financial_profile:
+            self._financial_profile = value
+            self.financialProfileChanged.emit()
+
+    def _set_budget_versions(self, value: FinancialsMap) -> None:
+        if value != self._budget_versions:
+            self._budget_versions = value
+            self.budgetVersionsChanged.emit()
+
+    def _set_budget_lines(self, value: FinancialsMap) -> None:
+        if value != self._budget_lines:
+            self._budget_lines = value
+            self.budgetLinesChanged.emit()
+
+    def _set_rate_cards(self, value: FinancialsMap) -> None:
+        if value != self._rate_cards:
+            self._rate_cards = value
+            self.rateCardsChanged.emit()
+
+    def _set_rate_lines(self, value: FinancialsMap) -> None:
+        if value != self._rate_lines:
+            self._rate_lines = value
+            self.rateLinesChanged.emit()
+
+    def _set_planned_cost_versions(self, value: FinancialsMap) -> None:
+        if value != self._planned_cost_versions:
+            self._planned_cost_versions = value
+            self.plannedCostVersionsChanged.emit()
+
+    def _set_planned_cost_lines(self, value: FinancialsMap) -> None:
+        if value != self._planned_cost_lines:
+            self._planned_cost_lines = value
+            self.plannedCostLinesChanged.emit()
+
 
 __all__ = ["FinancialsStateMixin"]
