@@ -76,6 +76,20 @@ class SqlAlchemyIntegrationOutboxRepository(TenantScopedRepositorySupport):
         )).scalar_one_or_none()
         return self._from_row(row) if row else None
 
+    def get_latest_by_aggregate(
+        self, *, aggregate_type: str, aggregate_id: str
+    ) -> IntegrationOutboxRecord | None:
+        ctx = self._context(operation_label="access integration aggregate history")
+        row = self.session.execute(
+            select(self._orm_type).where(
+                self._orm_type.tenant_id == ctx.tenant_id,
+                self._orm_type.organization_id == ctx.organization_id,
+                self._orm_type.aggregate_type == aggregate_type,
+                self._orm_type.aggregate_id == aggregate_id,
+            ).order_by(self._orm_type.aggregate_version.desc()).limit(1)
+        ).scalar_one_or_none()
+        return self._from_row(row) if row else None
+
     def claim_available(self, *, now: datetime, lease_token: str, lease_expires_at: datetime, limit: int) -> list[IntegrationOutboxRecord]:
         if not lease_token:
             raise ValueError("Outbox lease token is required.")

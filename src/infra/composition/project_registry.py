@@ -23,12 +23,14 @@ from src.core.modules.project_management.access.policy import (
     resolve_project_scope_permissions,
 )
 from src.core.platform.application.time_management.time import TimeService
+from src.core.platform.application.integration import IntegrationOutboxService
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
 )
 from src.core.modules.project_management.application.common.clock import SystemClock
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import (
+    ApprovedTimeLaborCostConsumer,
     BudgetService,
     CostService,
     FinancialConfigurationService,
@@ -137,6 +139,7 @@ class ProjectManagementServiceBundle:
     rate_card_resolver: RateCardResolver
     budget_service: BudgetService
     cost_entry_service: ProjectCostEntryService
+    approved_time_labor_cost_consumer: ApprovedTimeLaborCostConsumer
     commitment_service: ProjectCommitmentService
     planned_cost_service: PlannedCostService
     finance_workspace_query: ProjectFinanceWorkspaceQuery
@@ -161,6 +164,8 @@ def build_project_management_service_bundle(
     session: Session,
     repositories: RepositoryBundle,
     platform_services: PlatformServiceBundle,
+    *,
+    approved_time_outbox_service: IntegrationOutboxService | None = None,
 ) -> ProjectManagementServiceBundle:
     started = perf_counter()
     logger.debug("Project Management service bundle build begin")
@@ -241,6 +246,7 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
         scope_organization_resolver=_time_scope_organization_id,
+        approved_time_outbox_service=approved_time_outbox_service,
         timesheet_review_reader=SqlAlchemyTimesheetReviewReader(session=session),
     )
     time_service: TimeService = timesheet_service
@@ -405,7 +411,10 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
         approval_service=platform_services.approval_service,
+        rate_resolver=rate_card_resolver,
+        labor_posting_repo=repositories.approved_time_labor_posting_repo,
     )
+    approved_time_labor_cost_consumer = ApprovedTimeLaborCostConsumer(cost_entry_service)
     commitment_service = ProjectCommitmentService(
         session=session,
         commitment_repo=repositories.project_commitment_repo,
@@ -587,6 +596,7 @@ def build_project_management_service_bundle(
         rate_card_resolver=rate_card_resolver,
         budget_service=budget_service,
         cost_entry_service=cost_entry_service,
+        approved_time_labor_cost_consumer=approved_time_labor_cost_consumer,
         commitment_service=commitment_service,
         planned_cost_service=planned_cost_service,
         finance_workspace_query=finance_workspace_query,

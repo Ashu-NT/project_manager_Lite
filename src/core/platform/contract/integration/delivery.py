@@ -20,6 +20,11 @@ class IntegrationOutboxRepository(ABC):
     def get_by_event_id(self, event_id: str) -> IntegrationOutboxRecord | None: ...
 
     @abstractmethod
+    def get_latest_by_aggregate(
+        self, *, aggregate_type: str, aggregate_id: str
+    ) -> IntegrationOutboxRecord | None: ...
+
+    @abstractmethod
     def claim_available(
         self,
         *,

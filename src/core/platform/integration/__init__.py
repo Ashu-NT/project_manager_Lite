@@ -6,6 +6,10 @@ from src.core.platform.integration.cross_module_reference import (
     ResolvedReference,
 )
 from src.core.platform.integration.events import IntegrationEventEnvelope
+from src.core.platform.integration.time_events import (
+    APPROVED_TIME_ENTRY_EVENT_TYPE,
+    ApprovedTimeEntryEventPayload,
+)
 from src.core.platform.integration.delivery import (
     InboxProcessingStatus,
     IntegrationInboxReceipt,
@@ -18,6 +22,8 @@ from src.core.platform.integration.resolver import IntegrationResolver
 __all__ = [
     "CrossModuleReference",
     "IntegrationEventEnvelope",
+    "APPROVED_TIME_ENTRY_EVENT_TYPE",
+    "ApprovedTimeEntryEventPayload",
     "InboxProcessingStatus",
     "IntegrationInboxReceipt",
     "IntegrationOutboxRecord",

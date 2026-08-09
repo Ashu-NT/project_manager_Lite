@@ -47,6 +47,7 @@ from src.core.modules.project_management.application.financials.planned_costs im
     PlannedCostService,
 )
 from src.core.modules.project_management.application.financials.cost_entries import (
+    ApprovedTimeLaborCostConsumer,
     CostEntryApprovalOutcome,
     CostEntryApprovalResult,
     ProjectCostEntryService,
@@ -61,6 +62,7 @@ from src.core.modules.project_management.application.financials.workspace_query 
 
 __all__ = [
     "BudgetService",
+    "ApprovedTimeLaborCostConsumer",
     "BudgetApprovalOutcome",
     "BudgetApprovalResult",
     "PlannedCostCalculationResult",

@@ -254,6 +254,22 @@ class ProjectManagementTimesheetsDesktopApi:
             project_service=self._project_service,
         )
 
+    def reopen_period_for_correction(
+        self,
+        period_id: str,
+        *,
+        reason: str,
+    ) -> TimesheetPeriodSummaryDesktopDto:
+        aggregate = self._require_timesheet_service().reopen_approved_timesheet_period_for_correction(
+            str(period_id or "").strip(),
+            note=str(reason or "").strip(),
+        )
+        return serialize_period_aggregate(
+            aggregate,
+            resource_service=self._resource_service,
+            project_service=self._project_service,
+        )
+
     def _require_task_service(self) -> TaskService:
         if self._task_service is None:
             raise RuntimeError(

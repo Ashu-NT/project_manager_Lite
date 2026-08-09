@@ -80,6 +80,14 @@ class IntegrationOutboxService:
         self._retry_policy = retry_policy or IntegrationRetryPolicy()
         self._max_attempts = max(1, int(max_attempts))
 
+    def latest_for_aggregate(
+        self, *, aggregate_type: str, aggregate_id: str
+    ) -> IntegrationOutboxRecord | None:
+        return self._repository.get_latest_by_aggregate(
+            aggregate_type=aggregate_type,
+            aggregate_id=aggregate_id,
+        )
+
     def enqueue(self, envelope: IntegrationEventEnvelope) -> IntegrationOutboxRecord:
         existing = self._repository.get_by_event_id(envelope.event_id)
         if existing is not None:

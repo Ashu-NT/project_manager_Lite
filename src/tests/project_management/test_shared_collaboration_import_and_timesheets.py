@@ -237,6 +237,14 @@ def test_timesheet_period_lock_unlock_and_approval_state_transitions(services):
         note="May work",
     )
 
+    submitted = ts.submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
+    approved = ts.approve_timesheet_period(submitted.period_id, note="Approved for payroll")
+    assert approved.status == TimesheetPeriodStatus.APPROVED
+    assert approved.locked_at is None
+
+    with pytest.raises(ValidationError, match="approved"):
+        ts.update_time_entry(may_entry.id, hours=7.0)
+
     locked = ts.lock_timesheet_period(
         resource.id,
         period_start=date(2026, 5, 20),
@@ -244,19 +252,8 @@ def test_timesheet_period_lock_unlock_and_approval_state_transitions(services):
     )
     assert locked.status == TimesheetPeriodStatus.LOCKED
 
-    with pytest.raises(ValidationError, match="locked"):
-        ts.update_time_entry(may_entry.id, hours=6.5)
-
-    unlocked = ts.unlock_timesheet_period(locked.period_id, note="Correction window")
-    assert unlocked.status == TimesheetPeriodStatus.OPEN
-
-    submitted = ts.submit_timesheet_period(resource.id, period_start=date(2026, 5, 1))
-    approved = ts.approve_timesheet_period(submitted.period_id, note="Approved for payroll")
-    assert approved.status == TimesheetPeriodStatus.APPROVED
-    assert approved.locked_at is not None
-
-    with pytest.raises(ValidationError, match="approved"):
-        ts.update_time_entry(may_entry.id, hours=7.0)
+    unlocked = ts.unlock_timesheet_period(locked.period_id, note="Administrative unlock")
+    assert unlocked.status == TimesheetPeriodStatus.APPROVED
 
 
 def test_data_import_service_imports_projects_resources_tasks_and_costs(services):

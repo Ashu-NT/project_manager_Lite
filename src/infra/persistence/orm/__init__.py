@@ -33,6 +33,7 @@ import src.core.modules.project_management.infrastructure.persistence.orm.cost  
 import src.core.modules.project_management.infrastructure.persistence.orm.cost_entry  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.commitment  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.finance_inbox  # noqa: F401
+import src.core.modules.project_management.infrastructure.persistence.orm.labor_posting  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.financial_configuration  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.baseline  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.calendar_assignment  # noqa: F401

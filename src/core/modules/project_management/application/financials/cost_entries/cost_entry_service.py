@@ -17,12 +17,14 @@ from src.core.modules.project_management.application.financials.cost_entries.app
     CostEntryApprovalResult,
 )
 from src.core.modules.project_management.contracts.financial_sources import (
+    ApprovedTimeFinancialSource,
     FinancialPostingPurpose,
     FinancialSourceModule,
     FinancialSourceReference,
     FinancialSourceType,
     financial_source_content_hash,
 )
+from src.core.modules.project_management.contracts.repositories.labor_posting import ApprovedTimeLaborPostingRepository
 from src.core.modules.project_management.contracts.repositories.cost_entry import (
     ProjectCostEntryRepository,
 )
@@ -42,6 +44,9 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntryKind,
     ProjectCostEntryStatus,
 )
+from src.core.modules.project_management.domain.financials.labor_posting import ApprovedTimeLaborPosting
+from src.core.modules.project_management.domain.financials.rate_cards import RateType
+from src.core.modules.project_management.application.financials.rate_cards.rate_card_resolver import RateCardResolver
 from src.core.modules.project_management.domain.identifiers import generate_id
 from src.core.platform.application.finance.financial_period_service import FinancialPeriodService
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
@@ -80,6 +85,8 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         module_catalog_service=None,
         tenant_context_service: TenantContextService | None = None,
         approval_service=None,
+        rate_resolver: RateCardResolver | None = None,
+        labor_posting_repo: ApprovedTimeLaborPostingRepository | None = None,
     ) -> None:
         self._session = session
         self._entry_repo = entry_repo
@@ -95,6 +102,159 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
         self._approval_service = approval_service
+        self._rate_resolver = rate_resolver
+        self._labor_posting_repo = labor_posting_repo
+
+    def apply_approved_time_source(
+        self, source: ApprovedTimeFinancialSource
+    ) -> ProjectCostEntry:
+        """Apply one trusted inbox delivery without committing the consumer transaction."""
+        if self._rate_resolver is None or self._labor_posting_repo is None:
+            raise BusinessRuleError(
+                "Approved Time financial consumer is not configured.",
+                code="APPROVED_TIME_CONSUMER_NOT_CONFIGURED",
+            )
+        context = self._require_full_context("post approved time labor cost")
+        reference = source.reference
+        if reference.tenant_id != context.tenant_id or reference.organization_id != context.organization_id:
+            raise BusinessRuleError("Approved Time source is outside the active scope.", code="APPROVED_TIME_SCOPE_MISMATCH")
+        self._require_project(reference.project_id)
+        profile = self._require_active_profile(reference.project_id)
+        if not profile.default_cost_code_id:
+            raise BusinessRuleError(
+                "Project requires a default cost code before approved labor can post.",
+                code="APPROVED_TIME_DEFAULT_COST_CODE_REQUIRED",
+            )
+        latest = self._labor_posting_repo.get_latest(source.time_entry_id, for_update=True)
+        revision = int(reference.source_revision)
+        if latest is not None:
+            if revision == latest.source_revision and reference.content_hash == latest.source_content_hash:
+                existing = self._entry_repo.get(latest.actual_cost_entry_id)
+                if existing is None:
+                    raise BusinessRuleError("Approved labor posting lost its ledger entry.", code="APPROVED_TIME_LEDGER_INTEGRITY_FAILED")
+                return existing
+            if revision <= latest.source_revision:
+                raise BusinessRuleError("Approved Time revision is stale or conflicting.", code="APPROVED_TIME_REVISION_CONFLICT")
+            if source.correction_of_revision != str(latest.source_revision):
+                raise BusinessRuleError("Approved Time correction does not reference the latest posting.", code="APPROVED_TIME_CORRECTION_CHAIN_INVALID")
+        elif revision != 1 or source.correction_of_revision is not None:
+            raise BusinessRuleError("First approved Time posting must be revision 1.", code="APPROVED_TIME_REVISION_GAP")
+
+        self._require_dimensions(
+            project_id=reference.project_id,
+            cost_code_id=profile.default_cost_code_id,
+            transaction_date=source.work_date,
+            task_id=source.task_id,
+            resource_id=source.resource_id,
+            organization_id=context.organization_id,
+        )
+        snapshot = self._rate_resolver.resolve(
+            tenant_id=context.tenant_id,
+            organization_id=context.organization_id,
+            project_id=reference.project_id,
+            resource_id=source.resource_id,
+            rate_type=RateType.COST,
+            as_of=source.work_date,
+            unit="HOUR",
+        )
+        rate_money = snapshot.monetary_rate.money
+        if rate_money.currency.code != context.organization.base_currency:
+            raise BusinessRuleError(
+                "Cross-currency approved labor requires an enterprise FX provider.",
+                code="APPROVED_TIME_FX_PROVIDER_REQUIRED",
+            )
+        hours = source.hours.to_domain().value
+        money = Money.of(hours * rate_money.amount, rate_money.currency.code).rounded()
+        if money.amount <= 0:
+            raise BusinessRuleError("Approved labor cost must be positive.", code="APPROVED_TIME_COST_INVALID")
+        period = self._financial_period_service.require_open_period_for_date(source.work_date)
+        actor_id = "integration:project_finance"
+        now = self._clock.now()
+        reversal = None
+        if latest is not None:
+            original = self._entry_repo.get(latest.actual_cost_entry_id, for_update=True)
+            if original is None or original.status != ProjectCostEntryStatus.POSTED:
+                raise BusinessRuleError("Prior approved labor posting is not reversible.", code="APPROVED_TIME_PRIOR_POSTING_INVALID")
+            reversal_source = FinancialSourceReference(
+                tenant_id=reference.tenant_id,
+                organization_id=reference.organization_id,
+                project_id=reference.project_id,
+                source_module=reference.source_module,
+                source_type=reference.source_type,
+                source_id=reference.source_id,
+                source_line_id=f"reversal:{latest.source_revision}",
+                source_revision=reference.source_revision,
+                content_hash=financial_source_content_hash({"reverses_entry_id": original.id, "replacement_hash": reference.content_hash}),
+                posting_purpose=reference.posting_purpose,
+            )
+            reversal = ProjectCostEntry.create_posted_reversal(
+                original=original,
+                reversal_id=generate_id(),
+                description=f"Approved Time correction reversal for {source.time_entry_id}",
+                source=reversal_source,
+                posting_date=source.work_date,
+                financial_period_id=period.id,
+                actor_id=actor_id,
+                occurred_at=now,
+            )
+            self._entry_repo.add(reversal)
+            self._entry_repo.flush()
+            original_version = original.row_version
+            original.mark_reversed(reversal_entry_id=reversal.id, actor_id=actor_id, occurred_at=now)
+            self._entry_repo.update(original, expected_row_version=original_version)
+
+        entry = ProjectCostEntry.create_draft(
+            tenant_id=reference.tenant_id,
+            organization_id=reference.organization_id,
+            project_id=reference.project_id,
+            description=f"Approved labor for {source.work_date.isoformat()}",
+            kind=ProjectCostEntryKind.ACTUAL,
+            money=money,
+            transaction_date=source.work_date,
+            cost_code_id=profile.default_cost_code_id,
+            task_id=source.task_id,
+            resource_id=source.resource_id,
+            source=reference,
+            actor_id=actor_id,
+            occurred_at=now,
+        )
+        entry.submit(actor_id=actor_id, occurred_at=now)
+        entry.approve(actor_id=actor_id, occurred_at=now)
+        entry.post(
+            actor_id=actor_id,
+            occurred_at=now,
+            posting_date=source.work_date,
+            financial_period_id=period.id,
+            base_money=money,
+            exchange_rate=Decimal("1"),
+            exchange_rate_date=source.work_date,
+            exchange_rate_source="identity",
+            exchange_rate_captured_at=now,
+        )
+        self._entry_repo.add(entry)
+        self._labor_posting_repo.add(ApprovedTimeLaborPosting(
+            id=generate_id(), tenant_id=reference.tenant_id,
+            organization_id=reference.organization_id, project_id=reference.project_id,
+            time_entry_id=source.time_entry_id, source_revision=revision,
+            source_content_hash=reference.content_hash,
+            approved_snapshot_id=source.approved_snapshot_id,
+            timesheet_period_id=source.timesheet_period_id,
+            actual_cost_entry_id=entry.id,
+            reversal_cost_entry_id=reversal.id if reversal else None,
+            hours=hours, work_date=source.work_date, rate_amount=rate_money.amount,
+            rate_currency=rate_money.currency.code, rate_card_id=snapshot.rate_card_id,
+            rate_line_id=snapshot.rate_line_id, rate_card_version=snapshot.rate_card_version,
+            rate_precedence_level=snapshot.precedence_level,
+            rate_effective_date=snapshot.effective_date, rate_resolved_at=snapshot.resolved_at,
+            approved_at=source.approved_at, resource_id=source.resource_id,
+            task_id=source.task_id, employee_id=source.employee_id, created_at=now,
+        ))
+        self._entry_repo.flush()
+        self._labor_posting_repo.flush()
+        if reversal is not None:
+            self._record_audit("create_approved_time_reversal", reversal)
+        self._record_audit("post_approved_time", entry)
+        return entry
 
     def get_entry(self, entry_id: str) -> ProjectCostEntry:
         require_permission(self._user_session, "finance.read", operation_label="view project cost entry")

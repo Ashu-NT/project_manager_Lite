@@ -13,6 +13,8 @@ from src.core.platform.application.time_management.time.timesheet_periods import
 from src.core.platform.application.time_management.time.timesheet_query import TimesheetQueryMixin
 from src.core.platform.application.time_management.time.timesheet_review import TimesheetReviewMixin
 from src.core.platform.application.time_management.time.timesheet_support import TimesheetSupportMixin
+from src.core.platform.application.time_management.time.timesheet_financial_events import TimesheetFinancialEventsMixin
+from src.core.platform.application.integration import IntegrationOutboxService
 from src.core.platform.contract.time_management.time.contracts import (
     TimeEntryRepository,
     TimesheetPeriodRepository,
@@ -28,6 +30,7 @@ class TimeService(
     TimesheetQueryMixin,
     TimesheetReviewMixin,
     TimesheetSupportMixin,
+    TimesheetFinancialEventsMixin,
 ):
     """Shared time-entry and timesheet-period workflows for platform consumers."""
 
@@ -45,6 +48,7 @@ class TimeService(
         module_catalog_service: Any = None,
         tenant_context_service: TenantContextService | None = None,
         scope_organization_resolver: Callable[[str, str], str | None] | None = None,
+        approved_time_outbox_service: IntegrationOutboxService | None = None,
     ) -> None:
         self._session: Session = session
         self._work_allocation_repo: WorkAllocationRepository = assignment_repo
@@ -60,6 +64,11 @@ class TimeService(
         self._module_catalog_service = module_catalog_service
         self._tenant_context_service = tenant_context_service
         self._scope_organization_resolver = scope_organization_resolver
+        self._approved_time_outbox_service = approved_time_outbox_service
+        self._approved_time_dispatcher: Callable[[], None] | None = None
+
+    def set_approved_time_dispatcher(self, dispatcher: Callable[[], None] | None) -> None:
+        self._approved_time_dispatcher = dispatcher
 
 
 __all__ = ["TimeService"]

@@ -404,8 +404,13 @@ ACCEPTED, so the ADR gate itself is not blocking.
    guards, and composition wiring. C.5 still owns Procurement event creation, dispatch, and the
    financial consumer; those adapters must live at contracts/composition boundaries without direct
    PM-to-Inventory implementation imports.
-4. Approved-Time contract/event + idempotent labor-cost consumer (snapshot rate,
-   reverse/replace on corrected approvals).
+4. **Approved-Time event + idempotent labor-cost consumer (complete 2026-08-09).** Platform
+   Time approval atomically writes immutable, monotonic per-entry snapshots to its owned outbox.
+   PM Finance consumes through its inbox, validates scope/revision, resolves and snapshots the
+   effective COST/HOUR rate, requires an open period and project default cost code, and writes a
+   posted actual plus immutable labor detail. Corrected approval creates an equal reversal and
+   replacement; later LOCKED/unlocked transitions create no posting. Database transport supports
+   immediate bounded dispatch and startup replay with retry/dead-letter state.
 5. Typed Procurement project-source queries/events (PO lines, changes, cancellation,
    receipts, supplier invoice references).
 6. Replace manual combined `CostItem` writes with distinct planned/commitment/manual-actual
@@ -446,9 +451,19 @@ ADR-PF-011 delivery-foundation checkpoint (complete 2026-08-09): migration `r5s6
 the two source-owned outboxes and PM Finance-owned inbox. Five focused lifecycle/migration tests
 pass, including atomic rollback, active-scope isolation, lease ownership, retry/dead-letter,
 transport deduplication, conflict/stale quarantine, reversible schema, and immutable-envelope
-guards; Alembic remains single-headed. There is no dispatcher, process-local delivery shim,
-cross-module implementation import, temporary file, or deletion-register item. **Item 4, the
-approved-Time labor-cost event and consumer, is next.**
+guards; Alembic remains single-headed. There is no process-local delivery shim, cross-module
+implementation import, temporary file, or deletion-register item.
+
+Phase C.4 verification checkpoint: four focused approved-Time tests cover first approval,
+rejection no-op, approval/outbox rollback atomicity, correction reversal/replacement, rate snapshot
+retention, LOCKED no-op, inbox/outbox completion, and reversible immutable migration. The combined
+C.1-C.4 ledger/commitment/delivery/architecture checkpoint passes 33 tests and Alembic remains
+single-headed at `s6t7u8v9w0x1`; the related Time lifecycle/RBAC/workspace checkpoint passes 23
+tests. No process-local financial delivery, thread/timer, direct cross-module implementation
+import, temporary file, dual-write, legacy `CostItem` mutation, or deletion-register item was
+introduced. The desktop correction command is available; final QML ledger action/dialog work
+remains at the existing C.8 UI cutover gate. **Item 5, typed Procurement events and PM consumers,
+is next.**
 
 ## 3. Finance — Phase D and E (future, not started)
 

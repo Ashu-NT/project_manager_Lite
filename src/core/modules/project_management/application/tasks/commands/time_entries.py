@@ -127,5 +127,12 @@ class TaskTimeEntryMixin:
     ) -> TimesheetPeriodAggregate:
         return self._require_timesheet_service().unlock_timesheet_period(period_id, note=note)
 
+    def reopen_approved_timesheet_period_for_correction(
+        self, period_id: str, *, note: str
+    ) -> TimesheetPeriodAggregate:
+        return self._require_timesheet_service().reopen_approved_timesheet_period_for_correction(
+            period_id, note=note
+        )
+
 
 __all__ = ["TaskTimeEntryMixin"]
