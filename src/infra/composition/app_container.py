@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from src.core.platform.application.platform_runtime import PlatformRuntimeApplicationService
+from src.core.platform.application.integration import IntegrationInboxService, IntegrationOutboxService
 from src.core.platform.access import AccessControlService
 from src.core.platform.integration.module_registry import ModuleRegistry
 from src.core.platform.integration.resolver import IntegrationResolver
@@ -142,6 +143,7 @@ from src.infra.composition.maintenance_registry import build_maintenance_service
 from src.infra.composition.platform_registry import build_platform_service_bundle
 from src.infra.composition.project_registry import build_project_management_service_bundle
 from src.infra.composition.repositories import build_repository_bundle
+from src.infra.integration.delivery import SystemDeliveryClock
 
 
 logger = logging.getLogger(__name__)
@@ -155,6 +157,9 @@ class ServiceGraph:
     module_catalog_service: ModuleCatalogService
     module_registry: ModuleRegistry
     integration_resolver: IntegrationResolver
+    time_financial_outbox_service: IntegrationOutboxService
+    procurement_financial_outbox_service: IntegrationOutboxService
+    project_finance_inbox_service: IntegrationInboxService
     time_service: TimeService
     auth_service: AuthService
     role_governance_service: RoleGovernanceService
@@ -261,6 +266,9 @@ class ServiceGraph:
             "module_catalog_service": self.module_catalog_service,
             "module_registry": self.module_registry,
             "integration_resolver": self.integration_resolver,
+            "time_financial_outbox_service": self.time_financial_outbox_service,
+            "procurement_financial_outbox_service": self.procurement_financial_outbox_service,
+            "project_finance_inbox_service": self.project_finance_inbox_service,
             "time_service": self.time_service,
             "auth_service": self.auth_service,
             "role_governance_service": self.role_governance_service,
@@ -402,6 +410,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
     )
     _module_registry = ModuleRegistry(platform_services.module_catalog_service)
     _integration_resolver = IntegrationResolver(_module_registry)
+    _delivery_clock = SystemDeliveryClock()
     graph = ServiceGraph(
         session=session,
         user_session=platform_services.user_session,
@@ -409,6 +418,21 @@ def build_service_graph(session: Session) -> ServiceGraph:
         module_catalog_service=platform_services.module_catalog_service,
         module_registry=_module_registry,
         integration_resolver=_integration_resolver,
+        time_financial_outbox_service=IntegrationOutboxService(
+            repository=repositories.time_financial_outbox_repo,
+            owner_module="platform_time",
+            clock=_delivery_clock,
+        ),
+        procurement_financial_outbox_service=IntegrationOutboxService(
+            repository=repositories.procurement_financial_outbox_repo,
+            owner_module="inventory_procurement",
+            clock=_delivery_clock,
+        ),
+        project_finance_inbox_service=IntegrationInboxService(
+            repository=repositories.project_finance_inbox_repo,
+            consumer_name="project_finance",
+            clock=_delivery_clock,
+        ),
         time_service=project_management_services.time_service,
         auth_service=platform_services.auth_service,
         role_governance_service=platform_services.role_governance_service,

@@ -398,8 +398,12 @@ ACCEPTED, so the ADR gate itself is not blocking.
    Four directly scoped/RLS tables, composite foreign keys, database amount/source/match
    constraints, immutable revision/match triggers, stable database pagination, fail-closed Audit,
    RBAC/project authorization, savepoint conflict handling, and migration `q4r5s6t7u8v9` complete
-   the boundary. C.5 still owns the provider/outbox/inbox adapter that transports typed
-   Procurement facts; it must live in composition/integration infrastructure, not either module.
+   the boundary. The permanent ADR-PF-011 owned-store foundation is now complete: Time and
+   Procurement have separate tenant/org-scoped outboxes and PM Finance owns its inbox, with
+   leasing, bounded retry/dead-letter, deduplication, ordering, quarantine, RLS, immutable-envelope
+   guards, and composition wiring. C.5 still owns Procurement event creation, dispatch, and the
+   financial consumer; those adapters must live at contracts/composition boundaries without direct
+   PM-to-Inventory implementation imports.
 4. Approved-Time contract/event + idempotent labor-cost consumer (snapshot rate,
    reverse/replace on corrected approvals).
 5. Typed Procurement project-source queries/events (PO lines, changes, cancellation,
@@ -436,7 +440,15 @@ dual-write, in-memory event bridge, compatibility adapter, temporary file, or de
 item was introduced. One pre-existing PM desktop runtime import used only for Inventory runtime
 type checks was removed; composition continues to supply the opaque reservation capability.
 The migration also downgrades independently to C.2 revision `p3q4r5s6t7u8` while preserving the
-actual ledger. **Item 4, the approved-Time labor-cost consumer, is next.**
+actual ledger.
+
+ADR-PF-011 delivery-foundation checkpoint (complete 2026-08-09): migration `r5s6t7u8v9w0` adds
+the two source-owned outboxes and PM Finance-owned inbox. Five focused lifecycle/migration tests
+pass, including atomic rollback, active-scope isolation, lease ownership, retry/dead-letter,
+transport deduplication, conflict/stale quarantine, reversible schema, and immutable-envelope
+guards; Alembic remains single-headed. There is no dispatcher, process-local delivery shim,
+cross-module implementation import, temporary file, or deletion-register item. **Item 4, the
+approved-Time labor-cost event and consumer, is next.**
 
 ## 3. Finance — Phase D and E (future, not started)
 

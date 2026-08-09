@@ -1322,10 +1322,10 @@ activity too, folding it into the same transaction as the domain write.
 in-process Python signal dispatch (`src/core/shared/events/signal.py`'s `Signal[T]`, not Qt, not
 durable). They are **always emitted after a successful commit** everywhere this audit traced,
 **except** the deliberately-deferred governed-write cases, where the event is skipped entirely when
-`commit=False` and becomes the deferring caller's responsibility to emit later. No outbox/inbox or
-other durable delivery mechanism exists anywhere in this codebase (confirmed by repo-wide grep and
-by `docs/architecture_decisions/ADR-PF-011-durable-integration-outbox-inbox.md`, which explicitly
-proposes one and states it is not yet built).
+`commit=False` and becomes the deferring caller's responsibility to emit later. These local signals
+remain non-durable. Separately, ADR-PF-011 now has permanent owned outbox/inbox persistence and
+lifecycle services; no current signal or command writes to it yet, so it does not alter the event
+behavior audited in this section.
 
 **What happens when event/audit recording fails?** Audit: `record_audit_entry` defaults
 `fail_closed=True` in the financial paths that use it, meaning a recording failure raises and rolls
@@ -1490,10 +1490,11 @@ actual pattern, not an imagined one).
 
 **Business/domain events vs. integration events vs. local UI refresh signals**: there is currently
 **no distinction** between these three categories in this codebase — every signal listed above
-serves purely as a local UI-refresh trigger. No signal carries a durable payload, no signal is
-consumed outside the current process, and no outbox/inbox exists to promote any of them to a true
-integration event. `ADR-PF-011` proposes this distinction; it is accepted in principle but its
-stores are explicitly deferred to Phase C and not built.
+serves purely as a local UI-refresh trigger. No existing signal carries a durable payload or is
+consumed outside the current process. The accepted `ADR-PF-011` distinction is now physically
+established by source-owned Time/Procurement outboxes and the PM Finance-owned inbox; no legacy
+signal has been promoted or connected to those stores. Source emission, dispatch, and financial
+consumers remain Phase C.4/C.5 work.
 
 ### 12b. Activity vs. Enterprise Audit
 
