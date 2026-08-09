@@ -1,32 +1,49 @@
 from __future__ import annotations
 
-from typing import Any
-
 from src.ui_qml.modules.project_management.view_models.financials import (
     FinancialsCollectionViewModel,
     FinancialsRecordViewModel,
 )
 
-def build_ledger_collection(snapshot: Any) -> FinancialsCollectionViewModel:
+def build_ledger_collection(page) -> FinancialsCollectionViewModel:
     return FinancialsCollectionViewModel(
         title="Ledger Trail",
-        subtitle="Recent entries that feed the selected project's finance view.",
-        empty_state="No ledger rows are available for the selected project.",
+        subtitle="Canonical manual, Time, and Procurement actual-cost entries.",
+        empty_state="No canonical actual-cost entries are available for the selected project.",
         items=tuple(
             FinancialsRecordViewModel(
-                id=f"{index}",
-                title=row.reference_label,
+                id=row.id,
+                title=row.description,
                 status_label=row.amount_label,
-                subtitle=f"{row.source_label} | {row.stage}",
-                supporting_text=f"{row.task_name} | {row.resource_name}",
-                meta_text=(
-                    f"{row.occurred_on_label} | "
-                    + ("Included in policy" if row.included_in_policy else "Outside policy")
+                subtitle=f"{row.source_label} | {row.status.replace('_', ' ').title()}",
+                supporting_text=(
+                    f"Task {row.task_id}" if row.task_id else "Project-level actual"
                 ),
-                can_primary_action=False,
-                can_secondary_action=False,
-                state={},
+                meta_text=row.posting_date or row.transaction_date,
+                can_primary_action=row.can_edit,
+                can_secondary_action=row.can_delete,
+                can_tertiary_action=row.can_reverse,
+                state={
+                    "entryId": row.id,
+                    "entryKind": row.entry_kind,
+                    "status": row.status,
+                    "rowVersion": row.row_version,
+                    "costCodeId": row.cost_code_id,
+                    "taskId": row.task_id,
+                    "resourceId": row.resource_id,
+                    "transactionDate": row.transaction_date,
+                    "postingDate": row.posting_date,
+                    "canEdit": row.can_edit,
+                    "canDelete": row.can_delete,
+                    "canSubmit": row.can_submit,
+                    "canApprove": row.can_approve,
+                    "canPost": row.can_post,
+                    "canReverse": row.can_reverse,
+                },
             )
-            for index, row in enumerate(snapshot.ledger[:10], start=1)
+            for row in page.items
         ),
+        page=(page.offset // page.limit) + 1 if page.limit else 1,
+        page_size=page.limit,
+        total=page.total,
     )

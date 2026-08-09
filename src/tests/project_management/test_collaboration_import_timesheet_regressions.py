@@ -111,14 +111,10 @@ def test_import_tasks_updates_existing_rows_and_reports_missing_project_referenc
     assert updated.percent_complete == pytest.approx(75.0)
 
 
-def test_import_costs_collects_invalid_rows_and_keeps_valid_rows(services, workspace_dir):
+def test_legacy_combined_cost_import_is_rejected_after_command_cutover(services, workspace_dir):
     importer = services["data_import_service"]
     ps = services["project_service"]
-    ts = services["task_service"]
-    cs = services["cost_service"]
-
-    project = ps.create_project("Cost Import Project")
-    task = ts.create_task(project.id, "Imported Cost Task", start_date=date(2026, 4, 2), duration_days=2)
+    ps.create_project("Cost Import Project")
     csv_path = _write_csv(
         workspace_dir,
         "costs.csv",
@@ -129,15 +125,8 @@ def test_import_costs_collects_invalid_rows_and_keeps_valid_rows(services, works
         ],
     )
 
-    summary = importer.import_csv("costs", csv_path)
-    costs = cs.list_cost_items_for_project(project.id)
-
-    assert summary.created_count == 1
-    assert summary.error_count == 1
-    assert "line 3" in summary.error_rows[0]
-    assert len(costs) == 1
-    assert costs[0].task_id == task.id
-    assert costs[0].description == "Valid Cost"
+    with pytest.raises(ValueError, match="Unsupported import type: costs"):
+        importer.import_csv("costs", csv_path)
 
 
 def test_import_csv_rejects_unknown_entity_types(services, workspace_dir):

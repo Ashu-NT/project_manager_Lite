@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import uuid4
+
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
@@ -44,6 +46,7 @@ class ProjectManagementFinancialsWorkspaceController(
     projectOptionsChanged = Signal()
     costTypeOptionsChanged = Signal()
     taskOptionsChanged = Signal()
+    manualActualOptionsChanged = Signal()
     selectedProjectIdChanged = Signal()
     selectedCostTypeChanged = Signal()
     searchTextChanged = Signal()
@@ -58,8 +61,6 @@ class ProjectManagementFinancialsWorkspaceController(
     costPageChanged = Signal()
     costPageSizeChanged = Signal()
     costTotalCountChanged = Signal()
-    selectedCostIdsChanged = Signal()
-    selectedCostCountChanged = Signal()
     forecastChanged = Signal()
     commitmentSummaryChanged = Signal()
     baselineVarianceChanged = Signal()
@@ -89,6 +90,11 @@ class ProjectManagementFinancialsWorkspaceController(
         self._project_options: FinancialsObjectList = []
         self._cost_type_options: FinancialsObjectList = []
         self._task_options: FinancialsObjectList = []
+        self._manual_actual_options: FinancialsMap = {
+            "currencyCode": "",
+            "costCodes": [],
+            "entryKinds": [],
+        }
         self._selected_project_id = ""
         self._selected_cost_type = "all"
         self._search_text = ""
@@ -105,7 +111,6 @@ class ProjectManagementFinancialsWorkspaceController(
         self._cost_page = 1
         self._cost_page_size = 25
         self._cost_total_count = 0
-        self._selected_cost_ids: list[str] = []
         self._forecast = default_forecast()
         self._commitment_summary = default_commitment_summary()
         self._baseline_variance: FinancialsObjectList = []
@@ -134,6 +139,9 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Property("QVariantList", notify=taskOptionsChanged)
     def taskOptions(self) -> FinancialsObjectList: return self._task_options
+
+    @Property("QVariantMap", notify=manualActualOptionsChanged)
+    def manualActualOptions(self) -> FinancialsMap: return self._manual_actual_options
 
     @Property(str, notify=selectedProjectIdChanged)
     def selectedProjectId(self) -> str: return self._selected_project_id
@@ -204,10 +212,6 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property("QVariantMap", notify=plannedCostLinesChanged)
     def plannedCostLines(self) -> FinancialsMap: return self._planned_cost_lines
 
-    @Property("QVariantList", notify=costTypeOptionsChanged)
-    def bulkCostTypeOptions(self) -> FinancialsObjectList:
-        return [o for o in self._cost_type_options if str(o.get("value", "")).lower() != "all"]
-
     @Property(int, notify=costPageChanged)
     def costPage(self) -> int: return self._cost_page
 
@@ -216,12 +220,6 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Property(int, notify=costTotalCountChanged)
     def costTotalCount(self) -> int: return self._cost_total_count
-
-    @Property("QVariantList", notify=selectedCostIdsChanged)
-    def selectedCostIds(self) -> list[str]: return self._selected_cost_ids
-
-    @Property(int, notify=selectedCostCountChanged)
-    def selectedCostCount(self) -> int: return len(self._selected_cost_ids)
 
     @Slot()
     def refresh(self) -> None: self._refresh()
@@ -250,32 +248,11 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot(int)
     def setCostPageSize(self, page_size: int) -> None: self._set_cost_page_size_from_qml(page_size)
 
-    @Slot(str, bool)
-    def setCostBulkSelection(self, cost_id: str, selected: bool) -> None: self._set_cost_bulk_selection(cost_id, selected)
-
-    @Slot()
-    def selectVisibleCosts(self) -> None: self._select_visible_costs()
-
-    @Slot()
-    def clearCostBulkSelection(self) -> None: self._clear_cost_bulk_selection()
-
-    @Slot("QVariantList", result="QVariantMap")
-    def bulkDeleteCosts(self, cost_ids: list) -> FinancialsMap: return self._bulk_delete_costs(cost_ids)
-
     @Slot("QVariantMap", result="QVariantMap")
-    def applyBulkCostType(self, payload: FinancialsMap) -> FinancialsMap: return self._apply_bulk_cost_type(payload)
+    def createManualActual(self, payload: FinancialsMap) -> FinancialsMap: return self._create_manual_actual(payload)
 
-    @Slot(str, "QVariantMap", result=str)
-    def generateEntityCode(self, entity_type: str, payload: FinancialsMap) -> str: return self._generate_entity_code(entity_type, payload)
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def createCostItem(self, payload: FinancialsMap) -> FinancialsMap: return self._create_cost_item(payload)
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def updateCostItem(self, payload: FinancialsMap) -> FinancialsMap: return self._update_cost_item(payload)
-
-    @Slot(str, result="QVariantMap")
-    def deleteCostItem(self, cost_id: str) -> FinancialsMap: return self._delete_cost_item(cost_id)
+    @Slot(result=str)
+    def newFinancialCommandId(self) -> str: return str(uuid4())
 
     @Slot(str, int)
     def setConfigurationPage(self, collection: str, page: int) -> None:

@@ -11,7 +11,7 @@ from src.ui_qml.modules.project_management.view_models.financials import (
     FinancialsWorkspaceViewModel,
 )
 
-from .command_handler import create_cost_item, delete_cost_item, suggest_code, update_cost_item
+from .command_handler import create_manual_actual
 from .workspace_builder import build_workspace_state, compute_forecast
 
 class ProjectFinancialsWorkspacePresenter:
@@ -46,17 +46,8 @@ class ProjectFinancialsWorkspacePresenter:
             configuration_page_size=configuration_page_size,
         )
 
-    def suggest_code(self, payload: dict[str, Any]) -> str:
-        return suggest_code(self._desktop_api, payload)
-
-    def create_cost_item(self, payload: dict[str, Any]) -> None:
-        create_cost_item(self._desktop_api, payload)
-
-    def update_cost_item(self, payload: dict[str, Any]) -> None:
-        update_cost_item(self._desktop_api, payload)
-
-    def delete_cost_item(self, cost_id: str) -> None:
-        delete_cost_item(self._desktop_api, cost_id)
+    def create_manual_actual(self, payload: dict[str, Any]) -> None:
+        create_manual_actual(self._desktop_api, payload)
 
     def compute_forecast(
         self,

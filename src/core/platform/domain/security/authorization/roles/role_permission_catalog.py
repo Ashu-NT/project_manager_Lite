@@ -19,7 +19,6 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "department.read": "View shared department directory records",
     "party.read": "View shared supplier, vendor, and contractor directory records",
     "cost.read": "View costs",
-    "cost.manage": "Create and edit costs",
     "project_cost.create": "Create canonical project cost-entry drafts",
     "project_cost.update_draft": "Update or delete canonical project cost-entry drafts",
     "project_cost.submit": "Submit canonical project cost entries for approval",
@@ -107,7 +106,6 @@ _PLANNER = _TEAM_MEMBER | {
 _PROJECT_MANAGER = _PLANNER | {
     "baseline.approve",
     "budget.approve",
-    "cost.manage",
     "finance.read",
     "finance.export",
     "timesheet.approve",
@@ -136,7 +134,6 @@ _FINANCE_CONTROLLER = {
     "time.read",
     "resource.read",
     "cost.read",
-    "cost.manage",
     "party.read",
     "register.read",
     "report.view",
@@ -317,7 +314,6 @@ _PROJECT_CONTRIBUTOR = _PROJECT_VIEWER | {
 }
 
 _PROJECT_LEAD = _PROJECT_CONTRIBUTOR | {
-    "cost.manage",
     "baseline.manage",
     "budget.manage",
     "plannedcost.manage",

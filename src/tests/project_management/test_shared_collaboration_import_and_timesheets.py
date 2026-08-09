@@ -256,12 +256,11 @@ def test_timesheet_period_lock_unlock_and_approval_state_transitions(services):
     assert unlocked.status == TimesheetPeriodStatus.APPROVED
 
 
-def test_data_import_service_imports_projects_resources_tasks_and_costs(services):
+def test_data_import_service_imports_projects_resources_tasks_and_rejects_legacy_costs(services):
     importer = services["data_import_service"]
     ps = services["project_service"]
     ts = services["task_service"]
     rs = services["resource_service"]
-    cs = services["cost_service"]
 
     tmp = create_test_workspace("import")
     try:
@@ -316,12 +315,8 @@ def test_data_import_service_imports_projects_resources_tasks_and_costs(services
             ),
             encoding="utf-8",
         )
-        cost_summary = importer.import_csv("costs", tmp / "costs.csv")
-        assert cost_summary.created_count == 1
-        costs = cs.list_cost_items_for_project(project.id)
-        assert len(costs) == 1
-        assert costs[0].task_id == task.id
-        assert costs[0].actual_amount == pytest.approx(300.0)
+        with pytest.raises(ValueError, match="Unsupported import type: costs"):
+            importer.import_csv("costs", tmp / "costs.csv")
 
         (tmp / "projects_update.csv").write_text(
             "\n".join(

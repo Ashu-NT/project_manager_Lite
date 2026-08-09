@@ -106,7 +106,7 @@ def test_user_assigned_project_lead_gets_correct_permissions(services):
 
     principal = auth.build_principal(user)
     assert "project_lead" in principal.role_names
-    assert "cost.manage" in principal.permissions
+    assert "project_cost.create" in principal.permissions
     assert "project.manage" not in principal.permissions
     assert project.id in principal.scoped_access.get("project", {})
     assert project.id in principal.project_access

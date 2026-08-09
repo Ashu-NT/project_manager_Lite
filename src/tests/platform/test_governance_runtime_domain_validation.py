@@ -68,9 +68,9 @@ class _FakeTenantContextService:
 
 def test_approval_request_dto_normalizes_and_validates_fields():
     request = ApprovalRequest.create(
-        request_type="  COST.UPDATE  ",
-        entity_type="  COST_ITEM  ",
-        entity_id="  cost-1  ",
+        request_type="  PROJECT_COST.APPROVE  ",
+        entity_type="  PROJECT_COST_ENTRY  ",
+        entity_id="  entry-1  ",
         project_id="  project-1  ",
         organization_id="  org-1  ",
         payload={"amount": 2500},
@@ -78,9 +78,9 @@ def test_approval_request_dto_normalizes_and_validates_fields():
         requested_by_username="  Planner One  ",
     )
 
-    assert request.request_type == "cost.update"
-    assert request.entity_type == "cost_item"
-    assert request.entity_id == "cost-1"
+    assert request.request_type == "project_cost.approve"
+    assert request.entity_type == "project_cost_entry"
+    assert request.entity_id == "entry-1"
     assert request.project_id == "project-1"
     assert request.organization_id == "org-1"
     assert request.requested_by_user_id == "user-1"

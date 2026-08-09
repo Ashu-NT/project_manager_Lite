@@ -5,8 +5,10 @@ from datetime import date
 
 from src.core.modules.project_management.application.financials import (
     CostService,
+    FinancialConfigurationService,
     FinanceService,
     ForecastCostService,
+    ProjectCostEntryService,
     ProjectFinanceWorkspaceQuery,
 )
 from src.core.modules.project_management.application.projects import ProjectService
@@ -26,8 +28,21 @@ from src.core.modules.project_management.api.desktop.financials.models.snapshots
 from src.core.modules.project_management.api.desktop.financials.models.configuration import (
     FinancialConfigurationWorkspaceDto,
 )
-from src.core.modules.project_management.api.desktop.financials.commands.create_cost_item import FinancialCreateCommand
-from src.core.modules.project_management.api.desktop.financials.commands.update_cost_item import FinancialUpdateCommand
+from src.core.modules.project_management.api.desktop.financials.commands.cost_entries import (
+    FinancialCreateManualActualCommand,
+    FinancialDecideActualCommand,
+    FinancialPostActualCommand,
+    FinancialReverseActualCommand,
+    FinancialUpdateActualDraftCommand,
+    FinancialVersionedActualCommand,
+)
+from src.core.modules.project_management.api.desktop.financials.models.cost_entries import (
+    FinancialCostCodeOptionDescriptor,
+    FinancialCostEntryApprovalDto,
+    FinancialCostEntryDto,
+    FinancialCostEntryPageDto,
+    FinancialManualActualOptionsDto,
+)
 from src.core.modules.project_management.api.desktop.financials.builders.option_builder import (
     build_cost_type_options,
     build_project_options,
@@ -43,6 +58,9 @@ from src.core.modules.project_management.api.desktop.financials.builders.baselin
     build_baseline_variance,
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.cost_item_serializer import serialize_cost_item
+from src.core.modules.project_management.api.desktop.financials.serializers.cost_entry_serializer import (
+    serialize_cost_entry,
+)
 from src.core.modules.project_management.api.desktop.financials.serializers.snapshot_serializer import (
     empty_snapshot,
     serialize_snapshot,
@@ -50,7 +68,6 @@ from src.core.modules.project_management.api.desktop.financials.serializers.snap
 from src.core.modules.project_management.api.desktop.financials.serializers.configuration_serializer import (
     serialize_finance_configuration_workspace,
 )
-from src.core.modules.project_management.api.desktop.financials.utils.cost_type_utils import coerce_cost_type
 
 
 class ProjectManagementFinancialsDesktopApi:
@@ -64,6 +81,8 @@ class ProjectManagementFinancialsDesktopApi:
         forecast_service: ForecastCostService | None = None,
         baseline_service: BaselineService | None = None,
         finance_workspace_query: ProjectFinanceWorkspaceQuery | None = None,
+        financial_configuration_service: FinancialConfigurationService | None = None,
+        cost_entry_service: ProjectCostEntryService | None = None,
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
@@ -72,6 +91,8 @@ class ProjectManagementFinancialsDesktopApi:
         self._forecast_service = forecast_service
         self._baseline_service = baseline_service
         self._finance_workspace_query = finance_workspace_query
+        self._financial_configuration_service = financial_configuration_service
+        self._cost_entry_service = cost_entry_service
 
     def list_projects(self) -> tuple[FinancialProjectOptionDescriptor, ...]:
         return build_project_options(self._project_service)
@@ -92,42 +113,151 @@ class ProjectManagementFinancialsDesktopApi:
         )
         return tuple(serialize_cost_item(i, task_lookup=task_lookup) for i in items)
 
-    def create_cost_item(self, command: FinancialCreateCommand) -> FinancialCostItemDto:
-        service = self._require_cost_service()
-        item = service.add_cost_item(
-            command.project_id,
+    def get_manual_actual_options(
+        self, project_id: str, *, effective_on: date | None = None
+    ) -> FinancialManualActualOptionsDto:
+        if not project_id:
+            return FinancialManualActualOptionsDto()
+        if self._financial_configuration_service is None:
+            return FinancialManualActualOptionsDto(
+                currency_code=self._project_currency(project_id) or ""
+            )
+        service = self._financial_configuration_service
+        profile = service.get_profile(project_id)
+        codes = service.list_available_cost_codes(
+            project_id, effective_on=effective_on
+        )
+        return FinancialManualActualOptionsDto(
+            currency_code=profile.currency_code,
+            cost_codes=tuple(
+                FinancialCostCodeOptionDescriptor(
+                    value=code.id,
+                    label=f"{code.code} - {code.name}",
+                )
+                for code in codes
+            ),
+        )
+
+    def list_cost_entries(
+        self,
+        project_id: str,
+        *,
+        status: str | None = None,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> FinancialCostEntryPageDto:
+        if not project_id or self._cost_entry_service is None:
+            return FinancialCostEntryPageDto(offset=offset, limit=limit)
+        entries, total = self._cost_entry_service.list_for_project(
+            project_id, status=status, offset=offset, limit=limit
+        )
+        return FinancialCostEntryPageDto(
+            items=tuple(serialize_cost_entry(entry) for entry in entries),
+            total=total,
+            offset=offset,
+            limit=limit,
+        )
+
+    def create_manual_actual(
+        self, command: FinancialCreateManualActualCommand
+    ) -> FinancialCostEntryDto:
+        entry = self._require_cost_entry_service().create_manual_entry(
+            project_id=command.project_id,
+            command_id=command.command_id,
             description=command.description,
-            planned_amount=command.planned_amount,
+            amount=command.amount,
+            currency_code=command.currency_code,
+            transaction_date=command.transaction_date,
+            cost_code_id=command.cost_code_id,
+            entry_kind=command.entry_kind,
             task_id=command.task_id,
-            cost_type=coerce_cost_type(command.cost_type),
-            committed_amount=command.committed_amount,
-            actual_amount=command.actual_amount,
-            incurred_date=command.incurred_date,
-            currency_code=command.currency_code,
-            code=getattr(command, "code", ""),
+            resource_id=command.resource_id,
         )
-        task_lookup = {o.value: o.label for o in self.list_tasks(command.project_id)}
-        return serialize_cost_item(item, task_lookup=task_lookup)
+        return serialize_cost_entry(entry)
 
-    def update_cost_item(self, command: FinancialUpdateCommand) -> FinancialCostItemDto:
-        service = self._require_cost_service()
-        item = service.update_cost_item(
-            command.cost_id,
-            description=command.description,
-            planned_amount=command.planned_amount,
-            committed_amount=command.committed_amount,
-            actual_amount=command.actual_amount,
-            cost_type=coerce_cost_type(command.cost_type),
-            incurred_date=command.incurred_date,
-            currency_code=command.currency_code,
+    def update_actual_draft(
+        self, command: FinancialUpdateActualDraftCommand
+    ) -> FinancialCostEntryDto:
+        entry = self._require_cost_entry_service().update_draft(
+            command.entry_id,
             expected_version=command.expected_version,
-            code=getattr(command, "code", ""),
+            description=command.description,
+            amount=command.amount,
+            currency_code=command.currency_code,
+            transaction_date=command.transaction_date,
+            cost_code_id=command.cost_code_id,
+            task_id=command.task_id,
+            resource_id=command.resource_id,
         )
-        task_lookup = {o.value: o.label for o in self.list_tasks(item.project_id)}
-        return serialize_cost_item(item, task_lookup=task_lookup)
+        return serialize_cost_entry(entry)
 
-    def delete_cost_item(self, cost_id: str) -> None:
-        self._require_cost_service().delete_cost_item(cost_id)
+    def delete_actual_draft(self, command: FinancialVersionedActualCommand) -> None:
+        self._require_cost_entry_service().delete_draft(
+            command.entry_id, expected_version=command.expected_version
+        )
+
+    def submit_actual(
+        self, command: FinancialVersionedActualCommand
+    ) -> FinancialCostEntryDto:
+        return serialize_cost_entry(
+            self._require_cost_entry_service().submit(
+                command.entry_id, expected_version=command.expected_version
+            )
+        )
+
+    def approve_actual(
+        self, command: FinancialDecideActualCommand
+    ) -> FinancialCostEntryApprovalDto:
+        result = self._require_cost_entry_service().approve(
+            command.entry_id,
+            expected_version=command.expected_version,
+            notes=command.notes,
+        )
+        return FinancialCostEntryApprovalDto(
+            outcome=result.outcome.value,
+            entry_id=result.entry_id,
+            project_id=result.project_id,
+            status=result.status.value,
+            row_version=result.row_version,
+            approval_request_id=result.approval_request_id or "",
+        )
+
+    def reject_actual(
+        self, command: FinancialDecideActualCommand
+    ) -> FinancialCostEntryDto:
+        return serialize_cost_entry(
+            self._require_cost_entry_service().reject(
+                command.entry_id,
+                expected_version=command.expected_version,
+                notes=command.notes,
+            )
+        )
+
+    def post_actual(self, command: FinancialPostActualCommand) -> FinancialCostEntryDto:
+        return serialize_cost_entry(
+            self._require_cost_entry_service().post(
+                command.entry_id,
+                expected_version=command.expected_version,
+                posting_date=command.posting_date,
+                exchange_rate=command.exchange_rate,
+                exchange_rate_date=command.exchange_rate_date,
+                exchange_rate_source=command.exchange_rate_source,
+                exchange_rate_captured_at=command.exchange_rate_captured_at,
+            )
+        )
+
+    def reverse_actual(
+        self, command: FinancialReverseActualCommand
+    ) -> FinancialCostEntryDto:
+        return serialize_cost_entry(
+            self._require_cost_entry_service().reverse(
+                command.entry_id,
+                expected_version=command.expected_version,
+                command_id=command.command_id,
+                posting_date=command.posting_date,
+                reason=command.reason,
+            )
+        )
 
     def get_finance_snapshot(self, project_id: str) -> FinancialSnapshotDto:
         if not project_id:
@@ -193,10 +323,17 @@ class ProjectManagementFinancialsDesktopApi:
             return None
         return (getattr(project, "currency", None) or "").strip().upper() or None
 
-    def _require_cost_service(self) -> CostService:
-        if self._cost_service is None:
-            raise RuntimeError("Project management financials desktop API is not connected.")
-        return self._cost_service
+    def _require_cost_entry_service(self) -> ProjectCostEntryService:
+        if self._cost_entry_service is None:
+            raise RuntimeError("Project cost-entry service is not connected.")
+        return self._cost_entry_service
+
+    def _require_financial_configuration_service(
+        self,
+    ) -> FinancialConfigurationService:
+        if self._financial_configuration_service is None:
+            raise RuntimeError("Project financial configuration service is not connected.")
+        return self._financial_configuration_service
 
     def _require_forecast_service(self) -> ForecastCostService:
         if self._forecast_service is None:

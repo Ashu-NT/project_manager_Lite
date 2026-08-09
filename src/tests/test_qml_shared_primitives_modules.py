@@ -74,7 +74,7 @@ def test_qml_project_management_modules_exist() -> None:
         QML_PM_CONTROLLERS / "typeinfo" / "dashboard.fragment",
         QML_PM_CONTROLLERS / "typeinfo" / "catalog.fragment",
         QML_PM_DIALOGS / "qmldir",
-        QML_PM_DIALOGS / "CostItemEditorDialog.qml",
+        QML_PM_DIALOGS / "ManualActualEditorDialog.qml",
         QML_PM_DIALOGS / "ProjectEditorDialog.qml",
         QML_PM_DIALOGS / "ProjectStatusDialog.qml",
         QML_PM_DIALOGS / "RegisterEntryEditorDialog.qml",

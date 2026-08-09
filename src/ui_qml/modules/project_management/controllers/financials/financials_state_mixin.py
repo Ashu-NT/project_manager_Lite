@@ -31,6 +31,12 @@ class FinancialsStateMixin:
         self._task_options = task_options
         self.taskOptionsChanged.emit()
 
+    def _set_manual_actual_options(self, options: FinancialsMap) -> None:
+        if options == self._manual_actual_options:
+            return
+        self._manual_actual_options = options
+        self.manualActualOptionsChanged.emit()
+
     def _set_selected_project_id(self, selected_project_id: str) -> None:
         if selected_project_id == self._selected_project_id:
             return
@@ -116,13 +122,6 @@ class FinancialsStateMixin:
             return
         self._cost_total_count = value
         self.costTotalCountChanged.emit()
-
-    def _set_selected_cost_ids(self, ids: list[str]) -> None:
-        if ids == self._selected_cost_ids:
-            return
-        self._selected_cost_ids = ids
-        self.selectedCostIdsChanged.emit()
-        self.selectedCostCountChanged.emit()
 
     def _set_forecast(self, forecast: FinancialsMap) -> None:
         if forecast == self._forecast:

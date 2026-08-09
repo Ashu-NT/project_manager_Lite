@@ -73,6 +73,8 @@ def build_project_management_desktop_runtime_apis(
             forecast_service=resolved.forecast_service,
             baseline_service=resolved.baseline_service,
             finance_workspace_query=resolved.finance_workspace_query,
+            financial_configuration_service=resolved.financial_configuration_service,
+            cost_entry_service=resolved.cost_entry_service,
         ),
         project_management_portfolio=build_project_management_portfolio_desktop_api(
             project_service=resolved.project_service,

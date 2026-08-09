@@ -126,7 +126,7 @@ def test_project_scope_roles_are_canonical_and_editor_is_compatibility_alias():
     assert resolve_project_scope_permissions("editor") == resolve_project_scope_permissions("contributor")
     assert "task.manage" not in resolve_project_scope_permissions("viewer")
     assert "task.manage" in resolve_project_scope_permissions("contributor")
-    assert "cost.manage" in resolve_project_scope_permissions("lead")
+    assert "project_cost.create" in resolve_project_scope_permissions("lead")
     assert "project.manage" not in resolve_project_scope_permissions("lead")
     assert "project.manage" in resolve_project_scope_permissions("owner")
     assert "finance.read" in resolve_project_scope_permissions("viewer")

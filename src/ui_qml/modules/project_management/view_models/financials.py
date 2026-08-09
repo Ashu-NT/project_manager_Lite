@@ -20,6 +20,13 @@ class FinancialsSelectorOptionViewModel:
     value: str
     label: str
 
+
+@dataclass(frozen=True)
+class FinancialsManualActualOptionsViewModel:
+    currency_code: str = ""
+    cost_codes: tuple[FinancialsSelectorOptionViewModel, ...] = field(default_factory=tuple)
+    entry_kinds: tuple[FinancialsSelectorOptionViewModel, ...] = field(default_factory=tuple)
+
 @dataclass(frozen=True)
 class FinancialsRecordViewModel:
     id: str
@@ -109,6 +116,9 @@ class FinancialsWorkspaceViewModel:
     project_options: tuple[FinancialsSelectorOptionViewModel, ...] = field(default_factory=tuple)
     cost_type_options: tuple[FinancialsSelectorOptionViewModel, ...] = field(default_factory=tuple)
     task_options: tuple[FinancialsSelectorOptionViewModel, ...] = field(default_factory=tuple)
+    manual_actual_options: FinancialsManualActualOptionsViewModel = field(
+        default_factory=FinancialsManualActualOptionsViewModel
+    )
     selected_project_id: str = ""
     selected_cost_type: str = "all"
     search_text: str = ""
@@ -141,6 +151,7 @@ __all__ = [
     "FinancialsForecastMetricViewModel",
     "FinancialsForecastViewModel",
     "FinancialsMetricViewModel",
+    "FinancialsManualActualOptionsViewModel",
     "FinancialsOverviewViewModel",
     "FinancialsRecordViewModel",
     "FinancialsSelectorOptionViewModel",

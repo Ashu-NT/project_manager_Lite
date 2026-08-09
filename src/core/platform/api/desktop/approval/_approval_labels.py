@@ -90,21 +90,6 @@ def approval_display_label(request: object) -> str:
             return f"Remove dependency: {predecessor_name} -> {successor_name}"
         return "Remove dependency"
 
-    if request_type.startswith("cost."):
-        action = {
-            "cost.add": "Add",
-            "cost.update": "Update",
-            "cost.delete": "Delete",
-        }.get(request_type, "Change")
-        description = str(payload.get("description") or "").strip() or "cost item"
-        task_name = str(payload.get("task_name") or "").strip()
-        project_name = str(payload.get("project_name") or "").strip()
-        if task_name:
-            return f"{action} cost '{description}' for task '{task_name}'"
-        if project_name:
-            return f"{action} cost '{description}' for {project_name}"
-        return f"{action} cost '{description}'"
-
     if request_type == "purchase_requisition.submit":
         requisition_number = str(payload.get("requisition_number") or "").strip()
         if requisition_number:

@@ -45,6 +45,17 @@ class FinancialsRefreshMixin:
             self._set_task_options(
                 serialize_selector_options(workspace_state.task_options)
             )
+            self._set_manual_actual_options(
+                {
+                    "currencyCode": workspace_state.manual_actual_options.currency_code,
+                    "costCodes": serialize_selector_options(
+                        workspace_state.manual_actual_options.cost_codes
+                    ),
+                    "entryKinds": serialize_selector_options(
+                        workspace_state.manual_actual_options.entry_kinds
+                    ),
+                }
+            )
             self._set_selected_project_id(workspace_state.selected_project_id)
             self._set_selected_cost_type(workspace_state.selected_cost_type)
             self._set_search_text(workspace_state.search_text)

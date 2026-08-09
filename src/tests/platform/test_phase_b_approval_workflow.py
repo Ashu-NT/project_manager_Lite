@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
@@ -15,43 +16,55 @@ def _login(services, username: str, password: str):
     user_session.set_principal(auth.build_principal(user))
 
 
-def test_cost_update_requester_can_lack_cost_manage_and_admin_can_approve(services, monkeypatch):
+def _submitted_cost_entry(services, name: str):
+    organization = services["organization_service"].get_active_organization()
+    project = services["project_service"].create_project(name)
+    cost_code = services["financial_configuration_service"].create_cost_code(
+        code="MANUAL-ACTUAL",
+        name="Manual actual",
+    )
+    service = services["cost_entry_service"]
+    entry = service.create_manual_entry(
+        project_id=project.id,
+        command_id=f"{name}-command",
+        description="Travel",
+        amount=Decimal("100"),
+        currency_code=organization.base_currency,
+        transaction_date=date(2026, 1, 10),
+        cost_code_id=cost_code.id,
+    )
+    entry = service.submit(entry.id, expected_version=entry.row_version)
+    return project, entry
+
+
+def test_cost_entry_requester_can_lack_approve_and_admin_can_approve(services, monkeypatch):
     monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")
-    monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "cost.update")
+    monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "project_cost.approve")
     _login(services, "admin", "ChangeMe123!")
 
     auth = services["auth_service"]
-    ps = services["project_service"]
-    cs = services["cost_service"]
+    cost_entries = services["cost_entry_service"]
     approvals = services["approval_service"]
 
-    project = ps.create_project("Governed Cost Project")
-    item = cs.add_cost_item(
-        project.id,
-        "Travel",
-        planned_amount=1000.0,
-        actual_amount=100.0,
-        code="TRAVEL-OLD",
-    )
+    project, item = _submitted_cost_entry(services, "Governed Cost Project")
     auth.register_user("planner-req", "StrongPass123", role_names=["planner"])
     _login(services, "planner-req", "StrongPass123")
 
-    with pytest.raises(BusinessRuleError, match="Approval required"):
-        cs.update_cost_item(item.id, actual_amount=300.0, code="TRAVEL-NEW")
+    result = cost_entries.approve(item.id, expected_version=item.row_version)
+    assert result.outcome.value == "pending_approval"
 
     pending = approvals.list_pending(project_id=project.id)
     assert len(pending) == 1
     req = pending[0]
-    assert req.request_type == "cost.update"
+    assert req.request_type == "project_cost.approve"
     assert req.requested_by_username == "planner-req"
-    assert req.payload["code"] == "TRAVEL-NEW"
+    assert req.payload["entry_id"] == item.id
 
     _login(services, "admin", "ChangeMe123!")
     approvals.approve_and_apply(req.id, note="Approved")
 
-    updated = cs.list_cost_items_for_project(project.id)[0]
-    assert updated.actual_amount == 300.0
-    assert updated.code == "TRAVEL-NEW"
+    updated = cost_entries.get_entry(item.id)
+    assert updated.status.value == "approved"
 
 
 def test_dependency_add_requires_and_applies_approval(services, monkeypatch):
@@ -86,20 +99,18 @@ def test_dependency_add_requires_and_applies_approval(services, monkeypatch):
 
 def test_admin_does_not_bypass_governance_requests_for_governed_actions(services, monkeypatch):
     monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")
-    monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "cost.update")
+    monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "project_cost.approve")
     _login(services, "admin", "ChangeMe123!")
 
-    ps = services["project_service"]
-    cs = services["cost_service"]
+    cost_entries = services["cost_entry_service"]
     approvals = services["approval_service"]
 
-    project = ps.create_project("Admin bypass")
-    item = cs.add_cost_item(project.id, "Travel", planned_amount=1000.0, actual_amount=100.0)
-    with pytest.raises(BusinessRuleError, match="Approval required"):
-        cs.update_cost_item(item.id, actual_amount=250.0)
+    project, item = _submitted_cost_entry(services, "Admin bypass")
+    result = cost_entries.approve(item.id, expected_version=item.row_version)
+    assert result.outcome.value == "pending_approval"
 
-    unchanged = cs.list_cost_items_for_project(project.id)[0]
-    assert unchanged.actual_amount == 100.0
+    unchanged = cost_entries.get_entry(item.id)
+    assert unchanged.status.value == "submitted"
     assert len(approvals.list_pending(project_id=project.id)) == 1
 
 
@@ -108,21 +119,17 @@ def test_approval_apply_rolls_back_handler_when_decision_update_fails(
     monkeypatch,
 ):
     monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")
-    monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "cost.update")
+    monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "project_cost.approve")
     _login(services, "admin", "ChangeMe123!")
 
     auth = services["auth_service"]
-    project = services["project_service"].create_project("Atomic approval")
-    item = services["cost_service"].add_cost_item(
-        project.id,
-        "Travel",
-        planned_amount=1000.0,
-        actual_amount=100.0,
-    )
+    project, item = _submitted_cost_entry(services, "Atomic approval")
     auth.register_user("atomic-requester", "StrongPass123", role_names=["planner"])
     _login(services, "atomic-requester", "StrongPass123")
-    with pytest.raises(BusinessRuleError, match="Approval required"):
-        services["cost_service"].update_cost_item(item.id, actual_amount=350.0)
+    result = services["cost_entry_service"].approve(
+        item.id, expected_version=item.row_version
+    )
+    assert result.outcome.value == "pending_approval"
     request = services["approval_service"].list_pending(project_id=project.id)[0]
 
     approvals = services["approval_service"]
@@ -141,16 +148,16 @@ def test_approval_apply_rolls_back_handler_when_decision_update_fails(
     def _on_costs_changed(project_id: str) -> None:
         emitted_cost_changes.append(project_id)
 
-    domain_events.costs_changed.connect(_on_costs_changed)
+    domain_events.cost_entries_changed.connect(_on_costs_changed)
     try:
         with pytest.raises(RuntimeError, match="simulated decision persistence failure"):
             approvals.approve_and_apply(request.id, note="Should roll back")
     finally:
-        domain_events.costs_changed.disconnect(_on_costs_changed)
+        domain_events.cost_entries_changed.disconnect(_on_costs_changed)
 
-    services["cost_service"]._session.expire_all()
-    unchanged = services["cost_service"].list_cost_items_for_project(project.id)[0]
-    assert unchanged.actual_amount == 100.0
+    services["cost_entry_service"]._session.expire_all()
+    unchanged = services["cost_entry_service"].get_entry(item.id)
+    assert unchanged.status.value == "submitted"
     assert emitted_cost_changes == []
 
 
@@ -159,21 +166,17 @@ def test_approval_apply_rolls_back_handler_when_required_audit_fails(
     monkeypatch,
 ):
     monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")
-    monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "cost.update")
+    monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "project_cost.approve")
     _login(services, "admin", "ChangeMe123!")
 
     auth = services["auth_service"]
-    project = services["project_service"].create_project("Atomic approval audit")
-    item = services["cost_service"].add_cost_item(
-        project.id,
-        "Travel",
-        planned_amount=1000.0,
-        actual_amount=100.0,
-    )
+    project, item = _submitted_cost_entry(services, "Atomic approval audit")
     auth.register_user("audit-requester", "StrongPass123", role_names=["planner"])
     _login(services, "audit-requester", "StrongPass123")
-    with pytest.raises(BusinessRuleError, match="Approval required"):
-        services["cost_service"].update_cost_item(item.id, actual_amount=425.0)
+    result = services["cost_entry_service"].approve(
+        item.id, expected_version=item.row_version
+    )
+    assert result.outcome.value == "pending_approval"
     request = services["approval_service"].list_pending(project_id=project.id)[0]
 
     approvals = services["approval_service"]
@@ -193,9 +196,9 @@ def test_approval_apply_rolls_back_handler_when_required_audit_fails(
     with pytest.raises(RuntimeError, match="simulated audit failure"):
         approvals.approve_and_apply(request.id, note="Should roll back")
 
-    services["cost_service"]._session.expire_all()
-    unchanged = services["cost_service"].list_cost_items_for_project(project.id)[0]
-    assert unchanged.actual_amount == 100.0
+    services["cost_entry_service"]._session.expire_all()
+    unchanged = services["cost_entry_service"].get_entry(item.id)
+    assert unchanged.status.value == "submitted"
 
 
 def test_same_user_cannot_approve_own_request(services, monkeypatch):
@@ -204,11 +207,11 @@ def test_same_user_cannot_approve_own_request(services, monkeypatch):
 
     approvals = services["approval_service"]
     request = approvals.request_change(
-        request_type="cost.update",
-        entity_type="cost_item",
-        entity_id="c-1",
+        request_type="project_cost.approve",
+        entity_type="project_cost_entry",
+        entity_id="entry-1",
         project_id="p-1",
-        payload={"cost_id": "c-1"},
+        payload={"entry_id": "entry-1"},
     )
     with pytest.raises(BusinessRuleError, match="cannot approve or reject your own"):
         approvals.approve_and_apply(request.id)
@@ -219,11 +222,11 @@ def test_list_requests_accepts_string_status_value_from_ui(services, monkeypatch
     _login(services, "admin", "ChangeMe123!")
     approvals = services["approval_service"]
     req = approvals.request_change(
-        request_type="cost.update",
-        entity_type="cost_item",
-        entity_id="c-2",
+        request_type="project_cost.approve",
+        entity_type="project_cost_entry",
+        entity_id="entry-2",
         project_id="p-2",
-        payload={"cost_id": "c-2"},
+        payload={"entry_id": "entry-2"},
     )
     pending = approvals.list_requests(status="PENDING", project_id="p-2")
     assert any(item.id == req.id for item in pending)

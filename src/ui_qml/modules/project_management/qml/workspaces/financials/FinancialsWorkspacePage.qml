@@ -133,18 +133,18 @@ AppLayouts.WorkspaceFrame {
     readonly property bool _configurationSection: [
         "Profile", "Budget Versions", "Budget Lines", "Rate Cards", "Planned Costs"
     ].indexOf(root._activeDetailSection) >= 0
-    readonly property var _detailActions: root._configurationSection ? [] : [
-        { "id": "edit",   "label": "Edit",          "icon": "edit",   "enabled": String(root.selectedCostModel.id || "").length > 0, "danger": false },
-        { "id": "add",    "label": "Add Cost Line", "icon": "add",    "enabled": true, "danger": false },
-        { "id": "delete", "label": "Delete",        "icon": "delete", "enabled": String(root.selectedCostModel.id || "").length > 0, "danger": true  }
-    ]
-
-    readonly property var _bulkChangeProperties: {
-        const props = []
-        const costTypeOpts = root.workspaceController ? (root.workspaceController.bulkCostTypeOptions || []) : []
-        if (costTypeOpts.length > 0) props.push({ "id": "costType", "label": "Cost Type", "values": costTypeOpts })
-        return props
-    }
+    readonly property var _detailActions: root._activeDetailSection === "Actuals" ? [
+        {
+            "id": "add_manual_actual",
+            "label": "New Manual Actual",
+            "icon": "add",
+            "enabled": root.workspaceController
+                ? root.workspaceController.selectedProjectId.length > 0
+                    && (root.workspaceController.manualActualOptions.costCodes || []).length > 0
+                : false,
+            "danger": false
+        }
+    ] : []
 
     function _openDetail(sectionIndex) {
         root._pendingDetailSection = sectionIndex
@@ -174,11 +174,9 @@ AppLayouts.WorkspaceFrame {
             Dialogs.FinancialsDialogHost {
                 selectedProjectId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
                 taskOptions: root.workspaceController ? (root.workspaceController.taskOptions || []) : []
-                costTypeOptions: root.workspaceController ? (root.workspaceController.costTypeOptions || []) : []
+                manualActualOptions: root.workspaceController
+                    ? (root.workspaceController.manualActualOptions || {}) : ({})
                 workspaceController: root.workspaceController
-                onDeleteRequested: function(costId) {
-                    if (root.workspaceController !== null) root.workspaceController.deleteCostItem(costId)
-                }
             }
         }
     }
@@ -198,7 +196,6 @@ AppLayouts.WorkspaceFrame {
                 costsModel: root.costsModel
                 columns: root._columns
                 tableId: root._tableId
-                bulkChangeProperties: root._bulkChangeProperties
                 onRowActivated: function(rowId) {
                     root._openDetail(root._detailSectionIndex("Actuals"))
                 }
@@ -210,7 +207,6 @@ AppLayouts.WorkspaceFrame {
                     if (root.workspaceController) root.workspaceController.saveTableColumnState(root._tableId, root._buildColumnState(cols))
                     root._columns = cols
                 }
-                onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
             }
         }
 
@@ -249,9 +245,9 @@ AppLayouts.WorkspaceFrame {
                     actions: root._detailActions
                     onBackRequested: root._detailOpen = false
                     onActionTriggered: function(actionId) {
-                        if (actionId === "edit") dialogHostLoader.invoke("openEditDialog", root.selectedCostModel)
-                        else if (actionId === "add") dialogHostLoader.invoke("openCreateDialog")
-                        else if (actionId === "delete") dialogHostLoader.invoke("openDeleteDialog", root.selectedCostModel)
+                        if (actionId === "add_manual_actual") {
+                            dialogHostLoader.invoke("openCreateManualActualDialog")
+                        }
                     }
                 }
 

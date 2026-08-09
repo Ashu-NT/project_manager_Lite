@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 def require_text(payload: dict[str, Any], key: str, message: str) -> str:
@@ -45,3 +46,23 @@ def optional_date(payload: dict[str, Any], key: str) -> date | None:
         return date.fromisoformat(raw_value)
     except ValueError as exc:
         raise ValueError("Incurred date must use YYYY-MM-DD.") from exc
+
+
+def require_decimal(payload: dict[str, Any], key: str, message: str) -> Decimal:
+    value = str(payload.get(key, "") or "").strip()
+    if not value:
+        raise ValueError(message)
+    try:
+        return Decimal(value)
+    except (InvalidOperation, ValueError) as exc:
+        raise ValueError(message) from exc
+
+
+def require_date(payload: dict[str, Any], key: str, message: str) -> date:
+    raw_value = str(payload.get(key, "") or "").strip()
+    if not raw_value:
+        raise ValueError(message)
+    try:
+        return date.fromisoformat(raw_value)
+    except ValueError as exc:
+        raise ValueError(message) from exc

@@ -7,7 +7,6 @@ from pathlib import Path
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.application.financials import CostService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.tasks import TaskService
@@ -27,9 +26,6 @@ from src.core.modules.project_management.infrastructure.importers.tasks.models.t
 from src.core.modules.project_management.infrastructure.importers.resources.models.resource_import_schema import (
     RESOURCE_IMPORT_SCHEMA,
 )
-from src.core.modules.project_management.infrastructure.importers.financials.models.cost_import_schema import (
-    COST_IMPORT_SCHEMA,
-)
 from src.core.modules.project_management.infrastructure.importers.projects.csv.project_csv_importer import (
     import_projects,
     preview_projects,
@@ -42,10 +38,6 @@ from src.core.modules.project_management.infrastructure.importers.resources.csv.
     import_resources,
     preview_resources,
 )
-from src.core.modules.project_management.infrastructure.importers.financials.csv.cost_csv_importer import (
-    import_costs,
-    preview_costs,
-)
 from src.core.modules.project_management.infrastructure.importers.services.import_definitions import (
     register_project_management_import_definitions,
 )
@@ -54,7 +46,6 @@ IMPORT_SCHEMAS: dict[str, tuple[ImportFieldSpec, ...]] = {
     "projects": PROJECT_IMPORT_SCHEMA,
     "resources": RESOURCE_IMPORT_SCHEMA,
     "tasks": TASK_IMPORT_SCHEMA,
-    "costs": COST_IMPORT_SCHEMA,
 }
 
 
@@ -72,7 +63,6 @@ class DataImportService(ProjectManagementModuleGuardMixin):
         project_service: ProjectService,
         task_service: TaskService,
         resource_service: ResourceService,
-        cost_service: CostService,
         user_session=None,
         module_catalog_service=None,
         import_registry: ImportDefinitionRegistry | None = None,
@@ -81,7 +71,6 @@ class DataImportService(ProjectManagementModuleGuardMixin):
         self._project_service = project_service
         self._task_service = task_service
         self._resource_service = resource_service
-        self._cost_service = cost_service
         self._user_session = user_session
         self._module_catalog_service = module_catalog_service
 
@@ -93,13 +82,11 @@ class DataImportService(ProjectManagementModuleGuardMixin):
                 "projects": lambda rows: preview_projects(rows, project_service=project_service),
                 "resources": lambda rows: preview_resources(rows, resource_service=resource_service),
                 "tasks": lambda rows: preview_tasks(rows, project_service=project_service, task_service=task_service),
-                "costs": lambda rows: preview_costs(rows, project_service=project_service, task_service=task_service, cost_service=cost_service),
             },
             execution_handlers={
                 "projects": lambda rows: import_projects(rows, project_service=project_service),
                 "resources": lambda rows: import_resources(rows, resource_service=resource_service),
                 "tasks": lambda rows: import_tasks(rows, project_service=project_service, task_service=task_service),
-                "costs": lambda rows: import_costs(rows, project_service=project_service, task_service=task_service, cost_service=cost_service),
             },
         )
         self._import_registry = registry

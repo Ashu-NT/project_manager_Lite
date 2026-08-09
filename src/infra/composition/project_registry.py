@@ -16,7 +16,7 @@ from src.core.platform.contract.approval.contracts import (
     ApprovalHandlerResult,
     ApprovalPostCommitEvent,
 )
-from src.core.modules.project_management.domain.enums import CostType, DependencyType
+from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.access.policy import (
     PROJECT_SCOPE_ROLE_CHOICES,
     normalize_project_scope_role,
@@ -101,22 +101,6 @@ from src.infra.composition.repositories import RepositoryBundle
 
 
 logger = logging.getLogger(__name__)
-
-
-def _parse_date(value: Any) -> date | None:
-    if value in (None, ""):
-        return None
-    if isinstance(value, date):
-        return value
-    if isinstance(value, str):
-        return date.fromisoformat(value)
-    raise ValueError(f"Unsupported date value: {value!r}")
-
-
-def _as_cost_type(value: Any) -> CostType:
-    if isinstance(value, CostType):
-        return value
-    return CostType((value or CostType.OVERHEAD.value))
 
 
 def _as_dependency_type(value: Any) -> DependencyType:
@@ -341,16 +325,10 @@ def build_project_management_service_bundle(
         resource_catalog_reader=SqlAlchemyResourceCatalogReader(session=session),
     )
     cost_service = CostService(
-        session,
         repositories.cost_repo,
         repositories.project_repo,
-        repositories.task_repo,
         user_session=platform_services.user_session,
-        activity_service=platform_services.activity_service,
-        approval_service=platform_services.approval_service,
-        enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_catalog_service,
-        tenant_context_service=platform_services.tenant_context_service,
     )
     financial_configuration_service = FinancialConfigurationService(
         session=session,
@@ -556,7 +534,6 @@ def build_project_management_service_bundle(
         project_service=project_service,
         task_service=task_service,
         resource_service=resource_service,
-        cost_service=cost_service,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
     )
@@ -579,7 +556,6 @@ def build_project_management_service_bundle(
         approval_service=platform_services.approval_service,
         baseline_service=baseline_service,
         task_service=task_service,
-        cost_service=cost_service,
         budget_service=budget_service,
         cost_entry_service=cost_entry_service,
         user_session=platform_services.user_session,
@@ -631,7 +607,6 @@ def _register_project_management_approval_handlers(
     approval_service,
     baseline_service: BaselineService,
     task_service: TaskService,
-    cost_service: CostService,
     budget_service: BudgetService,
     cost_entry_service: ProjectCostEntryService,
     user_session=None,
@@ -668,52 +643,6 @@ def _register_project_management_approval_handlers(
             commit=False,
         )
         return _result("tasks_changed", req.project_id or "")
-
-    def _apply_cost_add(req) -> ApprovalHandlerResult:
-        project_id = req.payload["project_id"]
-        cost_service._apply_cost_add_decision(
-            project_id=project_id,
-            description=req.payload.get("description", ""),
-            planned_amount=float(req.payload.get("planned_amount", 0.0) or 0.0),
-            task_id=req.payload.get("task_id"),
-            cost_type=_as_cost_type(req.payload.get("cost_type", "OVERHEAD")),
-            committed_amount=float(req.payload.get("committed_amount", 0.0) or 0.0),
-            actual_amount=float(req.payload.get("actual_amount", 0.0) or 0.0),
-            incurred_date=_parse_date(req.payload.get("incurred_date")),
-            currency_code=req.payload.get("currency_code"),
-            code=req.payload.get("code", ""),
-            commit=False,
-            approval_request_id=req.id,
-        )
-        return _result("costs_changed", project_id)
-
-    def _apply_cost_update(req) -> ApprovalHandlerResult:
-        cost_service._apply_cost_update_decision(
-            cost_id=req.payload["cost_id"],
-            description=req.payload.get("description"),
-            planned_amount=req.payload.get("planned_amount"),
-            committed_amount=req.payload.get("committed_amount"),
-            actual_amount=req.payload.get("actual_amount"),
-            cost_type=(
-                _as_cost_type(req.payload.get("cost_type"))
-                if req.payload.get("cost_type") is not None
-                else None
-            ),
-            incurred_date=_parse_date(req.payload.get("incurred_date")),
-            currency_code=req.payload.get("currency_code"),
-            code=req.payload.get("code"),
-            commit=False,
-            approval_request_id=req.id,
-        )
-        return _result("costs_changed", req.project_id or "")
-
-    def _apply_cost_delete(req) -> ApprovalHandlerResult:
-        cost_service._apply_cost_delete_decision(
-            cost_id=req.payload["cost_id"],
-            commit=False,
-            approval_request_id=req.id,
-        )
-        return _result("costs_changed", req.project_id or "")
 
     def _require_financial_decision_actor() -> str:
         principal = user_session.principal if user_session else None
@@ -774,18 +703,6 @@ def _register_project_management_approval_handlers(
     approval_service.register_apply_handler(
         "dependency.remove",
         _apply_dependency_remove,
-    )
-    approval_service.register_apply_handler(
-        "cost.add",
-        _apply_cost_add,
-    )
-    approval_service.register_apply_handler(
-        "cost.update",
-        _apply_cost_update,
-    )
-    approval_service.register_apply_handler(
-        "cost.delete",
-        _apply_cost_delete,
     )
     approval_service.register_apply_handler(
         "budget.approve",

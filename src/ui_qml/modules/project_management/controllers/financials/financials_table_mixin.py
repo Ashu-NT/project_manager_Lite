@@ -16,25 +16,4 @@ class FinancialsTableMixin:
         self._set_cost_page(1)
         self.refresh()
 
-    def _set_cost_bulk_selection(self, cost_id: str, selected: bool) -> None:
-        ids = list(self._selected_cost_ids)
-        if selected:
-            if cost_id not in ids:
-                ids.append(cost_id)
-        else:
-            ids = [item_id for item_id in ids if item_id != cost_id]
-        self._set_selected_cost_ids(ids)
-
-    def _select_visible_costs(self) -> None:
-        ids = [
-            str(item.get("id", ""))
-            for item in (self._costs.get("items") or [])
-            if item.get("id")
-        ]
-        self._set_selected_cost_ids(ids)
-
-    def _clear_cost_bulk_selection(self) -> None:
-        self._set_selected_cost_ids([])
-
-
 __all__ = ["FinancialsTableMixin"]
