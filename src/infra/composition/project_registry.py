@@ -36,6 +36,7 @@ from src.core.modules.project_management.application.financials import (
     ForecastCostService,
     PlannedCostService,
     ProjectCostEntryService,
+    ProjectCommitmentService,
     ProjectFinanceWorkspaceQuery,
     ProjectRateCardService,
     RateCardResolver,
@@ -136,6 +137,7 @@ class ProjectManagementServiceBundle:
     rate_card_resolver: RateCardResolver
     budget_service: BudgetService
     cost_entry_service: ProjectCostEntryService
+    commitment_service: ProjectCommitmentService
     planned_cost_service: PlannedCostService
     finance_workspace_query: ProjectFinanceWorkspaceQuery
     finance_service: FinanceService
@@ -404,6 +406,22 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         approval_service=platform_services.approval_service,
     )
+    commitment_service = ProjectCommitmentService(
+        session=session,
+        commitment_repo=repositories.project_commitment_repo,
+        cost_entry_repo=repositories.project_cost_entry_repo,
+        project_repo=repositories.project_repo,
+        financial_profile_repo=repositories.project_financial_profile_repo,
+        cost_code_repo=repositories.project_cost_code_repo,
+        task_repo=repositories.task_repo,
+        party_repo=repositories.party_repo,
+        site_repo=repositories.site_repo,
+        clock=system_clock,
+        user_session=platform_services.user_session,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
+        module_catalog_service=platform_services.module_catalog_service,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
     planned_cost_service = PlannedCostService(
         session=session,
         planned_cost_repo=repositories.planned_cost_repo,
@@ -569,6 +587,7 @@ def build_project_management_service_bundle(
         rate_card_resolver=rate_card_resolver,
         budget_service=budget_service,
         cost_entry_service=cost_entry_service,
+        commitment_service=commitment_service,
         planned_cost_service=planned_cost_service,
         finance_workspace_query=finance_workspace_query,
         finance_service=finance_service,

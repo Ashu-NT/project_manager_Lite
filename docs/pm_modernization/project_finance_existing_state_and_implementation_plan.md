@@ -872,7 +872,8 @@ ADR gate: ADR-PF-004, ADR-PF-006, ADR-PF-007, and ADR-PF-008 must be accepted be
 
 1. **Complete 2026-08-09:** add organization financial periods and closure/lock policy. Keep them separate from operational scheduling calendars.
 2. **Complete 2026-08-09:** add ProjectCostEntry draft/approval/post/reversal lifecycle with direct scope, Money/base-Money/FX snapshot, source, period, dimensions, actor/timestamps, and scoped idempotency constraints.
-3. Add PM commitment projections/lines, matching, cancellation/closure, and remaining-balance policy.
+3. **Complete 2026-08-09:** add PM commitment projections/lines, monotonic immutable source
+   revisions, receipt-actual matching/reversal, cancellation/closure, and remaining-balance policy.
 4. Add an approved-Time contract/event and idempotent labor-cost consumer. Snapshot rate and reverse/replace corrected approvals.
 5. Add typed Procurement project-source queries/events for PO lines, changes, cancellation, receipts, and supplier invoice references when available. PM creates projections/postings; Procurement remains owner.
 6. Replace manual combined CostItem writes with distinct planned, commitment, and manual-actual commands. Posted actuals are never editable/deletable.
@@ -929,7 +930,43 @@ Implementation progress:
   `CostItem` remains deliberately unchanged until items 6-8 perform command cutover, deterministic
   migration/reconciliation, read cutover, and QML redesign; its deletion-register rows therefore
   remain open. Verification: 7 focused C.2 tests pass, and the combined period/ledger/budget/
-  authorization/security checkpoint passes 105 tests. Item 3, canonical commitments, is next.
+  authorization/security checkpoint passes 105 tests.
+- Item 3 is complete. PM now owns a canonical `ProjectCommitment` projection header per opaque
+  Procurement purchase-order ID and a `ProjectCommitmentLine` per opaque purchase-order-line ID.
+  It does not import Inventory packages, query Inventory repositories, or create cross-module
+  foreign keys. The typed PM inbound source contract is consumed at the application boundary;
+  C.5 remains responsible for a provider/outbox/inbox adapter located outside both business
+  modules. A permanent architecture test rejects direct PM-to-Inventory and Inventory-to-PM
+  imports.
+- Each line snapshots Decimal quantity/rate, transaction and organization-base Money, FX rate/
+  date/source/capture timestamp, project/cost-code/task/supplier/site dimensions, source content
+  hash and positive integer revision, lifecycle, matched amount, actors/timestamps, and optimistic
+  row version. Every accepted source version also creates an immutable full JSON source snapshot.
+  Same-version/same-content retry is idempotent; same-version/different-content and older unseen
+  delivery are rejected. Project, unit, transaction currency, and base currency cannot silently
+  change after recognition.
+- Remaining exposure is `committed - matched` for sent, partially received, and fully received
+  lines. Fully received deliberately retains unmatched exposure until the receipt actual arrives,
+  preventing event-lag understatement. Closed/cancelled lines release unmatched exposure while
+  preserving original amount, source history, and any matches. Source lifecycle cannot regress,
+  and a revision cannot reduce committed value below matched actuals.
+- Matching accepts only posted Procurement receipt-accrual `ProjectCostEntry` facts in the same
+  project and transaction currency. Immutable signed match/reversal rows enforce one original
+  match per actual and one reversal per match; line locking, optimistic concurrency, amount checks,
+  scoped uniqueness, and savepoints prevent overmatch and retry races. Every mutation is protected
+  by `finance.read`/`finance.manage`, project-scope authorization, active financial configuration,
+  effective/allowed cost codes, supplier/site/task validation, and fail-closed Enterprise Audit.
+- `project_commitments`, `project_commitment_lines`,
+  `project_commitment_source_revisions`, and `project_commitment_matches` directly own tenant/
+  organization/project scope where applicable and use composite scoped foreign keys, canonical
+  Numeric precision, RLS metadata/migration, source and match uniqueness, database amount bounds,
+  immutable history/match triggers, and database-side stable pagination. Migration
+  `q4r5s6t7u8v9` is the single head. Five focused C.3 tests plus the module-boundary architecture
+  test pass; the combined C.3/persistence/period architecture checkpoint passes 20 tests and C.2's
+  7-test suite remains green. The migration downgrades independently to C.2 revision
+  `p3q4r5s6t7u8` while preserving the actual ledger. C.3 introduced no transition code,
+  dual-write, temporary adapter, or legacy `CostItem` change. Item 4, the approved-Time labor-cost
+  consumer, is next.
 
 ### Phase D - Forecasts, ETC, change control, and enterprise reporting
 

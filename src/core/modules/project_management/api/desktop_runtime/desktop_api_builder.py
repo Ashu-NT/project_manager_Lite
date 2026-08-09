@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from src.core.modules.inventory_procurement import ProcurementService, ReservationService
 from src.core.modules.project_management.api.desktop import (
     build_project_management_collaboration_desktop_api,
     build_project_management_dashboard_desktop_api,
@@ -39,16 +38,6 @@ def build_project_management_desktop_runtime_apis(
     register_desktop_api = build_project_management_register_desktop_api(
         project_service=resolved.project_service,
         register_service=resolved.register_service,
-    )
-    procurement_service = (
-        platform_dependencies.procurement_service
-        if isinstance(platform_dependencies.procurement_service, ProcurementService)
-        else None
-    )
-    reservation_service = (
-        platform_dependencies.reservation_service
-        if isinstance(platform_dependencies.reservation_service, ReservationService)
-        else None
     )
     change_impact_service = build_schedule_change_impact_service(
         resolved.task_service,
@@ -122,7 +111,7 @@ def build_project_management_desktop_runtime_apis(
             task_service=resolved.task_service,
             project_resource_service=resolved.project_resource_service,
             resource_service=resolved.resource_service,
-            reservation_service=reservation_service,
+            reservation_service=platform_dependencies.reservation_service,
             assignment_skill_validator=resolved.assignment_skill_validator,
             schedule_change_impact_service=change_impact_service,
         ),

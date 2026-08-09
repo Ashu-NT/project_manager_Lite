@@ -359,7 +359,7 @@ product/architecture decision gate and must not be implemented as a mechanical s
 
 ## 2. Finance — Phase C: actual ledger, commitments, time, procurement, periods (in progress)
 
-Source: same doc, §19 Phase C. Items 1-2's permanent foundations are complete; items 3-8 are
+Source: same doc, §19 Phase C. Items 1-3's permanent foundations are complete; items 4-8 are
 unstarted. The prerequisite
 `TRANSITION(PF-A0-UOW-BRIDGE)` cleanup that items 2/6 depend on is done (governed
 commands now own their own Unit of Work). ADR gate: ADR-PF-004/006/007/008 already
@@ -385,7 +385,21 @@ ACCEPTED, so the ADR gate itself is not blocking.
    updates or deletion. The service enforces active project finance configuration, effective and
    allowed cost codes, dimension scope, open periods, canonical command permissions, fail-closed
    audit, approval-owned Unit of Work, and deterministic source retry/conflict behavior.
-3. PM commitment projections/lines, matching, cancellation/closure, remaining-balance policy.
+3. **Canonical PM commitments (complete 2026-08-09).** One PM-owned projection header per
+   Procurement purchase order and one versioned line per purchase-order line preserve opaque
+   source identity without importing or foreign-keying Inventory implementation packages.
+   Monotonic immutable source-revision snapshots make retry idempotent and reject conflicting or
+   out-of-order delivery. Lines own Decimal quantity/rate, transaction/base Money and immutable FX
+   snapshot, project/cost-code/task/supplier/site dimensions, lifecycle, matched amount, and
+   optimistic row version. Sent/partially received/fully received exposure is committed minus
+   matched; closure/cancellation releases unmatched exposure, while fully received does not hide
+   exposure before a delayed actual arrives. Immutable signed match/reversal rows link only posted
+   Procurement receipt-accrual `ProjectCostEntry` facts and prevent duplicate actual matching.
+   Four directly scoped/RLS tables, composite foreign keys, database amount/source/match
+   constraints, immutable revision/match triggers, stable database pagination, fail-closed Audit,
+   RBAC/project authorization, savepoint conflict handling, and migration `q4r5s6t7u8v9` complete
+   the boundary. C.5 still owns the provider/outbox/inbox adapter that transports typed
+   Procurement facts; it must live in composition/integration infrastructure, not either module.
 4. Approved-Time contract/event + idempotent labor-cost consumer (snapshot rate,
    reverse/replace on corrected approvals).
 5. Typed Procurement project-source queries/events (PO lines, changes, cancellation,
@@ -410,7 +424,19 @@ migration tests pass. The combined C.1/C.2, budget lifecycle, authorization hier
 scope, role reconciliation, and Phase-A finance security run passes 105 tests. Alembic remains
 single-headed at `p3q4r5s6t7u8`. No legacy `CostItem` reader or writer was modified, no dual-write
 or compatibility adapter was introduced, and no C.2 code is temporary. Items 6-8 remain the named
-cutover/removal gates for legacy writes, reads, and QML. **Item 3, canonical commitments, is next.**
+cutover/removal gates for legacy writes, reads, and QML.
+
+Phase C.3 verification checkpoint: all 5 focused domain/source-revision/lifecycle/matching/tenant/
+migration tests pass, plus the permanent architecture test forbidding direct PM <-> Inventory
+module imports. The combined C.3 and Project Finance persistence/period architecture checkpoint
+passes 20 tests, and the existing 7-test C.2 actual-ledger suite remains green against the new
+schema. A fresh Alembic upgrade reaches the single head `q4r5s6t7u8v9`; immutable source-history
+and match triggers are present. No legacy `CostItem` path changed, no direct cross-module import,
+dual-write, in-memory event bridge, compatibility adapter, temporary file, or deletion-register
+item was introduced. One pre-existing PM desktop runtime import used only for Inventory runtime
+type checks was removed; composition continues to supply the opaque reservation capability.
+The migration also downgrades independently to C.2 revision `p3q4r5s6t7u8` while preserving the
+actual ledger. **Item 4, the approved-Time labor-cost consumer, is next.**
 
 ## 3. Finance — Phase D and E (future, not started)
 

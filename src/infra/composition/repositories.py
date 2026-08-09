@@ -29,6 +29,9 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.modules.project_management.infrastructure.persistence.repositories.cost_entry import (
     SqlAlchemyProjectCostEntryRepository,
 )
+from src.core.modules.project_management.infrastructure.persistence.repositories.commitment import (
+    SqlAlchemyProjectCommitmentRepository,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.financial_configuration import (
     SqlAlchemyProjectCostCodeRepository,
     SqlAlchemyProjectFinancialProfileRepository,
@@ -128,6 +131,7 @@ class RepositoryBundle:
     dependency_repo: SqlAlchemyDependencyRepository
     cost_repo: SqlAlchemyCostRepository
     project_cost_entry_repo: SqlAlchemyProjectCostEntryRepository
+    project_commitment_repo: SqlAlchemyProjectCommitmentRepository
     project_financial_profile_repo: SqlAlchemyProjectFinancialProfileRepository
     project_cost_code_repo: SqlAlchemyProjectCostCodeRepository
     project_rate_card_repo: SqlAlchemyProjectRateCardRepository
@@ -194,6 +198,7 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         dependency_repo=SqlAlchemyDependencyRepository(session),
         cost_repo=SqlAlchemyCostRepository(session),
         project_cost_entry_repo=SqlAlchemyProjectCostEntryRepository(session),
+        project_commitment_repo=SqlAlchemyProjectCommitmentRepository(session),
         project_financial_profile_repo=SqlAlchemyProjectFinancialProfileRepository(session),
         project_cost_code_repo=SqlAlchemyProjectCostCodeRepository(session),
         project_rate_card_repo=SqlAlchemyProjectRateCardRepository(session),

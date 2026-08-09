@@ -6,6 +6,14 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntryKind,
     ProjectCostEntryStatus,
 )
+from src.core.modules.project_management.domain.financials.commitment import (
+    ProjectCommitment,
+    ProjectCommitmentLine,
+    ProjectCommitmentLineState,
+    ProjectCommitmentMatch,
+    ProjectCommitmentMatchKind,
+    ProjectCommitmentSourceRevision,
+)
 
 from src.core.modules.project_management.domain.financials.configuration import (
     BillingMethod,
@@ -29,5 +37,11 @@ __all__ = [
     "ProjectCostEntry",
     "ProjectCostEntryKind",
     "ProjectCostEntryStatus",
+    "ProjectCommitment",
+    "ProjectCommitmentLine",
+    "ProjectCommitmentLineState",
+    "ProjectCommitmentMatch",
+    "ProjectCommitmentMatchKind",
+    "ProjectCommitmentSourceRevision",
     "ProjectFinancialProfile",
 ]

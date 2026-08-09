@@ -19,6 +19,13 @@ from src.infra.persistence.migrations.helpers import (
 
 
 PROJECT_FINANCE_TABLE_PREFIX = "project_finance_"
+PROJECT_FINANCE_SCOPED_TABLES = {
+    "project_cost_entries",
+    "project_commitments",
+    "project_commitment_lines",
+    "project_commitment_source_revisions",
+    "project_commitment_matches",
+}
 PROJECT_FINANCE_RLS_SCOPE = "tenant_organization"
 FINANCE_PRIMITIVES_ROOT = Path("src/core/platform/finance")
 PROJECT_FINANCE_TRANSITION_MARKER = "PF-B1-CURRENCY-DUAL-WRITE"
@@ -104,6 +111,7 @@ def test_every_project_finance_table_has_direct_scope_and_rls_marker() -> None:
         name: table
         for name, table in Base.metadata.tables.items()
         if name.startswith(PROJECT_FINANCE_TABLE_PREFIX)
+        or name in PROJECT_FINANCE_SCOPED_TABLES
     }
 
     for table_name, table in finance_tables.items():
