@@ -1,6 +1,6 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: audit complete; Phase A0-A2, Phase B item 8, and Phase C items 1-5 code gates complete; hosted PostgreSQL validation pending
+Status: audit complete; Phase A0-A2, Phase B item 8, and Phase C items 1-6 code gates complete; Phase C.7 in progress; hosted PostgreSQL validation pending
 Last updated: 2026-08-09
 Scope: Project Management finance plus reusable platform financial foundations
 Current increment: Task-owned WBS, effective-dated rate cards (ADR-PF-005) with the
@@ -24,7 +24,8 @@ Remaining Phase B scope: item 7's planning-report source decision remains blocke
 documented envelope-versus-allocation product decision and a snapshot freshness mechanism.
 Item 8's QML combined-Budget replacement is complete. Phase C item 1's organization financial-
 period, actual-ledger, commitment, approved-Time, and Procurement financial-delivery foundations
-are complete. Phase C item 6's canonical command cutover from combined `CostItem` is next.
+are complete. Phase C item 6's canonical command cutover from combined `CostItem` is complete;
+item 7 deterministic migration and reconciliation is next.
 
 ## 1. Executive Summary
 
@@ -877,7 +878,8 @@ ADR gate: ADR-PF-004, ADR-PF-006, ADR-PF-007, and ADR-PF-008 must be accepted be
    revisions, receipt-actual matching/reversal, cancellation/closure, and remaining-balance policy.
 4. **Complete 2026-08-09:** add an approved-Time contract/event and idempotent labor-cost consumer. Snapshot rate and reverse/replace corrected approvals.
 5. **Complete 2026-08-09 for available source lifecycles:** add typed Procurement project-source events for PO SENT/status/cancellation/closure and POSTED receipts. PM creates projections/postings; Procurement remains owner. Governed post-send amendment and supplier-invoice sources remain future because those source aggregates/commands do not yet exist.
-6. Replace manual combined CostItem writes with distinct planned, commitment, and manual-actual commands. Posted actuals are never editable/deletable.
+6. **Complete 2026-08-09:** replace combined CostItem runtime writes with canonical planning,
+   source-owned commitment, and manual-actual commands. Posted actuals are never editable/deletable.
 7. Backfill/split legacy CostItem rows, dual-read for reports, reconcile totals, and quarantine unresolved currency/source cases.
 8. Redesign QML Actuals and Commitments as ledgers with status, source, period, matching, approval, posting, and reversal actions. Remove the generic edit/delete behavior from posted rows.
 
@@ -1006,8 +1008,34 @@ Implementation progress:
   mutation, or deletion-register entry was added.
 - Procurement does not yet own a governed post-send commercial amendment command or supplier-
   invoice aggregate. Those future source capabilities must publish later revisions/reclassification
-  through this same contract; they are not simulated in PM. Item 6, canonical command cutover from
-  combined `CostItem`, is next.
+  through this same contract; they are not simulated in PM.
+- Item 6 is complete. Runtime `CostService` is query-only. Its combined create/update/delete
+  mixins, desktop commands, QML editor and bulk mutations, cost CSV importer, approval handlers,
+  governance aliases, and `cost.manage` permission/grants were deleted. Actuals use typed,
+  idempotent `ProjectCostEntry` commands and the Actuals workspace exposes `New Manual Actual`;
+  planned cost remains a versioned planning snapshot and commitments remain Procurement-owned
+  source projections rather than ambiguous manual amount fields.
+- Canonical actual audit and commit exceptions explicitly roll back their Unit of Work. The
+  focused command/security checkpoint passes 17 tests; the complete legacy-report compatibility
+  surface passes 103 tests with 1 skip. Targeted QML lint has no missing controller members.
+  `TRANSITION(PF-C6-LEGACY-TEST-SEED)` is test-only and is due for deletion during item 7; it does
+  not restore any production writer or dual-write behavior. Item 7 deterministic backfill,
+  quarantine, reconciliation, and dual-read comparison is next.
+- Item 7 is in progress. Migration head `t7u8v9w0x1y2` adds directly scoped/RLS migration runs
+  and one restart-safe source-purpose checkpoint per legacy responsibility. Checkpoints preserve
+  source and target Decimal values, rounding delta, currency resolution, default-cost-code
+  mapping, target identity, quarantine/deferred reason, and original legacy classification/code.
+  Dry-run writes control evidence only. Execute creates idempotent review-required actual drafts
+  through the canonical `DATA_EXCHANGE/IMPORT_ROW/LEGACY_MIGRATION` identity; it never infers
+  approval or posting. Missing default cost-code mapping is quarantined.
+- Planned and commitment values currently remain durable deferred checkpoints while their
+  explicit legacy source variants are built; no resource, supplier, site, PO, or assignment is
+  fabricated. Forecast overrides remain deferred until Phase D owns a canonical forecast
+  aggregate. Report dual-read/parity, raw-invalid-row quarantine, planned/commitment target
+  creation, and test-seeder deletion are still required before item 7 can close. Four focused
+  C.7 tests pass, including active-organization isolation, and the combined C.6/C.7/security/
+  persistence/QML checkpoint passes 33 tests;
+  Alembic remains single-headed at `t7u8v9w0x1y2`.
 
 ### Phase D - Forecasts, ETC, change control, and enterprise reporting
 
@@ -1116,10 +1144,12 @@ This register is mandatory implementation scope. A phase cannot close while its 
 | Desktop forecast/commitment fallback builders | Pre-existing | A2 canonical service composition and parity tests pass | PM Finance | CLOSED; formulas and empty compatibility paths deleted 2026-08-02 |
 | `report.view` finance authorization | Pre-existing | A0 finance permission grants and policy tests pass | Platform Security / PM Finance | CLOSED; replaced by `finance.read` on 2026-08-02 |
 | Admin-session cost-governance bypass | Pre-existing | A0 removal tests pass | Platform Security | CLOSED; removed 2026-08-02 |
-| `cost.manage` umbrella/alias | Pre-existing; transitional mapping in A0 | Target command permissions active across desktop/services | Platform Security / PM Finance | OPEN |
+| `cost.manage` umbrella/alias | Pre-existing; transitional mapping in A0 | Target command permissions active across desktop/services | Platform Security / PM Finance | CLOSED 2026-08-09; removed after C.6 runtime command/QML cutover |
 | Hard-coded PM `EUR` defaults | Pre-existing | A1 Organization/Profile currency resolution cutover | Platform Foundation / PM | CLOSED; command constants removed and Organization resolution active 2026-08-02 |
 | Duplicate PM money formatters | Pre-existing | A1 canonical serialization/formatting adopted | Desktop UI / PM | CLOSED; four implementations replaced by one Decimal-aware boundary 2026-08-02 |
-| Legacy combined CostItem write API | Pre-existing | C distinct planned/commitment/manual-actual commands and QML cutover | PM Finance / Desktop UI | OPEN |
+| Legacy combined CostItem write API | Pre-existing | C distinct planned/commitment/manual-actual commands and QML cutover | PM Finance / Desktop UI | CLOSED 2026-08-09; runtime service/API/QML/import/approval writers deleted |
+| `TRANSITION(PF-C6-LEGACY-TEST-SEED)` test-only row factory | C.6 regression closeout | C.7 canonical migration and report fixtures no longer require service-shaped legacy setup | PM Finance / Test Architecture | OPEN; forbidden outside `src/tests` |
+| `TRANSITION(PF-C7-LEGACY-IMPORT)` canonical import-draft command | C.7 actual split | C.7 migration/reconciliation accepted and no legacy rows remain to replay | PM Finance / Data Migration | OPEN; only `DATA_EXCHANGE/IMPORT_ROW/LEGACY_MIGRATION`, review-required draft, no posting bypass |
 | Legacy CostItem reader/projection | Pre-existing; retained in B/C | D ledger/report reconciliation complete | PM Finance | OPEN |
 | `Project.planned_budget` compatibility projection | Pre-existing; retained in B | B budget read cutover and reconciliation complete | PM Finance | OPEN |
 | `Project.currency` compatibility projection | Pre-existing; retained in B | Profile currency cutover and all consumers migrated | PM Finance | OPEN |

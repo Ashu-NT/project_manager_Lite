@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
@@ -174,51 +175,78 @@ def test_cost_repository_rejects_cross_project_task_on_add_and_update(services):
         cost_repo.update(existing)
 
 
-def test_cost_mutation_records_scoped_enterprise_audit(services):
-    project = services["project_service"].create_project("Audited cost")
-
-    item = services["cost_service"].add_cost_item(
-        project_id=project.id,
-        description="Audit evidence",
-        planned_amount=25.0,
-        currency_code="EUR",
+def _create_audited_cost_entry(services, *, command_id: str):
+    organization = services["organization_service"].get_active_organization()
+    project = services["project_service"].create_project(
+        "Audited canonical cost",
+        currency=organization.base_currency,
     )
+    cost_code = services["financial_configuration_service"].create_cost_code(
+        code=f"AUD-{command_id[-4:].upper()}",
+        name="Audit evidence",
+    )
+    entry = services["cost_entry_service"].create_manual_entry(
+        project_id=project.id,
+        command_id=command_id,
+        description="Audit evidence",
+        amount=Decimal("25.00"),
+        currency_code=organization.base_currency,
+        transaction_date=date(2026, 1, 12),
+        cost_code_id=cost_code.id,
+    )
+    return project, entry
+
+
+def test_cost_entry_mutation_records_scoped_enterprise_audit(services):
+    project, entry = _create_audited_cost_entry(services, command_id="audit-create-1")
 
     entries = services["enterprise_audit_service"].list_recent(
-        entity_type="cost_item",
-        operation="create",
+        entity_type="project_cost_entry",
+        operation="project_cost_entry.create",
     )
-    entry = next(candidate for candidate in entries if candidate.entity_id == item.id)
-    payload = json.loads(entry.new_value)
+    audit = next(candidate for candidate in entries if candidate.entity_id == entry.id)
+    payload = json.loads(audit.new_value)
 
-    assert entry.tenant_id
-    assert entry.organization_id
-    assert entry.entity_parent_id == project.id
-    assert entry.compliance_tag == "financial"
-    assert entry.old_value is None
-    assert payload["planned_amount"] == 25.0
-    assert payload["currency_code"] == "EUR"
+    assert audit.tenant_id
+    assert audit.organization_id
+    assert audit.entity_parent_id == project.id
+    assert audit.compliance_tag == "financial"
+    assert audit.old_value is None
+    assert Decimal(payload["amount"]) == Decimal("25.00")
+    assert payload["currency_code"] == entry.currency_code
 
 
-def test_cost_mutation_rolls_back_when_required_audit_fails(services, monkeypatch):
-    project = services["project_service"].create_project("Fail-closed cost audit")
+def test_cost_entry_mutation_rolls_back_when_required_audit_fails(services, monkeypatch):
+    organization = services["organization_service"].get_active_organization()
+    project = services["project_service"].create_project(
+        "Fail-closed canonical cost audit",
+        currency=organization.base_currency,
+    )
+    cost_code = services["financial_configuration_service"].create_cost_code(
+        code="AUD-FAIL",
+        name="Fail-closed audit",
+    )
     audit_service = services["enterprise_audit_service"]
     original_record = audit_service.record
 
     def _fail_cost_audit(**kwargs):
-        if kwargs.get("entity_type") == "cost_item":
+        if kwargs.get("entity_type") == "project_cost_entry":
             raise RuntimeError("simulated cost audit failure")
         return original_record(**kwargs)
 
     monkeypatch.setattr(audit_service, "record", _fail_cost_audit)
 
     with pytest.raises(RuntimeError, match="simulated cost audit failure"):
-        services["cost_service"].add_cost_item(
+        services["cost_entry_service"].create_manual_entry(
             project_id=project.id,
+            command_id="audit-failure-1",
             description="Must roll back",
-            planned_amount=25.0,
-            currency_code="EUR",
+            amount=Decimal("25.00"),
+            currency_code=organization.base_currency,
+            transaction_date=date(2026, 1, 12),
+            cost_code_id=cost_code.id,
         )
 
-    services["cost_service"]._session.expire_all()
-    assert services["cost_service"].list_cost_items_for_project(project.id) == []
+    entries, total = services["cost_entry_service"].list_for_project(project.id)
+    assert entries == []
+    assert total == 0

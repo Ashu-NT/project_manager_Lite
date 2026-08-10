@@ -102,6 +102,7 @@ from src.core.modules.project_management.application.financials import (
     FinancialConfigurationService,
     FinanceService,
     ForecastCostService,
+    LegacyCostMigrationService,
     PlannedCostService,
     ProjectCommitmentService,
     ProjectCostEntryService,
@@ -240,6 +241,7 @@ class ServiceGraph:
     cost_entry_service: ProjectCostEntryService
     commitment_service: ProjectCommitmentService
     planned_cost_service: PlannedCostService
+    legacy_cost_migration_service: LegacyCostMigrationService
     finance_workspace_query: ProjectFinanceWorkspaceQuery
     finance_service: FinanceService
     work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
@@ -353,6 +355,7 @@ class ServiceGraph:
             "cost_entry_service": self.cost_entry_service,
             "commitment_service": self.commitment_service,
             "planned_cost_service": self.planned_cost_service,
+            "legacy_cost_migration_service": self.legacy_cost_migration_service,
             "finance_workspace_query": self.finance_workspace_query,
             "finance_service": self.finance_service,
             "work_calendar_engine": self.work_calendar_engine,
@@ -556,6 +559,9 @@ def build_service_graph(session: Session) -> ServiceGraph:
         cost_entry_service=project_management_services.cost_entry_service,
         commitment_service=project_management_services.commitment_service,
         planned_cost_service=project_management_services.planned_cost_service,
+        legacy_cost_migration_service=(
+            project_management_services.legacy_cost_migration_service
+        ),
         finance_workspace_query=project_management_services.finance_workspace_query,
         finance_service=project_management_services.finance_service,
         work_calendar_engine=project_management_services.work_calendar_engine,

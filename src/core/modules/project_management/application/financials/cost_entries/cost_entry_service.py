@@ -448,10 +448,10 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             occurred_at=now,
         )
         try:
-            with self._session.begin_nested():
-                self._entry_repo.add(entry)
-                self._entry_repo.flush()
+            self._entry_repo.add(entry)
+            self._entry_repo.flush()
         except IntegrityError as exc:
+            self._session.rollback()
             concurrent = self._entry_repo.get_by_idempotency_key(source.idempotency_key)
             if concurrent is not None:
                 return self._resolve_replay(concurrent, source)
@@ -460,6 +460,99 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
                 code="PROJECT_COST_ENTRY_SOURCE_CONFLICT",
             ) from exc
         self._record_audit("create", entry)
+        self._commit_and_emit(entry.project_id)
+        return entry
+
+    def create_legacy_import_draft(
+        self,
+        *,
+        project_id: str,
+        legacy_cost_item_id: str,
+        legacy_version: int,
+        description: str,
+        amount: Decimal,
+        currency_code: str,
+        transaction_date: date,
+        cost_code_id: str,
+        task_id: str | None = None,
+    ) -> ProjectCostEntry:
+        """Create the review-required actual split for one legacy CostItem.
+
+        TRANSITION(PF-C7-LEGACY-IMPORT): remove after legacy migration and
+        reconciliation close and no CostItem rows remain to replay.
+        """
+        self._require_command_permission(
+            project_id,
+            "finance.manage",
+            "migrate legacy project actual cost",
+        )
+        context = self._require_scope("migrate legacy project actual cost")
+        self._require_project(project_id)
+        self._require_active_profile(project_id)
+        money = Money.of(amount, currency_code)
+        self._require_dimensions(
+            project_id=project_id,
+            cost_code_id=cost_code_id,
+            transaction_date=transaction_date,
+            task_id=task_id,
+            resource_id=None,
+            organization_id=context.organization_id,
+        )
+        content = {
+            "legacy_cost_item_id": str(legacy_cost_item_id),
+            "legacy_version": int(legacy_version),
+            "description": str(description),
+            "amount": str(money.amount),
+            "currency_code": money.currency.code,
+            "transaction_date": transaction_date.isoformat(),
+            "cost_code_id": str(cost_code_id),
+            "task_id": task_id,
+        }
+        source = FinancialSourceReference(
+            tenant_id=context.tenant_id,
+            organization_id=context.organization_id,
+            project_id=project_id,
+            source_module=FinancialSourceModule.DATA_EXCHANGE,
+            source_type=FinancialSourceType.IMPORT_ROW,
+            source_id=str(legacy_cost_item_id),
+            source_line_id="actual",
+            source_revision=str(legacy_version),
+            content_hash=financial_source_content_hash(content),
+            posting_purpose=FinancialPostingPurpose.LEGACY_MIGRATION,
+        )
+        existing = self._entry_repo.get_by_idempotency_key(source.idempotency_key)
+        if existing is not None:
+            return self._resolve_replay(existing, source)
+        actor_id = self._actor_id()
+        now = self._clock.now()
+        entry = ProjectCostEntry.create_draft(
+            tenant_id=context.tenant_id,
+            organization_id=context.organization_id,
+            project_id=project_id,
+            description=description,
+            kind=ProjectCostEntryKind.ACTUAL,
+            money=money,
+            transaction_date=transaction_date,
+            cost_code_id=cost_code_id,
+            task_id=task_id,
+            resource_id=None,
+            source=source,
+            actor_id=actor_id,
+            occurred_at=now,
+        )
+        try:
+            self._entry_repo.add(entry)
+            self._entry_repo.flush()
+        except IntegrityError as exc:
+            self._session.rollback()
+            concurrent = self._entry_repo.get_by_idempotency_key(source.idempotency_key)
+            if concurrent is not None:
+                return self._resolve_replay(concurrent, source)
+            raise BusinessRuleError(
+                "Legacy cost import conflicts with an existing financial source.",
+                code="PROJECT_COST_ENTRY_SOURCE_CONFLICT",
+            ) from exc
+        self._record_audit("create_legacy_import_draft", entry)
         self._commit_and_emit(entry.project_id)
         return entry
 
@@ -1001,50 +1094,58 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         return str(actor_id)
 
     def _record_audit(self, operation: str, entry: ProjectCostEntry) -> None:
-        record_audit_entry(
-            self,
-            operation=f"project_cost_entry.{operation}",
-            entity_type="project_cost_entry",
-            entity_id=entry.id,
-            entity_parent_id=entry.project_id,
-            module="project_management",
-            old_value=None,
-            new_value=json.dumps({
-                "status": entry.status.value,
-                "entry_kind": entry.entry_kind.value,
-                "amount": MoneyPayload.from_domain(entry.money).amount,
-                "currency_code": entry.currency_code,
-                "base_amount": (
-                    MoneyPayload.from_domain(entry.base_money).amount
-                    if entry.base_money is not None
-                    else None
-                ),
-                "base_currency_code": entry.base_currency_code,
-                "transaction_date": entry.transaction_date.isoformat(),
-                "posting_date": entry.posting_date.isoformat() if entry.posting_date else None,
-                "financial_period_id": entry.financial_period_id,
-                "cost_code_id": entry.cost_code_id,
-                "task_id": entry.task_id,
-                "resource_id": entry.resource_id,
-                "source_module": entry.source_module.value,
-                "source_type": entry.source_type.value,
-                "source_id": entry.source_id,
-                "source_revision": entry.source_revision,
-                "reverses_entry_id": entry.reverses_entry_id,
-                "reversed_by_entry_id": entry.reversed_by_entry_id,
-                "row_version": entry.row_version,
-            }, sort_keys=True),
-            workspace_id=entry.project_id,
-            source="application",
-            severity="high",
-            compliance_tag="financial",
-            metadata={"action": operation},
-            commit=False,
-            fail_closed=True,
-        )
+        try:
+            record_audit_entry(
+                self,
+                operation=f"project_cost_entry.{operation}",
+                entity_type="project_cost_entry",
+                entity_id=entry.id,
+                entity_parent_id=entry.project_id,
+                module="project_management",
+                old_value=None,
+                new_value=json.dumps({
+                    "status": entry.status.value,
+                    "entry_kind": entry.entry_kind.value,
+                    "amount": MoneyPayload.from_domain(entry.money).amount,
+                    "currency_code": entry.currency_code,
+                    "base_amount": (
+                        MoneyPayload.from_domain(entry.base_money).amount
+                        if entry.base_money is not None
+                        else None
+                    ),
+                    "base_currency_code": entry.base_currency_code,
+                    "transaction_date": entry.transaction_date.isoformat(),
+                    "posting_date": entry.posting_date.isoformat() if entry.posting_date else None,
+                    "financial_period_id": entry.financial_period_id,
+                    "cost_code_id": entry.cost_code_id,
+                    "task_id": entry.task_id,
+                    "resource_id": entry.resource_id,
+                    "source_module": entry.source_module.value,
+                    "source_type": entry.source_type.value,
+                    "source_id": entry.source_id,
+                    "source_revision": entry.source_revision,
+                    "reverses_entry_id": entry.reverses_entry_id,
+                    "reversed_by_entry_id": entry.reversed_by_entry_id,
+                    "row_version": entry.row_version,
+                }, sort_keys=True),
+                workspace_id=entry.project_id,
+                source="application",
+                severity="high",
+                compliance_tag="financial",
+                metadata={"action": operation},
+                commit=False,
+                fail_closed=True,
+            )
+        except Exception:
+            self._session.rollback()
+            raise
 
     def _commit_and_emit(self, project_id: str) -> None:
-        self._session.commit()
+        try:
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
         domain_events.cost_entries_changed.emit(project_id)
 
 
