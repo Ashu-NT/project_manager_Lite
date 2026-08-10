@@ -18,6 +18,9 @@ Component {
     Property { name: "timesheetsWorkspace"; type: "ProjectManagementTimesheetsWorkspaceController"; isReadonly: true }
     Method { name: "workspace"; type: "QVariantMap"; Parameter { name: "routeId"; type: "QString" } }
     Method { name: "dashboardOverview"; type: "QVariantMap" }
+    Method { name: "isModuleEnabled"; type: "bool"; Parameter { name: "moduleCode"; type: "QString" } }
+    Method { name: "hasCapability"; type: "bool"; Parameter { name: "capabilityId"; type: "QString" } }
+    Method { name: "canUseIntegration"; type: "bool"; Parameter { name: "sourceModule"; type: "QString" } Parameter { name: "targetModule"; type: "QString" } Parameter { name: "capability"; type: "QString" } }
 }
 
 
@@ -64,6 +67,8 @@ Component {
     Property { name: "emptyState"; type: "QString"; isReadonly: true }
     Property { name: "sectionErrors"; type: "QVariantMap"; isReadonly: true }
     Method { name: "clearMessages" }
+    Method { name: "loadTableColumnState"; type: "QVariantMap"; Parameter { name: "tableId"; type: "QString" } }
+    Method { name: "saveTableColumnState"; Parameter { name: "tableId"; type: "QString" } Parameter { name: "state"; type: "QVariantMap" } }
 }
 
 
@@ -118,6 +123,7 @@ Component {
     Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "costTypeOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "taskOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "manualActualOptions"; type: "QVariantMap"; isReadonly: true }
     Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
     Property { name: "selectedCostType"; type: "QString"; isReadonly: true }
     Property { name: "searchText"; type: "QString"; isReadonly: true }
@@ -134,12 +140,16 @@ Component {
     Property { name: "forecast"; type: "QVariantMap"; isReadonly: true }
     Property { name: "commitmentSummary"; type: "QVariantMap"; isReadonly: true }
     Property { name: "baselineVariance"; type: "QVariantList"; isReadonly: true }
-    Property { name: "bulkCostTypeOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "financialProfile"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "budgetVersions"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "budgetLines"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "rateCards"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "rateLines"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "plannedCostVersions"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "plannedCostLines"; type: "QVariantMap"; isReadonly: true }
     Property { name: "costPage"; type: "int"; isReadonly: true }
     Property { name: "costPageSize"; type: "int"; isReadonly: true }
     Property { name: "costTotalCount"; type: "int"; isReadonly: true }
-    Property { name: "selectedCostIds"; type: "QVariantList"; isReadonly: true }
-    Property { name: "selectedCostCount"; type: "int"; isReadonly: true }
     Method { name: "refresh" }
     Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
     Method { name: "setCostTypeFilter"; Parameter { name: "costType"; type: "QString" } }
@@ -149,15 +159,9 @@ Component {
     Method { name: "exportFinancials" }
     Method { name: "setCostPage"; Parameter { name: "page"; type: "int" } }
     Method { name: "setCostPageSize"; Parameter { name: "pageSize"; type: "int" } }
-    Method { name: "setCostBulkSelection"; Parameter { name: "costId"; type: "QString" } Parameter { name: "selected"; type: "bool" } }
-    Method { name: "selectVisibleCosts" }
-    Method { name: "clearCostBulkSelection" }
-    Method { name: "bulkDeleteCosts"; type: "QVariantMap"; Parameter { name: "costIds"; type: "QVariantList" } }
-    Method { name: "applyBulkCostType"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
-    Method { name: "generateEntityCode"; type: "QString"; Parameter { name: "entityType"; type: "QString" } Parameter { name: "payload"; type: "QVariantMap" } }
-    Method { name: "createCostItem"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
-    Method { name: "updateCostItem"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
-    Method { name: "deleteCostItem"; type: "QVariantMap"; Parameter { name: "costId"; type: "QString" } }
+    Method { name: "createManualActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "newFinancialCommandId"; type: "QString" }
+    Method { name: "setConfigurationPage"; Parameter { name: "collection"; type: "QString" } Parameter { name: "page"; type: "int" } }
 }
 
 

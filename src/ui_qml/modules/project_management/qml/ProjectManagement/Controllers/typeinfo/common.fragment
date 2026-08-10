@@ -11,4 +11,6 @@ Component {
     Property { name: "emptyState"; type: "QString"; isReadonly: true }
     Property { name: "sectionErrors"; type: "QVariantMap"; isReadonly: true }
     Method { name: "clearMessages" }
+    Method { name: "loadTableColumnState"; type: "QVariantMap"; Parameter { name: "tableId"; type: "QString" } }
+    Method { name: "saveTableColumnState"; Parameter { name: "tableId"; type: "QString" } Parameter { name: "state"; type: "QVariantMap" } }
 }

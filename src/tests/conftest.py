@@ -11,6 +11,7 @@ from src.infra.composition.app_container import build_service_dict
 from src.infra.persistence.orm.base import Base
 from src.tests.path_rewrites import REPO_ROOT, resolve_repo_path
 from src.tests.temp_dirs import cleanup_test_workspace, create_test_workspace
+from src.tests.legacy_cost_test_support import install_legacy_cost_test_support
 
 _ORIGINAL_PATH_READ_TEXT = Path.read_text
 _ORIGINAL_PATH_EXISTS = Path.exists
@@ -110,6 +111,7 @@ def services(session):
     user_session = graph["user_session"]
     admin = auth.authenticate("admin", "ChangeMe123!")
     user_session.set_principal(auth.build_principal(admin))
+    install_legacy_cost_test_support(graph, session)
     return graph
 
 

@@ -36,6 +36,7 @@ from src.core.modules.project_management.application.financials import (
     FinancialConfigurationService,
     FinanceService,
     ForecastCostService,
+    LegacyCostMigrationService,
     PlannedCostService,
     ProjectCostEntryService,
     ProjectCommitmentService,
@@ -128,6 +129,7 @@ class ProjectManagementServiceBundle:
     procurement_financial_consumer: ProcurementFinancialConsumer
     commitment_service: ProjectCommitmentService
     planned_cost_service: PlannedCostService
+    legacy_cost_migration_service: LegacyCostMigrationService
     finance_workspace_query: ProjectFinanceWorkspaceQuery
     finance_service: FinanceService
     work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
@@ -432,6 +434,18 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
+    legacy_cost_migration_service = LegacyCostMigrationService(
+        session=session,
+        migration_repo=repositories.legacy_cost_migration_repo,
+        cost_repo=repositories.cost_repo,
+        project_repo=repositories.project_repo,
+        profile_repo=repositories.project_financial_profile_repo,
+        task_repo=repositories.task_repo,
+        cost_entry_service=cost_entry_service,
+        tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
+    )
     finance_workspace_query = ProjectFinanceWorkspaceQuery(
         profile_repo=repositories.project_financial_profile_repo,
         cost_code_repo=repositories.project_cost_code_repo,
@@ -583,6 +597,7 @@ def build_project_management_service_bundle(
         procurement_financial_consumer=procurement_financial_consumer,
         commitment_service=commitment_service,
         planned_cost_service=planned_cost_service,
+        legacy_cost_migration_service=legacy_cost_migration_service,
         finance_workspace_query=finance_workspace_query,
         finance_service=finance_service,
         work_calendar_engine=work_calendar_engine,

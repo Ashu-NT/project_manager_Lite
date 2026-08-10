@@ -38,6 +38,9 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.modules.project_management.infrastructure.persistence.repositories.labor_posting import (
     SqlAlchemyApprovedTimeLaborPostingRepository,
 )
+from src.core.modules.project_management.infrastructure.persistence.repositories.legacy_cost_migration import (
+    SqlAlchemyLegacyCostMigrationRepository,
+)
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.integration_outbox import (
     SqlAlchemyProcurementFinancialOutboxRepository,
 )
@@ -189,6 +192,7 @@ class RepositoryBundle:
     procurement_financial_outbox_repo: SqlAlchemyProcurementFinancialOutboxRepository
     project_finance_inbox_repo: SqlAlchemyProjectFinanceInboxRepository
     approved_time_labor_posting_repo: SqlAlchemyApprovedTimeLaborPostingRepository
+    legacy_cost_migration_repo: SqlAlchemyLegacyCostMigrationRepository
 
 
 def build_repository_bundle(session: Session) -> RepositoryBundle:
@@ -270,6 +274,7 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         procurement_financial_outbox_repo=SqlAlchemyProcurementFinancialOutboxRepository(session),
         project_finance_inbox_repo=SqlAlchemyProjectFinanceInboxRepository(session),
         approved_time_labor_posting_repo=SqlAlchemyApprovedTimeLaborPostingRepository(session),
+        legacy_cost_migration_repo=SqlAlchemyLegacyCostMigrationRepository(session),
     )
     logger.debug(
         "Repository bundle build complete duration_ms=%.1f repository_count=%s",

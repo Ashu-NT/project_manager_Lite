@@ -15,4 +15,7 @@ Component {
     Property { name: "timesheetsWorkspace"; type: "ProjectManagementTimesheetsWorkspaceController"; isReadonly: true }
     Method { name: "workspace"; type: "QVariantMap"; Parameter { name: "routeId"; type: "QString" } }
     Method { name: "dashboardOverview"; type: "QVariantMap" }
+    Method { name: "isModuleEnabled"; type: "bool"; Parameter { name: "moduleCode"; type: "QString" } }
+    Method { name: "hasCapability"; type: "bool"; Parameter { name: "capabilityId"; type: "QString" } }
+    Method { name: "canUseIntegration"; type: "bool"; Parameter { name: "sourceModule"; type: "QString" } Parameter { name: "targetModule"; type: "QString" } Parameter { name: "capability"; type: "QString" } }
 }

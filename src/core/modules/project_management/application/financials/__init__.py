@@ -58,6 +58,10 @@ from src.core.modules.project_management.application.financials.commitments impo
 from src.core.modules.project_management.application.financials.procurement_consumer import (
     ProcurementFinancialConsumer,
 )
+from src.core.modules.project_management.application.financials.legacy_migration import (
+    LegacyCostMigrationResult,
+    LegacyCostMigrationService,
+)
 from src.core.modules.project_management.application.financials.workspace_query import (
     ProjectFinanceWorkspaceQuery,
     ProjectFinanceWorkspaceRead,
@@ -88,6 +92,8 @@ __all__ = [
     "FinanceSnapshot",
     "ForecastCostService",
     "LaborCostEngine",
+    "LegacyCostMigrationResult",
+    "LegacyCostMigrationService",
     "MaterialRollup",
     "FinancialConfigurationService",
     "ProjectRateCardService",

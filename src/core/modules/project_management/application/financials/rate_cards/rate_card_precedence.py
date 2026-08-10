@@ -54,7 +54,7 @@ def classify_line(
 
 def select_within_level(level: int, matches: list[RateCardLine]) -> RateCardLine:
     """Pick the one line that wins within a precedence level, or raise if
-    two or more are genuinely tied — never an arbitrary first match."""
+    two or more are genuinely tied - never an arbitrary first match."""
     if level in (3, 5):
         max_count = max(line.specificity_dimension_count for line in matches)
         matches = [line for line in matches if line.specificity_dimension_count == max_count]

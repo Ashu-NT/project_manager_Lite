@@ -3967,7 +3967,7 @@ behavior rather than treating the "unverified" notes below as still accurate.)*
 | `list_constraint_violations` | `project_id` | `SchedulingConstraintViolationDto[]` | `SchedulingEngine.recalculate_project_schedule(persist=False)` + `ConstraintValidator.validate` | REPORT/QUERY | broad except swallows both recompute and validation errors together |
 | `analyse_change_impact` | `project_id, task_id, proposed_*` | `SchedulingChangeImpactDto \| None` | `BaselineService.get_approved_baseline` + `ScheduleChangeImpactService.analyse` | REPORT | two nested broad-except-to-fallback blocks; a second, apparently-dead `compute_schedule_impact` function exists in the same builder file but is not called from `api.py` |
 
-### Financials — `ProjectManagementFinancialsDesktopApi` (12 methods)
+### Financials — `ProjectManagementFinancialsDesktopApi` (19 methods; updated after Finance C.6)
 
 | Method | Input | Output | Service called | Classification | QML consumer |
 |---|---|---|---|---|---|
@@ -3975,15 +3975,19 @@ behavior rather than treating the "unverified" notes below as still accurate.)*
 | `list_cost_types` | none | `FinancialCostTypeDescriptor[]` | none (enum) | LOOKUP | `workspace_builder.py:43` |
 | `list_tasks` | `project_id` | `FinancialTaskOptionDescriptor[]` | `TaskService.list_task_hierarchy`/`list_tasks_for_project` | QUERY | `workspace_builder.py:50` |
 | `list_cost_items` | `project_id` | `FinancialCostItemDto[]` | `CostService.list_cost_items_for_project` (+ nested `list_tasks` call for name lookup) | QUERY | `workspace_builder.py:55`, `command_handler.py:29` |
-| `create_cost_item` | `FinancialCreateCommand` | `FinancialCostItemDto` | `CostService.add_cost_item` | COMMAND | `command_handler.py:55` |
-| `update_cost_item` | `FinancialUpdateCommand` | `FinancialCostItemDto` | `CostService.update_cost_item` | COMMAND | `command_handler.py:74` |
-| `delete_cost_item` | `cost_id` | none | `CostService.delete_cost_item` | COMMAND | `command_handler.py:83` |
+| `get_manual_actual_options` / `list_cost_entries` | project/filter/page | typed option/page DTOs | Financial configuration + `ProjectCostEntryService.list_for_project` | LOOKUP/QUERY | canonical Actuals workspace |
+| `create_manual_actual` / `update_actual_draft` / `delete_actual_draft` | typed canonical commands | `FinancialCostEntryDto` / none | `ProjectCostEntryService` draft lifecycle | COMMAND | canonical Actuals dialog/actions |
+| `submit_actual` / `approve_actual` / `reject_actual` / `post_actual` / `reverse_actual` | versioned decision/post/reversal commands | `FinancialCostEntryDto` | governed `ProjectCostEntryService` lifecycle | COMMAND | canonical Actuals actions |
 | `get_finance_snapshot` | `project_id` | `FinancialSnapshotDto` | `FinanceService.get_finance_snapshot` | **REPORT** (pilot target, §17) | `workspace_builder.py:67` |
 | `get_cost_forecast` | `project_id, percent_complete, method, threshold_percent` | `FinancialForecastDto` | `ForecastCostService.compute_forecast` + `ProjectService.get_project` | REPORT | `workspace_builder.py:76,139` |
 | `get_commitment_summary` | `project_id` | `FinancialCommitmentSummaryDto` | `ForecastCostService.get_commitment_summary` | REPORT | `workspace_builder.py:113` |
-| `list_project_requisitions` | `project_id` | `ProjectRequisitionDesktopDto[]` | duck-typed `procurement_service.list_requisitions` (500-row cap) | INTEGRATION | **confirmed no QML consumer anywhere** |
-| `get_project_procurement_commitments` | `project_id` | `ProjectProcurementCommitmentSummary` | internal `list_project_requisitions` call only — no backing service method | MIXED/REPORT | **confirmed no QML consumer anywhere** |
 | `build_baseline_variance` | `project_id` | `BaselineVarianceRecordDto[]` | `BaselineService.get_approved_baseline` + `list_variance_records` | QUERY | `workspace_builder.py:125` |
+| `get_configuration_workspace` | project + page state | typed configuration workspace DTO | `ProjectFinanceWorkspaceQuery` | QUERY | Finance configuration views |
+
+The combined `CostItem` write commands and dead fixed-limit Procurement lookup were deleted in
+C.6. `list_cost_items` remains read-only solely for C.7/D legacy reconciliation. The governed C.7
+service is intentionally not a desktop API: migration execution remains an internal/admin
+operation until its planned/commitment targets and report parity gates are complete.
 
 ### Portfolio — `ProjectManagementPortfolioDesktopApi` (18 methods)
 
