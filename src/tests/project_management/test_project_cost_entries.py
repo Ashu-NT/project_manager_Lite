@@ -50,7 +50,7 @@ def _create_project_finance_setup(services):
     organization = services["organization_service"].get_active_organization()
     project = services["project_service"].create_project(
         "Canonical actuals",
-        currency=organization.base_currency,
+        financial_currency_code=organization.base_currency,
     )
     cost_code = services["financial_configuration_service"].create_cost_code(
         code="ACTUAL-LABOR",
@@ -360,9 +360,9 @@ def test_cost_entry_migration_installs_database_immutability_guards(tmp_path) ->
         connection.execute(
             sa.text(
                 "INSERT INTO projects (id, tenant_id, organization_id, name, description, "
-                "status, planned_budget, currency, version) VALUES "
+                "status, version) VALUES "
                 "('cost-project', :tenant_id, :organization_id, 'Cost Project', '', "
-                "'ACTIVE', 0.0, 'EUR', 1)"
+                "'ACTIVE', 1)"
             ),
             {"tenant_id": tenant_id, "organization_id": organization_id},
         )

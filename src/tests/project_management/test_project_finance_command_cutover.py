@@ -30,7 +30,7 @@ def _setup_project(services):
     organization = services["organization_service"].get_active_organization()
     project = services["project_service"].create_project(
         "Desktop actual cutover",
-        currency=organization.base_currency,
+        financial_currency_code=organization.base_currency,
     )
     task = services["task_service"].create_task(
         project.id,

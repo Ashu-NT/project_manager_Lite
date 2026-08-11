@@ -24,7 +24,7 @@ def _seed_labor_finance_project(services) -> str:
     project = services["project_service"].create_project(
         "Phase A0 Finance",
         start_date=date(2026, 1, 5),
-        currency="EUR",
+        financial_currency_code="EUR",
     )
     task = services["task_service"].create_task(
         project.id,
@@ -164,7 +164,7 @@ def _create_audited_cost_entry(services, *, command_id: str):
     organization = services["organization_service"].get_active_organization()
     project = services["project_service"].create_project(
         "Audited canonical cost",
-        currency=organization.base_currency,
+        financial_currency_code=organization.base_currency,
     )
     cost_code = services["financial_configuration_service"].create_cost_code(
         code=f"AUD-{command_id[-4:].upper()}",
@@ -205,7 +205,7 @@ def test_cost_entry_mutation_rolls_back_when_required_audit_fails(services, monk
     organization = services["organization_service"].get_active_organization()
     project = services["project_service"].create_project(
         "Fail-closed canonical cost audit",
-        currency=organization.base_currency,
+        financial_currency_code=organization.base_currency,
     )
     cost_code = services["financial_configuration_service"].create_cost_code(
         code="AUD-FAIL",

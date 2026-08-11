@@ -33,6 +33,18 @@ class ProjectResourceCommandMixin:
     _task_repo: TaskRepository | None = None
     _assignment_repo: AssignmentRepository | None = None
 
+    def _financial_currency_code(self, project_id: str) -> str | None:
+        profile_repo = getattr(self, "_financial_profile_repo", None)
+        if profile_repo is None:
+            return None
+        profile = profile_repo.get_by_project(project_id)
+        if profile is None:
+            raise NotFoundError(
+                "Project financial profile not found.",
+                code="FINANCIAL_PROFILE_NOT_FOUND",
+            )
+        return profile.currency_code
+
     def _allocated_planned_hours_total(self, project_id: str, resource_id: str) -> Decimal:
         if self._task_repo is None or self._assignment_repo is None:
             return Decimal("0")
@@ -92,7 +104,7 @@ class ProjectResourceCommandMixin:
             tenant_context_service=getattr(self, "_tenant_context_service", None),
             operation_label="add project resource",
             explicit=currency_code,
-            project_default=getattr(project, "currency", None),
+            project_default=self._financial_currency_code(project_id),
         )
 
         project_resource = ProjectResource.create(
@@ -171,7 +183,7 @@ class ProjectResourceCommandMixin:
             tenant_context_service=getattr(self, "_tenant_context_service", None),
             operation_label="update project resource",
             explicit=currency_code,
-            project_default=getattr(project, "currency", None),
+            project_default=self._financial_currency_code(project_resource.project_id),
         )
         project_resource.hourly_rate = hourly_rate
         project_resource.currency_code = resolved_currency

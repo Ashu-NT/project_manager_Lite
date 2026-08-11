@@ -69,13 +69,8 @@ class _FakePortfolioService(_FakePortfolioServiceBase):
             for item_id in scenario.intake_item_ids
             if item_id in self._intake_items
         ]
-        project_budget = sum(
-            float(getattr(project, "planned_budget", 0.0) or 0.0)
-            for project in selected_projects
-            if project is not None
-        )
         intake_budget = sum(float(item.requested_budget or 0.0) for item in selected_items)
-        total_budget = project_budget + intake_budget
+        total_budget = intake_budget
         total_capacity = sum(float(item.requested_capacity_percent or 0.0) for item in selected_items)
         capacity_limit = scenario.capacity_limit_percent
         available_capacity = max(float(capacity_limit or 0.0) - total_capacity, 0.0)

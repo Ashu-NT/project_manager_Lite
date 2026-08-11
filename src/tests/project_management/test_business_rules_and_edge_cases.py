@@ -121,7 +121,7 @@ def test_work_calendar_next_and_negative_day_math(services):
     assert wc.next_working_day(date(2023, 11, 4), include_today=True) == date(2023, 11, 7)
 
 
-def test_baseline_requires_tasks_and_budget_fallback_affects_bac(services):
+def test_baseline_requires_tasks_and_evm_has_no_project_budget_fallback(services):
     ps = services["project_service"]
     ts = services["task_service"]
     bs = services["baseline_service"]
@@ -132,9 +132,8 @@ def test_baseline_requires_tasks_and_budget_fallback_affects_bac(services):
         bs.create_baseline(no_task_project.id, "BL-Empty", rate_as_of=date.today())
 
     budget_project = ps.create_project(
-        "Budget Baseline",
+        "Uncosted Baseline",
         "",
-        planned_budget=1000.0,
         start_date=date(2023, 11, 6),
         end_date=date(2023, 11, 20),
     )
@@ -143,7 +142,7 @@ def test_baseline_requires_tasks_and_budget_fallback_affects_bac(services):
     baseline = bs.create_baseline(pid, "BL-Budget", rate_as_of=date.today())
 
     evm = rp.get_earned_value(project_id=pid, baseline_id=baseline.id, as_of=date(2023, 11, 30))
-    assert evm.BAC == pytest.approx(1000.0)
+    assert evm.BAC == pytest.approx(0.0)
 
 
 def test_reporting_earned_value_requires_baseline(services):

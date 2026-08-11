@@ -37,9 +37,9 @@ def test_import_projects_collects_row_errors_without_stopping(services, workspac
         workspace_dir,
         "projects.csv",
         [
-            "name,description,currency,start_date,end_date,status,planned_budget",
-            "Good Project,Imported,USD,2026-04-01,2026-04-30,ACTIVE,1000",
-            ",Missing Name,USD,2026-04-01,2026-04-30,ACTIVE,1200",
+            "name,description,start_date,end_date,status",
+            "Good Project,Imported,2026-04-01,2026-04-30,ACTIVE",
+            ",Missing Name,2026-04-01,2026-04-30,ACTIVE",
         ],
     )
 

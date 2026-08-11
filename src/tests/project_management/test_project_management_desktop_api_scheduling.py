@@ -119,8 +119,7 @@ class _FakeProjectService:
         status: "ProjectStatus | None" = None,
         client_name: str | None = None,
         client_contact: str | None = None,
-        planned_budget: float | None = None,
-        currency: str | None = None,
+        financial_currency_code: str | None = None,
         start_date: date | None = None,
         end_date: date | None = None,
     ) -> Project:
@@ -133,8 +132,6 @@ class _FakeProjectService:
             status=status if status is not None else ProjectStatus.PLANNED,
             client_name=client_name,
             client_contact=client_contact,
-            planned_budget=planned_budget,
-            currency=(currency or "").strip().upper() or None,
             version=1,
         )
         self._next_id += 1
@@ -156,8 +153,6 @@ class _FakeProjectService:
         end_date: date | None = None,
         client_name: str | None = None,
         client_contact: str | None = None,
-        planned_budget: float | None = None,
-        currency: str | None = None,
     ) -> Project:
         project = self._projects[project_id]
         if name is not None:
@@ -174,10 +169,6 @@ class _FakeProjectService:
             project.client_name = client_name
         if client_contact is not None:
             project.client_contact = client_contact
-        if planned_budget is not None:
-            project.planned_budget = planned_budget
-        if currency is not None:
-            project.currency = (currency or "").strip().upper() or None
         project.version += 1
         return project
 

@@ -66,7 +66,7 @@ def test_project_editor_dialog_submit_button_emits_payload() -> None:
                     "name": "Refinery Upgrade",
                     "clientName": "North Plant",
                     "clientContact": "ops@example.com",
-                    "plannedBudget": "125000",
+                    "financialCurrencyCode": "EUR",
                     "currency": "EUR",
                     "startDate": "2026-05-01",
                     "endDate": "2026-07-31",

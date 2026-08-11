@@ -30,7 +30,7 @@ def test_capacity_reader_preserves_cross_project_demand_and_utilization(services
             project_name,
             start_date=date(2024, 1, 8),
             end_date=date(2024, 1, 12),
-            currency="EUR",
+            financial_currency_code="EUR",
         )
         task = task_service.create_task(
             project.id,

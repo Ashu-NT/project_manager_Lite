@@ -32,7 +32,7 @@ def _statement_count(session):
 
 def _seed_workspace(services):
     project = services["project_service"].create_project(
-        "Finance Workspace", currency="USD"
+        "Finance Workspace", financial_currency_code="USD"
     )
     cost_code = services["financial_configuration_service"].create_cost_code(
         code="LABOR", name="Project Labor"

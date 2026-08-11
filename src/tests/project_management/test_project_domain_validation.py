@@ -15,8 +15,6 @@ def test_project_dto_normalizes_and_validates_fields():
         description="  Rollout scope  ",
         client_name="  ACME  ",
         client_contact="  lead@example.com  ",
-        planned_budget="1500.5",
-        currency=" eur ",
         organization_id="  org-1  ",
         site_id="  site-1  ",
     )
@@ -25,8 +23,6 @@ def test_project_dto_normalizes_and_validates_fields():
     assert project.description == "Rollout scope"
     assert project.client_name == "ACME"
     assert project.client_contact == "lead@example.com"
-    assert project.planned_budget == pytest.approx(1500.5)
-    assert project.currency == "EUR"
     assert project.organization_id == "org-1"
     assert project.site_id == "site-1"
 
@@ -49,11 +45,7 @@ def test_project_dto_rejects_invalid_date_range():
     assert exc.value.code == "PROJECT_DATE_RANGE_INVALID"
 
 
-def test_project_dtos_reject_invalid_financial_currencies():
-    with pytest.raises(ValidationError) as exc_project:
-        Project.create(name="Invalid Currency", currency="BGN")
-    assert exc_project.value.code == "PROJECT_CURRENCY_INVALID"
-
+def test_project_resource_dto_rejects_invalid_financial_currency():
     with pytest.raises(ValidationError) as exc_resource:
         ProjectResource.create(
             project_id="project-1",

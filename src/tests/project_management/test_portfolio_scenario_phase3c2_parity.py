@@ -28,6 +28,11 @@ def _assign(
         hourly_rate=80.0,
         currency_code="EUR",
     )
+    services["task_service"].assign_project_resource(
+        task_id=task_id,
+        project_resource_id=project_resource.id,
+        allocation_percent=allocation,
+    )
 
 
 def _approve_budget(services, project_id: str, amount: str) -> None:
@@ -55,11 +60,6 @@ def _approve_budget(services, project_id: str, amount: str) -> None:
         budget.id,
         approved_by="admin",
         expected_version=budget.row_version,
-    )
-    services["task_service"].assign_project_resource(
-        task_id=task_id,
-        project_resource_id=project_resource.id,
-        allocation_percent=allocation,
     )
 
 

@@ -132,7 +132,9 @@ def test_get_or_create_legacy_card_is_idempotent(services) -> None:
 
 
 def _create_project_and_resource(services, *, name: str) -> tuple[str, str]:
-    project = services["project_service"].create_project(f"{name} project", currency="USD")
+    project = services["project_service"].create_project(
+        f"{name} project", financial_currency_code="USD"
+    )
     resource = services["resource_service"].create_resource(
         f"{name} resource",
         role="engineer",

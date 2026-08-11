@@ -55,8 +55,7 @@ def _seed_single_project_workspace(services):
         "Workspace Performance Project",
         start_date=today,
         end_date=today + timedelta(days=30),
-        planned_budget=100_000.0,
-        currency="EUR",
+        financial_currency_code="EUR",
     )
     task = services["task_service"].create_task(
         project.id,

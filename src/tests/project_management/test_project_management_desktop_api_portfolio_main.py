@@ -35,14 +35,12 @@ def test_project_management_portfolio_desktop_api_mutates_portfolio_records() ->
     project_alpha = project_service.create_project(
         name="Plant Upgrade",
         description="Replace switchgear and commission the new line.",
-        planned_budget=250000.0,
-        currency="eur",
+        financial_currency_code="eur",
     )
     project_beta = project_service.create_project(
         name="Warehouse Retrofit",
         description="Upgrade lighting and controls.",
-        planned_budget=120000.0,
-        currency="eur",
+        financial_currency_code="eur",
     )
     project_service.update_project(project_alpha.id, status=ProjectStatus.ACTIVE)
     project_service.update_project(project_beta.id, status=ProjectStatus.ON_HOLD)

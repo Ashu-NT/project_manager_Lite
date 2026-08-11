@@ -24,6 +24,7 @@ from src.core.modules.project_management.contracts.repositories.task import (
     TaskRepository,
 )
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.financial_configuration import ProjectFinancialProfileRepository
 from src.core.modules.project_management.contracts.repositories.rate_resolution import (
     LaborRateResolver,
     RateResolutionBatch,
@@ -68,6 +69,7 @@ class LaborCostEngine:
         project_resource_repo: ProjectResourceRepository,
         rate_resolver: LaborRateResolver,
         tenant_context_service: TenantContextService,
+        financial_profile_repo: ProjectFinancialProfileRepository | None = None,
     ) -> None:
         self._project_repo = project_repo
         self._task_repo = task_repo
@@ -76,6 +78,7 @@ class LaborCostEngine:
         self._project_resource_repo = project_resource_repo
         self._rate_resolver = rate_resolver
         self._tenant_context_service = tenant_context_service
+        self._financial_profile_repo = financial_profile_repo
 
     @classmethod
     def for_facts(
@@ -388,7 +391,12 @@ class LaborCostEngine:
             raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
         tenant_id, organization_id = self._resolve_scope(project)
 
-        proj_cur = (getattr(project, "currency", None) or "").upper() or None
+        profile = (
+            self._financial_profile_repo.get_by_project(project_id)
+            if self._financial_profile_repo is not None
+            else None
+        )
+        proj_cur = str(getattr(profile, "currency_code", "") or "").upper() or None
 
         actual_result = self.calculate_project_labor_details(project_id, as_of)
         actual_by_res: dict[str, LaborResourceRow] = {

@@ -244,6 +244,7 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         task_repo=repositories.task_repo,
         assignment_repo=repositories.assignment_repo,
+        financial_profile_repo=repositories.project_financial_profile_repo,
     )
     register_service = RegisterService(
         session=session,
@@ -440,6 +441,7 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         evm_series_reader=SqlAlchemyEvmSeriesReader(session=session),
         finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session),
+        financial_profile_repo=repositories.project_financial_profile_repo,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
     )

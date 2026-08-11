@@ -40,7 +40,8 @@ def _create_approved_project_purchase_order(
     suffix = uuid4().hex[:7].upper()
     organization = services["organization_service"].get_active_organization()
     project = services["project_service"].create_project(
-        f"Procurement Finance {suffix}", currency=organization.base_currency
+        f"Procurement Finance {suffix}",
+        financial_currency_code=organization.base_currency,
     )
     cost_code = services["financial_configuration_service"].create_cost_code(
         code=f"MAT-{suffix}", name="Material receipt accrual"

@@ -31,7 +31,7 @@ from src.core.platform.finance import DecimalQuantityPayload, MonetaryRatePayloa
 def _setup(services):
     organization = services["organization_service"].get_active_organization()
     project = services["project_service"].create_project(
-        "Commitment project", currency=organization.base_currency
+        "Commitment project", financial_currency_code=organization.base_currency
     )
     cost_code = services["financial_configuration_service"].create_cost_code(
         code="PROCURE", name="Procurement"

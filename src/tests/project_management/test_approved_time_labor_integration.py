@@ -20,7 +20,7 @@ from src.core.shared.events.domain_events import domain_events
 def _setup(services):
     organization = services["organization_service"].get_active_organization()
     project = services["project_service"].create_project(
-        "Approved Time Finance", currency=organization.base_currency
+        "Approved Time Finance", financial_currency_code=organization.base_currency
     )
     cost_code = services["financial_configuration_service"].create_cost_code(
         code="LABOR-ACTUAL", name="Labor actual"

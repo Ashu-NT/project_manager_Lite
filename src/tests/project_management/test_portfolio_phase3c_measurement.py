@@ -33,8 +33,7 @@ def _seed_portfolio(services, *, project_count: int) -> tuple[str, str]:
             f"Phase 3C Project {index}",
             start_date=date(2024, 1, 8),
             end_date=date(2024, 3, 29),
-            planned_budget=10_000.0 + index,
-            currency="EUR",
+            financial_currency_code="EUR",
         )
         task = task_service.create_task(
             project.id,

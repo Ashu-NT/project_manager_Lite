@@ -12,7 +12,8 @@ def test_project_defaults_currency_to_active_organization(services):
     _set_active_organization_currency(services, "USD")
     ps = services["project_service"]
     project = ps.create_project("Currency Default Project", "")
-    assert project.currency == "USD"
+    profile = services["financial_configuration_service"].get_profile(project.id)
+    assert profile.currency_code == "USD"
 
 
 def test_resource_defaults_currency_to_active_organization(services):
@@ -28,7 +29,9 @@ def test_project_resource_defaults_currency_to_project(services):
     rs = services["resource_service"]
     prs = services["project_resource_service"]
 
-    project = ps.create_project("Currency Default PR Project", "", currency="GBP")
+    project = ps.create_project(
+        "Currency Default PR Project", "", financial_currency_code="GBP"
+    )
     resource = rs.create_resource("Currency Default PR Resource")
 
     pr = prs.add_to_project(
