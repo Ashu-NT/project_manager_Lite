@@ -1057,6 +1057,38 @@ Ownership: **PROJECT FINANCE**
 
 Exit gate: forecasts are reproducible and historical; no commitment/ETC double count; approved changes create traceable versions; all report totals reconcile to ledger sources; legacy read code is removed.
 
+Implementation progress (2026-08-11):
+
+- **D.1A COMPLETE — canonical forecast persistence and governed lifecycle.** PM now owns
+  `ProjectForecast` and `ForecastLine` aggregates with explicit DRAFT/SUBMITTED/APPROVED/
+  REJECTED/SUPERSEDED transitions, immutable project revision, separate optimistic row version,
+  `as_of_date`, generation mode, currency, actor/timestamp history, and one-open/one-approved
+  database invariants. Approval atomically supersedes the prior approved forecast.
+- Forecast lines use canonical Decimal Money and carry cost-code, optional WBS task, optional
+  period, and explicit automatic/manual source metadata. Automatic remaining-plan,
+  open-commitment, or risk lines require a stable source type/id and snapshot timestamp; manual
+  lines are explicitly `manual_estimate`. Domain and database constraints reject mixed source
+  semantics, invalid periods, negative amounts, and cross-scope parent references.
+- `ForecastVersionService` is composed through the PM service graph with `forecast.manage`/
+  `forecast.approve` RBAC, project-scope enforcement, active tenant/organization ID scoping,
+  optimistic concurrency, cost-code/task eligibility checks, fail-closed audit, and domain-change
+  events. PostgreSQL forced RLS is delivered by migration `v9w0x1y2z3a4`, which is the sole
+  Alembic head and is reversible.
+- No data migration or compatibility path was created because the application is pre-release and
+  has no client forecast data. The transient `ForecastCostService` remains the current desktop
+  calculation source until D.1B-D.4 produce and prove the canonical generator/read models; it is
+  not a second persisted authority.
+- Verification: 8 focused forecast lifecycle/tenant/migration tests pass; 44 RBAC/security tests
+  pass; 12 desktop-adapter architecture tests pass; the migration graph passes with the unrelated
+  repository size guard deselected; and the canonical PM suite passes with 567 tests. The older
+  `src/tests/pm` tree still has 12 pre-existing scheduling contract mismatches unrelated to this
+  implementation.
+
+Next implementation slice: **D.1B**, the automatic forecast generator plus explicit ETC source
+precedence/exclusion rules. It must write one complete draft snapshot atomically and prevent any
+open commitment from also being counted as remaining plan before forecast read models or QML are
+cut over.
+
 ### Phase E - Billing preparation, revenue, and external accounting
 
 Ownership: **PROJECT FINANCE + FUTURE BILLING/ACCOUNTING OWNER + INTEGRATION**
@@ -1302,7 +1334,12 @@ These are genuine product/ownership decisions. Questions mapped to A0/A1/A2 ADRs
 
 ## 25. Final Recommendation
 
-Proceed with the upgrade, but do not extend the current combined CostItem model. Phase A0 security/transaction correctness, A1 monetary foundations, A2 canonical application foundations, the Phase B1 configuration foundation, Task-owned WBS, effective-dated rate cards with the `CostPolicyEngine`/`LaborCostEngine` cutover, the versioned Budget/BudgetLine lifecycle, tactical assignment-labor planned-cost snapshots, the five-view QML finance configuration replacement, organization financial periods, the canonical `ProjectCostEntry` actual ledger, PM commitment projections, approved-Time labor posting, and Procurement PO/receipt financial delivery are implemented. Item 7's planned-cost source cutover remains explicitly blocked by planning semantics and freshness ownership; do not force it. Continue with Phase C.6 canonical command cutover, while deferring legacy data/read/QML removal to the named C.7-C.8 gates.
+Proceed with the upgrade, but do not recreate the removed combined CostItem model. Phases A-C and
+the clean C.9 cutover are complete. Phase D.1A now provides canonical forecast-version and line
+persistence; continue with D.1B automatic generation and ETC precedence before changing finance
+read models or QML. Item 7's planned-cost source cutover remains explicitly blocked by planning
+semantics and freshness ownership; do not force it or treat the new forecast aggregate as a
+substitute for a real planning source.
 
 Then build Project Finance as explicit PM-owned aggregates while preserving valid module ownership: Time supplies approved hours, Procurement supplies PO/receipt facts, Party supplies identities, Approval and Audit remain platform services, and external accounting owns official ledger/payment behavior. Use additive persistence and temporary compatibility only to migrate verified data; delete every fallback, dual-write, alias, and transition adapter at its named phase gate.
 

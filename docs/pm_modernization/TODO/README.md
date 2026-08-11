@@ -533,14 +533,37 @@ Verification: the complete PM suite passes (`559 passed`), and the targeted arch
 migration-graph, service-composition, CQRS, and QML suite passes (`54 passed`, with only the
 unrelated repository-wide generated-file size guard deselected).
 
-## 3. Finance — Phase D and E (future, not started)
+## 3. Finance — Phase D in progress; Phase E future
 
-- **Phase D** (forecasts/ETC/change control/reporting): forecast versions+lines, ETC source
-  precedence, typed financial change requests, rebuilt read models off canonical Money,
-  export metadata (as-of/basis/period/pagination/reconciliation), remove desktop forecast
-  fallback formulas, redesign QML Forecast/ETC/Change/Variance tabs.
+- **Phase D.1A — COMPLETE (2026-08-11): canonical forecast persistence and lifecycle.**
+  Added PM-owned `ProjectForecast`/`ForecastLine` domain models, tenant/org/project-scoped
+  repositories, composed `ForecastVersionService`, explicit `forecast.manage` and
+  `forecast.approve` permissions, fail-closed financial audit entries, optimistic concurrency,
+  one-open/one-approved version rules, approval supersession, and a reversible forced-RLS
+  migration (`v9w0x1y2z3a4`). Forecasts carry an `as_of_date`, generation mode, immutable
+  business revision, currency, and approval history. Lines persist Decimal Money, cost-code/
+  task/period dimensions, and explicit automatic/manual origin. Automatic lines cannot be
+  stored without a source type, source id, and snapshot timestamp. This is a pre-release clean
+  cutover: no legacy forecast backfill, dual read, compatibility facade, or temporary code was
+  added.
+- **Phase D.1B — NEXT:** build the canonical automatic forecast generator and document/test ETC
+  source precedence and exclusion/matching rules across remaining plan, open commitments,
+  risks, and manual estimates. The generator must create a complete draft version atomically and
+  make commitment/remaining-plan double counting impossible.
+- **Remaining Phase D:** typed financial change requests; snapshot/cash-flow/EVM/variance/
+  portfolio read-model cutover to canonical Money and approved/current forecasts; export
+  metadata and reconciliation; desktop formula deletion; QML Forecast/ETC/Change/Variance
+  redesign after read parity.
 - **Phase E** (billing/revenue/external accounting): blocked on ADR-PF-010 (currently
   PROPOSED, not accepted) and the product decisions in §24 items 10-15 of the master doc.
+
+Phase D.1A verification: focused forecast domain/service/tenant/migration coverage passes
+(`8 passed`); RBAC/security coverage passes (`44 passed`); PM desktop adapter architecture passes
+(`12 passed`); migration graph passes (`11 passed`, with only the
+unrelated repository-wide generated/platform size guard deselected); and the canonical PM suite
+passes (`567 passed`, 29 warnings). A combined run that also includes the older `src/tests/pm`
+tree reports 12 pre-existing scheduling-test contract mismatches (legacy `ValueError`/clamping
+expectations and legacy constraint-field fixtures); none touches Project Finance.
 
 ## 4. Finance — remaining transition-code register items
 

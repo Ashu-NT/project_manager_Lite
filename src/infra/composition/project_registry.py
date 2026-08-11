@@ -35,6 +35,7 @@ from src.core.modules.project_management.application.financials import (
     FinancialConfigurationService,
     FinanceService,
     ForecastCostService,
+    ForecastVersionService,
     PlannedCostService,
     ProjectCostEntryService,
     ProjectCommitmentService,
@@ -118,6 +119,7 @@ class ProjectManagementServiceBundle:
     resource_service: ResourceService
     financial_configuration_service: FinancialConfigurationService
     forecast_service: ForecastCostService
+    forecast_version_service: ForecastVersionService
     rate_card_service: ProjectRateCardService
     rate_card_resolver: RateCardResolver
     budget_service: BudgetService
@@ -458,6 +460,19 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
     )
+    forecast_version_service = ForecastVersionService(
+        session=session,
+        forecast_repo=repositories.project_forecast_repo,
+        project_repo=repositories.project_repo,
+        financial_profile_repo=repositories.project_financial_profile_repo,
+        cost_code_repo=repositories.project_cost_code_repo,
+        task_repo=repositories.task_repo,
+        clock=system_clock,
+        user_session=platform_services.user_session,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
+        module_catalog_service=platform_services.module_catalog_service,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
     collaboration_service = CollaborationService(
         session=session,
         comment_repo=repositories.task_comment_repo,
@@ -561,6 +576,7 @@ def build_project_management_service_bundle(
         resource_service=resource_service,
         financial_configuration_service=financial_configuration_service,
         forecast_service=forecast_service,
+        forecast_version_service=forecast_version_service,
         rate_card_service=rate_card_service,
         rate_card_resolver=rate_card_resolver,
         budget_service=budget_service,

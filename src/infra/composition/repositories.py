@@ -20,6 +20,9 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.modules.project_management.infrastructure.persistence.repositories.budget import (
     SqlAlchemyProjectBudgetRepository,
 )
+from src.core.modules.project_management.infrastructure.persistence.repositories.forecast import (
+    SqlAlchemyProjectForecastRepository,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.planned_cost import (
     SqlAlchemyProjectPlannedCostVersionRepository,
 )
@@ -144,6 +147,7 @@ class RepositoryBundle:
     project_cost_code_repo: SqlAlchemyProjectCostCodeRepository
     project_rate_card_repo: SqlAlchemyProjectRateCardRepository
     project_budget_repo: SqlAlchemyProjectBudgetRepository
+    project_forecast_repo: SqlAlchemyProjectForecastRepository
     planned_cost_repo: SqlAlchemyProjectPlannedCostVersionRepository
     financial_period_repo: SqlAlchemyFinancialPeriodRepository
     platform_calendar_repo: SqlAlchemyPlatformCalendarRepository
@@ -214,6 +218,7 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         project_cost_code_repo=SqlAlchemyProjectCostCodeRepository(session),
         project_rate_card_repo=SqlAlchemyProjectRateCardRepository(session),
         project_budget_repo=SqlAlchemyProjectBudgetRepository(session),
+        project_forecast_repo=SqlAlchemyProjectForecastRepository(session),
         planned_cost_repo=SqlAlchemyProjectPlannedCostVersionRepository(session),
         financial_period_repo=SqlAlchemyFinancialPeriodRepository(session),
         platform_calendar_repo=SqlAlchemyPlatformCalendarRepository(session),

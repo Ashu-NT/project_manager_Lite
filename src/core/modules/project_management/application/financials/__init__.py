@@ -10,6 +10,9 @@ from src.core.modules.project_management.application.financials.forecasts.foreca
     ForecastCostService,
     MaterialRollup,
 )
+from src.core.modules.project_management.application.financials.forecasts.version_service import (
+    ForecastVersionService,
+)
 from src.core.modules.project_management.application.financials.models.finance_models import (
     FinanceAnalyticsRow,
     FinanceLedgerRow,
@@ -85,6 +88,7 @@ __all__ = [
     "FinanceService",
     "FinanceSnapshot",
     "ForecastCostService",
+    "ForecastVersionService",
     "LaborCostEngine",
     "MaterialRollup",
     "FinancialConfigurationService",
