@@ -186,7 +186,7 @@ def test_phase3c_measure_portfolio_read_candidates(services, size_name, capsys) 
             assert calls["resource_repo.list"] == 0
             assert calls["resource_repo.get"] == 0
         elif operation_name == "heatmap":
-            expected_sql = {1: 17, 5: 41, 12: 83}[project_count]
+            expected_sql = {1: 18, 5: 42, 12: 84}[project_count]
             assert sql_stats.total_statements == expected_sql
             assert calls["portfolio_heatmap_reader.read_facts"] == 1
             assert calls["project_calendar.working_day_dates_between"] == project_count

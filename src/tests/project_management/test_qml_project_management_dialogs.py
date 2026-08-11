@@ -67,7 +67,6 @@ def test_project_editor_dialog_submit_button_emits_payload() -> None:
                     "clientName": "North Plant",
                     "clientContact": "ops@example.com",
                     "financialCurrencyCode": "EUR",
-                    "currency": "EUR",
                     "startDate": "2026-05-01",
                     "endDate": "2026-07-31",
                     "description": "Shutdown coordination",
@@ -86,7 +85,7 @@ def test_project_editor_dialog_submit_button_emits_payload() -> None:
 
     assert len(captured) == 1
     assert captured[0]["name"] == "Refinery Upgrade"
-    assert captured[0]["currency"] == "EUR"
+    assert captured[0]["financialCurrencyCode"] == "EUR"
     assert captured[0]["status"] == "IN_PROGRESS"
 
 

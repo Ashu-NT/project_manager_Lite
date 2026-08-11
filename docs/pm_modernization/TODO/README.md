@@ -519,6 +519,17 @@ remaining performance suites. Full test collection succeeds, and the cleanup als
 one real baseline leftover (`planned_labor_total`). Canonical labor rows from every source are
 aggregated and identity-redacted unless the caller has project-scoped `finance.read_sensitive`.
 
+Phase C.9 finance-authority clean break (2026-08-11): `Project.planned_budget` and
+`Project.currency` were deleted from the domain aggregate, ORM, mapper, repository, project
+commands, CSV import, desktop DTOs, presenters, and QML editor. Migration
+`u8v9w0x1y2z3` drops both database columns. `ProjectFinancialProfile.currency_code` is now the
+only project-finance currency authority, including project-resource and reporting defaults.
+The project catalog, finance snapshot, portfolio heatmap, and scenario readers obtain currency
+from the profile and approved budget totals from `ProjectBudget`/`BudgetLine` in scoped SQL.
+Baseline/EVM no longer treat budget authorization as a cost-loaded performance baseline, and
+the two-way currency synchronization plus its transition marker were deleted. This is a direct
+pre-release cutover: no backfill, dual read, compatibility alias, or dormant legacy branch exists.
+
 ## 3. Finance — Phase D and E (future, not started)
 
 - **Phase D** (forecasts/ETC/change control/reporting): forecast versions+lines, ETC source
@@ -535,9 +546,6 @@ Source: same doc §20 "Transition-code deletion register." `OPEN`/`NOT CREATED` 
 
 | Component | Removal gate |
 | --- | --- |
-| `Project.planned_budget` compatibility projection | Budget read cutover + reconciliation complete |
-| `Project.currency` compatibility projection | Profile currency cutover, all consumers migrated |
-| Profile/Project currency dual-write (`PF-B1-CURRENCY-DUAL-WRITE`) | Desktop/presenters/reports/imports read profile currency exclusively; parity test passes |
 | Float monetary/rate/quantity persistence | Numeric backfill + read cutover + reconciliation complete |
 | Legacy financial permission aliases/feature flags | Phase E final role/API/controller inventory — not created yet |
 | `Money.from_legacy_float` / `decimal_from_legacy_float` (`PF-A1-LEGACY-FLOAT`) | Phase D legacy reconciliation + float retirement complete |
