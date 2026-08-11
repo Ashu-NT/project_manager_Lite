@@ -72,6 +72,8 @@ def build_project_management_desktop_runtime_apis(
             commitment_service=resolved.commitment_service,
             forecast_version_service=resolved.forecast_version_service,
             financial_change_service=resolved.financial_change_service,
+            billing_profile_service=resolved.billing_profile_service,
+            billing_preparation_service=resolved.billing_preparation_service,
             reporting_service=resolved.reporting_service,
         ),
         project_management_portfolio=build_project_management_portfolio_desktop_api(

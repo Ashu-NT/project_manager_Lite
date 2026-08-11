@@ -127,6 +127,18 @@ class ProjectBillingScheduleLineORM(Base):
     __tablename__ = "project_billing_schedule_lines"
     __table_args__ = (
         ForeignKeyConstraint(
+            ["tenant_id", "organization_id"],
+            ["organizations.tenant_id", "organizations.id"],
+            name="fk_billing_schedule_scoped_organization",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "organization_id", "project_id"],
+            ["projects.tenant_id", "projects.organization_id", "projects.id"],
+            name="fk_billing_schedule_scoped_project",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
             ["tenant_id", "organization_id", "project_id", "billing_profile_id"],
             [
                 "project_billing_profiles.tenant_id",
@@ -185,6 +197,18 @@ Index("idx_billing_schedule_due", ProjectBillingScheduleLineORM.due_date)
 class ProjectBillingPreparationORM(Base):
     __tablename__ = "project_billing_preparations"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "organization_id"],
+            ["organizations.tenant_id", "organizations.id"],
+            name="fk_billing_preparations_scoped_organization",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "organization_id", "project_id"],
+            ["projects.tenant_id", "projects.organization_id", "projects.id"],
+            name="fk_billing_preparations_scoped_project",
+            ondelete="RESTRICT",
+        ),
         ForeignKeyConstraint(
             ["tenant_id", "organization_id", "project_id", "billing_profile_id"],
             [
@@ -298,6 +322,18 @@ class ProjectBillingPreparationLineORM(Base):
     __tablename__ = "project_billing_preparation_lines"
     __table_args__ = (
         ForeignKeyConstraint(
+            ["tenant_id", "organization_id"],
+            ["organizations.tenant_id", "organizations.id"],
+            name="fk_billing_lines_scoped_organization",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "organization_id", "project_id"],
+            ["projects.tenant_id", "projects.organization_id", "projects.id"],
+            name="fk_billing_lines_scoped_project",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
             ["tenant_id", "organization_id", "project_id", "preparation_id"],
             [
                 "project_billing_preparations.tenant_id",
@@ -384,6 +420,18 @@ class ProjectBillingSourceLockORM(Base):
     __tablename__ = "project_billing_source_locks"
     __table_args__ = (
         ForeignKeyConstraint(
+            ["tenant_id", "organization_id"],
+            ["organizations.tenant_id", "organizations.id"],
+            name="fk_billing_locks_scoped_organization",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "organization_id", "project_id"],
+            ["projects.tenant_id", "projects.organization_id", "projects.id"],
+            name="fk_billing_locks_scoped_project",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
             ["tenant_id", "organization_id", "project_id", "preparation_id"],
             [
                 "project_billing_preparations.tenant_id",
@@ -443,6 +491,18 @@ Index(
 class ProjectBillingExternalEventORM(Base):
     __tablename__ = "project_billing_external_events"
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "organization_id"],
+            ["organizations.tenant_id", "organizations.id"],
+            name="fk_billing_events_scoped_organization",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "organization_id", "project_id"],
+            ["projects.tenant_id", "projects.organization_id", "projects.id"],
+            name="fk_billing_events_scoped_project",
+            ondelete="RESTRICT",
+        ),
         ForeignKeyConstraint(
             ["tenant_id", "organization_id", "project_id", "preparation_id"],
             [

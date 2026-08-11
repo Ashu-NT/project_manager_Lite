@@ -120,7 +120,7 @@ The module boundaries are broadly valid and should be retained. The problem is c
 | Import | `CostImportSchema`, `CostCsvImporter` | `infrastructure/importers/financials/` | Creates/updates mutable cost rows; no stable external idempotency key | Uses service path | importer tests | PARTIAL |
 | Export/reporting | Excel/PDF/report builders | `infrastructure/reporting/exporters.py`; reporting API | Summary, ledger, cash flow, EVM, variance; row/period caps in outputs | Uses scoped services and report permissions | integration/report tests | PARTIAL |
 | Budget package | package placeholder | `application/financials/budgets/__init__.py` | Documentation string only | N/A | None | MISSING |
-| Invoicing/revenue packages | package placeholders and QML empty states | `application/financials/invoicing/__init__.py`; `revenue/__init__.py`; `FinancialsInvoicesSection.qml` | No domain, persistence, or workflow | N/A | None | MISSING |
+| Billing preparation/revenue | billing profile, schedule, source-lock, preparation, typed Accounting boundary, reconciliation evidence, and read-only QML are implemented; commercial revenue/profitability projection remains pending | `application/financials/invoicing/`; `contracts/accounting_billing.py`; `FinancialsBillingPreparationSection.qml`; `revenue/__init__.py` | PM prepares commercial evidence; Accounting owns statutory truth | `finance.read`; `finance.manage`; platform approval permissions | Direct tenant/org/project ownership plus forced RLS | PARTIAL - PHASE E |
 | Money/currency foundation | strings, floats, organization base currency | `src/core/platform/org/domain/organization.py`; PM and Procurement types | Uppercases strings; no ISO/minor-unit validation or safe arithmetic | Organization-scoped config only | currency default tests | MISSING |
 | Financial periods/FX/accounting refs | no equivalent implementation found | repository-wide semantic search | Operational calendar and generic external references are not financial periods/FX/accounting references | N/A | None | MISSING |
 | QML finance workspace | sections/dialog host/list/detail | `src/ui_qml/modules/project_management/qml/workspaces/financials/` | Usable UI over current cost-line model; invoice/PO sections are explicit future states | Controller uses desktop API | presenter/API tests | PARTIAL |
@@ -1255,12 +1255,35 @@ Ownership: **PROJECT FINANCE + FUTURE BILLING/ACCOUNTING OWNER + INTEGRATION**
 ADR gate: **OPENED 2026-08-11.** ADR-PF-010 and the first-release product scope are accepted.
 
 1. Complete: resolve the product decisions in Section 24 before implementation.
-2. Add PM billing profiles/schedules and billing-preparation aggregates for the approved methods only.
-3. Select eligible billable time/expenses/milestones with idempotent source locks to prevent duplicate billing.
-4. Export approved billing preparations or posted costs through typed accounting contracts and store acknowledgement/reconciliation references.
-5. Add project contract-value, revenue projection, and profitability read models. Keep statutory revenue recognition, invoices, tax, payment, and GL posting external unless scope explicitly changes.
-6. Replace QML invoice EmptyState with billing-preparation and integration-status views only after backend ownership is real.
-7. Remove all remaining transition DTOs, dual writes, legacy columns/readers, aliases, and dead feature flags after migration verification.
+2. **Complete 2026-08-11:** PM billing profiles, fixed-price schedules, preparation/line
+   aggregates, direct tenant/org/project ownership, optimistic versions, canonical Numeric storage,
+   scoped foreign keys, and forced PostgreSQL RLS are implemented by `pfbill_e1_001`.
+3. **Complete 2026-08-11:** fixed-price milestones, approved-time billing-rate snapshots, and
+   posted-cost markup snapshots use idempotent source locks. Approval finalizes locks; rejection
+   releases them; a scoped uniqueness constraint prevents duplicate selection under retry/race.
+4. **In progress:** the vendor-neutral `project_billing_preparation.v1` contract, durable
+   delivery-pending lifecycle, append-only idempotent outcomes, external invoice-reference display,
+   and reconciliation references are implemented. A deployable Accounting publisher/worker adapter
+   remains pending because no Accounting module/system is selected; PM does not simulate one.
+5. **Pending:** add disposable contract-value, billable/prepared/external-outcome, revenue projection,
+   and permission-redacted profitability read models. Statutory revenue recognition, invoices, tax,
+   payments, receivables, and GL posting remain external.
+6. **Complete read-only checkpoint 2026-08-11:** the misleading invoice EmptyState and legacy
+   section filename are removed. The Billing Preparation view shows commercial terms, schedules,
+   preparation lifecycle, and Accounting outcomes with database pagination and a batched latest-
+   outcome query. Governed command dialogs remain pending until their complete workflows are wired.
+7. **Pending final gate:** no Phase E transition DTO, dual write, legacy column/reader, permission
+   alias, or feature flag has been created. Repeat the inventory after the publisher and command-UI
+   cutovers, then close the phase only if it remains empty.
+
+Phase E foundation verification (2026-08-11): fresh full-history migration upgrade/downgrade,
+domain lifecycle, decimal contract, accounting-ownership guard, PM finance persistence/RLS,
+service composition, approval registration, tenant-scope architecture, desktop boundaries, and QML
+guardrails pass. Focused runs report `18 passed`, `41 passed`, `35 passed`, `12 passed`, and
+`24 passed`; the expanded PM financial/billing selection passes `48` tests and the combined
+architecture checkpoint passes `60` tests; `qmllint` reports no warnings. The repository-wide
+hard-size guard still has only its
+documented generated Qt-resource and pre-existing enterprise-calendar failures.
 
 Exit gate: duplicate billing/export is impossible under retry; external acknowledgements reconcile; margins honor sensitive permission; no PM code claims ownership of official accounting records; transition code inventory is empty.
 

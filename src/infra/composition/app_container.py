@@ -105,6 +105,8 @@ from src.core.modules.project_management.application.financials import (
     ForecastVersionService,
     PlannedCostService,
     ProjectCommitmentService,
+    ProjectBillingPreparationService,
+    ProjectBillingProfileService,
     ProjectCostEntryService,
     ProjectFinanceWorkspaceQuery,
     ProjectRateCardService,
@@ -236,6 +238,8 @@ class ServiceGraph:
     forecast_generation_service: ForecastGenerationService
     forecast_version_service: ForecastVersionService
     financial_change_service: FinancialChangeService
+    billing_profile_service: ProjectBillingProfileService
+    billing_preparation_service: ProjectBillingPreparationService
     rate_card_service: ProjectRateCardService
     rate_card_resolver: RateCardResolver
     budget_service: BudgetService
@@ -350,6 +354,8 @@ class ServiceGraph:
             "forecast_generation_service": self.forecast_generation_service,
             "forecast_version_service": self.forecast_version_service,
             "financial_change_service": self.financial_change_service,
+            "billing_profile_service": self.billing_profile_service,
+            "billing_preparation_service": self.billing_preparation_service,
             "rate_card_service": self.rate_card_service,
             "rate_card_resolver": self.rate_card_resolver,
             "budget_service": self.budget_service,
@@ -554,6 +560,8 @@ def build_service_graph(session: Session) -> ServiceGraph:
         forecast_generation_service=project_management_services.forecast_generation_service,
         forecast_version_service=project_management_services.forecast_version_service,
         financial_change_service=project_management_services.financial_change_service,
+        billing_profile_service=project_management_services.billing_profile_service,
+        billing_preparation_service=project_management_services.billing_preparation_service,
         rate_card_service=project_management_services.rate_card_service,
         rate_card_resolver=project_management_services.rate_card_resolver,
         budget_service=project_management_services.budget_service,

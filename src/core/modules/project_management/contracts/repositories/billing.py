@@ -53,7 +53,9 @@ class ProjectBillingRepository(ABC):
     ) -> ProjectBillingPreparation | None: ...
 
     @abstractmethod
-    def list_preparations(self, project_id: str) -> list[ProjectBillingPreparation]: ...
+    def list_preparations(
+        self, project_id: str, *, offset: int = 0, limit: int = 50
+    ) -> tuple[list[ProjectBillingPreparation], int]: ...
 
     @abstractmethod
     def update_preparation(
@@ -95,6 +97,11 @@ class ProjectBillingRepository(ABC):
     def list_external_events(
         self, preparation_id: str
     ) -> list[ProjectBillingExternalEvent]: ...
+
+    @abstractmethod
+    def list_latest_external_events(
+        self, preparation_ids: tuple[str, ...]
+    ) -> dict[str, ProjectBillingExternalEvent]: ...
 
     @abstractmethod
     def flush(self) -> None: ...

@@ -28,6 +28,7 @@ class FinancialsRefreshMixin:
                 budget_line_page=self._budget_line_page,
                 rate_line_page=self._rate_line_page,
                 planned_cost_line_page=self._planned_cost_line_page,
+                billing_preparation_page=self._billing_preparation_page,
                 configuration_page_size=self._configuration_page_size,
                 selected_forecast_id=self._selected_forecast_id or None,
                 selected_change_id=self._selected_change_id or None,
@@ -137,6 +138,17 @@ class FinancialsRefreshMixin:
             self._set_planned_cost_lines(
                 serialize_financials_collection_view_model(workspace_state.planned_cost_lines)
             )
+            self._set_billing_profile(
+                serialize_financials_detail_view_model(workspace_state.billing_profile)
+            )
+            self._set_billing_schedule(
+                serialize_financials_collection_view_model(workspace_state.billing_schedule)
+            )
+            self._set_billing_preparations(
+                serialize_financials_collection_view_model(
+                    workspace_state.billing_preparations
+                )
+            )
         except Exception as exc:  # pragma: no cover - defensive fallback
             self._set_error_message(str(exc))
         finally:
@@ -149,6 +161,7 @@ class FinancialsRefreshMixin:
             "project_costs",
             "project_budget",
             "project_planned_cost",
+            "project_billing_preparation",
             scope_code="project_management",
         )
 

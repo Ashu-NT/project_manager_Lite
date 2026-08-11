@@ -12,6 +12,7 @@ from src.ui_qml.modules.project_management.view_models.financials import (
 )
 
 from .analytics_builder import build_analytics_collection
+from .billing_builder import build_billing_views
 from .cashflow_builder import build_cashflow_collection
 from .commitment_builder import build_commitment_collection, build_commitment_summary
 from .configuration_builder import build_finance_configuration_views
@@ -29,6 +30,7 @@ def build_workspace_state(
     budget_line_page: int = 1,
     rate_line_page: int = 1,
     planned_cost_line_page: int = 1,
+    billing_preparation_page: int = 1,
     configuration_page_size: int = 50,
     selected_forecast_id: str | None = None,
     selected_change_id: str | None = None,
@@ -67,6 +69,13 @@ def build_workspace_state(
         selected_forecast_id=selected_forecast_id,
         selected_change_id=selected_change_id,
         selected_baseline_id=selected_baseline_id,
+    )
+    billing_views = build_billing_views(
+        desktop_api.get_billing_workspace(
+            resolved_project_id,
+            preparation_page=billing_preparation_page,
+            page_size=configuration_page_size,
+        )
     )
     return FinancialsWorkspaceViewModel(
         overview=build_overview(
@@ -145,6 +154,9 @@ def build_workspace_state(
         rate_lines=configuration_views["rate_lines"],
         planned_cost_versions=configuration_views["planned_cost_versions"],
         planned_cost_lines=configuration_views["planned_cost_lines"],
+        billing_profile=billing_views["billing_profile"],
+        billing_schedule=billing_views["billing_schedule"],
+        billing_preparations=billing_views["billing_preparations"],
         notes=tuple(snapshot.notes),
         empty_state=empty_state,
     )

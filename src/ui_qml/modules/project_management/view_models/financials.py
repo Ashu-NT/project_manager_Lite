@@ -140,6 +140,9 @@ class FinancialsWorkspaceViewModel:
     rate_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     planned_cost_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     planned_cost_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    billing_profile: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
+    billing_schedule: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    billing_preparations: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     notes: tuple[str, ...] = field(default_factory=tuple)
     empty_state: str = ""
 

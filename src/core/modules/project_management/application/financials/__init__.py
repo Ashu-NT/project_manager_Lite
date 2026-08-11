@@ -69,6 +69,10 @@ from src.core.modules.project_management.application.financials.workspace_query 
     ProjectFinanceWorkspaceQuery,
     ProjectFinanceWorkspaceRead,
 )
+from src.core.modules.project_management.application.financials.invoicing import (
+    ProjectBillingPreparationService,
+    ProjectBillingProfileService,
+)
 
 __all__ = [
     "BudgetService",
@@ -100,6 +104,8 @@ __all__ = [
     "ProjectRateCardService",
     "ProjectCostEntryService",
     "ProjectCommitmentService",
+    "ProjectBillingPreparationService",
+    "ProjectBillingProfileService",
     "ProcurementFinancialConsumer",
     "ProjectFinanceWorkspaceQuery",
     "ProjectFinanceWorkspaceRead",

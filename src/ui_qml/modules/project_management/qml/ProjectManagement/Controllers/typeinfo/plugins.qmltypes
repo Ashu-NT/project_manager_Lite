@@ -152,6 +152,9 @@ Component {
     Property { name: "rateLines"; type: "QVariantMap"; isReadonly: true }
     Property { name: "plannedCostVersions"; type: "QVariantMap"; isReadonly: true }
     Property { name: "plannedCostLines"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "billingProfile"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "billingSchedule"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "billingPreparations"; type: "QVariantMap"; isReadonly: true }
     Method { name: "refresh" }
     Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
     Method { name: "exportFinancials"; Parameter { name: "reportFormat"; type: "QString" } Parameter { name: "outputPath"; type: "QString" } }

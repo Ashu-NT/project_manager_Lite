@@ -42,6 +42,9 @@ Item {
     property var rateLinesModel: ({ "items": [] })
     property var plannedCostVersionsModel: ({ "items": [] })
     property var plannedCostLinesModel: ({ "items": [] })
+    property var billingProfileModel: ({ "id": "", "fields": [] })
+    property var billingScheduleModel: ({ "items": [] })
+    property var billingPreparationsModel: ({ "items": [] })
     property bool isBusy: false
     property var detailPage: null
     signal configurationPageRequested(string collection, int page)
@@ -75,7 +78,7 @@ Item {
         if (name === "Forecast")        return _forecast.implicitHeight
         if (name === "Change Control")  return _changeControl.implicitHeight
         if (name === "Commitments")     return _commitments.implicitHeight
-        if (name === "Invoices")        return _invoices.implicitHeight
+        if (name === "Billing Preparation") return _invoices.implicitHeight
         if (name === "Purchase Orders") return _purchaseOrders.implicitHeight
         if (name === "Activity")        return _activity.implicitHeight
         if (name === "Variance")        return _variance.implicitHeight
@@ -243,10 +246,18 @@ Item {
         id: _invoices
         anchors.left: parent.left
         anchors.right: parent.right
-        active: root._idx === root._secIdx("Invoices")
+        active: root._idx === root._secIdx("Billing Preparation")
         loadingMessage: "Loading financials..."
         sourceComponent: Component {
-            FinancialsInvoicesSection { width: parent ? parent.width : 0 }
+            FinancialsBillingPreparationSection {
+                width: parent ? parent.width : 0
+                profile: root.billingProfileModel
+                schedule: root.billingScheduleModel
+                preparations: root.billingPreparationsModel
+                onPreparationPageRequested: function(page) {
+                    root.configurationPageRequested("billing_preparations", page)
+                }
+            }
         }
     }
 

@@ -71,6 +71,9 @@ class ProjectManagementFinancialsWorkspaceController(
     rateLinesChanged = Signal()
     plannedCostVersionsChanged = Signal()
     plannedCostLinesChanged = Signal()
+    billingProfileChanged = Signal()
+    billingScheduleChanged = Signal()
+    billingPreparationsChanged = Signal()
 
     def __init__(
         self,
@@ -123,9 +126,13 @@ class ProjectManagementFinancialsWorkspaceController(
         self._rate_lines = default_collection()
         self._planned_cost_versions = default_collection()
         self._planned_cost_lines = default_collection()
+        self._billing_profile = default_detail()
+        self._billing_schedule = default_collection()
+        self._billing_preparations = default_collection()
         self._budget_line_page = 1
         self._rate_line_page = 1
         self._planned_cost_line_page = 1
+        self._billing_preparation_page = 1
         self._configuration_page_size = 50
         self._bind_domain_events()
         self.refresh()
@@ -228,6 +235,15 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Property("QVariantMap", notify=plannedCostLinesChanged)
     def plannedCostLines(self) -> FinancialsMap: return self._planned_cost_lines
+
+    @Property("QVariantMap", notify=billingProfileChanged)
+    def billingProfile(self) -> FinancialsMap: return self._billing_profile
+
+    @Property("QVariantMap", notify=billingScheduleChanged)
+    def billingSchedule(self) -> FinancialsMap: return self._billing_schedule
+
+    @Property("QVariantMap", notify=billingPreparationsChanged)
+    def billingPreparations(self) -> FinancialsMap: return self._billing_preparations
 
     @Slot()
     def refresh(self) -> None: self._refresh()

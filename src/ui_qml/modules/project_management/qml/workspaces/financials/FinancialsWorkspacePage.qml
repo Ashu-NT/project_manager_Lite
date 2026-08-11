@@ -50,7 +50,7 @@ AppLayouts.WorkspaceFrame {
             { "label": "Forecast", "group": "Planning" },
             { "label": "Change Control", "group": "Cost Control" },
             { "label": "Commitments", "group": "Cost Control" },
-            { "label": "Invoices", "group": "Commercial" }
+            { "label": "Billing Preparation", "group": "Commercial" }
         ]
         if (root._hasProcPoCap) {
             sections.push({ "label": "Purchase Orders", "group": "Commercial" })
@@ -301,6 +301,9 @@ AppLayouts.WorkspaceFrame {
                     rateLinesModel: root.workspaceController ? root.workspaceController.rateLines : ({ "items": [] })
                     plannedCostVersionsModel: root.workspaceController ? root.workspaceController.plannedCostVersions : ({ "items": [] })
                     plannedCostLinesModel: root.workspaceController ? root.workspaceController.plannedCostLines : ({ "items": [] })
+                    billingProfileModel: root.workspaceController ? root.workspaceController.billingProfile : ({ "id": "", "fields": [] })
+                    billingScheduleModel: root.workspaceController ? root.workspaceController.billingSchedule : ({ "items": [] })
+                    billingPreparationsModel: root.workspaceController ? root.workspaceController.billingPreparations : ({ "items": [] })
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     onConfigurationPageRequested: function(collection, page) {
                         if (root.workspaceController !== null) {

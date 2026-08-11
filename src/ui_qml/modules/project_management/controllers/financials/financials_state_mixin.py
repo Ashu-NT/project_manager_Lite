@@ -178,5 +178,20 @@ class FinancialsStateMixin:
             self._planned_cost_lines = value
             self.plannedCostLinesChanged.emit()
 
+    def _set_billing_profile(self, value: FinancialsMap) -> None:
+        if value != self._billing_profile:
+            self._billing_profile = value
+            self.billingProfileChanged.emit()
+
+    def _set_billing_schedule(self, value: FinancialsMap) -> None:
+        if value != self._billing_schedule:
+            self._billing_schedule = value
+            self.billingScheduleChanged.emit()
+
+    def _set_billing_preparations(self, value: FinancialsMap) -> None:
+        if value != self._billing_preparations:
+            self._billing_preparations = value
+            self.billingPreparationsChanged.emit()
+
 
 __all__ = ["FinancialsStateMixin"]

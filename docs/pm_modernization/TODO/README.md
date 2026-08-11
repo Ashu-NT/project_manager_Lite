@@ -727,6 +727,23 @@ Source: master doc section 24 and accepted ADR-PF-010.
 - Billing evidence is append-only with configurable retention of at least seven years and legal
   hold support.
 
+Phase E implementation checkpoint (2026-08-11):
+
+- Complete: governed billing profile/schedule/preparation/source-lock/external-event domain and
+  persistence foundation; migration `pfbill_e1_001`; forced tenant/org RLS; typed decimal-text
+  `project_billing_preparation.v1` contract; approval handlers; all three approved source methods;
+  append-only idempotent external outcomes; and the read-only Billing Preparation desktop/QML view.
+- Complete: preparation rows are database-paginated and latest external outcomes are fetched in one
+  batched query rather than an N+1 loop.
+- Pending: a real Accounting publisher/worker adapter, because no target Accounting module/system
+  exists yet; PM will not manufacture a fake authoritative invoice path.
+- Pending: disposable commercial revenue/profitability projections with sensitive-margin redaction,
+  plus complete governed command dialogs and the final no-transition/no-dead-code inventory.
+- Verification: focused Phase E/domain/migration/persistence/service/desktop/QML runs pass; latest
+  checkpoints include `18`, `41`, `35`, `12`, and `24` passing tests. The expanded PM financial/
+  billing selection passes `48` tests and the combined architecture checkpoint passes `60` tests,
+  with clean `qmllint`.
+
 ## 6. PM Enterprise UI/UX — pending items
 
 Source: `../README.md`, "PM UI/UX Inspection & Improvement Plan" section (Phases 1-11) and

@@ -40,6 +40,8 @@ from src.core.modules.project_management.application.financials import (
     PlannedCostService,
     ProjectCostEntryService,
     ProjectCommitmentService,
+    ProjectBillingPreparationService,
+    ProjectBillingProfileService,
     ProcurementFinancialConsumer,
     ProjectFinanceWorkspaceQuery,
     ProjectRateCardService,
@@ -122,6 +124,8 @@ class ProjectManagementServiceBundle:
     forecast_generation_service: ForecastGenerationService
     forecast_version_service: ForecastVersionService
     financial_change_service: FinancialChangeService
+    billing_profile_service: ProjectBillingProfileService
+    billing_preparation_service: ProjectBillingPreparationService
     rate_card_service: ProjectRateCardService
     rate_card_resolver: RateCardResolver
     budget_service: BudgetService
@@ -503,6 +507,32 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
+    billing_profile_service = ProjectBillingProfileService(
+        session=session,
+        billing_repo=repositories.project_billing_repo,
+        financial_profile_repo=repositories.project_financial_profile_repo,
+        project_repo=repositories.project_repo,
+        tenant_context_service=platform_services.tenant_context_service,
+        clock=system_clock,
+        user_session=platform_services.user_session,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
+        module_catalog_service=platform_services.module_catalog_service,
+    )
+    billing_preparation_service = ProjectBillingPreparationService(
+        session=session,
+        billing_repo=repositories.project_billing_repo,
+        financial_profile_repo=repositories.project_financial_profile_repo,
+        cost_entry_repo=repositories.project_cost_entry_repo,
+        labor_posting_repo=repositories.approved_time_labor_posting_repo,
+        rate_resolver=rate_card_resolver,
+        financial_period_service=platform_services.financial_period_service,
+        approval_service=platform_services.approval_service,
+        tenant_context_service=platform_services.tenant_context_service,
+        clock=system_clock,
+        user_session=platform_services.user_session,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
+        module_catalog_service=platform_services.module_catalog_service,
+    )
     collaboration_service = CollaborationService(
         session=session,
         comment_repo=repositories.task_comment_repo,
@@ -591,6 +621,7 @@ def build_project_management_service_bundle(
         budget_service=budget_service,
         cost_entry_service=cost_entry_service,
         financial_change_service=financial_change_service,
+        billing_preparation_service=billing_preparation_service,
         user_session=platform_services.user_session,
     )
     logger.debug("Project Management approval handlers registered")
@@ -609,6 +640,8 @@ def build_project_management_service_bundle(
         forecast_generation_service=forecast_generation_service,
         forecast_version_service=forecast_version_service,
         financial_change_service=financial_change_service,
+        billing_profile_service=billing_profile_service,
+        billing_preparation_service=billing_preparation_service,
         rate_card_service=rate_card_service,
         rate_card_resolver=rate_card_resolver,
         budget_service=budget_service,
@@ -644,6 +677,7 @@ def _register_project_management_approval_handlers(
     budget_service: BudgetService,
     cost_entry_service: ProjectCostEntryService,
     financial_change_service: FinancialChangeService,
+    billing_preparation_service: ProjectBillingPreparationService,
     user_session=None,
 ) -> None:
     def _result(signal_name: str, payload: str) -> ApprovalHandlerResult:
@@ -755,6 +789,25 @@ def _register_project_management_approval_handlers(
         )
         return _result("financial_changes_changed", change.project_id)
 
+    def _approve_billing_preparation(req) -> ApprovalHandlerResult:
+        preparation = billing_preparation_service._apply_approval_decision(
+            req.payload["preparation_id"],
+            approved_by=_require_financial_decision_actor(),
+            expected_version=req.payload["expected_version"] + 1,
+            commit=False,
+        )
+        return _result("billing_preparations_changed", preparation.project_id)
+
+    def _reject_billing_preparation(req) -> ApprovalHandlerResult:
+        preparation = billing_preparation_service._apply_rejection_decision(
+            req.payload["preparation_id"],
+            rejected_by=_require_financial_decision_actor(),
+            expected_version=req.payload["expected_version"] + 1,
+            notes=req.decision_note or "",
+            commit=False,
+        )
+        return _result("billing_preparations_changed", preparation.project_id)
+
     approval_service.register_apply_handler(
         "baseline.create",
         _apply_baseline,
@@ -790,6 +843,14 @@ def _register_project_management_approval_handlers(
     approval_service.register_reject_handler(
         "financial_change.apply",
         _reject_financial_change,
+    )
+    approval_service.register_apply_handler(
+        "project_billing_preparation.approve",
+        _approve_billing_preparation,
+    )
+    approval_service.register_reject_handler(
+        "project_billing_preparation.approve",
+        _reject_billing_preparation,
     )
 
 

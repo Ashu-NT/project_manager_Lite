@@ -14,6 +14,8 @@ from src.core.modules.project_management.application.financials import (
     FinanceService,
     ForecastVersionService,
     ProjectCommitmentService,
+    ProjectBillingPreparationService,
+    ProjectBillingProfileService,
     ProjectCostEntryService,
     ProjectFinanceWorkspaceQuery,
 )
@@ -66,6 +68,8 @@ class ProjectManagementDesktopRuntimeServices:
     commitment_service: ProjectCommitmentService | None
     forecast_version_service: ForecastVersionService | None
     financial_change_service: FinancialChangeService | None
+    billing_profile_service: ProjectBillingProfileService | None
+    billing_preparation_service: ProjectBillingPreparationService | None
     baseline_service: BaselineService | None
     reporting_service: ReportingService | None
 
@@ -94,6 +98,8 @@ def resolve_project_management_desktop_runtime_services(
     commitment_service = services.get("commitment_service")
     forecast_version_service = services.get("forecast_version_service")
     financial_change_service = services.get("financial_change_service")
+    billing_profile_service = services.get("billing_profile_service")
+    billing_preparation_service = services.get("billing_preparation_service")
     baseline_service = services.get("baseline_service")
     reporting_service = services.get("reporting_service")
 
@@ -196,6 +202,16 @@ def resolve_project_management_desktop_runtime_services(
         financial_change_service=(
             financial_change_service
             if isinstance(financial_change_service, FinancialChangeService)
+            else None
+        ),
+        billing_profile_service=(
+            billing_profile_service
+            if isinstance(billing_profile_service, ProjectBillingProfileService)
+            else None
+        ),
+        billing_preparation_service=(
+            billing_preparation_service
+            if isinstance(billing_preparation_service, ProjectBillingPreparationService)
             else None
         ),
         baseline_service=(

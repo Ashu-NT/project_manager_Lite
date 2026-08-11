@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.repositories.billing import (
@@ -241,22 +241,30 @@ class SqlAlchemyProjectBillingRepository(ProjectBillingRepository):
         ).scalar_one_or_none()
         return preparation_from_orm(row) if row else None
 
-    def list_preparations(self, project_id: str) -> list[ProjectBillingPreparation]:
+    def list_preparations(
+        self, project_id: str, *, offset: int = 0, limit: int = 50
+    ) -> tuple[list[ProjectBillingPreparation], int]:
         context = self._context(operation_label="list billing preparations")
         self._profile_row(project_id, context)
-        rows = self.session.execute(
-            select(ProjectBillingPreparationORM)
-            .where(
+        filters = (
                 ProjectBillingPreparationORM.project_id == project_id,
                 ProjectBillingPreparationORM.tenant_id == context.tenant_id,
                 ProjectBillingPreparationORM.organization_id == context.organization_id,
-            )
+        )
+        total = self.session.scalar(
+            select(func.count(ProjectBillingPreparationORM.id)).where(*filters)
+        ) or 0
+        rows = self.session.execute(
+            select(ProjectBillingPreparationORM)
+            .where(*filters)
             .order_by(
                 ProjectBillingPreparationORM.created_at.desc(),
                 ProjectBillingPreparationORM.id.desc(),
             )
+            .offset(max(0, int(offset)))
+            .limit(max(1, min(int(limit), 200)))
         ).scalars().all()
-        return [preparation_from_orm(row) for row in rows]
+        return [preparation_from_orm(row) for row in rows], int(total)
 
     def update_preparation(
         self, preparation: ProjectBillingPreparation, *, expected_row_version: int
@@ -425,6 +433,30 @@ class SqlAlchemyProjectBillingRepository(ProjectBillingRepository):
             )
         ).scalars().all()
         return [external_event_from_orm(row) for row in rows]
+
+    def list_latest_external_events(
+        self, preparation_ids: tuple[str, ...]
+    ) -> dict[str, ProjectBillingExternalEvent]:
+        if not preparation_ids:
+            return {}
+        context = self._context(operation_label="list latest external billing outcomes")
+        rows = self.session.execute(
+            select(ProjectBillingExternalEventORM)
+            .where(
+                ProjectBillingExternalEventORM.preparation_id.in_(tuple(dict.fromkeys(preparation_ids))),
+                ProjectBillingExternalEventORM.tenant_id == context.tenant_id,
+                ProjectBillingExternalEventORM.organization_id == context.organization_id,
+            )
+            .order_by(
+                ProjectBillingExternalEventORM.preparation_id.asc(),
+                ProjectBillingExternalEventORM.occurred_at.desc(),
+                ProjectBillingExternalEventORM.id.desc(),
+            )
+        ).scalars().all()
+        latest: dict[str, ProjectBillingExternalEvent] = {}
+        for row in rows:
+            latest.setdefault(row.preparation_id, external_event_from_orm(row))
+        return latest
 
     def flush(self) -> None:
         self.session.flush()

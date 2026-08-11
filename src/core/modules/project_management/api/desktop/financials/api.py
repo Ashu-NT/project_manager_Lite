@@ -9,6 +9,8 @@ from src.core.modules.project_management.application.financials import (
     FinanceService,
     ForecastVersionService,
     ProjectCommitmentService,
+    ProjectBillingPreparationService,
+    ProjectBillingProfileService,
     ProjectCostEntryService,
     ProjectFinanceWorkspaceQuery,
 )
@@ -40,6 +42,12 @@ from src.core.modules.project_management.api.desktop.financials.models.options i
 from src.core.modules.project_management.api.desktop.financials.models.snapshots import FinancialSnapshotDto
 from src.core.modules.project_management.api.desktop.financials.models.configuration import (
     FinancialConfigurationWorkspaceDto,
+)
+from src.core.modules.project_management.api.desktop.financials.models.billing import (
+    FinancialBillingPreparationDto,
+    FinancialBillingProfileDto,
+    FinancialBillingScheduleLineDto,
+    FinancialBillingWorkspaceDto,
 )
 from src.core.modules.project_management.api.desktop.financials.commands.cost_entries import (
     FinancialCreateManualActualCommand,
@@ -102,6 +110,8 @@ class ProjectManagementFinancialsDesktopApi:
         commitment_service: ProjectCommitmentService | None = None,
         forecast_version_service: ForecastVersionService | None = None,
         financial_change_service: FinancialChangeService | None = None,
+        billing_profile_service: ProjectBillingProfileService | None = None,
+        billing_preparation_service: ProjectBillingPreparationService | None = None,
         reporting_service: ReportingService | None = None,
     ) -> None:
         self._project_service = project_service
@@ -114,6 +124,8 @@ class ProjectManagementFinancialsDesktopApi:
         self._commitment_service = commitment_service
         self._forecast_version_service = forecast_version_service
         self._financial_change_service = financial_change_service
+        self._billing_profile_service = billing_profile_service
+        self._billing_preparation_service = billing_preparation_service
         self._reporting_service = reporting_service
 
     def list_projects(self) -> tuple[FinancialProjectOptionDescriptor, ...]:
@@ -416,6 +428,84 @@ class ProjectManagementFinancialsDesktopApi:
                 planned_cost_line_page=planned_cost_line_page,
                 page_size=page_size,
             )
+        )
+
+    def get_billing_workspace(
+        self, project_id: str, *, preparation_page: int = 1, page_size: int = 50
+    ) -> FinancialBillingWorkspaceDto:
+        if (
+            not project_id
+            or self._billing_profile_service is None
+            or self._billing_preparation_service is None
+        ):
+            return FinancialBillingWorkspaceDto()
+        profile = self._billing_profile_service.get_profile(project_id)
+        schedule = self._billing_profile_service.list_schedule(project_id) if profile else []
+        page = max(1, int(preparation_page))
+        bounded_size = max(1, min(int(page_size), 200))
+        if profile:
+            preparations, preparation_total = (
+                self._billing_preparation_service.list_preparations(
+                    project_id,
+                    offset=(page - 1) * bounded_size,
+                    limit=bounded_size,
+                )
+            )
+            latest_events = self._billing_preparation_service.list_latest_external_events(
+                project_id, tuple(item.id for item in preparations)
+            )
+        else:
+            preparations, preparation_total, latest_events = [], 0, {}
+        preparation_rows = []
+        for preparation in preparations:
+            latest = latest_events.get(preparation.id)
+            preparation_rows.append(
+                FinancialBillingPreparationDto(
+                    id=preparation.id,
+                    preparation_number=preparation.preparation_number,
+                    billing_method=preparation.billing_method.value,
+                    status=preparation.status.value,
+                    period_label=f"{preparation.period_start.isoformat()} - {preparation.period_end.isoformat()}",
+                    line_count=preparation.line_count,
+                    total_amount=format(preparation.total_amount, "f"),
+                    currency_code=preparation.currency_code,
+                    external_system=latest.external_system if latest else "",
+                    external_status=latest.external_status if latest else "",
+                    external_invoice_reference=(latest.external_invoice_reference or "") if latest else "",
+                    reconciliation_reference=(latest.reconciliation_reference or "") if latest else "",
+                    row_version=preparation.row_version,
+                )
+            )
+        return FinancialBillingWorkspaceDto(
+            profile=FinancialBillingProfileDto(
+                id=profile.id,
+                status=profile.status.value,
+                currency_code=profile.currency_code,
+                contract_reference=profile.contract_reference,
+                contract_value=format(profile.contract_value, "f"),
+                customer_party_id=profile.customer_party_id or "",
+                external_customer_reference=profile.external_customer_reference or "",
+                purchase_order_reference=profile.purchase_order_reference or "",
+                payment_terms_days=profile.payment_terms_days,
+            ) if profile else FinancialBillingProfileDto(),
+            schedule_lines=tuple(
+                FinancialBillingScheduleLineDto(
+                    id=line.id,
+                    name=line.name,
+                    status=line.status.value,
+                    amount=format(line.amount, "f"),
+                    currency_code=line.currency_code,
+                    due_date=line.due_date.isoformat(),
+                    task_id=line.task_id or "",
+                    acceptance_reference=line.acceptance_reference or "",
+                    row_version=line.row_version,
+                )
+                for line in schedule
+            ),
+            preparations=tuple(preparation_rows),
+            preparation_page=page,
+            preparation_page_size=bounded_size,
+            preparation_total=preparation_total,
         )
 
     def _project_currency(self, project_id: str) -> str | None:
