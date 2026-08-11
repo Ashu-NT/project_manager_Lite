@@ -327,6 +327,11 @@ class SqlAlchemyFinanceSnapshotReader:
                 occurred_on=row.posting_date,
                 cost_code_id=str(row.cost_code_id),
                 source_type=str(row.source_key).lower(),
+                financial_period_id=(
+                    None
+                    if row.financial_period_id is None
+                    else str(row.financial_period_id)
+                ),
             )
             for row in self._session.execute(
                 actual_cost_facts_statement(

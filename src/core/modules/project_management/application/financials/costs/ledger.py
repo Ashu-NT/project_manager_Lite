@@ -40,6 +40,7 @@ def build_finance_ledger_rows(*, facts: FinanceSnapshotFacts) -> list[FinanceLed
                 resource_name=None if resource is None else resource.name,
                 cost_code_id=fact.cost_code_id,
                 source_type=fact.source_type,
+                financial_period_id=fact.financial_period_id,
                 period_start=fact.period_start,
                 period_end=fact.period_end,
                 included_in_policy=True,

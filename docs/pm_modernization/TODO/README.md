@@ -608,9 +608,22 @@ unrelated repository-wide generated-file size guard deselected).
   fallback path, recalculation action, fake invoiced/paid commitment totals, and duplicate Finance
   "Earned Value" card were deleted. The QML forecast card now identifies approved revision/as-of and
   displays approved budget, posted actual, ETC, EAC, and VAC only.
-- **Next Phase D slice - D.5:** export as-of/basis/period/version metadata, bounded pagination and
-  source drill-down, reconciliation/control totals, sensitive-field filtering, and report parity.
-  Continue D.7 QML Change/Variance/report redesign only after the D.5 export/read parity gate.
+- **Phase D.5 - COMPLETE (2026-08-11): governed finance report/export parity.** The disposable
+  snapshot now carries an explicit project-currency basis, period granularity, sensitive-detail
+  state, canonical source lineage, and exact Decimal reconciliation evidence for posted actuals,
+  open commitments, and approved forecast ETC. A mismatch fails closed before presentation.
+- Excel and PDF consume one shared finance export projection. Both identify the requested as-of,
+  generation timestamp, approved budget/forecast IDs and revisions, forecast as-of, redaction
+  state, canonical control totals, reconciliation deltas/status, and bounded ledger page metadata.
+  Source drill-down retains source/cost-code/reference/task/resource IDs, actual financial-period
+  IDs, and forecast period dates.
+- Finance ledger exports require `report.export`, `finance.export`, `finance.read`, and matching
+  project scope. Offset pagination has a hard 500-row page limit; report totals and controls always
+  come from the full reconciled snapshot, never from the page. The unused deprecated
+  `infrastructure/reporting/exporters.py` compatibility wrapper was deleted.
+- **Next Phase D slice - D.7:** redesign the remaining QML Change, Variance, and report experiences
+  around approved version selection and source drill-down. D.5 adds no snapshot persistence,
+  duplicate finance formula, legacy branch, or temporary transition code.
 - **Phase E** (billing/revenue/external accounting): blocked on ADR-PF-010 (currently
   PROPOSED, not accepted) and the product decisions in §24 items 10-15 of the master doc.
 
@@ -641,6 +654,13 @@ Portfolio measurement now enforces the improved D.4 heatmap graph (`13 + 4N` sta
 projects, previously `12 + 6N`) and zero per-project rate-resolution calls; all three measured sizes
 pass. The complete PM run reached 73% before the five-minute limit; its only emitted failures were
 the three stale performance expectations, which were corrected and then passed separately.
+
+Phase D.5 verification: the broad finance/reporting/commitment/portfolio selection passes
+`241 passed` (`354 deselected`, 21 dependency warnings). Focused real Excel/PDF, source-lineage,
+bounded-page, reconciliation, redaction-state, and distinct-export-permission coverage passes. The
+architecture suite passes `153` tests; its only three failures remain the documented stale removed-
+`cost.py` guard, scheduling-engine growth budget, and repository-wide generated/platform hard-size
+guard. No D.5 boundary, persistence, or deleted-wrapper import failure exists.
 
 ## 4. Finance — remaining transition-code register items
 

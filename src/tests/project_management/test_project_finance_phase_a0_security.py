@@ -12,6 +12,9 @@ from src.core.platform.domain.security.authorization.roles.role_permission_catal
     DEFAULT_ROLE_PERMISSIONS,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.modules.project_management.access.policy import (
+    PROJECT_SCOPE_ROLE_PERMISSIONS,
+)
 
 
 def _login(services, username: str, password: str) -> None:
@@ -82,6 +85,34 @@ def test_finance_permissions_are_registered_and_granted_only_to_intended_roles()
     assert "finance.read_sensitive" in DEFAULT_ROLE_PERMISSIONS["auditor"]
     assert "finance.read_sensitive" not in DEFAULT_ROLE_PERMISSIONS["project_manager"]
     assert "finance.read" in DEFAULT_ROLE_PERMISSIONS["project_lead"]
+    assert "finance.export" in PROJECT_SCOPE_ROLE_PERMISSIONS["owner"]
+
+
+def test_finance_export_requires_distinct_export_permission(services):
+    tenant_id = services["user_session"].stored_active_tenant_id()
+    organization_id = services["user_session"].stored_active_organization_id()
+    services["module_catalog_service"].set_module_state(
+        "project_management",
+        licensed=True,
+        enabled=True,
+    )
+    user_session = services["user_session"]
+    user_session.set_principal(
+        UserSessionPrincipal(
+            user_id="finance-reader",
+            username="finance-reader",
+            display_name="Finance Reader",
+            role_names=frozenset({"viewer"}),
+            permissions=frozenset({"finance.read", "report.export"}),
+            active_tenant_id=tenant_id,
+            active_organization_id=organization_id,
+        )
+    )
+
+    with pytest.raises(BusinessRuleError, match="finance.export") as exc:
+        services["finance_service"].get_finance_export_snapshot("project-1")
+
+    assert exc.value.code == "PERMISSION_DENIED"
 
 
 def test_report_view_without_finance_read_cannot_view_finance_snapshot(services):

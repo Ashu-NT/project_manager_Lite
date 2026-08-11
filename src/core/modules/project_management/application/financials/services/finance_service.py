@@ -250,6 +250,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
                     resource_name=None,
                     cost_code_id=None,
                     source_type="restricted",
+                    financial_period_id=None,
                     period_start=None,
                     period_end=None,
                     included_in_policy=True,

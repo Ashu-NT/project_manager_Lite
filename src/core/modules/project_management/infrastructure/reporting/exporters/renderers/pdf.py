@@ -308,7 +308,11 @@ class PdfReportRenderer:
                     ledger_rows.append([
                         f"{item.occurred_on or '-'}\n{period}",
                         f"{item.source_label}\n{item.source_type or '-'}",
-                        f"{item.stage} / {item.cost_type}\n{item.cost_code_id or '-'}",
+                        (
+                            f"{item.stage} / {item.cost_type}\n"
+                            f"Cost code: {item.cost_code_id or '-'}\n"
+                            f"Period: {item.financial_period_id or '-'}"
+                        ),
                         (
                             f"{item.reference_type}:{item.reference_id}\n"
                             f"{item.reference_label}"

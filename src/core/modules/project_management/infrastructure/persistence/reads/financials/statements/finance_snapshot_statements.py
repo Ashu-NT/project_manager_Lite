@@ -331,6 +331,7 @@ def actual_cost_facts_statement(
             ProjectCostEntryORM.base_currency_code,
             ProjectCostEntryORM.base_amount,
             ProjectCostEntryORM.posting_date,
+            ProjectCostEntryORM.financial_period_id,
             cost_type.label("cost_type"),
             source_key.label("source_key"),
         )

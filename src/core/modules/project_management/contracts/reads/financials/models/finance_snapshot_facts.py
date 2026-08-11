@@ -49,6 +49,7 @@ class FinanceLedgerFact:
     occurred_on: date | None
     cost_code_id: str | None = None
     source_type: str | None = None
+    financial_period_id: str | None = None
     period_start: date | None = None
     period_end: date | None = None
 

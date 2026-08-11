@@ -175,6 +175,7 @@ def test_finance_excel_export_has_bounded_lineage_and_control_parity(
         "Stage",
         "Cost Type",
         "Cost Code ID",
+        "Financial Period ID",
         "Reference Type",
         "Reference ID",
         "Reference",
@@ -187,6 +188,27 @@ def test_finance_excel_export_has_bounded_lineage_and_control_parity(
     ]
     assert ledger.max_row == 2
     assert ledger.cell(row=2, column=8).value == code.id
+    assert ledger.cell(row=2, column=9).value
+
+
+def test_finance_pdf_export_uses_the_same_canonical_read_basis(
+    services,
+    tmp_path,
+) -> None:
+    project, _budget, _forecast, _entry, _code = _approved_controls(services)
+    output = tmp_path / "finance-d5.pdf"
+
+    reporting_api.generate_pdf_report(
+        services["reporting_service"],
+        project.id,
+        output,
+        temp_dir=tmp_path / "report-temp",
+        finance_service=services["finance_service"],
+        as_of=date(2026, 8, 31),
+        finance_ledger_limit=1,
+    )
+
+    assert output.read_bytes().startswith(b"%PDF")
 
 
 def test_snapshot_has_no_eac_or_vac_before_the_approved_forecast_basis(services) -> None:

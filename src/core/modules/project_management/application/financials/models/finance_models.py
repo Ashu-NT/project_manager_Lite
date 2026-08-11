@@ -30,6 +30,7 @@ class FinanceLedgerRow:
     resource_name: str | None
     cost_code_id: str | None
     source_type: str | None
+    financial_period_id: str | None
     period_start: date | None
     period_end: date | None
     included_in_policy: bool

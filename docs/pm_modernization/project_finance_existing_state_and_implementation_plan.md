@@ -1,14 +1,16 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: audit complete; Phase A-D.4 implementation gates complete; Phase D.5 next; hosted PostgreSQL validation pending
+Status: audit complete; Phase A-D.5 implementation gates complete; Phase D.7 next; hosted PostgreSQL validation pending
 Last updated: 2026-08-11
 Scope: Project Management finance plus reusable platform financial foundations
-Current checkpoint: D.4 canonical read-model cutover is complete. Project snapshot, cash flow,
+Current checkpoint: D.5 governed finance report/export parity is complete. Project snapshot, cash flow,
 analytics, EVM, portfolio variance, desktop forecast, and commitment controls now consume approved
 budget/current-or-historical-approved forecast versions, posted actuals/reversals, and open
-commitments as Decimal Money. The transient forecast formula service and misleading duplicate UI
-were deleted. D.5 export metadata, pagination, drill-down, reconciliation, and sensitive-field
-filtering is next. See [TODO/README.md](TODO/README.md) for the concise execution checkpoint.
+commitments as Decimal Money. Excel and PDF now share one explicit as-of/currency/period/version
+basis, full-snapshot reconciliation controls, bounded source drill-down, and sensitive-detail state.
+The transient forecast formula service, misleading duplicate UI, and deprecated export wrapper are
+deleted. D.7 QML Change/Variance/report redesign is next. See [TODO/README.md](TODO/README.md) for
+the concise execution checkpoint.
 
 Historical implementation checkpoint: Task-owned WBS, effective-dated rate cards (ADR-PF-005) with the
 `CostPolicyEngine`/`LaborCostEngine` cutover, the versioned `ProjectBudget`/`BudgetLine`
@@ -1183,9 +1185,34 @@ Implementation progress (2026-08-11):
   The complete PM run reached 73% before the five-minute limit; its only emitted failures were the
   three stale performance expectations, which pass after updating the measurement contract.
 
-Continue to **D.5** export metadata, bounded pagination, source drill-down, reconciliation/control
-totals, sensitive-field filtering, and report parity. Complete the remaining D.7 Change/Variance/
-report QML redesign only after that parity gate.
+**D.5 COMPLETE - governed finance report/export parity (2026-08-11).**
+
+- `FinanceSnapshot` remains disposable and now exposes `PROJECT_CURRENCY` basis, requested as-of,
+  period granularity, approved budget/forecast version evidence, sensitive-detail state, and exact
+  Decimal reconciliation controls. Posted actual, open commitment, and approved ETC authority totals
+  must equal their full ledger totals; an inconsistency fails closed before an export can render.
+- Canonical ledger rows retain source type, cost-code ID, reference type/ID, task/resource IDs,
+  actual financial-period IDs, and forecast period boundaries. Sensitive labor rows are aggregated
+  and replace those identifiers with an explicit restricted source; export metadata records whether
+  detail is included or redacted.
+- Excel and PDF consume the same shared finance export projection and expose equivalent metadata,
+  summary, controls, reconciliation status, cash-flow/source analytics, and source drill-down. Format
+  renderers do not calculate independent finance formulas.
+- Ledger detail uses validated offset paging with a hard 500-row page maximum. Page range, total,
+  limit, and continuation state are included in the report. Summary and reconciliation values always
+  come from the complete canonical snapshot, never a partial page.
+- Finance report generation requires the existing `report.export` runtime permission plus explicit
+  global/project `finance.export`; reading the snapshot still requires global/project `finance.read`.
+  Project owner scope now includes `finance.export`. The deprecated unused
+  `infrastructure/reporting/exporters.py` wrapper was deleted rather than retained as dead code.
+- Verification: the broad finance/reporting/commitment/portfolio selection passes 241 tests with 21
+  dependency warnings. Real Excel/PDF rendering, metadata, bounded lineage, redaction state,
+  reconciliation, and permission tests pass. Architecture passes 153 tests; only the three existing
+  stale/size guard failures documented under D.4 remain, and none concerns D.5.
+
+Continue to **D.7** QML Change/Variance/report redesign around approved version selection and source
+drill-down. D.5 introduced no persisted snapshot, transition adapter, compatibility branch, or
+temporary code.
 
 ### Phase E - Billing preparation, revenue, and external accounting
 

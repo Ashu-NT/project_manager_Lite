@@ -429,12 +429,12 @@ class ExcelReportRenderer:
 
             for column in ("A", "B", "C"):
                 ws_ledger.column_dimensions[column].width = 12
-            for column in ("D", "E", "F", "G", "I", "L", "N", "Q"):
+            for column in ("D", "E", "F", "G", "I", "J", "M", "O", "R"):
                 ws_ledger.column_dimensions[column].width = 16
-            for column in ("H", "J", "M", "O"):
+            for column in ("H", "K", "N", "P"):
                 ws_ledger.column_dimensions[column].width = 24
-            ws_ledger.column_dimensions["K"].width = 34
-            ws_ledger.column_dimensions["P"].width = 14
+            ws_ledger.column_dimensions["L"].width = 34
+            ws_ledger.column_dimensions["Q"].width = 14
 
         wb.save(output_path)
         return output_path
