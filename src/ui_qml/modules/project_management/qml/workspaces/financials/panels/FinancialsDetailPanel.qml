@@ -6,10 +6,6 @@ import workspaces.financials.sections 1.0
 Item {
     id: root
 
-    property var costDetail: ({
-        "id": "", "title": "", "statusLabel": "", "subtitle": "",
-        "description": "", "emptyState": "", "fields": [], "state": {}
-    })
     property var cashflowModel: ({ "title": "", "subtitle": "", "emptyState": "", "items": [] })
     property var ledgerModel: ({ "title": "", "subtitle": "", "emptyState": "", "items": [] })
     property var ledgerTableModel: null
@@ -36,7 +32,6 @@ Item {
     property var detailPage: null
     signal configurationPageRequested(string collection, int page)
 
-    readonly property bool _hasCost: String(root.costDetail.id || "").length > 0
     readonly property int _idx: root.detailPage ? root.detailPage.activeSectionIndex : 0
     readonly property var _sections: root.detailPage ? (root.detailPage.sections || []) : []
 

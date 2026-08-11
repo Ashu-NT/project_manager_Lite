@@ -114,17 +114,11 @@ class BaselineVarianceRowViewModel:
 class FinancialsWorkspaceViewModel:
     overview: FinancialsOverviewViewModel
     project_options: tuple[FinancialsSelectorOptionViewModel, ...] = field(default_factory=tuple)
-    cost_type_options: tuple[FinancialsSelectorOptionViewModel, ...] = field(default_factory=tuple)
     task_options: tuple[FinancialsSelectorOptionViewModel, ...] = field(default_factory=tuple)
     manual_actual_options: FinancialsManualActualOptionsViewModel = field(
         default_factory=FinancialsManualActualOptionsViewModel
     )
     selected_project_id: str = ""
-    selected_cost_type: str = "all"
-    search_text: str = ""
-    costs: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
-    selected_cost_id: str = ""
-    selected_cost_detail: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     cashflow: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     ledger: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     source_analytics: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))

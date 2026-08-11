@@ -6,13 +6,12 @@ from decimal import Decimal
 
 import pytest
 
-from src.core.modules.project_management.domain.financials.cost import CostItem
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
     DEFAULT_PERMISSIONS,
     DEFAULT_ROLE_PERMISSIONS,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.common.exceptions import BusinessRuleError
 
 
 def _login(services, username: str, password: str) -> None:
@@ -138,41 +137,6 @@ def test_global_sensitive_grant_does_not_bypass_project_scope(services):
     computed_labor = [row for row in snapshot.ledger if row.source_key == "COMPUTED_LABOR"]
     assert computed_labor
     assert all(row.reference_type == "restricted_finance" for row in computed_labor)
-
-
-def test_cost_repository_rejects_cross_project_task_on_add_and_update(services):
-    project_service = services["project_service"]
-    task_service = services["task_service"]
-    cost_service = services["cost_service"]
-    cost_repo = cost_service._cost_repo
-
-    project = project_service.create_project("Repository scoped cost")
-    other_project = project_service.create_project("Foreign task project")
-    project_task = task_service.create_task(project.id, "Scoped task", duration_days=1)
-    foreign_task = task_service.create_task(other_project.id, "Foreign task", duration_days=1)
-
-    with pytest.raises(NotFoundError, match="Task not found"):
-        cost_repo.add(
-            CostItem.create(
-                project_id=project.id,
-                task_id=foreign_task.id,
-                description="Invalid direct insert",
-                planned_amount=10.0,
-                currency_code="EUR",
-            )
-        )
-
-    existing = cost_service.add_cost_item(
-        project_id=project.id,
-        task_id=project_task.id,
-        description="Valid scoped cost",
-        planned_amount=10.0,
-        currency_code="EUR",
-    )
-    existing.task_id = foreign_task.id
-
-    with pytest.raises(NotFoundError, match="Task not found"):
-        cost_repo.update(existing)
 
 
 def _create_audited_cost_entry(services, *, command_id: str):

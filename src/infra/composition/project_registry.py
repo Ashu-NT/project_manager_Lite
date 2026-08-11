@@ -32,11 +32,9 @@ from src.core.modules.project_management.application.dashboard import DashboardS
 from src.core.modules.project_management.application.financials import (
     ApprovedTimeLaborCostConsumer,
     BudgetService,
-    CostService,
     FinancialConfigurationService,
     FinanceService,
     ForecastCostService,
-    LegacyCostMigrationService,
     PlannedCostService,
     ProjectCostEntryService,
     ProjectCommitmentService,
@@ -118,7 +116,6 @@ class ProjectManagementServiceBundle:
     task_service: TaskService
     timesheet_service: TimesheetService
     resource_service: ResourceService
-    cost_service: CostService
     financial_configuration_service: FinancialConfigurationService
     forecast_service: ForecastCostService
     rate_card_service: ProjectRateCardService
@@ -129,7 +126,6 @@ class ProjectManagementServiceBundle:
     procurement_financial_consumer: ProcurementFinancialConsumer
     commitment_service: ProjectCommitmentService
     planned_cost_service: PlannedCostService
-    legacy_cost_migration_service: LegacyCostMigrationService
     finance_workspace_query: ProjectFinanceWorkspaceQuery
     finance_service: FinanceService
     work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
@@ -198,7 +194,6 @@ def build_project_management_service_bundle(
         repositories.dependency_repo,
         repositories.assignment_repo,
         repositories.time_entry_repo,
-        repositories.cost_repo,
         repositories.project_financial_profile_repo,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
@@ -290,7 +285,6 @@ def build_project_management_service_bundle(
         repositories.timesheet_period_repo,
         timesheet_service,
         repositories.resource_repo,
-        repositories.cost_repo,
         work_calendar_engine,
         scheduling_engine,
         repositories.project_resource_repo,
@@ -326,12 +320,6 @@ def build_project_management_service_bundle(
         clock=system_clock,
         resource_catalog_reader=SqlAlchemyResourceCatalogReader(session=session),
     )
-    cost_service = CostService(
-        repositories.cost_repo,
-        repositories.project_repo,
-        user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_catalog_service,
-    )
     financial_configuration_service = FinancialConfigurationService(
         session=session,
         profile_repo=repositories.project_financial_profile_repo,
@@ -339,13 +327,6 @@ def build_project_management_service_bundle(
         project_repo=repositories.project_repo,
         user_session=platform_services.user_session,
         enterprise_audit_service=platform_services.enterprise_audit_service,
-        module_catalog_service=platform_services.module_catalog_service,
-        tenant_context_service=platform_services.tenant_context_service,
-    )
-    forecast_service = ForecastCostService(
-        repositories.cost_repo,
-        repositories.project_repo,
-        user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
@@ -434,18 +415,6 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
     )
-    legacy_cost_migration_service = LegacyCostMigrationService(
-        session=session,
-        migration_repo=repositories.legacy_cost_migration_repo,
-        cost_repo=repositories.cost_repo,
-        project_repo=repositories.project_repo,
-        profile_repo=repositories.project_financial_profile_repo,
-        task_repo=repositories.task_repo,
-        cost_entry_service=cost_entry_service,
-        tenant_context_service=platform_services.tenant_context_service,
-        user_session=platform_services.user_session,
-        enterprise_audit_service=platform_services.enterprise_audit_service,
-    )
     finance_workspace_query = ProjectFinanceWorkspaceQuery(
         profile_repo=repositories.project_financial_profile_repo,
         cost_code_repo=repositories.project_cost_code_repo,
@@ -463,7 +432,6 @@ def build_project_management_service_bundle(
         task_repo=repositories.task_repo,
         resource_repo=repositories.resource_repo,
         assignment_repo=repositories.assignment_repo,
-        cost_repo=repositories.cost_repo,
         scheduling_engine=scheduling_engine,
         calendar=platform_services.global_calendar_shim,
         baseline_repo=repositories.baseline_repo,
@@ -479,6 +447,12 @@ def build_project_management_service_bundle(
         rate_resolver=rate_card_resolver,
         finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session),
         tenant_context_service=platform_services.tenant_context_service,
+        user_session=platform_services.user_session,
+        module_catalog_service=platform_services.module_catalog_service,
+    )
+    forecast_service = ForecastCostService(
+        finance_service,
+        repositories.project_repo,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
     )
@@ -520,13 +494,10 @@ def build_project_management_service_bundle(
         session=session,
         project_repo=repositories.project_repo,
         task_repo=repositories.task_repo,
-        cost_repo=repositories.cost_repo,
+        planned_cost_repo=repositories.planned_cost_repo,
         baseline_repo=repositories.baseline_repo,
         scheduling=scheduling_engine,
         calendar=platform_services.global_calendar_shim,
-        project_resource_repo=repositories.project_resource_repo,
-        resource_repo=repositories.resource_repo,
-        rate_resolver=rate_card_resolver,
         user_session=platform_services.user_session,
         activity_service=platform_services.activity_service,
         approval_service=platform_services.approval_service,
@@ -586,7 +557,6 @@ def build_project_management_service_bundle(
         task_service=task_service,
         timesheet_service=timesheet_service,
         resource_service=resource_service,
-        cost_service=cost_service,
         financial_configuration_service=financial_configuration_service,
         forecast_service=forecast_service,
         rate_card_service=rate_card_service,
@@ -597,7 +567,6 @@ def build_project_management_service_bundle(
         procurement_financial_consumer=procurement_financial_consumer,
         commitment_service=commitment_service,
         planned_cost_service=planned_cost_service,
-        legacy_cost_migration_service=legacy_cost_migration_service,
         finance_workspace_query=finance_workspace_query,
         finance_service=finance_service,
         work_calendar_engine=work_calendar_engine,

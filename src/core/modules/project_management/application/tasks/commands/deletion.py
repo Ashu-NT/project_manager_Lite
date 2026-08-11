@@ -6,7 +6,6 @@ from dataclasses import replace
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.repositories.cost import CostRepository
 from src.core.modules.project_management.contracts.repositories.task import (
     AssignmentRepository,
     DependencyRepository,
@@ -27,7 +26,6 @@ class TaskDeletionMixin:
     _task_repo: TaskRepository
     _dependency_repo: DependencyRepository
     _assignment_repo: AssignmentRepository
-    _cost_repo: CostRepository
     _time_entry_repo: TimeEntryRepository | None
 
     def delete_task(self, task_id: str) -> None:
@@ -88,10 +86,6 @@ class TaskDeletionMixin:
             for task in order_tasks_children_first(project_tasks[project_id])
             if task.id in selected_ids
         ]
-        costs_by_project = {
-            project_id: self._cost_repo.list_by_project(project_id)
-            for project_id in project_ids
-        }
         affected_sibling_groups = {
             (task.project_id, task.parent_task_id) for task in selected_tasks
         }
@@ -104,9 +98,6 @@ class TaskDeletionMixin:
                         self._time_entry_repo.delete_by_assignment(assignment.id)
                 self._dependency_repo.delete_for_task(task.id)
                 self._assignment_repo.delete_by_task(task.id)
-                for cost_item in costs_by_project[task.project_id]:
-                    if cost_item.task_id == task.id:
-                        self._cost_repo.delete(cost_item.id)
                 record_activity(
                     self,
                     action="task.delete",

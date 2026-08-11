@@ -7,7 +7,6 @@ class FinancialsSelectionMixin:
         if normalized_value == self._selected_project_id:
             return
         self._set_selected_project_id(normalized_value)
-        self._set_selected_cost_id("")
         self._budget_line_page = 1
         self._rate_line_page = 1
         self._planned_cost_line_page = 1
@@ -24,27 +23,5 @@ class FinancialsSelectionMixin:
             return
         setattr(self, attribute, normalized_page)
         self.refresh()
-
-    def _set_cost_type_filter(self, cost_type: str) -> None:
-        normalized_value = (cost_type or "all").strip()
-        if normalized_value == self._selected_cost_type:
-            return
-        self._set_selected_cost_type(normalized_value)
-        self.refresh()
-
-    def _set_search_text_from_qml(self, search_text: str) -> None:
-        normalized_value = (search_text or "").strip()
-        if normalized_value == self._search_text:
-            return
-        self._set_search_text(normalized_value)
-        self.refresh()
-
-    def _select_cost(self, cost_id: str) -> None:
-        normalized_value = (cost_id or "").strip()
-        if normalized_value == self._selected_cost_id:
-            return
-        self._set_selected_cost_id(normalized_value)
-        self.refresh()
-
 
 __all__ = ["FinancialsSelectionMixin"]

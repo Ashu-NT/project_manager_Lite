@@ -91,44 +91,12 @@ def test_financial_source_reference_rejects_invalid_semantics() -> None:
             content_hash="not-a-hash",
         )
 
-    with pytest.raises(ValidationError, match="source line ID"):
-        _reference(
-            source_module=FinancialSourceModule.DATA_EXCHANGE,
-            source_type=FinancialSourceType.IMPORT_ROW,
-            posting_purpose=FinancialPostingPurpose.LEGACY_MIGRATION,
-            source_id="batch-1",
-        )
-
-
-@pytest.mark.parametrize(
-    ("source_module", "source_type", "posting_purpose", "source_line_id"),
-    [
-        (
-            FinancialSourceModule.PROJECT_MANAGEMENT,
-            FinancialSourceType.MANUAL_COMMAND,
-            FinancialPostingPurpose.MANUAL_ACTUAL,
-            None,
-        ),
-        (
-            FinancialSourceModule.DATA_EXCHANGE,
-            FinancialSourceType.IMPORT_ROW,
-            FinancialPostingPurpose.LEGACY_MIGRATION,
-            "row-17",
-        ),
-    ],
-)
-def test_manual_and_import_source_identities_are_supported(
-    source_module,
-    source_type,
-    posting_purpose,
-    source_line_id,
-) -> None:
+def test_manual_source_identity_is_supported() -> None:
     reference = _reference(
-        source_module=source_module,
-        source_type=source_type,
-        posting_purpose=posting_purpose,
-        source_id="command-or-batch-1",
-        source_line_id=source_line_id,
+        source_module=FinancialSourceModule.PROJECT_MANAGEMENT,
+        source_type=FinancialSourceType.MANUAL_COMMAND,
+        posting_purpose=FinancialPostingPurpose.MANUAL_ACTUAL,
+        source_id="command-1",
     )
 
     assert reference.idempotency_key.startswith("pfin:v1:")

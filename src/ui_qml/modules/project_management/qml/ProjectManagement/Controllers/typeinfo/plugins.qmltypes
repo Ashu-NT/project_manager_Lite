@@ -121,18 +121,11 @@ Component {
     exports: ["ProjectManagement.Controllers/ProjectManagementFinancialsWorkspaceController 1.0"]
     Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
     Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
-    Property { name: "costTypeOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "taskOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "manualActualOptions"; type: "QVariantMap"; isReadonly: true }
     Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
-    Property { name: "selectedCostType"; type: "QString"; isReadonly: true }
-    Property { name: "searchText"; type: "QString"; isReadonly: true }
-    Property { name: "costs"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "selectedCost"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "selectedCostId"; type: "QString"; isReadonly: true }
     Property { name: "cashflow"; type: "QVariantMap"; isReadonly: true }
     Property { name: "ledger"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "costsTableModel"; type: "QObject"; isReadonly: true }
     Property { name: "ledgerTableModel"; type: "QObject"; isReadonly: true }
     Property { name: "sourceAnalytics"; type: "QVariantMap"; isReadonly: true }
     Property { name: "costTypeAnalytics"; type: "QVariantMap"; isReadonly: true }
@@ -147,18 +140,10 @@ Component {
     Property { name: "rateLines"; type: "QVariantMap"; isReadonly: true }
     Property { name: "plannedCostVersions"; type: "QVariantMap"; isReadonly: true }
     Property { name: "plannedCostLines"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "costPage"; type: "int"; isReadonly: true }
-    Property { name: "costPageSize"; type: "int"; isReadonly: true }
-    Property { name: "costTotalCount"; type: "int"; isReadonly: true }
     Method { name: "refresh" }
     Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
-    Method { name: "setCostTypeFilter"; Parameter { name: "costType"; type: "QString" } }
-    Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
-    Method { name: "selectCost"; Parameter { name: "costId"; type: "QString" } }
     Method { name: "computeForecast"; type: "QVariantMap"; Parameter { name: "method"; type: "QString" } }
     Method { name: "exportFinancials" }
-    Method { name: "setCostPage"; Parameter { name: "page"; type: "int" } }
-    Method { name: "setCostPageSize"; Parameter { name: "pageSize"; type: "int" } }
     Method { name: "createManualActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "newFinancialCommandId"; type: "QString" }
     Method { name: "setConfigurationPage"; Parameter { name: "collection"; type: "QString" } Parameter { name: "page"; type: "int" } }

@@ -64,11 +64,6 @@ def build_project_management_desktop_runtime_apis(
         project_management_financials=build_project_management_financials_desktop_api(
             project_service=resolved.project_service,
             task_service=resolved.task_service,
-            cost_service=(
-                resolved.cost_service
-                if hasattr(resolved.cost_service, "list_cost_items_for_project")
-                else None
-            ),
             finance_service=resolved.finance_service,
             forecast_service=resolved.forecast_service,
             baseline_service=resolved.baseline_service,

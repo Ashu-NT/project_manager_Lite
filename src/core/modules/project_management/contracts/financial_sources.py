@@ -19,7 +19,6 @@ class FinancialSourceModule(str, Enum):
     PROJECT_MANAGEMENT = "project_management"
     PLATFORM_TIME = "platform_time"
     INVENTORY_PROCUREMENT = "inventory_procurement"
-    DATA_EXCHANGE = "data_exchange"
 
 
 class FinancialSourceType(str, Enum):
@@ -27,7 +26,6 @@ class FinancialSourceType(str, Enum):
     PURCHASE_ORDER_LINE = "purchase_order_line"
     RECEIPT_LINE = "receipt_line"
     MANUAL_COMMAND = "manual_command"
-    IMPORT_ROW = "import_row"
 
 
 class FinancialPostingPurpose(str, Enum):
@@ -35,7 +33,6 @@ class FinancialPostingPurpose(str, Enum):
     PURCHASE_COMMITMENT = "purchase_commitment"
     RECEIPT_ACCRUAL = "receipt_accrual"
     MANUAL_ACTUAL = "manual_actual"
-    LEGACY_MIGRATION = "legacy_migration"
 
 
 _ALLOWED_SOURCE_COMBINATIONS = {
@@ -58,11 +55,6 @@ _ALLOWED_SOURCE_COMBINATIONS = {
         FinancialSourceModule.PROJECT_MANAGEMENT,
         FinancialSourceType.MANUAL_COMMAND,
         FinancialPostingPurpose.MANUAL_ACTUAL,
-    ),
-    (
-        FinancialSourceModule.DATA_EXCHANGE,
-        FinancialSourceType.IMPORT_ROW,
-        FinancialPostingPurpose.LEGACY_MIGRATION,
     ),
 }
 
@@ -126,7 +118,6 @@ class FinancialSourceReference(_FinancialSourceContract):
         if self.source_type in {
             FinancialSourceType.PURCHASE_ORDER_LINE,
             FinancialSourceType.RECEIPT_LINE,
-            FinancialSourceType.IMPORT_ROW,
         } and not self.source_line_id:
             raise ValueError("Line-based financial sources require a source line ID")
         return self

@@ -64,7 +64,6 @@ class ProjectManagementDesktopRuntimeServices:
     cost_entry_service: ProjectCostEntryService | None
     baseline_service: BaselineService | None
     reporting_service: ReportingService | None
-    cost_service: object | None
 
 
 def resolve_project_management_desktop_runtime_services(
@@ -193,7 +192,6 @@ def resolve_project_management_desktop_runtime_services(
             if isinstance(reporting_service, ReportingService)
             else None
         ),
-        cost_service=services.get("cost_service"),
     )
 
 

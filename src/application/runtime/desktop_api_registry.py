@@ -204,7 +204,6 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     project_service = services.get("project_service")
     task_service = services.get("task_service")
     resource_service = services.get("resource_service")
-    cost_service = services.get("cost_service")
     baseline_service = services.get("baseline_service")
     inventory_service = services.get("inventory_service")
     inventory_reservation_service = services.get("inventory_reservation_service")

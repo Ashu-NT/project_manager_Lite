@@ -11,7 +11,6 @@ def build_project_management_financials_desktop_api(
     *,
     project_service=None,
     task_service=None,
-    cost_service=None,
     finance_service=None,
     forecast_service=None,
     baseline_service=None,
@@ -22,7 +21,6 @@ def build_project_management_financials_desktop_api(
     return ProjectManagementFinancialsDesktopApi(
         project_service=project_service,
         task_service=task_service,
-        cost_service=cost_service,
         finance_service=finance_service,
         forecast_service=forecast_service,
         baseline_service=baseline_service,

@@ -4,7 +4,6 @@ from __future__ import annotations
 from datetime import date
 
 from src.core.modules.project_management.application.financials import (
-    CostService,
     FinancialConfigurationService,
     FinanceService,
     ForecastCostService,
@@ -15,12 +14,10 @@ from src.core.modules.project_management.application.projects import ProjectServ
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import BaselineService
 from src.core.modules.project_management.application.tasks import TaskService
 
-from src.core.modules.project_management.api.desktop.financials.models.cost_items import FinancialCostItemDto
 from src.core.modules.project_management.api.desktop.financials.models.commitments import FinancialCommitmentSummaryDto
 from src.core.modules.project_management.api.desktop.financials.models.forecasts import FinancialForecastDto
 from src.core.modules.project_management.api.desktop.financials.models.baseline_variance import BaselineVarianceRecordDto
 from src.core.modules.project_management.api.desktop.financials.models.options import (
-    FinancialCostTypeDescriptor,
     FinancialProjectOptionDescriptor,
     FinancialTaskOptionDescriptor,
 )
@@ -44,7 +41,6 @@ from src.core.modules.project_management.api.desktop.financials.models.cost_entr
     FinancialManualActualOptionsDto,
 )
 from src.core.modules.project_management.api.desktop.financials.builders.option_builder import (
-    build_cost_type_options,
     build_project_options,
     build_task_options,
 )
@@ -57,7 +53,6 @@ from src.core.modules.project_management.api.desktop.financials.builders.commitm
 from src.core.modules.project_management.api.desktop.financials.builders.baseline_variance_builder import (
     build_baseline_variance,
 )
-from src.core.modules.project_management.api.desktop.financials.serializers.cost_item_serializer import serialize_cost_item
 from src.core.modules.project_management.api.desktop.financials.serializers.cost_entry_serializer import (
     serialize_cost_entry,
 )
@@ -76,7 +71,6 @@ class ProjectManagementFinancialsDesktopApi:
         *,
         project_service: ProjectService | None = None,
         task_service: TaskService | None = None,
-        cost_service: CostService | None = None,
         finance_service: FinanceService | None = None,
         forecast_service: ForecastCostService | None = None,
         baseline_service: BaselineService | None = None,
@@ -86,7 +80,6 @@ class ProjectManagementFinancialsDesktopApi:
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
-        self._cost_service = cost_service
         self._finance_service = finance_service
         self._forecast_service = forecast_service
         self._baseline_service = baseline_service
@@ -97,21 +90,8 @@ class ProjectManagementFinancialsDesktopApi:
     def list_projects(self) -> tuple[FinancialProjectOptionDescriptor, ...]:
         return build_project_options(self._project_service)
 
-    def list_cost_types(self) -> tuple[FinancialCostTypeDescriptor, ...]:
-        return build_cost_type_options()
-
     def list_tasks(self, project_id: str) -> tuple[FinancialTaskOptionDescriptor, ...]:
         return build_task_options(project_id, self._task_service)
-
-    def list_cost_items(self, project_id: str) -> tuple[FinancialCostItemDto, ...]:
-        if self._cost_service is None or not project_id:
-            return ()
-        task_lookup = {o.value: o.label for o in self.list_tasks(project_id)}
-        items = sorted(
-            self._cost_service.list_cost_items_for_project(project_id),
-            key=lambda i: (i.incurred_date or date.max, (i.description or "").casefold()),
-        )
-        return tuple(serialize_cost_item(i, task_lookup=task_lookup) for i in items)
 
     def get_manual_actual_options(
         self, project_id: str, *, effective_on: date | None = None

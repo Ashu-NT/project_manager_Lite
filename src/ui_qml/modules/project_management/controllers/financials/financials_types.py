@@ -11,7 +11,7 @@ def default_overview() -> FinancialsMap:
 def default_collection() -> FinancialsMap:
     return {"title": "", "subtitle": "", "emptyState": "", "items": []}
 
-def default_selected_cost() -> FinancialsMap:
+def default_detail() -> FinancialsMap:
     return {
         "id": "",
         "title": "",
@@ -59,5 +59,5 @@ __all__ = [
     "default_commitment_summary",
     "default_forecast",
     "default_overview",
-    "default_selected_cost",
+    "default_detail",
 ]

@@ -8,7 +8,6 @@ from src.core.modules.project_management.api.desktop.financials.models.configura
     FinancialConfigurationWorkspaceDto,
     FinancialProfileDto,
 )
-from src.core.modules.project_management.api.desktop.financials.models.cost_items import FinancialCostItemDto
 from src.core.modules.project_management.api.desktop.financials.models.cost_entries import (
     FinancialCostCodeOptionDescriptor,
     FinancialCostEntryApprovalDto,
@@ -18,7 +17,6 @@ from src.core.modules.project_management.api.desktop.financials.models.cost_entr
 )
 from src.core.modules.project_management.api.desktop.financials.models.forecasts import FinancialForecastDto
 from src.core.modules.project_management.api.desktop.financials.models.options import (
-    FinancialCostTypeDescriptor,
     FinancialProjectOptionDescriptor,
     FinancialTaskOptionDescriptor,
 )
@@ -40,8 +38,6 @@ __all__ = [
     "FinancialCostEntryApprovalDto",
     "FinancialCostEntryDto",
     "FinancialCostEntryPageDto",
-    "FinancialCostItemDto",
-    "FinancialCostTypeDescriptor",
     "FinancialForecastDto",
     "FinancialLedgerRowDto",
     "FinancialManualActualOptionsDto",

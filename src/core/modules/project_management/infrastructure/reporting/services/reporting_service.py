@@ -13,7 +13,6 @@ from src.core.modules.project_management.contracts.repositories.task import (
     TaskRepository,
 )
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from src.core.modules.project_management.contracts.repositories.cost import CostRepository
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
 from src.core.modules.project_management.contracts.repositories.rate_resolution import (
     LaborRateResolver,
@@ -56,7 +55,6 @@ class ReportingService(
         task_repo: TaskRepository,
         resource_repo: ResourceRepository,
         assignment_repo: AssignmentRepository,
-        cost_repo: CostRepository,
         scheduling_engine: SchedulingEngine,
         calendar: CalendarProtocol,
         baseline_repo: BaselineRepository,
@@ -73,7 +71,6 @@ class ReportingService(
         self._task_repo: TaskRepository = task_repo
         self._resource_repo: ResourceRepository = resource_repo
         self._assignment_repo: AssignmentRepository = assignment_repo
-        self._cost_repo: CostRepository = cost_repo
         self._scheduling_engine: SchedulingEngine = scheduling_engine
         self._calendar: CalendarProtocol = calendar
         self._baseline_repo: BaselineRepository = baseline_repo

@@ -273,21 +273,29 @@ def test_finance_statement_builders_require_explicit_scope() -> None:
 
 
 def test_cost_aggregation_cannot_fan_out_across_independent_sources() -> None:
-    aggregate = next(
-        node
-        for node in _tree(FINANCE_STATEMENTS).body
-        if isinstance(node, ast.FunctionDef) and node.name == "cost_aggregate_facts_statement"
-    )
-    source = ast.unparse(aggregate)
-    orm_names = {
-        node.id
-        for node in ast.walk(aggregate)
-        if isinstance(node, ast.Name) and node.id.endswith("ORM")
+    tree = _tree(FINANCE_STATEMENTS)
+    expected_authority = {
+        "planned_cost_facts_statement": "ProjectPlannedCostLineORM",
+        "commitment_facts_statement": "ProjectCommitmentLineORM",
+        "actual_cost_facts_statement": "ProjectCostEntryORM",
     }
+    for function_name, authority in expected_authority.items():
+        statement = next(
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == function_name
+        )
+        orm_names = {
+            node.id
+            for node in ast.walk(statement)
+            if isinstance(node, ast.Name) and node.id.endswith("ORM")
+        }
+        assert authority in orm_names
+        assert not (set(expected_authority.values()) - {authority}) & orm_names
 
-    assert "func.sum" in source
-    assert "group_by" in source
-    assert orm_names == {"CostItemORM", "ProjectORM"}
+    reader_source = FINANCE_READER.read_text(encoding="utf-8")
+    assert "return planned + commitments + actuals" in reader_source
+    assert "def _aggregate(" in reader_source
 
 
 def test_finance_service_keeps_reader_labor_policy_ownership_and_no_fallback() -> None:
@@ -315,7 +323,8 @@ def test_finance_service_keeps_reader_labor_policy_ownership_and_no_fallback() -
 
     policy_source = FINANCE_POLICY.read_text(encoding="utf-8")
     assert "def compose_from_facts(" in policy_source
-    assert "include_manual_labor_planned" in policy_source
+    assert "include_manual_labor_planned" not in policy_source
+    assert "include_manual_labor_actual" not in policy_source
 
 
 def test_runtime_composition_and_desktop_proof_remain_present() -> None:
@@ -425,7 +434,7 @@ def test_phase3b_removed_repository_backed_financial_transition_paths() -> None:
         assert forbidden not in evm_source
 
 
-def test_phase6_retains_repository_engines_only_for_unmigrated_reporting_paths() -> None:
+def test_phase6_reporting_uses_canonical_finance_composition() -> None:
     kpi_source = inspect.getsource(ReportingKpiMixin.get_project_kpis)
     snapshot_source = inspect.getsource(ReportingCostPolicyMixin._build_cost_policy_snapshot)
     series_factory_source = inspect.getsource(
@@ -433,7 +442,7 @@ def test_phase6_retains_repository_engines_only_for_unmigrated_reporting_paths()
     )
 
     assert "_build_cost_policy_snapshot(" in kpi_source
-    assert ".build_snapshot(" in snapshot_source
+    assert "_compose_finance_policy(" in snapshot_source
     assert "LaborCostEngine.for_facts(" in series_factory_source
     assert "CostPolicyEngine.for_facts(" in series_factory_source
     assert "_make_labor_engine(" not in series_factory_source

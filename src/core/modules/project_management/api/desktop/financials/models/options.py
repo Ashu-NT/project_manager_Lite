@@ -14,14 +14,7 @@ class FinancialTaskOptionDescriptor:
     label: str
 
 
-@dataclass(frozen=True)
-class FinancialCostTypeDescriptor:
-    value: str
-    label: str
-
-
 __all__ = [
-    "FinancialCostTypeDescriptor",
     "FinancialProjectOptionDescriptor",
     "FinancialTaskOptionDescriptor",
 ]

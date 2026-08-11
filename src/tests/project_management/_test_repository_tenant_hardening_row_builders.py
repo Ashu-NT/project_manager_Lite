@@ -2,10 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-from src.core.modules.project_management.domain.enums import (
-    CostType,
-    DependencyType,
-)
+from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,
     RegisterEntryStatus,
@@ -20,9 +17,6 @@ from src.core.modules.project_management.infrastructure.persistence.orm.baseline
 from src.core.modules.project_management.infrastructure.persistence.orm.collaboration import (
     TaskCommentORM,
     TaskPresenceORM,
-)
-from src.core.modules.project_management.infrastructure.persistence.orm.cost import (
-    CostItemORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.register import RegisterEntryORM
 from src.core.modules.project_management.infrastructure.persistence.orm.task import (
@@ -106,28 +100,6 @@ def _build_priority_detail_rows(now, today, project_a, project_b, resource_a, re
         activity="reviewing",
         started_at=now,
         last_seen_at=now,
-    )
-    cost_a = CostItemORM(
-        id="cost-a",
-        project_id=project_a.id,
-        task_id=task_a1.id,
-        description="Cost A",
-        cost_type=CostType.OVERHEAD.value,
-        planned_amount=100.0,
-        committed_amount=0.0,
-        actual_amount=0.0,
-        version=1,
-    )
-    cost_b = CostItemORM(
-        id="cost-b",
-        project_id=project_b.id,
-        task_id=task_b1.id,
-        description="Cost B",
-        cost_type=CostType.OVERHEAD.value,
-        planned_amount=200.0,
-        committed_amount=0.0,
-        actual_amount=0.0,
-        version=1,
     )
     register_a = RegisterEntryORM(
         id="register-a",
@@ -220,7 +192,6 @@ def _build_priority_detail_rows(now, today, project_a, project_b, resource_a, re
     return (
         assignment_a, assignment_b, dependency_a, dependency_b,
         comment_a, comment_b, presence_a, presence_b,
-        cost_a, cost_b,
         register_a, register_b, baseline_a, baseline_b,
         baseline_task_a, baseline_task_b, variance_a, variance_b,
     )

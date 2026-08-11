@@ -217,4 +217,5 @@ def test_qml_uses_five_project_level_finance_views_and_deletes_false_budget_view
         assert f'"{section}"' in panel
     assert "FinancialsBudgetSection" not in section_registry
     assert not (root / "sections/FinancialsBudgetSection.qml").exists()
-    assert 'root._detailSectionIndex("Actuals")' in page
+    assert "FinancialsDetailPanel" in page
+    assert "FinancialsListPage" not in page

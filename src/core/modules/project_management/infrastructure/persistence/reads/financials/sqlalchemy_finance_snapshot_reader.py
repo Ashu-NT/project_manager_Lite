@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
     CostAggregateFact,
-    CostItemFact,
+    FinanceLedgerFact,
     FinanceProjectFact,
     FinanceSnapshotFacts,
     LaborAssignmentFact,
@@ -15,9 +15,10 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     TaskFact,
 )
 from .statements.finance_snapshot_statements import (
+    actual_cost_facts_statement,
     assignment_facts_statement,
-    cost_aggregate_facts_statement,
-    cost_item_facts_statement,
+    commitment_facts_statement,
+    planned_cost_facts_statement,
     project_fact_statement,
     project_resource_facts_statement,
     resource_facts_statement,
@@ -26,7 +27,7 @@ from .statements.finance_snapshot_statements import (
 
 
 class SqlAlchemyFinanceSnapshotReader:
-    """Acquire a complete, scoped fact set without returning ORM objects."""
+    """Acquire scoped facts from canonical Project Finance authorities."""
 
     def __init__(self, *, session: Session) -> None:
         self._session = session
@@ -67,50 +68,14 @@ class SqlAlchemyFinanceSnapshotReader:
                 )
             )
         )
-        cost_items = tuple(
-            CostItemFact(
-                cost_item_id=str(row.id),
-                task_id=(None if row.task_id is None else str(row.task_id)),
-                description=str(row.description or ""),
-                cost_type=str(row.cost_type or "OTHER"),
-                currency_code=row.currency_code,
-                planned_amount=float(row.planned_amount or 0.0),
-                committed_amount=float(row.committed_amount or 0.0),
-                actual_amount=float(row.actual_amount or 0.0),
-                forecast_amount=(None if row.forecast_amount is None else float(row.forecast_amount)),
-                commitment_status=str(row.commitment_status or ""),
-                incurred_date=row.incurred_date,
-            )
-            for row in self._session.execute(
-                cost_item_facts_statement(
-                    tenant_id=tenant_id,
-                    organization_id=organization_id,
-                    project_id=project_id,
-                )
-            )
+        ledger_entries = self._read_ledger_entries(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            project_id=project_id,
+            as_of=as_of,
         )
-        aggregates = tuple(
-            CostAggregateFact(
-                cost_type=str(row[0] or "OTHER"),
-                currency_code=row[1],
-                commitment_status=str(row[2] or ""),
-                positive_planned=float(row[3] or 0.0),
-                positive_committed=float(row[4] or 0.0),
-                positive_actual_as_of=float(row[5] or 0.0),
-                raw_planned=float(row[6] or 0.0),
-                raw_committed=float(row[7] or 0.0),
-                raw_actual_as_of=float(row[8] or 0.0),
-                row_count=int(row[9] or 0),
-            )
-            for row in self._session.execute(
-                cost_aggregate_facts_statement(
-                    tenant_id=tenant_id,
-                    organization_id=organization_id,
-                    project_id=project_id,
-                    as_of=as_of,
-                )
-            )
-        )
+        aggregates = self._aggregate(ledger_entries)
+
         project_resources = tuple(
             ProjectResourceFact(
                 project_resource_id=str(row.id),
@@ -145,6 +110,11 @@ class SqlAlchemyFinanceSnapshotReader:
             sorted(
                 {row.resource_id for row in project_resources}
                 | {row.resource_id for row in assignments}
+                | {
+                    row.resource_id
+                    for row in ledger_entries
+                    if row.resource_id is not None
+                }
             )
         )
         resources = (
@@ -182,11 +152,119 @@ class SqlAlchemyFinanceSnapshotReader:
             as_of=as_of,
             project=project,
             tasks=tasks,
-            cost_items=cost_items,
+            ledger_entries=ledger_entries,
             cost_aggregates=aggregates,
             project_resources=project_resources,
             assignments=assignments,
             resources=resources,
+        )
+
+    def _read_ledger_entries(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        as_of: date,
+    ) -> tuple[FinanceLedgerFact, ...]:
+        planned = tuple(
+            FinanceLedgerFact(
+                fact_id=str(row.id),
+                task_id=str(row.task_id),
+                resource_id=str(row.resource_id),
+                description=f"Assignment {row.source_assignment_id}",
+                source_key="PLANNED_COST",
+                source_label="Planned Cost",
+                reference_type="planned_cost_line",
+                cost_type="LABOR",
+                stage="planned",
+                currency_code=row.currency_code,
+                amount=float(row.amount or 0),
+                occurred_on=row.as_of,
+            )
+            for row in self._session.execute(
+                planned_cost_facts_statement(
+                    tenant_id=tenant_id,
+                    organization_id=organization_id,
+                    project_id=project_id,
+                    as_of=as_of,
+                )
+            )
+        )
+        commitments = tuple(
+            FinanceLedgerFact(
+                fact_id=str(row.id),
+                task_id=None if row.task_id is None else str(row.task_id),
+                resource_id=None,
+                description=f"Purchase order line {row.purchase_order_line_id}",
+                source_key="PROCUREMENT_COMMITMENT",
+                source_label="Procurement Commitment",
+                reference_type="commitment_line",
+                cost_type="MATERIAL",
+                stage="committed",
+                currency_code=row.currency_code,
+                amount=float(row.effective_amount or 0),
+                occurred_on=row.order_date,
+            )
+            for row in self._session.execute(
+                commitment_facts_statement(
+                    tenant_id=tenant_id,
+                    organization_id=organization_id,
+                    project_id=project_id,
+                    as_of=as_of,
+                )
+            )
+        )
+        actuals = tuple(
+            FinanceLedgerFact(
+                fact_id=str(row.id),
+                task_id=None if row.task_id is None else str(row.task_id),
+                resource_id=None if row.resource_id is None else str(row.resource_id),
+                description=str(row.description),
+                source_key=str(row.source_key),
+                source_label={
+                    "APPROVED_TIME": "Approved Time",
+                    "PROCUREMENT_ACTUAL": "Procurement Actual",
+                    "MANUAL_ACTUAL": "Manual Actual",
+                }[str(row.source_key)],
+                reference_type="cost_entry",
+                cost_type=str(row.cost_type),
+                stage="actual",
+                currency_code=row.base_currency_code,
+                amount=float(row.base_amount or 0),
+                occurred_on=row.posting_date,
+            )
+            for row in self._session.execute(
+                actual_cost_facts_statement(
+                    tenant_id=tenant_id,
+                    organization_id=organization_id,
+                    project_id=project_id,
+                    as_of=as_of,
+                )
+            )
+        )
+        return planned + commitments + actuals
+
+    @staticmethod
+    def _aggregate(
+        entries: tuple[FinanceLedgerFact, ...],
+    ) -> tuple[CostAggregateFact, ...]:
+        buckets: dict[tuple[str, str, str | None], tuple[float, int]] = {}
+        for entry in entries:
+            key = (entry.stage, entry.cost_type, entry.currency_code)
+            amount, count = buckets.get(key, (0.0, 0))
+            buckets[key] = (amount + entry.amount, count + 1)
+        return tuple(
+            CostAggregateFact(
+                stage=stage,
+                cost_type=cost_type,
+                currency_code=currency,
+                total_amount=amount,
+                row_count=count,
+            )
+            for (stage, cost_type, currency), (amount, count) in sorted(
+                buckets.items(), key=lambda item: tuple(value or "" for value in item[0])
+            )
         )
 
 

@@ -98,11 +98,9 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.application.financials import (
     BudgetService,
-    CostService,
     FinancialConfigurationService,
     FinanceService,
     ForecastCostService,
-    LegacyCostMigrationService,
     PlannedCostService,
     ProjectCommitmentService,
     ProjectCostEntryService,
@@ -232,7 +230,6 @@ class ServiceGraph:
     task_service: TaskService
     timesheet_service: TimesheetService
     resource_service: ResourceService
-    cost_service: CostService
     financial_configuration_service: FinancialConfigurationService
     forecast_service: ForecastCostService
     rate_card_service: ProjectRateCardService
@@ -241,7 +238,6 @@ class ServiceGraph:
     cost_entry_service: ProjectCostEntryService
     commitment_service: ProjectCommitmentService
     planned_cost_service: PlannedCostService
-    legacy_cost_migration_service: LegacyCostMigrationService
     finance_workspace_query: ProjectFinanceWorkspaceQuery
     finance_service: FinanceService
     work_calendar_engine: CalendarProtocol  # GlobalCalendarShim — enterprise-backed
@@ -346,7 +342,6 @@ class ServiceGraph:
             "task_service": self.task_service,
             "timesheet_service": self.timesheet_service,
             "resource_service": self.resource_service,
-            "cost_service": self.cost_service,
             "financial_configuration_service": self.financial_configuration_service,
             "forecast_service": self.forecast_service,
             "rate_card_service": self.rate_card_service,
@@ -355,7 +350,6 @@ class ServiceGraph:
             "cost_entry_service": self.cost_entry_service,
             "commitment_service": self.commitment_service,
             "planned_cost_service": self.planned_cost_service,
-            "legacy_cost_migration_service": self.legacy_cost_migration_service,
             "finance_workspace_query": self.finance_workspace_query,
             "finance_service": self.finance_service,
             "work_calendar_engine": self.work_calendar_engine,
@@ -548,7 +542,6 @@ def build_service_graph(session: Session) -> ServiceGraph:
         task_service=project_management_services.task_service,
         timesheet_service=project_management_services.timesheet_service,
         resource_service=project_management_services.resource_service,
-        cost_service=project_management_services.cost_service,
         financial_configuration_service=(
             project_management_services.financial_configuration_service
         ),
@@ -559,9 +552,6 @@ def build_service_graph(session: Session) -> ServiceGraph:
         cost_entry_service=project_management_services.cost_entry_service,
         commitment_service=project_management_services.commitment_service,
         planned_cost_service=project_management_services.planned_cost_service,
-        legacy_cost_migration_service=(
-            project_management_services.legacy_cost_migration_service
-        ),
         finance_workspace_query=project_management_services.finance_workspace_query,
         finance_service=project_management_services.finance_service,
         work_calendar_engine=project_management_services.work_calendar_engine,

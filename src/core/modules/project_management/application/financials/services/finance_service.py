@@ -24,9 +24,7 @@ from src.core.modules.project_management.application.financials.utils.helpers im
     normalize_currency,
 )
 from src.core.modules.project_management.application.financials.costs.ledger import (
-    build_computed_labor_actual_rows,
-    build_computed_labor_plan_rows,
-    build_cost_item_ledger_rows,
+    build_finance_ledger_rows,
 )
 from src.core.modules.project_management.application.financials.costs.cost_policy_engine import (
     CostPolicyEngine,
@@ -104,25 +102,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         source_breakdown = policy.source_breakdown
         totals = policy.totals
 
-        ledger: list[FinanceLedgerRow] = []
-        ledger.extend(
-            build_cost_item_ledger_rows(
-                facts=facts,
-                manual_included=policy.manual_labor_included,
-            )
-        )
-        ledger.extend(
-            build_computed_labor_plan_rows(
-                facts=facts,
-                labor_details=labor_details,
-            )
-        )
-        ledger.extend(
-            build_computed_labor_actual_rows(
-                facts=facts,
-                labor_details=labor_details,
-            )
-        )
+        ledger = build_finance_ledger_rows(facts=facts)
         ledger.sort(
             key=lambda row: (
                 row.occurred_on or date.min,
@@ -191,7 +171,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         visible: list[FinanceLedgerRow] = []
         grouped: dict[tuple[str, str | None], float] = {}
         for row in ledger:
-            if row.source_key != "COMPUTED_LABOR":
+            if row.source_key != "APPROVED_TIME":
                 visible.append(row)
                 continue
             key = (row.stage, row.currency)
@@ -204,8 +184,8 @@ class FinanceService(ProjectManagementModuleGuardMixin):
             visible.append(
                 FinanceLedgerRow(
                     project_id=project_id,
-                    source_key="COMPUTED_LABOR",
-                    source_label="Computed Labor",
+                    source_key="APPROVED_TIME",
+                    source_label="Approved Time",
                     cost_type="LABOR",
                     stage=stage,
                     amount=amount,

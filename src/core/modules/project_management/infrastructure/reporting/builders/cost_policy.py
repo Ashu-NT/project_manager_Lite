@@ -49,16 +49,9 @@ class ReportingCostPolicyMixin:
     _evm_series_reader: EvmSeriesReader
 
     def _make_cost_policy_engine(self) -> CostPolicyEngine:
-        return CostPolicyEngine(
-            project_repo=self._project_repo,
-            cost_repo=self._cost_repo,
-            project_resource_repo=self._project_resource_repo,
-            resource_repo=self._resource_repo,
+        return CostPolicyEngine.for_facts(
             rate_resolver=self._rate_resolver,
             tenant_context_service=self._tenant_context_service,
-            get_labor_details=self.calculate_project_labor_details
-            if hasattr(self, "calculate_project_labor_details")
-            else None,
         )
 
     def _build_cost_policy_snapshot(
@@ -67,9 +60,9 @@ class ReportingCostPolicyMixin:
         *,
         as_of: date | None = None,
     ) -> CostPolicySnapshot:
-        return self._make_cost_policy_engine().build_snapshot(
+        return self._compose_finance_policy(
             project_id, as_of=as_of or date.today()
-        )
+        )[1].snapshot
 
     def get_project_cost_control_totals(
         self,

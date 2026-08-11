@@ -12,8 +12,6 @@ def build_overview(
     project_options: Any,
     selected_project_id: str,
     snapshot: Any,
-    all_costs: Any,
-    filtered_costs: Any,
 ) -> FinancialsOverviewViewModel:
     project_label = next(
         (option.label for option in project_options if option.value == selected_project_id),
@@ -35,7 +33,7 @@ def build_overview(
             FinancialsMetricViewModel(
                 label="Planned",
                 value=snapshot.planned_label,
-                supporting_text=f"{len(all_costs)} cost items loaded; {len(filtered_costs)} shown.",
+                supporting_text="Current versioned planned-cost snapshot.",
             ),
             FinancialsMetricViewModel(
                 label="Committed",
