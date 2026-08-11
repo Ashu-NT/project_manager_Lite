@@ -37,6 +37,7 @@ def _seed_labor_finance_project(services) -> str:
         "Engineer",
         hourly_rate=125.0,
         currency_code="EUR",
+        rate_effective_on=date(2026, 1, 5),
     )
     project_resource = services["project_resource_service"].add_to_project(
         project_id=project.id,
@@ -50,7 +51,27 @@ def _seed_labor_finance_project(services) -> str:
         project_resource_id=project_resource.id,
         allocation_percent=100.0,
     )
-    services["task_service"].set_assignment_hours(assignment.id, 4.0)
+    cost_code = services["financial_configuration_service"].create_cost_code(
+        code="SEC-LABOR",
+        name="Sensitive labor",
+    )
+    profile = services["financial_configuration_service"].get_profile(project.id)
+    services["financial_configuration_service"].configure_profile(
+        project.id,
+        expected_version=profile.version,
+        default_cost_code_id=cost_code.id,
+    )
+    services["task_service"].update_assignment_planned_hours(
+        assignment.id,
+        allocated_planned_hours=Decimal("16"),
+        expected_assignment_version=assignment.version,
+        expected_project_resource_version=project_resource.version,
+    )
+    services["planned_cost_service"].calculate_snapshot(
+        project.id,
+        calculated_by="admin",
+        as_of=date(2026, 1, 5),
+    )
     return project.id
 
 
@@ -89,10 +110,10 @@ def test_sensitive_labor_detail_is_redacted_without_sensitive_permission(service
     snapshot = services["finance_service"].get_finance_snapshot(project_id)
 
     assert snapshot.by_resource == []
-    computed_labor = [row for row in snapshot.ledger if row.source_key == "COMPUTED_LABOR"]
-    assert computed_labor
-    assert all(row.reference_type == "restricted_finance" for row in computed_labor)
-    assert all(row.resource_id is None and row.resource_name is None for row in computed_labor)
+    labor_rows = [row for row in snapshot.ledger if row.cost_type == "LABOR"]
+    assert labor_rows
+    assert all(row.reference_type == "restricted_finance" for row in labor_rows)
+    assert all(row.resource_id is None and row.resource_name is None for row in labor_rows)
 
 
 def test_finance_controller_can_view_sensitive_labor_detail(services):
@@ -108,9 +129,9 @@ def test_finance_controller_can_view_sensitive_labor_detail(services):
     snapshot = services["finance_service"].get_finance_snapshot(project_id)
 
     assert snapshot.by_resource
-    computed_labor = [row for row in snapshot.ledger if row.source_key == "COMPUTED_LABOR"]
-    assert any(row.reference_type != "restricted_finance" for row in computed_labor)
-    assert any(row.resource_id is not None for row in computed_labor)
+    labor_rows = [row for row in snapshot.ledger if row.cost_type == "LABOR"]
+    assert any(row.reference_type != "restricted_finance" for row in labor_rows)
+    assert any(row.resource_id is not None for row in labor_rows)
 
 
 def test_global_sensitive_grant_does_not_bypass_project_scope(services):
@@ -134,9 +155,9 @@ def test_global_sensitive_grant_does_not_bypass_project_scope(services):
     snapshot = services["finance_service"].get_finance_snapshot(project_id)
 
     assert snapshot.by_resource == []
-    computed_labor = [row for row in snapshot.ledger if row.source_key == "COMPUTED_LABOR"]
-    assert computed_labor
-    assert all(row.reference_type == "restricted_finance" for row in computed_labor)
+    labor_rows = [row for row in snapshot.ledger if row.cost_type == "LABOR"]
+    assert labor_rows
+    assert all(row.reference_type == "restricted_finance" for row in labor_rows)
 
 
 def _create_audited_cost_entry(services, *, command_id: str):

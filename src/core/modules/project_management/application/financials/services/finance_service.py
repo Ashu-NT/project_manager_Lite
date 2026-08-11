@@ -169,30 +169,32 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         as_of: date,
     ) -> list[FinanceLedgerRow]:
         visible: list[FinanceLedgerRow] = []
-        grouped: dict[tuple[str, str | None], float] = {}
+        grouped: dict[tuple[str, str, str, str | None], float] = {}
         for row in ledger:
-            if row.source_key != "APPROVED_TIME":
+            if row.cost_type != "LABOR":
                 visible.append(row)
                 continue
-            key = (row.stage, row.currency)
+            key = (row.source_key, row.source_label, row.stage, row.currency)
             grouped[key] = grouped.get(key, 0.0) + float(row.amount)
 
-        for (stage, currency), amount in sorted(
+        for (source_key, source_label, stage, currency), amount in sorted(
             grouped.items(),
-            key=lambda item: (item[0][0], item[0][1] or ""),
+            key=lambda item: tuple(value or "" for value in item[0]),
         ):
             visible.append(
                 FinanceLedgerRow(
                     project_id=project_id,
-                    source_key="APPROVED_TIME",
-                    source_label="Approved Time",
+                    source_key=source_key,
+                    source_label=source_label,
                     cost_type="LABOR",
                     stage=stage,
                     amount=amount,
                     currency=currency,
                     occurred_on=as_of,
                     reference_type="restricted_finance",
-                    reference_id=f"restricted:{stage}:{currency or 'none'}",
+                    reference_id=(
+                        f"restricted:{source_key}:{stage}:{currency or 'none'}"
+                    ),
                     reference_label="Restricted labor cost",
                     task_id=None,
                     task_name=None,
