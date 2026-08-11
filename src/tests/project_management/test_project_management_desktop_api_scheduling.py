@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 from types import SimpleNamespace
 
 from src.core.modules.project_management.api.desktop import (
@@ -346,7 +347,7 @@ class _FakeReportingService:
                     start_shift_days=1,
                     finish_shift_days=1,
                     duration_delta_days=0,
-                    planned_cost_delta=1200.0,
+                    planned_cost_delta=Decimal("1200"),
                 )
             ]
         )

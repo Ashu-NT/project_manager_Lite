@@ -533,7 +533,7 @@ Verification: the complete PM suite passes (`559 passed`), and the targeted arch
 migration-graph, service-composition, CQRS, and QML suite passes (`54 passed`, with only the
 unrelated repository-wide generated-file size guard deselected).
 
-## 3. Finance — Phase D.7 complete; registered float transition retirement remains
+## 3. Finance — Phase D complete (2026-08-11)
 
 - **Phase D.1A — COMPLETE (2026-08-11): canonical forecast persistence and lifecycle.**
   Added PM-owned `ProjectForecast`/`ForecastLine` domain models, tenant/org/project-scoped
@@ -636,11 +636,15 @@ unrelated repository-wide generated-file size guard deselected).
   empty `FinancialsInsightsSection.qml`, and stale nonexistent `FinancialsWorkspaceState.qml`
   module entry were deleted. No alias, compatibility branch, duplicate formula, persisted snapshot,
   temporary adapter, or transition code was introduced.
-- **Next Phase D gate:** retire `PF-A1-LEGACY-FLOAT` and `PF-A1-DESKTOP-FLOAT` through the registered
-  end-to-end Decimal/canonical-text DTO cutover. The current scan confirms the shared formatter still
-  serves older project, portfolio, resource-rate, and finance DTOs; replacing it with hidden
-  `str(float)` calls would only move the transition and is not acceptable. Phase D is not declared
-  fully complete until those two register rows are closed and their conversion APIs/tests deleted.
+- **Phase D float retirement - COMPLETE (2026-08-11):** PM finance, project budget, portfolio
+  budget/variance, resource rate, project-resource rate/hours, baseline cost/variance, and assignment
+  hours now cross the desktop boundary as canonical decimal text. Eight PM-owned persisted money,
+  rate, and quantity columns use the platform `Numeric` precision conventions; percentage columns
+  remain intentional ratios. Revisions `pfnum_d8_001` and `pfnum_d8_002` provide the schema cutover.
+- `Money.from_legacy_float`, `decimal_from_legacy_float`, their exports/tests, and the PM formatter
+  float branch were deleted. The dead baseline unassigned-budget allocation branch was also removed;
+  baselines consume only canonical immutable planned-cost lines. Architecture tests prevent the
+  converters, transition markers, or Float-backed PM financial columns from returning.
 - **Phase E** (billing/revenue/external accounting): blocked on ADR-PF-010 (currently
   PROPOSED, not accepted) and the product decisions in §24 items 10-15 of the master doc.
 
@@ -685,17 +689,19 @@ selection passes `167 passed` (`427 deselected`, 19 dependency warnings). PM des
 canonical read-model coverage passes `22` tests; existing presenter/QML runtime coverage passes
 `13` tests. `qmllint` reports no warnings or errors for every changed financial workspace QML file.
 
-## 4. Finance — remaining transition-code register items
+## 4. Finance — transition-code register status
 
-Source: same doc §20 "Transition-code deletion register." `OPEN`/`NOT CREATED` rows only
-(everything else is `CLOSED`):
+Source: same doc §20 "Transition-code deletion register." No created transition code remains.
+The only retained row is a future Phase E mechanism that has never been created:
 
 | Component | Removal gate |
 | --- | --- |
-| Float monetary/rate/quantity persistence | Numeric backfill + read cutover + reconciliation complete |
 | Legacy financial permission aliases/feature flags | Phase E final role/API/controller inventory — not created yet |
-| `Money.from_legacy_float` / `decimal_from_legacy_float` (`PF-A1-LEGACY-FLOAT`) | Phase D legacy reconciliation + float retirement complete |
-| PM desktop formatter legacy-float branch (`PF-A1-DESKTOP-FLOAT`) | Phase D canonical decimal-string read DTO cutover |
+
+Phase D float-retirement verification: canonical persistence/DTO/baseline/assignment and migration
+graph checkpoint passes `54` tests. The broader PM finance/resource/portfolio/baseline/assignment
+selection passes `342` tests (`253 deselected`, 22 dependency warnings) after correcting stale
+Decimal-contract fixtures. Phase E remains blocked by the decisions below.
 
 ## 5. Finance — open product decisions blocking later phases
 
@@ -722,10 +728,11 @@ Source: same doc §24. Unresolved (items already resolved by an accepted ADR are
 Source: `../README.md`, "PM UI/UX Inspection & Improvement Plan" section (Phases 1-11) and
 the audit's "Known Limitations."
 
-- **Phase 3 — Resource Assignment Visibility (⬜ not started):** wire
-  `ResourceAvailabilityService`/`AssignmentValidationResult` into the Assign Resource dialog
-  so selecting a resource shows overallocation %, conflicting projects, skill/cert match
-  inline before the user clicks Assign.
+- **Phase 3 — Resource Assignment Visibility (complete 2026-08-11):** the Assign Resource dialog
+  now invokes the existing typed availability preview and assignment-policy validation whenever a
+  resource is selected. It displays overallocation, conflicting projects, skill/certification
+  evidence, warnings, and block reasons inline, and prevents submission when either policy blocks.
+  No availability or authorization rule is duplicated in QML.
 - **Phase 4 — Lazy Loading Feedback (⬜ not started):** every `LazySectionLoader` section
   needs a `LoadingOverlay` while busy, an `EmptyState` when empty, and an `InlineMessage`
   danger + Retry button on load failure (pattern is written out in the source doc).
@@ -733,9 +740,9 @@ the audit's "Known Limitations."
   (Submit Baseline, Approve/Reject, Apply Leveling, Import) are always visible regardless of
   role. Add `can*` bool Q_PROPERTYs to each workspace controller, computed from
   `AuthorizationEngine.has_permission()` (table of required properties is in the source doc).
-- **Phase 11 — Tests and Verification (⬜ not started):** add/extend tests for Phase 2, 3, 5,
-  7, 10 behaviors listed in the source doc (presenter row-mapping tests, `previewAssignment`
-  mapping test, `addTimeEntry` not triggering a full refresh, DataTable height regression
+- **Phase 11 — Tests and Verification (partial):** Phase 3 `previewAssignment` mapping coverage is
+  complete. Add/extend the remaining tests for Phase 2, 5, 7, and 10 behaviors listed in the source
+  doc (presenter row-mapping tests, `addTimeEntry` not triggering a full refresh, DataTable height regression
   check, `can*` property tests against a mock `AuthorizationEngine`).
 - **No export infrastructure**: `infrastructure/exporters/` is empty. All export actions must
   stay disabled with a tooltip until Excel/PDF/Gantt renderers exist behind an adapter — do

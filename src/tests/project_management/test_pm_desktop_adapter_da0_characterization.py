@@ -278,7 +278,7 @@ def test_da1_resource_assignments_use_public_task_service_query() -> None:
                 id="assignment-1",
                 task_id="task-1",
                 allocation_percent=75.0,
-                hours_logged=3.5,
+                hours_logged=Decimal("3.5"),
             ),
         ),
         list_tasks_for_resource=lambda _resource_id: (

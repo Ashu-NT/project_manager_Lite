@@ -1,9 +1,9 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: audit complete; Phase A-D.7 feature gates complete; Phase D float transition retirement pending; Phase E blocked
+Status: audit complete; Phase A-D complete; Phase E blocked
 Last updated: 2026-08-11
 Scope: Project Management finance plus reusable platform financial foundations
-Current checkpoint: D.7 governed finance lifecycle/reporting workspace is complete. Project snapshot, cash flow,
+Current checkpoint: Phase D is complete. Project snapshot, cash flow,
 analytics, EVM, portfolio variance, desktop forecast, and commitment controls now consume approved
 budget/current-or-historical-approved forecast versions, posted actuals/reversals, and open
 commitments as Decimal Money. Excel and PDF now share one explicit as-of/currency/period/version
@@ -11,8 +11,8 @@ basis, full-snapshot reconciliation controls, bounded source drill-down, and sen
 The transient forecast formula service, misleading duplicate UI/export placeholder, empty Insights
 component, and deprecated export wrapper are deleted. Forecast/ETC, Change Control, stored baseline
 Variance, and Reports now expose canonical version basis and source drill-down without desktop
-formulas. The registered `PF-A1-LEGACY-FLOAT` and `PF-A1-DESKTOP-FLOAT` end-to-end cutover remains
-the final Phase D retirement gate; Phase E remains blocked by ADR-PF-010 and unresolved product
+formulas. All registered Phase D float conversions and Float-backed PM money/rate/quantity columns
+are retired; Phase E remains blocked by ADR-PF-010 and unresolved product
 decisions. See [TODO/README.md](TODO/README.md) for
 the concise execution checkpoint.
 
@@ -1237,11 +1237,16 @@ finance/financial/reporting selection passes `167` (`427 deselected`, 19 depende
 desktop-boundary/canonical-read coverage passes `22`, presenter/QML runtime coverage passes `13`,
 and changed-workspace `qmllint` is clean.
 
-Next: close the two registered Phase D float transitions through a real source-to-desktop Decimal/
-canonical-text migration, then delete `Money.from_legacy_float`, `decimal_from_legacy_float`, their
-tests/exports, and the PM desktop formatter float branch. Do not replace them with unmarked
-`str(float)` conversion at individual serializers. Phase D is not fully complete until that register
-is empty.
+Phase D closeout (2026-08-11): PM monetary/rate/quantity desktop DTOs now expose canonical decimal
+text, while authoritative domain/read models use `Decimal`. Revisions `pfnum_d8_001` and
+`pfnum_d8_002` migrate resource/project-resource rates and hours, portfolio budgets, baseline costs
+and variances, and assignment logged hours to platform `Numeric` precision. Percentage fields remain
+intentional floating-point ratios. `Money.from_legacy_float`, `decimal_from_legacy_float`, their
+exports/tests, both transition markers, and the PM formatter float branch are deleted. The obsolete
+baseline unassigned-budget allocation branch was deleted rather than converted. Architecture
+guardrails pin all eight canonical PM columns and reject restoration of either converter.
+Focused persistence/DTO/migration coverage passes `54` tests. The broader PM finance/resource/
+portfolio/baseline/assignment selection passes `342` tests (`253 deselected`, 22 dependency warnings).
 
 ### Phase E - Billing preparation, revenue, and external accounting
 
@@ -1346,16 +1351,16 @@ This register is mandatory implementation scope. A phase cannot close while its 
 | `Project.planned_budget` compatibility projection | Pre-existing; retained in B | Approved-budget SQL read cutover complete | PM Finance | CLOSED 2026-08-11; field and column deleted by `u8v9w0x1y2z3` |
 | `Project.currency` compatibility projection | Pre-existing; retained in B | Profile currency cutover complete | PM Finance | CLOSED 2026-08-11; field and column deleted by `u8v9w0x1y2z3` |
 | Profile-to-Project and Project-to-profile currency synchronization | B1; `PF-B1-CURRENCY-DUAL-WRITE` | All consumers use profile currency | PM Finance / Desktop UI | CLOSED 2026-08-11; both branches and marker deleted |
-| Float monetary/rate/quantity persistence | Pre-existing | Relevant Numeric backfill, read cutover, and reconciliation complete | Platform/Data/Module owners | OPEN |
+| Float monetary/rate/quantity persistence | Pre-existing | Relevant Numeric backfill, read cutover, and reconciliation complete | Platform/Data/Module owners | CLOSED 2026-08-11; eight PM columns migrated by `pfnum_d8_001`/`pfnum_d8_002`, canonical reads active |
 | Planned dual-read comparison | C | D canonical report reconciliation complete | PM Finance | NOT CREATED |
 | Planned dual-write adapter, only if required | C | New writes and reports reconcile; legacy writes disabled | PM Finance | NOT CREATED |
-| Client-side fixed-limit Procurement lookup | Pre-existing | C typed project-source contract active | Procurement / PM Integration | OPEN |
+| Client-side fixed-limit Procurement lookup | Pre-existing | C typed project-source contract active | Procurement / PM Integration | CLOSED 2026-08-08; caller-free desktop projection deleted in DA0 instead of retained |
 | Legacy financial permission aliases/feature flags | A0 onward | E final role/API/controller inventory passes | Platform Security / PM Finance | NOT CREATED |
 | Approval `commit=False` transaction switches in legacy cost/baseline/dependency/scheduling services | A0 | C dedicated approved commands own the shared Unit of Work | Platform Workflow / PM | CLOSED 2026-08-06; `CostLifecycleMixin`/`BaselineService`/`TaskDependencyMixin` each split into a public governed method + a private `_apply_*_decision` (mirroring `BudgetService`); `SchedulingEngine`/`_sync_project_schedule`'s `commit` params re-scoped as plain caller-owned batching, not an approval bridge — no regressions (24 pre-existing failures unchanged, 428 passed) |
 | Approved-handler `bypass_approval=True` switches | Pre-existing; constrained in A0 handlers | C handlers call dedicated internal approved commands with no public bypass flag | Platform Workflow / PM | CLOSED 2026-08-06; `bypass_approval` parameter removed entirely from `add_cost_item`/`update_cost_item`/`delete_cost_item`/`create_baseline`/`add_dependency`/`remove_dependency` — no caller anywhere (checked) passed `bypass_approval=True` except the composition apply handlers, now rewired to call `_apply_*_decision` directly. `TaskDependencyMixin.update_dependency`'s governed branch was dead code (not in `DEFAULT_GOVERNED_ACTIONS`, no apply handler ever registered) — deleted rather than wired up. |
 | Unused FinanceService ReportingService compatibility argument | A0 candidate | Remove before A0 merge | PM Finance | CLOSED; deleted 2026-08-02 |
-| `Money.from_legacy_float` and `decimal_from_legacy_float` converters | A1 | D legacy CostItem reconciliation, float DTO, and float-column retirement complete | Platform Finance / Data Migration | OPEN; marked `TRANSITION(PF-A1-LEGACY-FLOAT)` |
-| PM desktop formatter legacy-float branch | A1 | D canonical decimal-string read DTO cutover complete | Desktop UI / PM Finance | OPEN; marked `TRANSITION(PF-A1-DESKTOP-FLOAT)` |
+| `Money.from_legacy_float` and `decimal_from_legacy_float` converters | A1 | D legacy CostItem reconciliation, float DTO, and float-column retirement complete | Platform Finance / Data Migration | CLOSED 2026-08-11; APIs, exports, tests, and marker deleted |
+| PM desktop formatter legacy-float branch | A1 | D canonical decimal-string read DTO cutover complete | Desktop UI / PM Finance | CLOSED 2026-08-11; branch and marker deleted after canonical-text DTO cutover |
 
 ## 21. Permission Migration Plan
 
