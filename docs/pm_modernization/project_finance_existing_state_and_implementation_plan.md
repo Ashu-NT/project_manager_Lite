@@ -1122,9 +1122,28 @@ Implementation progress (2026-08-11):
   checkpoint passes 39 tests; its only global-suite failure is the pre-existing hard-size guard for
   generated `resources/shared_resources_rc.py` and platform `enterprise_calendar.py`.
 
-Next implementation slice: **D.2**, typed financial change requests that apply approved budget,
-forecast, contract, and schedule impacts by creating new canonical versions atomically. Forecast
-read models and QML must not cut over until D.4 proves source reconciliation and read parity.
+- **D.2A COMPLETE - governed budget/forecast financial changes.** PM now owns scoped
+  `FinancialChangeRequest` and typed impacts with immutable change revisions, optimistic
+  concurrency, snapshotted approved bases, exact target-line deltas, actor/timestamp history,
+  applied-version references, and fail-closed audit. A two-actor Platform Approval decision
+  atomically supersedes the approved budget and/or forecast and creates approved successors.
+  Forecast copies and changes retain durable `base_forecast`/`financial_change` line and decision
+  lineage. Stale bases, concurrent open versions, invalid dimensions, negative successor values,
+  duplicate targets, unsupported owner impacts, and audit failures fail closed and roll back.
+- Migration `pfchg_d2a001` is reversible and is the sole head. It adds composite scoped ownership,
+  typed-shape/lifecycle constraints, indexes, and forced PostgreSQL RLS. No legacy model, backfill,
+  dual path, compatibility facade, or temporary transition code was introduced.
+- **D.2B NEXT - authoritative contract/schedule application.** Contract and schedule impact shapes
+  are durable typed records, but submission remains blocked until PM-owned commitment/contract and
+  scheduling commands expose versioned, transaction-participating application ports. D.2A does not
+  fake those mutations or import another module's implementation.
+- D.2A verification: six focused change-control/domain/atomicity/migration tests pass; the combined
+  change, forecast, RBAC reconciliation, and session-permission checkpoint passes 33 tests. The
+  adjacent budget/architecture run produced 53 passes; only the pre-existing repository-wide
+  generated/platform hard-size guard failed.
+
+After D.2B, continue to **D.4** canonical finance read models. Forecast read models and QML must
+not cut over until D.4 proves source reconciliation and read parity.
 
 ### Phase E - Billing preparation, revenue, and external accounting
 
@@ -1372,9 +1391,10 @@ These are genuine product/ownership decisions. Questions mapped to A0/A1/A2 ADRs
 ## 25. Final Recommendation
 
 Proceed with the upgrade, but do not recreate the removed combined CostItem model. Phases A-C and
-the clean C.9 cutover are complete. Phase D.1A-D.1B now provide canonical forecast persistence,
-lifecycle, automatic ETC generation, and durable source decisions; continue with D.2 typed
-financial change requests before changing finance read models or QML. Item 7's planned-cost source
+the clean C.9 cutover are complete. Phase D.1A-D.2A now provide canonical forecast persistence,
+lifecycle, automatic ETC generation, durable source decisions, and governed atomic budget/forecast
+change control. Complete D.2B authoritative contract/schedule application before changing finance
+read models or QML. Item 7's planned-cost source
 cutover remains explicitly blocked by planning
 semantics and freshness ownership; do not force it or treat the new forecast aggregate as a
 substitute for a real planning source.

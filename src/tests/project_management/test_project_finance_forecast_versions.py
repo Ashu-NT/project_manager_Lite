@@ -559,7 +559,10 @@ def test_forecast_migration_is_reversible_and_installs_constraints(tmp_path) -> 
     assert "uq_pf_forecasts_one_open_per_project" in forecast_indexes
     assert "uq_pf_forecasts_one_approved_per_project" in forecast_indexes
     assert "ck_pf_forecast_lines_source_metadata" in line_checks
-    assert "source_type = 'risk'" in line_checks["ck_pf_forecast_lines_source_metadata"]
+    assert "'risk'" in line_checks["ck_pf_forecast_lines_source_metadata"]
+    assert "'financial_change'" in line_checks[
+        "ck_pf_forecast_lines_source_metadata"
+    ]
     assert "ck_pf_forecast_decisions_reconciled" in decision_checks
     engine.dispose()
 
@@ -572,7 +575,7 @@ def test_forecast_migration_is_reversible_and_installs_constraints(tmp_path) -> 
             "project_finance_forecast_lines"
         )
     }
-    assert "source_type = 'risk'" not in line_checks[
+    assert "'risk'" not in line_checks[
         "ck_pf_forecast_lines_source_metadata"
     ]
     engine.dispose()

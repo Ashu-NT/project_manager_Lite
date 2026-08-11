@@ -1,6 +1,6 @@
-"""add governed project financial change orders
+"""Add governed project financial change orders.
 
-Revision ID: x1y2z3a4b5c6
+Revision ID: pfchg_d2a001
 Revises: w0x1y2z3a4b5
 Create Date: 2026-08-11
 """
@@ -16,7 +16,7 @@ from src.infra.persistence.migrations.helpers.postgresql_rls import (
 )
 
 
-revision = "x1y2z3a4b5c6"
+revision = "pfchg_d2a001"
 down_revision = "w0x1y2z3a4b5"
 branch_labels = None
 depends_on = None

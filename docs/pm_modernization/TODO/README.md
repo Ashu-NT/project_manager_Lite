@@ -562,19 +562,39 @@ unrelated repository-wide generated-file size guard deselected).
 - Migration `w0x1y2z3a4b5` adds the tenant/org/project-scoped source-decision table, reconciled Money
   checks, source/task references, forced PostgreSQL RLS, and linked-risk line semantics. There is no
   backfill, dual-read, compatibility branch, or temporary transition code.
-- **Next Phase D slice:** add typed financial change requests that apply approved budget, forecast,
-  contract, and schedule impacts by creating new canonical versions atomically. Canonical finance
-  read-model and QML cutover remain later Phase D work and must not read this generator through a
-  desktop fallback formula.
-- **Remaining Phase D:** typed financial change requests; snapshot/cash-flow/EVM/variance/
+- **Phase D.2A - COMPLETE (2026-08-11): governed budget/forecast change control.** PM now owns
+  tenant/org/project-scoped `FinancialChangeRequest` and typed impact records with immutable
+  business revisions, optimistic row versions, snapshotted approved budget/forecast bases, exact
+  target-line deltas, lifecycle actors/timestamps, applied-version references, fail-closed audit,
+  and Platform Approval separation of duties. Approval atomically supersedes the snapshotted
+  approved budget/forecast and creates approved successor versions; stale bases, open drafts,
+  negative results, duplicate targets, unsupported dimensions, and audit failure block or roll
+  back the whole decision. Forecast successor lines and durable source decisions retain explicit
+  `base_forecast` or `financial_change` lineage.
+- Migration `pfchg_d2a001` adds scoped change-request/impact tables, composite ownership FKs,
+  lifecycle and typed-shape checks, indexes, forced PostgreSQL RLS, and the new forecast-lineage
+  constraints. It is the sole Alembic head and is reversible. This is a direct pre-release cutover:
+  no backfill, compatibility path, dual read/write, legacy change model, or temporary transition
+  file exists. Planner finance-read capability was made coherent with its existing budget,
+  forecast, and financial-change write responsibilities; sensitive finance remains separately
+  protected by `finance.read_sensitive`.
+- **Next Phase D slice - D.2B:** connect contract and schedule impacts to their authoritative PM
+  owner commands and version/revision semantics. Their typed impact shapes are durable D.2 data,
+  but submission currently fails closed; no placeholder mutation or cross-module direct import is
+  permitted. Canonical finance read-model and QML cutover remain later Phase D work.
+- **Remaining Phase D:** contract/schedule change application; snapshot/cash-flow/EVM/variance/
   portfolio read-model cutover to canonical Money and approved/current forecasts; export
   metadata and reconciliation; desktop formula deletion; QML Forecast/ETC/Change/Variance
   redesign after read parity.
 - **Phase E** (billing/revenue/external accounting): blocked on ADR-PF-010 (currently
   PROPOSED, not accepted) and the product decisions in §24 items 10-15 of the master doc.
 
-Phase D.1A/D.1B verification: focused forecast domain/generator/tenant/atomicity/migration coverage
-passes (`13 passed`); RBAC/security coverage passes (`44 passed`); PM desktop adapter architecture passes
+Phase D.1A-D.2A verification: focused financial-change and forecast lifecycle/lineage/migration
+coverage passes (`19 passed`); combined D.2, forecast, RBAC reconciliation, and session-permission
+coverage passes (`33 passed`). Adjacent budget and architecture execution produced `53 passed`; its
+only failure is the unrelated repository-wide hard-size guard for generated
+`resources/shared_resources_rc.py` and the pre-existing platform `enterprise_calendar.py`.
+RBAC/security coverage passes (`44 passed`); PM desktop adapter architecture passes
 (`12 passed`); migration graph passes (`11 passed`, with only the
 unrelated repository-wide generated/platform size guard deselected). The previous D.1A canonical
 PM baseline passed (`567 passed`, 29 warnings); the current D.1B run reached 89% with no failures

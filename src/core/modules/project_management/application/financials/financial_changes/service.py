@@ -250,11 +250,16 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
                 code="FINANCIAL_CHANGE_DUPLICATE_TARGET",
             )
         now = self._clock.now()
-        self._change_repo.add_impact(impact)
-        change.touch(updated_at=now)
-        self._change_repo.update(change, expected_row_version=expected_change_version)
-        self._audit_impact("add", change, impact)
-        self._commit_and_emit(change.project_id)
+        try:
+            self._change_repo.add_impact(impact)
+            change.touch(updated_at=now)
+            self._change_repo.update(change, expected_row_version=expected_change_version)
+            self._audit_impact("add", change, impact)
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
+        domain_events.financial_changes_changed.emit(change.project_id)
         return impact
 
     def submit_change(
@@ -380,18 +385,24 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
                 code="FINANCIAL_CHANGE_APPROVAL_MISMATCH",
             )
         expected_version = change.row_version
-        change.reject(
-            rejected_by=rejected_by,
-            rejected_at=self._clock.now(),
-            notes=notes,
-        )
-        self._change_repo.update(change, expected_row_version=expected_version)
-        self._audit_change("reject", change)
+        try:
+            change.reject(
+                rejected_by=rejected_by,
+                rejected_at=self._clock.now(),
+                notes=notes,
+            )
+            self._change_repo.update(change, expected_row_version=expected_version)
+            self._audit_change("reject", change)
+            if commit:
+                self._session.commit()
+            else:
+                self._session.flush()
+        except Exception:
+            if commit:
+                self._session.rollback()
+            raise
         if commit:
-            self._session.commit()
             domain_events.financial_changes_changed.emit(change.project_id)
-        else:
-            self._session.flush()
         return change
 
     def _apply_budget_successor(

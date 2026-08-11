@@ -98,6 +98,7 @@ _PLANNER = _TEAM_MEMBER | {
     "plannedcost.manage",
     "forecast.manage",
     "financial_change.manage",
+    "finance.read",
     "register.manage",
     "report.export",
     "portfolio.read",
