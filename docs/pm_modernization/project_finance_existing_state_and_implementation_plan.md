@@ -1,6 +1,6 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: audit complete; Phase A-D implementation gates complete; Phase E blocked; hosted PostgreSQL validation pending
+Status: audit complete; Phase A-D.7 feature gates complete; Phase D float transition retirement pending; Phase E blocked
 Last updated: 2026-08-11
 Scope: Project Management finance plus reusable platform financial foundations
 Current checkpoint: D.7 governed finance lifecycle/reporting workspace is complete. Project snapshot, cash flow,
@@ -11,7 +11,9 @@ basis, full-snapshot reconciliation controls, bounded source drill-down, and sen
 The transient forecast formula service, misleading duplicate UI/export placeholder, empty Insights
 component, and deprecated export wrapper are deleted. Forecast/ETC, Change Control, stored baseline
 Variance, and Reports now expose canonical version basis and source drill-down without desktop
-formulas. Phase E remains blocked by ADR-PF-010 and unresolved product decisions. See [TODO/README.md](TODO/README.md) for
+formulas. The registered `PF-A1-LEGACY-FLOAT` and `PF-A1-DESKTOP-FLOAT` end-to-end cutover remains
+the final Phase D retirement gate; Phase E remains blocked by ADR-PF-010 and unresolved product
+decisions. See [TODO/README.md](TODO/README.md) for
 the concise execution checkpoint.
 
 Historical implementation checkpoint: Task-owned WBS, effective-dated rate cards (ADR-PF-005) with the
@@ -1234,6 +1236,12 @@ read, or transition code remains from D.7. Focused lifecycle/security/export tes
 finance/financial/reporting selection passes `167` (`427 deselected`, 19 dependency warnings),
 desktop-boundary/canonical-read coverage passes `22`, presenter/QML runtime coverage passes `13`,
 and changed-workspace `qmllint` is clean.
+
+Next: close the two registered Phase D float transitions through a real source-to-desktop Decimal/
+canonical-text migration, then delete `Money.from_legacy_float`, `decimal_from_legacy_float`, their
+tests/exports, and the PM desktop formatter float branch. Do not replace them with unmarked
+`str(float)` conversion at individual serializers. Phase D is not fully complete until that register
+is empty.
 
 ### Phase E - Billing preparation, revenue, and external accounting
 

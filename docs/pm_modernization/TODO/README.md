@@ -533,7 +533,7 @@ Verification: the complete PM suite passes (`559 passed`), and the targeted arch
 migration-graph, service-composition, CQRS, and QML suite passes (`54 passed`, with only the
 unrelated repository-wide generated-file size guard deselected).
 
-## 3. Finance — Phase D complete; Phase E future
+## 3. Finance — Phase D.7 complete; registered float transition retirement remains
 
 - **Phase D.1A — COMPLETE (2026-08-11): canonical forecast persistence and lifecycle.**
   Added PM-owned `ProjectForecast`/`ForecastLine` domain models, tenant/org/project-scoped
@@ -636,6 +636,11 @@ unrelated repository-wide generated-file size guard deselected).
   empty `FinancialsInsightsSection.qml`, and stale nonexistent `FinancialsWorkspaceState.qml`
   module entry were deleted. No alias, compatibility branch, duplicate formula, persisted snapshot,
   temporary adapter, or transition code was introduced.
+- **Next Phase D gate:** retire `PF-A1-LEGACY-FLOAT` and `PF-A1-DESKTOP-FLOAT` through the registered
+  end-to-end Decimal/canonical-text DTO cutover. The current scan confirms the shared formatter still
+  serves older project, portfolio, resource-rate, and finance DTOs; replacing it with hidden
+  `str(float)` calls would only move the transition and is not acceptable. Phase D is not declared
+  fully complete until those two register rows are closed and their conversion APIs/tests deleted.
 - **Phase E** (billing/revenue/external accounting): blocked on ADR-PF-010 (currently
   PROPOSED, not accepted) and the product decisions in §24 items 10-15 of the master doc.
 
