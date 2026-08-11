@@ -12,6 +12,10 @@ from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
+from src.core.modules.project_management.application.tasks.commands.approved_schedule_change import (
+    ApprovedTaskScheduleChange,
+)
+from src.core.modules.project_management.application.tasks.service import TaskService
 from src.core.modules.project_management.contracts.repositories.budget import (
     ProjectBudgetRepository,
 )
@@ -62,10 +66,6 @@ from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
 
 
-_OWNER_COMMAND_IMPACTS = {
-    FinancialChangeImpactType.CONTRACT,
-    FinancialChangeImpactType.SCHEDULE,
-}
 _REVISION_CONSTRAINT = "uq_pf_change_project_revision"
 
 
@@ -83,6 +83,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         financial_profile_repo: ProjectFinancialProfileRepository,
         cost_code_repo: ProjectCostCodeRepository,
         task_repo: TaskRepository,
+        task_service: TaskService,
         approval_service: ApprovalService,
         clock: Clock,
         user_session=None,
@@ -98,6 +99,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         self._financial_profile_repo = financial_profile_repo
         self._cost_code_repo = cost_code_repo
         self._task_repo = task_repo
+        self._task_service = task_service
         self._approval_service = approval_service
         self._clock = clock
         self._user_session = user_session
@@ -200,11 +202,8 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         cost_code_id: str | None = None,
         task_id: str | None = None,
         target_line_id: str | None = None,
-        source_reference_type: str | None = None,
-        source_reference_id: str | None = None,
         schedule_start: date | None = None,
         schedule_finish: date | None = None,
-        planned_hours_delta: Decimal = Decimal("0"),
     ) -> FinancialChangeImpact:
         change = self._require_mutable_change(
             change_id, expected_change_version, "add financial change impact"
@@ -217,8 +216,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
             )
         if cost_code_id:
             self._require_cost_code(change.project_id, cost_code_id, change.effective_date)
-        if task_id:
-            self._require_task(change.project_id, task_id)
+        task = self._require_task(change.project_id, task_id) if task_id else None
         impact = FinancialChangeImpact.create(
             tenant_id=change.tenant_id,
             organization_id=change.organization_id,
@@ -231,11 +229,14 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
             cost_code_id=cost_code_id,
             task_id=task_id,
             target_line_id=target_line_id,
-            source_reference_type=source_reference_type,
-            source_reference_id=source_reference_id,
+            target_task_version=(
+                task.version
+                if task is not None
+                and impact_type is FinancialChangeImpactType.SCHEDULE
+                else None
+            ),
             schedule_start=schedule_start,
             schedule_finish=schedule_finish,
-            planned_hours_delta=planned_hours_delta,
             created_at=self._clock.now(),
         )
         self._validate_target(change, impact)
@@ -248,6 +249,15 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
             raise BusinessRuleError(
                 "Only one impact may target a canonical line in one change request.",
                 code="FINANCIAL_CHANGE_DUPLICATE_TARGET",
+            )
+        if impact.impact_type is FinancialChangeImpactType.SCHEDULE and any(
+            row.impact_type is FinancialChangeImpactType.SCHEDULE
+            and row.task_id == impact.task_id
+            for row in existing
+        ):
+            raise BusinessRuleError(
+                "A financial change may adjust each task schedule only once.",
+                code="FINANCIAL_CHANGE_DUPLICATE_SCHEDULE_TARGET",
             )
         now = self._clock.now()
         try:
@@ -288,15 +298,6 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
             raise BusinessRuleError(
                 "Cannot submit a financial change without impacts.",
                 code="FINANCIAL_CHANGE_EMPTY",
-            )
-        unsupported = sorted(
-            {impact.impact_type.value for impact in impacts if impact.impact_type in _OWNER_COMMAND_IMPACTS}
-        )
-        if unsupported:
-            raise BusinessRuleError(
-                "Contract and schedule impacts require their authoritative owner-command adapters "
-                "before this change can be submitted.",
-                code="FINANCIAL_CHANGE_OWNER_COMMAND_NOT_AVAILABLE",
             )
         self._validate_application_bases(change, impacts)
         try:
@@ -349,11 +350,13 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         try:
             budget_id = self._apply_budget_successor(change, impacts, applied_by, now)
             forecast_id = self._apply_forecast_successor(change, impacts, applied_by, now)
+            schedule_count = self._apply_schedule_changes(change, impacts, applied_by)
             change.apply(
                 applied_by=applied_by,
                 applied_at=now,
                 applied_budget_id=budget_id,
                 applied_forecast_id=forecast_id,
+                applied_schedule_count=schedule_count,
             )
             self._change_repo.update(change, expected_row_version=expected_version)
             self._audit_change("apply", change)
@@ -460,7 +463,9 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
             self._budget_repo.add_line(line)
             if impact:
                 self._change_repo.update_impact_application(
-                    impact.id, applied_line_id=line.id
+                    impact.id,
+                    applied_reference_type="budget_line",
+                    applied_reference_id=line.id,
                 )
         for impact in relevant:
             if impact.target_line_id:
@@ -478,7 +483,11 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
                 created_at=now,
             )
             self._budget_repo.add_line(line)
-            self._change_repo.update_impact_application(impact.id, applied_line_id=line.id)
+            self._change_repo.update_impact_application(
+                impact.id,
+                applied_reference_type="budget_line",
+                applied_reference_id=line.id,
+            )
         self._budget_repo.flush()
         self._audit_version("project_budget", successor.id, change, now)
         return successor.id
@@ -567,7 +576,11 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
                 self._included_decision(successor, line, source_type, reference_type, reference_id, now)
             )
             if impact:
-                self._change_repo.update_impact_application(impact.id, applied_line_id=line.id)
+                self._change_repo.update_impact_application(
+                    impact.id,
+                    applied_reference_type="forecast_line",
+                    applied_reference_id=line.id,
+                )
         for impact in relevant:
             if impact.target_line_id:
                 continue
@@ -600,11 +613,50 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
                     now,
                 )
             )
-            self._change_repo.update_impact_application(impact.id, applied_line_id=line.id)
+            self._change_repo.update_impact_application(
+                impact.id,
+                applied_reference_type="forecast_line",
+                applied_reference_id=line.id,
+            )
         self._forecast_repo.add_decisions(decisions)
         self._forecast_repo.flush()
         self._audit_version("project_forecast", successor.id, change, now)
         return successor.id
+
+    def _apply_schedule_changes(
+        self,
+        change: FinancialChangeRequest,
+        impacts: list[FinancialChangeImpact],
+        actor: str,
+    ) -> int:
+        relevant = [
+            row for row in impacts if row.impact_type is FinancialChangeImpactType.SCHEDULE
+        ]
+        if not relevant:
+            return 0
+        commands = [
+            ApprovedTaskScheduleChange(
+                reference_id=impact.id,
+                project_id=change.project_id,
+                task_id=impact.task_id or "",
+                expected_version=impact.target_task_version or 0,
+                start_date=impact.schedule_start,
+                finish_date=impact.schedule_finish,
+            )
+            for impact in relevant
+        ]
+        applied = self._task_service._apply_approved_schedule_changes(
+            commands, actor_id=actor, commit=False
+        )
+        occurred_at = self._clock.now()
+        for result in applied:
+            self._change_repo.update_impact_application(
+                result.reference_id,
+                applied_reference_type="task",
+                applied_reference_id=result.task_id,
+            )
+            self._audit_version("task", result.task_id, change, occurred_at)
+        return len(applied)
 
     @staticmethod
     def _included_decision(
@@ -681,11 +733,6 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         impacts: list[FinancialChangeImpact],
     ) -> None:
         types = {row.impact_type for row in impacts}
-        if types & _OWNER_COMMAND_IMPACTS:
-            raise BusinessRuleError(
-                "Authoritative owner-command impacts are not available in D.2A.",
-                code="FINANCIAL_CHANGE_OWNER_COMMAND_NOT_AVAILABLE",
-            )
         if FinancialChangeImpactType.BUDGET in types:
             self._require_base_budget(change)
             if self._budget_repo.has_open_for_project(change.project_id):
@@ -699,6 +746,15 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
                 raise BusinessRuleError(
                     "An open forecast version must be resolved before applying a financial change.",
                     code="FINANCIAL_CHANGE_OPEN_FORECAST_EXISTS",
+                )
+        for impact in impacts:
+            if impact.impact_type is not FinancialChangeImpactType.SCHEDULE:
+                continue
+            task = self._require_task(change.project_id, impact.task_id or "")
+            if task.version != impact.target_task_version:
+                raise ConcurrencyError(
+                    "A schedule target changed after the financial change was drafted.",
+                    code="FINANCIAL_CHANGE_SCHEDULE_BASE_STALE",
                 )
 
     def _require_base_budget(self, change: FinancialChangeRequest) -> ProjectBudget:
@@ -771,7 +827,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
                     code="FINANCIAL_CHANGE_COST_CODE_NOT_PERMITTED",
                 )
 
-    def _require_task(self, project_id: str, task_id: str) -> None:
+    def _require_task(self, project_id: str, task_id: str):
         task = self._task_repo.get(task_id)
         if task is None:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
@@ -780,6 +836,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
                 "Task does not belong to the financial change project.",
                 code="FINANCIAL_CHANGE_TASK_PROJECT_MISMATCH",
             )
+        return task
 
     def _require_project_permission(
         self, project_id: str, permission: str, operation: str
@@ -814,6 +871,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
                     "base_forecast_id": change.base_forecast_id,
                     "applied_budget_id": change.applied_budget_id,
                     "applied_forecast_id": change.applied_forecast_id,
+                    "applied_schedule_count": change.applied_schedule_count,
                 },
                 sort_keys=True,
             ),
@@ -843,6 +901,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
                     "amount": str(impact.amount),
                     "currency_code": impact.currency_code,
                     "target_line_id": impact.target_line_id,
+                    "target_task_version": impact.target_task_version,
                 },
                 sort_keys=True,
             ),
@@ -898,6 +957,8 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
             domain_events.budgets_changed.emit(change.project_id)
         if change.applied_forecast_id:
             domain_events.forecasts_changed.emit(change.project_id)
+        if change.applied_schedule_count:
+            domain_events.tasks_changed.emit(change.project_id)
 
 
 __all__ = ["FinancialChangeService"]

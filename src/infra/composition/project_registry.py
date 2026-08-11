@@ -503,6 +503,7 @@ def build_project_management_service_bundle(
         financial_profile_repo=repositories.project_financial_profile_repo,
         cost_code_repo=repositories.project_cost_code_repo,
         task_repo=repositories.task_repo,
+        task_service=task_service,
         approval_service=platform_services.approval_service,
         clock=system_clock,
         user_session=platform_services.user_session,
@@ -749,6 +750,8 @@ def _register_project_management_approval_handlers(
             events.append(ApprovalPostCommitEvent("budgets_changed", change.project_id))
         if change.applied_forecast_id:
             events.append(ApprovalPostCommitEvent("forecasts_changed", change.project_id))
+        if change.applied_schedule_count:
+            events.append(ApprovalPostCommitEvent("tasks_changed", change.project_id))
         return ApprovalHandlerResult(post_commit_events=tuple(events))
 
     def _reject_financial_change(req) -> ApprovalHandlerResult:

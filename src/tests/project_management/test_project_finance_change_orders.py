@@ -20,7 +20,11 @@ from src.core.modules.project_management.domain.financials.forecast import (
     ForecastLineSourceType,
     ForecastStatus,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    ValidationError,
+)
 
 
 def _login(services, username: str, password: str) -> None:
@@ -181,32 +185,102 @@ def test_approved_change_atomically_creates_budget_and_forecast_successors(
     } == {ForecastLineSourceType.FINANCIAL_CHANGE}
 
     impacts = {row.id: row for row in changes.list_impacts(applied.id)}
-    assert impacts[budget_impact.id].applied_line_id
-    assert impacts[forecast_impact.id].applied_line_id
+    assert impacts[budget_impact.id].applied_reference_type == "budget_line"
+    assert impacts[budget_impact.id].applied_reference_id
+    assert impacts[forecast_impact.id].applied_reference_type == "forecast_line"
+    assert impacts[forecast_impact.id].applied_reference_id
 
 
-def test_owner_command_impacts_are_blocked_until_authoritative_adapters_exist(
+def test_contract_placeholder_is_not_part_of_canonical_change_control() -> None:
+    assert {item.value for item in FinancialChangeImpactType} == {
+        "budget",
+        "forecast",
+        "schedule",
+    }
+
+
+def test_approved_schedule_change_uses_task_owner_command(services) -> None:
+    _login(services, "admin", "ChangeMe123!")
+    project = services["project_service"].create_project(
+        "Schedule Change Project", financial_currency_code="USD"
+    )
+    task = services["task_service"].create_task(
+        project.id,
+        "Scheduled Delivery",
+        start_date=date(2026, 8, 10),
+        duration_days=4,
+    )
+    services["auth_service"].register_user(
+        "schedule-requester", "StrongPass123", role_names=["planner"]
+    )
+    _login(services, "schedule-requester", "StrongPass123")
+    changes = services["financial_change_service"]
+    change = _draft_change(services, project)
+    impact = changes.add_impact(
+        change.id,
+        impact_type=FinancialChangeImpactType.SCHEDULE,
+        description="Move delivery window",
+        task_id=task.id,
+        schedule_start=date(2026, 8, 17),
+        schedule_finish=date(2026, 8, 21),
+        expected_change_version=change.row_version,
+    )
+    assert impact.target_task_version == task.version
+    change = changes.get_change(change.id)
+    changes.submit_change(
+        change.id,
+        submitted_by=services["user_session"].principal.user_id,
+        expected_version=change.row_version,
+    )
+    request = services["approval_service"].list_pending(project_id=project.id)[0]
+
+    _login(services, "admin", "ChangeMe123!")
+    services["approval_service"].approve_and_apply(request.id)
+
+    applied = changes.get_change(change.id)
+    scheduled = services["task_service"].get_task(task.id)
+    applied_impact = changes.list_impacts(change.id)[0]
+    assert applied.status is FinancialChangeStatus.APPLIED
+    assert applied.applied_schedule_count == 1
+    assert scheduled.start_date == date(2026, 8, 17)
+    assert scheduled.end_date == date(2026, 8, 21)
+    assert scheduled.duration_days == 4
+    assert applied_impact.applied_reference_type == "task"
+    assert applied_impact.applied_reference_id == task.id
+
+
+def test_schedule_submission_rejects_a_stale_task_snapshot(
     services,
 ) -> None:
     _login(services, "admin", "ChangeMe123!")
-    project, code, *_ = _seed_approved_finance(services)
+    project = services["project_service"].create_project(
+        "Stale Schedule Project", financial_currency_code="USD"
+    )
+    task = services["task_service"].create_task(
+        project.id,
+        "Schedule Target",
+        start_date=date(2026, 8, 10),
+        duration_days=4,
+    )
     changes = services["financial_change_service"]
     change = _draft_change(services, project)
     changes.add_impact(
         change.id,
-        impact_type=FinancialChangeImpactType.CONTRACT,
-        description="Contract value adjustment",
-        amount=Decimal("10"),
-        cost_code_id=code.id,
-        source_reference_type="project_commitment",
-        source_reference_id="commitment-a",
+        impact_type=FinancialChangeImpactType.SCHEDULE,
+        description="Move stale target",
+        task_id=task.id,
+        schedule_start=date(2026, 8, 17),
+        schedule_finish=date(2026, 8, 21),
         expected_change_version=change.row_version,
     )
     change = changes.get_change(change.id)
+    services["task_service"].update_task(
+        task.id,
+        description="Changed after impact capture",
+        expected_version=task.version,
+    )
 
-    with pytest.raises(
-        BusinessRuleError, match="authoritative owner-command adapters"
-    ):
+    with pytest.raises(ConcurrencyError):
         changes.submit_change(
             change.id, submitted_by="admin", expected_version=change.row_version
         )
@@ -248,6 +322,12 @@ def test_approval_rolls_back_all_successors_when_financial_audit_fails(
 ) -> None:
     _login(services, "admin", "ChangeMe123!")
     project, code, budget, budget_line, *_ = _seed_approved_finance(services)
+    task = services["task_service"].create_task(
+        project.id,
+        "Atomic Schedule Target",
+        start_date=date(2026, 8, 10),
+        duration_days=4,
+    )
     services["auth_service"].register_user(
         "rollback-requester", "StrongPass123", role_names=["planner"]
     )
@@ -261,6 +341,16 @@ def test_approval_rolls_back_all_successors_when_financial_audit_fails(
         amount=Decimal("5"),
         cost_code_id=code.id,
         target_line_id=budget_line.id,
+        expected_change_version=change.row_version,
+    )
+    change = changes.get_change(change.id)
+    changes.add_impact(
+        change.id,
+        impact_type=FinancialChangeImpactType.SCHEDULE,
+        description="Atomic schedule move",
+        task_id=task.id,
+        schedule_start=date(2026, 8, 17),
+        schedule_finish=date(2026, 8, 21),
         expected_change_version=change.row_version,
     )
     change = changes.get_change(change.id)
@@ -285,6 +375,9 @@ def test_approval_rolls_back_all_successors_when_financial_audit_fails(
     assert changes.get_change(change.id).status is FinancialChangeStatus.PENDING_APPROVAL
     assert services["budget_service"].get_budget(budget.id).status is BudgetStatus.APPROVED
     assert len(services["budget_service"].list_budgets_for_project(project.id)) == 1
+    rolled_back_task = services["task_service"].get_task(task.id)
+    assert rolled_back_task.start_date == date(2026, 8, 10)
+    assert rolled_back_task.end_date == date(2026, 8, 14)
     assert services["approval_service"].list_pending(project_id=project.id)[0].id == request.id
 
 
@@ -317,7 +410,16 @@ def test_financial_change_migration_is_reversible_and_constrained(tmp_path) -> N
     }
     assert "ck_pf_changes_status" in request_checks
     assert "ck_pf_change_impacts_monetary_shape" in impact_checks
+    assert "ck_pf_change_impacts_task_version" in impact_checks
+    assert "ck_pf_change_impacts_applied_type" in impact_checks
     assert "uq_pf_change_project_revision" in request_constraints
+    impact_columns = {
+        row["name"] for row in inspector.get_columns("project_finance_change_impacts")
+    }
+    assert "target_task_version" in impact_columns
+    assert "applied_reference_type" in impact_columns
+    assert "planned_hours_delta" not in impact_columns
+    assert "source_reference_type" not in impact_columns
     engine.dispose()
 
     command.downgrade(config, "w0x1y2z3a4b5")

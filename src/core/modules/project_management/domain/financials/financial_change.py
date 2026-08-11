@@ -28,7 +28,6 @@ class FinancialChangeStatus(str, Enum):
 class FinancialChangeImpactType(str, Enum):
     BUDGET = "budget"
     FORECAST = "forecast"
-    CONTRACT = "contract"
     SCHEDULE = "schedule"
 
 
@@ -65,6 +64,7 @@ class FinancialChangeRequest:
     approval_request_id: str | None = None
     applied_budget_id: str | None = None
     applied_forecast_id: str | None = None
+    applied_schedule_count: int = 0
     submitted_by: str | None = None
     submitted_at: datetime | None = None
     applied_by: str | None = None
@@ -127,6 +127,17 @@ class FinancialChangeRequest:
             raise ValidationError(
                 f"Financial change {info.field_name.replace('_', ' ')} must be positive.",
                 code=f"FINANCIAL_CHANGE_{info.field_name.upper()}_INVALID",
+            )
+        return resolved
+
+    @field_validator("applied_schedule_count", mode="before")
+    @classmethod
+    def _schedule_count(cls, value: object) -> int:
+        resolved = int(value or 0)
+        if resolved < 0:
+            raise ValidationError(
+                "Applied schedule count cannot be negative.",
+                code="FINANCIAL_CHANGE_SCHEDULE_COUNT_INVALID",
             )
         return resolved
 
@@ -202,6 +213,7 @@ class FinancialChangeRequest:
         applied_at: datetime,
         applied_budget_id: str | None,
         applied_forecast_id: str | None,
+        applied_schedule_count: int,
     ) -> None:
         if self.status is not FinancialChangeStatus.PENDING_APPROVAL:
             raise BusinessRuleError(
@@ -213,6 +225,7 @@ class FinancialChangeRequest:
         self.applied_at = applied_at
         self.applied_budget_id = applied_budget_id
         self.applied_forecast_id = applied_forecast_id
+        self.applied_schedule_count = applied_schedule_count
         self.updated_at = applied_at
 
     def reject(self, *, rejected_by: str, rejected_at: datetime, notes: str = "") -> None:
@@ -274,12 +287,11 @@ class FinancialChangeImpact:
     cost_code_id: str | None = None
     task_id: str | None = None
     target_line_id: str | None = None
-    source_reference_type: str | None = None
-    source_reference_id: str | None = None
+    target_task_version: int | None = None
     schedule_start: date | None = None
     schedule_finish: date | None = None
-    planned_hours_delta: Decimal = Decimal("0")
-    applied_line_id: str | None = None
+    applied_reference_type: str | None = None
+    applied_reference_id: str | None = None
     created_at: datetime = field(default_factory=_utc_now)
 
     @field_validator(
@@ -304,15 +316,15 @@ class FinancialChangeImpact:
         )
 
     @field_validator(
-        "cost_code_id", "task_id", "target_line_id", "source_reference_type",
-        "source_reference_id", "applied_line_id",
+        "cost_code_id", "task_id", "target_line_id", "applied_reference_type",
+        "applied_reference_id",
         mode="before",
     )
     @classmethod
     def _optional_identifiers(cls, value: object) -> str | None:
         return normalize_optional_identifier(value)
 
-    @field_validator("amount", "planned_hours_delta", mode="before")
+    @field_validator("amount", mode="before")
     @classmethod
     def _decimal(cls, value: object) -> Decimal:
         return Decimal(str(value if value not in (None, "") else "0"))
@@ -331,12 +343,24 @@ class FinancialChangeImpact:
     def _created_timestamp(cls, value: object) -> datetime:
         return _timestamp(value, code="FINANCIAL_CHANGE_IMPACT_CREATED_AT_INVALID")
 
+    @field_validator("target_task_version", mode="before")
+    @classmethod
+    def _target_version(cls, value: object) -> int | None:
+        if value is None:
+            return None
+        resolved = int(value)
+        if resolved < 1:
+            raise ValidationError(
+                "Schedule impact target task version must be positive.",
+                code="FINANCIAL_CHANGE_SCHEDULE_VERSION_INVALID",
+            )
+        return resolved
+
     @model_validator(mode="after")
     def _typed_shape(self) -> "FinancialChangeImpact":
         monetary = {
             FinancialChangeImpactType.BUDGET,
             FinancialChangeImpactType.FORECAST,
-            FinancialChangeImpactType.CONTRACT,
         }
         if self.impact_type in monetary:
             if self.amount == 0 or not self.currency_code or not self.cost_code_id:
@@ -344,27 +368,27 @@ class FinancialChangeImpact:
                     "Monetary change impacts require a non-zero amount, currency, and cost code.",
                     code="FINANCIAL_CHANGE_IMPACT_MONETARY_FIELDS_REQUIRED",
                 )
-        if self.impact_type is FinancialChangeImpactType.CONTRACT:
-            if not self.source_reference_type or not self.source_reference_id:
-                raise ValidationError(
-                    "Contract impacts require an authoritative source reference.",
-                    code="FINANCIAL_CHANGE_CONTRACT_SOURCE_REQUIRED",
-                )
         if self.impact_type is FinancialChangeImpactType.SCHEDULE:
-            if not self.task_id or (
-                self.schedule_start is None
-                and self.schedule_finish is None
-                and self.planned_hours_delta == 0
+            if (
+                not self.task_id
+                or self.target_task_version is None
+                or (self.schedule_start is None and self.schedule_finish is None)
             ):
                 raise ValidationError(
-                    "Schedule impacts require a task and a date or hours change.",
+                    "Schedule impacts require a versioned task and a start or finish date.",
                     code="FINANCIAL_CHANGE_SCHEDULE_FIELDS_REQUIRED",
                 )
-            if self.amount != 0 and (not self.currency_code or not self.cost_code_id):
+            if self.amount != 0 or self.currency_code or self.cost_code_id or self.target_line_id:
                 raise ValidationError(
-                    "A monetary schedule impact requires currency and cost code.",
-                    code="FINANCIAL_CHANGE_SCHEDULE_MONEY_FIELDS_REQUIRED",
+                    "Schedule impacts cannot carry financial-line dimensions; use a separate "
+                    "budget or forecast impact for cost effects.",
+                    code="FINANCIAL_CHANGE_SCHEDULE_FINANCIAL_FIELDS_INVALID",
                 )
+        elif self.target_task_version is not None:
+            raise ValidationError(
+                "Only schedule impacts may snapshot a task version.",
+                code="FINANCIAL_CHANGE_TARGET_TASK_VERSION_INVALID",
+            )
         if self.schedule_start and self.schedule_finish and self.schedule_finish < self.schedule_start:
             raise ValidationError(
                 "Schedule impact finish cannot precede start.",
@@ -377,6 +401,11 @@ class FinancialChangeImpact:
             raise ValidationError(
                 "Negative budget or forecast impacts require an exact target line.",
                 code="FINANCIAL_CHANGE_NEGATIVE_TARGET_REQUIRED",
+            )
+        if bool(self.applied_reference_type) != bool(self.applied_reference_id):
+            raise ValidationError(
+                "Applied reference type and id must be provided together.",
+                code="FINANCIAL_CHANGE_APPLIED_REFERENCE_INCOMPLETE",
             )
         return self
 

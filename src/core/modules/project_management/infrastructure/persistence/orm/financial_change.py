@@ -100,6 +100,9 @@ class FinancialChangeRequestORM(Base):
         CheckConstraint("revision >= 1", name="ck_pf_changes_revision"),
         CheckConstraint("version >= 1", name="ck_pf_changes_version"),
         CheckConstraint(
+            "applied_schedule_count >= 0", name="ck_pf_changes_schedule_count"
+        ),
+        CheckConstraint(
             "(base_budget_id IS NULL AND base_budget_revision IS NULL) OR "
             "(base_budget_id IS NOT NULL AND base_budget_revision >= 1)",
             name="ck_pf_changes_base_budget_pair",
@@ -135,6 +138,9 @@ class FinancialChangeRequestORM(Base):
     )
     applied_budget_id: Mapped[str | None] = mapped_column(String, nullable=True)
     applied_forecast_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    applied_schedule_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
     submitted_by: Mapped[str | None] = mapped_column(String, nullable=True)
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     applied_by: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -182,24 +188,24 @@ class FinancialChangeImpactORM(Base):
             ondelete="RESTRICT",
         ),
         CheckConstraint(
-            "impact_type IN ('budget', 'forecast', 'contract', 'schedule')",
+            "impact_type IN ('budget', 'forecast', 'schedule')",
             name="ck_pf_change_impacts_type",
         ),
         CheckConstraint(
-            "impact_type NOT IN ('budget', 'forecast', 'contract') OR "
+            "impact_type NOT IN ('budget', 'forecast') OR "
             "(amount <> 0 AND currency_code IS NOT NULL AND cost_code_id IS NOT NULL)",
             name="ck_pf_change_impacts_monetary_shape",
         ),
         CheckConstraint(
-            "impact_type <> 'contract' OR "
-            "(source_reference_type IS NOT NULL AND source_reference_id IS NOT NULL)",
-            name="ck_pf_change_impacts_contract_source",
+            "impact_type <> 'schedule' OR "
+            "(task_id IS NOT NULL AND target_task_version >= 1 AND "
+            "(schedule_start IS NOT NULL OR schedule_finish IS NOT NULL) AND amount = 0 AND "
+            "currency_code IS NULL AND cost_code_id IS NULL AND target_line_id IS NULL)",
+            name="ck_pf_change_impacts_schedule_shape",
         ),
         CheckConstraint(
-            "impact_type <> 'schedule' OR "
-            "(task_id IS NOT NULL AND "
-            "(schedule_start IS NOT NULL OR schedule_finish IS NOT NULL OR planned_hours_delta <> 0))",
-            name="ck_pf_change_impacts_schedule_shape",
+            "impact_type = 'schedule' OR target_task_version IS NULL",
+            name="ck_pf_change_impacts_task_version",
         ),
         CheckConstraint(
             "schedule_start IS NULL OR schedule_finish IS NULL OR schedule_finish >= schedule_start",
@@ -209,6 +215,18 @@ class FinancialChangeImpactORM(Base):
             "amount >= 0 OR target_line_id IS NOT NULL OR "
             "impact_type NOT IN ('budget', 'forecast')",
             name="ck_pf_change_impacts_negative_target",
+        ),
+        CheckConstraint(
+            "(applied_reference_type IS NULL AND applied_reference_id IS NULL) OR "
+            "(applied_reference_type IS NOT NULL AND applied_reference_id IS NOT NULL)",
+            name="ck_pf_change_impacts_applied_pair",
+        ),
+        CheckConstraint(
+            "applied_reference_type IS NULL OR "
+            "(impact_type = 'budget' AND applied_reference_type = 'budget_line') OR "
+            "(impact_type = 'forecast' AND applied_reference_type = 'forecast_line') OR "
+            "(impact_type = 'schedule' AND applied_reference_type = 'task')",
+            name="ck_pf_change_impacts_applied_type",
         ),
         {"info": {"rls_scope": "tenant_organization"}},
     )
@@ -234,17 +252,11 @@ class FinancialChangeImpactORM(Base):
         String, ForeignKey("tasks.id", ondelete="RESTRICT"), nullable=True
     )
     target_line_id: Mapped[str | None] = mapped_column(String, nullable=True)
-    source_reference_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    source_reference_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    target_task_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
     schedule_start: Mapped[date | None] = mapped_column(Date, nullable=True)
     schedule_finish: Mapped[date | None] = mapped_column(Date, nullable=True)
-    planned_hours_delta: Mapped[Decimal] = mapped_column(
-        financial_numeric(FinancialNumericKind.QUANTITY),
-        nullable=False,
-        default=Decimal("0"),
-        info=financial_numeric_info(FinancialNumericKind.QUANTITY),
-    )
-    applied_line_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    applied_reference_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    applied_reference_id: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
@@ -255,11 +267,7 @@ Index(
 )
 Index("idx_pf_change_impacts_request", FinancialChangeImpactORM.change_request_id)
 Index("idx_pf_change_impacts_target", FinancialChangeImpactORM.target_line_id)
-Index(
-    "idx_pf_change_impacts_source",
-    FinancialChangeImpactORM.source_reference_type,
-    FinancialChangeImpactORM.source_reference_id,
-)
+Index("idx_pf_change_impacts_task", FinancialChangeImpactORM.task_id)
 
 
 __all__ = ["FinancialChangeImpactORM", "FinancialChangeRequestORM"]

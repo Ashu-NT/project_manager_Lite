@@ -128,6 +128,7 @@ def upgrade() -> None:
         sa.Column("approval_request_id", sa.String(), nullable=True),
         sa.Column("applied_budget_id", sa.String(), nullable=True),
         sa.Column("applied_forecast_id", sa.String(), nullable=True),
+        sa.Column("applied_schedule_count", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("submitted_by", sa.String(), nullable=True),
         sa.Column("submitted_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("applied_by", sa.String(), nullable=True),
@@ -144,6 +145,9 @@ def upgrade() -> None:
         ),
         sa.CheckConstraint("revision >= 1", name="ck_pf_changes_revision"),
         sa.CheckConstraint("version >= 1", name="ck_pf_changes_version"),
+        sa.CheckConstraint(
+            "applied_schedule_count >= 0", name="ck_pf_changes_schedule_count"
+        ),
         sa.CheckConstraint(
             "(base_budget_id IS NULL AND base_budget_revision IS NULL) OR "
             "(base_budget_id IS NOT NULL AND base_budget_revision >= 1)",
@@ -231,32 +235,31 @@ def upgrade() -> None:
         sa.Column("cost_code_id", sa.String(), nullable=True),
         sa.Column("task_id", sa.String(), nullable=True),
         sa.Column("target_line_id", sa.String(), nullable=True),
-        sa.Column("source_reference_type", sa.String(length=64), nullable=True),
-        sa.Column("source_reference_id", sa.String(), nullable=True),
+        sa.Column("target_task_version", sa.Integer(), nullable=True),
         sa.Column("schedule_start", sa.Date(), nullable=True),
         sa.Column("schedule_finish", sa.Date(), nullable=True),
-        sa.Column("planned_hours_delta", sa.Numeric(19, 4, asdecimal=True), nullable=False, server_default="0"),
-        sa.Column("applied_line_id", sa.String(), nullable=True),
+        sa.Column("applied_reference_type", sa.String(length=32), nullable=True),
+        sa.Column("applied_reference_id", sa.String(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint(
-            "impact_type IN ('budget', 'forecast', 'contract', 'schedule')",
+            "impact_type IN ('budget', 'forecast', 'schedule')",
             name="ck_pf_change_impacts_type",
         ),
         sa.CheckConstraint(
-            "impact_type NOT IN ('budget', 'forecast', 'contract') OR "
+            "impact_type NOT IN ('budget', 'forecast') OR "
             "(amount <> 0 AND currency_code IS NOT NULL AND cost_code_id IS NOT NULL)",
             name="ck_pf_change_impacts_monetary_shape",
         ),
         sa.CheckConstraint(
-            "impact_type <> 'contract' OR "
-            "(source_reference_type IS NOT NULL AND source_reference_id IS NOT NULL)",
-            name="ck_pf_change_impacts_contract_source",
+            "impact_type <> 'schedule' OR "
+            "(task_id IS NOT NULL AND target_task_version >= 1 AND "
+            "(schedule_start IS NOT NULL OR schedule_finish IS NOT NULL) AND amount = 0 AND "
+            "currency_code IS NULL AND cost_code_id IS NULL AND target_line_id IS NULL)",
+            name="ck_pf_change_impacts_schedule_shape",
         ),
         sa.CheckConstraint(
-            "impact_type <> 'schedule' OR "
-            "(task_id IS NOT NULL AND "
-            "(schedule_start IS NOT NULL OR schedule_finish IS NOT NULL OR planned_hours_delta <> 0))",
-            name="ck_pf_change_impacts_schedule_shape",
+            "impact_type = 'schedule' OR target_task_version IS NULL",
+            name="ck_pf_change_impacts_task_version",
         ),
         sa.CheckConstraint(
             "schedule_start IS NULL OR schedule_finish IS NULL OR schedule_finish >= schedule_start",
@@ -265,6 +268,18 @@ def upgrade() -> None:
         sa.CheckConstraint(
             "amount >= 0 OR target_line_id IS NOT NULL OR impact_type NOT IN ('budget', 'forecast')",
             name="ck_pf_change_impacts_negative_target",
+        ),
+        sa.CheckConstraint(
+            "(applied_reference_type IS NULL AND applied_reference_id IS NULL) OR "
+            "(applied_reference_type IS NOT NULL AND applied_reference_id IS NOT NULL)",
+            name="ck_pf_change_impacts_applied_pair",
+        ),
+        sa.CheckConstraint(
+            "applied_reference_type IS NULL OR "
+            "(impact_type = 'budget' AND applied_reference_type = 'budget_line') OR "
+            "(impact_type = 'forecast' AND applied_reference_type = 'forecast_line') OR "
+            "(impact_type = 'schedule' AND applied_reference_type = 'task')",
+            name="ck_pf_change_impacts_applied_type",
         ),
         sa.ForeignKeyConstraint(
             ["tenant_id"], ["tenants.id"],
@@ -299,8 +314,7 @@ def upgrade() -> None:
         "idx_pf_change_impacts_target", "project_finance_change_impacts", ["target_line_id"]
     )
     op.create_index(
-        "idx_pf_change_impacts_source", "project_finance_change_impacts",
-        ["source_reference_type", "source_reference_id"],
+        "idx_pf_change_impacts_task", "project_finance_change_impacts", ["task_id"]
     )
     for table_name in _TABLES:
         enable_tenant_organization_rls(op, bind, table_name)

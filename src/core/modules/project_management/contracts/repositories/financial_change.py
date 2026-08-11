@@ -32,7 +32,11 @@ class FinancialChangeRepository(ABC):
 
     @abstractmethod
     def update_impact_application(
-        self, impact_id: str, *, applied_line_id: str
+        self,
+        impact_id: str,
+        *,
+        applied_reference_type: str,
+        applied_reference_id: str,
     ) -> None: ...
 
     @abstractmethod

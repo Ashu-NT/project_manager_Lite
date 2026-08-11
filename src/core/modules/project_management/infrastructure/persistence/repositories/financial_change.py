@@ -122,6 +122,7 @@ class SqlAlchemyFinancialChangeRepository(FinancialChangeRepository):
                 "approval_request_id": change.approval_request_id,
                 "applied_budget_id": change.applied_budget_id,
                 "applied_forecast_id": change.applied_forecast_id,
+                "applied_schedule_count": change.applied_schedule_count,
                 "submitted_by": change.submitted_by,
                 "submitted_at": change.submitted_at,
                 "applied_by": change.applied_by,
@@ -170,7 +171,11 @@ class SqlAlchemyFinancialChangeRepository(FinancialChangeRepository):
         return [financial_change_impact_from_orm(row) for row in rows]
 
     def update_impact_application(
-        self, impact_id: str, *, applied_line_id: str
+        self,
+        impact_id: str,
+        *,
+        applied_reference_type: str,
+        applied_reference_id: str,
     ) -> None:
         context = self._context(operation_label="apply financial change impact")
         result = self.session.execute(
@@ -179,9 +184,12 @@ class SqlAlchemyFinancialChangeRepository(FinancialChangeRepository):
                 FinancialChangeImpactORM.id == impact_id,
                 FinancialChangeImpactORM.tenant_id == context.tenant_id,
                 FinancialChangeImpactORM.organization_id == context.organization_id,
-                FinancialChangeImpactORM.applied_line_id.is_(None),
+                FinancialChangeImpactORM.applied_reference_id.is_(None),
             )
-            .values(applied_line_id=applied_line_id)
+            .values(
+                applied_reference_type=applied_reference_type,
+                applied_reference_id=applied_reference_id,
+            )
         )
         if result.rowcount != 1:
             raise BusinessRuleError(
