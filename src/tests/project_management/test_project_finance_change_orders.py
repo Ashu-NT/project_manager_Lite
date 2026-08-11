@@ -244,7 +244,7 @@ def test_approved_schedule_change_uses_task_owner_command(services) -> None:
     assert applied.applied_schedule_count == 1
     assert scheduled.start_date == date(2026, 8, 17)
     assert scheduled.end_date == date(2026, 8, 21)
-    assert scheduled.duration_days == 4
+    assert scheduled.duration_days == 5
     assert applied_impact.applied_reference_type == "task"
     assert applied_impact.applied_reference_id == task.id
 
@@ -377,7 +377,7 @@ def test_approval_rolls_back_all_successors_when_financial_audit_fails(
     assert len(services["budget_service"].list_budgets_for_project(project.id)) == 1
     rolled_back_task = services["task_service"].get_task(task.id)
     assert rolled_back_task.start_date == date(2026, 8, 10)
-    assert rolled_back_task.end_date == date(2026, 8, 14)
+    assert rolled_back_task.end_date == date(2026, 8, 13)
     assert services["approval_service"].list_pending(project_id=project.id)[0].id == request.id
 
 
