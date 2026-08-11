@@ -546,10 +546,26 @@ unrelated repository-wide generated-file size guard deselected).
   stored without a source type, source id, and snapshot timestamp. This is a pre-release clean
   cutover: no legacy forecast backfill, dual read, compatibility facade, or temporary code was
   added.
-- **Phase D.1B — NEXT:** build the canonical automatic forecast generator and document/test ETC
-  source precedence and exclusion/matching rules across remaining plan, open commitments,
-  risks, and manual estimates. The generator must create a complete draft version atomically and
-  make commitment/remaining-plan double counting impossible.
+- **Phase D.1B — COMPLETE (2026-08-11): canonical automatic ETC generation.** The composed
+  `ForecastGenerationService` creates one complete draft, its ETC lines, durable source-decision
+  evidence, and fail-closed audit in one transaction. It reads the latest complete planned-cost
+  snapshot at or before `as_of_date`, nets posted actuals by cost-code/task, includes only each
+  commitment's unmatched open balance, and then reduces remaining plan by both actuals and open
+  commitments. Taskless offsets are distributed deterministically within the cost code.
+- **D.1B precedence is fixed and tested:** open commitments always remain explicit ETC; a manual
+  ETC estimate replaces only remaining-plan ETC in its cost-code/task scope and cannot hide an
+  open commitment; an explicitly valued contingency linked to an active project risk is additive.
+  Generic risk severity is never converted into money. Reversed/future actuals, credits,
+  closed/cancelled commitments, exhausted plan, and manual overrides retain reason-coded evidence
+  instead of disappearing. Evidence-backed zero ETC is a valid forecast; a source-empty generation
+  request is rejected.
+- Migration `w0x1y2z3a4b5` adds the tenant/org/project-scoped source-decision table, reconciled Money
+  checks, source/task references, forced PostgreSQL RLS, and linked-risk line semantics. There is no
+  backfill, dual-read, compatibility branch, or temporary transition code.
+- **Next Phase D slice:** add typed financial change requests that apply approved budget, forecast,
+  contract, and schedule impacts by creating new canonical versions atomically. Canonical finance
+  read-model and QML cutover remain later Phase D work and must not read this generator through a
+  desktop fallback formula.
 - **Remaining Phase D:** typed financial change requests; snapshot/cash-flow/EVM/variance/
   portfolio read-model cutover to canonical Money and approved/current forecasts; export
   metadata and reconciliation; desktop formula deletion; QML Forecast/ETC/Change/Variance
@@ -557,8 +573,8 @@ unrelated repository-wide generated-file size guard deselected).
 - **Phase E** (billing/revenue/external accounting): blocked on ADR-PF-010 (currently
   PROPOSED, not accepted) and the product decisions in §24 items 10-15 of the master doc.
 
-Phase D.1A verification: focused forecast domain/service/tenant/migration coverage passes
-(`8 passed`); RBAC/security coverage passes (`44 passed`); PM desktop adapter architecture passes
+Phase D.1A/D.1B verification: focused forecast domain/generator/tenant/atomicity/migration coverage
+passes (`13 passed`); RBAC/security coverage passes (`44 passed`); PM desktop adapter architecture passes
 (`12 passed`); migration graph passes (`11 passed`, with only the
 unrelated repository-wide generated/platform size guard deselected); and the canonical PM suite
 passes (`567 passed`, 29 warnings). A combined run that also includes the older `src/tests/pm`

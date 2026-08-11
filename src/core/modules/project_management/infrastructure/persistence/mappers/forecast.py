@@ -1,15 +1,19 @@
 from __future__ import annotations
 
 from src.core.modules.project_management.domain.financials.forecast import (
+    ForecastDecisionAction,
+    ForecastDecisionReason,
     ForecastGenerationMode,
     ForecastLine,
     ForecastLineSourceKind,
     ForecastLineSourceType,
     ForecastStatus,
+    ForecastSourceDecision,
     ProjectForecast,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.forecast import (
     ForecastLineORM,
+    ForecastSourceDecisionORM,
     ProjectForecastORM,
 )
 
@@ -128,8 +132,56 @@ def forecast_line_from_orm(value: ForecastLineORM) -> ForecastLine:
     )
 
 
+def forecast_decision_to_orm(value: ForecastSourceDecision) -> ForecastSourceDecisionORM:
+    return ForecastSourceDecisionORM(
+        id=value.id,
+        tenant_id=value.tenant_id,
+        organization_id=value.organization_id,
+        forecast_id=value.forecast_id,
+        project_id=value.project_id,
+        cost_code_id=value.cost_code_id,
+        task_id=value.task_id,
+        source_type=value.source_type.value,
+        source_reference_type=value.source_reference_type,
+        source_reference_id=value.source_reference_id,
+        action=value.action.value,
+        reason=value.reason.value,
+        source_amount=value.source_amount,
+        included_amount=value.included_amount,
+        excluded_amount=value.excluded_amount,
+        currency_code=value.currency_code,
+        source_snapshot_at=value.source_snapshot_at,
+        created_at=value.created_at,
+    )
+
+
+def forecast_decision_from_orm(value: ForecastSourceDecisionORM) -> ForecastSourceDecision:
+    return ForecastSourceDecision(
+        id=value.id,
+        tenant_id=value.tenant_id,
+        organization_id=value.organization_id,
+        forecast_id=value.forecast_id,
+        project_id=value.project_id,
+        cost_code_id=value.cost_code_id,
+        task_id=value.task_id,
+        source_type=ForecastLineSourceType(value.source_type),
+        source_reference_type=value.source_reference_type,
+        source_reference_id=value.source_reference_id,
+        action=ForecastDecisionAction(value.action),
+        reason=ForecastDecisionReason(value.reason),
+        source_amount=value.source_amount,
+        included_amount=value.included_amount,
+        excluded_amount=value.excluded_amount,
+        currency_code=value.currency_code,
+        source_snapshot_at=value.source_snapshot_at,
+        created_at=value.created_at,
+    )
+
+
 __all__ = [
     "forecast_from_orm",
+    "forecast_decision_from_orm",
+    "forecast_decision_to_orm",
     "forecast_line_from_orm",
     "forecast_line_to_orm",
     "forecast_to_orm",

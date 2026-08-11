@@ -2,19 +2,36 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
 
+from src.core.modules.project_management.application.financials.forecasts import (
+    ManualEtcEstimate,
+    RiskContingencyEstimate,
+)
+from src.core.modules.project_management.domain.financials.commitment import (
+    ProjectCommitmentLineState,
+)
+from src.core.modules.project_management.domain.financials.cost_entry import (
+    ProjectCostEntryKind,
+    ProjectCostEntryStatus,
+)
 from src.core.modules.project_management.domain.financials.forecast import (
+    ForecastDecisionReason,
     ForecastGenerationMode,
     ForecastLine,
     ForecastLineSourceKind,
     ForecastLineSourceType,
     ForecastStatus,
     ProjectForecast,
+)
+from src.core.modules.project_management.domain.risk.register import (
+    RegisterEntry,
+    RegisterEntryType,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 
@@ -57,6 +74,106 @@ def _forecast(**overrides) -> ProjectForecast:
     }
     values.update(overrides)
     return ProjectForecast.create(**values)
+
+
+def _wire_generation_sources(
+    monkeypatch,
+    service,
+    *,
+    project,
+    cost_code,
+    planned_amount: str | None = "100",
+    actual_amounts: tuple[str, ...] = (),
+    commitment_amount: str | None = None,
+    matched_amount: str = "0",
+) -> None:
+    as_of = service._clock.today()
+    now = service._clock.now()
+    version = SimpleNamespace(
+        id="planned-version",
+        project_id=project.id,
+        as_of=as_of,
+        revision=1,
+        calculated_at=now,
+        rates_complete=True,
+        allocations_complete=True,
+        cost_codes_complete=True,
+    )
+    planned_lines = []
+    if planned_amount is not None:
+        planned_lines.append(SimpleNamespace(
+            id="planned-line",
+            cost_code_id=cost_code.id,
+            task_id=None,
+            amount=Decimal(planned_amount),
+            currency_code="USD",
+        ))
+    monkeypatch.setattr(
+        service._planned_cost_repo,
+        "list_for_project",
+        lambda _project_id: [version] if planned_lines else [],
+    )
+    monkeypatch.setattr(
+        service._planned_cost_repo,
+        "list_lines",
+        lambda _version_id: planned_lines,
+    )
+
+    commitments = []
+    if commitment_amount is not None:
+        amount = Decimal(commitment_amount)
+        commitments.append(SimpleNamespace(
+            id="commitment-line",
+            purchase_order_line_id="po-line",
+            cost_code_id=cost_code.id,
+            task_id=None,
+            amount=amount,
+            matched_amount=Decimal(matched_amount),
+            currency_code="USD",
+            base_amount=amount,
+            base_currency_code="USD",
+            exchange_rate=Decimal("1"),
+            state=ProjectCommitmentLineState.SENT,
+            updated_at=now,
+        ))
+
+    def list_commitments(_project_id, *, offset, limit):
+        del limit
+        return (commitments, len(commitments)) if offset == 0 else ([], len(commitments))
+
+    monkeypatch.setattr(
+        service._commitment_repo, "list_lines_for_project", list_commitments
+    )
+
+    actuals = [
+        SimpleNamespace(
+            id=f"actual-{index}",
+            cost_code_id=cost_code.id,
+            task_id=None,
+            amount=Decimal(amount),
+            currency_code="USD",
+            base_amount=Decimal(amount),
+            base_currency_code="USD",
+            posting_date=as_of,
+            posted_at=now,
+            updated_at=now,
+            status=ProjectCostEntryStatus.POSTED,
+            entry_kind=(
+                ProjectCostEntryKind.ACTUAL
+                if Decimal(amount) >= 0
+                else ProjectCostEntryKind.ADJUSTMENT
+            ),
+        )
+        for index, amount in enumerate(actual_amounts)
+    ]
+
+    def list_actuals(_project_id, *, status, offset, limit):
+        del limit
+        rows = actuals if status is ProjectCostEntryStatus.POSTED and offset == 0 else []
+        total = len(actuals) if status is ProjectCostEntryStatus.POSTED else 0
+        return rows, total
+
+    monkeypatch.setattr(service._cost_entry_repo, "list_for_project", list_actuals)
 
 
 def test_forecast_domain_lifecycle_is_explicit_and_immutable_after_submit() -> None:
@@ -229,6 +346,190 @@ def test_forecast_repository_is_isolated_by_active_organization(services) -> Non
     assert service._forecast_repo.get(forecast.id).id == forecast.id
 
 
+def test_generator_nets_actual_adjustments_and_does_not_double_count_commitments(
+    services, monkeypatch
+) -> None:
+    project = _project(services, "Automatic ETC")
+    code = _cost_code(services, "FC-GEN")
+    service = services["forecast_generation_service"]
+    _wire_generation_sources(
+        monkeypatch,
+        service,
+        project=project,
+        cost_code=code,
+        planned_amount="100",
+        actual_amounts=("20", "-5"),
+        commitment_amount="50",
+        matched_amount="20",
+    )
+
+    result = service.generate_draft(
+        project.id,
+        name="Generated ETC",
+        as_of_date=service._clock.today(),
+        generated_by="admin",
+    )
+
+    assert result.posted_actual_offset == Decimal("15")
+    assert result.open_commitment_total == Decimal("30")
+    assert result.remaining_plan_total == Decimal("55")
+    assert result.etc_total == Decimal("85")
+    assert sorted(line.amount for line in result.lines) == [Decimal("30"), Decimal("55")]
+    assert {
+        decision.reason for decision in result.decisions
+    } >= {
+        ForecastDecisionReason.ACTUAL_CREDIT,
+        ForecastDecisionReason.OPEN_COMMITMENT,
+        ForecastDecisionReason.POSTED_ACTUAL_OFFSET,
+        ForecastDecisionReason.REMAINING_PLAN,
+    }
+    assert len(
+        services["forecast_version_service"].list_source_decisions(result.forecast.id)
+    ) == 4
+
+
+def test_manual_etc_replaces_remaining_plan_but_keeps_open_commitments(
+    services, monkeypatch
+) -> None:
+    project = _project(services, "Hybrid ETC")
+    code = _cost_code(services, "FC-HYBRID")
+    service = services["forecast_generation_service"]
+    _wire_generation_sources(
+        monkeypatch,
+        service,
+        project=project,
+        cost_code=code,
+        planned_amount="100",
+        actual_amounts=("20",),
+        commitment_amount="30",
+    )
+
+    result = service.generate_draft(
+        project.id,
+        name="Hybrid ETC",
+        as_of_date=service._clock.today(),
+        generated_by="admin",
+        manual_estimates=(
+            ManualEtcEstimate(
+                cost_code_id=code.id,
+                amount=Decimal("40"),
+                description="Delivery team ETC",
+            ),
+        ),
+    )
+
+    assert result.remaining_plan_total == Decimal("0")
+    assert result.open_commitment_total == Decimal("30")
+    assert result.manual_etc_total == Decimal("40")
+    assert result.etc_total == Decimal("70")
+    assert sorted(line.amount for line in result.lines) == [Decimal("30"), Decimal("40")]
+
+
+def test_generator_persists_evidence_backed_zero_etc_forecast(
+    services, monkeypatch
+) -> None:
+    project = _project(services, "Complete ETC")
+    code = _cost_code(services, "FC-ZERO")
+    service = services["forecast_generation_service"]
+    _wire_generation_sources(
+        monkeypatch,
+        service,
+        project=project,
+        cost_code=code,
+        planned_amount="25",
+        actual_amounts=("25",),
+    )
+
+    result = service.generate_draft(
+        project.id,
+        name="Complete ETC",
+        as_of_date=service._clock.today(),
+        generated_by="admin",
+    )
+
+    assert result.etc_total == Decimal("0")
+    assert result.lines == ()
+    assert result.decisions
+    submitted = services["forecast_version_service"].submit_forecast(
+        result.forecast.id,
+        submitted_by="admin",
+        expected_version=result.forecast.row_version,
+    )
+    assert submitted.status is ForecastStatus.SUBMITTED
+
+
+def test_explicit_active_risk_contingency_is_additive(services, monkeypatch) -> None:
+    project = _project(services, "Risk ETC")
+    code = _cost_code(services, "FC-RISK")
+    service = services["forecast_generation_service"]
+    _wire_generation_sources(
+        monkeypatch,
+        service,
+        project=project,
+        cost_code=code,
+        planned_amount=None,
+    )
+    risk = RegisterEntry.create(
+        project.id,
+        entry_type=RegisterEntryType.RISK,
+        title="Supplier delay",
+    )
+    monkeypatch.setattr(
+        service._register_repo,
+        "get",
+        lambda risk_id: risk if risk_id == risk.id else None,
+    )
+
+    result = service.generate_draft(
+        project.id,
+        name="Risk ETC",
+        as_of_date=service._clock.today(),
+        generated_by="admin",
+        risk_contingencies=(
+            RiskContingencyEstimate(
+                risk_id=risk.id,
+                cost_code_id=code.id,
+                amount=Decimal("15"),
+            ),
+        ),
+    )
+
+    assert result.risk_contingency_total == Decimal("15")
+    assert result.etc_total == Decimal("15")
+    assert result.lines[0].source_type is ForecastLineSourceType.RISK
+    assert result.lines[0].source_reference_id == risk.id
+
+
+def test_generator_rolls_back_root_lines_and_decisions_when_audit_fails(
+    services, monkeypatch
+) -> None:
+    project = _project(services, "Atomic ETC")
+    code = _cost_code(services, "FC-ATOMIC")
+    service = services["forecast_generation_service"]
+    _wire_generation_sources(
+        monkeypatch,
+        service,
+        project=project,
+        cost_code=code,
+        planned_amount="25",
+    )
+    monkeypatch.setattr(
+        service,
+        "_record_audit",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("audit unavailable")),
+    )
+
+    with pytest.raises(RuntimeError, match="audit unavailable"):
+        service.generate_draft(
+            project.id,
+            name="Atomic ETC",
+            as_of_date=service._clock.today(),
+            generated_by="admin",
+        )
+
+    assert services["forecast_version_service"].list_forecasts(project.id) == []
+
+
 def test_forecast_migration_is_reversible_and_installs_constraints(tmp_path) -> None:
     database_path = tmp_path / "project-forecast-migration.db"
     config = Config("src/infra/persistence/migrations/alembic.ini")
@@ -240,6 +541,7 @@ def test_forecast_migration_is_reversible_and_installs_constraints(tmp_path) -> 
     assert {
         "project_finance_forecasts",
         "project_finance_forecast_lines",
+        "project_finance_forecast_source_decisions",
     } <= set(inspector.get_table_names())
     forecast_indexes = {
         row["name"] for row in inspector.get_indexes("project_finance_forecasts")
@@ -249,9 +551,15 @@ def test_forecast_migration_is_reversible_and_installs_constraints(tmp_path) -> 
             "project_finance_forecast_lines"
         )
     }
+    decision_checks = {
+        row["name"] for row in inspector.get_check_constraints(
+            "project_finance_forecast_source_decisions"
+        )
+    }
     assert "uq_pf_forecasts_one_open_per_project" in forecast_indexes
     assert "uq_pf_forecasts_one_approved_per_project" in forecast_indexes
     assert "ck_pf_forecast_lines_source_metadata" in line_checks
+    assert "ck_pf_forecast_decisions_reconciled" in decision_checks
     engine.dispose()
 
     command.downgrade(config, "u8v9w0x1y2z3")
@@ -259,4 +567,5 @@ def test_forecast_migration_is_reversible_and_installs_constraints(tmp_path) -> 
     tables = set(sa.inspect(engine).get_table_names())
     assert "project_finance_forecasts" not in tables
     assert "project_finance_forecast_lines" not in tables
+    assert "project_finance_forecast_source_decisions" not in tables
     engine.dispose()

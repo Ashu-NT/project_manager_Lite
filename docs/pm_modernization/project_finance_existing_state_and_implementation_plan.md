@@ -1065,18 +1065,19 @@ Implementation progress (2026-08-11):
   `as_of_date`, generation mode, currency, actor/timestamp history, and one-open/one-approved
   database invariants. Approval atomically supersedes the prior approved forecast.
 - Forecast lines use canonical Decimal Money and carry cost-code, optional WBS task, optional
-  period, and explicit automatic/manual source metadata. Automatic remaining-plan,
-  open-commitment, or risk lines require a stable source type/id and snapshot timestamp; manual
-  lines are explicitly `manual_estimate`. Domain and database constraints reject mixed source
-  semantics, invalid periods, negative amounts, and cross-scope parent references.
+  period, and explicit automatic/manual source metadata. Automatic remaining-plan and
+  open-commitment lines require a stable source type/id and snapshot timestamp. Manual lines are
+  either explicit `manual_estimate` rows or contingencies linked to a snapshotted risk. Domain and
+  database constraints reject mixed source semantics, invalid periods, negative amounts, and
+  cross-scope parent references.
 - `ForecastVersionService` is composed through the PM service graph with `forecast.manage`/
   `forecast.approve` RBAC, project-scope enforcement, active tenant/organization ID scoping,
   optimistic concurrency, cost-code/task eligibility checks, fail-closed audit, and domain-change
-  events. PostgreSQL forced RLS is delivered by migration `v9w0x1y2z3a4`, which is the sole
-  Alembic head and is reversible.
+  events. PostgreSQL forced RLS is delivered by reversible migration `v9w0x1y2z3a4`; D.1B
+  revision `w0x1y2z3a4b5` now follows it as the sole Alembic head.
 - No data migration or compatibility path was created because the application is pre-release and
   has no client forecast data. The transient `ForecastCostService` remains the current desktop
-  calculation source until D.1B-D.4 produce and prove the canonical generator/read models; it is
+  calculation source until D.4 produces and proves the canonical read models; it is
   not a second persisted authority.
 - Verification: 8 focused forecast lifecycle/tenant/migration tests pass; 44 RBAC/security tests
   pass; 12 desktop-adapter architecture tests pass; the migration graph passes with the unrelated
@@ -1084,10 +1085,46 @@ Implementation progress (2026-08-11):
   `src/tests/pm` tree still has 12 pre-existing scheduling contract mismatches unrelated to this
   implementation.
 
-Next implementation slice: **D.1B**, the automatic forecast generator plus explicit ETC source
-precedence/exclusion rules. It must write one complete draft snapshot atomically and prevent any
-open commitment from also being counted as remaining plan before forecast read models or QML are
-cut over.
+- **D.1B COMPLETE — canonical automatic ETC generation and source evidence.** The composed
+  `ForecastGenerationService` reads every paginated canonical source through PM repository
+  contracts and writes one `ProjectForecast`, all `ForecastLine` rows, all reason-coded
+  `ForecastSourceDecision` rows, and the fail-closed audit entry under one commit boundary. Any
+  persistence or audit failure rolls back the complete generated version. Permission checks remain
+  `forecast.manage` plus project scope; active tenant/organization scope is resolved once through
+  the canonical context service.
+- The generator selects the latest complete planned-cost version whose business `as_of` is not
+  later than the requested forecast date. Posted actuals at or before that date are netted as signed
+  offsets by cost-code/task; reversals and future postings are excluded with evidence. Each open
+  commitment contributes only `amount - matched_amount` (or its snapshotted base-currency
+  equivalent) to ETC and offsets the same remaining-plan envelope. Applying both offsets before
+  emitting remaining plan makes commitment/ETC double counting impossible. A taskless offset is
+  allocated deterministically across task slices for the same cost code.
+- Manual ETC has narrow replacement semantics: it suppresses remaining-plan ETC only for its exact
+  task dimension, or for the whole cost code when intentionally entered without a task. It never
+  suppresses an open commitment. Risk contingency is additive only when the caller supplies an
+  explicit monetary estimate linked to an active project risk; register severity is not assigned a
+  fabricated monetary value. Overlapping manual scopes, duplicate risks, inactive/newer risks,
+  incomplete plan snapshots, unsupported currencies, future forecast dates, and newer commitment
+  state without historical reconstruction fail with typed errors.
+- Every considered source leaves durable evidence containing source identity/type/snapshot,
+  cost-code/task dimension, action, reason, source amount, included amount, and excluded amount.
+  The amounts must reconcile in both Pydantic domain validation and database constraints.
+  Evidence-backed zero ETC is valid and submit-able; a request with no source facts is rejected.
+  Migration `w0x1y2z3a4b5` adds this tenant/org/project-scoped evidence table, task/source indexes,
+  linked-risk line constraint, and forced PostgreSQL RLS. It is the sole Alembic head and is
+  reversible.
+- D.1B is a direct pre-release implementation: no backfill, compatibility facade, dual read/write,
+  legacy forecast model, or temporary transition file was introduced. The existing transient
+  desktop `ForecastCostService` is not a persisted authority and remains only until the later
+  canonical read-model/QML parity gate removes it.
+- D.1B verification: 13 focused lifecycle/generation/precedence/risk/zero-ETC/atomicity/tenant/
+  migration tests pass. The affected finance architecture, persistence, security, and composition
+  checkpoint passes 39 tests; its only global-suite failure is the pre-existing hard-size guard for
+  generated `resources/shared_resources_rc.py` and platform `enterprise_calendar.py`.
+
+Next implementation slice: **D.2**, typed financial change requests that apply approved budget,
+forecast, contract, and schedule impacts by creating new canonical versions atomically. Forecast
+read models and QML must not cut over until D.4 proves source reconciliation and read parity.
 
 ### Phase E - Billing preparation, revenue, and external accounting
 
@@ -1335,12 +1372,13 @@ These are genuine product/ownership decisions. Questions mapped to A0/A1/A2 ADRs
 ## 25. Final Recommendation
 
 Proceed with the upgrade, but do not recreate the removed combined CostItem model. Phases A-C and
-the clean C.9 cutover are complete. Phase D.1A now provides canonical forecast-version and line
-persistence; continue with D.1B automatic generation and ETC precedence before changing finance
-read models or QML. Item 7's planned-cost source cutover remains explicitly blocked by planning
+the clean C.9 cutover are complete. Phase D.1A-D.1B now provide canonical forecast persistence,
+lifecycle, automatic ETC generation, and durable source decisions; continue with D.2 typed
+financial change requests before changing finance read models or QML. Item 7's planned-cost source
+cutover remains explicitly blocked by planning
 semantics and freshness ownership; do not force it or treat the new forecast aggregate as a
 substitute for a real planning source.
 
-Then build Project Finance as explicit PM-owned aggregates while preserving valid module ownership: Time supplies approved hours, Procurement supplies PO/receipt facts, Party supplies identities, Approval and Audit remain platform services, and external accounting owns official ledger/payment behavior. Use additive persistence and temporary compatibility only to migrate verified data; delete every fallback, dual-write, alias, and transition adapter at its named phase gate.
+Then build Project Finance as explicit PM-owned aggregates while preserving valid module ownership: Time supplies approved hours, Procurement supplies PO/receipt facts, Party supplies identities, Approval and Audit remain platform services, and external accounting owns official ledger/payment behavior. Because the application is pre-release with no client data, use direct canonical cutovers and do not add fallback, dual-write, alias, compatibility, or transition adapters.
 
 The existing QML workspace is not a constraint. Redesign it to expose Financial Profile, Budget Versions, Planned Cost, Commitments, Posted Actuals, Forecast Versions, Change Control, and Billing Preparation as distinct lifecycle-aware sections. This backend-first sequence is the safest path from the current tested cost-reporting feature to a professional multi-tenant SaaS Project Finance capability without creating an unnecessary accounting application.

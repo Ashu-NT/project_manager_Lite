@@ -8,16 +8,20 @@ from src.core.modules.project_management.contracts.repositories.forecast import 
 )
 from src.core.modules.project_management.domain.financials.forecast import (
     ForecastLine,
+    ForecastSourceDecision,
     ProjectForecast,
 )
 from src.core.modules.project_management.infrastructure.persistence.mappers.forecast import (
     forecast_from_orm,
+    forecast_decision_from_orm,
+    forecast_decision_to_orm,
     forecast_line_from_orm,
     forecast_line_to_orm,
     forecast_to_orm,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.forecast import (
     ForecastLineORM,
+    ForecastSourceDecisionORM,
     ProjectForecastORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
@@ -265,6 +269,40 @@ class SqlAlchemyProjectForecastRepository(ProjectForecastRepository):
             )
         ).scalars().all()
         return [forecast_line_from_orm(row) for row in rows]
+
+    def add_decisions(self, decisions: list[ForecastSourceDecision]) -> None:
+        if not decisions:
+            return
+        context = self._context(operation_label="create forecast source decisions")
+        forecast_ids = {decision.forecast_id for decision in decisions}
+        if len(forecast_ids) != 1:
+            raise BusinessRuleError(
+                "Forecast source decisions must belong to one forecast.",
+                code="PROJECT_FORECAST_DECISION_PARENT_MISMATCH",
+            )
+        self._require_forecast(next(iter(forecast_ids)), context)
+        for decision in decisions:
+            self._require_entity_scope(decision, context)
+        self.session.add_all(forecast_decision_to_orm(item) for item in decisions)
+
+    def list_decisions(self, forecast_id: str) -> list[ForecastSourceDecision]:
+        context = self._context(operation_label="list forecast source decisions")
+        self._require_forecast(forecast_id, context)
+        rows = self.session.execute(
+            select(ForecastSourceDecisionORM)
+            .where(
+                ForecastSourceDecisionORM.tenant_id == context.tenant_id,
+                ForecastSourceDecisionORM.organization_id == context.organization_id,
+                ForecastSourceDecisionORM.forecast_id == forecast_id,
+            )
+            .order_by(
+                ForecastSourceDecisionORM.cost_code_id.asc(),
+                ForecastSourceDecisionORM.task_id.asc(),
+                ForecastSourceDecisionORM.source_reference_type.asc(),
+                ForecastSourceDecisionORM.source_reference_id.asc(),
+            )
+        ).scalars().all()
+        return [forecast_decision_from_orm(row) for row in rows]
 
     def flush(self) -> None:
         self.session.flush()

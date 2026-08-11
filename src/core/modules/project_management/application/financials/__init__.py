@@ -13,6 +13,14 @@ from src.core.modules.project_management.application.financials.forecasts.foreca
 from src.core.modules.project_management.application.financials.forecasts.version_service import (
     ForecastVersionService,
 )
+from src.core.modules.project_management.application.financials.forecasts.generation_models import (
+    ForecastGenerationResult,
+    ManualEtcEstimate,
+    RiskContingencyEstimate,
+)
+from src.core.modules.project_management.application.financials.forecasts.generation_service import (
+    ForecastGenerationService,
+)
 from src.core.modules.project_management.application.financials.models.finance_models import (
     FinanceAnalyticsRow,
     FinanceLedgerRow,
@@ -88,7 +96,10 @@ __all__ = [
     "FinanceService",
     "FinanceSnapshot",
     "ForecastCostService",
+    "ForecastGenerationResult",
+    "ForecastGenerationService",
     "ForecastVersionService",
+    "ManualEtcEstimate",
     "LaborCostEngine",
     "MaterialRollup",
     "FinancialConfigurationService",
@@ -100,4 +111,5 @@ __all__ = [
     "ProjectFinanceWorkspaceRead",
     "RateCardResolver",
     "RateSelectionSnapshot",
+    "RiskContingencyEstimate",
 ]

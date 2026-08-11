@@ -101,6 +101,7 @@ from src.core.modules.project_management.application.financials import (
     FinancialConfigurationService,
     FinanceService,
     ForecastCostService,
+    ForecastGenerationService,
     ForecastVersionService,
     PlannedCostService,
     ProjectCommitmentService,
@@ -233,6 +234,7 @@ class ServiceGraph:
     resource_service: ResourceService
     financial_configuration_service: FinancialConfigurationService
     forecast_service: ForecastCostService
+    forecast_generation_service: ForecastGenerationService
     forecast_version_service: ForecastVersionService
     rate_card_service: ProjectRateCardService
     rate_card_resolver: RateCardResolver
@@ -346,6 +348,7 @@ class ServiceGraph:
             "resource_service": self.resource_service,
             "financial_configuration_service": self.financial_configuration_service,
             "forecast_service": self.forecast_service,
+            "forecast_generation_service": self.forecast_generation_service,
             "forecast_version_service": self.forecast_version_service,
             "rate_card_service": self.rate_card_service,
             "rate_card_resolver": self.rate_card_resolver,
@@ -549,6 +552,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
             project_management_services.financial_configuration_service
         ),
         forecast_service=project_management_services.forecast_service,
+        forecast_generation_service=project_management_services.forecast_generation_service,
         forecast_version_service=project_management_services.forecast_version_service,
         rate_card_service=project_management_services.rate_card_service,
         rate_card_resolver=project_management_services.rate_card_resolver,

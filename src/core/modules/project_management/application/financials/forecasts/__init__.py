@@ -10,12 +10,24 @@ from src.core.modules.project_management.application.financials.forecasts.foreca
 from src.core.modules.project_management.application.financials.forecasts.version_service import (
     ForecastVersionService,
 )
+from src.core.modules.project_management.application.financials.forecasts.generation_models import (
+    ForecastGenerationResult,
+    ManualEtcEstimate,
+    RiskContingencyEstimate,
+)
+from src.core.modules.project_management.application.financials.forecasts.generation_service import (
+    ForecastGenerationService,
+)
 
 __all__ = [
     "CommitmentSummary",
     "CostForecastResult",
     "EACMethod",
     "ForecastCostService",
+    "ForecastGenerationResult",
+    "ForecastGenerationService",
     "ForecastVersionService",
+    "ManualEtcEstimate",
     "MaterialRollup",
+    "RiskContingencyEstimate",
 ]
