@@ -529,6 +529,9 @@ from the profile and approved budget totals from `ProjectBudget`/`BudgetLine` in
 Baseline/EVM no longer treat budget authorization as a cost-loaded performance baseline, and
 the two-way currency synchronization plus its transition marker were deleted. This is a direct
 pre-release cutover: no backfill, dual read, compatibility alias, or dormant legacy branch exists.
+Verification: the complete PM suite passes (`559 passed`), and the targeted architecture,
+migration-graph, service-composition, CQRS, and QML suite passes (`54 passed`, with only the
+unrelated repository-wide generated-file size guard deselected).
 
 ## 3. Finance — Phase D and E (future, not started)
 

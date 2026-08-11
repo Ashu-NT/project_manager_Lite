@@ -261,6 +261,9 @@ def test_data_import_service_imports_projects_resources_tasks_and_rejects_legacy
     ps = services["project_service"]
     ts = services["task_service"]
     rs = services["resource_service"]
+    expected_currency = services[
+        "organization_service"
+    ].get_active_organization().base_currency
 
     tmp = create_test_workspace("import")
     try:
@@ -277,7 +280,7 @@ def test_data_import_service_imports_projects_resources_tasks_and_rejects_legacy
         assert project_summary.created_count == 1
         project = next(item for item in ps.list_projects() if item.name == "Import Alpha")
         profile = services["financial_configuration_service"].get_profile(project.id)
-        assert profile.currency_code == "USD"
+        assert profile.currency_code == expected_currency
 
         (tmp / "resources.csv").write_text(
             "\n".join(
@@ -336,7 +339,7 @@ def test_data_import_service_imports_projects_resources_tasks_and_rejects_legacy
         assert not hasattr(updated_project, "planned_budget")
         assert services["financial_configuration_service"].get_profile(
             project.id
-        ).currency_code == "USD"
+        ).currency_code == expected_currency
     finally:
         cleanup_test_workspace(tmp)
 

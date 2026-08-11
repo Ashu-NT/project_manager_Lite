@@ -76,11 +76,11 @@ class _CommitmentService:
 
 def test_financial_desktop_api_delegates_forecast_and_commitment_calculation() -> None:
     service = _ForecastService()
-    project_service = SimpleNamespace(
-        get_project=lambda _project_id: SimpleNamespace(currency="EUR")
+    configuration_service = SimpleNamespace(
+        get_profile=lambda _project_id: SimpleNamespace(currency_code="EUR")
     )
     api = ProjectManagementFinancialsDesktopApi(
-        project_service=project_service,
+        financial_configuration_service=configuration_service,
         forecast_service=service,
     )
 
