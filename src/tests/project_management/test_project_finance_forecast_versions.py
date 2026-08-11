@@ -547,7 +547,7 @@ def test_forecast_migration_is_reversible_and_installs_constraints(tmp_path) -> 
         row["name"] for row in inspector.get_indexes("project_finance_forecasts")
     }
     line_checks = {
-        row["name"] for row in inspector.get_check_constraints(
+        row["name"]: row["sqltext"] for row in inspector.get_check_constraints(
             "project_finance_forecast_lines"
         )
     }
@@ -559,7 +559,22 @@ def test_forecast_migration_is_reversible_and_installs_constraints(tmp_path) -> 
     assert "uq_pf_forecasts_one_open_per_project" in forecast_indexes
     assert "uq_pf_forecasts_one_approved_per_project" in forecast_indexes
     assert "ck_pf_forecast_lines_source_metadata" in line_checks
+    assert "source_type = 'risk'" in line_checks["ck_pf_forecast_lines_source_metadata"]
     assert "ck_pf_forecast_decisions_reconciled" in decision_checks
+    engine.dispose()
+
+    command.downgrade(config, "v9w0x1y2z3a4")
+    engine = sa.create_engine(config.get_main_option("sqlalchemy.url"), future=True)
+    inspector = sa.inspect(engine)
+    assert "project_finance_forecast_source_decisions" not in inspector.get_table_names()
+    line_checks = {
+        row["name"]: row["sqltext"] for row in inspector.get_check_constraints(
+            "project_finance_forecast_lines"
+        )
+    }
+    assert "source_type = 'risk'" not in line_checks[
+        "ck_pf_forecast_lines_source_metadata"
+    ]
     engine.dispose()
 
     command.downgrade(config, "u8v9w0x1y2z3")

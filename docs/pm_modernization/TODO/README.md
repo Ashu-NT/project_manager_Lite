@@ -576,8 +576,9 @@ unrelated repository-wide generated-file size guard deselected).
 Phase D.1A/D.1B verification: focused forecast domain/generator/tenant/atomicity/migration coverage
 passes (`13 passed`); RBAC/security coverage passes (`44 passed`); PM desktop adapter architecture passes
 (`12 passed`); migration graph passes (`11 passed`, with only the
-unrelated repository-wide generated/platform size guard deselected); and the canonical PM suite
-passes (`567 passed`, 29 warnings). A combined run that also includes the older `src/tests/pm`
+unrelated repository-wide generated/platform size guard deselected). The previous D.1A canonical
+PM baseline passed (`567 passed`, 29 warnings); the current D.1B run reached 89% with no failures
+before the five-minute command limit. A combined run that also includes the older `src/tests/pm`
 tree reports 12 pre-existing scheduling-test contract mismatches (legacy `ValueError`/clamping
 expectations and legacy constraint-field fixtures); none touches Project Finance.
 

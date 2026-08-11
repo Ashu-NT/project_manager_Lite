@@ -385,7 +385,7 @@ class ForecastLine:
             }
         ):
             raise ValidationError(
-                "Automatic forecast lines cannot use the manual-estimate source type.",
+                "Automatic forecast lines cannot represent manual estimates or posted actuals.",
                 code="PROJECT_FORECAST_LINE_SOURCE_MISMATCH",
             )
         if self.source_kind == ForecastLineSourceKind.AUTOMATIC:
