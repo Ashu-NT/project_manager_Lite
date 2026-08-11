@@ -35,7 +35,6 @@ from src.core.modules.project_management.application.financials import (
     FinancialConfigurationService,
     FinanceService,
     FinancialChangeService,
-    ForecastCostService,
     ForecastGenerationService,
     ForecastVersionService,
     PlannedCostService,
@@ -120,7 +119,6 @@ class ProjectManagementServiceBundle:
     timesheet_service: TimesheetService
     resource_service: ResourceService
     financial_configuration_service: FinancialConfigurationService
-    forecast_service: ForecastCostService
     forecast_generation_service: ForecastGenerationService
     forecast_version_service: ForecastVersionService
     financial_change_service: FinancialChangeService
@@ -458,12 +456,6 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
     )
-    forecast_service = ForecastCostService(
-        finance_service,
-        repositories.project_repo,
-        user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_catalog_service,
-    )
     forecast_version_service = ForecastVersionService(
         session=session,
         forecast_repo=repositories.project_forecast_repo,
@@ -614,7 +606,6 @@ def build_project_management_service_bundle(
         timesheet_service=timesheet_service,
         resource_service=resource_service,
         financial_configuration_service=financial_configuration_service,
-        forecast_service=forecast_service,
         forecast_generation_service=forecast_generation_service,
         forecast_version_service=forecast_version_service,
         financial_change_service=financial_change_service,

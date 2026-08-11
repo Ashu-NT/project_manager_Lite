@@ -273,6 +273,7 @@ def test_cost_aggregation_cannot_fan_out_across_independent_sources() -> None:
     tree = _tree(FINANCE_STATEMENTS)
     expected_authority = {
         "planned_cost_facts_statement": "ProjectPlannedCostLineORM",
+        "approved_forecast_line_facts_statement": "ForecastLineORM",
         "commitment_facts_statement": "ProjectCommitmentLineORM",
         "actual_cost_facts_statement": "ProjectCostEntryORM",
     }
@@ -291,7 +292,7 @@ def test_cost_aggregation_cannot_fan_out_across_independent_sources() -> None:
         assert not (set(expected_authority.values()) - {authority}) & orm_names
 
     reader_source = FINANCE_READER.read_text(encoding="utf-8")
-    assert "return planned + commitments + actuals" in reader_source
+    assert "return planned + forecasts + commitments + actuals" in reader_source
     assert "def _aggregate(" in reader_source
 
 
@@ -507,8 +508,9 @@ def test_portfolio_heatmap_uses_one_scoped_fact_graph_and_pure_policy_engines() 
     assert heatmap_source.count("self._heatmap_reader.read_facts(") == 1
     assert "CPMCalculator(calendar).calculate(" in source
     assert "ResourceLoadEngine.calculate(" in source
-    assert "LaborCostEngine.for_facts(" in source
-    assert "CostPolicyEngine.for_facts(" in source
+    assert "project.finance.control.estimate_at_completion" in source
+    assert "LaborCostEngine.for_facts(" not in source
+    assert "CostPolicyEngine.for_facts(" not in source
     assert "working_day_dates_between(" in source
     for forbidden in (
         "_reporting.get_project_kpis(",
@@ -527,6 +529,27 @@ def test_portfolio_heatmap_uses_one_scoped_fact_graph_and_pure_policy_engines() 
         "ResourceORM.organization_id == organization_id",
     ):
         assert predicate in reader_source
+
+
+def test_finance_snapshot_is_a_disposable_read_model_not_a_persisted_authority() -> None:
+    persistence_source = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (PM_ROOT / "infrastructure/persistence").rglob("*.py")
+    )
+    command_source = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (PM_ROOT / "application").rglob("*.py")
+        if "commands" in path.parts
+    )
+
+    for forbidden in (
+        "FinanceSnapshotORM",
+        "FinanceControlFactORM",
+        "finance_snapshot_repository",
+        "project_finance_snapshots",
+    ):
+        assert forbidden not in persistence_source
+        assert forbidden not in command_source
 
 
 def test_collaboration_cross_project_reads_use_one_scoped_fact_graph() -> None:

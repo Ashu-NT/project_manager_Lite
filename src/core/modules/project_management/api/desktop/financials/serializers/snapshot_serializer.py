@@ -68,6 +68,40 @@ def serialize_snapshot(project_id: str, snapshot) -> FinancialSnapshotDto:
         notes=tuple(snapshot.notes or ()),
         labor_rates_complete=not getattr(snapshot, "unresolved_labor_rates", ()),
         unresolved_labor_rate_count=len(getattr(snapshot, "unresolved_labor_rates", ()) or ()),
+        forecast_etc=(
+            None if snapshot.forecast_etc is None else float(snapshot.forecast_etc)
+        ),
+        forecast_etc_label=(
+            "Not approved"
+            if snapshot.forecast_etc is None
+            else format_money(snapshot.forecast_etc, currency)
+        ),
+        estimate_at_completion=(
+            None
+            if snapshot.estimate_at_completion is None
+            else float(snapshot.estimate_at_completion)
+        ),
+        estimate_at_completion_label=(
+            "Not available"
+            if snapshot.estimate_at_completion is None
+            else format_money(snapshot.estimate_at_completion, currency)
+        ),
+        variance_at_completion=(
+            None
+            if snapshot.variance_at_completion is None
+            else float(snapshot.variance_at_completion)
+        ),
+        variance_at_completion_label=(
+            "Not available"
+            if snapshot.variance_at_completion is None
+            else format_money(snapshot.variance_at_completion, currency)
+        ),
+        as_of=snapshot.as_of,
+        approved_budget_id=snapshot.approved_budget_id or "",
+        approved_budget_revision=snapshot.approved_budget_revision,
+        approved_forecast_id=snapshot.approved_forecast_id or "",
+        approved_forecast_revision=snapshot.approved_forecast_revision,
+        approved_forecast_as_of=snapshot.approved_forecast_as_of,
     )
 
 

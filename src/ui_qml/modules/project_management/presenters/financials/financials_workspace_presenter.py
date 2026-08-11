@@ -6,13 +6,10 @@ from src.core.modules.project_management.api.desktop import (
     ProjectManagementFinancialsDesktopApi,
     build_project_management_financials_desktop_api,
 )
-from src.ui_qml.modules.project_management.view_models.financials import (
-    FinancialsForecastViewModel,
-    FinancialsWorkspaceViewModel,
-)
+from src.ui_qml.modules.project_management.view_models.financials import FinancialsWorkspaceViewModel
 
 from .command_handler import create_manual_actual
-from .workspace_builder import build_workspace_state, compute_forecast
+from .workspace_builder import build_workspace_state
 
 class ProjectFinancialsWorkspacePresenter:
     def __init__(
@@ -42,13 +39,5 @@ class ProjectFinancialsWorkspacePresenter:
 
     def create_manual_actual(self, payload: dict[str, Any]) -> None:
         create_manual_actual(self._desktop_api, payload)
-
-    def compute_forecast(
-        self,
-        selected_project_id: str | None,
-        *,
-        method: str = "bac_over_cpi",
-    ) -> FinancialsForecastViewModel:
-        return compute_forecast(self._desktop_api, selected_project_id, method=method)
 
 __all__ = ["ProjectFinancialsWorkspacePresenter"]

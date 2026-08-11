@@ -74,6 +74,18 @@ class FinancialSnapshotDto:
     notes: tuple[str, ...]
     labor_rates_complete: bool = True
     unresolved_labor_rate_count: int = 0
+    forecast_etc: float | None = None
+    forecast_etc_label: str = "Not approved"
+    estimate_at_completion: float | None = None
+    estimate_at_completion_label: str = "Not available"
+    variance_at_completion: float | None = None
+    variance_at_completion_label: str = "Not available"
+    as_of: date | None = None
+    approved_budget_id: str = ""
+    approved_budget_revision: int | None = None
+    approved_forecast_id: str = ""
+    approved_forecast_revision: int | None = None
+    approved_forecast_as_of: date | None = None
 
 
 __all__ = [

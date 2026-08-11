@@ -185,9 +185,6 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot(str)
     def selectProject(self, project_id: str) -> None: self._select_project(project_id)
 
-    @Slot(str, result="QVariantMap")
-    def computeForecast(self, method: str) -> FinancialsMap: return self._compute_forecast(method)
-
     @Slot()
     def exportFinancials(self) -> None: self._export_financials()
 

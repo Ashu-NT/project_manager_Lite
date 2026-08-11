@@ -28,6 +28,10 @@ from src.core.modules.project_management.infrastructure.persistence.orm.planned_
 from src.core.modules.project_management.infrastructure.persistence.orm.financial_configuration import (
     ProjectFinancialProfileORM,
 )
+from src.core.modules.project_management.infrastructure.persistence.orm.forecast import (
+    ForecastLineORM,
+    ProjectForecastORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.project import (
     ProjectORM,
     ProjectResourceORM,
@@ -50,6 +54,17 @@ def _project_scope(*, tenant_id: str, organization_id: str, project_id: str) -> 
 
 
 def project_fact_statement(*, tenant_id: str, organization_id: str, project_id: str) -> SqlSelect:
+    approved_budget_id = (
+        select(ProjectBudgetORM.id)
+        .where(
+            ProjectBudgetORM.tenant_id == ProjectORM.tenant_id,
+            ProjectBudgetORM.organization_id == ProjectORM.organization_id,
+            ProjectBudgetORM.project_id == ProjectORM.id,
+            ProjectBudgetORM.status == "approved",
+        )
+        .correlate(ProjectORM)
+        .scalar_subquery()
+    )
     approved_budget = (
         select(func.coalesce(func.sum(BudgetLineORM.amount), 0))
         .join(
@@ -74,6 +89,11 @@ def project_fact_statement(*, tenant_id: str, organization_id: str, project_id: 
         ProjectORM.organization_id,
         ProjectFinancialProfileORM.currency_code,
         approved_budget.label("approved_budget"),
+        approved_budget_id.label("approved_budget_id"),
+        select(ProjectBudgetORM.revision)
+        .where(ProjectBudgetORM.id == approved_budget_id)
+        .scalar_subquery()
+        .label("approved_budget_revision"),
         ProjectORM.start_date,
         ProjectORM.end_date,
     ).join(
@@ -82,6 +102,69 @@ def project_fact_statement(*, tenant_id: str, organization_id: str, project_id: 
         & (ProjectFinancialProfileORM.tenant_id == ProjectORM.tenant_id)
         & (ProjectFinancialProfileORM.organization_id == ProjectORM.organization_id),
     ).where(_project_scope(tenant_id=tenant_id, organization_id=organization_id, project_id=project_id))
+
+
+def approved_forecast_facts_statement(
+    *, tenant_id: str, organization_id: str, project_id: str, as_of: date
+) -> SqlSelect:
+    return (
+        select(
+            ProjectForecastORM.id,
+            ProjectForecastORM.revision,
+            ProjectForecastORM.name,
+            ProjectForecastORM.currency_code,
+            ProjectForecastORM.as_of_date,
+        )
+        .join(ProjectORM, ProjectORM.id == ProjectForecastORM.project_id)
+        .where(
+            ProjectForecastORM.tenant_id == tenant_id,
+            ProjectForecastORM.organization_id == organization_id,
+            ProjectForecastORM.project_id == project_id,
+            ProjectForecastORM.status == "approved",
+            ProjectForecastORM.as_of_date <= as_of,
+            _project_scope(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
+            ),
+        )
+        .limit(1)
+    )
+
+
+def approved_forecast_line_facts_statement(
+    *, tenant_id: str, organization_id: str, project_id: str, forecast_id: str
+) -> SqlSelect:
+    return (
+        select(
+            ForecastLineORM.id,
+            ForecastLineORM.task_id,
+            ForecastLineORM.cost_code_id,
+            ForecastLineORM.description,
+            ForecastLineORM.amount,
+            ForecastLineORM.currency_code,
+            ForecastLineORM.source_type,
+            ForecastLineORM.source_reference_type,
+            ForecastLineORM.source_reference_id,
+            ForecastLineORM.period_start,
+            ForecastLineORM.period_end,
+            ProjectForecastORM.as_of_date,
+        )
+        .join(ProjectForecastORM, ProjectForecastORM.id == ForecastLineORM.forecast_id)
+        .join(ProjectORM, ProjectORM.id == ForecastLineORM.project_id)
+        .where(
+            ForecastLineORM.tenant_id == tenant_id,
+            ForecastLineORM.organization_id == organization_id,
+            ForecastLineORM.project_id == project_id,
+            ForecastLineORM.forecast_id == forecast_id,
+            _project_scope(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
+            ),
+        )
+        .order_by(ForecastLineORM.period_start, ForecastLineORM.id)
+    )
 
 
 def task_facts_statement(*, tenant_id: str, organization_id: str, project_id: str) -> SqlSelect:
@@ -162,6 +245,7 @@ def planned_cost_facts_statement(
             ProjectPlannedCostLineORM.task_id,
             ProjectPlannedCostLineORM.resource_id,
             ProjectPlannedCostLineORM.source_assignment_id,
+            ProjectPlannedCostLineORM.cost_code_id,
             ProjectPlannedCostLineORM.currency_code,
             ProjectPlannedCostLineORM.amount,
             ProjectPlannedCostVersionORM.as_of,
@@ -186,17 +270,19 @@ def planned_cost_facts_statement(
 def commitment_facts_statement(
     *, tenant_id: str, organization_id: str, project_id: str, as_of: date
 ) -> SqlSelect:
-    effective_amount = case(
-        (ProjectCommitmentLineORM.state == "closed", ProjectCommitmentLineORM.matched_amount),
-        else_=ProjectCommitmentLineORM.amount,
-    )
     return (
         select(
             ProjectCommitmentLineORM.id,
             ProjectCommitmentLineORM.task_id,
             ProjectCommitmentLineORM.purchase_order_line_id,
+            ProjectCommitmentLineORM.cost_code_id,
+            ProjectCommitmentLineORM.state,
             ProjectCommitmentLineORM.currency_code,
-            effective_amount.label("effective_amount"),
+            ProjectCommitmentLineORM.amount,
+            ProjectCommitmentLineORM.base_currency_code,
+            ProjectCommitmentLineORM.base_amount,
+            ProjectCommitmentLineORM.exchange_rate,
+            ProjectCommitmentLineORM.matched_amount,
             ProjectCommitmentLineORM.order_date,
         )
         .join(ProjectORM, ProjectORM.id == ProjectCommitmentLineORM.project_id)
@@ -235,6 +321,9 @@ def actual_cost_facts_statement(
             ProjectCostEntryORM.task_id,
             ProjectCostEntryORM.resource_id,
             ProjectCostEntryORM.description,
+            ProjectCostEntryORM.cost_code_id,
+            ProjectCostEntryORM.currency_code,
+            ProjectCostEntryORM.amount,
             ProjectCostEntryORM.base_currency_code,
             ProjectCostEntryORM.base_amount,
             ProjectCostEntryORM.posting_date,
@@ -312,6 +401,8 @@ def resource_facts_statement(
 
 
 __all__ = [
+    "approved_forecast_facts_statement",
+    "approved_forecast_line_facts_statement",
     "actual_cost_facts_statement",
     "assignment_facts_statement",
     "commitment_facts_statement",

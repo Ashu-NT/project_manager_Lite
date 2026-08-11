@@ -11,7 +11,6 @@ from src.core.modules.project_management.application.dashboard import DashboardS
 from src.core.modules.project_management.application.financials import (
     FinancialConfigurationService,
     FinanceService,
-    ForecastCostService,
     ProjectCommitmentService,
     ProjectCostEntryService,
     ProjectFinanceWorkspaceQuery,
@@ -59,7 +58,6 @@ class ProjectManagementDesktopRuntimeServices:
     work_calendar_engine: CalendarProtocol | None
     dashboard_service: DashboardService | None
     finance_service: FinanceService | None
-    forecast_service: ForecastCostService | None
     finance_workspace_query: ProjectFinanceWorkspaceQuery | None
     financial_configuration_service: FinancialConfigurationService | None
     cost_entry_service: ProjectCostEntryService | None
@@ -86,7 +84,6 @@ def resolve_project_management_desktop_runtime_services(
     work_calendar_engine = services.get("work_calendar_engine")
     dashboard_service = services.get("dashboard_service")
     finance_service = services.get("finance_service")
-    forecast_service = services.get("forecast_service")
     finance_workspace_query = services.get("finance_workspace_query")
     financial_configuration_service = services.get("financial_configuration_service")
     cost_entry_service = services.get("cost_entry_service")
@@ -164,11 +161,6 @@ def resolve_project_management_desktop_runtime_services(
         ),
         finance_service=(
             finance_service if isinstance(finance_service, FinanceService) else None
-        ),
-        forecast_service=(
-            forecast_service
-            if isinstance(forecast_service, ForecastCostService)
-            else None
         ),
         finance_workspace_query=(
             finance_workspace_query

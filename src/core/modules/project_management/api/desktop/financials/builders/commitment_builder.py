@@ -9,7 +9,6 @@ from src.core.modules.project_management.api.desktop.financials.models.commitmen
     FinancialCommitmentLineDto,
     FinancialCommitmentSummaryDto,
 )
-from src.core.modules.project_management.application.financials import ForecastCostService
 
 
 def build_commitment_line_dto(line) -> FinancialCommitmentLineDto:
@@ -21,7 +20,7 @@ def build_commitment_line_dto(line) -> FinancialCommitmentLineDto:
         state=line.state.value,
         amount_label=format_money(amount, line.currency_code),
         matched_amount_label=format_money(matched, line.currency_code),
-        remaining_amount_label=format_money(max(0.0, amount - matched), line.currency_code),
+        remaining_amount_label=format_money(line.remaining_money.amount, line.currency_code),
         task_id=line.task_id or "",
         quantity_label=f"{line.ordered_quantity} {line.quantity_unit}",
         order_date=line.order_date.isoformat() if line.order_date else "",
@@ -37,26 +36,26 @@ def build_commitment_line_dto(line) -> FinancialCommitmentLineDto:
 def build_commitment_summary_dto(
     project_id: str,
     *,
-    forecast_service: ForecastCostService,
+    snapshot,
     currency: str | None = None,
 ) -> FinancialCommitmentSummaryDto:
-    summary = forecast_service.get_commitment_summary(project_id)
-    rate_percent = round(summary.commitment_rate * 100.0, 1)
+    budget = float(snapshot.budget)
+    actual = float(snapshot.actual)
+    committed = float(snapshot.committed)
+    available = snapshot.available
     return FinancialCommitmentSummaryDto(
         project_id=project_id,
-        planned_total=summary.planned_total,
-        planned_label=format_money(summary.planned_total, currency),
-        uncommitted_total=summary.uncommitted_total,
-        uncommitted_label=format_money(summary.uncommitted_total, currency),
-        committed_total=summary.committed_total,
-        committed_label=format_money(summary.committed_total, currency),
-        invoiced_total=summary.invoiced_total,
-        invoiced_label=format_money(summary.invoiced_total, currency),
-        paid_total=summary.paid_total,
-        paid_label=format_money(summary.paid_total, currency),
-        exposure=summary.exposure,
-        exposure_label=format_money(summary.exposure, currency),
-        commitment_rate_pct=rate_percent,
+        approved_budget=budget,
+        approved_budget_label=format_money(snapshot.budget, currency),
+        posted_actual=actual,
+        posted_actual_label=format_money(snapshot.actual, currency),
+        open_commitment=committed,
+        open_commitment_label=format_money(snapshot.committed, currency),
+        available_after_commitment=(None if available is None else float(available)),
+        available_after_commitment_label=(
+            "Not budgeted" if available is None else format_money(available, currency)
+        ),
+        commitment_rate_pct=round(float(snapshot.commitment_rate_percent), 1),
     )
 
 

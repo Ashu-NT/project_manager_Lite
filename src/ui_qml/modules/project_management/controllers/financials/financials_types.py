@@ -25,30 +25,26 @@ def default_detail() -> FinancialsMap:
 
 def default_forecast() -> FinancialsMap:
     return {
-        "method": "",
-        "methodLabel": "",
-        "bacLabel": "",
-        "acLabel": "",
-        "evLabel": "",
+        "basisLabel": "",
+        "budgetLabel": "",
+        "actualLabel": "",
         "etcLabel": "",
         "eacLabel": "",
         "vacLabel": "",
-        "cpiLabel": "",
         "isOverBudget": False,
-        "exceedsThreshold": False,
-        "thresholdPercent": 10.0,
+        "hasApprovedForecast": False,
+        "forecastRevision": None,
+        "forecastAsOfLabel": "",
         "alertMessage": "",
         "metrics": [],
     }
 
 def default_commitment_summary() -> FinancialsMap:
     return {
-        "plannedLabel": "",
-        "uncommittedLabel": "",
-        "committedLabel": "",
-        "invoicedLabel": "",
-        "paidLabel": "",
-        "exposureLabel": "",
+        "approvedBudgetLabel": "",
+        "postedActualLabel": "",
+        "openCommitmentLabel": "",
+        "availableAfterCommitmentLabel": "",
         "commitmentRatePct": 0.0,
     }
 

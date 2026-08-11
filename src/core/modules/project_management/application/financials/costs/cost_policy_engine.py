@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from datetime import date
+from decimal import Decimal
 
 from src.core.modules.project_management.application.financials.models.finance_models import (
     CostSourceBreakdown,
@@ -27,10 +28,10 @@ CostBucketKey = tuple[CostType, str]
 class CostPolicySnapshot:
     project_id: str
     project_currency: str | None
-    budget: float
-    planned_map: dict[CostBucketKey, float]
-    committed_map: dict[CostBucketKey, float]
-    actual_map: dict[CostBucketKey, float]
+    budget: Decimal
+    planned_map: dict[CostBucketKey, Decimal]
+    committed_map: dict[CostBucketKey, Decimal]
+    actual_map: dict[CostBucketKey, Decimal]
     unresolved_labor_rates: tuple[UnresolvedLaborRate, ...] = field(default_factory=tuple)
 
 
@@ -38,12 +39,15 @@ class CostPolicySnapshot:
 class CostControlTotals:
     project_id: str
     project_currency: str | None
-    budget: float
-    planned: float
-    committed: float
-    actual: float
-    exposure: float
-    available: float | None
+    budget: Decimal
+    planned: Decimal
+    committed: Decimal
+    actual: Decimal
+    forecast_etc: Decimal | None
+    estimate_at_completion: Decimal | None
+    variance_at_completion: Decimal | None
+    exposure: Decimal
+    available: Decimal | None
     unresolved_labor_rates: tuple[UnresolvedLaborRate, ...] = ()
 
 
@@ -69,7 +73,7 @@ class CostPolicyEngine:
         project_currency = self._normalize_currency(facts.project.currency_code, None)
         if project_currency == "-":
             project_currency = None
-        maps: dict[str, dict[CostBucketKey, float]] = {
+        maps: dict[str, dict[CostBucketKey, Decimal]] = {
             "planned": {},
             "committed": {},
             "actual": {},
@@ -98,7 +102,7 @@ class CostPolicyEngine:
         snapshot = CostPolicySnapshot(
             project_id=facts.project_id,
             project_currency=project_currency,
-            budget=float(facts.project.approved_budget),
+            budget=facts.control.approved_budget,
             planned_map=maps["planned"],
             committed_map=maps["committed"],
             actual_map=maps["actual"],
@@ -106,7 +110,7 @@ class CostPolicyEngine:
         )
         return CostPolicyComposition(
             snapshot=snapshot,
-            totals=self._totals_from_snapshot(snapshot),
+            totals=self._totals_from_snapshot(snapshot, facts=facts),
             source_breakdown=self._source_breakdown_from_facts(
                 facts, project_currency=project_currency
             ),
@@ -126,10 +130,23 @@ class CostPolicyEngine:
             for entry in facts.ledger_entries
             if entry.occurred_on is None or entry.occurred_on <= as_of
         )
+        forecast = facts.approved_forecast
+        if forecast is not None and forecast.as_of_date > as_of:
+            forecast = None
+        actual = self._sum_stage(entries, "actual")
+        committed = self._sum_stage(entries, "committed")
+        forecast_etc = self._sum_stage(entries, "forecast") if forecast else None
         return self.compose_from_facts(
             replace(
                 facts,
                 as_of=as_of,
+                approved_forecast=forecast,
+                control=replace(
+                    facts.control,
+                    posted_actual=actual,
+                    open_commitment=committed,
+                    forecast_etc=forecast_etc,
+                ),
                 ledger_entries=entries,
                 cost_aggregates=self._aggregate_entries(entries),
             ),
@@ -140,10 +157,10 @@ class CostPolicyEngine:
     def _aggregate_entries(
         entries: tuple[FinanceLedgerFact, ...],
     ) -> tuple[CostAggregateFact, ...]:
-        buckets: dict[tuple[str, str, str | None], tuple[float, int]] = {}
+        buckets: dict[tuple[str, str, str | None], tuple[Decimal, int]] = {}
         for entry in entries:
             key = (entry.stage, entry.cost_type, entry.currency_code)
-            amount, count = buckets.get(key, (0.0, 0))
+            amount, count = buckets.get(key, (Decimal("0"), 0))
             buckets[key] = (amount + entry.amount, count + 1)
         return tuple(
             CostAggregateFact(
@@ -156,11 +173,16 @@ class CostPolicyEngine:
             for (stage, cost_type, currency), (amount, count) in buckets.items()
         )
 
-    def _totals_from_snapshot(self, snapshot: CostPolicySnapshot) -> CostControlTotals:
+    def _totals_from_snapshot(
+        self, snapshot: CostPolicySnapshot, *, facts: FinanceSnapshotFacts
+    ) -> CostControlTotals:
         planned = self._sum_bucket_map(snapshot.planned_map, snapshot.project_currency)
         committed = self._sum_bucket_map(snapshot.committed_map, snapshot.project_currency)
         actual = self._sum_bucket_map(snapshot.actual_map, snapshot.project_currency)
-        exposure = max(0.0, committed - actual)
+        exposure = actual + committed
+        forecast_etc = facts.control.forecast_etc
+        estimate_at_completion = facts.control.estimate_at_completion
+        variance_at_completion = facts.control.variance_at_completion
         return CostControlTotals(
             project_id=snapshot.project_id,
             project_currency=snapshot.project_currency,
@@ -168,6 +190,9 @@ class CostPolicyEngine:
             planned=planned,
             committed=committed,
             actual=actual,
+            forecast_etc=forecast_etc,
+            estimate_at_completion=estimate_at_completion,
+            variance_at_completion=variance_at_completion,
             exposure=exposure,
             available=(snapshot.budget - exposure if snapshot.budget > 0 else None),
             unresolved_labor_rates=snapshot.unresolved_labor_rates,
@@ -189,21 +214,22 @@ class CostPolicyEngine:
                 CostSourceRow(
                     source_key=entry.source_key,
                     source_label=entry.source_label,
-                    planned=0.0,
-                    committed=0.0,
-                    actual=0.0,
+                    planned=Decimal("0"),
+                    committed=Decimal("0"),
+                    actual=Decimal("0"),
+                    forecast=Decimal("0"),
                 ),
             )
-            if entry.stage in {"planned", "committed", "actual"}:
+            if entry.stage in {"planned", "committed", "actual", "forecast"}:
                 setattr(row, entry.stage, getattr(row, entry.stage) + entry.amount)
         rows = sorted(grouped.values(), key=lambda row: row.source_label.lower())
         return CostSourceBreakdown(
             project_id=facts.project_id,
             project_currency=project_currency,
             rows=rows,
-            total_planned=sum(row.planned for row in rows),
-            total_committed=sum(row.committed for row in rows),
-            total_actual=sum(row.actual for row in rows),
+            total_planned=sum((row.planned for row in rows), start=Decimal("0")),
+            total_committed=sum((row.committed for row in rows), start=Decimal("0")),
+            total_actual=sum((row.actual for row in rows), start=Decimal("0")),
             notes=[
                 "Totals use versioned planned costs, Procurement commitments, and posted actual entries."
             ],
@@ -215,60 +241,70 @@ class CostPolicyEngine:
 
     @staticmethod
     def _add_bucket(
-        target: dict[CostBucketKey, float],
+        target: dict[CostBucketKey, Decimal],
         *,
         cost_type: CostType,
         currency: str,
-        amount: float,
+        amount: Decimal | float,
     ) -> None:
         key = (cost_type, currency)
-        target[key] = float(target.get(key, 0.0) + float(amount or 0.0))
+        target[key] = target.get(key, Decimal("0")) + Decimal(str(amount or 0))
 
     @staticmethod
     def _currency_in_scope(currency: str, project_currency: str | None) -> bool:
         return project_currency is None or currency.upper() == project_currency.upper()
 
     def _sum_bucket_map(
-        self, values: dict[CostBucketKey, float], project_currency: str | None
-    ) -> float:
-        return float(
-            sum(
+        self, values: dict[CostBucketKey, Decimal], project_currency: str | None
+    ) -> Decimal:
+        return sum(
+            (
                 amount
                 for (_cost_type, currency), amount in values.items()
                 if self._currency_in_scope(currency, project_currency)
-            )
+            ),
+            start=Decimal("0"),
         )
 
     def _sum_bucket_for_type(
         self,
-        values: dict[CostBucketKey, float],
+        values: dict[CostBucketKey, Decimal],
         *,
         cost_type: CostType,
         project_currency: str | None,
-    ) -> float:
-        return float(
-            sum(
+    ) -> Decimal:
+        return sum(
+            (
                 amount
                 for (candidate, currency), amount in values.items()
                 if candidate == cost_type
                 and self._currency_in_scope(currency, project_currency)
-            )
+            ),
+            start=Decimal("0"),
         )
 
     def _sum_bucket_excluding_type(
         self,
-        values: dict[CostBucketKey, float],
+        values: dict[CostBucketKey, Decimal],
         *,
         excluded_type: CostType,
         project_currency: str | None,
-    ) -> float:
-        return float(
-            sum(
+    ) -> Decimal:
+        return sum(
+            (
                 amount
                 for (candidate, currency), amount in values.items()
                 if candidate != excluded_type
                 and self._currency_in_scope(currency, project_currency)
-            )
+            ),
+            start=Decimal("0"),
+        )
+
+    @staticmethod
+    def _sum_stage(entries: tuple[FinanceLedgerFact, ...], stage: str) -> Decimal:
+        return sum(
+            (entry.amount for entry in entries if entry.stage == stage),
+            start=Decimal("0"),
         )
 
 

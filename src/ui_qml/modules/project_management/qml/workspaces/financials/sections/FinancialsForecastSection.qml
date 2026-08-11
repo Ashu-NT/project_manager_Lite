@@ -9,9 +9,10 @@ Item {
     id: root
 
     property var forecastModel: ({
-        "method": "", "methodLabel": "", "bacLabel": "", "acLabel": "", "evLabel": "",
-        "etcLabel": "", "eacLabel": "", "vacLabel": "", "cpiLabel": "",
-        "isOverBudget": false, "exceedsThreshold": false, "alertMessage": "", "metrics": []
+        "basisLabel": "", "budgetLabel": "", "actualLabel": "",
+        "etcLabel": "", "eacLabel": "", "vacLabel": "",
+        "isOverBudget": false, "hasApprovedForecast": false,
+        "forecastRevision": null, "forecastAsOfLabel": "", "alertMessage": "", "metrics": []
     })
     property bool isBusy: false
 
@@ -27,7 +28,7 @@ Item {
         AppWidgets.InlineMessage {
             width: parent.width
             visible: String(root.forecastModel.alertMessage || "").length > 0
-            tone: root.forecastModel.exceedsThreshold ? "danger" : "warning"
+            tone: root.forecastModel.isOverBudget ? "danger" : "warning"
             message: root.forecastModel.alertMessage || ""
         }
 
@@ -46,8 +47,12 @@ Item {
 
                 AppControls.Label {
                     Layout.fillWidth: true
-                    visible: String(root.forecastModel.methodLabel || "").length > 0
-                    text: "Method: " + String(root.forecastModel.methodLabel || "")
+                    visible: String(root.forecastModel.basisLabel || "").length > 0
+                    text: String(root.forecastModel.basisLabel || "")
+                        + (root.forecastModel.forecastRevision
+                            ? " r" + String(root.forecastModel.forecastRevision) : "")
+                        + (String(root.forecastModel.forecastAsOfLabel || "").length > 0
+                            ? " | As of " + String(root.forecastModel.forecastAsOfLabel) : "")
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.captionSize
@@ -111,7 +116,7 @@ Item {
                 AppControls.Label {
                     Layout.fillWidth: true
                     visible: (root.forecastModel.metrics || []).length === 0
-                    text: "Select a project to view EAC/ETC forecast metrics."
+                    text: "Select a project to view approved ETC, EAC, and variance."
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.smallSize

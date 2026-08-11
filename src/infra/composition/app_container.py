@@ -101,7 +101,6 @@ from src.core.modules.project_management.application.financials import (
     FinancialConfigurationService,
     FinanceService,
     FinancialChangeService,
-    ForecastCostService,
     ForecastGenerationService,
     ForecastVersionService,
     PlannedCostService,
@@ -234,7 +233,6 @@ class ServiceGraph:
     timesheet_service: TimesheetService
     resource_service: ResourceService
     financial_configuration_service: FinancialConfigurationService
-    forecast_service: ForecastCostService
     forecast_generation_service: ForecastGenerationService
     forecast_version_service: ForecastVersionService
     financial_change_service: FinancialChangeService
@@ -349,7 +347,6 @@ class ServiceGraph:
             "timesheet_service": self.timesheet_service,
             "resource_service": self.resource_service,
             "financial_configuration_service": self.financial_configuration_service,
-            "forecast_service": self.forecast_service,
             "forecast_generation_service": self.forecast_generation_service,
             "forecast_version_service": self.forecast_version_service,
             "financial_change_service": self.financial_change_service,
@@ -554,7 +551,6 @@ def build_service_graph(session: Session) -> ServiceGraph:
         financial_configuration_service=(
             project_management_services.financial_configuration_service
         ),
-        forecast_service=project_management_services.forecast_service,
         forecast_generation_service=project_management_services.forecast_generation_service,
         forecast_version_service=project_management_services.forecast_version_service,
         financial_change_service=project_management_services.financial_change_service,

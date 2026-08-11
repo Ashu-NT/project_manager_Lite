@@ -2,12 +2,17 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import date
+from decimal import Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, aliased
 
+from src.core.platform.common.exceptions import BusinessRuleError
+
 from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
+    ApprovedForecastFact,
     CostAggregateFact,
+    FinanceControlFact,
     FinanceLedgerFact,
     FinanceProjectFact,
     FinanceSnapshotFacts,
@@ -40,6 +45,10 @@ from src.core.modules.project_management.infrastructure.persistence.orm.planned_
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.financial_configuration import (
     ProjectFinancialProfileORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.forecast import (
+    ForecastLineORM,
+    ProjectForecastORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.project import (
     ProjectORM,
@@ -101,6 +110,26 @@ class SqlAlchemyPortfolioHeatmapReader:
                     ProjectORM.status,
                     ProjectFinancialProfileORM.currency_code,
                     approved_budget.label("approved_budget"),
+                    select(ProjectBudgetORM.id)
+                    .where(
+                        ProjectBudgetORM.tenant_id == ProjectORM.tenant_id,
+                        ProjectBudgetORM.organization_id == ProjectORM.organization_id,
+                        ProjectBudgetORM.project_id == ProjectORM.id,
+                        ProjectBudgetORM.status == "approved",
+                    )
+                    .correlate(ProjectORM)
+                    .scalar_subquery()
+                    .label("approved_budget_id"),
+                    select(ProjectBudgetORM.revision)
+                    .where(
+                        ProjectBudgetORM.tenant_id == ProjectORM.tenant_id,
+                        ProjectBudgetORM.organization_id == ProjectORM.organization_id,
+                        ProjectBudgetORM.project_id == ProjectORM.id,
+                        ProjectBudgetORM.status == "approved",
+                    )
+                    .correlate(ProjectORM)
+                    .scalar_subquery()
+                    .label("approved_budget_revision"),
                     ProjectORM.start_date,
                     ProjectORM.end_date,
                 )
@@ -117,6 +146,9 @@ class SqlAlchemyPortfolioHeatmapReader:
         scoped_project_ids = tuple(str(row.id) for row in project_rows)
         if not scoped_project_ids:
             return PortfolioHeatmapFacts(tenant_id, organization_id, as_of, (), ())
+        project_currency = {
+            str(row.id): str(row.currency_code).strip().upper() for row in project_rows
+        }
 
         task_rows = tuple(
             self._session.execute(
@@ -196,6 +228,7 @@ class SqlAlchemyPortfolioHeatmapReader:
                     ProjectPlannedCostLineORM.task_id,
                     ProjectPlannedCostLineORM.resource_id,
                     ProjectPlannedCostLineORM.source_assignment_id,
+                    ProjectPlannedCostLineORM.cost_code_id,
                     ProjectPlannedCostLineORM.currency_code,
                     ProjectPlannedCostLineORM.amount,
                 )
@@ -203,6 +236,54 @@ class SqlAlchemyPortfolioHeatmapReader:
                 .order_by(ProjectPlannedCostLineORM.project_id, ProjectPlannedCostLineORM.id)
             )
         ) if latest_version_ids else ()
+        forecast_rows = tuple(
+            self._session.execute(
+                select(
+                    ProjectForecastORM.id,
+                    ProjectForecastORM.project_id,
+                    ProjectForecastORM.revision,
+                    ProjectForecastORM.name,
+                    ProjectForecastORM.currency_code,
+                    ProjectForecastORM.as_of_date,
+                )
+                .where(
+                    ProjectForecastORM.tenant_id == tenant_id,
+                    ProjectForecastORM.organization_id == organization_id,
+                    ProjectForecastORM.project_id.in_(scoped_project_ids),
+                    ProjectForecastORM.status == "approved",
+                    ProjectForecastORM.as_of_date <= as_of,
+                )
+                .order_by(ProjectForecastORM.project_id)
+            )
+        )
+        forecast_by_project = {str(row.project_id): row for row in forecast_rows}
+        forecast_ids = tuple(str(row.id) for row in forecast_rows)
+        forecast_line_rows = tuple(
+            self._session.execute(
+                select(
+                    ForecastLineORM.id,
+                    ForecastLineORM.forecast_id,
+                    ForecastLineORM.project_id,
+                    ForecastLineORM.task_id,
+                    ForecastLineORM.cost_code_id,
+                    ForecastLineORM.description,
+                    ForecastLineORM.amount,
+                    ForecastLineORM.currency_code,
+                    ForecastLineORM.source_type,
+                    ForecastLineORM.period_start,
+                    ForecastLineORM.period_end,
+                    ProjectForecastORM.as_of_date,
+                )
+                .join(ProjectForecastORM, ProjectForecastORM.id == ForecastLineORM.forecast_id)
+                .where(
+                    ForecastLineORM.tenant_id == tenant_id,
+                    ForecastLineORM.organization_id == organization_id,
+                    ForecastLineORM.project_id.in_(scoped_project_ids),
+                    ForecastLineORM.forecast_id.in_(forecast_ids),
+                )
+                .order_by(ForecastLineORM.project_id, ForecastLineORM.period_start, ForecastLineORM.id)
+            )
+        ) if forecast_ids else ()
         commitment_rows = tuple(
             self._session.execute(
                 select(ProjectCommitmentLineORM)
@@ -210,7 +291,9 @@ class SqlAlchemyPortfolioHeatmapReader:
                     ProjectCommitmentLineORM.tenant_id == tenant_id,
                     ProjectCommitmentLineORM.organization_id == organization_id,
                     ProjectCommitmentLineORM.project_id.in_(scoped_project_ids),
-                    ProjectCommitmentLineORM.state != "cancelled",
+                    ProjectCommitmentLineORM.state.notin_(("closed", "cancelled")),
+                    (ProjectCommitmentLineORM.order_date.is_(None))
+                    | (ProjectCommitmentLineORM.order_date <= as_of),
                 )
                 .order_by(ProjectCommitmentLineORM.project_id, ProjectCommitmentLineORM.id)
             ).scalars()
@@ -291,27 +374,56 @@ class SqlAlchemyPortfolioHeatmapReader:
 
         ledger_by_project: dict[str, list[FinanceLedgerFact]] = defaultdict(list)
         for row in planned_rows:
+            currency = project_currency[str(row.project_id)]
             ledger_by_project[str(row.project_id)].append(
                 FinanceLedgerFact(
                     fact_id=str(row.id), task_id=str(row.task_id), resource_id=str(row.resource_id),
                     description=f"Assignment {row.source_assignment_id}", source_key="PLANNED_COST",
                     source_label="Planned Cost", reference_type="planned_cost_line", cost_type="LABOR",
-                    stage="planned", currency_code=row.currency_code, amount=float(row.amount or 0),
+                    stage="planned", currency_code=currency,
+                    amount=_same_currency_amount(row.amount, row.currency_code, currency),
                     occurred_on=version_as_of[str(row.version_id)],
+                    cost_code_id=str(row.cost_code_id), source_type="planned_cost",
+                )
+            )
+        for row in forecast_line_rows:
+            currency = project_currency[str(row.project_id)]
+            ledger_by_project[str(row.project_id)].append(
+                FinanceLedgerFact(
+                    fact_id=str(row.id),
+                    task_id=None if row.task_id is None else str(row.task_id),
+                    resource_id=None,
+                    description=str(row.description),
+                    source_key="APPROVED_FORECAST",
+                    source_label="Approved Forecast ETC",
+                    reference_type="forecast_line",
+                    cost_type="OTHER",
+                    stage="forecast",
+                    currency_code=currency,
+                    amount=_same_currency_amount(row.amount, row.currency_code, currency),
+                    occurred_on=row.period_start or row.as_of_date,
+                    cost_code_id=str(row.cost_code_id),
+                    source_type=str(row.source_type),
+                    period_start=row.period_start,
+                    period_end=row.period_end,
                 )
             )
         for row in commitment_rows:
-            amount = row.matched_amount if row.state == "closed" else row.amount
+            currency = project_currency[str(row.project_id)]
             ledger_by_project[str(row.project_id)].append(
                 FinanceLedgerFact(
                     fact_id=str(row.id), task_id=None if row.task_id is None else str(row.task_id),
                     resource_id=None, description=f"Purchase order line {row.purchase_order_line_id}",
                     source_key="PROCUREMENT_COMMITMENT", source_label="Procurement Commitment",
                     reference_type="commitment_line", cost_type="MATERIAL", stage="committed",
-                    currency_code=row.currency_code, amount=float(amount or 0), occurred_on=row.order_date,
+                    currency_code=currency,
+                    amount=_commitment_amount(row, currency),
+                    occurred_on=row.order_date,
+                    cost_code_id=str(row.cost_code_id), source_type="open_commitment",
                 )
             )
         for row in actual_rows:
+            currency = project_currency[str(row.project_id)]
             purpose = str(row.posting_purpose)
             source_key, source_label, cost_type = {
                 "labor_actual": ("APPROVED_TIME", "Approved Time", "LABOR"),
@@ -323,8 +435,9 @@ class SqlAlchemyPortfolioHeatmapReader:
                     resource_id=None if row.resource_id is None else str(row.resource_id),
                     description=str(row.description), source_key=source_key, source_label=source_label,
                     reference_type="cost_entry", cost_type=cost_type, stage="actual",
-                    currency_code=row.base_currency_code, amount=float(row.base_amount or 0),
+                    currency_code=currency, amount=_actual_amount(row, currency),
                     occurred_on=row.posting_date,
+                    cost_code_id=str(row.cost_code_id), source_type=source_key.lower(),
                 )
             )
 
@@ -370,10 +483,10 @@ class SqlAlchemyPortfolioHeatmapReader:
                 for row in rows["tasks"]
             )
             ledger_entries = tuple(ledger_by_project[project_id])
-            aggregate_values: dict[tuple[str, str, str | None], tuple[float, int]] = {}
+            aggregate_values: dict[tuple[str, str, str | None], tuple[Decimal, int]] = {}
             for entry in ledger_entries:
                 key = (entry.stage, entry.cost_type, entry.currency_code)
-                amount, count = aggregate_values.get(key, (0.0, 0))
+                amount, count = aggregate_values.get(key, (Decimal("0"), 0))
                 aggregate_values[key] = (amount + entry.amount, count + 1)
             finance = FinanceSnapshotFacts(
                 tenant_id=tenant_id,
@@ -385,9 +498,25 @@ class SqlAlchemyPortfolioHeatmapReader:
                     tenant_id=tenant_id,
                     organization_id=organization_id,
                     currency_code=str(project_row.currency_code),
-                    approved_budget=float(project_row.approved_budget or 0.0),
+                    approved_budget=Decimal(project_row.approved_budget or 0),
+                    approved_budget_id=(
+                        None if project_row.approved_budget_id is None
+                        else str(project_row.approved_budget_id)
+                    ),
+                    approved_budget_revision=(
+                        None if project_row.approved_budget_revision is None
+                        else int(project_row.approved_budget_revision)
+                    ),
                     start_date=project_row.start_date,
                     end_date=project_row.end_date,
+                ),
+                approved_forecast=_approved_forecast_fact(
+                    forecast_by_project.get(project_id), ledger_entries
+                ),
+                control=_control_fact(
+                    approved_budget=Decimal(project_row.approved_budget or 0),
+                    forecast=forecast_by_project.get(project_id),
+                    entries=ledger_entries,
                 ),
                 tasks=tuple(
                     TaskFact(
@@ -467,6 +596,69 @@ class SqlAlchemyPortfolioHeatmapReader:
             projects=tuple(projects),
             resources=heatmap_resources,
         )
+
+
+def _same_currency_amount(amount, currency_code: str | None, currency: str) -> Decimal:
+    if str(currency_code or "").strip().upper() != currency:
+        raise BusinessRuleError(
+            "Financial source currency cannot be reconciled to project currency.",
+            code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
+        )
+    return Decimal(amount or 0)
+
+
+def _actual_amount(row, currency: str) -> Decimal:
+    if str(row.currency_code).upper() == currency:
+        return Decimal(row.amount or 0)
+    if str(row.base_currency_code or "").upper() == currency and row.base_amount is not None:
+        return Decimal(row.base_amount)
+    raise BusinessRuleError(
+        "Posted actual currency cannot be reconciled to project currency.",
+        code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
+    )
+
+
+def _commitment_amount(row, currency: str) -> Decimal:
+    matched = Decimal(row.matched_amount or 0)
+    if str(row.currency_code).upper() == currency:
+        return max(Decimal("0"), Decimal(row.amount or 0) - matched)
+    if str(row.base_currency_code).upper() == currency:
+        matched_base = matched * Decimal(row.exchange_rate or 0)
+        return max(Decimal("0"), Decimal(row.base_amount or 0) - matched_base)
+    raise BusinessRuleError(
+        "Commitment currency cannot be reconciled to project currency.",
+        code="PROJECT_FINANCE_READ_CURRENCY_MISMATCH",
+    )
+
+
+def _stage_total(entries: tuple[FinanceLedgerFact, ...], stage: str) -> Decimal:
+    return sum(
+        (entry.amount for entry in entries if entry.stage == stage),
+        start=Decimal("0"),
+    )
+
+
+def _approved_forecast_fact(row, entries: tuple[FinanceLedgerFact, ...]):
+    if row is None:
+        return None
+    return ApprovedForecastFact(
+        forecast_id=str(row.id),
+        revision=int(row.revision),
+        name=str(row.name),
+        currency_code=str(row.currency_code),
+        as_of_date=row.as_of_date,
+        etc_total=_stage_total(entries, "forecast"),
+        line_count=sum(1 for entry in entries if entry.stage == "forecast"),
+    )
+
+
+def _control_fact(*, approved_budget: Decimal, forecast, entries) -> FinanceControlFact:
+    return FinanceControlFact(
+        approved_budget=approved_budget,
+        posted_actual=_stage_total(entries, "actual"),
+        open_commitment=_stage_total(entries, "committed"),
+        forecast_etc=(None if forecast is None else _stage_total(entries, "forecast")),
+    )
 
 
 __all__ = ["SqlAlchemyPortfolioHeatmapReader"]

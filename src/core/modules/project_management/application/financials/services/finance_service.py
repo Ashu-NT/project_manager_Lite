@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.modules.project_management.contracts.repositories.rate_resolution import (
@@ -114,8 +115,22 @@ class FinanceService(ProjectManagementModuleGuardMixin):
 
         notes = list(source_breakdown.notes)
         notes.append(
-            "Cashflow periods use each entry anchor date "
-            "(cost incurred date, task date, or project start as fallback)."
+            "This snapshot is a disposable read projection rebuilt from approved budget, "
+            "approved forecast, posted actual, and open commitment authorities."
+        )
+        if facts.approved_forecast is None:
+            notes.append(
+                "No approved forecast exists at or before the as-of date; ETC, EAC, and VAC "
+                "are intentionally unavailable."
+            )
+        else:
+            notes.append(
+                f"ETC uses approved forecast revision {facts.approved_forecast.revision} "
+                f"as of {facts.approved_forecast.as_of_date.isoformat()}; open commitments "
+                "are reported separately and are not added to EAC again."
+            )
+        notes.append(
+            "Cash flow uses posting dates for actuals and approved forecast periods for ETC."
         )
         can_read_sensitive = bool(
             self._user_session is not None
@@ -141,12 +156,30 @@ class FinanceService(ProjectManagementModuleGuardMixin):
                 totals.project_currency
                 or normalize_currency(facts.project.currency_code, None)
             ),
-            budget=float(totals.budget),
-            planned=float(totals.planned),
-            committed=float(totals.committed),
-            actual=float(totals.actual),
-            exposure=float(totals.exposure),
-            available=(None if totals.available is None else float(totals.available)),
+            budget=totals.budget,
+            planned=totals.planned,
+            committed=totals.committed,
+            actual=totals.actual,
+            forecast_etc=totals.forecast_etc,
+            estimate_at_completion=totals.estimate_at_completion,
+            variance_at_completion=totals.variance_at_completion,
+            exposure=totals.exposure,
+            available=totals.available,
+            as_of=as_of,
+            approved_budget_id=facts.project.approved_budget_id,
+            approved_budget_revision=facts.project.approved_budget_revision,
+            approved_forecast_id=(
+                None if facts.approved_forecast is None
+                else facts.approved_forecast.forecast_id
+            ),
+            approved_forecast_revision=(
+                None if facts.approved_forecast is None
+                else facts.approved_forecast.revision
+            ),
+            approved_forecast_as_of=(
+                None if facts.approved_forecast is None
+                else facts.approved_forecast.as_of_date
+            ),
             ledger=ledger,
             cashflow=build_period_cashflow(ledger=ledger, period=period, as_of=as_of),
             by_source=build_source_analytics(source_breakdown.rows),
@@ -169,13 +202,13 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         as_of: date,
     ) -> list[FinanceLedgerRow]:
         visible: list[FinanceLedgerRow] = []
-        grouped: dict[tuple[str, str, str, str | None], float] = {}
+        grouped: dict[tuple[str, str, str, str | None], Decimal] = {}
         for row in ledger:
             if row.cost_type != "LABOR":
                 visible.append(row)
                 continue
             key = (row.source_key, row.source_label, row.stage, row.currency)
-            grouped[key] = grouped.get(key, 0.0) + float(row.amount)
+            grouped[key] = grouped.get(key, Decimal("0")) + row.amount
 
         for (source_key, source_label, stage, currency), amount in sorted(
             grouped.items(),

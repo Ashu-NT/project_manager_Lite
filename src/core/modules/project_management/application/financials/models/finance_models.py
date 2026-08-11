@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 
 from src.core.modules.project_management.contracts.repositories.rate_resolution import (
     UnresolvedLaborRate,
@@ -17,7 +18,7 @@ class FinanceLedgerRow:
     source_label: str
     cost_type: str
     stage: str
-    amount: float
+    amount: Decimal
     currency: str | None
     occurred_on: date | None
     reference_type: str
@@ -35,11 +36,11 @@ class FinancePeriodRow:
     period_key: str
     period_start: date
     period_end: date
-    planned: float
-    committed: float
-    actual: float
-    forecast: float
-    exposure: float
+    planned: Decimal
+    committed: Decimal
+    actual: Decimal
+    forecast: Decimal
+    exposure: Decimal
 
 
 @dataclass(frozen=True)
@@ -47,23 +48,32 @@ class FinanceAnalyticsRow:
     dimension: str
     key: str
     label: str
-    planned: float
-    committed: float
-    actual: float
-    forecast: float
-    exposure: float
+    planned: Decimal
+    committed: Decimal
+    actual: Decimal
+    forecast: Decimal
+    exposure: Decimal
 
 
 @dataclass(frozen=True)
 class FinanceSnapshot:
     project_id: str
     project_currency: str | None
-    budget: float
-    planned: float
-    committed: float
-    actual: float
-    exposure: float
-    available: float | None
+    budget: Decimal
+    planned: Decimal
+    committed: Decimal
+    actual: Decimal
+    forecast_etc: Decimal | None
+    estimate_at_completion: Decimal | None
+    variance_at_completion: Decimal | None
+    exposure: Decimal
+    available: Decimal | None
+    as_of: date
+    approved_budget_id: str | None
+    approved_budget_revision: int | None
+    approved_forecast_id: str | None
+    approved_forecast_revision: int | None
+    approved_forecast_as_of: date | None
     ledger: list[FinanceLedgerRow]
     cashflow: list[FinancePeriodRow]
     by_source: list[FinanceAnalyticsRow]
@@ -73,6 +83,12 @@ class FinanceSnapshot:
     notes: list[str]
     unresolved_labor_rates: tuple[UnresolvedLaborRate, ...] = ()
 
+    @property
+    def commitment_rate_percent(self) -> Decimal:
+        if self.budget <= 0:
+            return Decimal("0")
+        return (self.committed / self.budget) * Decimal("100")
+
 
 # ── Cost DTOs ─────────────────────────────────────────────────────────────────
 
@@ -80,9 +96,10 @@ class FinanceSnapshot:
 class CostSourceRow:
     source_key: str
     source_label: str
-    planned: float
-    committed: float
-    actual: float
+    planned: Decimal
+    committed: Decimal
+    actual: Decimal
+    forecast: Decimal
 
 
 @dataclass
@@ -90,9 +107,9 @@ class CostSourceBreakdown:
     project_id: str
     project_currency: str | None
     rows: list[CostSourceRow]
-    total_planned: float
-    total_committed: float
-    total_actual: float
+    total_planned: Decimal
+    total_committed: Decimal
+    total_actual: Decimal
     notes: list[str]
 
 
@@ -100,8 +117,8 @@ class CostSourceBreakdown:
 class CostBreakdownRow:
     cost_type: str
     currency: str
-    planned: float
-    actual: float
+    planned: Decimal
+    actual: Decimal
 
 
 # ── Labor DTOs ────────────────────────────────────────────────────────────────

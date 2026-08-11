@@ -51,4 +51,5 @@ class ReportingEvmCoreMixin(ReportingCostPolicyMixin):
             as_of=resolved_as_of,
             prepared_facts=facts,
             actual_cost=policy.totals.actual,
+            approved_forecast_etc=policy.totals.forecast_etc,
         )

@@ -60,18 +60,16 @@ def serialize_financials_forecast_view_model(
     vm: FinancialsForecastViewModel,
 ) -> dict[str, object]:
     return {
-        "method": vm.method,
-        "methodLabel": vm.method_label,
-        "bacLabel": vm.bac_label,
-        "acLabel": vm.ac_label,
-        "evLabel": vm.ev_label,
+        "basisLabel": vm.basis_label,
+        "budgetLabel": vm.budget_label,
+        "actualLabel": vm.actual_label,
         "etcLabel": vm.etc_label,
         "eacLabel": vm.eac_label,
         "vacLabel": vm.vac_label,
-        "cpiLabel": vm.cpi_label,
         "isOverBudget": vm.is_over_budget,
-        "exceedsThreshold": vm.exceeds_threshold,
-        "thresholdPercent": vm.threshold_percent,
+        "hasApprovedForecast": vm.has_approved_forecast,
+        "forecastRevision": vm.forecast_revision,
+        "forecastAsOfLabel": vm.forecast_as_of_label,
         "alertMessage": vm.alert_message,
         "metrics": [
             {"label": m.label, "value": m.value, "colorHint": m.color_hint}
@@ -84,12 +82,10 @@ def serialize_financials_commitment_summary_view_model(
     vm: FinancialsCommitmentSummaryViewModel,
 ) -> dict[str, object]:
     return {
-        "plannedLabel": vm.planned_label,
-        "uncommittedLabel": vm.uncommitted_label,
-        "committedLabel": vm.committed_label,
-        "invoicedLabel": vm.invoiced_label,
-        "paidLabel": vm.paid_label,
-        "exposureLabel": vm.exposure_label,
+        "approvedBudgetLabel": vm.approved_budget_label,
+        "postedActualLabel": vm.posted_actual_label,
+        "openCommitmentLabel": vm.open_commitment_label,
+        "availableAfterCommitmentLabel": vm.available_after_commitment_label,
         "commitmentRatePct": vm.commitment_rate_pct,
     }
 

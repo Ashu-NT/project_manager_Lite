@@ -75,29 +75,25 @@ class FinancialsForecastMetricViewModel:
 
 @dataclass(frozen=True)
 class FinancialsForecastViewModel:
-    method: str = ""
-    method_label: str = ""
-    bac_label: str = ""
-    ac_label: str = ""
-    ev_label: str = ""
+    basis_label: str = ""
+    budget_label: str = ""
+    actual_label: str = ""
     etc_label: str = ""
     eac_label: str = ""
     vac_label: str = ""
-    cpi_label: str = ""
     is_over_budget: bool = False
-    exceeds_threshold: bool = False
-    threshold_percent: float = 10.0
+    has_approved_forecast: bool = False
+    forecast_revision: int | None = None
+    forecast_as_of_label: str = ""
     alert_message: str = ""
     metrics: tuple[FinancialsForecastMetricViewModel, ...] = field(default_factory=tuple)
 
 @dataclass(frozen=True)
 class FinancialsCommitmentSummaryViewModel:
-    planned_label: str = ""
-    uncommitted_label: str = ""
-    committed_label: str = ""
-    invoiced_label: str = ""
-    paid_label: str = ""
-    exposure_label: str = ""
+    approved_budget_label: str = ""
+    posted_actual_label: str = ""
+    open_commitment_label: str = ""
+    available_after_commitment_label: str = ""
     commitment_rate_pct: float = 0.0
 
 @dataclass(frozen=True)

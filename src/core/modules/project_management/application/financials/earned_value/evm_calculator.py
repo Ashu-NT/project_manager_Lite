@@ -7,6 +7,7 @@ Reporting delegates here; this owns the algorithm.
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 from typing import Callable
 
 from src.core.platform.common.exceptions import BusinessRuleError
@@ -43,7 +44,8 @@ class EarnedValueCalculator:
         *,
         as_of: date,
         prepared_facts: EvmSeriesFacts,
-        actual_cost: float,
+        actual_cost: Decimal | float,
+        approved_forecast_etc: Decimal | None,
         working_days_between: Callable[[date, date], int] | None = None,
     ) -> EarnedValueMetrics:
         """
@@ -192,9 +194,15 @@ class EarnedValueCalculator:
         CPI = (EV / AC) if AC > 0 else None
         SPI = (EV / PV) if PV > 0 else None
 
-        EAC = (BAC / CPI) if (CPI is not None and CPI > 0) else None
-        ETC = (EAC - AC) if EAC is not None else None
+        ETC = None if approved_forecast_etc is None else float(approved_forecast_etc)
+        EAC = None if ETC is None else AC + ETC
         VAC = (BAC - EAC) if EAC is not None else None
+        if EAC is None:
+            notes.append(
+                "EAC/ETC/VAC are unavailable because no approved forecast exists for the as-of date."
+            )
+        else:
+            notes.append("EAC and ETC use the approved forecast version; no CPI fallback is applied.")
 
         TCPI_to_BAC = None
         num = BAC - EV

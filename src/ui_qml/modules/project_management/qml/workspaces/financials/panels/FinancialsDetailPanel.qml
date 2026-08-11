@@ -12,13 +12,15 @@ Item {
     property var sourceAnalyticsModel: ({ "title": "", "subtitle": "", "emptyState": "", "items": [] })
     property var overviewModel: ({ "title": "", "subtitle": "", "metrics": [] })
     property var forecastModel: ({
-        "method": "", "methodLabel": "", "bacLabel": "", "acLabel": "", "evLabel": "",
-        "etcLabel": "", "eacLabel": "", "vacLabel": "", "cpiLabel": "",
-        "isOverBudget": false, "exceedsThreshold": false, "alertMessage": "", "metrics": []
+        "basisLabel": "", "budgetLabel": "", "actualLabel": "",
+        "etcLabel": "", "eacLabel": "", "vacLabel": "",
+        "isOverBudget": false, "hasApprovedForecast": false,
+        "forecastRevision": null, "forecastAsOfLabel": "", "alertMessage": "", "metrics": []
     })
     property var commitmentSummaryModel: ({
-        "plannedLabel": "", "uncommittedLabel": "", "committedLabel": "",
-        "invoicedLabel": "", "paidLabel": "", "exposureLabel": "", "commitmentRatePct": 0
+        "approvedBudgetLabel": "", "postedActualLabel": "",
+        "openCommitmentLabel": "", "availableAfterCommitmentLabel": "",
+        "commitmentRatePct": 0
     })
     property var commitmentsModel: ({ "title": "", "subtitle": "", "emptyState": "", "items": [] })
     property var commitmentsTableModel: null

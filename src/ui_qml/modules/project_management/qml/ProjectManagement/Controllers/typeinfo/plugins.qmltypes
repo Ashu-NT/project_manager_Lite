@@ -144,7 +144,6 @@ Component {
     Property { name: "plannedCostLines"; type: "QVariantMap"; isReadonly: true }
     Method { name: "refresh" }
     Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
-    Method { name: "computeForecast"; type: "QVariantMap"; Parameter { name: "method"; type: "QString" } }
     Method { name: "exportFinancials" }
     Method { name: "createManualActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "newFinancialCommandId"; type: "QString" }

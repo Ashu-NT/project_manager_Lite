@@ -47,7 +47,7 @@ def build_workspace_state(
     commitment_page = desktop_api.list_commitments(resolved_project_id, limit=50)
     actual_options = desktop_api.get_manual_actual_options(resolved_project_id)
     empty_state = "" if resolved_project_id else "Select a project to review financials."
-    forecast_dto = desktop_api.get_cost_forecast(resolved_project_id, method="bac_over_cpi")
+    forecast_dto = desktop_api.get_cost_forecast(resolved_project_id)
     configuration_views = build_finance_configuration_views(
         desktop_api.get_configuration_workspace(
             resolved_project_id,
@@ -116,14 +116,3 @@ def build_workspace_state(
         notes=tuple(snapshot.notes),
         empty_state=empty_state,
     )
-
-
-def compute_forecast(
-    desktop_api: ProjectManagementFinancialsDesktopApi,
-    selected_project_id: str | None,
-    *,
-    method: str = "bac_over_cpi",
-) -> FinancialsForecastViewModel:
-    normalized_method = (method or "bac_over_cpi").strip().lower()
-    forecast_dto = desktop_api.get_cost_forecast(selected_project_id, method=normalized_method)
-    return build_forecast_view_model(forecast_dto)

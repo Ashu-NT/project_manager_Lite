@@ -6,7 +6,6 @@ from datetime import date
 from src.core.modules.project_management.application.financials import (
     FinancialConfigurationService,
     FinanceService,
-    ForecastCostService,
     ProjectCommitmentService,
     ProjectCostEntryService,
     ProjectFinanceWorkspaceQuery,
@@ -77,7 +76,6 @@ class ProjectManagementFinancialsDesktopApi:
         project_service: ProjectService | None = None,
         task_service: TaskService | None = None,
         finance_service: FinanceService | None = None,
-        forecast_service: ForecastCostService | None = None,
         baseline_service: BaselineService | None = None,
         finance_workspace_query: ProjectFinanceWorkspaceQuery | None = None,
         financial_configuration_service: FinancialConfigurationService | None = None,
@@ -87,7 +85,6 @@ class ProjectManagementFinancialsDesktopApi:
         self._project_service = project_service
         self._task_service = task_service
         self._finance_service = finance_service
-        self._forecast_service = forecast_service
         self._baseline_service = baseline_service
         self._finance_workspace_query = finance_workspace_query
         self._financial_configuration_service = financial_configuration_service
@@ -259,14 +256,11 @@ class ProjectManagementFinancialsDesktopApi:
     def get_cost_forecast(
         self,
         project_id: str,
-        percent_complete: float = 0.0,
-        method: str = "bac_over_cpi",
-        threshold_percent: float = 10.0,
     ) -> FinancialForecastDto:
         currency = self._project_currency(project_id)
         return build_forecast_dto(
-            project_id, percent_complete, method, threshold_percent,
-            forecast_service=self._require_forecast_service(),
+            project_id,
+            snapshot=self._require_finance_service().get_finance_snapshot(project_id),
             currency=currency,
         )
 
@@ -274,7 +268,7 @@ class ProjectManagementFinancialsDesktopApi:
         currency = self._project_currency(project_id)
         return build_commitment_summary_dto(
             project_id,
-            forecast_service=self._require_forecast_service(),
+            snapshot=self._require_finance_service().get_finance_snapshot(project_id),
             currency=currency,
         )
 
@@ -335,10 +329,10 @@ class ProjectManagementFinancialsDesktopApi:
             raise RuntimeError("Project financial configuration service is not connected.")
         return self._financial_configuration_service
 
-    def _require_forecast_service(self) -> ForecastCostService:
-        if self._forecast_service is None:
-            raise RuntimeError("Project management forecast service is not connected.")
-        return self._forecast_service
+    def _require_finance_service(self) -> FinanceService:
+        if self._finance_service is None:
+            raise RuntimeError("Project management finance service is not connected.")
+        return self._finance_service
 
 
 __all__ = ["ProjectManagementFinancialsDesktopApi"]
