@@ -43,6 +43,8 @@ class ForecastLineSourceType(str, Enum):
     RISK = "risk"
     MANUAL_ESTIMATE = "manual_estimate"
     POSTED_ACTUAL = "posted_actual"
+    BASE_FORECAST = "base_forecast"
+    FINANCIAL_CHANGE = "financial_change"
 
 
 class ForecastDecisionAction(str, Enum):
@@ -62,6 +64,8 @@ class ForecastDecisionReason(str, Enum):
     NO_REMAINING_AMOUNT = "no_remaining_amount"
     CLOSED_OR_CANCELLED = "closed_or_cancelled"
     AFTER_AS_OF = "after_as_of"
+    BASE_FORECAST = "base_forecast"
+    FINANCIAL_CHANGE = "financial_change"
 
 
 _ALLOWED_TRANSITIONS: dict[ForecastStatus, frozenset[ForecastStatus]] = {
@@ -371,10 +375,11 @@ class ForecastLine:
         manual_types = {
             ForecastLineSourceType.MANUAL_ESTIMATE,
             ForecastLineSourceType.RISK,
+            ForecastLineSourceType.FINANCIAL_CHANGE,
         }
         if self.source_kind == ForecastLineSourceKind.MANUAL and self.source_type not in manual_types:
             raise ValidationError(
-                "Manual forecast lines must be a manual estimate or linked risk contingency.",
+                "Manual forecast lines must be an estimate, linked risk, or financial change.",
                 code="PROJECT_FORECAST_LINE_SOURCE_MISMATCH",
             )
         if (
@@ -409,6 +414,17 @@ class ForecastLine:
                 raise ValidationError(
                     "Risk contingency lines require a source snapshot timestamp.",
                     code="PROJECT_FORECAST_LINE_RISK_SNAPSHOT_REQUIRED",
+                )
+        if self.source_type == ForecastLineSourceType.FINANCIAL_CHANGE:
+            if not self.source_reference_type or not self.source_reference_id:
+                raise ValidationError(
+                    "Financial-change forecast lines require an impact reference.",
+                    code="PROJECT_FORECAST_LINE_CHANGE_REFERENCE_REQUIRED",
+                )
+            if self.source_snapshot_at is None:
+                raise ValidationError(
+                    "Financial-change forecast lines require a source snapshot timestamp.",
+                    code="PROJECT_FORECAST_LINE_CHANGE_SNAPSHOT_REQUIRED",
                 )
         if (self.period_start is None) != (self.period_end is None):
             raise ValidationError(

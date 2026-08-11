@@ -157,7 +157,8 @@ class ForecastLineORM(Base):
             name="ck_pf_forecast_lines_source_kind",
         ),
         CheckConstraint(
-            "source_type IN ('remaining_plan', 'open_commitment', 'risk', 'manual_estimate')",
+            "source_type IN ('remaining_plan', 'open_commitment', 'risk', 'manual_estimate', "
+            "'base_forecast', 'financial_change')",
             name="ck_pf_forecast_lines_source_type",
         ),
         CheckConstraint(
@@ -168,6 +169,9 @@ class ForecastLineORM(Base):
         CheckConstraint(
             "(source_kind = 'manual' AND source_type = 'manual_estimate') OR "
             "(source_kind = 'manual' AND source_type = 'risk' "
+            "AND source_reference_type IS NOT NULL AND source_reference_id IS NOT NULL "
+            "AND source_snapshot_at IS NOT NULL) OR "
+            "(source_kind = 'manual' AND source_type = 'financial_change' "
             "AND source_reference_type IS NOT NULL AND source_reference_id IS NOT NULL "
             "AND source_snapshot_at IS NOT NULL) OR "
             "(source_kind = 'automatic' AND source_type <> 'manual_estimate' "
@@ -252,12 +256,13 @@ class ForecastSourceDecisionORM(Base):
             "reason IN ('remaining_plan', 'open_commitment', 'posted_actual_offset', "
             "'actual_credit', 'reversed_actual', "
             "'manual_override', 'risk_contingency', "
-            "'no_remaining_amount', 'closed_or_cancelled', 'after_as_of')",
+            "'no_remaining_amount', 'closed_or_cancelled', 'after_as_of', "
+            "'base_forecast', 'financial_change')",
             name="ck_pf_forecast_decisions_reason",
         ),
         CheckConstraint(
             "source_type IN ('remaining_plan', 'open_commitment', 'risk', 'manual_estimate', "
-            "'posted_actual')",
+            "'posted_actual', 'base_forecast', 'financial_change')",
             name="ck_pf_forecast_decisions_source_type",
         ),
         CheckConstraint(

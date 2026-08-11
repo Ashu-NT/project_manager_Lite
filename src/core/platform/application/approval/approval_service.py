@@ -121,9 +121,13 @@ class ApprovalService:
                 self._session.rollback()
             raise
         if commit:
-            self._emit_signal_safely("approvals_changed", request.id)
-            self._notify_approval_requested(request)
+            self.publish_requested(request)
         return request
+
+    def publish_requested(self, request: ApprovalRequest) -> None:
+        """Publish post-commit effects for a caller-owned approval transaction."""
+        self._emit_signal_safely("approvals_changed", request.id)
+        self._notify_approval_requested(request)
 
     def list_requests(
         self,

@@ -21,6 +21,9 @@ from src.core.modules.project_management.application.financials.forecasts.genera
 from src.core.modules.project_management.application.financials.forecasts.generation_service import (
     ForecastGenerationService,
 )
+from src.core.modules.project_management.application.financials.financial_changes import (
+    FinancialChangeService,
+)
 from src.core.modules.project_management.application.financials.models.finance_models import (
     FinanceAnalyticsRow,
     FinanceLedgerRow,
@@ -94,6 +97,7 @@ __all__ = [
     "FinanceLedgerRow",
     "FinancePeriodRow",
     "FinanceService",
+    "FinancialChangeService",
     "FinanceSnapshot",
     "ForecastCostService",
     "ForecastGenerationResult",
