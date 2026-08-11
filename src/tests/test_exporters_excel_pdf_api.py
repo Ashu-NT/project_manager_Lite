@@ -351,6 +351,54 @@ def test_reporting_api_requires_report_export_permission_from_live_session(servi
     assert exc.value.code == "PERMISSION_DENIED"
 
 
+def test_excel_export_omits_finance_sections_without_finance_read(services, tmp_path):
+    """F0: report.export alone (no finance.read/finance.export) must still
+    produce a valid export — the Project Finance sections are simply
+    omitted rather than the whole export failing."""
+    pid, baseline_id = _setup_report_project(services)
+    tenant_id = services["user_session"].stored_active_tenant_id()
+    organization_id = services["user_session"].stored_active_organization_id()
+    services["user_session"].set_principal(
+        UserSessionPrincipal(
+            user_id="export-no-finance",
+            username="export-no-finance",
+            display_name="Export No Finance",
+            role_names=frozenset({"viewer"}),
+            permissions=frozenset({"report.view", "report.export"}),
+            active_tenant_id=tenant_id,
+            active_organization_id=organization_id,
+        )
+    )
+
+    output = tmp_path / "restricted_report.xlsx"
+    reporting_api.generate_excel_report(
+        services["reporting_service"],
+        pid,
+        output,
+        finance_service=services["finance_service"],
+        baseline_id=baseline_id,
+        as_of=date(2023, 11, 30),
+    )
+
+    wb = load_workbook(output)
+    names = set(wb.sheetnames)
+    assert {"Overview", "Tasks", "Resources"}.issubset(names)
+    assert "EVM" not in names
+    assert "Cost Sources" not in names
+    assert "Cost Breakdown" not in names
+    assert "Finance" not in names
+    assert "Finance Ledger" not in names
+
+    overview = wb["Overview"]
+    planned_cost_row = next(
+        row
+        for row in overview.iter_rows(min_col=1, max_col=1)
+        if row[0].value == "Planned cost"
+    )
+    restricted_value = overview.cell(row=planned_cost_row[0].row, column=2).value
+    assert restricted_value == "Restricted (finance.read required)"
+
+
 def test_finance_ledger_export_page_rejects_unbounded_requests():
     with pytest.raises(ValueError, match="non-negative"):
         FinanceLedgerExportPage.build([], offset=-1, limit=1)

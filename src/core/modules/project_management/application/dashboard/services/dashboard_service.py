@@ -115,7 +115,19 @@ class DashboardService(
             owner_by_task=owner_by_task,
         )
         register_snapshot = self._build_register_snapshot(project_id)
-        cost_sources = self._reporting.get_project_cost_source_breakdown(project_id)
+        # Cost source breakdown is Project Finance authority data; report.view
+        # (checked above) is not sufficient on its own — finance.read governs
+        # it, matching FinanceService's own read authority. Redact rather than
+        # fail the whole dashboard so non-financial dashboard widgets still work.
+        can_read_finance = bool(
+            self._user_session is not None
+            and self._user_session.has_project_permission(project_id, "finance.read")
+        )
+        cost_sources = (
+            self._reporting.get_project_cost_source_breakdown(project_id)
+            if can_read_finance
+            else None
+        )
         evm_obj = (
             self._build_evm(project_id, baseline_id=baseline_id)
             if include_evm

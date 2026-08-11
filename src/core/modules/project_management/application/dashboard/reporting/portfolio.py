@@ -65,6 +65,7 @@ class DashboardPortfolioMixin:
         }
         earliest_start: date | None = None
         latest_end: date | None = None
+        financial_detail_included = True
         active_projects = 0
         completed_projects = 0
         on_hold_projects = 0
@@ -76,6 +77,9 @@ class DashboardPortfolioMixin:
 
         for project in projects:
             kpi = self._reporting.get_project_kpis(project.id)
+            financial_detail_included = financial_detail_included and bool(
+                getattr(kpi, "financial_detail_included", True)
+            )
             for key in task_totals:
                 task_totals[key] += int(getattr(kpi, key, 0) or 0)
             for key in cost_totals:
@@ -170,6 +174,7 @@ class DashboardPortfolioMixin:
             kpi=self._build_portfolio_kpi(
                 start_date=earliest_start,
                 end_date=latest_end,
+                financial_detail_included=financial_detail_included,
                 **task_totals,
                 **cost_totals,
             ),

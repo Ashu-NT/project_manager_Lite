@@ -76,11 +76,17 @@ class PdfReportRequest:
 _REPORT_RUNTIME: ReportRuntime | None = None
 
 
+_OPTIONAL_REPORT_CALL_CODES = frozenset({"NO_BASELINE", "PERMISSION_DENIED"})
+
+
 def _optional_report_call(func, *args, **kwargs):
+    """Run a report section builder, degrading to an omitted (None) section
+    instead of failing the whole export.
+    """
     try:
         return func(*args, **kwargs)
     except BusinessRuleError as exc:
-        if getattr(exc, "code", None) == "NO_BASELINE":
+        if getattr(exc, "code", None) in _OPTIONAL_REPORT_CALL_CODES:
             return None
         raise
 
@@ -103,11 +109,18 @@ def _finance_export_context(request, *, as_of: date):
     )
     if request.finance_service is None:
         return None, None
-    snapshot = request.finance_service.get_finance_export_snapshot(
+    # A caller with report.export but without finance.export/finance.read
+    # omits the Finance sheet/summary rather than failing the whole export —
+    # consistent with how the EVM/cost-breakdown/cost-sources sections below
+    # degrade for the same reason.
+    snapshot = _optional_report_call(
+        request.finance_service.get_finance_export_snapshot,
         request.project_id,
         as_of=as_of,
         period=request.finance_period,
     )
+    if snapshot is None:
+        return None, None
     return snapshot, FinanceLedgerExportPage.build(
         snapshot.ledger,
         offset=request.finance_ledger_offset,
@@ -161,10 +174,14 @@ def _build_excel_context(request: ExcelReportRequest) -> ExcelReportContext:
             get_variance(request.project_id, baseline_id=request.baseline_id) if callable(get_variance) else None
         ),
         cost_breakdown=(
-            get_cost(request.project_id, as_of=as_of, baseline_id=request.baseline_id) if callable(get_cost) else None
+            _optional_report_call(get_cost, request.project_id, as_of=as_of, baseline_id=request.baseline_id)
+            if callable(get_cost)
+            else None
         ),
         cost_sources=(
-            get_cost_sources(request.project_id, as_of=as_of) if callable(get_cost_sources) else None
+            _optional_report_call(get_cost_sources, request.project_id, as_of=as_of)
+            if callable(get_cost_sources)
+            else None
         ),
         finance_snapshot=finance_snapshot,
         finance_ledger_page=finance_ledger_page,
@@ -203,10 +220,14 @@ def _build_pdf_context(request: PdfReportRequest, gantt_path: Path | None) -> Pd
             get_variance(request.project_id, baseline_id=request.baseline_id) if callable(get_variance) else None
         ),
         cost_breakdown=(
-            get_cost(request.project_id, as_of=as_of, baseline_id=request.baseline_id) if callable(get_cost) else None
+            _optional_report_call(get_cost, request.project_id, as_of=as_of, baseline_id=request.baseline_id)
+            if callable(get_cost)
+            else None
         ),
         cost_sources=(
-            get_cost_sources(request.project_id, as_of=as_of) if callable(get_cost_sources) else None
+            _optional_report_call(get_cost_sources, request.project_id, as_of=as_of)
+            if callable(get_cost_sources)
+            else None
         ),
         finance_snapshot=finance_snapshot,
         finance_ledger_page=finance_ledger_page,

@@ -51,11 +51,12 @@ class ProjectKPI:
     tasks_not_started: int
     critical_tasks: int
     late_tasks: int
-    total_planned_cost: float
-    total_actual_cost: float
-    cost_variance: float
-    total_committed_cost: float
-    committment_variance: float
+    total_planned_cost: float | None
+    total_actual_cost: float | None
+    cost_variance: float | None
+    total_committed_cost: float | None
+    committment_variance: float | None
+    financial_detail_included: bool = True
 
 @dataclass
 class ResourceLoadRow:

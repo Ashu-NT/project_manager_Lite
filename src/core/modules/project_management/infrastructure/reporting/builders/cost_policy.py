@@ -70,7 +70,7 @@ class ReportingCostPolicyMixin:
         *,
         as_of: date | None = None,
     ) -> CostControlTotals:
-        self._require_view("view cost control totals", project_id=project_id)
+        self._require_finance_view("view cost control totals", project_id=project_id)
         _, policy = self._compose_finance_policy(
             project_id,
             as_of=as_of or date.today(),
@@ -83,7 +83,7 @@ class ReportingCostPolicyMixin:
         *,
         as_of: date | None = None,
     ) -> CostSourceBreakdown:
-        self._require_view("view cost source breakdown", project_id=project_id)
+        self._require_finance_view("view cost source breakdown", project_id=project_id)
         _, policy = self._compose_finance_policy(
             project_id,
             as_of=as_of or date.today(),

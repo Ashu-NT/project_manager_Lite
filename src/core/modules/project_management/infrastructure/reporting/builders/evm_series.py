@@ -48,7 +48,7 @@ class ReportingEvmSeriesMixin:
         as_of: date | None = None,
         freq: str = "M",
     ) -> list[EvmSeriesPoint]:
-        self._require_view("view earned value trend", project_id=project_id)
+        self._require_finance_view("view earned value trend", project_id=project_id)
         return self._make_evm_series_calculator().build_series(
             project_id, baseline_id=baseline_id, as_of=as_of
         )

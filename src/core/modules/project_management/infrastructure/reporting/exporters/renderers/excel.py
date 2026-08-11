@@ -61,9 +61,10 @@ class ExcelReportRenderer:
         kv("Late tasks", ctx.kpi.late_tasks)
 
         row += 1
-        kv("Planned cost", ctx.kpi.total_planned_cost)
-        kv("Actual cost", ctx.kpi.total_actual_cost)
-        kv("Cost variance", ctx.kpi.cost_variance)
+        _restricted = "Restricted (finance.read required)"
+        kv("Planned cost", _restricted if ctx.kpi.total_planned_cost is None else ctx.kpi.total_planned_cost)
+        kv("Actual cost", _restricted if ctx.kpi.total_actual_cost is None else ctx.kpi.total_actual_cost)
+        kv("Cost variance", _restricted if ctx.kpi.cost_variance is None else ctx.kpi.cost_variance)
         if ctx.cost_sources:
             row += 1
             for src in ctx.cost_sources.rows:

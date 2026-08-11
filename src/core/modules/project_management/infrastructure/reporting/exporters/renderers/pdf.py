@@ -39,6 +39,11 @@ class PdfReportRenderer:
         story.append(Spacer(1, 12))
 
         # ---------------- Summary ----------------
+        def _money_or_restricted(value: float | None) -> str:
+            if value is None:
+                return "Restricted (finance.read required)"
+            return f"{value:.2f}"
+
         info = [
             f"Project ID: {ctx.kpi.project_id}",
             f"Start date: {ctx.kpi.start_date or '-'}",
@@ -47,9 +52,9 @@ class PdfReportRenderer:
             f"Tasks total: {ctx.kpi.tasks_total}",
             f"Critical tasks: {ctx.kpi.critical_tasks}",
             f"Late tasks: {ctx.kpi.late_tasks}",
-            f"Planned cost: {ctx.kpi.total_planned_cost:.2f}",
-            f"Actual cost: {ctx.kpi.total_actual_cost:.2f}",
-            f"Variance: {ctx.kpi.cost_variance:.2f}",
+            f"Planned cost: {_money_or_restricted(ctx.kpi.total_planned_cost)}",
+            f"Actual cost: {_money_or_restricted(ctx.kpi.total_actual_cost)}",
+            f"Variance: {_money_or_restricted(ctx.kpi.cost_variance)}",
         ]
 
         for line in info:
