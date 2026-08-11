@@ -12,10 +12,10 @@ from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.application.tasks.commands.approved_schedule_change import (
+from src.core.modules.project_management.contracts.schedule_change import (
+    ApprovedScheduleChangePort,
     ApprovedTaskScheduleChange,
 )
-from src.core.modules.project_management.application.tasks.service import TaskService
 from src.core.modules.project_management.contracts.repositories.budget import (
     ProjectBudgetRepository,
 )
@@ -83,7 +83,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         financial_profile_repo: ProjectFinancialProfileRepository,
         cost_code_repo: ProjectCostCodeRepository,
         task_repo: TaskRepository,
-        task_service: TaskService,
+        task_service: ApprovedScheduleChangePort,
         approval_service: ApprovalService,
         clock: Clock,
         user_session=None,
@@ -240,6 +240,10 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
             created_at=self._clock.now(),
         )
         self._validate_target(change, impact)
+        if impact.impact_type is FinancialChangeImpactType.SCHEDULE:
+            self._task_service._validate_approved_schedule_changes(
+                self._schedule_commands(change, [impact])
+            )
         existing = self._change_repo.list_impacts(change.id)
         if impact.target_line_id and any(
             row.impact_type is impact.impact_type
@@ -634,17 +638,7 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
         ]
         if not relevant:
             return 0
-        commands = [
-            ApprovedTaskScheduleChange(
-                reference_id=impact.id,
-                project_id=change.project_id,
-                task_id=impact.task_id or "",
-                expected_version=impact.target_task_version or 0,
-                start_date=impact.schedule_start,
-                finish_date=impact.schedule_finish,
-            )
-            for impact in relevant
-        ]
+        commands = self._schedule_commands(change, relevant)
         applied = self._task_service._apply_approved_schedule_changes(
             commands, actor_id=actor, commit=False
         )
@@ -657,6 +651,24 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
             )
             self._audit_version("task", result.task_id, change, occurred_at)
         return len(applied)
+
+    @staticmethod
+    def _schedule_commands(
+        change: FinancialChangeRequest,
+        impacts: list[FinancialChangeImpact],
+    ) -> list[ApprovedTaskScheduleChange]:
+        return [
+            ApprovedTaskScheduleChange(
+                reference_id=impact.id,
+                project_id=change.project_id,
+                task_id=impact.task_id or "",
+                expected_version=impact.target_task_version or 0,
+                start_date=impact.schedule_start,
+                finish_date=impact.schedule_finish,
+            )
+            for impact in impacts
+            if impact.impact_type is FinancialChangeImpactType.SCHEDULE
+        ]
 
     @staticmethod
     def _included_decision(
@@ -747,15 +759,8 @@ class FinancialChangeService(ProjectManagementModuleGuardMixin):
                     "An open forecast version must be resolved before applying a financial change.",
                     code="FINANCIAL_CHANGE_OPEN_FORECAST_EXISTS",
                 )
-        for impact in impacts:
-            if impact.impact_type is not FinancialChangeImpactType.SCHEDULE:
-                continue
-            task = self._require_task(change.project_id, impact.task_id or "")
-            if task.version != impact.target_task_version:
-                raise ConcurrencyError(
-                    "A schedule target changed after the financial change was drafted.",
-                    code="FINANCIAL_CHANGE_SCHEDULE_BASE_STALE",
-                )
+        schedule_commands = self._schedule_commands(change, impacts)
+        self._task_service._validate_approved_schedule_changes(schedule_commands)
 
     def _require_base_budget(self, change: FinancialChangeRequest) -> ProjectBudget:
         current = self._budget_repo.get_approved_for_project(change.project_id)

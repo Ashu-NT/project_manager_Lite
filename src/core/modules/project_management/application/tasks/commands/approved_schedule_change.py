@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
-from datetime import date
+from dataclasses import replace
 
+from src.core.modules.project_management.contracts.schedule_change import (
+    AppliedTaskScheduleChange,
+    ApprovedTaskScheduleChange,
+)
 from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.platform.common.exceptions import (
@@ -12,25 +15,6 @@ from src.core.platform.common.exceptions import (
     ValidationError,
 )
 from src.core.shared.activity import record_activity
-
-
-@dataclass(frozen=True, slots=True)
-class ApprovedTaskScheduleChange:
-    reference_id: str
-    project_id: str
-    task_id: str
-    expected_version: int
-    start_date: date | None
-    finish_date: date | None
-
-
-@dataclass(frozen=True, slots=True)
-class AppliedTaskScheduleChange:
-    reference_id: str
-    task_id: str
-    version: int
-    start_date: date
-    finish_date: date
 
 
 class ApprovedScheduleChangeMixin:
@@ -43,37 +27,10 @@ class ApprovedScheduleChangeMixin:
         actor_id: str,
         commit: bool = False,
     ) -> list[AppliedTaskScheduleChange]:
-        if not changes:
+        candidates = self._validate_approved_schedule_changes(changes)
+        if not candidates:
             return []
-        project_ids = {change.project_id for change in changes}
-        if len(project_ids) != 1:
-            raise BusinessRuleError(
-                "Approved schedule changes must belong to one project.",
-                code="FINANCIAL_CHANGE_SCHEDULE_PROJECT_MISMATCH",
-            )
-        if len({change.task_id for change in changes}) != len(changes):
-            raise BusinessRuleError(
-                "A financial change may adjust each task schedule only once.",
-                code="FINANCIAL_CHANGE_DUPLICATE_SCHEDULE_TARGET",
-            )
-
-        project_id = next(iter(project_ids))
-        candidates: list[tuple[ApprovedTaskScheduleChange, Task]] = []
-        for change in changes:
-            task = self._task_repo.get(change.task_id)
-            if task is None:
-                raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
-            if task.project_id != project_id:
-                raise BusinessRuleError(
-                    "Schedule target does not belong to the financial change project.",
-                    code="FINANCIAL_CHANGE_TASK_PROJECT_MISMATCH",
-                )
-            if task.version != change.expected_version:
-                raise ConcurrencyError(
-                    "A schedule target changed after the financial change was drafted.",
-                    code="FINANCIAL_CHANGE_SCHEDULE_BASE_STALE",
-                )
-            candidates.append((change, self._schedule_candidate(task, change)))
+        project_id = candidates[0][0].project_id
 
         try:
             for _, candidate in candidates:
@@ -128,6 +85,42 @@ class ApprovedScheduleChangeMixin:
             if commit:
                 self._session.rollback()
             raise
+
+    def _validate_approved_schedule_changes(
+        self, changes: list[ApprovedTaskScheduleChange]
+    ) -> list[tuple[ApprovedTaskScheduleChange, Task]]:
+        if not changes:
+            return []
+        project_ids = {change.project_id for change in changes}
+        if len(project_ids) != 1:
+            raise BusinessRuleError(
+                "Approved schedule changes must belong to one project.",
+                code="FINANCIAL_CHANGE_SCHEDULE_PROJECT_MISMATCH",
+            )
+        if len({change.task_id for change in changes}) != len(changes):
+            raise BusinessRuleError(
+                "A financial change may adjust each task schedule only once.",
+                code="FINANCIAL_CHANGE_DUPLICATE_SCHEDULE_TARGET",
+            )
+
+        project_id = next(iter(project_ids))
+        candidates: list[tuple[ApprovedTaskScheduleChange, Task]] = []
+        for change in changes:
+            task = self._task_repo.get(change.task_id)
+            if task is None:
+                raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+            if task.project_id != project_id:
+                raise BusinessRuleError(
+                    "Schedule target does not belong to the financial change project.",
+                    code="FINANCIAL_CHANGE_TASK_PROJECT_MISMATCH",
+                )
+            if task.version != change.expected_version:
+                raise ConcurrencyError(
+                    "A schedule target changed after the financial change was drafted.",
+                    code="FINANCIAL_CHANGE_SCHEDULE_BASE_STALE",
+                )
+            candidates.append((change, self._schedule_candidate(task, change)))
+        return candidates
 
     def _schedule_candidate(
         self, task: Task, change: ApprovedTaskScheduleChange
@@ -198,7 +191,5 @@ class ApprovedScheduleChangeMixin:
 
 
 __all__ = [
-    "AppliedTaskScheduleChange",
     "ApprovedScheduleChangeMixin",
-    "ApprovedTaskScheduleChange",
 ]

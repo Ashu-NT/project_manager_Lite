@@ -287,6 +287,37 @@ def test_schedule_submission_rejects_a_stale_task_snapshot(
     assert changes.get_change(change.id).status is FinancialChangeStatus.DRAFT
 
 
+def test_schedule_impact_rejects_summary_task_at_draft_entry(services) -> None:
+    _login(services, "admin", "ChangeMe123!")
+    project = services["project_service"].create_project(
+        "Summary Schedule Project", financial_currency_code="USD"
+    )
+    summary = services["task_service"].create_task(
+        project.id, "Summary Delivery"
+    )
+    services["task_service"].create_task(
+        project.id,
+        "Execution Delivery",
+        start_date=date(2026, 8, 10),
+        duration_days=4,
+        parent_task_id=summary.id,
+    )
+    change = _draft_change(services, project)
+
+    with pytest.raises(BusinessRuleError) as exc_info:
+        services["financial_change_service"].add_impact(
+            change.id,
+            impact_type=FinancialChangeImpactType.SCHEDULE,
+            description="Invalid summary move",
+            task_id=summary.id,
+            schedule_start=date(2026, 8, 17),
+            schedule_finish=date(2026, 8, 21),
+            expected_change_version=change.row_version,
+        )
+    assert exc_info.value.code == "TASK_WBS_SUMMARY_EXECUTION_FORBIDDEN"
+    assert services["financial_change_service"].list_impacts(change.id) == []
+
+
 def test_impact_write_rolls_back_when_financial_audit_fails(
     services, monkeypatch
 ) -> None:

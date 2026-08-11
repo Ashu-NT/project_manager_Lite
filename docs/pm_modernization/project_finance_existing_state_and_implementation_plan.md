@@ -1049,7 +1049,7 @@ Ownership: **PROJECT FINANCE**
 
 1. Add forecast versions/lines and explicit automatic/manual source metadata.
 2. Define ETC source precedence and exclusion/matching rules across remaining plan, commitments, risks, and manual estimates.
-3. Add typed financial change requests that apply approved budget, forecast, contract, and schedule impacts atomically by creating new versions.
+3. Add typed financial change requests that apply approved budget, forecast, and schedule impacts atomically through their canonical owners. Keep procurement commitments source-owned and defer project contract value to Phase E product decisions.
 4. Rebuild snapshot, cash flow, EVM, variance, and portfolio financial read models from canonical Money, posted actuals, open commitments, and approved/current forecast versions.
 5. Add as-of/basis/period metadata, pagination, source drill-down, reconciliation/control totals, and sensitive-field filtering to exports.
 6. Remove desktop forecast fallback formulas and legacy CostItem reporting once parity is proven.
@@ -1122,27 +1122,34 @@ Implementation progress (2026-08-11):
   checkpoint passes 39 tests; its only global-suite failure is the pre-existing hard-size guard for
   generated `resources/shared_resources_rc.py` and platform `enterprise_calendar.py`.
 
-- **D.2A COMPLETE - governed budget/forecast financial changes.** PM now owns scoped
+- **D.2 COMPLETE - governed budget/forecast/schedule financial changes.** PM now owns scoped
   `FinancialChangeRequest` and typed impacts with immutable change revisions, optimistic
   concurrency, snapshotted approved bases, exact target-line deltas, actor/timestamp history,
   applied-version references, and fail-closed audit. A two-actor Platform Approval decision
   atomically supersedes the approved budget and/or forecast and creates approved successors.
   Forecast copies and changes retain durable `base_forecast`/`financial_change` line and decision
   lineage. Stale bases, concurrent open versions, invalid dimensions, negative successor values,
-  duplicate targets, unsupported owner impacts, and audit failures fail closed and roll back.
-- Migration `pfchg_d2a001` is reversible and is the sole head. It adds composite scoped ownership,
+  duplicate targets, unsupported dimensions, and audit failures fail closed and roll back.
+- Schedule impacts snapshot the target task version and apply through the PM task owner's internal
+  batch command. It accepts only unstarted execution leaves, validates project working days and
+  project bounds, writes all requested windows, recalculates dependencies once, and verifies the
+  exact approved result. Typed applied references identify budget lines, forecast lines, or tasks;
+  mixed changes participate in the same approval/audit transaction and publish only after commit.
+- Migration `pfchg_d2_001` is reversible and is the sole head. It adds composite scoped ownership,
   typed-shape/lifecycle constraints, indexes, and forced PostgreSQL RLS. No legacy model, backfill,
   dual path, compatibility facade, or temporary transition code was introduced.
-- **D.2B NEXT - authoritative contract/schedule application.** Contract and schedule impact shapes
-  are durable typed records, but submission remains blocked until PM-owned commitment/contract and
-  scheduling commands expose versioned, transaction-participating application ports. D.2A does not
-  fake those mutations or import another module's implementation.
-- D.2A verification: six focused change-control/domain/atomicity/migration tests pass; the combined
-  change, forecast, RBAC reconciliation, and session-permission checkpoint passes 33 tests. The
+- **Ownership correction:** `contract` was removed from D.2 before release. Existing PM commitment
+  lines are procurement-sourced projections and must change only through ordered procurement source
+  revisions. Project contract value is a missing revenue/billing aggregate gated by Phase E and
+  ADR-PF-010. The ambiguous task-level planned-hours delta was also removed; cost effects require
+  explicit budget/forecast impacts, while assignment hours remain resource/task planning authority.
+- D.2 verification: nine focused change-control/domain/schedule/atomicity/migration tests pass;
+  combined change, forecast, task hierarchy/domain, schedule-impact, RBAC reconciliation, and
+  session-permission coverage passes 53 tests. The
   adjacent budget/architecture run produced 53 passes; only the pre-existing repository-wide
   generated/platform hard-size guard failed.
 
-After D.2B, continue to **D.4** canonical finance read models. Forecast read models and QML must
+Continue to **D.4** canonical finance read models. Forecast read models and QML must
 not cut over until D.4 proves source reconciliation and read parity.
 
 ### Phase E - Billing preparation, revenue, and external accounting
@@ -1391,10 +1398,11 @@ These are genuine product/ownership decisions. Questions mapped to A0/A1/A2 ADRs
 ## 25. Final Recommendation
 
 Proceed with the upgrade, but do not recreate the removed combined CostItem model. Phases A-C and
-the clean C.9 cutover are complete. Phase D.1A-D.2A now provide canonical forecast persistence,
+the clean C.9 cutover are complete. Phase D.1A-D.2 now provide canonical forecast persistence,
 lifecycle, automatic ETC generation, durable source decisions, and governed atomic budget/forecast
-change control. Complete D.2B authoritative contract/schedule application before changing finance
-read models or QML. Item 7's planned-cost source
+and schedule change control. Continue to D.4 canonical finance read models before changing QML;
+keep procurement commitments source-owned and project contract value behind its Phase E gate.
+Item 7's planned-cost source
 cutover remains explicitly blocked by planning
 semantics and freshness ownership; do not force it or treat the new forecast aggregate as a
 substitute for a real planning source.

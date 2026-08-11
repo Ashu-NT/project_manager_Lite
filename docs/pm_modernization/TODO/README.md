@@ -562,7 +562,7 @@ unrelated repository-wide generated-file size guard deselected).
 - Migration `w0x1y2z3a4b5` adds the tenant/org/project-scoped source-decision table, reconciled Money
   checks, source/task references, forced PostgreSQL RLS, and linked-risk line semantics. There is no
   backfill, dual-read, compatibility branch, or temporary transition code.
-- **Phase D.2A - COMPLETE (2026-08-11): governed budget/forecast change control.** PM now owns
+- **Phase D.2 - COMPLETE (2026-08-11): governed budget/forecast/schedule change control.** PM now owns
   tenant/org/project-scoped `FinancialChangeRequest` and typed impact records with immutable
   business revisions, optimistic row versions, snapshotted approved budget/forecast bases, exact
   target-line deltas, lifecycle actors/timestamps, applied-version references, fail-closed audit,
@@ -570,28 +570,33 @@ unrelated repository-wide generated-file size guard deselected).
   approved budget/forecast and creates approved successor versions; stale bases, open drafts,
   negative results, duplicate targets, unsupported dimensions, and audit failure block or roll
   back the whole decision. Forecast successor lines and durable source decisions retain explicit
-  `base_forecast` or `financial_change` lineage.
-- Migration `pfchg_d2a001` adds scoped change-request/impact tables, composite ownership FKs,
+  `base_forecast` or `financial_change` lineage. Schedule impacts snapshot exact task versions and
+  apply through the PM task owner's batch command. Only unstarted execution leaves are eligible;
+  project-calendar validation, one dependency recalculation, and exact-result verification occur
+  inside the approval transaction. Mixed budget/forecast/task changes roll back together.
+- Migration `pfchg_d2_001` adds scoped change-request/impact tables, composite ownership FKs,
   lifecycle and typed-shape checks, indexes, forced PostgreSQL RLS, and the new forecast-lineage
   constraints. It is the sole Alembic head and is reversible. This is a direct pre-release cutover:
   no backfill, compatibility path, dual read/write, legacy change model, or temporary transition
   file exists. Planner finance-read capability was made coherent with its existing budget,
   forecast, and financial-change write responsibilities; sensitive finance remains separately
   protected by `finance.read_sensitive`.
-- **Next Phase D slice - D.2B:** connect contract and schedule impacts to their authoritative PM
-  owner commands and version/revision semantics. Their typed impact shapes are durable D.2 data,
-  but submission currently fails closed; no placeholder mutation or cross-module direct import is
-  permitted. Canonical finance read-model and QML cutover remain later Phase D work.
-- **Remaining Phase D:** contract/schedule change application; snapshot/cash-flow/EVM/variance/
+- **Contract ownership correction:** the provisional `contract` impact and ambiguous task-level
+  planned-hours delta were deleted before release. Procurement commitment rows are read-only PM
+  projections and may change only through authoritative procurement revisions. PM project contract
+  value does not yet exist and remains behind Phase E/ADR-PF-010 product decisions; D.2 does not
+  create a fake contract authority or leave blocked/dead fields.
+- **Next Phase D slice - D.4:** snapshot/cash-flow/EVM/variance/
   portfolio read-model cutover to canonical Money and approved/current forecasts; export
   metadata and reconciliation; desktop formula deletion; QML Forecast/ETC/Change/Variance
   redesign after read parity.
 - **Phase E** (billing/revenue/external accounting): blocked on ADR-PF-010 (currently
   PROPOSED, not accepted) and the product decisions in §24 items 10-15 of the master doc.
 
-Phase D.1A-D.2A verification: focused financial-change and forecast lifecycle/lineage/migration
-coverage passes (`19 passed`); combined D.2, forecast, RBAC reconciliation, and session-permission
-coverage passes (`33 passed`). Adjacent budget and architecture execution produced `53 passed`; its
+Phase D.1A-D.2 verification: focused financial-change and forecast lifecycle/lineage/migration
+coverage passes (`22 passed`). Combined D.2, forecast, task hierarchy/domain, schedule-impact,
+RBAC reconciliation, and session-permission coverage passes (`53 passed`). The adjacent budget and
+architecture execution previously produced `53 passed`; its
 only failure is the unrelated repository-wide hard-size guard for generated
 `resources/shared_resources_rc.py` and the pre-existing platform `enterprise_calendar.py`.
 RBAC/security coverage passes (`44 passed`); PM desktop adapter architecture passes
