@@ -8,6 +8,7 @@ from src.core.modules.project_management.contracts.schedule_change import (
 )
 from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.domain.tasks.task import Task
+from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,
@@ -104,6 +105,12 @@ class ApprovedScheduleChangeMixin:
             )
 
         project_id = next(iter(project_ids))
+        scheduler = getattr(self, "_scheduling_engine", None)
+        calendar = (
+            scheduler.calendar_for_project(project_id)
+            if scheduler is not None
+            else self._work_calendar_engine
+        )
         candidates: list[tuple[ApprovedTaskScheduleChange, Task]] = []
         for change in changes:
             task = self._task_repo.get(change.task_id)
@@ -119,11 +126,14 @@ class ApprovedScheduleChangeMixin:
                     "A schedule target changed after the financial change was drafted.",
                     code="FINANCIAL_CHANGE_SCHEDULE_BASE_STALE",
                 )
-            candidates.append((change, self._schedule_candidate(task, change)))
+            candidates.append((change, self._schedule_candidate(task, change, calendar)))
         return candidates
 
     def _schedule_candidate(
-        self, task: Task, change: ApprovedTaskScheduleChange
+        self,
+        task: Task,
+        change: ApprovedTaskScheduleChange,
+        calendar: CalendarProtocol,
     ) -> Task:
         if self._task_repo.list_children(task.project_id, task.id):
             raise BusinessRuleError(
@@ -149,7 +159,7 @@ class ApprovedScheduleChangeMixin:
                 "A schedule change requires a start date.",
                 code="FINANCIAL_CHANGE_SCHEDULE_START_REQUIRED",
             )
-        if not self._work_calendar_engine.is_working_day(start):
+        if not calendar.is_working_day(start):
             raise ValidationError(
                 "Schedule change start must be a project working day.",
                 code="FINANCIAL_CHANGE_SCHEDULE_START_NOT_WORKING_DAY",
@@ -159,24 +169,22 @@ class ApprovedScheduleChangeMixin:
             if duration is None and task.start_date and task.end_date:
                 duration = max(
                     0,
-                    self._work_calendar_engine.working_days_between(
-                        task.start_date, task.end_date
-                    ),
+                    calendar.working_days_between(task.start_date, task.end_date),
                 )
-            finish = self._work_calendar_engine.add_working_days(start, duration or 0)
+            finish = calendar.add_working_days(start, duration or 0)
         if finish < start:
             raise ValidationError(
                 "Schedule change finish cannot precede start.",
                 code="FINANCIAL_CHANGE_SCHEDULE_PERIOD_INVALID",
             )
-        if not self._work_calendar_engine.is_working_day(finish):
+        if not calendar.is_working_day(finish):
             raise ValidationError(
                 "Schedule change finish must be a project working day.",
                 code="FINANCIAL_CHANGE_SCHEDULE_FINISH_NOT_WORKING_DAY",
             )
         duration = max(
             0,
-            self._work_calendar_engine.working_days_between(start, finish),
+            calendar.working_days_between(start, finish),
         )
         candidate = replace(
             task,

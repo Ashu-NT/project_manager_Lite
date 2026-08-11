@@ -82,6 +82,16 @@ class SchedulingEngine(ResourceLevelingMixin):
         self._task_primary_resource: dict[str, str] = {}  # task_id → resource_id, pre-loaded per run
         self._project_calendar_adapter: ProjectCalendarAdapter | None = project_calendar_adapter
 
+    def calendar_for_project(self, project_id: str) -> CalendarProtocol:
+        if self._project_calendar_adapter is not None:
+            try:
+                calendar = self._project_calendar_adapter.bind_for_project(project_id)
+                if calendar is not None:
+                    return calendar
+            except Exception:
+                pass
+        return self._base_calendar
+
     def recalculate_project_schedule(
         self,
         project_id: str,

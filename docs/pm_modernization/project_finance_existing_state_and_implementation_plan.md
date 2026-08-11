@@ -1145,9 +1145,11 @@ Implementation progress (2026-08-11):
   explicit budget/forecast impacts, while assignment hours remain resource/task planning authority.
 - D.2 verification: nine focused change-control/domain/schedule/atomicity/migration tests pass;
   combined change, forecast, task hierarchy/domain, schedule-impact, RBAC reconciliation, and
-  session-permission coverage passes 53 tests. The
-  adjacent budget/architecture run produced 53 passes; only the pre-existing repository-wide
-  generated/platform hard-size guard failed.
+  session-permission coverage passes 53 tests; the comprehensive affected budget/forecast/change/
+  task/schedule/RBAC checkpoint passes 95 tests. Architecture coverage with the known hard-line
+  limit deselected reports 152 passes and two unrelated stale-guard failures: a reference to the
+  removed `repositories/cost.py` and a 410-line budget for the pre-existing 449-line scheduling
+  engine. Neither touches D.2.
 
 Continue to **D.4** canonical finance read models. Forecast read models and QML must
 not cut over until D.4 proves source reconciliation and read parity.

@@ -595,10 +595,13 @@ unrelated repository-wide generated-file size guard deselected).
 
 Phase D.1A-D.2 verification: focused financial-change and forecast lifecycle/lineage/migration
 coverage passes (`22 passed`). Combined D.2, forecast, task hierarchy/domain, schedule-impact,
-RBAC reconciliation, and session-permission coverage passes (`53 passed`). The adjacent budget and
-architecture execution previously produced `53 passed`; its
-only failure is the unrelated repository-wide hard-size guard for generated
-`resources/shared_resources_rc.py` and the pre-existing platform `enterprise_calendar.py`.
+RBAC reconciliation, and session-permission coverage passes (`53 passed`). The comprehensive
+affected budget/forecast/change/task/schedule/RBAC checkpoint passes (`95 passed`). Architecture
+coverage excluding the known hard-line-limit test reports `152 passed`, `2 failed`: one stale guard
+still opens the removed `repositories/cost.py`, and one stale growth budget allows 410 lines for the
+pre-existing 449-line scheduling engine. Neither touches D.2. The excluded repository-wide hard-size
+guard still identifies generated `resources/shared_resources_rc.py` and platform
+`enterprise_calendar.py`.
 RBAC/security coverage passes (`44 passed`); PM desktop adapter architecture passes
 (`12 passed`); migration graph passes (`11 passed`, with only the
 unrelated repository-wide generated/platform size guard deselected). The previous D.1A canonical
