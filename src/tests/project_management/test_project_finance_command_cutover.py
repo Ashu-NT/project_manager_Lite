@@ -21,7 +21,6 @@ def _build_api(services) -> ProjectManagementFinancialsDesktopApi:
     return ProjectManagementFinancialsDesktopApi(
         project_service=services["project_service"],
         task_service=services["task_service"],
-        cost_service=services["cost_service"],
         financial_configuration_service=services["financial_configuration_service"],
         cost_entry_service=services["cost_entry_service"],
     )
@@ -31,7 +30,7 @@ def _setup_project(services):
     organization = services["organization_service"].get_active_organization()
     project = services["project_service"].create_project(
         "Desktop actual cutover",
-        currency=organization.base_currency,
+        financial_currency_code=organization.base_currency,
     )
     task = services["task_service"].create_task(
         project.id,
@@ -153,4 +152,3 @@ def test_legacy_combined_write_adapters_and_import_contract_are_deleted() -> Non
         root
         / "core/modules/project_management/application/financials/costs/commands/cost_lifecycle.py"
     ).exists()
-

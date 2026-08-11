@@ -1,6 +1,6 @@
 from .finance_snapshot_facts import (
     CostAggregateFact,
-    CostItemFact,
+    FinanceLedgerFact,
     FinanceProjectFact,
     FinanceSnapshotFacts,
     LaborAssignmentFact,
@@ -11,7 +11,7 @@ from .finance_snapshot_facts import (
 
 __all__ = [
     "CostAggregateFact",
-    "CostItemFact",
+    "FinanceLedgerFact",
     "FinanceProjectFact",
     "FinanceSnapshotFacts",
     "LaborAssignmentFact",
@@ -19,4 +19,3 @@ __all__ = [
     "ResourceFact",
     "TaskFact",
 ]
-

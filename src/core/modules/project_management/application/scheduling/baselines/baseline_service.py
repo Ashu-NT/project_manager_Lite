@@ -1,6 +1,5 @@
 # src/core/modules/project_management/application/scheduling/baseline_service.py
 from datetime import date
-from decimal import Decimal
 
 from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 
@@ -12,19 +11,12 @@ from src.core.modules.project_management.domain.scheduling.baseline import (
     BaselineVarianceRecord,
     ProjectBaseline,
 )
-from src.core.modules.project_management.domain.enums import CostType
-from src.core.modules.project_management.domain.financials.rate_cards import RateType
-from src.core.modules.project_management.contracts.repositories.project import (
-    ProjectRepository,
-    ProjectResourceRepository,
-)
+from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.task import TaskRepository
-from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from src.core.modules.project_management.contracts.repositories.cost import CostRepository
-from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
-from src.core.modules.project_management.contracts.repositories.rate_resolution import (
-    LaborRateResolver,
+from src.core.modules.project_management.contracts.repositories.planned_cost import (
+    ProjectPlannedCostVersionRepository,
 )
+from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContext,
@@ -47,13 +39,10 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         session: Session,
         project_repo: ProjectRepository,
         task_repo: TaskRepository,
-        cost_repo: CostRepository,
+        planned_cost_repo: ProjectPlannedCostVersionRepository,
         baseline_repo: BaselineRepository,
         scheduling: SchedulingEngine,
         calendar: CalendarProtocol,
-        project_resource_repo: ProjectResourceRepository,
-        resource_repo: ResourceRepository,
-        rate_resolver: LaborRateResolver,
         user_session=None,
         activity_service=None,
         approval_service=None,
@@ -63,13 +52,10 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         self._session: Session = session
         self._projects: ProjectRepository = project_repo
         self._tasks: TaskRepository = task_repo
-        self._costs: CostRepository = cost_repo
+        self._planned_costs = planned_cost_repo
         self._baselines: BaselineRepository = baseline_repo
         self._sched: SchedulingEngine = scheduling
         self._cal: CalendarProtocol = calendar
-        self._project_resources: ProjectResourceRepository = project_resource_repo
-        self._resources: ResourceRepository = resource_repo
-        self._rate_resolver: LaborRateResolver = rate_resolver
         self._user_session = user_session
         self._activity_service = activity_service
         self._approval_service = approval_service
@@ -167,136 +153,33 @@ class BaselineService(ProjectManagementModuleGuardMixin):
             raise ValidationError("Cannot baseline: project has no tasks.")
         task_name_by_id = {task.id: task.name for task in tasks}
 
-        proj_cur = (getattr(project, "currency", None) or "").upper().strip()
-
         # -------------------------
-        # Planned labor snapshot (ProjectResource.planned_hours x COST rate).
-        #
-        # Rate-source consistency fix only: the quantity/allocation model is
-        # unchanged (still ProjectResource.planned_hours, still duration-
-        # weighted allocation across tasks below). Only the *rate* side is
-        # now resolved through the ADR-PF-005 rate-card system — never
-        # Resource.hourly_rate/ProjectResource.hourly_rate directly — so a
-        # baseline is valued consistently with CostPolicyEngine/
-        # LaborCostEngine at snapshot-creation time, using RateType.COST
-        # (never BILLING) as of the caller-supplied `rate_as_of` date (no
-        # `date.today()` inside this service — the caller decides what date
-        # a baseline's valuation is "as of").
-        #
-        # A persisted baseline is an authoritative historical snapshot: an
-        # unresolved rate or a currency that doesn't match the project's
-        # currency (no FX conversion exists yet) fails baseline creation
-        # closed, rather than silently omitting the resource or mixing
-        # currencies into one total.
-        #
-        # Known limitation of this slice: `BaselineTask.baseline_planned_cost`
-        # stays a plain float (unchanged column/type — a separate financial-
-        # numeric migration would be needed to change it) and records only
-        # the resolved total, not per-line rate provenance (rate_card_id/
-        # rate_line_id/rate_card_version/modifier). Full provenance requires
-        # a later baseline financial-snapshot extension.
+        # Baselines consume the latest immutable planned-cost snapshot at the
+        # requested valuation date. Rate and allocation resolution belongs to
+        # PlannedCostService and is never repeated during baseline creation.
         # -------------------------
-        pr_rows = self._project_resources.list_by_project(project_id) or []
-        active_prs = [
-            pr
-            for pr in pr_rows
-            if bool(getattr(pr, "is_active", True))
-            and float(getattr(pr, "planned_hours", 0.0) or 0.0) > 0
-            and getattr(pr, "resource_id", None)
-        ]
-        resource_ids = tuple(dict.fromkeys(str(pr.resource_id) for pr in active_prs))
-
-        planned_labor_total = Decimal("0")
-        if resource_ids:
-            context = self._require_context("create baseline")
-            batch = self._rate_resolver.resolve_many(
-                tenant_id=context.tenant_id,
-                organization_id=context.organization_id,
-                project_id=project_id,
-                resource_ids=resource_ids,
-                rate_type=RateType.COST,
-                as_of=rate_as_of,
-                unit="HOUR",
-            )
-            if not batch.is_complete:
-                detail = "; ".join(
-                    f"{u.resource_id}: {u.reason_code} ({u.detail})"
-                    for u in batch.unresolved
-                )
-                raise BusinessRuleError(
-                    "Cannot create baseline: one or more labor rates could not "
-                    f"be resolved for project {project_id} as of "
-                    f"{rate_as_of.isoformat()} — {detail}",
-                    code="BASELINE_LABOR_RATE_INCOMPLETE",
-                )
-
-            snapshots_by_resource = {}
-            mismatched: list[str] = []
-            for resource_id in resource_ids:
-                snapshot = batch.snapshot_for(resource_id)
-                if snapshot is None:
-                    # Defense-in-depth only — batch.is_complete already
-                    # guarantees every requested resource_id resolved.
-                    raise BusinessRuleError(
-                        f"Cannot create baseline: resource {resource_id} has "
-                        "no resolved labor rate.",
-                        code="BASELINE_LABOR_RATE_INCOMPLETE",
-                    )
-                rate_currency = snapshot.monetary_rate.money.currency.code
-                if proj_cur and rate_currency != proj_cur:
-                    mismatched.append(f"{resource_id} ({rate_currency})")
-                    continue
-                snapshots_by_resource[resource_id] = snapshot
-            if mismatched:
-                raise BusinessRuleError(
-                    "Cannot create baseline: resolved labor rate currency does "
-                    f"not match the project currency ({proj_cur or 'unset'}) and "
-                    f"no conversion is available for: {', '.join(mismatched)}",
-                    code="BASELINE_LABOR_RATE_CURRENCY_MISMATCH",
-                )
-
-            for pr in active_prs:
-                snapshot = snapshots_by_resource[str(pr.resource_id)]
-                planned_hours = Decimal(str(getattr(pr, "planned_hours", 0.0) or 0.0))
-                planned_labor_total += planned_hours * snapshot.monetary_rate.money.amount
-
-        # Converted once, here, at the boundary into the unchanged legacy
-        # float-based allocation pipeline below (planned_by_task/
-        # alloc_unassigned/alloc_labor) — the hours x rate multiplication
-        # itself happens in Decimal above.
-        planned_labor_total = float(planned_labor_total)
-
-        # -------------------------
-        # Planned costs snapshot (baseline budget basis)
-        # - include manual LABOR CostItems only when no project-resource labor is planned
-        #   (fallback mode, same policy as reporting KPI/EVM/breakdown)
-        # -------------------------
-        costs = self._costs.list_by_project(project_id)
-        include_manual_labor_items = planned_labor_total <= 0.0
-
         planned_by_task: dict[str, float] = {}
         planned_unassigned = 0.0
-
-        for c in costs:
-            ct = getattr(c, "cost_type", None)
-            if ct == CostType.LABOR and not include_manual_labor_items:
-                continue
-
-            amt = float(getattr(c, "planned_amount", 0.0) or 0.0)
-            if amt <= 0:
-                continue
-
-            if getattr(c, "task_id", None):
-                tid = c.task_id
-                planned_by_task[tid] = planned_by_task.get(tid, 0.0) + amt
-            else:
-                planned_unassigned += amt
-
-        # If there are NO planned cost items at all, optionally fall back to project planned budget.
-        if (sum(planned_by_task.values()) + planned_unassigned) <= 0.0:
-            pb = float(getattr(project, "planned_budget", 0.0) or 0.0)
-            if pb > 0:
-                planned_unassigned = pb
+        versions = [
+            version
+            for version in self._planned_costs.list_for_project(project_id)
+            if version.as_of <= rate_as_of
+        ]
+        if versions:
+            version = max(versions, key=lambda item: (item.as_of, item.revision))
+            if not (
+                version.rates_complete
+                and version.allocations_complete
+                and version.cost_codes_complete
+            ):
+                raise BusinessRuleError(
+                    "Cannot create baseline from an incomplete planned-cost snapshot.",
+                    code="BASELINE_PLANNED_COST_INCOMPLETE",
+                )
+            for line in self._planned_costs.list_lines(version.id):
+                planned_by_task[line.task_id] = (
+                    planned_by_task.get(line.task_id, 0.0) + float(line.amount)
+                )
 
         baseline = ProjectBaseline.create(project_id, name)
 
@@ -335,31 +218,16 @@ class BaselineService(ProjectManagementModuleGuardMixin):
                 for tid in durations:
                     alloc_unassigned[tid] = per
 
-        # -------------------------
-        # Allocate planned labor across tasks (duration-weighted, else equal)
-        # -------------------------
-        alloc_labor: dict[str, float] = {}
-        if planned_labor_total > 0 and tasks:
-            if total_dur > 0:
-                for tid in durations:
-                    w = durations[tid] / total_dur if total_dur else 0.0
-                    alloc_labor[tid] = planned_labor_total * w
-            else:
-                per = planned_labor_total / float(len(tasks))
-                for tid in durations:
-                    alloc_labor[tid] = per
-
         baseline_tasks: list[BaselineTask] = []
         for tid, bs, bf in task_infos:
             dur = durations.get(tid, 0)
 
-            # baseline planned cost = (typed planned cost items for task)
-            #                    + (allocated unassigned planned)
-            #                    + (allocated planned labor from ProjectResource)
+            # Canonical snapshot lines are already task-valued. The only
+            # allocation retained here is the project budget fallback used
+            # when no planned-cost snapshot exists.
             planned_cost = (
                 float(planned_by_task.get(tid, 0.0) or 0.0)
                 + float(alloc_unassigned.get(tid, 0.0) or 0.0)
-                + float(alloc_labor.get(tid, 0.0) or 0.0)
             )
 
             baseline_tasks.append(

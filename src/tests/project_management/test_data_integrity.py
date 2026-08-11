@@ -23,9 +23,6 @@ from src.core.modules.project_management.infrastructure.persistence.orm.baseline
     BaselineTaskORM,
     ProjectBaselineORM,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.cost import (
-    CostItemORM,
-)
 from src.core.modules.project_management.infrastructure.persistence.orm.project import (
     ProjectORM,
     ProjectResourceORM,
@@ -113,13 +110,6 @@ def _dependency(session, did, pred, succ):
     )
 
 
-def _cost(session, cid, pid, tid):
-    return _add(
-        session,
-        CostItemORM(id=cid, project_id=pid, task_id=tid, description="x", planned_amount=10.0),
-    )
-
-
 def _by_cat(session):
     session.flush()
     report = run_pm_data_integrity_checks(session)
@@ -143,7 +133,6 @@ def test_fully_valid_same_project_graph_is_ok(session):
     _task(session, "t2", "p1")
     _assignment(session, "a1", "t1", "r1", project_resource_id="pr1", allocation=50.0)
     _dependency(session, "d1", "t1", "t2")
-    _cost(session, "c1", "p1", "t1")
     report, _ = _by_cat(session)
     assert report.ok, report.to_lines()
 
@@ -224,17 +213,6 @@ def test_detects_resource_overallocation(session):
     _, by_cat = _by_cat(session)
     assert by_cat["resource_overallocation"].count == 1
     assert by_cat["resource_overallocation"].severity == "review"
-
-
-# ── cost invariants ─────────────────────────────────────────────────────────
-def test_detects_cost_linked_to_other_project_task(session):
-    _project(session, "p1")
-    _project(session, "p2")
-    _task(session, "t2", "p2")
-    # cost belongs to p1 but links a task from p2
-    _cost(session, "c1", "p1", "t2")
-    _, by_cat = _by_cat(session)
-    assert by_cat["cost_task_cross_project"].count == 1
 
 
 # ── baseline invariants ─────────────────────────────────────────────────────

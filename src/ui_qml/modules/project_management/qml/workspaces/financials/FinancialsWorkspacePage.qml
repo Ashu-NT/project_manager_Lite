@@ -1,138 +1,57 @@
-﻿pragma ComponentBehavior: Bound
+pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls
-import QtQuick.Layouts
-import App.Controls 1.0 as AppControls
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
-import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "dialogs" as Dialogs
-import "sections" as Sections
 import "panels" as Panels
-import "components" as Components
 
 AppLayouts.WorkspaceFrame {
     id: root
 
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
     property ProjectManagementControllers.ProjectManagementFinancialsWorkspaceController workspaceController: root.pmCatalog
-        ? root.pmCatalog.financialsWorkspace
-        : null
+        ? root.pmCatalog.financialsWorkspace : null
     readonly property var workspaceModel: root.workspaceController
         ? root.workspaceController.workspace
-        : ({ "routeId": "project_management.financials", "title": "Financials", "summary": "Project cost, labor, baseline budget, and financial reporting workflows." })
+        : ({ "routeId": "project_management.financials", "title": "Financials", "summary": "Project financial control and reporting." })
     readonly property var overviewModel: root.workspaceController
         ? root.workspaceController.overview
         : ({ "title": root.workspaceModel.title, "subtitle": root.workspaceModel.summary, "metrics": [] })
-    readonly property var costsModel: root.workspaceController
-        ? root.workspaceController.costs
-        : ({ "title": "Cost Register", "subtitle": "Budget lines, actuals, labor, and procurement costs.", "emptyState": "Select a project to review cost control and financial exposure.", "items": [] })
-    readonly property var selectedCostModel: root.workspaceController
-        ? root.workspaceController.selectedCost
-        : ({ "id": "", "title": "", "statusLabel": "", "subtitle": "", "description": "", "emptyState": "Select a cost item to review financial detail.", "fields": [], "state": {} })
     readonly property var cashflowModel: root.workspaceController
-        ? root.workspaceController.cashflow
-        : ({ "title": "", "subtitle": "", "emptyState": "", "items": [] })
+        ? root.workspaceController.cashflow : ({ "items": [] })
     readonly property var ledgerModel: root.workspaceController
-        ? root.workspaceController.ledger
-        : ({ "title": "", "subtitle": "", "emptyState": "", "items": [] })
+        ? root.workspaceController.ledger : ({ "items": [] })
     readonly property var sourceAnalyticsModel: root.workspaceController
-        ? root.workspaceController.sourceAnalytics
-        : ({ "title": "", "subtitle": "", "emptyState": "", "items": [] })
+        ? root.workspaceController.sourceAnalytics : ({ "items": [] })
     readonly property var baselineVarianceModel: root.workspaceController
         ? (root.workspaceController.baselineVariance || []) : []
 
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
-    property bool _detailOpen: false
-    property int _pendingDetailSection: 0
     readonly property var detailPage: detailPageLoader.item
+    property int _pendingDetailSection: 0
 
     readonly property bool _hasProcPoCap: root.pmCatalog
         ? root.pmCatalog.hasCapability("procurement.purchase_orders.read") : false
     readonly property var _detailSections: {
-        const secs = [
+        const sections = [
             "Profile", "Budget Versions", "Budget Lines", "Rate Cards", "Planned Costs",
             "Actuals", "Forecast", "Commitments", "Invoices"
         ]
-        if (root._hasProcPoCap) secs.push("Purchase Orders")
-        secs.push("Earned Value")
-        secs.push("Variance")
-        secs.push("Activity")
-        return secs
+        if (root._hasProcPoCap) sections.push("Purchase Orders")
+        sections.push("Earned Value")
+        sections.push("Variance")
+        sections.push("Activity")
+        return sections
     }
-
-    property string _tableId: "pm.financials.costs.table"
-    property var _columns: []
-
-    function _baseColumns() {
-        return [
-            { "key": "title",                 "label": "Description", "flex": 2,   "sortable": true,  "required": true,  "visibleByDefault": true  },
-            { "key": "costCode",              "label": "Code",        "flex": 0,   "minWidth": 120, "sortable": true,  "visibleByDefault": true  },
-            { "key": "statusLabel",           "label": "Cost Type",   "flex": 0,   "minWidth": 110, "type": "status",  "visibleByDefault": true  },
-            { "key": "commitmentStatusLabel", "label": "Commitment",  "flex": 0,   "minWidth": 120, "type": "status",  "visibleByDefault": true  },
-            { "key": "subtitle",              "label": "Task",        "flex": 1.5, "sortable": true,  "visibleByDefault": true  },
-            { "key": "plannedAmountLabel",    "label": "Budget",      "flex": 0,   "minWidth": 110,   "visibleByDefault": true  },
-            { "key": "forecastAmountLabel",   "label": "Forecast",    "flex": 0,   "minWidth": 110,   "visibleByDefault": true  },
-            { "key": "actualAmountLabel",     "label": "Actual",      "flex": 0,   "minWidth": 110,   "visibleByDefault": true  },
-            { "key": "committedAmountLabel",  "label": "Committed",   "flex": 0,   "minWidth": 110,   "visibleByDefault": false },
-            { "key": "incurredDateLabel",     "label": "Date",        "flex": 0,   "minWidth": 90,    "visibleByDefault": true  }
-        ]
-    }
-
-    function _applyColumnState(base, saved) {
-        const order = saved ? (saved.columnOrder || []) : []
-        const hidden = saved ? (saved.hiddenColumns || []) : []
-        if (order.length === 0) return base.slice()
-        const hiddenSet = {}
-        for (let i = 0; i < hidden.length; i++) hiddenSet[hidden[i]] = true
-        const byKey = {}
-        for (let i = 0; i < base.length; i++) byKey[base[i].key] = base[i]
-        const result = []
-        for (let j = 0; j < order.length; j++) {
-            const col = byKey[order[j]]
-            if (!col) continue
-            const c = Object.assign({}, col)
-            if (c.required !== true) c.visible = !hiddenSet[order[j]]
-            result.push(c)
-        }
-        for (let i = 0; i < base.length; i++) {
-            if (order.indexOf(base[i].key) < 0) result.push(Object.assign({}, base[i]))
-        }
-        return result
-    }
-
-    function _buildColumnState(columns) {
-        const order = []
-        const hidden = []
-        for (let i = 0; i < columns.length; i++) {
-            order.push(columns[i].key)
-            if (columns[i].visible === false) hidden.push(columns[i].key)
-        }
-        return { "columnOrder": order, "hiddenColumns": hidden }
-    }
-
-    Component.onCompleted: {
-        const base = root._baseColumns()
-        if (root.workspaceController !== null) {
-            const saved = root.workspaceController.loadTableColumnState(root._tableId)
-            root._columns = root._applyColumnState(base, saved)
-        } else {
-            root._columns = base
-        }
-    }
-
     readonly property string _activeDetailSection: {
         if (!root.detailPage) return ""
-        const idx = root.detailPage.activeSectionIndex
-        return idx >= 0 && idx < root._detailSections.length
-            ? String(root._detailSections[idx]) : ""
+        const index = root.detailPage.activeSectionIndex
+        return index >= 0 && index < root._detailSections.length
+            ? String(root._detailSections[index]) : ""
     }
-    readonly property bool _configurationSection: [
-        "Profile", "Budget Versions", "Budget Lines", "Rate Cards", "Planned Costs"
-    ].indexOf(root._activeDetailSection) >= 0
     readonly property var _detailActions: root._activeDetailSection === "Actuals" ? [
         {
             "id": "add_manual_actual",
@@ -146,28 +65,17 @@ AppLayouts.WorkspaceFrame {
         }
     ] : []
 
-    function _openDetail(sectionIndex) {
-        root._pendingDetailSection = sectionIndex
-        root._detailOpen = true
-        if (detailPage) detailPage.scrollToSection(sectionIndex)
-    }
-
-    function _detailSectionIndex(sectionName) {
-        return root._detailSections.indexOf(sectionName)
-    }
-
     function _selectedProjectLabel() {
         const selectedId = root.workspaceController ? root.workspaceController.selectedProjectId : ""
         const options = root.workspaceController ? (root.workspaceController.projectOptions || []) : []
-        for (let i = 0; i < options.length; i++) {
-            if (String(options[i].value || "") === String(selectedId || "")) {
-                return String(options[i].label || "")
+        for (let index = 0; index < options.length; index++) {
+            if (String(options[index].value || "") === String(selectedId || "")) {
+                return String(options[index].label || "")
             }
         }
         return ""
     }
 
-    // ── Dialog host ───────────────────────────────────────────────────────
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
@@ -181,69 +89,30 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
-    // ── Stacked layout: list page / detail page ───────────────────────────
-    Item {
+    Loader {
+        id: detailPageLoader
         anchors.fill: parent
-
-        Item {
-            anchors.fill: parent
-            visible: !root._detailOpen
-
-            Components.FinancialsListPage {
-                anchors.fill: parent
-                workspaceController: root.workspaceController
-                overviewModel: root.overviewModel
-                costsModel: root.costsModel
-                columns: root._columns
-                tableId: root._tableId
-                onRowActivated: function(rowId) {
-                    root._openDetail(root._detailSectionIndex("Actuals"))
-                }
-                onConfigurationViewRequested: function(sectionName) {
-                    const index = root._detailSectionIndex(sectionName)
-                    if (index >= 0) root._openDetail(index)
-                }
-                onColumnsStateChanged: function(cols) {
-                    if (root.workspaceController) root.workspaceController.saveTableColumnState(root._tableId, root._buildColumnState(cols))
-                    root._columns = cols
-                }
-            }
-        }
-
-        Loader {
-            id: detailPageLoader
-            anchors.fill: parent
-            active: root._detailOpen
-            visible: root._detailOpen && status === Loader.Ready
-            asynchronous: true
-            sourceComponent: _detailPageComponent
-        }
-
-        Component {
-            id: _detailPageComponent
-
+        active: true
+        asynchronous: true
+        sourceComponent: Component {
             AppWidgets.SectionDetailPage {
                 open: true
                 anchors.fill: parent
-                showHeader: false; showEdit: false; showDelete: false
+                showHeader: false
+                showEdit: false
+                showDelete: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                 sections: root._detailSections
-                z: 20
                 Component.onCompleted: scrollToSection(root._pendingDetailSection)
 
                 AppWidgets.ContextualActionToolbar {
                     detailPagePinned: true
                     width: parent ? parent.width : 0
-                    showBack: true
-                    title: root._configurationSection
-                        ? (root._activeDetailSection || "Project Finance")
-                        : (root.selectedCostModel.title || "Cost Details")
-                    subtitle: root._configurationSection
-                        ? root._selectedProjectLabel()
-                        : (root.selectedCostModel.statusLabel || root.selectedCostModel.subtitle || "")
+                    showBack: false
+                    title: root._activeDetailSection || "Project Finance"
+                    subtitle: root._selectedProjectLabel()
                     busy: root.workspaceController ? root.workspaceController.isBusy : false
                     actions: root._detailActions
-                    onBackRequested: root._detailOpen = false
                     onActionTriggered: function(actionId) {
                         if (actionId === "add_manual_actual") {
                             dialogHostLoader.invoke("openCreateManualActualDialog")
@@ -253,21 +122,21 @@ AppLayouts.WorkspaceFrame {
 
                 AppWidgets.SectionScopedInlineMessage {
                     width: parent ? parent.width : 0
-                    requestedVisible: root._detailOpen && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
-                    tone: "danger"; message: root.workspaceController ? root.workspaceController.errorMessage : ""
+                    requestedVisible: String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                    tone: "danger"
+                    message: root.workspaceController ? root.workspaceController.errorMessage : ""
                 }
                 AppWidgets.SectionScopedInlineMessage {
                     width: parent ? parent.width : 0
-                    requestedVisible: root._detailOpen
-                        && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+                    requestedVisible: String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
-                    tone: "success"; message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
+                    tone: "success"
+                    message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
                 Panels.FinancialsDetailPanel {
                     width: parent ? parent.width : 0
                     detailPage: detailPageLoader.item
-                    costDetail: root.selectedCostModel
                     cashflowModel: root.cashflowModel
                     ledgerModel: root.ledgerModel
                     ledgerTableModel: root.workspaceController ? root.workspaceController.ledgerTableModel : null
@@ -275,6 +144,8 @@ AppLayouts.WorkspaceFrame {
                     overviewModel: root.overviewModel
                     forecastModel: root.workspaceController ? root.workspaceController.forecast : ({})
                     commitmentSummaryModel: root.workspaceController ? root.workspaceController.commitmentSummary : ({})
+                    commitmentsModel: root.workspaceController ? root.workspaceController.commitments : ({})
+                    commitmentsTableModel: root.workspaceController ? root.workspaceController.commitmentsTableModel : null
                     baselineVarianceModel: root.baselineVarianceModel
                     financialProfileModel: root.workspaceController ? root.workspaceController.financialProfile : ({})
                     budgetVersionsModel: root.workspaceController ? root.workspaceController.budgetVersions : ({ "items": [] })

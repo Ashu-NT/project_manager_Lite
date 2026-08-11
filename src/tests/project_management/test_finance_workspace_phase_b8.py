@@ -32,7 +32,7 @@ def _statement_count(session):
 
 def _seed_workspace(services):
     project = services["project_service"].create_project(
-        "Finance Workspace", currency="USD"
+        "Finance Workspace", financial_currency_code="USD"
     )
     cost_code = services["financial_configuration_service"].create_cost_code(
         code="LABOR", name="Project Labor"
@@ -217,4 +217,5 @@ def test_qml_uses_five_project_level_finance_views_and_deletes_false_budget_view
         assert f'"{section}"' in panel
     assert "FinancialsBudgetSection" not in section_registry
     assert not (root / "sections/FinancialsBudgetSection.qml").exists()
-    assert 'root._detailSectionIndex("Actuals")' in page
+    assert "FinancialsDetailPanel" in page
+    assert "FinancialsListPage" not in page

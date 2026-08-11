@@ -57,7 +57,7 @@ def test_financial_configuration_domain_enforces_currency_billing_and_hierarchy(
 def test_project_creation_atomically_initializes_financial_profile_and_audit(services) -> None:
     project = services["project_service"].create_project(
         "Canonical financial profile",
-        currency="usd",
+        financial_currency_code="usd",
         start_date=date(2026, 2, 1),
         end_date=date(2026, 11, 30),
     )
@@ -76,10 +76,10 @@ def test_project_creation_atomically_initializes_financial_profile_and_audit(ser
     assert any(entry.entity_id == profile.id for entry in entries)
 
 
-def test_profile_configuration_requires_version_and_keeps_currency_projection_in_sync(services) -> None:
+def test_profile_configuration_requires_version_and_is_the_only_currency_authority(services) -> None:
     project = services["project_service"].create_project(
         "Profile concurrency",
-        currency="EUR",
+        financial_currency_code="EUR",
     )
     service = services["financial_configuration_service"]
     profile = service.get_profile(project.id)
@@ -95,8 +95,8 @@ def test_profile_configuration_requires_version_and_keeps_currency_projection_in
 
     assert updated.currency_code == "GBP"
     assert updated.version == 2
-    projected_project = services["project_service"].get_project(project.id)
-    assert projected_project.currency == "GBP"
+    operational_project = services["project_service"].get_project(project.id)
+    assert not hasattr(operational_project, "currency")
     with pytest.raises(ConcurrencyError, match="changed since"):
         service.configure_profile(
             project.id,
@@ -104,12 +104,7 @@ def test_profile_configuration_requires_version_and_keeps_currency_projection_in
             is_funded=False,
         )
 
-    services["project_service"].update_project(
-        project.id,
-        expected_version=projected_project.version,
-        currency="USD",
-    )
-    assert service.get_profile(project.id).currency_code == "USD"
+    assert service.get_profile(project.id).currency_code == "GBP"
 
 
 def test_cost_code_hierarchy_restrictions_and_profile_lifecycle(services) -> None:

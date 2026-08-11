@@ -1,4 +1,4 @@
-"""Auto-generated codes for Task / Resource / Cost / Register (Phase A+B backend)."""
+"""Auto-generated codes for Task, Resource, and Register entities."""
 
 from __future__ import annotations
 
@@ -6,7 +6,6 @@ from datetime import date
 
 import pytest
 
-from src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.domain.risk.register import RegisterEntryType
 from src.core.platform.common.exceptions import ValidationError
 
@@ -47,13 +46,6 @@ def test_task_manual_duplicate_blocked_within_project(services):
 def test_resource_autogenerates_code(services):
     resource = services["resource_service"].create_resource("Electrical Crew", "Lead")
     assert resource.code == "RES-ELEC-0001"
-
-
-# ── Cost (CST, per-project) ──────────────────────────────────────────────────
-def test_cost_autogenerates_code(services):
-    pid = _project(services).id
-    cost = services["cost_service"].add_cost_item(pid, "Cabling Materials", 1000.0, cost_type=CostType.MATERIAL)
-    assert cost.code == "CST-CABL-0001"
 
 
 # ── Register (REG, per-project) ──────────────────────────────────────────────

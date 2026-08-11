@@ -24,9 +24,7 @@ from src.core.modules.project_management.application.financials.utils.helpers im
     normalize_currency,
 )
 from src.core.modules.project_management.application.financials.costs.ledger import (
-    build_computed_labor_actual_rows,
-    build_computed_labor_plan_rows,
-    build_cost_item_ledger_rows,
+    build_finance_ledger_rows,
 )
 from src.core.modules.project_management.application.financials.costs.cost_policy_engine import (
     CostPolicyEngine,
@@ -104,25 +102,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         source_breakdown = policy.source_breakdown
         totals = policy.totals
 
-        ledger: list[FinanceLedgerRow] = []
-        ledger.extend(
-            build_cost_item_ledger_rows(
-                facts=facts,
-                manual_included=policy.manual_labor_included,
-            )
-        )
-        ledger.extend(
-            build_computed_labor_plan_rows(
-                facts=facts,
-                labor_details=labor_details,
-            )
-        )
-        ledger.extend(
-            build_computed_labor_actual_rows(
-                facts=facts,
-                labor_details=labor_details,
-            )
-        )
+        ledger = build_finance_ledger_rows(facts=facts)
         ledger.sort(
             key=lambda row: (
                 row.occurred_on or date.min,
@@ -159,7 +139,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
             project_id=project_id,
             project_currency=(
                 totals.project_currency
-                or normalize_currency(facts.project.currency, None)
+                or normalize_currency(facts.project.currency_code, None)
             ),
             budget=float(totals.budget),
             planned=float(totals.planned),
@@ -189,30 +169,32 @@ class FinanceService(ProjectManagementModuleGuardMixin):
         as_of: date,
     ) -> list[FinanceLedgerRow]:
         visible: list[FinanceLedgerRow] = []
-        grouped: dict[tuple[str, str | None], float] = {}
+        grouped: dict[tuple[str, str, str, str | None], float] = {}
         for row in ledger:
-            if row.source_key != "COMPUTED_LABOR":
+            if row.cost_type != "LABOR":
                 visible.append(row)
                 continue
-            key = (row.stage, row.currency)
+            key = (row.source_key, row.source_label, row.stage, row.currency)
             grouped[key] = grouped.get(key, 0.0) + float(row.amount)
 
-        for (stage, currency), amount in sorted(
+        for (source_key, source_label, stage, currency), amount in sorted(
             grouped.items(),
-            key=lambda item: (item[0][0], item[0][1] or ""),
+            key=lambda item: tuple(value or "" for value in item[0]),
         ):
             visible.append(
                 FinanceLedgerRow(
                     project_id=project_id,
-                    source_key="COMPUTED_LABOR",
-                    source_label="Computed Labor",
+                    source_key=source_key,
+                    source_label=source_label,
                     cost_type="LABOR",
                     stage=stage,
                     amount=amount,
                     currency=currency,
                     occurred_on=as_of,
                     reference_type="restricted_finance",
-                    reference_id=f"restricted:{stage}:{currency or 'none'}",
+                    reference_id=(
+                        f"restricted:{source_key}:{stage}:{currency or 'none'}"
+                    ),
                     reference_label="Restricted labor cost",
                     task_id=None,
                     task_name=None,

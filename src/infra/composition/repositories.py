@@ -20,11 +20,11 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 from src.core.modules.project_management.infrastructure.persistence.repositories.budget import (
     SqlAlchemyProjectBudgetRepository,
 )
+from src.core.modules.project_management.infrastructure.persistence.repositories.forecast import (
+    SqlAlchemyProjectForecastRepository,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.planned_cost import (
     SqlAlchemyProjectPlannedCostVersionRepository,
-)
-from src.core.modules.project_management.infrastructure.persistence.repositories.cost import (
-    SqlAlchemyCostRepository,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.cost_entry import (
     SqlAlchemyProjectCostEntryRepository,
@@ -37,9 +37,6 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.labor_posting import (
     SqlAlchemyApprovedTimeLaborPostingRepository,
-)
-from src.core.modules.project_management.infrastructure.persistence.repositories.legacy_cost_migration import (
-    SqlAlchemyLegacyCostMigrationRepository,
 )
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.integration_outbox import (
     SqlAlchemyProcurementFinancialOutboxRepository,
@@ -144,13 +141,13 @@ class RepositoryBundle:
     time_entry_repo: SqlAlchemyTimeEntryRepository
     timesheet_period_repo: SqlAlchemyTimesheetPeriodRepository
     dependency_repo: SqlAlchemyDependencyRepository
-    cost_repo: SqlAlchemyCostRepository
     project_cost_entry_repo: SqlAlchemyProjectCostEntryRepository
     project_commitment_repo: SqlAlchemyProjectCommitmentRepository
     project_financial_profile_repo: SqlAlchemyProjectFinancialProfileRepository
     project_cost_code_repo: SqlAlchemyProjectCostCodeRepository
     project_rate_card_repo: SqlAlchemyProjectRateCardRepository
     project_budget_repo: SqlAlchemyProjectBudgetRepository
+    project_forecast_repo: SqlAlchemyProjectForecastRepository
     planned_cost_repo: SqlAlchemyProjectPlannedCostVersionRepository
     financial_period_repo: SqlAlchemyFinancialPeriodRepository
     platform_calendar_repo: SqlAlchemyPlatformCalendarRepository
@@ -192,7 +189,6 @@ class RepositoryBundle:
     procurement_financial_outbox_repo: SqlAlchemyProcurementFinancialOutboxRepository
     project_finance_inbox_repo: SqlAlchemyProjectFinanceInboxRepository
     approved_time_labor_posting_repo: SqlAlchemyApprovedTimeLaborPostingRepository
-    legacy_cost_migration_repo: SqlAlchemyLegacyCostMigrationRepository
 
 
 def build_repository_bundle(session: Session) -> RepositoryBundle:
@@ -216,13 +212,13 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         time_entry_repo=SqlAlchemyTimeEntryRepository(session),
         timesheet_period_repo=SqlAlchemyTimesheetPeriodRepository(session),
         dependency_repo=SqlAlchemyDependencyRepository(session),
-        cost_repo=SqlAlchemyCostRepository(session),
         project_cost_entry_repo=SqlAlchemyProjectCostEntryRepository(session),
         project_commitment_repo=SqlAlchemyProjectCommitmentRepository(session),
         project_financial_profile_repo=SqlAlchemyProjectFinancialProfileRepository(session),
         project_cost_code_repo=SqlAlchemyProjectCostCodeRepository(session),
         project_rate_card_repo=SqlAlchemyProjectRateCardRepository(session),
         project_budget_repo=SqlAlchemyProjectBudgetRepository(session),
+        project_forecast_repo=SqlAlchemyProjectForecastRepository(session),
         planned_cost_repo=SqlAlchemyProjectPlannedCostVersionRepository(session),
         financial_period_repo=SqlAlchemyFinancialPeriodRepository(session),
         platform_calendar_repo=SqlAlchemyPlatformCalendarRepository(session),
@@ -274,7 +270,6 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         procurement_financial_outbox_repo=SqlAlchemyProcurementFinancialOutboxRepository(session),
         project_finance_inbox_repo=SqlAlchemyProjectFinanceInboxRepository(session),
         approved_time_labor_posting_repo=SqlAlchemyApprovedTimeLaborPostingRepository(session),
-        legacy_cost_migration_repo=SqlAlchemyLegacyCostMigrationRepository(session),
     )
     logger.debug(
         "Repository bundle build complete duration_ms=%.1f repository_count=%s",

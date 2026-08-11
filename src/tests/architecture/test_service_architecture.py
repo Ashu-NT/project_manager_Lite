@@ -68,7 +68,7 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
 )
 from src.core.modules.project_management.application.dashboard import DashboardService
 from src.core.modules.project_management.infrastructure.importers import DataImportService
-from src.core.modules.project_management.application.financials import CostService, FinanceService
+from src.core.modules.project_management.application.financials import FinanceService
 from src.core.modules.project_management.application.portfolio import PortfolioService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import (
@@ -150,7 +150,6 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.task_service, TaskService)
     assert isinstance(graph.timesheet_service, TimesheetService)
     assert isinstance(graph.resource_service, ResourceService)
-    assert isinstance(graph.cost_service, CostService)
     assert isinstance(graph.finance_service, FinanceService)
     # work_calendar_engine is now GlobalCalendarShim (enterprise-backed)
     assert hasattr(graph, "work_calendar_engine") and graph.work_calendar_engine is not None

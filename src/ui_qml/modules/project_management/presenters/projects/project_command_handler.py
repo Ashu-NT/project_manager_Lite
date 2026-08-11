@@ -10,7 +10,6 @@ from src.core.modules.project_management.api.desktop import (
 
 from .validation import (
     optional_date,
-    optional_float,
     optional_int,
     optional_text,
     require_text,
@@ -45,8 +44,7 @@ def create_project(
         status=optional_text(payload, "status") or "PLANNED",
         client_name=optional_text(payload, "clientName"),
         client_contact=optional_text(payload, "clientContact"),
-        planned_budget=optional_float(payload, "plannedBudget"),
-        currency=optional_text(payload, "currency"),
+        financial_currency_code=optional_text(payload, "financialCurrencyCode"),
         start_date=optional_date(payload, "startDate"),
         end_date=optional_date(payload, "endDate"),
         site_id=optional_text(payload, "siteId"),
@@ -65,8 +63,6 @@ def update_project(
         status=optional_text(payload, "status") or "PLANNED",
         client_name=optional_text(payload, "clientName"),
         client_contact=optional_text(payload, "clientContact"),
-        planned_budget=optional_float(payload, "plannedBudget"),
-        currency=optional_text(payload, "currency"),
         start_date=optional_date(payload, "startDate"),
         end_date=optional_date(payload, "endDate"),
         site_id=optional_text(payload, "siteId"),

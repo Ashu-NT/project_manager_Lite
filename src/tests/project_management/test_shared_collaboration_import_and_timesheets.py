@@ -261,14 +261,17 @@ def test_data_import_service_imports_projects_resources_tasks_and_rejects_legacy
     ps = services["project_service"]
     ts = services["task_service"]
     rs = services["resource_service"]
+    expected_currency = services[
+        "organization_service"
+    ].get_active_organization().base_currency
 
     tmp = create_test_workspace("import")
     try:
         (tmp / "projects.csv").write_text(
             "\n".join(
                 [
-                    "name,description,currency,start_date,end_date,status,planned_budget",
-                    "Import Alpha,Initial import,USD,2026-04-01,2026-04-30,ACTIVE,5000",
+                    "name,description,start_date,end_date,status",
+                    "Import Alpha,Initial import,2026-04-01,2026-04-30,ACTIVE",
                 ]
             ),
             encoding="utf-8",
@@ -276,7 +279,8 @@ def test_data_import_service_imports_projects_resources_tasks_and_rejects_legacy
         project_summary = importer.import_csv("projects", tmp / "projects.csv")
         assert project_summary.created_count == 1
         project = next(item for item in ps.list_projects() if item.name == "Import Alpha")
-        assert project.currency == "USD"
+        profile = services["financial_configuration_service"].get_profile(project.id)
+        assert profile.currency_code == expected_currency
 
         (tmp / "resources.csv").write_text(
             "\n".join(
@@ -321,8 +325,8 @@ def test_data_import_service_imports_projects_resources_tasks_and_rejects_legacy
         (tmp / "projects_update.csv").write_text(
             "\n".join(
                 [
-                    "name,description,currency,start_date,end_date,status,planned_budget",
-                    "Import Alpha,Updated import,EUR,2026-04-01,2026-05-02,ACTIVE,7500",
+                    "name,description,start_date,end_date,status",
+                    "Import Alpha,Updated import,2026-04-01,2026-05-02,ACTIVE",
                 ]
             ),
             encoding="utf-8",
@@ -331,8 +335,11 @@ def test_data_import_service_imports_projects_resources_tasks_and_rejects_legacy
         assert update_summary.updated_count == 1
         updated_project = next(item for item in ps.list_projects() if item.name == "Import Alpha")
         assert updated_project.description == "Updated import"
-        assert updated_project.currency == "EUR"
-        assert updated_project.planned_budget == pytest.approx(7500.0)
+        assert not hasattr(updated_project, "currency")
+        assert not hasattr(updated_project, "planned_budget")
+        assert services["financial_configuration_service"].get_profile(
+            project.id
+        ).currency_code == expected_currency
     finally:
         cleanup_test_workspace(tmp)
 

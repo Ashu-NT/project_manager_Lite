@@ -87,7 +87,7 @@ The module boundaries are broadly valid and should be retained. The problem is c
 
 | Capability | Existing implementation | Layer and exact evidence | Main behavior | Tenant-scoped | Tests | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| Project financial settings | `Project.planned_budget`, `Project.currency`, client/site/org references | Domain: `domain/projects/project.py`; ORM: `infrastructure/persistence/orm/project.py` | Stores one optional budget total and currency on Project | Yes, through Project tenant/org scope | `test_currency_defaults.py`, project tests | MINIMAL |
+| Project financial settings | `ProjectFinancialProfile.currency_code`; approved `ProjectBudget` + `BudgetLine` total | Finance domain/ORM plus scoped CQRS readers | Profile owns currency; approved budget versions own authorization | Yes, direct tenant/org scope and scoped FKs | finance configuration, budget, CQRS, and portfolio tests | CANONICAL |
 | Manual cost line | `CostItem`, `CostService` | `domain/financials/cost.py`; `application/financials/services/cost_service.py` | One row stores planned, committed, actual, forecast, and vendor/status fields | Yes, inherited through Project in repository queries | `test_cost_domain_validation.py`, `test_cost_flow.py` | INCONSISTENT |
 | Cost persistence | `CostItemModel`, `SqlAlchemyCostRepository` | `infrastructure/persistence/orm/cost.py`; `repositories/cost.py` | SQL `Float`; optimistic update version; physical delete | Application-scoped through joined Project; no direct child-table RLS | Repository tenant hardening tests | PARTIAL |
 | Cost classification | `CostType`, `CostItem.code` | `domain/financials/cost.py`; cost-code migration | Enum classification and one project-unique line code | Through cost owner | Domain tests | MINIMAL |
@@ -238,11 +238,11 @@ Coverage does not currently prove safe money arithmetic, ISO currency validity, 
 
 ### 11.1 Project Financial Profile
 
-**Status: Phase B1 foundation implemented.** `ProjectFinancialProfile` now owns currency, financial lifecycle/dates, billable/funded state, billing method, budget-control mode, cost-code policy, and default cost-code reference with one profile per scoped Project and optimistic concurrency. New projects create the profile atomically; revision `j8k9l0m1n2o3` backfills existing profile currency from valid Project data or Organization base currency. Mutations require global and project-scoped finance permission and fail-closed Enterprise Audit. `Project.currency` remains a marked synchronized compatibility projection until desktop/read-model cutover. Rate-card default, period policy, overrun tolerance, and the proper versioned Budget aggregate remain later Phase B/C work; legacy planned budget was intentionally not copied into a second temporary total.
+**Status: IMPLEMENTED; clean cutover completed 2026-08-11.** `ProjectFinancialProfile` owns currency, financial lifecycle/dates, billable/funded state, billing method, budget-control mode, cost-code policy, and default cost-code reference with one profile per scoped Project and optimistic concurrency. New projects create the profile atomically from an explicit create-command currency or Organization base currency. Mutations require global and project-scoped finance permission and fail-closed Enterprise Audit. The former `Project.currency` projection and both synchronization paths are deleted; migration `u8v9w0x1y2z3` removes the database column. Catalog, finance, portfolio, project-resource, reporting, desktop, and QML consumers now use the profile authority directly.
 
 ### 11.2 Cost Codes
 
-**Status: Phase B1 foundation implemented.** PM-owned `ProjectCostCode` now provides scoped unique identity, hierarchy/cycle guards, effective/active state, external-system mappings, optimistic concurrency, project restrictions, default-code safeguards, direct tenant/organization ownership, scoped foreign keys, and PostgreSQL RLS policy setup. `CostType` and `CostItem.code` remain legacy classification/line references and are not silently converted into canonical identities. Their reviewed migration mapping remains future reconciliation work. Cost code is "what" and remains separate from WBS "where."
+**Status: IMPLEMENTED.** PM-owned `ProjectCostCode` provides scoped unique identity, hierarchy/cycle guards, effective/active state, external-system mappings, optimistic concurrency, project restrictions, default-code safeguards, direct tenant/organization ownership, scoped foreign keys, and PostgreSQL RLS policy setup. The obsolete `CostItem` aggregate and its code field are deleted; canonical planned costs, commitments, and actual entries reference cost-code identities directly. Cost code is "what" and remains separate from WBS "where."
 
 ### 11.3 Work Breakdown Structure
 
@@ -273,7 +273,11 @@ desktop `FinancialSnapshotDto`. `EVM.get_actual_cost` fails closed
 
 **Status: IMPLEMENTED (2026-08-06).** Versioned `ProjectBudget`/`BudgetLine` aggregates are built with the full DRAFT -> SUBMITTED -> APPROVED/REJECTED, APPROVED -> SUPERSEDED/CLOSED lifecycle, immutable approved versions (one approved + optionally one open version per project, both DB-enforced), currency (immutable once lines exist), cost-code/task(WBS) line dimensions, and governed approval integration through the existing Platform Approval service — see
 `project_budget_lifecycle_plan.md` (deleted 2026-08-06, fully implemented/verified; see git
-history). `Project.planned_budget` remains the BAC/threshold source this phase; no `CostPolicyEngine`/`EarnedValueCalculator` cutover onto approved budget totals yet (a future cutover plan, mirroring the rate-card cutover, will do that separately).
+history). The approved budget and its lines are now the sole budget-authorization authority.
+Scoped project catalog, finance snapshot, portfolio heatmap, and scenario readers aggregate the
+approved lines in SQL. The former `Project.planned_budget` field and database column are deleted.
+EVM BAC remains correctly owned by the cost-loaded approved baseline rather than budget
+authorization.
 
 ### 11.6 Planned Costing
 
@@ -507,7 +511,7 @@ Existing paths may be evolved incrementally instead of immediately creating ever
 
 | Aggregate root | Owns | References only | Mutation boundary |
 | --- | --- | --- | --- |
-| `ProjectFinancialProfile` | Project finance configuration and defaults | Project, Organization, default cost-code/rate-card/calendar IDs | Canonically mutates only its profile; the application layer temporarily synchronizes legacy `Project.currency` under deletion marker `PF-B1-CURRENCY-DUAL-WRITE` |
+| `ProjectFinancialProfile` | Project finance configuration and defaults | Project, Organization, default cost-code/rate-card/calendar IDs | Canonically mutates only its profile; no Project currency projection or dual write exists |
 | `ProjectCostCode` | Code identity, hierarchy position, effective/active state, mappings | Organization, optional parent code | Mutates one code hierarchy under a catalog policy; projects carry restrictions/references |
 | `ProjectRateCard` | Version/effective-dated rate lines and precedence metadata | Project, Resource, Role/Skill/Department/Customer references | Selects/snapshots rates; never rewrites Resource or posted entries |
 | `ProjectBudget` | Budget version, lifecycle, and budget lines | Project, CostCode, WBS/Task, Period, approval | One version is the consistency boundary; approval/supersede creates state/version transitions |
@@ -840,7 +844,9 @@ Implementation progress (Phase B1, 2026-08-02):
 - New Project creation flushes and inserts its financial profile before the same commit. Existing profiles backfill deterministically from a supported Project currency then a supported Organization base currency; migration fails with a repair message if neither is valid. No write-on-read repair path exists.
 - Added global plus project-scoped `finance.read`/`finance.manage` enforcement, owner-only project financial configuration, mandatory optimistic versions, and fail-closed Enterprise Audit in the mutation transaction.
 - Verification: 23 focused B1 domain, service, repository, RBAC, architecture, transition-register, migration upgrade/backfill/downgrade, and audit rollback tests pass. The pre-existing Phase A0 finance/RBAC integration set also passes (14 tests in the combined check). The broader PM suite passes 345 tests with only the three known unrelated dashboard date-relative/entitlement-order cases deselected; Architecture passes 113 tests with only its two pre-existing size-budget breaches.
-- No temporary B1 files or in-memory adapters were added. The only B1 transition code is the two-way legacy `Project.currency` projection, marked `PROJECT-FINANCE-TRANSITION-ONLY(PF-B1-CURRENCY-DUAL-WRITE)` at both write paths and registered below for deletion.
+- The B1 currency transition is closed. The two-way Project/Profile synchronization, marker,
+  Project field, ORM column, desktop/import contracts, and QML editor path were deleted on
+  2026-08-11. No compatibility adapter or dual read remains.
 
 Implementation checkpoint (Phase B item 8, 2026-08-09):
 
@@ -1051,6 +1057,38 @@ Ownership: **PROJECT FINANCE**
 
 Exit gate: forecasts are reproducible and historical; no commitment/ETC double count; approved changes create traceable versions; all report totals reconcile to ledger sources; legacy read code is removed.
 
+Implementation progress (2026-08-11):
+
+- **D.1A COMPLETE — canonical forecast persistence and governed lifecycle.** PM now owns
+  `ProjectForecast` and `ForecastLine` aggregates with explicit DRAFT/SUBMITTED/APPROVED/
+  REJECTED/SUPERSEDED transitions, immutable project revision, separate optimistic row version,
+  `as_of_date`, generation mode, currency, actor/timestamp history, and one-open/one-approved
+  database invariants. Approval atomically supersedes the prior approved forecast.
+- Forecast lines use canonical Decimal Money and carry cost-code, optional WBS task, optional
+  period, and explicit automatic/manual source metadata. Automatic remaining-plan,
+  open-commitment, or risk lines require a stable source type/id and snapshot timestamp; manual
+  lines are explicitly `manual_estimate`. Domain and database constraints reject mixed source
+  semantics, invalid periods, negative amounts, and cross-scope parent references.
+- `ForecastVersionService` is composed through the PM service graph with `forecast.manage`/
+  `forecast.approve` RBAC, project-scope enforcement, active tenant/organization ID scoping,
+  optimistic concurrency, cost-code/task eligibility checks, fail-closed audit, and domain-change
+  events. PostgreSQL forced RLS is delivered by migration `v9w0x1y2z3a4`, which is the sole
+  Alembic head and is reversible.
+- No data migration or compatibility path was created because the application is pre-release and
+  has no client forecast data. The transient `ForecastCostService` remains the current desktop
+  calculation source until D.1B-D.4 produce and prove the canonical generator/read models; it is
+  not a second persisted authority.
+- Verification: 8 focused forecast lifecycle/tenant/migration tests pass; 44 RBAC/security tests
+  pass; 12 desktop-adapter architecture tests pass; the migration graph passes with the unrelated
+  repository size guard deselected; and the canonical PM suite passes with 567 tests. The older
+  `src/tests/pm` tree still has 12 pre-existing scheduling contract mismatches unrelated to this
+  implementation.
+
+Next implementation slice: **D.1B**, the automatic forecast generator plus explicit ETC source
+precedence/exclusion rules. It must write one complete draft snapshot atomically and prevent any
+open commitment from also being counted as remaining plan before forecast read models or QML are
+cut over.
+
 ### Phase E - Billing preparation, revenue, and external accounting
 
 Ownership: **PROJECT FINANCE + FUTURE BILLING/ACCOUNTING OWNER + INTEGRATION**
@@ -1148,12 +1186,12 @@ This register is mandatory implementation scope. A phase cannot close while its 
 | Hard-coded PM `EUR` defaults | Pre-existing | A1 Organization/Profile currency resolution cutover | Platform Foundation / PM | CLOSED; command constants removed and Organization resolution active 2026-08-02 |
 | Duplicate PM money formatters | Pre-existing | A1 canonical serialization/formatting adopted | Desktop UI / PM | CLOSED; four implementations replaced by one Decimal-aware boundary 2026-08-02 |
 | Legacy combined CostItem write API | Pre-existing | C distinct planned/commitment/manual-actual commands and QML cutover | PM Finance / Desktop UI | CLOSED 2026-08-09; runtime service/API/QML/import/approval writers deleted |
-| `TRANSITION(PF-C6-LEGACY-TEST-SEED)` test-only row factory | C.6 regression closeout | C.7 canonical migration and report fixtures no longer require service-shaped legacy setup | PM Finance / Test Architecture | OPEN; forbidden outside `src/tests` |
-| `TRANSITION(PF-C7-LEGACY-IMPORT)` canonical import-draft command | C.7 actual split | C.7 migration/reconciliation accepted and no legacy rows remain to replay | PM Finance / Data Migration | OPEN; only `DATA_EXCHANGE/IMPORT_ROW/LEGACY_MIGRATION`, review-required draft, no posting bypass |
-| Legacy CostItem reader/projection | Pre-existing; retained in B/C | D ledger/report reconciliation complete | PM Finance | OPEN |
-| `Project.planned_budget` compatibility projection | Pre-existing; retained in B | B budget read cutover and reconciliation complete | PM Finance | OPEN |
-| `Project.currency` compatibility projection | Pre-existing; retained in B | Profile currency cutover and all consumers migrated | PM Finance | OPEN |
-| Profile-to-Project and Project-to-profile currency synchronization | B1; `PF-B1-CURRENCY-DUAL-WRITE` | Desktop APIs, presenters, reports, imports, and Project DTOs read profile currency exclusively; parity test passes; then delete both marked branches and legacy field writer | PM Finance / Desktop UI | OPEN; both branches marked and covered by B1 tests |
+| `TRANSITION(PF-C6-LEGACY-TEST-SEED)` test-only row factory | C.6 regression closeout | C.7 canonical fixtures no longer require legacy setup | PM Finance / Test Architecture | CLOSED 2026-08-11; deleted |
+| `TRANSITION(PF-C7-LEGACY-IMPORT)` canonical import-draft command | C.7 actual split | No production data exists to replay | PM Finance / Data Migration | CLOSED 2026-08-11; deleted rather than retained |
+| Legacy CostItem reader/projection | Pre-existing; retained in B/C | Canonical planned/commitment/actual readers active | PM Finance | CLOSED 2026-08-11; runtime stack and table deleted |
+| `Project.planned_budget` compatibility projection | Pre-existing; retained in B | Approved-budget SQL read cutover complete | PM Finance | CLOSED 2026-08-11; field and column deleted by `u8v9w0x1y2z3` |
+| `Project.currency` compatibility projection | Pre-existing; retained in B | Profile currency cutover complete | PM Finance | CLOSED 2026-08-11; field and column deleted by `u8v9w0x1y2z3` |
+| Profile-to-Project and Project-to-profile currency synchronization | B1; `PF-B1-CURRENCY-DUAL-WRITE` | All consumers use profile currency | PM Finance / Desktop UI | CLOSED 2026-08-11; both branches and marker deleted |
 | Float monetary/rate/quantity persistence | Pre-existing | Relevant Numeric backfill, read cutover, and reconciliation complete | Platform/Data/Module owners | OPEN |
 | Planned dual-read comparison | C | D canonical report reconciliation complete | PM Finance | NOT CREATED |
 | Planned dual-write adapter, only if required | C | New writes and reports reconcile; legacy writes disabled | PM Finance | NOT CREATED |
@@ -1296,7 +1334,12 @@ These are genuine product/ownership decisions. Questions mapped to A0/A1/A2 ADRs
 
 ## 25. Final Recommendation
 
-Proceed with the upgrade, but do not extend the current combined CostItem model. Phase A0 security/transaction correctness, A1 monetary foundations, A2 canonical application foundations, the Phase B1 configuration foundation, Task-owned WBS, effective-dated rate cards with the `CostPolicyEngine`/`LaborCostEngine` cutover, the versioned Budget/BudgetLine lifecycle, tactical assignment-labor planned-cost snapshots, the five-view QML finance configuration replacement, organization financial periods, the canonical `ProjectCostEntry` actual ledger, PM commitment projections, approved-Time labor posting, and Procurement PO/receipt financial delivery are implemented. Item 7's planned-cost source cutover remains explicitly blocked by planning semantics and freshness ownership; do not force it. Continue with Phase C.6 canonical command cutover, while deferring legacy data/read/QML removal to the named C.7-C.8 gates.
+Proceed with the upgrade, but do not recreate the removed combined CostItem model. Phases A-C and
+the clean C.9 cutover are complete. Phase D.1A now provides canonical forecast-version and line
+persistence; continue with D.1B automatic generation and ETC precedence before changing finance
+read models or QML. Item 7's planned-cost source cutover remains explicitly blocked by planning
+semantics and freshness ownership; do not force it or treat the new forecast aggregate as a
+substitute for a real planning source.
 
 Then build Project Finance as explicit PM-owned aggregates while preserving valid module ownership: Time supplies approved hours, Procurement supplies PO/receipt facts, Party supplies identities, Approval and Audit remain platform services, and external accounting owns official ledger/payment behavior. Use additive persistence and temporary compatibility only to migrate verified data; delete every fallback, dual-write, alias, and transition adapter at its named phase gate.
 

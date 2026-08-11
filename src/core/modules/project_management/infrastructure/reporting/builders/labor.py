@@ -16,6 +16,7 @@ from src.core.modules.project_management.contracts.repositories.task import (
     TaskRepository,
 )
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.financial_configuration import ProjectFinancialProfileRepository
 from src.core.modules.project_management.contracts.repositories.rate_resolution import (
     LaborRateResolver,
 )
@@ -38,6 +39,7 @@ class ReportingLaborMixin:
     _project_resource_repo: ProjectResourceRepository
     _rate_resolver: LaborRateResolver
     _tenant_context_service: TenantContextService
+    _financial_profile_repo: ProjectFinancialProfileRepository
 
     def _make_labor_engine(self) -> LaborCostEngine:
         return LaborCostEngine(
@@ -48,6 +50,7 @@ class ReportingLaborMixin:
             project_resource_repo=self._project_resource_repo,
             rate_resolver=self._rate_resolver,
             tenant_context_service=self._tenant_context_service,
+            financial_profile_repo=self._financial_profile_repo,
         )
 
     def calculate_project_labor_details(

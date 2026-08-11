@@ -13,7 +13,7 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_dashboard_desktop_api,
     build_project_management_portfolio_desktop_api,
 )
-from src.tests.project_management.test_reporting_financials_phase3b_measurement import (
+from src.tests.project_management._sql_measurement_helpers import (
     count_calls,
     measure_sql,
 )
@@ -55,8 +55,7 @@ def _seed_single_project_workspace(services):
         "Workspace Performance Project",
         start_date=today,
         end_date=today + timedelta(days=30),
-        planned_budget=100_000.0,
-        currency="EUR",
+        financial_currency_code="EUR",
     )
     task = services["task_service"].create_task(
         project.id,

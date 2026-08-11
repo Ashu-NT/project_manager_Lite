@@ -72,9 +72,6 @@ FINANCE_STATEMENTS = FINANCE_READS / "statements/finance_snapshot_statements.py"
 FINANCE_READER = FINANCE_READS / "sqlalchemy_finance_snapshot_reader.py"
 FINANCE_POLICY = PM_ROOT / "application/financials/costs/cost_policy_engine.py"
 PROJECT_REGISTRY = REPO_ROOT / "src/infra/composition/project_registry.py"
-PHASE1_TEST = REPO_ROOT / "src/tests/project_management/test_finance_snapshot_phase1_reader.py"
-PHASE3A_TEST = REPO_ROOT / "src/tests/project_management/test_evm_series_phase3a_parity.py"
-PHASE3B_TEST = REPO_ROOT / "src/tests/project_management/test_reporting_financials_phase3b_parity.py"
 PORTFOLIO_POOL_READER = (
     PM_ROOT
     / "infrastructure/persistence/reads/portfolio/sqlalchemy_resource_pool_reader.py"
@@ -273,21 +270,29 @@ def test_finance_statement_builders_require_explicit_scope() -> None:
 
 
 def test_cost_aggregation_cannot_fan_out_across_independent_sources() -> None:
-    aggregate = next(
-        node
-        for node in _tree(FINANCE_STATEMENTS).body
-        if isinstance(node, ast.FunctionDef) and node.name == "cost_aggregate_facts_statement"
-    )
-    source = ast.unparse(aggregate)
-    orm_names = {
-        node.id
-        for node in ast.walk(aggregate)
-        if isinstance(node, ast.Name) and node.id.endswith("ORM")
+    tree = _tree(FINANCE_STATEMENTS)
+    expected_authority = {
+        "planned_cost_facts_statement": "ProjectPlannedCostLineORM",
+        "commitment_facts_statement": "ProjectCommitmentLineORM",
+        "actual_cost_facts_statement": "ProjectCostEntryORM",
     }
+    for function_name, authority in expected_authority.items():
+        statement = next(
+            node
+            for node in tree.body
+            if isinstance(node, ast.FunctionDef) and node.name == function_name
+        )
+        orm_names = {
+            node.id
+            for node in ast.walk(statement)
+            if isinstance(node, ast.Name) and node.id.endswith("ORM")
+        }
+        assert authority in orm_names
+        assert not (set(expected_authority.values()) - {authority}) & orm_names
 
-    assert "func.sum" in source
-    assert "group_by" in source
-    assert orm_names == {"CostItemORM", "ProjectORM"}
+    reader_source = FINANCE_READER.read_text(encoding="utf-8")
+    assert "return planned + commitments + actuals" in reader_source
+    assert "def _aggregate(" in reader_source
 
 
 def test_finance_service_keeps_reader_labor_policy_ownership_and_no_fallback() -> None:
@@ -315,16 +320,16 @@ def test_finance_service_keeps_reader_labor_policy_ownership_and_no_fallback() -
 
     policy_source = FINANCE_POLICY.read_text(encoding="utf-8")
     assert "def compose_from_facts(" in policy_source
-    assert "include_manual_labor_planned" in policy_source
+    assert "include_manual_labor_planned" not in policy_source
+    assert "include_manual_labor_actual" not in policy_source
 
 
 def test_runtime_composition_and_desktop_proof_remain_present() -> None:
     registry = PROJECT_REGISTRY.read_text(encoding="utf-8")
-    runtime_test = PHASE1_TEST.read_text(encoding="utf-8")
+    service_source = inspect.getsource(FinanceService.get_finance_snapshot)
 
     assert "finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session)" in registry
-    assert "isinstance(reader, SqlAlchemyFinanceSnapshotReader)" in runtime_test
-    assert "registry.project_management_financials.get_finance_snapshot" in runtime_test
+    assert "self._finance_snapshot_reader.read_facts(" in service_source
 
 
 def test_evm_series_keeps_bounded_reader_and_policy_ownership() -> None:
@@ -350,11 +355,10 @@ def test_evm_series_keeps_bounded_reader_and_policy_ownership() -> None:
 
 def test_evm_series_runtime_reader_proof_remains_present() -> None:
     registry = PROJECT_REGISTRY.read_text(encoding="utf-8")
-    runtime_test = PHASE3A_TEST.read_text(encoding="utf-8")
+    source = inspect.getsource(ReportingEvmSeriesMixin._make_evm_series_calculator)
 
     assert "evm_series_reader=SqlAlchemyEvmSeriesReader(session=session)" in registry
-    assert "isinstance(reader, SqlAlchemyEvmSeriesReader)" in runtime_test
-    assert "reporting.get_evm_series(" in runtime_test
+    assert "reader=self._evm_series_reader" in source
 
 
 def test_reporting_financial_reads_use_one_facts_policy_composition() -> None:
@@ -396,11 +400,10 @@ def test_reporting_financial_reads_use_one_facts_policy_composition() -> None:
 
 def test_reporting_financial_runtime_reader_proof_remains_present() -> None:
     registry = PROJECT_REGISTRY.read_text(encoding="utf-8")
-    runtime_test = PHASE3B_TEST.read_text(encoding="utf-8")
+    source = inspect.getsource(ReportingCostPolicyMixin._compose_finance_policy)
 
     assert "finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session)" in registry
-    assert "isinstance(reader, SqlAlchemyFinanceSnapshotReader)" in runtime_test
-    assert "reporting.get_project_cost_control_totals(" in runtime_test
+    assert "self._finance_snapshot_reader.read_facts(" in source
 
 
 def test_phase3b_removed_repository_backed_financial_transition_paths() -> None:
@@ -425,7 +428,7 @@ def test_phase3b_removed_repository_backed_financial_transition_paths() -> None:
         assert forbidden not in evm_source
 
 
-def test_phase6_retains_repository_engines_only_for_unmigrated_reporting_paths() -> None:
+def test_phase6_reporting_uses_canonical_finance_composition() -> None:
     kpi_source = inspect.getsource(ReportingKpiMixin.get_project_kpis)
     snapshot_source = inspect.getsource(ReportingCostPolicyMixin._build_cost_policy_snapshot)
     series_factory_source = inspect.getsource(
@@ -433,7 +436,7 @@ def test_phase6_retains_repository_engines_only_for_unmigrated_reporting_paths()
     )
 
     assert "_build_cost_policy_snapshot(" in kpi_source
-    assert ".build_snapshot(" in snapshot_source
+    assert "_compose_finance_policy(" in snapshot_source
     assert "LaborCostEngine.for_facts(" in series_factory_source
     assert "CostPolicyEngine.for_facts(" in series_factory_source
     assert "_make_labor_engine(" not in series_factory_source

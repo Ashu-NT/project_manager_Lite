@@ -19,12 +19,6 @@ class FinancialsStateMixin:
         self._project_options = project_options
         self.projectOptionsChanged.emit()
 
-    def _set_cost_type_options(self, cost_type_options: FinancialsObjectList) -> None:
-        if cost_type_options == self._cost_type_options:
-            return
-        self._cost_type_options = cost_type_options
-        self.costTypeOptionsChanged.emit()
-
     def _set_task_options(self, task_options: FinancialsObjectList) -> None:
         if task_options == self._task_options:
             return
@@ -42,37 +36,6 @@ class FinancialsStateMixin:
             return
         self._selected_project_id = selected_project_id
         self.selectedProjectIdChanged.emit()
-
-    def _set_selected_cost_type(self, selected_cost_type: str) -> None:
-        if selected_cost_type == self._selected_cost_type:
-            return
-        self._selected_cost_type = selected_cost_type
-        self.selectedCostTypeChanged.emit()
-
-    def _set_search_text(self, search_text: str) -> None:
-        if search_text == self._search_text:
-            return
-        self._search_text = search_text
-        self.searchTextChanged.emit()
-
-    def _set_costs(self, costs: FinancialsMap) -> None:
-        if costs == self._costs:
-            return
-        self._costs = costs
-        self._costs_table_model.set_rows(costs.get("items", []))
-        self.costsChanged.emit()
-
-    def _set_selected_cost(self, selected_cost: FinancialsMap) -> None:
-        if selected_cost == self._selected_cost:
-            return
-        self._selected_cost = selected_cost
-        self.selectedCostChanged.emit()
-
-    def _set_selected_cost_id(self, selected_cost_id: str) -> None:
-        if selected_cost_id == self._selected_cost_id:
-            return
-        self._selected_cost_id = selected_cost_id
-        self.selectedCostIdChanged.emit()
 
     def _set_cashflow(self, cashflow: FinancialsMap) -> None:
         if cashflow == self._cashflow:
@@ -105,24 +68,6 @@ class FinancialsStateMixin:
         self._notes = notes
         self.notesChanged.emit()
 
-    def _set_cost_page(self, value: int) -> None:
-        if value == self._cost_page:
-            return
-        self._cost_page = value
-        self.costPageChanged.emit()
-
-    def _set_cost_page_size(self, value: int) -> None:
-        if value == self._cost_page_size:
-            return
-        self._cost_page_size = value
-        self.costPageSizeChanged.emit()
-
-    def _set_cost_total_count(self, value: int) -> None:
-        if value == self._cost_total_count:
-            return
-        self._cost_total_count = value
-        self.costTotalCountChanged.emit()
-
     def _set_forecast(self, forecast: FinancialsMap) -> None:
         if forecast == self._forecast:
             return
@@ -134,6 +79,13 @@ class FinancialsStateMixin:
             return
         self._commitment_summary = summary
         self.commitmentSummaryChanged.emit()
+
+    def _set_commitments(self, commitments: FinancialsMap) -> None:
+        if commitments == self._commitments:
+            return
+        self._commitments = commitments
+        self._commitments_table_model.set_rows(commitments.get("items", []))
+        self.commitmentsChanged.emit()
 
     def _set_baseline_variance(self, rows: FinancialsObjectList) -> None:
         if rows == self._baseline_variance:

@@ -1,13 +1,11 @@
 """Phase 0A.4 tests — Other independent safety corrections
 (docs/pm_modernization/CQRS/project_management_cqrs_existing_state_audit.md, §18 Phase 0A.4).
 
-Covers the three items patched in this phase:
-1. `ForecastCostService` now requires explicit tenant/organization context (previously it had no
-   `tenant_context_service` at all).
-2. `PortfolioDependencyCommandMixin.create_project_dependency` now checks project-scoped
+Covers the remaining safety corrections from this phase:
+1. `PortfolioDependencyCommandMixin.create_project_dependency` checks project-scoped
    `portfolio.manage` on both the predecessor and successor project, not just global
    `portfolio.manage` + project-read accessibility.
-3. `TaskDependencyDiagnosticsMixin.get_dependency_diagnostics` now requires `task.read` on the
+2. `TaskDependencyDiagnosticsMixin.get_dependency_diagnostics` requires `task.read` on the
    shared project before returning schedule-impact details.
 
 Broad-exception-to-empty-data fixes (`capacity_pool_builder.py`, `list_task_reservations`,
@@ -24,95 +22,6 @@ import pytest
 
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
-
-
-# ---------------------------------------------------------------------------
-# 1. ForecastCostService requires explicit tenant/organization context.
-# ---------------------------------------------------------------------------
-
-
-def _seed_forecast_project(services):
-    project = services["project_service"].create_project(
-        "Forecast Safety Project",
-        planned_budget=10000.0,
-    )
-    services["cost_service"].add_cost_item(
-        project_id=project.id,
-        description="Materials",
-        planned_amount=1000.0,
-        committed_amount=500.0,
-        actual_amount=200.0,
-    )
-    return project
-
-
-def test_forecast_service_succeeds_for_authorized_caller_with_context(services):
-    project = _seed_forecast_project(services)
-    forecast = services["forecast_service"]
-
-    summary = forecast.get_commitment_summary(project.id)
-
-    assert summary.project_id == project.id
-
-
-class _NoopRepo:
-    def list_by_project(self, _project_id):
-        return []
-
-    def get(self, _project_id):
-        return None
-
-
-class _AllowAllSession:
-    def has_permission(self, _code):
-        return True
-
-    def has_scope_permission(self, _scope_type, _scope_id, _code):
-        return True
-
-
-class _MissingOrgTenantContext:
-    def require_organization_context(self, *, operation_label):
-        raise BusinessRuleError(
-            f"Active organization context is required for {operation_label}.",
-            code="TENANT_CONTEXT_REQUIRED",
-        )
-
-
-def test_forecast_service_fails_closed_without_tenant_context_service():
-    from src.core.modules.project_management.application.financials.forecasts.forecast_service import (
-        ForecastCostService,
-    )
-
-    service = ForecastCostService(
-        cost_repo=_NoopRepo(),
-        project_repo=_NoopRepo(),
-        user_session=_AllowAllSession(),
-        tenant_context_service=None,
-    )
-
-    with pytest.raises(BusinessRuleError, match="tenant and organization context") as exc:
-        service.get_commitment_summary("does-not-matter")
-
-    assert exc.value.code == "TENANT_CONTEXT_REQUIRED"
-
-
-def test_forecast_service_fails_closed_without_organization_context():
-    from src.core.modules.project_management.application.financials.forecasts.forecast_service import (
-        ForecastCostService,
-    )
-
-    service = ForecastCostService(
-        cost_repo=_NoopRepo(),
-        project_repo=_NoopRepo(),
-        user_session=_AllowAllSession(),
-        tenant_context_service=_MissingOrgTenantContext(),
-    )
-
-    with pytest.raises(BusinessRuleError, match="organization context") as exc:
-        service.get_commitment_summary("does-not-matter")
-
-    assert exc.value.code == "TENANT_CONTEXT_REQUIRED"
 
 
 # ---------------------------------------------------------------------------

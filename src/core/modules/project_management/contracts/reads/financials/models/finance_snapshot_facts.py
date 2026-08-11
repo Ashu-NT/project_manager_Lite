@@ -1,8 +1,4 @@
-"""Immutable database facts used to compose a finance snapshot.
-
-These types deliberately contain no policy-applied totals, ORM rows, domain
-entities, permission decisions, or desktop DTOs.
-"""
+"""Immutable canonical database facts used to compose finance snapshots."""
 
 from __future__ import annotations
 
@@ -15,8 +11,8 @@ class FinanceProjectFact:
     project_id: str
     tenant_id: str
     organization_id: str
-    currency: str | None
-    planned_budget: float
+    currency_code: str
+    approved_budget: float
     start_date: date | None
     end_date: date | None
 
@@ -33,33 +29,31 @@ class TaskFact:
 
 
 @dataclass(frozen=True, slots=True)
-class CostItemFact:
-    cost_item_id: str
+class FinanceLedgerFact:
+    """One planned, committed, or actual row from a canonical authority."""
+
+    fact_id: str
     task_id: str | None
+    resource_id: str | None
     description: str
+    source_key: str
+    source_label: str
+    reference_type: str
     cost_type: str
+    stage: str
     currency_code: str | None
-    planned_amount: float
-    committed_amount: float
-    actual_amount: float
-    forecast_amount: float | None
-    commitment_status: str
-    incurred_date: date | None
+    amount: float
+    occurred_on: date | None
 
 
 @dataclass(frozen=True, slots=True)
 class CostAggregateFact:
-    """Stored cost totals grouped without applying labor-source policy."""
+    """Canonical financial totals grouped by stage, type, and currency."""
 
+    stage: str
     cost_type: str
     currency_code: str | None
-    commitment_status: str
-    positive_planned: float
-    positive_committed: float
-    positive_actual_as_of: float
-    raw_planned: float
-    raw_committed: float
-    raw_actual_as_of: float
+    total_amount: float
     row_count: int
 
 
@@ -94,21 +88,21 @@ class FinanceSnapshotFacts:
     as_of: date
     project: FinanceProjectFact
     tasks: tuple[TaskFact, ...]
-    cost_items: tuple[CostItemFact, ...]
+    ledger_entries: tuple[FinanceLedgerFact, ...]
     cost_aggregates: tuple[CostAggregateFact, ...]
     project_resources: tuple[ProjectResourceFact, ...]
     assignments: tuple[LaborAssignmentFact, ...]
     resources: tuple[ResourceFact, ...]
 
     @property
-    def cost_item_count(self) -> int:
-        return len(self.cost_items)
+    def ledger_entry_count(self) -> int:
+        return len(self.ledger_entries)
 
     @property
     def distinct_cost_currencies(self) -> frozenset[str]:
         return frozenset(
             row.currency_code.strip().upper()
-            for row in self.cost_items
+            for row in self.ledger_entries
             if row.currency_code and row.currency_code.strip()
         )
 

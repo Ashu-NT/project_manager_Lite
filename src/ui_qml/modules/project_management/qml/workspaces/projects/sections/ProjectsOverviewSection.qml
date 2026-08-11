@@ -161,7 +161,7 @@ Item {
                         }
                         AppControls.Label {
                             Layout.fillWidth: true
-                            text: root._sv("plannedBudgetLabel") || "-"
+                            text: root._sv("approvedBudgetLabel") || "-"
                             color: Theme.AppTheme.textPrimary
                             font.family: Theme.AppTheme.fontFamily
                             font.pixelSize: Theme.AppTheme.smallSize
@@ -181,7 +181,7 @@ Item {
                         }
                         AppControls.Label {
                             Layout.fillWidth: true
-                            text: root._sv("currency") || "-"
+                            text: root._sv("financialCurrencyCode") || "-"
                             color: Theme.AppTheme.textPrimary
                             font.family: Theme.AppTheme.fontFamily
                             font.pixelSize: Theme.AppTheme.smallSize

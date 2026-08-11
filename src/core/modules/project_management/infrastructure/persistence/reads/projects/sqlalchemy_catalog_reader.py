@@ -13,6 +13,13 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.proj
     project_from_orm,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
+from src.core.modules.project_management.infrastructure.persistence.orm.budget import (
+    BudgetLineORM,
+    ProjectBudgetORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.financial_configuration import (
+    ProjectFinancialProfileORM,
+)
 from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
 
 
@@ -78,13 +85,42 @@ class SqlAlchemyProjectCatalogReader:
         filtered_total = int(
             self._session.scalar(select(func.count(ProjectORM.id)).where(*filtered)) or 0
         )
+        approved_budget = (
+            select(func.coalesce(func.sum(BudgetLineORM.amount), 0))
+            .join(
+                ProjectBudgetORM,
+                (ProjectBudgetORM.id == BudgetLineORM.budget_id)
+                & (ProjectBudgetORM.tenant_id == BudgetLineORM.tenant_id)
+                & (ProjectBudgetORM.organization_id == BudgetLineORM.organization_id)
+                & (ProjectBudgetORM.project_id == BudgetLineORM.project_id),
+            )
+            .where(
+                ProjectBudgetORM.tenant_id == ProjectORM.tenant_id,
+                ProjectBudgetORM.organization_id == ProjectORM.organization_id,
+                ProjectBudgetORM.project_id == ProjectORM.id,
+                ProjectBudgetORM.status == "approved",
+            )
+            .correlate(ProjectORM)
+            .scalar_subquery()
+        )
         rows = self._session.execute(
-            select(ProjectORM, SiteORM.name)
+            select(
+                ProjectORM,
+                SiteORM.name,
+                ProjectFinancialProfileORM.currency_code,
+                approved_budget.label("approved_budget"),
+            )
             .outerjoin(
                 SiteORM,
                 (SiteORM.id == ProjectORM.site_id)
                 & (SiteORM.tenant_id == ProjectORM.tenant_id)
                 & (SiteORM.organization_id == ProjectORM.organization_id),
+            )
+            .join(
+                ProjectFinancialProfileORM,
+                (ProjectFinancialProfileORM.project_id == ProjectORM.id)
+                & (ProjectFinancialProfileORM.tenant_id == ProjectORM.tenant_id)
+                & (ProjectFinancialProfileORM.organization_id == ProjectORM.organization_id),
             )
             .where(*filtered)
             .order_by(func.lower(ProjectORM.name), ProjectORM.id)
@@ -96,8 +132,12 @@ class SqlAlchemyProjectCatalogReader:
                 ProjectCatalogReadItem(
                     project=project_from_orm(project_row),
                     site_label=str(site_name or ""),
+                    financial_currency_code=str(currency_code or ""),
+                    approved_budget=(
+                        None if approved_budget_value is None else float(approved_budget_value)
+                    ),
                 )
-                for project_row, site_name in rows
+                for project_row, site_name, currency_code, approved_budget_value in rows
             ),
             filtered_total=filtered_total,
             page=page,

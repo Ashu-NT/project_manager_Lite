@@ -14,7 +14,6 @@ from src.core.modules.project_management.contracts.repositories.task import (
     TaskRepository,
 )
 from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from src.core.modules.project_management.contracts.repositories.cost import CostRepository
 from src.core.modules.project_management.application.scheduling.services.scheduling_engine import SchedulingEngine
 from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
 from src.core.modules.project_management.application.resources.resource_load_engine import (
@@ -35,7 +34,6 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
     _task_repo: TaskRepository
     _scheduling_engine: SchedulingEngine
     _calendar: CalendarProtocol
-    _cost_repo: CostRepository
     _project_resource_repo: ProjectResourceRepository
     _resource_repo: ResourceRepository
     _assignment_repo: AssignmentRepository

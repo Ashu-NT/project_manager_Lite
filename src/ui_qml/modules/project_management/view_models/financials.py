@@ -114,23 +114,18 @@ class BaselineVarianceRowViewModel:
 class FinancialsWorkspaceViewModel:
     overview: FinancialsOverviewViewModel
     project_options: tuple[FinancialsSelectorOptionViewModel, ...] = field(default_factory=tuple)
-    cost_type_options: tuple[FinancialsSelectorOptionViewModel, ...] = field(default_factory=tuple)
     task_options: tuple[FinancialsSelectorOptionViewModel, ...] = field(default_factory=tuple)
     manual_actual_options: FinancialsManualActualOptionsViewModel = field(
         default_factory=FinancialsManualActualOptionsViewModel
     )
     selected_project_id: str = ""
-    selected_cost_type: str = "all"
-    search_text: str = ""
-    costs: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
-    selected_cost_id: str = ""
-    selected_cost_detail: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     cashflow: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     ledger: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     source_analytics: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     cost_type_analytics: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     forecast: FinancialsForecastViewModel = field(default_factory=FinancialsForecastViewModel)
     commitment_summary: FinancialsCommitmentSummaryViewModel = field(default_factory=FinancialsCommitmentSummaryViewModel)
+    commitments: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     baseline_variance: tuple[BaselineVarianceRowViewModel, ...] = field(default_factory=tuple)
     financial_profile: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     budget_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))

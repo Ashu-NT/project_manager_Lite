@@ -56,8 +56,7 @@ AppWidgets.EntityDialog {
         nameField.text = String(state.name || "")
         clientNameField.text = String(state.clientName || "")
         clientContactField.text = String(state.clientContact || "")
-        plannedBudgetField.text = String(state.plannedBudget || "")
-        currencyField.text = String(state.currency || "")
+        currencyField.text = String(state.financialCurrencyCode || "")
         startDateField.text = String(state.startDate || "")
         endDateField.text = String(state.endDate || "")
         descriptionField.text = String(state.description || "")
@@ -74,8 +73,7 @@ AppWidgets.EntityDialog {
             "projectCode": root.projectCode,
             "clientName": clientNameField.text,
             "clientContact": clientContactField.text,
-            "plannedBudget": plannedBudgetField.text,
-            "currency": currencyField.text,
+            "financialCurrencyCode": currencyField.text,
             "startDate": startDateField.text,
             "endDate": endDateField.text,
             "description": descriptionField.text,
@@ -155,13 +153,8 @@ AppWidgets.EntityDialog {
 
         AppWidgets.FormField {
             Layout.fillWidth: true
-            label: "Planned budget"
-            AppControls.TextField { id: plannedBudgetField; Layout.fillWidth: true; inputMethodHints: Qt.ImhFormattedNumbersOnly; placeholderText: "250000.00" }
-        }
-
-        AppWidgets.FormField {
-            Layout.fillWidth: true
-            label: "Currency"
+            visible: root.modeTitle === "Create Project"
+            label: "Financial currency"
             AppControls.TextField { id: currencyField; Layout.fillWidth: true; placeholderText: "EUR" }
         }
 

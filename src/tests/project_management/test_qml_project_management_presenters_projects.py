@@ -19,8 +19,6 @@ def test_project_management_workspace_catalog_exposes_typed_projects_controller(
             end_date=date(2026, 8, 15),
             client_name="Contoso Manufacturing",
             client_contact="alex@contoso.example",
-            planned_budget=250000.0,
-            currency="EUR",
             site_id=None,
             version=4,
         ),
@@ -33,8 +31,6 @@ def test_project_management_workspace_catalog_exposes_typed_projects_controller(
             end_date=None,
             client_name="Northwind Logistics",
             client_contact="jamie@northwind.example",
-            planned_budget=None,
-            currency=None,
             site_id=None,
             version=2,
         ),
@@ -61,7 +57,12 @@ def test_project_management_workspace_catalog_exposes_typed_projects_controller(
         offset = (page - 1) * page_size
         return SimpleNamespace(
             items=tuple(
-                SimpleNamespace(project=project, site_label="")
+                SimpleNamespace(
+                    project=project,
+                    site_label="",
+                    financial_currency_code=("EUR" if project.id == "proj-1" else ""),
+                    approved_budget=(250000.0 if project.id == "proj-1" else None),
+                )
                 for project in filtered[offset : offset + page_size]
             ),
             filtered_total=len(filtered),

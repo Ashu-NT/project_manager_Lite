@@ -40,7 +40,9 @@ def _login(services, username: str, password: str) -> None:
 
 
 def _make_project(services, name: str = "Budget Project"):
-    return services["project_service"].create_project(name, currency="USD")
+    return services["project_service"].create_project(
+        name, financial_currency_code="USD"
+    )
 
 
 def _make_cost_code(services, code: str, name: str = "Cost Code"):

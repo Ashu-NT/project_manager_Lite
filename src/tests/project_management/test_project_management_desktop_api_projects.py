@@ -42,8 +42,7 @@ def test_project_management_projects_desktop_api_mutates_project_records() -> No
             status="ACTIVE",
             client_name="Contoso Manufacturing",
             client_contact="alex@contoso.example",
-            planned_budget=250000.0,
-            currency="eur",
+            financial_currency_code="eur",
             start_date=date(2026, 5, 1),
             end_date=date(2026, 8, 15),
         )
@@ -52,7 +51,7 @@ def test_project_management_projects_desktop_api_mutates_project_records() -> No
     listed = api.list_projects()
 
     assert created.status == "ACTIVE"
-    assert listed[0].planned_budget_label == "EUR 250,000.00"
+    assert listed[0].approved_budget_label == "Not set"
     assert listed[0].status_label == "Active"
 
     updated = api.update_project(
@@ -64,8 +63,6 @@ def test_project_management_projects_desktop_api_mutates_project_records() -> No
             status="ON_HOLD",
             client_name="Contoso Manufacturing",
             client_contact="jamie@contoso.example",
-            planned_budget=275000.0,
-            currency="usd",
             start_date=date(2026, 5, 10),
             end_date=date(2026, 8, 20),
         )
@@ -73,7 +70,7 @@ def test_project_management_projects_desktop_api_mutates_project_records() -> No
 
     assert updated.name == "Plant Upgrade Phase 1"
     assert updated.status == "ON_HOLD"
-    assert updated.planned_budget_label == "USD 275,000.00"
+    assert updated.approved_budget_label == "Not set"
 
     completed = api.set_project_status(created.id, "COMPLETED")
 
@@ -101,8 +98,7 @@ class _FakeProjectService:
         status: "ProjectStatus | None" = None,
         client_name: str | None = None,
         client_contact: str | None = None,
-        planned_budget: float | None = None,
-        currency: str | None = None,
+        financial_currency_code: str | None = None,
         start_date: date | None = None,
         end_date: date | None = None,
         organization_id: str | None = None,
@@ -120,8 +116,6 @@ class _FakeProjectService:
             status=status if status is not None else ProjectStatus.PLANNED,
             client_name=client_name,
             client_contact=client_contact,
-            planned_budget=planned_budget,
-            currency=(currency or "").strip().upper() or None,
             version=1,
         )
         self._next_id += 1
@@ -140,8 +134,6 @@ class _FakeProjectService:
         end_date: date | None = None,
         client_name: str | None = None,
         client_contact: str | None = None,
-        planned_budget: float | None = None,
-        currency: str | None = None,
         organization_id: str | None = None,
         site_id: str | None = None,
         client_party_id: str | None = None,
@@ -163,10 +155,6 @@ class _FakeProjectService:
             project.client_name = client_name
         if client_contact is not None:
             project.client_contact = client_contact
-        if planned_budget is not None:
-            project.planned_budget = planned_budget
-        if currency is not None:
-            project.currency = (currency or "").strip().upper() or None
         project.version += 1
         return project
 

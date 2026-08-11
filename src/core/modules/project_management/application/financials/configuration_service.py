@@ -136,13 +136,6 @@ class FinancialConfigurationService(ProjectManagementModuleGuardMixin):
                 code="PROJECT_DEFAULT_COST_CODE_NOT_ALLOWED",
             )
         self._profile_repo.update(candidate)
-        if candidate.currency_code != current.currency_code:
-            project = self._project_repo.get(project_id)
-            if project is None:
-                raise NotFoundError("Project not found.")
-            # PROJECT-FINANCE-TRANSITION-ONLY(PF-B1-CURRENCY-DUAL-WRITE):
-            # Delete when all desktop/read-model currency access uses the profile.
-            self._project_repo.update(replace(project, currency=candidate.currency_code))
         self._record_profile_audit("update", candidate, old=current)
         self._commit()
         return candidate

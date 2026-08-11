@@ -72,23 +72,6 @@ def test_resource_service_is_orchestrator_only():
     assert "def get_resource" not in text
 
 
-def test_cost_service_is_orchestrator_only():
-    service_path = (
-        ROOT / "src" / "core" / "modules" / "project_management" / "application" / "financials"
-        / "services" / "cost_service.py"
-    )
-    text = service_path.read_text(encoding="utf-8", errors="ignore")
-
-    assert "from src.core.modules.project_management.application.financials.costs.queries.cost_query import (" in text
-    assert "class CostService(" in text
-    assert "CostLifecycleMixin" not in text
-    assert "CostSupportMixin" not in text
-    assert "def add_cost_item" not in text
-    assert "def update_cost_item" not in text
-    assert "def delete_cost_item" not in text
-    assert "def get_project_cost_summary" not in text
-
-
 def test_collaboration_service_is_orchestrator_only():
     service_path = ROOT / "src" / "core" / "modules" / "project_management" / "application" / "collaboration" / "services" / "collaboration_service.py"
     text = service_path.read_text(encoding="utf-8", errors="ignore")

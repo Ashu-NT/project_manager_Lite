@@ -3,12 +3,12 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date
 
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, aliased
 
 from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
     CostAggregateFact,
-    CostItemFact,
+    FinanceLedgerFact,
     FinanceProjectFact,
     FinanceSnapshotFacts,
     LaborAssignmentFact,
@@ -24,7 +24,23 @@ from src.core.modules.project_management.contracts.reads.portfolio.models.heatma
     HeatmapTaskFact,
     PortfolioHeatmapFacts,
 )
-from src.core.modules.project_management.infrastructure.persistence.orm.cost import CostItemORM
+from src.core.modules.project_management.infrastructure.persistence.orm.commitment import (
+    ProjectCommitmentLineORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.budget import (
+    BudgetLineORM,
+    ProjectBudgetORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.cost_entry import (
+    ProjectCostEntryORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.planned_cost import (
+    ProjectPlannedCostLineORM,
+    ProjectPlannedCostVersionORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.financial_configuration import (
+    ProjectFinancialProfileORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.project import (
     ProjectORM,
     ProjectResourceORM,
@@ -59,16 +75,40 @@ class SqlAlchemyPortfolioHeatmapReader:
             ProjectORM.organization_id == organization_id,
             ProjectORM.id.in_(project_ids),
         )
+        approved_budget = (
+            select(func.coalesce(func.sum(BudgetLineORM.amount), 0))
+            .join(
+                ProjectBudgetORM,
+                (ProjectBudgetORM.id == BudgetLineORM.budget_id)
+                & (ProjectBudgetORM.tenant_id == BudgetLineORM.tenant_id)
+                & (ProjectBudgetORM.organization_id == BudgetLineORM.organization_id)
+                & (ProjectBudgetORM.project_id == BudgetLineORM.project_id),
+            )
+            .where(
+                ProjectBudgetORM.tenant_id == ProjectORM.tenant_id,
+                ProjectBudgetORM.organization_id == ProjectORM.organization_id,
+                ProjectBudgetORM.project_id == ProjectORM.id,
+                ProjectBudgetORM.status == "approved",
+            )
+            .correlate(ProjectORM)
+            .scalar_subquery()
+        )
         project_rows = tuple(
             self._session.execute(
                 select(
                     ProjectORM.id,
                     ProjectORM.name,
                     ProjectORM.status,
-                    ProjectORM.currency,
-                    ProjectORM.planned_budget,
+                    ProjectFinancialProfileORM.currency_code,
+                    approved_budget.label("approved_budget"),
                     ProjectORM.start_date,
                     ProjectORM.end_date,
+                )
+                .join(
+                    ProjectFinancialProfileORM,
+                    (ProjectFinancialProfileORM.project_id == ProjectORM.id)
+                    & (ProjectFinancialProfileORM.tenant_id == ProjectORM.tenant_id)
+                    & (ProjectFinancialProfileORM.organization_id == ProjectORM.organization_id),
                 )
                 .where(*project_scope)
                 .order_by(ProjectORM.id)
@@ -119,56 +159,74 @@ class SqlAlchemyPortfolioHeatmapReader:
                 .order_by(predecessor.project_id, TaskDependencyORM.id)
             )
         )
-        cost_rows = tuple(
+        version_rows = tuple(
             self._session.execute(
                 select(
-                    CostItemORM.project_id,
-                    CostItemORM.id,
-                    CostItemORM.task_id,
-                    CostItemORM.description,
-                    CostItemORM.cost_type,
-                    CostItemORM.currency_code,
-                    CostItemORM.planned_amount,
-                    CostItemORM.committed_amount,
-                    CostItemORM.actual_amount,
-                    CostItemORM.forecast_amount,
-                    CostItemORM.commitment_status,
-                    CostItemORM.incurred_date,
+                    ProjectPlannedCostVersionORM.id,
+                    ProjectPlannedCostVersionORM.project_id,
+                    ProjectPlannedCostVersionORM.as_of,
+                    ProjectPlannedCostVersionORM.revision,
                 )
-                .join(ProjectORM, ProjectORM.id == CostItemORM.project_id)
-                .where(*project_scope)
-                .order_by(CostItemORM.project_id, CostItemORM.id)
+                .where(
+                    ProjectPlannedCostVersionORM.tenant_id == tenant_id,
+                    ProjectPlannedCostVersionORM.organization_id == organization_id,
+                    ProjectPlannedCostVersionORM.project_id.in_(scoped_project_ids),
+                    ProjectPlannedCostVersionORM.as_of <= as_of,
+                )
+                .order_by(
+                    ProjectPlannedCostVersionORM.project_id,
+                    ProjectPlannedCostVersionORM.as_of.desc(),
+                    ProjectPlannedCostVersionORM.revision.desc(),
+                )
             )
         )
-        actual_in_scope = or_(CostItemORM.incurred_date.is_(None), CostItemORM.incurred_date <= as_of)
-        aggregate_dimensions = (
-            CostItemORM.project_id,
-            CostItemORM.cost_type,
-            CostItemORM.currency_code,
-            CostItemORM.commitment_status,
-        )
-        aggregate_rows = tuple(
+        latest_version_ids: dict[str, str] = {}
+        version_as_of: dict[str, date] = {}
+        for row in version_rows:
+            project_id = str(row.project_id)
+            if project_id not in latest_version_ids:
+                latest_version_ids[project_id] = str(row.id)
+                version_as_of[str(row.id)] = row.as_of
+        planned_rows = tuple(
             self._session.execute(
                 select(
-                    *aggregate_dimensions,
-                    func.sum(case((CostItemORM.planned_amount > 0, CostItemORM.planned_amount), else_=0.0)),
-                    func.sum(case((CostItemORM.committed_amount > 0, CostItemORM.committed_amount), else_=0.0)),
-                    func.sum(
-                        case(
-                            (and_(actual_in_scope, CostItemORM.actual_amount > 0), CostItemORM.actual_amount),
-                            else_=0.0,
-                        )
-                    ),
-                    func.sum(CostItemORM.planned_amount),
-                    func.sum(CostItemORM.committed_amount),
-                    func.sum(case((actual_in_scope, CostItemORM.actual_amount), else_=0.0)),
-                    func.count(CostItemORM.id),
+                    ProjectPlannedCostLineORM.project_id,
+                    ProjectPlannedCostLineORM.version_id,
+                    ProjectPlannedCostLineORM.id,
+                    ProjectPlannedCostLineORM.task_id,
+                    ProjectPlannedCostLineORM.resource_id,
+                    ProjectPlannedCostLineORM.source_assignment_id,
+                    ProjectPlannedCostLineORM.currency_code,
+                    ProjectPlannedCostLineORM.amount,
                 )
-                .join(ProjectORM, ProjectORM.id == CostItemORM.project_id)
-                .where(*project_scope)
-                .group_by(*aggregate_dimensions)
-                .order_by(*aggregate_dimensions)
+                .where(ProjectPlannedCostLineORM.version_id.in_(tuple(latest_version_ids.values())))
+                .order_by(ProjectPlannedCostLineORM.project_id, ProjectPlannedCostLineORM.id)
             )
+        ) if latest_version_ids else ()
+        commitment_rows = tuple(
+            self._session.execute(
+                select(ProjectCommitmentLineORM)
+                .where(
+                    ProjectCommitmentLineORM.tenant_id == tenant_id,
+                    ProjectCommitmentLineORM.organization_id == organization_id,
+                    ProjectCommitmentLineORM.project_id.in_(scoped_project_ids),
+                    ProjectCommitmentLineORM.state != "cancelled",
+                )
+                .order_by(ProjectCommitmentLineORM.project_id, ProjectCommitmentLineORM.id)
+            ).scalars()
+        )
+        actual_rows = tuple(
+            self._session.execute(
+                select(ProjectCostEntryORM)
+                .where(
+                    ProjectCostEntryORM.tenant_id == tenant_id,
+                    ProjectCostEntryORM.organization_id == organization_id,
+                    ProjectCostEntryORM.project_id.in_(scoped_project_ids),
+                    ProjectCostEntryORM.status.in_(("posted", "reversed")),
+                    ProjectCostEntryORM.posting_date <= as_of,
+                )
+                .order_by(ProjectCostEntryORM.project_id, ProjectCostEntryORM.posting_date, ProjectCostEntryORM.id)
+            ).scalars()
         )
         project_resource_rows = tuple(
             self._session.execute(
@@ -225,13 +283,50 @@ class SqlAlchemyPortfolioHeatmapReader:
         for key, rows in (
             ("tasks", task_rows),
             ("dependencies", dependency_rows),
-            ("costs", cost_rows),
-            ("aggregates", aggregate_rows),
             ("project_resources", project_resource_rows),
             ("assignments", assignment_rows),
         ):
             for row in rows:
                 grouped[str(row.project_id)][key].append(row)
+
+        ledger_by_project: dict[str, list[FinanceLedgerFact]] = defaultdict(list)
+        for row in planned_rows:
+            ledger_by_project[str(row.project_id)].append(
+                FinanceLedgerFact(
+                    fact_id=str(row.id), task_id=str(row.task_id), resource_id=str(row.resource_id),
+                    description=f"Assignment {row.source_assignment_id}", source_key="PLANNED_COST",
+                    source_label="Planned Cost", reference_type="planned_cost_line", cost_type="LABOR",
+                    stage="planned", currency_code=row.currency_code, amount=float(row.amount or 0),
+                    occurred_on=version_as_of[str(row.version_id)],
+                )
+            )
+        for row in commitment_rows:
+            amount = row.matched_amount if row.state == "closed" else row.amount
+            ledger_by_project[str(row.project_id)].append(
+                FinanceLedgerFact(
+                    fact_id=str(row.id), task_id=None if row.task_id is None else str(row.task_id),
+                    resource_id=None, description=f"Purchase order line {row.purchase_order_line_id}",
+                    source_key="PROCUREMENT_COMMITMENT", source_label="Procurement Commitment",
+                    reference_type="commitment_line", cost_type="MATERIAL", stage="committed",
+                    currency_code=row.currency_code, amount=float(amount or 0), occurred_on=row.order_date,
+                )
+            )
+        for row in actual_rows:
+            purpose = str(row.posting_purpose)
+            source_key, source_label, cost_type = {
+                "labor_actual": ("APPROVED_TIME", "Approved Time", "LABOR"),
+                "receipt_accrual": ("PROCUREMENT_ACTUAL", "Procurement Actual", "MATERIAL"),
+            }.get(purpose, ("MANUAL_ACTUAL", "Manual Actual", "OTHER"))
+            ledger_by_project[str(row.project_id)].append(
+                FinanceLedgerFact(
+                    fact_id=str(row.id), task_id=None if row.task_id is None else str(row.task_id),
+                    resource_id=None if row.resource_id is None else str(row.resource_id),
+                    description=str(row.description), source_key=source_key, source_label=source_label,
+                    reference_type="cost_entry", cost_type=cost_type, stage="actual",
+                    currency_code=row.base_currency_code, amount=float(row.base_amount or 0),
+                    occurred_on=row.posting_date,
+                )
+            )
 
         heatmap_resources = tuple(
             HeatmapResourceFact(
@@ -274,22 +369,12 @@ class SqlAlchemyPortfolioHeatmapReader:
                 )
                 for row in rows["tasks"]
             )
-            costs = tuple(
-                CostItemFact(
-                    cost_item_id=str(row.id),
-                    task_id=(None if row.task_id is None else str(row.task_id)),
-                    description=str(row.description or ""),
-                    cost_type=str(row.cost_type or "OTHER"),
-                    currency_code=row.currency_code,
-                    planned_amount=float(row.planned_amount or 0.0),
-                    committed_amount=float(row.committed_amount or 0.0),
-                    actual_amount=float(row.actual_amount or 0.0),
-                    forecast_amount=(None if row.forecast_amount is None else float(row.forecast_amount)),
-                    commitment_status=str(row.commitment_status or ""),
-                    incurred_date=row.incurred_date,
-                )
-                for row in rows["costs"]
-            )
+            ledger_entries = tuple(ledger_by_project[project_id])
+            aggregate_values: dict[tuple[str, str, str | None], tuple[float, int]] = {}
+            for entry in ledger_entries:
+                key = (entry.stage, entry.cost_type, entry.currency_code)
+                amount, count = aggregate_values.get(key, (0.0, 0))
+                aggregate_values[key] = (amount + entry.amount, count + 1)
             finance = FinanceSnapshotFacts(
                 tenant_id=tenant_id,
                 organization_id=organization_id,
@@ -299,8 +384,8 @@ class SqlAlchemyPortfolioHeatmapReader:
                     project_id=project_id,
                     tenant_id=tenant_id,
                     organization_id=organization_id,
-                    currency=project_row.currency,
-                    planned_budget=float(project_row.planned_budget or 0.0),
+                    currency_code=str(project_row.currency_code),
+                    approved_budget=float(project_row.approved_budget or 0.0),
                     start_date=project_row.start_date,
                     end_date=project_row.end_date,
                 ),
@@ -316,21 +401,16 @@ class SqlAlchemyPortfolioHeatmapReader:
                     )
                     for task in tasks
                 ),
-                cost_items=costs,
+                ledger_entries=ledger_entries,
                 cost_aggregates=tuple(
                     CostAggregateFact(
-                        cost_type=str(row.cost_type or "OTHER"),
-                        currency_code=row.currency_code,
-                        commitment_status=str(row.commitment_status or ""),
-                        positive_planned=float(row[4] or 0.0),
-                        positive_committed=float(row[5] or 0.0),
-                        positive_actual_as_of=float(row[6] or 0.0),
-                        raw_planned=float(row[7] or 0.0),
-                        raw_committed=float(row[8] or 0.0),
-                        raw_actual_as_of=float(row[9] or 0.0),
-                        row_count=int(row[10] or 0),
+                        stage=stage,
+                        cost_type=cost_type,
+                        currency_code=currency,
+                        total_amount=amount,
+                        row_count=count,
                     )
-                    for row in rows["aggregates"]
+                    for (stage, cost_type, currency), (amount, count) in aggregate_values.items()
                 ),
                 project_resources=tuple(
                     ProjectResourceFact(

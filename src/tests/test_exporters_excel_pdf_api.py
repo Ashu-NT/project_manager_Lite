@@ -8,7 +8,7 @@ from openpyxl import load_workbook
 
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.modules.project_management.domain.enums import CostType, DependencyType
+from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.infrastructure.reporting import api as reporting_api
 from src.core.modules.project_management.infrastructure.reporting.models import (
     CostSourceBreakdown,
@@ -27,7 +27,6 @@ def _setup_report_project(services):
     ps = services["project_service"]
     ts = services["task_service"]
     rs = services["resource_service"]
-    cs = services["cost_service"]
     bs = services["baseline_service"]
 
     project = ps.create_project(
@@ -43,19 +42,15 @@ def _setup_report_project(services):
     t2 = ts.create_task(pid, "Task Beta", duration_days=2)
     ts.add_dependency(t1.id, t2.id, DependencyType.FINISH_TO_START, lag_days=0)
 
-    res = rs.create_resource("Exporter Dev", "Developer", hourly_rate=100.0, currency_code="USD")
+    res = rs.create_resource(
+        "Exporter Dev",
+        "Developer",
+        hourly_rate=100.0,
+        currency_code="USD",
+        rate_effective_on=date(2023, 11, 6),
+    )
     assignment = ts.assign_resource(t1.id, res.id, allocation_percent=50.0)
     ts.set_assignment_hours(assignment.id, 4.0)
-
-    cs.add_cost_item(
-        project_id=pid,
-        task_id=t1.id,
-        description="Material line",
-        planned_amount=120.0,
-        actual_amount=60.0,
-        cost_type=CostType.MATERIAL,
-        currency_code="USD",
-    )
 
     baseline = bs.create_baseline(pid, "Baseline Export", rate_as_of=date.today())
     ts.update_progress(t1.id, percent_complete=50.0)
@@ -76,12 +71,12 @@ def test_excel_export_contains_expected_sections_when_baseline_exists(services, 
 
     wb = load_workbook(output)
     names = set(wb.sheetnames)
-    assert {"Overview", "Tasks", "Resources", "EVM", "Variance", "Cost Breakdown", "Cost Sources"}.issubset(names)
+    assert {"Overview", "Tasks", "Resources", "EVM", "Variance", "Cost Sources"}.issubset(names)
+    assert "Cost Breakdown" not in names
     assert wb["Overview"]["A1"].value.startswith("Project KPIs - ")
     assert wb["Tasks"]["A1"].value == "Task ID"
     assert wb["EVM"]["A2"].value == "Metric"
     assert wb["EVM"]["D2"].value == "Period End"
-    assert wb["Cost Breakdown"]["A1"].value == "Type"
     assert wb["Cost Sources"]["A1"].value == "Source"
 
 

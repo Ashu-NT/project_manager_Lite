@@ -7,14 +7,13 @@ from datetime import date, timedelta
 
 import pytest
 
-from src.core.modules.project_management.domain.enums import CostType, DependencyType
+from src.core.modules.project_management.domain.enums import DependencyType
 
 
 @dataclass(frozen=True)
 class PerfConfig:
     tasks: int
     resources: int
-    cost_items: int
     assignment_stride: int
     cross_dependency_gap: int
     start_date: date
@@ -32,7 +31,6 @@ class SeedResult:
     task_ids: list[str]
     dependency_count: int
     assignment_count: int
-    cost_count: int
 
 
 def _env_flag(name: str, default: bool = False) -> bool:
@@ -59,14 +57,12 @@ def _env_float(name: str, default: float) -> float:
 def _load_config() -> PerfConfig:
     task_count = _env_int("PM_PERF_TASKS", 5000)
     resource_count = _env_int("PM_PERF_RESOURCES", 1200)
-    cost_count = _env_int("PM_PERF_COST_ITEMS", task_count)
     assignment_stride = max(1, _env_int("PM_PERF_ASSIGNMENT_STRIDE", 1))
     cross_dependency_gap = max(2, _env_int("PM_PERF_CROSS_DEP_GAP", 29))
 
     return PerfConfig(
         tasks=task_count,
         resources=resource_count,
-        cost_items=cost_count,
         assignment_stride=assignment_stride,
         cross_dependency_gap=cross_dependency_gap,
         start_date=date.fromisoformat(os.getenv("PM_PERF_START_DATE", "2025-01-06")),
@@ -90,7 +86,6 @@ def _seed_large_project(services: dict, config: PerfConfig) -> SeedResult:
     ps = services["project_service"]
     ts = services["task_service"]
     rs = services["resource_service"]
-    cs = services["cost_service"]
 
     project_end = config.start_date + timedelta(days=max(365, config.tasks // 2))
     project = ps.create_project(
@@ -151,30 +146,15 @@ def _seed_large_project(services: dict, config: PerfConfig) -> SeedResult:
         ts.set_assignment_hours(assignment.id, 2.0 + float(idx % 5))
         assignment_count += 1
 
-    cost_count = 0
-    limit = min(config.cost_items, len(tasks))
-    for idx in range(limit):
-        task = tasks[idx]
-        cs.add_cost_item(
-            project_id=project_id,
-            task_id=task.id,
-            description=f"Cost Item {idx + 1:05d}",
-            planned_amount=250.0 + float(idx % 11) * 10.0,
-            committed_amount=90.0 + float(idx % 7) * 5.0,
-            actual_amount=70.0 + float(idx % 5) * 5.0,
-            cost_type=CostType.OVERHEAD if idx % 4 else CostType.LABOR,
-            currency_code="USD",
-        )
+    for idx, task in enumerate(tasks):
         if idx % 10 == 0:
             ts.update_progress(task.id, percent_complete=float((idx // 10) % 101))
-        cost_count += 1
 
     return SeedResult(
         project_id=project_id,
         task_ids=[t.id for t in tasks],
         dependency_count=dependency_count,
         assignment_count=assignment_count,
-        cost_count=cost_count,
     )
 
 
@@ -262,7 +242,6 @@ def test_large_scale_performance_workflow(services):
     assert len(report_data["critical_path"]) >= 1
     assert seeded.dependency_count >= config.tasks - 1
     assert seeded.assignment_count > 0
-    assert seeded.cost_count == min(config.cost_items, config.tasks)
 
     assert dashboard_data.kpi.tasks_total == config.tasks
     assert len(dashboard_data.resource_load) > 0

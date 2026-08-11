@@ -6,13 +6,12 @@ from decimal import Decimal
 
 import pytest
 
-from src.core.modules.project_management.domain.financials.cost import CostItem
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
     DEFAULT_PERMISSIONS,
     DEFAULT_ROLE_PERMISSIONS,
 )
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.common.exceptions import BusinessRuleError
 
 
 def _login(services, username: str, password: str) -> None:
@@ -25,7 +24,7 @@ def _seed_labor_finance_project(services) -> str:
     project = services["project_service"].create_project(
         "Phase A0 Finance",
         start_date=date(2026, 1, 5),
-        currency="EUR",
+        financial_currency_code="EUR",
     )
     task = services["task_service"].create_task(
         project.id,
@@ -38,6 +37,7 @@ def _seed_labor_finance_project(services) -> str:
         "Engineer",
         hourly_rate=125.0,
         currency_code="EUR",
+        rate_effective_on=date(2026, 1, 5),
     )
     project_resource = services["project_resource_service"].add_to_project(
         project_id=project.id,
@@ -51,7 +51,27 @@ def _seed_labor_finance_project(services) -> str:
         project_resource_id=project_resource.id,
         allocation_percent=100.0,
     )
-    services["task_service"].set_assignment_hours(assignment.id, 4.0)
+    cost_code = services["financial_configuration_service"].create_cost_code(
+        code="SEC-LABOR",
+        name="Sensitive labor",
+    )
+    profile = services["financial_configuration_service"].get_profile(project.id)
+    services["financial_configuration_service"].configure_profile(
+        project.id,
+        expected_version=profile.version,
+        default_cost_code_id=cost_code.id,
+    )
+    services["task_service"].update_assignment_planned_hours(
+        assignment.id,
+        allocated_planned_hours=Decimal("16"),
+        expected_assignment_version=assignment.version,
+        expected_project_resource_version=project_resource.version,
+    )
+    services["planned_cost_service"].calculate_snapshot(
+        project.id,
+        calculated_by="admin",
+        as_of=date(2026, 1, 5),
+    )
     return project.id
 
 
@@ -90,10 +110,10 @@ def test_sensitive_labor_detail_is_redacted_without_sensitive_permission(service
     snapshot = services["finance_service"].get_finance_snapshot(project_id)
 
     assert snapshot.by_resource == []
-    computed_labor = [row for row in snapshot.ledger if row.source_key == "COMPUTED_LABOR"]
-    assert computed_labor
-    assert all(row.reference_type == "restricted_finance" for row in computed_labor)
-    assert all(row.resource_id is None and row.resource_name is None for row in computed_labor)
+    labor_rows = [row for row in snapshot.ledger if row.cost_type == "LABOR"]
+    assert labor_rows
+    assert all(row.reference_type == "restricted_finance" for row in labor_rows)
+    assert all(row.resource_id is None and row.resource_name is None for row in labor_rows)
 
 
 def test_finance_controller_can_view_sensitive_labor_detail(services):
@@ -109,9 +129,9 @@ def test_finance_controller_can_view_sensitive_labor_detail(services):
     snapshot = services["finance_service"].get_finance_snapshot(project_id)
 
     assert snapshot.by_resource
-    computed_labor = [row for row in snapshot.ledger if row.source_key == "COMPUTED_LABOR"]
-    assert any(row.reference_type != "restricted_finance" for row in computed_labor)
-    assert any(row.resource_id is not None for row in computed_labor)
+    labor_rows = [row for row in snapshot.ledger if row.cost_type == "LABOR"]
+    assert any(row.reference_type != "restricted_finance" for row in labor_rows)
+    assert any(row.resource_id is not None for row in labor_rows)
 
 
 def test_global_sensitive_grant_does_not_bypass_project_scope(services):
@@ -135,51 +155,16 @@ def test_global_sensitive_grant_does_not_bypass_project_scope(services):
     snapshot = services["finance_service"].get_finance_snapshot(project_id)
 
     assert snapshot.by_resource == []
-    computed_labor = [row for row in snapshot.ledger if row.source_key == "COMPUTED_LABOR"]
-    assert computed_labor
-    assert all(row.reference_type == "restricted_finance" for row in computed_labor)
-
-
-def test_cost_repository_rejects_cross_project_task_on_add_and_update(services):
-    project_service = services["project_service"]
-    task_service = services["task_service"]
-    cost_service = services["cost_service"]
-    cost_repo = cost_service._cost_repo
-
-    project = project_service.create_project("Repository scoped cost")
-    other_project = project_service.create_project("Foreign task project")
-    project_task = task_service.create_task(project.id, "Scoped task", duration_days=1)
-    foreign_task = task_service.create_task(other_project.id, "Foreign task", duration_days=1)
-
-    with pytest.raises(NotFoundError, match="Task not found"):
-        cost_repo.add(
-            CostItem.create(
-                project_id=project.id,
-                task_id=foreign_task.id,
-                description="Invalid direct insert",
-                planned_amount=10.0,
-                currency_code="EUR",
-            )
-        )
-
-    existing = cost_service.add_cost_item(
-        project_id=project.id,
-        task_id=project_task.id,
-        description="Valid scoped cost",
-        planned_amount=10.0,
-        currency_code="EUR",
-    )
-    existing.task_id = foreign_task.id
-
-    with pytest.raises(NotFoundError, match="Task not found"):
-        cost_repo.update(existing)
+    labor_rows = [row for row in snapshot.ledger if row.cost_type == "LABOR"]
+    assert labor_rows
+    assert all(row.reference_type == "restricted_finance" for row in labor_rows)
 
 
 def _create_audited_cost_entry(services, *, command_id: str):
     organization = services["organization_service"].get_active_organization()
     project = services["project_service"].create_project(
         "Audited canonical cost",
-        currency=organization.base_currency,
+        financial_currency_code=organization.base_currency,
     )
     cost_code = services["financial_configuration_service"].create_cost_code(
         code=f"AUD-{command_id[-4:].upper()}",
@@ -220,7 +205,7 @@ def test_cost_entry_mutation_rolls_back_when_required_audit_fails(services, monk
     organization = services["organization_service"].get_active_organization()
     project = services["project_service"].create_project(
         "Fail-closed canonical cost audit",
-        currency=organization.base_currency,
+        financial_currency_code=organization.base_currency,
     )
     cost_code = services["financial_configuration_service"].create_cost_code(
         code="AUD-FAIL",

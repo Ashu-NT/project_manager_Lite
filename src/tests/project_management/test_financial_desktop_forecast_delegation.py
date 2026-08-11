@@ -53,13 +53,34 @@ class _ForecastService:
         )
 
 
+class _CommitmentService:
+    def list_for_project(self, project_id, *, offset, limit):
+        assert project_id == "project-1"
+        assert (offset, limit) == (10, 20)
+        return [
+            SimpleNamespace(
+                id="commitment-line-1",
+                purchase_order_line_id="po-line-1",
+                state=SimpleNamespace(value="partially_received"),
+                amount=1000,
+                matched_amount=400,
+                currency_code="EUR",
+                task_id="task-1",
+                ordered_quantity=10,
+                quantity_unit="EA",
+                order_date=None,
+                expected_delivery_date=None,
+                source_revision=3,
+            )
+        ], 1
+
 def test_financial_desktop_api_delegates_forecast_and_commitment_calculation() -> None:
     service = _ForecastService()
-    project_service = SimpleNamespace(
-        get_project=lambda _project_id: SimpleNamespace(currency="EUR")
+    configuration_service = SimpleNamespace(
+        get_profile=lambda _project_id: SimpleNamespace(currency_code="EUR")
     )
     api = ProjectManagementFinancialsDesktopApi(
-        project_service=project_service,
+        financial_configuration_service=configuration_service,
         forecast_service=service,
     )
 
@@ -91,6 +112,22 @@ def test_financial_desktop_api_requires_canonical_forecast_service() -> None:
         api.get_cost_forecast("project-1")
     with pytest.raises(RuntimeError, match="forecast service"):
         api.get_commitment_summary("project-1")
+
+
+def test_financial_desktop_api_maps_paged_canonical_commitment_lines() -> None:
+    api = ProjectManagementFinancialsDesktopApi(
+        commitment_service=_CommitmentService()
+    )
+
+    page = api.list_commitments("project-1", offset=10, limit=20)
+
+    assert page.total == 1
+    assert page.offset == 10
+    assert page.limit == 20
+    assert page.items[0].state == "partially_received"
+    assert page.items[0].amount_label == "EUR 1,000.00"
+    assert page.items[0].matched_amount_label == "EUR 400.00"
+    assert page.items[0].remaining_amount_label == "EUR 600.00"
 
 
 def test_desktop_forecast_builders_do_not_contain_application_formulas() -> None:

@@ -1,6 +1,5 @@
 """Financial domain."""
 
-from src.core.modules.project_management.domain.financials.cost import CommitmentStatus, CostItem
 from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntry,
     ProjectCostEntryKind,
@@ -28,8 +27,6 @@ from src.core.modules.project_management.domain.financials.configuration import 
 __all__ = [
     "BillingMethod",
     "BudgetControlMode",
-    "CommitmentStatus",
-    "CostItem",
     "CostCodePolicy",
     "FinancialProfileStatus",
     "ProjectCostCode",

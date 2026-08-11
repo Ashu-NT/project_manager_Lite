@@ -1,6 +1,5 @@
 """Financial use cases — enterprise project financial management."""
 
-from src.core.modules.project_management.application.financials.services.cost_service import CostService
 from src.core.modules.project_management.application.financials.services.finance_service import (
     FinanceService,
 )
@@ -10,6 +9,9 @@ from src.core.modules.project_management.application.financials.forecasts.foreca
     EACMethod,
     ForecastCostService,
     MaterialRollup,
+)
+from src.core.modules.project_management.application.financials.forecasts.version_service import (
+    ForecastVersionService,
 )
 from src.core.modules.project_management.application.financials.models.finance_models import (
     FinanceAnalyticsRow,
@@ -58,10 +60,6 @@ from src.core.modules.project_management.application.financials.commitments impo
 from src.core.modules.project_management.application.financials.procurement_consumer import (
     ProcurementFinancialConsumer,
 )
-from src.core.modules.project_management.application.financials.legacy_migration import (
-    LegacyCostMigrationResult,
-    LegacyCostMigrationService,
-)
 from src.core.modules.project_management.application.financials.workspace_query import (
     ProjectFinanceWorkspaceQuery,
     ProjectFinanceWorkspaceRead,
@@ -79,7 +77,6 @@ __all__ = [
     "CostForecastResult",
     "CostPolicyEngine",
     "CostPolicySnapshot",
-    "CostService",
     "CostEntryApprovalOutcome",
     "CostEntryApprovalResult",
     "EACMethod",
@@ -91,9 +88,8 @@ __all__ = [
     "FinanceService",
     "FinanceSnapshot",
     "ForecastCostService",
+    "ForecastVersionService",
     "LaborCostEngine",
-    "LegacyCostMigrationResult",
-    "LegacyCostMigrationService",
     "MaterialRollup",
     "FinancialConfigurationService",
     "ProjectRateCardService",

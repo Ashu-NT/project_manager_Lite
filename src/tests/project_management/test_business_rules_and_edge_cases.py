@@ -121,65 +121,7 @@ def test_work_calendar_next_and_negative_day_math(services):
     assert wc.next_working_day(date(2023, 11, 4), include_today=True) == date(2023, 11, 7)
 
 
-def test_cost_service_negative_amount_validation(services):
-    ps = services["project_service"]
-    ts = services["task_service"]
-    cs = services["cost_service"]
-
-    project = ps.create_project("Cost Validation", "")
-    pid = project.id
-    task = ts.create_task(pid, "Cost Task", duration_days=1)
-
-    with pytest.raises(ValidationError):
-        cs.add_cost_item(pid, "Bad planned", planned_amount=-1.0, task_id=task.id)
-    with pytest.raises(ValidationError):
-        cs.add_cost_item(pid, "Bad committed", planned_amount=1.0, committed_amount=-1.0, task_id=task.id)
-    with pytest.raises(ValidationError):
-        cs.add_cost_item(pid, "Bad actual", planned_amount=1.0, actual_amount=-1.0, task_id=task.id)
-
-    item = cs.add_cost_item(pid, "Valid", planned_amount=10.0, task_id=task.id)
-    with pytest.raises(ValidationError):
-        cs.update_cost_item(item.id, actual_amount=-5.0)
-
-
-def test_cost_item_task_must_belong_to_same_project(services):
-    ps = services["project_service"]
-    ts = services["task_service"]
-    cs = services["cost_service"]
-
-    p1 = ps.create_project("Cost P1", "")
-    p2 = ps.create_project("Cost P2", "")
-    foreign_task = ts.create_task(p2.id, "Foreign Task", duration_days=1)
-
-    with pytest.raises(ValidationError) as exc:
-        cs.add_cost_item(
-            project_id=p1.id,
-            description="Wrong link",
-            planned_amount=10.0,
-            task_id=foreign_task.id,
-        )
-    assert exc.value.code == "TASK_PROJECT_MISMATCH"
-
-
-def test_update_cost_item_rejects_invalid_incurred_date_value(services):
-    ps = services["project_service"]
-    ts = services["task_service"]
-    cs = services["cost_service"]
-
-    p = ps.create_project("Cost Date Validation", "")
-    task = ts.create_task(p.id, "Date Task", duration_days=1)
-    item = cs.add_cost_item(
-        project_id=p.id,
-        description="Date row",
-        planned_amount=10.0,
-        task_id=task.id,
-    )
-
-    with pytest.raises(ValidationError):
-        cs.update_cost_item(item.id, incurred_date="2026-02-24")
-
-
-def test_baseline_requires_tasks_and_budget_fallback_affects_bac(services):
+def test_baseline_requires_tasks_and_evm_has_no_project_budget_fallback(services):
     ps = services["project_service"]
     ts = services["task_service"]
     bs = services["baseline_service"]
@@ -190,9 +132,8 @@ def test_baseline_requires_tasks_and_budget_fallback_affects_bac(services):
         bs.create_baseline(no_task_project.id, "BL-Empty", rate_as_of=date.today())
 
     budget_project = ps.create_project(
-        "Budget Baseline",
+        "Uncosted Baseline",
         "",
-        planned_budget=1000.0,
         start_date=date(2023, 11, 6),
         end_date=date(2023, 11, 20),
     )
@@ -201,7 +142,7 @@ def test_baseline_requires_tasks_and_budget_fallback_affects_bac(services):
     baseline = bs.create_baseline(pid, "BL-Budget", rate_as_of=date.today())
 
     evm = rp.get_earned_value(project_id=pid, baseline_id=baseline.id, as_of=date(2023, 11, 30))
-    assert evm.BAC == pytest.approx(1000.0)
+    assert evm.BAC == pytest.approx(0.0)
 
 
 def test_reporting_earned_value_requires_baseline(services):
@@ -229,22 +170,6 @@ def test_dashboard_returns_none_evm_without_baseline(services):
 
     data = ds.get_dashboard_data(pid)
     assert data.evm is None
-
-
-def test_dashboard_alerts_when_planned_cost_exceeds_budget(services):
-    ps = services["project_service"]
-    cs = services["cost_service"]
-    ds = services["dashboard_service"]
-
-    project = ps.create_project("Budget Alert Project", "", planned_budget=100.0, currency="EUR")
-    cs.add_cost_item(
-        project_id=project.id,
-        description="Budget overrun line",
-        planned_amount=140.0,
-    )
-
-    data = ds.get_dashboard_data(project.id)
-    assert any("Budget warning" in msg for msg in data.alerts)
 
 
 def test_resource_load_summary_sorted_descending(services):

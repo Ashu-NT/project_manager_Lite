@@ -4,10 +4,10 @@ from __future__ import annotations
 from datetime import date
 
 from src.core.modules.project_management.application.financials import (
-    CostService,
     FinancialConfigurationService,
     FinanceService,
     ForecastCostService,
+    ProjectCommitmentService,
     ProjectCostEntryService,
     ProjectFinanceWorkspaceQuery,
 )
@@ -15,12 +15,13 @@ from src.core.modules.project_management.application.projects import ProjectServ
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import BaselineService
 from src.core.modules.project_management.application.tasks import TaskService
 
-from src.core.modules.project_management.api.desktop.financials.models.cost_items import FinancialCostItemDto
-from src.core.modules.project_management.api.desktop.financials.models.commitments import FinancialCommitmentSummaryDto
+from src.core.modules.project_management.api.desktop.financials.models.commitments import (
+    FinancialCommitmentLinePageDto,
+    FinancialCommitmentSummaryDto,
+)
 from src.core.modules.project_management.api.desktop.financials.models.forecasts import FinancialForecastDto
 from src.core.modules.project_management.api.desktop.financials.models.baseline_variance import BaselineVarianceRecordDto
 from src.core.modules.project_management.api.desktop.financials.models.options import (
-    FinancialCostTypeDescriptor,
     FinancialProjectOptionDescriptor,
     FinancialTaskOptionDescriptor,
 )
@@ -44,7 +45,6 @@ from src.core.modules.project_management.api.desktop.financials.models.cost_entr
     FinancialManualActualOptionsDto,
 )
 from src.core.modules.project_management.api.desktop.financials.builders.option_builder import (
-    build_cost_type_options,
     build_project_options,
     build_task_options,
 )
@@ -52,12 +52,12 @@ from src.core.modules.project_management.api.desktop.financials.builders.forecas
     build_forecast_dto,
 )
 from src.core.modules.project_management.api.desktop.financials.builders.commitment_builder import (
+    build_commitment_line_dto,
     build_commitment_summary_dto,
 )
 from src.core.modules.project_management.api.desktop.financials.builders.baseline_variance_builder import (
     build_baseline_variance,
 )
-from src.core.modules.project_management.api.desktop.financials.serializers.cost_item_serializer import serialize_cost_item
 from src.core.modules.project_management.api.desktop.financials.serializers.cost_entry_serializer import (
     serialize_cost_entry,
 )
@@ -76,42 +76,29 @@ class ProjectManagementFinancialsDesktopApi:
         *,
         project_service: ProjectService | None = None,
         task_service: TaskService | None = None,
-        cost_service: CostService | None = None,
         finance_service: FinanceService | None = None,
         forecast_service: ForecastCostService | None = None,
         baseline_service: BaselineService | None = None,
         finance_workspace_query: ProjectFinanceWorkspaceQuery | None = None,
         financial_configuration_service: FinancialConfigurationService | None = None,
         cost_entry_service: ProjectCostEntryService | None = None,
+        commitment_service: ProjectCommitmentService | None = None,
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
-        self._cost_service = cost_service
         self._finance_service = finance_service
         self._forecast_service = forecast_service
         self._baseline_service = baseline_service
         self._finance_workspace_query = finance_workspace_query
         self._financial_configuration_service = financial_configuration_service
         self._cost_entry_service = cost_entry_service
+        self._commitment_service = commitment_service
 
     def list_projects(self) -> tuple[FinancialProjectOptionDescriptor, ...]:
         return build_project_options(self._project_service)
 
-    def list_cost_types(self) -> tuple[FinancialCostTypeDescriptor, ...]:
-        return build_cost_type_options()
-
     def list_tasks(self, project_id: str) -> tuple[FinancialTaskOptionDescriptor, ...]:
         return build_task_options(project_id, self._task_service)
-
-    def list_cost_items(self, project_id: str) -> tuple[FinancialCostItemDto, ...]:
-        if self._cost_service is None or not project_id:
-            return ()
-        task_lookup = {o.value: o.label for o in self.list_tasks(project_id)}
-        items = sorted(
-            self._cost_service.list_cost_items_for_project(project_id),
-            key=lambda i: (i.incurred_date or date.max, (i.description or "").casefold()),
-        )
-        return tuple(serialize_cost_item(i, task_lookup=task_lookup) for i in items)
 
     def get_manual_actual_options(
         self, project_id: str, *, effective_on: date | None = None
@@ -291,6 +278,21 @@ class ProjectManagementFinancialsDesktopApi:
             currency=currency,
         )
 
+    def list_commitments(
+        self, project_id: str, *, offset: int = 0, limit: int = 50
+    ) -> FinancialCommitmentLinePageDto:
+        if not project_id or self._commitment_service is None:
+            return FinancialCommitmentLinePageDto(offset=offset, limit=limit)
+        lines, total = self._commitment_service.list_for_project(
+            project_id, offset=offset, limit=limit
+        )
+        return FinancialCommitmentLinePageDto(
+            items=tuple(build_commitment_line_dto(line) for line in lines),
+            total=total,
+            offset=offset,
+            limit=limit,
+        )
+
     def build_baseline_variance(self, project_id: str) -> tuple[BaselineVarianceRecordDto, ...]:
         return build_baseline_variance(project_id, self._baseline_service)
 
@@ -316,12 +318,10 @@ class ProjectManagementFinancialsDesktopApi:
         )
 
     def _project_currency(self, project_id: str) -> str | None:
-        if not project_id or self._project_service is None:
+        if not project_id or self._financial_configuration_service is None:
             return None
-        project = self._project_service.get_project(project_id)
-        if project is None:
-            return None
-        return (getattr(project, "currency", None) or "").strip().upper() or None
+        profile = self._financial_configuration_service.get_profile(project_id)
+        return str(profile.currency_code or "").strip().upper() or None
 
     def _require_cost_entry_service(self) -> ProjectCostEntryService:
         if self._cost_entry_service is None:

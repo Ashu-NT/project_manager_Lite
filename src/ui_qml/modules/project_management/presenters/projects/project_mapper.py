@@ -21,11 +21,11 @@ def build_project_state(project: Any) -> dict[str, object]:
         "startDateLabel": format_date_label(project.start_date),
         "endDate": format_date(project.end_date),
         "endDateLabel": format_date_label(project.end_date),
-        "plannedBudget": (
-            "" if project.planned_budget is None else f"{float(project.planned_budget):.2f}"
+        "approvedBudget": (
+            "" if project.approved_budget is None else f"{float(project.approved_budget):.2f}"
         ),
-        "plannedBudgetLabel": project.planned_budget_label,
-        "currency": project.currency or "",
+        "approvedBudgetLabel": project.approved_budget_label,
+        "financialCurrencyCode": project.financial_currency_code or "",
         "organizationId": getattr(project, "organization_id", None) or "",
         "siteId": getattr(project, "site_id", None) or "",
         "siteLabel": getattr(project, "site_label", "") or "",
@@ -45,7 +45,7 @@ def to_project_record(project: Any) -> ProjectRecordViewModel:
         subtitle=f"{client_text} | {site_text}",
         supporting_text=(
             f"Schedule: {state['startDateLabel']} -> {state['endDateLabel']} | "
-            f"Budget: {state['plannedBudgetLabel']}"
+            f"Approved budget: {state['approvedBudgetLabel']}"
         ),
         meta_text=contact_text if contact_text != "No client contact recorded" else (
             project.description or "No project description has been added yet."

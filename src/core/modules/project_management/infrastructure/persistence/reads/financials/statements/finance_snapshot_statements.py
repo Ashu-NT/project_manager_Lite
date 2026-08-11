@@ -3,14 +3,30 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from sqlalchemy import and_, case, func, or_, select
-from sqlalchemy.sql.elements import ColumnElement
+from sqlalchemy import and_, case, func, literal, or_, select
 from sqlalchemy.sql import Select
+from sqlalchemy.sql.elements import ColumnElement
 
-from src.core.modules.project_management.infrastructure.persistence.orm.cost import CostItemORM
 from src.core.modules.project_management.infrastructure.persistence.orm.baseline import (
     BaselineTaskORM,
     ProjectBaselineORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.commitment import (
+    ProjectCommitmentLineORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.budget import (
+    BudgetLineORM,
+    ProjectBudgetORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.cost_entry import (
+    ProjectCostEntryORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.planned_cost import (
+    ProjectPlannedCostLineORM,
+    ProjectPlannedCostVersionORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.financial_configuration import (
+    ProjectFinancialProfileORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.project import (
     ProjectORM,
@@ -24,7 +40,8 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
 
 SqlSelect = Select[tuple[Any, ...]]
 
-def _project_scope(*, tenant_id: str, organization_id: str, project_id: str)-> ColumnElement[bool]:
+
+def _project_scope(*, tenant_id: str, organization_id: str, project_id: str) -> ColumnElement[bool]:
     return and_(
         ProjectORM.id == project_id,
         ProjectORM.tenant_id == tenant_id,
@@ -33,18 +50,41 @@ def _project_scope(*, tenant_id: str, organization_id: str, project_id: str)-> C
 
 
 def project_fact_statement(*, tenant_id: str, organization_id: str, project_id: str) -> SqlSelect:
+    approved_budget = (
+        select(func.coalesce(func.sum(BudgetLineORM.amount), 0))
+        .join(
+            ProjectBudgetORM,
+            (ProjectBudgetORM.id == BudgetLineORM.budget_id)
+            & (ProjectBudgetORM.tenant_id == BudgetLineORM.tenant_id)
+            & (ProjectBudgetORM.organization_id == BudgetLineORM.organization_id)
+            & (ProjectBudgetORM.project_id == BudgetLineORM.project_id),
+        )
+        .where(
+            ProjectBudgetORM.tenant_id == ProjectORM.tenant_id,
+            ProjectBudgetORM.organization_id == ProjectORM.organization_id,
+            ProjectBudgetORM.project_id == ProjectORM.id,
+            ProjectBudgetORM.status == "approved",
+        )
+        .correlate(ProjectORM)
+        .scalar_subquery()
+    )
     return select(
         ProjectORM.id,
         ProjectORM.tenant_id,
         ProjectORM.organization_id,
-        ProjectORM.currency,
-        ProjectORM.planned_budget,
+        ProjectFinancialProfileORM.currency_code,
+        approved_budget.label("approved_budget"),
         ProjectORM.start_date,
         ProjectORM.end_date,
+    ).join(
+        ProjectFinancialProfileORM,
+        (ProjectFinancialProfileORM.project_id == ProjectORM.id)
+        & (ProjectFinancialProfileORM.tenant_id == ProjectORM.tenant_id)
+        & (ProjectFinancialProfileORM.organization_id == ProjectORM.organization_id),
     ).where(_project_scope(tenant_id=tenant_id, organization_id=organization_id, project_id=project_id))
 
 
-def task_facts_statement(*, tenant_id: str, organization_id: str, project_id: str)-> SqlSelect:
+def task_facts_statement(*, tenant_id: str, organization_id: str, project_id: str) -> SqlSelect:
     return (
         select(
             TaskORM.id,
@@ -62,22 +102,12 @@ def task_facts_statement(*, tenant_id: str, organization_id: str, project_id: st
 
 
 def evm_baseline_statement(
-    *,
-    tenant_id: str,
-    organization_id: str,
-    project_id: str,
-    baseline_id: str | None,
+    *, tenant_id: str, organization_id: str, project_id: str, baseline_id: str | None
 ) -> SqlSelect:
     stmt = (
         select(ProjectBaselineORM.id)
         .join(ProjectORM, ProjectORM.id == ProjectBaselineORM.project_id)
-        .where(
-            _project_scope(
-                tenant_id=tenant_id,
-                organization_id=organization_id,
-                project_id=project_id,
-            )
-        )
+        .where(_project_scope(tenant_id=tenant_id, organization_id=organization_id, project_id=project_id))
     )
     if baseline_id is not None:
         return stmt.where(ProjectBaselineORM.id == baseline_id)
@@ -85,11 +115,7 @@ def evm_baseline_statement(
 
 
 def evm_baseline_task_facts_statement(
-    *,
-    tenant_id: str,
-    organization_id: str,
-    project_id: str,
-    baseline_id: str,
+    *, tenant_id: str, organization_id: str, project_id: str, baseline_id: str
 ) -> SqlSelect:
     return (
         select(
@@ -103,77 +129,138 @@ def evm_baseline_task_facts_statement(
         .join(ProjectORM, ProjectORM.id == ProjectBaselineORM.project_id)
         .where(
             BaselineTaskORM.baseline_id == baseline_id,
+            _project_scope(tenant_id=tenant_id, organization_id=organization_id, project_id=project_id),
+        )
+        .order_by(BaselineTaskORM.task_id)
+    )
+
+
+def planned_cost_facts_statement(
+    *, tenant_id: str, organization_id: str, project_id: str, as_of: date
+) -> SqlSelect:
+    version_id = (
+        select(ProjectPlannedCostVersionORM.id)
+        .join(ProjectORM, ProjectORM.id == ProjectPlannedCostVersionORM.project_id)
+        .where(
+            ProjectPlannedCostVersionORM.tenant_id == tenant_id,
+            ProjectPlannedCostVersionORM.organization_id == organization_id,
+            ProjectPlannedCostVersionORM.project_id == project_id,
+            ProjectPlannedCostVersionORM.as_of <= as_of,
             _project_scope(
                 tenant_id=tenant_id,
                 organization_id=organization_id,
                 project_id=project_id,
             ),
         )
-        .order_by(BaselineTaskORM.task_id)
+        .order_by(ProjectPlannedCostVersionORM.as_of.desc(), ProjectPlannedCostVersionORM.revision.desc())
+        .limit(1)
+        .scalar_subquery()
     )
-
-
-def cost_item_facts_statement(*, tenant_id: str, organization_id: str, project_id: str)-> SqlSelect:
     return (
         select(
-            CostItemORM.id,
-            CostItemORM.task_id,
-            CostItemORM.description,
-            CostItemORM.cost_type,
-            CostItemORM.currency_code,
-            CostItemORM.planned_amount,
-            CostItemORM.committed_amount,
-            CostItemORM.actual_amount,
-            CostItemORM.forecast_amount,
-            CostItemORM.commitment_status,
-            CostItemORM.incurred_date,
+            ProjectPlannedCostLineORM.id,
+            ProjectPlannedCostLineORM.task_id,
+            ProjectPlannedCostLineORM.resource_id,
+            ProjectPlannedCostLineORM.source_assignment_id,
+            ProjectPlannedCostLineORM.currency_code,
+            ProjectPlannedCostLineORM.amount,
+            ProjectPlannedCostVersionORM.as_of,
         )
-        .join(ProjectORM, ProjectORM.id == CostItemORM.project_id)
-        .where(_project_scope(tenant_id=tenant_id, organization_id=organization_id, project_id=project_id))
-        .order_by(CostItemORM.id)
-    )
-
-
-def cost_aggregate_facts_statement(
-    *, tenant_id: str, organization_id: str, project_id: str, as_of: date
-)-> SqlSelect:
-    actual_in_scope = or_(CostItemORM.incurred_date.is_(None), CostItemORM.incurred_date <= as_of)
-    dimensions = (
-        CostItemORM.cost_type,
-        CostItemORM.currency_code,
-        CostItemORM.commitment_status,
-    )
-    return (
-        select(
-            *dimensions,
-            func.sum(case((CostItemORM.planned_amount > 0, CostItemORM.planned_amount), else_=0.0)),
-            func.sum(case((CostItemORM.committed_amount > 0, CostItemORM.committed_amount), else_=0.0)),
-            func.sum(
-                case(
-                    (and_(actual_in_scope, CostItemORM.actual_amount > 0), CostItemORM.actual_amount),
-                    else_=0.0,
-                )
+        .join(ProjectPlannedCostVersionORM, ProjectPlannedCostVersionORM.id == ProjectPlannedCostLineORM.version_id)
+        .join(ProjectORM, ProjectORM.id == ProjectPlannedCostLineORM.project_id)
+        .where(
+            ProjectPlannedCostLineORM.tenant_id == tenant_id,
+            ProjectPlannedCostLineORM.organization_id == organization_id,
+            ProjectPlannedCostLineORM.project_id == project_id,
+            ProjectPlannedCostLineORM.version_id == version_id,
+            _project_scope(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
             ),
-            func.sum(CostItemORM.planned_amount),
-            func.sum(CostItemORM.committed_amount),
-            func.sum(case((actual_in_scope, CostItemORM.actual_amount), else_=0.0)),
-            func.count(CostItemORM.id),
         )
-        .join(ProjectORM, ProjectORM.id == CostItemORM.project_id)
-        .where(_project_scope(tenant_id=tenant_id, organization_id=organization_id, project_id=project_id))
-        .group_by(*dimensions)
-        .order_by(*dimensions)
+        .order_by(ProjectPlannedCostLineORM.id)
+    )
+
+
+def commitment_facts_statement(
+    *, tenant_id: str, organization_id: str, project_id: str, as_of: date
+) -> SqlSelect:
+    effective_amount = case(
+        (ProjectCommitmentLineORM.state == "closed", ProjectCommitmentLineORM.matched_amount),
+        else_=ProjectCommitmentLineORM.amount,
+    )
+    return (
+        select(
+            ProjectCommitmentLineORM.id,
+            ProjectCommitmentLineORM.task_id,
+            ProjectCommitmentLineORM.purchase_order_line_id,
+            ProjectCommitmentLineORM.currency_code,
+            effective_amount.label("effective_amount"),
+            ProjectCommitmentLineORM.order_date,
+        )
+        .join(ProjectORM, ProjectORM.id == ProjectCommitmentLineORM.project_id)
+        .where(
+            ProjectCommitmentLineORM.tenant_id == tenant_id,
+            ProjectCommitmentLineORM.organization_id == organization_id,
+            ProjectCommitmentLineORM.project_id == project_id,
+            _project_scope(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
+            ),
+            ProjectCommitmentLineORM.state != "cancelled",
+            or_(ProjectCommitmentLineORM.order_date.is_(None), ProjectCommitmentLineORM.order_date <= as_of),
+        )
+        .order_by(ProjectCommitmentLineORM.id)
+    )
+
+
+def actual_cost_facts_statement(
+    *, tenant_id: str, organization_id: str, project_id: str, as_of: date
+) -> SqlSelect:
+    cost_type = case(
+        (ProjectCostEntryORM.posting_purpose == "labor_actual", literal("LABOR")),
+        (ProjectCostEntryORM.posting_purpose == "receipt_accrual", literal("MATERIAL")),
+        else_=literal("OTHER"),
+    )
+    source_key = case(
+        (ProjectCostEntryORM.posting_purpose == "labor_actual", literal("APPROVED_TIME")),
+        (ProjectCostEntryORM.posting_purpose == "receipt_accrual", literal("PROCUREMENT_ACTUAL")),
+        else_=literal("MANUAL_ACTUAL"),
+    )
+    return (
+        select(
+            ProjectCostEntryORM.id,
+            ProjectCostEntryORM.task_id,
+            ProjectCostEntryORM.resource_id,
+            ProjectCostEntryORM.description,
+            ProjectCostEntryORM.base_currency_code,
+            ProjectCostEntryORM.base_amount,
+            ProjectCostEntryORM.posting_date,
+            cost_type.label("cost_type"),
+            source_key.label("source_key"),
+        )
+        .join(ProjectORM, ProjectORM.id == ProjectCostEntryORM.project_id)
+        .where(
+            ProjectCostEntryORM.tenant_id == tenant_id,
+            ProjectCostEntryORM.organization_id == organization_id,
+            ProjectCostEntryORM.project_id == project_id,
+            _project_scope(
+                tenant_id=tenant_id,
+                organization_id=organization_id,
+                project_id=project_id,
+            ),
+            ProjectCostEntryORM.status.in_(("posted", "reversed")),
+            ProjectCostEntryORM.posting_date <= as_of,
+        )
+        .order_by(ProjectCostEntryORM.posting_date, ProjectCostEntryORM.id)
     )
 
 
 def project_resource_facts_statement(*, tenant_id: str, organization_id: str, project_id: str) -> SqlSelect:
     return (
-        select(
-            ProjectResourceORM.id,
-            ProjectResourceORM.resource_id,
-            ProjectResourceORM.planned_hours,
-            ProjectResourceORM.is_active,
-        )
+        select(ProjectResourceORM.id, ProjectResourceORM.resource_id, ProjectResourceORM.planned_hours, ProjectResourceORM.is_active)
         .join(ProjectORM, ProjectORM.id == ProjectResourceORM.project_id)
         .where(_project_scope(tenant_id=tenant_id, organization_id=organization_id, project_id=project_id))
         .order_by(ProjectResourceORM.id)
@@ -182,12 +269,7 @@ def project_resource_facts_statement(*, tenant_id: str, organization_id: str, pr
 
 def assignment_facts_statement(*, tenant_id: str, organization_id: str, project_id: str) -> SqlSelect:
     return (
-        select(
-            TaskAssignmentORM.id,
-            TaskAssignmentORM.task_id,
-            TaskAssignmentORM.resource_id,
-            TaskAssignmentORM.hours_logged,
-        )
+        select(TaskAssignmentORM.id, TaskAssignmentORM.task_id, TaskAssignmentORM.resource_id, TaskAssignmentORM.hours_logged)
         .join(TaskORM, TaskORM.id == TaskAssignmentORM.task_id)
         .join(ProjectORM, ProjectORM.id == TaskORM.project_id)
         .where(_project_scope(tenant_id=tenant_id, organization_id=organization_id, project_id=project_id))
@@ -197,19 +279,26 @@ def assignment_facts_statement(*, tenant_id: str, organization_id: str, project_
 
 def resource_facts_statement(
     *, tenant_id: str, organization_id: str, project_id: str, resource_ids: tuple[str, ...]
-)-> SqlSelect:
-    project_resource_exists = select(ProjectResourceORM.id).join(
-        ProjectORM, ProjectORM.id == ProjectResourceORM.project_id
-    ).where(
-        ProjectResourceORM.resource_id == ResourceORM.id,
-        _project_scope(tenant_id=tenant_id, organization_id=organization_id, project_id=project_id),
-    ).exists()
-    assignment_exists = select(TaskAssignmentORM.id).join(
-        TaskORM, TaskORM.id == TaskAssignmentORM.task_id
-    ).join(ProjectORM, ProjectORM.id == TaskORM.project_id).where(
-        TaskAssignmentORM.resource_id == ResourceORM.id,
-        _project_scope(tenant_id=tenant_id, organization_id=organization_id, project_id=project_id),
-    ).exists()
+) -> SqlSelect:
+    project_resource_exists = (
+        select(ProjectResourceORM.id)
+        .join(ProjectORM, ProjectORM.id == ProjectResourceORM.project_id)
+        .where(
+            ProjectResourceORM.resource_id == ResourceORM.id,
+            _project_scope(tenant_id=tenant_id, organization_id=organization_id, project_id=project_id),
+        )
+        .exists()
+    )
+    assignment_exists = (
+        select(TaskAssignmentORM.id)
+        .join(TaskORM, TaskORM.id == TaskAssignmentORM.task_id)
+        .join(ProjectORM, ProjectORM.id == TaskORM.project_id)
+        .where(
+            TaskAssignmentORM.resource_id == ResourceORM.id,
+            _project_scope(tenant_id=tenant_id, organization_id=organization_id, project_id=project_id),
+        )
+        .exists()
+    )
     return (
         select(ResourceORM.id, ResourceORM.name, ResourceORM.is_active)
         .where(
@@ -223,11 +312,12 @@ def resource_facts_statement(
 
 
 __all__ = [
+    "actual_cost_facts_statement",
     "assignment_facts_statement",
-    "cost_aggregate_facts_statement",
-    "cost_item_facts_statement",
+    "commitment_facts_statement",
     "evm_baseline_statement",
     "evm_baseline_task_facts_statement",
+    "planned_cost_facts_statement",
     "project_fact_statement",
     "project_resource_facts_statement",
     "resource_facts_statement",

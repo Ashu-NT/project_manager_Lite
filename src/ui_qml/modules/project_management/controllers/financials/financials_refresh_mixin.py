@@ -25,9 +25,6 @@ class FinancialsRefreshMixin:
             )
             workspace_state = self._financials_workspace_presenter.build_workspace_state(
                 selected_project_id=self._selected_project_id or None,
-                selected_cost_type=self._selected_cost_type,
-                search_text=self._search_text,
-                selected_cost_id=self._selected_cost_id or None,
                 budget_line_page=self._budget_line_page,
                 rate_line_page=self._rate_line_page,
                 planned_cost_line_page=self._planned_cost_line_page,
@@ -38,9 +35,6 @@ class FinancialsRefreshMixin:
             )
             self._set_project_options(
                 serialize_selector_options(workspace_state.project_options)
-            )
-            self._set_cost_type_options(
-                serialize_selector_options(workspace_state.cost_type_options)
             )
             self._set_task_options(
                 serialize_selector_options(workspace_state.task_options)
@@ -57,18 +51,6 @@ class FinancialsRefreshMixin:
                 }
             )
             self._set_selected_project_id(workspace_state.selected_project_id)
-            self._set_selected_cost_type(workspace_state.selected_cost_type)
-            self._set_search_text(workspace_state.search_text)
-            self._set_costs(
-                serialize_financials_collection_view_model(workspace_state.costs)
-            )
-            self._set_cost_total_count(len(self._costs.get("items") or []))
-            self._set_selected_cost_id(workspace_state.selected_cost_id)
-            self._set_selected_cost(
-                serialize_financials_detail_view_model(
-                    workspace_state.selected_cost_detail
-                )
-            )
             self._set_cashflow(
                 serialize_financials_collection_view_model(workspace_state.cashflow)
             )
@@ -94,6 +76,9 @@ class FinancialsRefreshMixin:
                 serialize_financials_commitment_summary_view_model(
                     workspace_state.commitment_summary
                 )
+            )
+            self._set_commitments(
+                serialize_financials_collection_view_model(workspace_state.commitments)
             )
             self._set_baseline_variance(
                 serialize_financials_baseline_variance_view_models(

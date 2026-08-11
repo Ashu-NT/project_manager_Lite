@@ -7,7 +7,7 @@ from datetime import date
 
 import pytest
 
-from src.tests.project_management.test_reporting_financials_phase3b_measurement import (
+from src.tests.project_management._sql_measurement_helpers import (
     count_calls,
     measure_sql,
 )
@@ -33,8 +33,7 @@ def _seed_portfolio(services, *, project_count: int) -> tuple[str, str]:
             f"Phase 3C Project {index}",
             start_date=date(2024, 1, 8),
             end_date=date(2024, 3, 29),
-            planned_budget=10_000.0 + index,
-            currency="EUR",
+            financial_currency_code="EUR",
         )
         task = task_service.create_task(
             project.id,
@@ -187,7 +186,7 @@ def test_phase3c_measure_portfolio_read_candidates(services, size_name, capsys) 
             assert calls["resource_repo.list"] == 0
             assert calls["resource_repo.get"] == 0
         elif operation_name == "heatmap":
-            expected_sql = {1: 17, 5: 41, 12: 83}[project_count]
+            expected_sql = {1: 18, 5: 42, 12: 84}[project_count]
             assert sql_stats.total_statements == expected_sql
             assert calls["portfolio_heatmap_reader.read_facts"] == 1
             assert calls["project_calendar.working_day_dates_between"] == project_count

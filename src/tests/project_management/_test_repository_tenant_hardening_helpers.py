@@ -126,7 +126,6 @@ def _seed_priority_pm_rows(services):
     (
         assignment_a, assignment_b, dependency_a, dependency_b,
         comment_a, comment_b, presence_a, presence_b,
-        cost_a, cost_b,
         register_a, register_b, baseline_a, baseline_b,
         baseline_task_a, baseline_task_b, variance_a, variance_b,
     ) = _build_priority_detail_rows(now, today, project_a, project_b, resource_a, resource_b, task_a1, task_b1, task_a2, task_b2)
@@ -136,7 +135,6 @@ def _seed_priority_pm_rows(services):
     session.add_all([
         assignment_a, assignment_b, dependency_a, dependency_b,
         comment_a, comment_b, presence_a, presence_b,
-        cost_a, cost_b,
         register_a, register_b, baseline_a, baseline_b,
     ])
     session.commit()
@@ -161,8 +159,6 @@ def _seed_priority_pm_rows(services):
         "dependency_b": dependency_b.id,
         "comment_a": comment_a.id,
         "comment_b": comment_b.id,
-        "cost_a": cost_a.id,
-        "cost_b": cost_b.id,
         "register_a": register_a.id,
         "register_b": register_b.id,
         "baseline_a": baseline_a.id,

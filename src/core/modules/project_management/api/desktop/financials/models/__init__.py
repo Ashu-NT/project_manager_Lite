@@ -1,14 +1,17 @@
 """Financial desktop DTO models."""
 
 from src.core.modules.project_management.api.desktop.financials.models.baseline_variance import BaselineVarianceRecordDto
-from src.core.modules.project_management.api.desktop.financials.models.commitments import FinancialCommitmentSummaryDto
+from src.core.modules.project_management.api.desktop.financials.models.commitments import (
+    FinancialCommitmentLineDto,
+    FinancialCommitmentLinePageDto,
+    FinancialCommitmentSummaryDto,
+)
 from src.core.modules.project_management.api.desktop.financials.models.configuration import (
     FinancialConfigurationFieldDto,
     FinancialConfigurationRecordDto,
     FinancialConfigurationWorkspaceDto,
     FinancialProfileDto,
 )
-from src.core.modules.project_management.api.desktop.financials.models.cost_items import FinancialCostItemDto
 from src.core.modules.project_management.api.desktop.financials.models.cost_entries import (
     FinancialCostCodeOptionDescriptor,
     FinancialCostEntryApprovalDto,
@@ -18,7 +21,6 @@ from src.core.modules.project_management.api.desktop.financials.models.cost_entr
 )
 from src.core.modules.project_management.api.desktop.financials.models.forecasts import FinancialForecastDto
 from src.core.modules.project_management.api.desktop.financials.models.options import (
-    FinancialCostTypeDescriptor,
     FinancialProjectOptionDescriptor,
     FinancialTaskOptionDescriptor,
 )
@@ -33,6 +35,8 @@ __all__ = [
     "BaselineVarianceRecordDto",
     "FinancialAnalyticsRowDto",
     "FinancialCommitmentSummaryDto",
+    "FinancialCommitmentLineDto",
+    "FinancialCommitmentLinePageDto",
     "FinancialConfigurationFieldDto",
     "FinancialConfigurationRecordDto",
     "FinancialConfigurationWorkspaceDto",
@@ -40,8 +44,6 @@ __all__ = [
     "FinancialCostEntryApprovalDto",
     "FinancialCostEntryDto",
     "FinancialCostEntryPageDto",
-    "FinancialCostItemDto",
-    "FinancialCostTypeDescriptor",
     "FinancialForecastDto",
     "FinancialLedgerRowDto",
     "FinancialManualActualOptionsDto",

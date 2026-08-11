@@ -40,7 +40,6 @@ def test_cleared_session_denies_core_read_models(services):
     ps = services["project_service"]
     ts = services["task_service"]
     rs = services["resource_service"]
-    cs = services["cost_service"]
     reporting = services["reporting_service"]
     finance = services["finance_service"]
     dashboard = services["dashboard_service"]
@@ -59,8 +58,6 @@ def test_cleared_session_denies_core_read_models(services):
         ts.list_tasks_for_project(project.id)
     with pytest.raises(BusinessRuleError):
         rs.list_resources()
-    with pytest.raises(BusinessRuleError):
-        cs.list_cost_items_for_project(project.id)
     with pytest.raises(BusinessRuleError):
         reporting.get_project_kpis(project.id)
     with pytest.raises(BusinessRuleError):

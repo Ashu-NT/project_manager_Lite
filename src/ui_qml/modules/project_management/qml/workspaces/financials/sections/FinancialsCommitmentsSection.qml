@@ -13,7 +13,17 @@ Item {
         "invoicedLabel": "", "paidLabel": "", "exposureLabel": "",
         "paidLabel": "", "commitmentRatePct": 0
     })
+    property var commitmentsModel: ({ "title": "", "subtitle": "", "emptyState": "", "items": [] })
+    property var commitmentsTableModel: null
     property bool isBusy: false
+
+    readonly property var _columns: [
+        { "key": "title", "label": "Source line", "flex": 1.5 },
+        { "key": "subtitle", "label": "Lifecycle", "flex": 1 },
+        { "key": "statusLabel", "label": "Committed", "flex": 0, "minWidth": 120 },
+        { "key": "supportingText", "label": "Matched / Remaining", "flex": 2 },
+        { "key": "metaText", "label": "Delivery / Order", "flex": 0, "minWidth": 130 }
+    ]
 
     implicitHeight: _col.implicitHeight
 
@@ -112,6 +122,38 @@ Item {
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.smallSize
                     wrapMode: Text.WordWrap
+                }
+
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.AppTheme.divider }
+
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    text: root.commitmentsModel.subtitle || "Procurement commitment lifecycle"
+                    color: Theme.AppTheme.textSecondary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    wrapMode: Text.WordWrap
+                }
+
+                AppWidgets.EmptyState {
+                    Layout.fillWidth: true
+                    visible: (root.commitmentsModel.items || []).length === 0
+                    title: root.commitmentsModel.emptyState || "No commitments"
+                    message: "No procurement commitment lines are linked to this project."
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 240
+                    visible: (root.commitmentsModel.items || []).length > 0
+
+                    AppWidgets.DataTable {
+                        anchors.fill: parent
+                        columns: root._columns
+                        sourceModel: root.commitmentsTableModel
+                        loading: root.isBusy
+                        emptyText: root.commitmentsModel.emptyState || "No commitments."
+                    }
                 }
             }
         }

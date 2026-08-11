@@ -2,12 +2,37 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 
 import pytest
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.tests.ui_runtime_helpers import login_as
+
+
+def _approve_project_budget(services, project_id: str, amount: str) -> None:
+    configuration = services["financial_configuration_service"]
+    budgets = services["budget_service"]
+    code = configuration.create_cost_code(
+        code=f"PORT-{project_id[:8]}",
+        name="Portfolio authorization",
+    )
+    budget = budgets.create_budget(project_id, "Approved portfolio budget")
+    budgets.add_line(
+        budget.id,
+        cost_code_id=code.id,
+        description="Authorized amount",
+        amount=Decimal(amount),
+        expected_budget_version=budget.row_version,
+    )
+    budget = budgets.get_budget(budget.id)
+    budget = budgets.submit_budget(
+        budget.id, "admin", expected_version=budget.row_version
+    )
+    budgets.approve_budget(
+        budget.id, approved_by="admin", expected_version=budget.row_version
+    )
 
 
 def test_auth_service_locks_accounts_and_expires_sessions(services, monkeypatch):
@@ -229,7 +254,8 @@ def test_portfolio_scenario_evaluation_rolls_up_budget_and_capacity(services):
     resource_service = services["resource_service"]
 
     resource_service.create_resource("Portfolio Analyst", hourly_rate=100.0, capacity_percent=50.0)
-    project = project_service.create_project("Portfolio Project", planned_budget=500.0)
+    project = project_service.create_project("Portfolio Project")
+    _approve_project_budget(services, project.id, "500")
     intake = portfolio.create_intake_item(
         title="New Initiative",
         sponsor_name="PMO",
@@ -301,8 +327,10 @@ def test_portfolio_scenario_comparison_highlights_delta_and_selection_changes(se
     resource_service = services["resource_service"]
 
     resource_service.create_resource("Portfolio Capacity", hourly_rate=95.0, capacity_percent=100.0)
-    project_alpha = project_service.create_project("Portfolio Alpha", planned_budget=400.0)
-    project_beta = project_service.create_project("Portfolio Beta", planned_budget=700.0)
+    project_alpha = project_service.create_project("Portfolio Alpha")
+    project_beta = project_service.create_project("Portfolio Beta")
+    _approve_project_budget(services, project_alpha.id, "400")
+    _approve_project_budget(services, project_beta.id, "700")
     intake_keep = portfolio.create_intake_item(
         title="Legacy Intake",
         sponsor_name="PMO",
@@ -359,7 +387,8 @@ def test_portfolio_executive_views_roll_up_heatmap_and_recent_pm_actions(service
     task_service = services["task_service"]
     timesheet_service = services["timesheet_service"]
 
-    project = project_service.create_project("Executive Pressure Project", planned_budget=200.0)
+    project = project_service.create_project("Executive Pressure Project")
+    _approve_project_budget(services, project.id, "200")
     resource = resource_service.create_resource("Executive Analyst", hourly_rate=100.0, capacity_percent=80.0)
     task = task_service.create_task(
         project.id,

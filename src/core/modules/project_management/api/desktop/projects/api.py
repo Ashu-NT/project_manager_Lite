@@ -98,6 +98,8 @@ class ProjectManagementProjectsDesktopApi:
                 serialize_project(
                     item.project,
                     site_lookup={str(item.project.site_id or ""): item.site_label},
+                    financial_currency_code=item.financial_currency_code,
+                    approved_budget=item.approved_budget,
                 )
                 for item in result.items
             ),
@@ -140,8 +142,7 @@ class ProjectManagementProjectsDesktopApi:
             status=coerce_project_status(command.status),
             client_name=command.client_name,
             client_contact=command.client_contact,
-            planned_budget=command.planned_budget,
-            currency=command.currency,
+            financial_currency_code=command.financial_currency_code,
             start_date=command.start_date,
             end_date=command.end_date,
             organization_id=command.organization_id,
@@ -164,8 +165,6 @@ class ProjectManagementProjectsDesktopApi:
             end_date=command.end_date,
             client_name=command.client_name,
             client_contact=command.client_contact,
-            planned_budget=command.planned_budget,
-            currency=command.currency,
             organization_id=command.organization_id,
             site_id=command.site_id,
             client_party_id=command.client_party_id,

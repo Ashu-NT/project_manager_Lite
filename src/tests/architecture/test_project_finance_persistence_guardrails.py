@@ -28,7 +28,6 @@ PROJECT_FINANCE_SCOPED_TABLES = {
 }
 PROJECT_FINANCE_RLS_SCOPE = "tenant_organization"
 FINANCE_PRIMITIVES_ROOT = Path("src/core/platform/finance")
-PROJECT_FINANCE_TRANSITION_MARKER = "PF-B1-CURRENCY-DUAL-WRITE"
 PROJECT_FINANCE_TRANSITION_FILES = (
     Path(
         "src/core/modules/project_management/application/financials/"
@@ -139,13 +138,13 @@ def test_every_project_finance_table_has_direct_scope_and_rls_marker() -> None:
             assert column.type.scale == convention.scale
 
 
-def test_phase_b1_currency_transition_is_marked_once_per_path_and_registered() -> None:
-    source_occurrences = sum(
-        path.read_text(encoding="utf-8").count(PROJECT_FINANCE_TRANSITION_MARKER)
-        for path in PROJECT_FINANCE_TRANSITION_FILES
+def test_project_finance_has_no_currency_dual_write_or_project_finance_columns() -> None:
+    source = "\n".join(
+        path.read_text(encoding="utf-8") for path in PROJECT_FINANCE_TRANSITION_FILES
     )
-    plan = PROJECT_FINANCE_PLAN.read_text(encoding="utf-8")
+    projects = Base.metadata.tables["projects"]
 
-    assert source_occurrences == 2
-    assert PROJECT_FINANCE_TRANSITION_MARKER in plan
-    assert "Profile-to-Project and Project-to-profile currency synchronization" in plan
+    assert "PF-B1-CURRENCY-DUAL-WRITE" not in source
+    assert "currency_projection_update" not in source
+    assert "planned_budget" not in projects.c
+    assert "currency" not in projects.c

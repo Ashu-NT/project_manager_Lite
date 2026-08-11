@@ -12,7 +12,6 @@ def test_compare_baselines_returns_added_removed_changed_and_cost_delta(services
     ps = services["project_service"]
     ts = services["task_service"]
     bs = services["baseline_service"]
-    cost_s = services["cost_service"]
     rp = services["reporting_service"]
 
     project = ps.create_project("Baseline Compare", "")
@@ -20,13 +19,11 @@ def test_compare_baselines_returns_added_removed_changed_and_cost_delta(services
 
     task_a = ts.create_task(pid, "Task A", start_date=date(2024, 1, 1), duration_days=2)
     task_b = ts.create_task(pid, "Task B", start_date=date(2024, 1, 3), duration_days=2)
-    cost_s.add_cost_item(project_id=pid, description="A planned", planned_amount=100.0, task_id=task_a.id)
     baseline_1 = bs.create_baseline(pid, "BL1", rate_as_of=date.today())
 
     ts.update_task(task_a.id, start_date=date(2024, 1, 2), duration_days=3)
     ts.delete_task(task_b.id)
     task_c = ts.create_task(pid, "Task C", start_date=date(2024, 1, 8), duration_days=1)
-    cost_s.add_cost_item(project_id=pid, description="A extra", planned_amount=50.0, task_id=task_a.id)
     baseline_2 = bs.create_baseline(pid, "BL2", rate_as_of=date.today())
 
     comparison = rp.compare_baselines(
@@ -45,7 +42,7 @@ def test_compare_baselines_returns_added_removed_changed_and_cost_delta(services
     rows_by_id = {row.task_id: row for row in comparison.rows}
     assert rows_by_id[task_a.id].change_type == "CHANGED"
     assert rows_by_id[task_a.id].start_shift_days == 1
-    assert rows_by_id[task_a.id].planned_cost_delta == pytest.approx(50.0)
+    assert rows_by_id[task_a.id].planned_cost_delta == pytest.approx(0.0)
 
     assert rows_by_id[task_b.id].change_type == "REMOVED"
     assert rows_by_id[task_b.id].task_name == "Task B"
@@ -104,12 +101,10 @@ def test_baseline_approval_tracks_current_approved_and_variance_records(services
     ps = services["project_service"]
     ts = services["task_service"]
     bs = services["baseline_service"]
-    cost_s = services["cost_service"]
 
     project = ps.create_project("Baseline Governance", "")
     pid = project.id
     task = ts.create_task(pid, "Critical Task", start_date=date(2024, 4, 1), duration_days=2)
-    cost_s.add_cost_item(project_id=pid, description="Initial plan", planned_amount=100.0, task_id=task.id)
 
     baseline_1 = bs.create_baseline(pid, "BL1", rate_as_of=date.today())
     bs.submit_baseline(baseline_1.id, submitted_by="alex")
@@ -120,7 +115,6 @@ def test_baseline_approval_tracks_current_approved_and_variance_records(services
     assert bs.list_variance_records(baseline_1.id) == []
 
     ts.update_task(task.id, start_date=date(2024, 4, 3), duration_days=4)
-    cost_s.add_cost_item(project_id=pid, description="Growth", planned_amount=25.0, task_id=task.id)
 
     baseline_2 = bs.create_baseline(pid, "BL2", rate_as_of=date.today())
     bs.submit_baseline(baseline_2.id, submitted_by="alex")
@@ -136,5 +130,5 @@ def test_baseline_approval_tracks_current_approved_and_variance_records(services
     assert variance_rows[0].task_id == task.id
     assert variance_rows[0].start_variance_days == 2
     assert variance_rows[0].finish_variance_days > 0
-    assert variance_rows[0].cost_variance == pytest.approx(25.0)
+    assert variance_rows[0].cost_variance == pytest.approx(0.0)
 
