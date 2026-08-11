@@ -513,9 +513,11 @@ The transition import/checkpoint implementation and its tests are removed. The f
 portfolio reader use separate scoped canonical authorities and aggregate only after acquisition;
 architecture tests enforce scope and prohibit cross-source SQL fan-out. Alembic revision IDs are
 unique and the graph is single-headed. Focused canonical finance, commitment, command, migration,
-CQRS, and QML checks pass. The broader PM suite exposed obsolete legacy fixtures that are being
-deleted or rewritten as canonical test data; it also found and fixed one real baseline leftover
-(`planned_labor_total`).
+CQRS, and QML checks pass. Obsolete legacy fixtures and phase-measurement suites were deleted or
+rewritten against canonical facts; neutral SQL measurement helpers were extracted for the
+remaining performance suites. Full test collection succeeds, and the cleanup also found and fixed
+one real baseline leftover (`planned_labor_total`). Canonical labor rows from every source are
+aggregated and identity-redacted unless the caller has project-scoped `finance.read_sensitive`.
 
 ## 3. Finance — Phase D and E (future, not started)
 

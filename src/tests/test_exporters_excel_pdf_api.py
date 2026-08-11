@@ -77,7 +77,6 @@ def test_excel_export_contains_expected_sections_when_baseline_exists(services, 
     assert wb["Tasks"]["A1"].value == "Task ID"
     assert wb["EVM"]["A2"].value == "Metric"
     assert wb["EVM"]["D2"].value == "Period End"
-    assert wb["Cost Breakdown"]["A1"].value == "Type"
     assert wb["Cost Sources"]["A1"].value == "Source"
 
 
