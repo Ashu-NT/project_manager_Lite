@@ -17,6 +17,9 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
     SqlAlchemyPortfolioScenarioRepository,
 )
 from src.core.modules.project_management.infrastructure.persistence.repositories.baseline import SqlAlchemyBaselineRepository
+from src.core.modules.project_management.infrastructure.persistence.repositories.billing import (
+    SqlAlchemyProjectBillingRepository,
+)
 from src.core.modules.project_management.infrastructure.persistence.repositories.budget import (
     SqlAlchemyProjectBudgetRepository,
 )
@@ -193,6 +196,7 @@ class RepositoryBundle:
     procurement_financial_outbox_repo: SqlAlchemyProcurementFinancialOutboxRepository
     project_finance_inbox_repo: SqlAlchemyProjectFinanceInboxRepository
     approved_time_labor_posting_repo: SqlAlchemyApprovedTimeLaborPostingRepository
+    project_billing_repo: SqlAlchemyProjectBillingRepository
 
 
 def build_repository_bundle(session: Session) -> RepositoryBundle:
@@ -275,6 +279,7 @@ def build_repository_bundle(session: Session) -> RepositoryBundle:
         procurement_financial_outbox_repo=SqlAlchemyProcurementFinancialOutboxRepository(session),
         project_finance_inbox_repo=SqlAlchemyProjectFinanceInboxRepository(session),
         approved_time_labor_posting_repo=SqlAlchemyApprovedTimeLaborPostingRepository(session),
+        project_billing_repo=SqlAlchemyProjectBillingRepository(session),
     )
     logger.debug(
         "Repository bundle build complete duration_ms=%.1f repository_count=%s",

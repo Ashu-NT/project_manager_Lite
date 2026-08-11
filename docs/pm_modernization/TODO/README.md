@@ -645,8 +645,10 @@ unrelated repository-wide generated-file size guard deselected).
   float branch were deleted. The dead baseline unassigned-budget allocation branch was also removed;
   baselines consume only canonical immutable planned-cost lines. Architecture tests prevent the
   converters, transition markers, or Float-backed PM financial columns from returning.
-- **Phase E** (billing/revenue/external accounting): blocked on ADR-PF-010 (currently
-  PROPOSED, not accepted) and the product decisions in §24 items 10-15 of the master doc.
+- **Phase E** (billing preparation/revenue projections/external accounting): **in progress**.
+  ADR-PF-010 was accepted on 2026-08-11 and the product decisions in section 24 items 10-15
+  are resolved. PM owns commercial preparation and managerial projections; Accounting owns
+  statutory invoices, receivables, payments, tax, and ledger truth.
 
 Phase D.1A-D.2 verification: focused financial-change and forecast lifecycle/lineage/migration
 coverage passes (`22 passed`). Combined D.2, forecast, task hierarchy/domain, schedule-impact,
@@ -701,27 +703,29 @@ The only retained row is a future Phase E mechanism that has never been created:
 Phase D float-retirement verification: canonical persistence/DTO/baseline/assignment and migration
 graph checkpoint passes `54` tests. The broader PM finance/resource/portfolio/baseline/assignment
 selection passes `342` tests (`253 deselected`, 22 dependency warnings) after correcting stale
-Decimal-contract fixtures. Phase E remains blocked by the decisions below.
+Decimal-contract fixtures. Phase E implementation is proceeding under accepted ADR-PF-010.
 
-## 5. Finance — open product decisions blocking later phases
+## 5. Finance — resolved Phase E product decisions
 
-Source: same doc §24. Unresolved (items already resolved by an accepted ADR are omitted):
+Source: master doc section 24 and accepted ADR-PF-010.
 
-- Which budget dimensions are mandatory in the first release beyond cost code/WBS (department,
-  period, funding source)?
-- Are projects single-currency, multi-currency-with-one-reporting-currency, or unrestricted
-  multi-currency?
-- Monetary precision, rounding mode, and line-vs-total rounding rules?
-- Are manual actual costs allowed, and who may post/reverse them?
-- Approval thresholds and separation-of-duties rules by tenant/org/department/project/amount/currency?
-- Are expense claims in-product, a future Expenses module, or external-only?
-- Which billing methods are in first PM scope — does PM only prepare billing or issue invoices?
-- Is revenue recognition required, or are contract/billable/invoiced projections enough?
-- Target external accounting/ERP system, identifiers, export format, acknowledgement/reconciliation workflow?
-- Period-close authority and late-adjustment policy?
-- Retention/export rules for financial audit, approval, source documents, reversals?
-- ADR-PF-010 (billing vs. external-accounting boundary) needs to move from PROPOSED to ACCEPTED
-  before any Phase E work.
+- First-release billing methods are time-and-materials, fixed-price, and cost-plus. Unit and
+  recurring billing remain deferred.
+- PM prepares governed billing payloads only. It never creates authoritative invoices,
+  receivables, payments, tax postings, or general-ledger records.
+- Fixed-price preparation uses PM-owned schedule lines, optionally linked to task milestones;
+  time-and-materials uses approved time plus an immutable billing-rate snapshot; cost-plus uses
+  posted cost plus an immutable markup snapshot.
+- Expense capture is deferred to a future Expenses capability. PM may consume externally posted,
+  reconciled expense cost facts as billable sources.
+- PM provides contract, billable, externally invoiced, and revenue projections only. Statutory
+  revenue recognition remains in Accounting.
+- The vendor-neutral outbound contract is `project_billing_preparation.v1`; external outcomes are
+  consumed as idempotent, append-only reconciliation evidence.
+- Closed periods reject new preparation. Corrections use linked reversal/replacement preparations
+  in an open period rather than mutating historical evidence.
+- Billing evidence is append-only with configurable retention of at least seven years and legal
+  hold support.
 
 ## 6. PM Enterprise UI/UX — pending items
 

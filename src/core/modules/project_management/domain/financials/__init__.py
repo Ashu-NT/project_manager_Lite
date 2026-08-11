@@ -23,9 +23,31 @@ from src.core.modules.project_management.domain.financials.configuration import 
     ProjectCostCodeRestriction,
     ProjectFinancialProfile,
 )
+from src.core.modules.project_management.domain.financials.billing_profile import (
+    BillingProfileStatus,
+    BillingScheduleLineStatus,
+    ProjectBillingProfile,
+    ProjectBillingScheduleLine,
+)
+from src.core.modules.project_management.domain.financials.billing_preparation import (
+    BillableSourceType,
+    BillingExternalEventType,
+    BillingPreparationStatus,
+    BillingSourceLockStatus,
+    ProjectBillingExternalEvent,
+    ProjectBillingPreparation,
+    ProjectBillingPreparationLine,
+    ProjectBillingSourceLock,
+)
 
 __all__ = [
     "BillingMethod",
+    "BillingProfileStatus",
+    "BillingScheduleLineStatus",
+    "BillableSourceType",
+    "BillingExternalEventType",
+    "BillingPreparationStatus",
+    "BillingSourceLockStatus",
     "BudgetControlMode",
     "CostCodePolicy",
     "FinancialProfileStatus",
@@ -41,4 +63,10 @@ __all__ = [
     "ProjectCommitmentMatchKind",
     "ProjectCommitmentSourceRevision",
     "ProjectFinancialProfile",
+    "ProjectBillingExternalEvent",
+    "ProjectBillingPreparation",
+    "ProjectBillingPreparationLine",
+    "ProjectBillingProfile",
+    "ProjectBillingScheduleLine",
+    "ProjectBillingSourceLock",
 ]

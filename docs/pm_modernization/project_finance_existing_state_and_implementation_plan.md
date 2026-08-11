@@ -1,6 +1,6 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: audit complete; Phase A-D complete; Phase E blocked
+Status: audit complete; Phase A-D complete; Phase E in progress
 Last updated: 2026-08-11
 Scope: Project Management finance plus reusable platform financial foundations
 Current checkpoint: Phase D is complete. Project snapshot, cash flow,
@@ -12,8 +12,8 @@ The transient forecast formula service, misleading duplicate UI/export placehold
 component, and deprecated export wrapper are deleted. Forecast/ETC, Change Control, stored baseline
 Variance, and Reports now expose canonical version basis and source drill-down without desktop
 formulas. All registered Phase D float conversions and Float-backed PM money/rate/quantity columns
-are retired; Phase E remains blocked by ADR-PF-010 and unresolved product
-decisions. See [TODO/README.md](TODO/README.md) for
+are retired. ADR-PF-010 and the Phase E product decisions were accepted on
+2026-08-11; Phase E implementation is now in progress. See [TODO/README.md](TODO/README.md) for
 the concise execution checkpoint.
 
 Historical implementation checkpoint: Task-owned WBS, effective-dated rate cards (ADR-PF-005) with the
@@ -1252,9 +1252,9 @@ portfolio/baseline/assignment selection passes `342` tests (`253 deselected`, 22
 
 Ownership: **PROJECT FINANCE + FUTURE BILLING/ACCOUNTING OWNER + INTEGRATION**
 
-ADR gate: ADR-PF-010 must be accepted before billing or external-accounting implementation.
+ADR gate: **OPENED 2026-08-11.** ADR-PF-010 and the first-release product scope are accepted.
 
-1. Resolve the product decisions in Section 24 before implementation.
+1. Complete: resolve the product decisions in Section 24 before implementation.
 2. Add PM billing profiles/schedules and billing-preparation aggregates for the approved methods only.
 3. Select eligible billable time/expenses/milestones with idempotent source locks to prevent duplicate billing.
 4. Export approved billing preparations or posted costs through typed accounting contracts and store acknowledgement/reconciliation references.
@@ -1468,7 +1468,7 @@ The repository already uses global ADR-001 through ADR-004, so Project Finance d
 | [ADR-PF-007](../architecture_decisions/ADR-PF-007-procurement-financial-triggers.md) | Procurement commitment and actual triggers | ACCEPTED; PHASE C.5 PO/RECEIPT DELIVERY IMPLEMENTED | A2 contract/C consumer |
 | [ADR-PF-008](../architecture_decisions/ADR-PF-008-approval-unit-of-work.md) | Approval and unit-of-work transaction model | ACCEPTED; INITIAL TRANSACTION CUTOVER IMPLEMENTED | A0 approval refactor |
 | [ADR-PF-009](../architecture_decisions/ADR-PF-009-cost-code-ownership.md) | Cost-code ownership and hierarchy | ACCEPTED; PHASE B1 FOUNDATION IMPLEMENTED | B cost-code schema |
-| [ADR-PF-010](../architecture_decisions/ADR-PF-010-billing-and-accounting-boundary.md) | Billing versus external accounting ownership | PROPOSED | E implementation |
+| [ADR-PF-010](../architecture_decisions/ADR-PF-010-billing-and-accounting-boundary.md) | Billing versus external accounting ownership | ACCEPTED 2026-08-11; PHASE E IN PROGRESS | E implementation |
 | [ADR-PF-011](../architecture_decisions/ADR-PF-011-durable-integration-outbox-inbox.md) | Durable outbox/inbox ownership and delivery semantics | ACCEPTED; C.4/C.5 OWNED STORES AND CONSUMERS IMPLEMENTED | A2 decision/C consumers |
 
 ### Product questions
@@ -1484,12 +1484,12 @@ These are genuine product/ownership decisions. Questions mapped to A0/A1/A2 ADRs
 7. Resolved by ADR-PF-007: PO SENT creates commitment and receipt POSTED creates accrual actual; a later invoice reclassifies that accrual.
 8. Implementation baseline: manual actuals are allowed through the canonical governed lifecycle; Finance Controller authority plus project-owner scope may post/reverse. Confirm whether tenants may disable manual actuals or require stricter amount/department separation-of-duties policy.
 9. Which approval thresholds and separation-of-duties rules vary by tenant, organization, department, project, amount, and currency?
-10. Are expense claims in this product, a future Expenses module, or external-only?
-11. Which billing methods are in the first PM scope, and does PM only prepare billing or issue official invoices?
-12. Is revenue recognition required, or are contract/billable/invoiced projections sufficient?
-13. Which external accounting/ERP system is the first target, and what identifiers, export format, acknowledgements, and reconciliation workflow does it require?
-14. What period-close authority and late-adjustment policy applies?
-15. What retention and export rules apply to financial audit, approval, source documents, and reversals?
+10. Resolved by ADR-PF-010: expense-claim capture belongs to a future Expenses owner. Canonical externally sourced posted expenses may be selected for billing.
+11. Resolved by ADR-PF-010: first release supports T&M, fixed-price schedules/milestones, and cost-plus preparation only. PM does not issue official invoices.
+12. Resolved by ADR-PF-010: contract, billable, externally invoiced/paid, and profitability projections are sufficient; statutory revenue recognition remains external.
+13. Resolved by ADR-PF-010: use vendor-neutral `project_billing_preparation.v1` durable delivery and acknowledgement/reconciliation contracts; ERP adapters remain outside PM.
+14. Resolved by ADR-PF-010: closed periods reject new preparation; corrections use linked reversal/replacement preparations in an open period.
+15. Resolved by ADR-PF-010: approved billing and reconciliation evidence is immutable/append-only, legal hold blocks deletion, and tenant policy has a seven-year default.
 
 ## 25. Final Recommendation
 
