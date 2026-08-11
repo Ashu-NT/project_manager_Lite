@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.reads.portfolio.models.scenario_facts import (
@@ -20,6 +20,10 @@ from src.core.modules.project_management.domain.portfolio import (
 from src.core.modules.project_management.infrastructure.persistence.orm.portfolio import (
     PortfolioIntakeItemORM,
     PortfolioScenarioORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.budget import (
+    BudgetLineORM,
+    ProjectBudgetORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
 from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
@@ -87,14 +91,36 @@ class SqlAlchemyPortfolioScenarioReader:
         tasks: tuple[PortfolioScenarioTaskFact, ...] = ()
         assignments: tuple[PortfolioScenarioAssignmentFact, ...] = ()
         if accessible_project_ids:
+            approved_budget = (
+                select(func.coalesce(func.sum(BudgetLineORM.amount), 0))
+                .join(
+                    ProjectBudgetORM,
+                    (ProjectBudgetORM.id == BudgetLineORM.budget_id)
+                    & (ProjectBudgetORM.tenant_id == BudgetLineORM.tenant_id)
+                    & (ProjectBudgetORM.organization_id == BudgetLineORM.organization_id)
+                    & (ProjectBudgetORM.project_id == BudgetLineORM.project_id),
+                )
+                .where(
+                    ProjectBudgetORM.tenant_id == ProjectORM.tenant_id,
+                    ProjectBudgetORM.organization_id == ProjectORM.organization_id,
+                    ProjectBudgetORM.project_id == ProjectORM.id,
+                    ProjectBudgetORM.status == "approved",
+                )
+                .correlate(ProjectORM)
+                .scalar_subquery()
+            )
             projects = tuple(
                 PortfolioScenarioProjectFact(
                     id=str(row.id),
                     name=str(row.name or ""),
-                    planned_budget=float(row.planned_budget or 0.0),
+                    approved_budget=float(row.approved_budget or 0.0),
                 )
                 for row in self._session.execute(
-                    select(ProjectORM.id, ProjectORM.name, ProjectORM.planned_budget)
+                    select(
+                        ProjectORM.id,
+                        ProjectORM.name,
+                        approved_budget.label("approved_budget"),
+                    )
                     .where(
                         ProjectORM.tenant_id == tenant_id,
                         ProjectORM.organization_id == organization_id,

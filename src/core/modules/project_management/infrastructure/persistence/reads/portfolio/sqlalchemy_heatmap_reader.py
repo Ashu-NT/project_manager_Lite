@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, aliased
 
 from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
@@ -27,12 +27,19 @@ from src.core.modules.project_management.contracts.reads.portfolio.models.heatma
 from src.core.modules.project_management.infrastructure.persistence.orm.commitment import (
     ProjectCommitmentLineORM,
 )
+from src.core.modules.project_management.infrastructure.persistence.orm.budget import (
+    BudgetLineORM,
+    ProjectBudgetORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.cost_entry import (
     ProjectCostEntryORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.planned_cost import (
     ProjectPlannedCostLineORM,
     ProjectPlannedCostVersionORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.financial_configuration import (
+    ProjectFinancialProfileORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.project import (
     ProjectORM,
@@ -68,16 +75,40 @@ class SqlAlchemyPortfolioHeatmapReader:
             ProjectORM.organization_id == organization_id,
             ProjectORM.id.in_(project_ids),
         )
+        approved_budget = (
+            select(func.coalesce(func.sum(BudgetLineORM.amount), 0))
+            .join(
+                ProjectBudgetORM,
+                (ProjectBudgetORM.id == BudgetLineORM.budget_id)
+                & (ProjectBudgetORM.tenant_id == BudgetLineORM.tenant_id)
+                & (ProjectBudgetORM.organization_id == BudgetLineORM.organization_id)
+                & (ProjectBudgetORM.project_id == BudgetLineORM.project_id),
+            )
+            .where(
+                ProjectBudgetORM.tenant_id == ProjectORM.tenant_id,
+                ProjectBudgetORM.organization_id == ProjectORM.organization_id,
+                ProjectBudgetORM.project_id == ProjectORM.id,
+                ProjectBudgetORM.status == "approved",
+            )
+            .correlate(ProjectORM)
+            .scalar_subquery()
+        )
         project_rows = tuple(
             self._session.execute(
                 select(
                     ProjectORM.id,
                     ProjectORM.name,
                     ProjectORM.status,
-                    ProjectORM.currency,
-                    ProjectORM.planned_budget,
+                    ProjectFinancialProfileORM.currency_code,
+                    approved_budget.label("approved_budget"),
                     ProjectORM.start_date,
                     ProjectORM.end_date,
+                )
+                .join(
+                    ProjectFinancialProfileORM,
+                    (ProjectFinancialProfileORM.project_id == ProjectORM.id)
+                    & (ProjectFinancialProfileORM.tenant_id == ProjectORM.tenant_id)
+                    & (ProjectFinancialProfileORM.organization_id == ProjectORM.organization_id),
                 )
                 .where(*project_scope)
                 .order_by(ProjectORM.id)
@@ -353,8 +384,8 @@ class SqlAlchemyPortfolioHeatmapReader:
                     project_id=project_id,
                     tenant_id=tenant_id,
                     organization_id=organization_id,
-                    currency=project_row.currency,
-                    planned_budget=float(project_row.planned_budget or 0.0),
+                    currency_code=str(project_row.currency_code),
+                    approved_budget=float(project_row.approved_budget or 0.0),
                     start_date=project_row.start_date,
                     end_date=project_row.end_date,
                 ),

@@ -18,7 +18,7 @@ class PortfolioScenarioFact:
 class PortfolioScenarioProjectFact:
     id: str
     name: str
-    planned_budget: float
+    approved_budget: float
 
 
 @dataclass(frozen=True, slots=True)

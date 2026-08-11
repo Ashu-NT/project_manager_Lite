@@ -10,8 +10,10 @@ def serialize_project(
     project,
     *,
     site_lookup: Mapping[str, str] | None = None,
+    financial_currency_code: str = "",
+    approved_budget: float | None = None,
 ) -> ProjectDesktopDto:
-    resolved_currency = (project.currency or "").strip().upper() or None
+    resolved_currency = str(financial_currency_code or "").strip().upper()
     normalized_site_id = str(getattr(project, "site_id", "") or "").strip() or None
     resolved_site_label = (
         (site_lookup or {}).get(normalized_site_id or "", "")
@@ -29,9 +31,9 @@ def serialize_project(
         end_date=project.end_date,
         client_name=project.client_name,
         client_contact=project.client_contact,
-        planned_budget=project.planned_budget,
-        planned_budget_label=format_budget(project.planned_budget, resolved_currency),
-        currency=resolved_currency,
+        approved_budget=approved_budget,
+        approved_budget_label=format_budget(approved_budget, resolved_currency or None),
+        financial_currency_code=resolved_currency,
         organization_id=getattr(project, "organization_id", None),
         site_id=normalized_site_id,
         site_label=resolved_site_label,

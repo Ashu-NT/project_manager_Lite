@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.modules.project_management.infrastructure.reporting import (
@@ -13,7 +12,6 @@ from src.core.modules.project_management.infrastructure.reporting import (
 
 class DashboardAlertsMixin:
     _tasks: TaskService
-    _projects: ProjectService
 
     def _build_alerts(
         self,
@@ -25,16 +23,6 @@ class DashboardAlertsMixin:
     ) -> list[str]:
         alerts: list[str] = []
         today = date.today()
-        project = self._projects.get_project(project_id)
-        budget = float(getattr(project, "planned_budget", 0.0) or 0.0)
-
-        if budget > 0.0 and float(kpi.total_planned_cost or 0.0) > budget + 1e-9:
-            planned = float(kpi.total_planned_cost or 0.0)
-            alerts.append(
-                "Budget warning: planned cost exceeds project budget "
-                f"({planned:.2f} vs {budget:.2f})."
-            )
-
         for row in resource_load:
             utilization = float(getattr(row, "utilization_percent", row.total_allocation_percent) or 0.0)
             capacity = float(getattr(row, "capacity_percent", 100.0) or 100.0)

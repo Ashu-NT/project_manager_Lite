@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
@@ -26,6 +27,34 @@ def _assign(
         planned_hours=40.0,
         hourly_rate=80.0,
         currency_code="EUR",
+    )
+
+
+def _approve_budget(services, project_id: str, amount: str) -> None:
+    configuration = services["financial_configuration_service"]
+    budgets = services["budget_service"]
+    code = configuration.create_cost_code(
+        code=f"SCN-{project_id[:8]}",
+        name="Scenario budget",
+    )
+    budget = budgets.create_budget(project_id, "Approved scenario budget")
+    budgets.add_line(
+        budget.id,
+        cost_code_id=code.id,
+        description="Authorized amount",
+        amount=Decimal(amount),
+        expected_budget_version=budget.row_version,
+    )
+    budget = budgets.get_budget(budget.id)
+    budget = budgets.submit_budget(
+        budget.id,
+        "admin",
+        expected_version=budget.row_version,
+    )
+    budgets.approve_budget(
+        budget.id,
+        approved_by="admin",
+        expected_version=budget.row_version,
     )
     services["task_service"].assign_project_resource(
         task_id=task_id,
@@ -60,8 +89,10 @@ def test_scenario_reader_preserves_capacity_budget_intake_and_comparison(service
         capacity_percent=900.0,
         currency_code="EUR",
     )
-    alpha = projects.create_project("Alpha", planned_budget=400.0, currency="EUR")
-    beta = projects.create_project("Beta", planned_budget=700.0, currency="EUR")
+    alpha = projects.create_project("Alpha", financial_currency_code="EUR")
+    beta = projects.create_project("Beta", financial_currency_code="EUR")
+    _approve_budget(services, alpha.id, "400")
+    _approve_budget(services, beta.id, "700")
 
     alpha_scheduled = tasks.create_task(
         alpha.id,
@@ -148,7 +179,9 @@ def test_scenario_reader_preserves_capacity_budget_intake_and_comparison(service
 
 def test_scenario_comparison_reads_one_fact_graph(services, monkeypatch) -> None:
     portfolio = services["portfolio_service"]
-    project = services["project_service"].create_project("Single", currency="EUR")
+    project = services["project_service"].create_project(
+        "Single", financial_currency_code="EUR"
+    )
     base = portfolio.create_scenario(name="Base", project_ids=[project.id], intake_item_ids=[])
     candidate = portfolio.create_scenario(
         name="Candidate",

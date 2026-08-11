@@ -34,8 +34,8 @@ def build_detail_view_model(project: Any) -> ProjectDetailViewModel:
             ProjectDetailFieldViewModel(label="Finish", value=state["endDateLabel"]),
             ProjectDetailFieldViewModel(
                 label="Budget",
-                value=state["plannedBudgetLabel"],
-                supporting_text=state["currency"] or "Currency follows project defaults",
+                value=state["approvedBudgetLabel"],
+                supporting_text=state["financialCurrencyCode"] or "Finance profile not configured",
             ),
             ProjectDetailFieldViewModel(label="Site", value=site_label),
             ProjectDetailFieldViewModel(label="Version", value=str(state["version"])),

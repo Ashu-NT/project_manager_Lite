@@ -9,6 +9,8 @@ from src.core.modules.project_management.domain.projects.project import Project
 class ProjectCatalogReadItem:
     project: Project
     site_label: str = ""
+    financial_currency_code: str = ""
+    approved_budget: float | None = None
 
 
 @dataclass(frozen=True, slots=True)

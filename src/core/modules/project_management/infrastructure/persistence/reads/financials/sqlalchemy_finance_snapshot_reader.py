@@ -140,8 +140,8 @@ class SqlAlchemyFinanceSnapshotReader:
             project_id=str(project_row.id),
             tenant_id=str(project_row.tenant_id),
             organization_id=str(project_row.organization_id),
-            currency=project_row.currency,
-            planned_budget=float(project_row.planned_budget or 0.0),
+            currency_code=str(project_row.currency_code),
+            approved_budget=float(project_row.approved_budget or 0.0),
             start_date=project_row.start_date,
             end_date=project_row.end_date,
         )

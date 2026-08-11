@@ -41,7 +41,7 @@ def serialize_project_record_view_models(
             "siteLabel": str(view_model.state.get("siteLabel", "") or ""),
             "startDateLabel": str(view_model.state.get("startDateLabel", "") or ""),
             "endDateLabel": str(view_model.state.get("endDateLabel", "") or ""),
-            "plannedBudgetLabel": str(view_model.state.get("plannedBudgetLabel", "") or ""),
+            "approvedBudgetLabel": str(view_model.state.get("approvedBudgetLabel", "") or ""),
             "canPrimaryAction": view_model.can_primary_action,
             "canSecondaryAction": view_model.can_secondary_action,
             "canTertiaryAction": view_model.can_tertiary_action,

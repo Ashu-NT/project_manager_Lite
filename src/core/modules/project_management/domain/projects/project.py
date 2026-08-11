@@ -27,8 +27,6 @@ class Project:
     status: ProjectStatus = ProjectStatus.PLANNED
     client_name: str | None = None
     client_contact: str | None = None
-    planned_budget: float | None = None
-    currency: str | None = None
     organization_id: str | None = None
     site_id: str | None = None
     client_party_id: str | None = None
@@ -67,35 +65,6 @@ class Project:
     @classmethod
     def _normalize_identifier_fields(cls, value: object) -> str | None:
         return normalize_optional_identifier(value)
-
-    @field_validator("currency", mode="before")
-    @classmethod
-    def _normalize_currency(cls, value: object) -> str | None:
-        normalized = normalize_optional_identifier(value)
-        if not normalized:
-            return None
-        try:
-            currency = CurrencyCode(normalized)
-            currency.minor_unit_quantum()
-        except ValidationError as exc:
-            raise ValidationError(
-                "Project currency must be an active ISO 4217 currency with defined minor units.",
-                code="PROJECT_CURRENCY_INVALID",
-            ) from exc
-        return currency.code
-
-    @field_validator("planned_budget", mode="before")
-    @classmethod
-    def _validate_planned_budget(cls, value: object) -> float | None:
-        if value in (None, ""):
-            return None
-        resolved = float(value)
-        if resolved < 0:
-            raise ValidationError(
-                "Planned budget cannot be negative.",
-                code="PROJECT_PLANNED_BUDGET_INVALID",
-            )
-        return resolved
 
     @model_validator(mode="after")
     def _validate_date_range(self) -> "Project":

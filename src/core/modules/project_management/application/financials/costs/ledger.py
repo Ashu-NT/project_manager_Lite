@@ -14,7 +14,7 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
 def build_finance_ledger_rows(*, facts: FinanceSnapshotFacts) -> list[FinanceLedgerRow]:
     """Project canonical financial facts into the shared reporting ledger."""
 
-    project_currency = normalize_currency(facts.project.currency, None)
+    project_currency = normalize_currency(facts.project.currency_code, None)
     task_map = {task.task_id: task for task in facts.tasks}
     resource_map = {resource.resource_id: resource for resource in facts.resources}
     rows: list[FinanceLedgerRow] = []

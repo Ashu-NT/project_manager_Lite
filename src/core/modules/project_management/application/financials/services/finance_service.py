@@ -139,7 +139,7 @@ class FinanceService(ProjectManagementModuleGuardMixin):
             project_id=project_id,
             project_currency=(
                 totals.project_currency
-                or normalize_currency(facts.project.currency, None)
+                or normalize_currency(facts.project.currency_code, None)
             ),
             budget=float(totals.budget),
             planned=float(totals.planned),

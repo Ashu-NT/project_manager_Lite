@@ -65,7 +65,6 @@ class EarnedValueCalculator:
         resolved_baseline_id = prepared_facts.baseline_id
         b_tasks = prepared_facts.baseline_tasks
         tasks = {task.task_id: task for task in prepared_facts.finance.tasks}
-        project = prepared_facts.finance.project
 
         if not resolved_baseline_id:
             raise BusinessRuleError(
@@ -85,10 +84,6 @@ class EarnedValueCalculator:
             return max(0, counter(start, end))
 
         BAC = float(sum(bt.baseline_planned_cost for bt in b_tasks))
-        if BAC <= 0 and project and getattr(project, "planned_budget", None):
-            BAC = float(project.planned_budget or 0.0)
-            notes.append("BAC set from project planned budget (project.planned_budget).")
-
         sum_task_costs = float(
             sum(bt.baseline_planned_cost for bt in b_tasks if bt.baseline_planned_cost > 0)
         )

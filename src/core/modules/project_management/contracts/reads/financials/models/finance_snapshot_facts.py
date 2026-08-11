@@ -11,8 +11,8 @@ class FinanceProjectFact:
     project_id: str
     tenant_id: str
     organization_id: str
-    currency: str | None
-    planned_budget: float
+    currency_code: str
+    approved_budget: float
     start_date: date | None
     end_date: date | None
 

@@ -318,12 +318,10 @@ class ProjectManagementFinancialsDesktopApi:
         )
 
     def _project_currency(self, project_id: str) -> str | None:
-        if not project_id or self._project_service is None:
+        if not project_id or self._financial_configuration_service is None:
             return None
-        project = self._project_service.get_project(project_id)
-        if project is None:
-            return None
-        return (getattr(project, "currency", None) or "").strip().upper() or None
+        profile = self._financial_configuration_service.get_profile(project_id)
+        return str(profile.currency_code or "").strip().upper() or None
 
     def _require_cost_entry_service(self) -> ProjectCostEntryService:
         if self._cost_entry_service is None:

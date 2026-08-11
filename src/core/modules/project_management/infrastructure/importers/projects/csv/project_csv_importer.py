@@ -6,7 +6,6 @@ from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.platform.domain.data_operations.importing import ImportPreview, ImportPreviewRow, ImportSummary
 from src.core.modules.project_management.infrastructure.importers.utils.coercion import (
     optional_date,
-    optional_float,
     optional_project_status,
     required,
 )
@@ -27,7 +26,6 @@ def preview_projects(
         try:
             name = required(row, "name")
             project = resolve_project(existing, project_id=row.get("id") or None, project_name=name)
-            optional_float(row.get("planned_budget"))
             optional_date(row.get("start_date"))
             optional_date(row.get("end_date"))
             optional_project_status(row.get("status"))
@@ -69,8 +67,6 @@ def import_projects(
                 "description": row.get("description", ""),
                 "client_name": row.get("client_name") or None,
                 "client_contact": row.get("client_contact") or None,
-                "planned_budget": optional_float(row.get("planned_budget")),
-                "currency": row.get("currency") or None,
                 "start_date": optional_date(row.get("start_date")),
                 "end_date": optional_date(row.get("end_date")),
             }

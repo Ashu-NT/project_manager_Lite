@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from sqlalchemy import and_, case, literal, or_, select
+from sqlalchemy import and_, case, func, literal, or_, select
 from sqlalchemy.sql import Select
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -14,12 +14,19 @@ from src.core.modules.project_management.infrastructure.persistence.orm.baseline
 from src.core.modules.project_management.infrastructure.persistence.orm.commitment import (
     ProjectCommitmentLineORM,
 )
+from src.core.modules.project_management.infrastructure.persistence.orm.budget import (
+    BudgetLineORM,
+    ProjectBudgetORM,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.cost_entry import (
     ProjectCostEntryORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.planned_cost import (
     ProjectPlannedCostLineORM,
     ProjectPlannedCostVersionORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.orm.financial_configuration import (
+    ProjectFinancialProfileORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.project import (
     ProjectORM,
@@ -43,14 +50,37 @@ def _project_scope(*, tenant_id: str, organization_id: str, project_id: str) -> 
 
 
 def project_fact_statement(*, tenant_id: str, organization_id: str, project_id: str) -> SqlSelect:
+    approved_budget = (
+        select(func.coalesce(func.sum(BudgetLineORM.amount), 0))
+        .join(
+            ProjectBudgetORM,
+            (ProjectBudgetORM.id == BudgetLineORM.budget_id)
+            & (ProjectBudgetORM.tenant_id == BudgetLineORM.tenant_id)
+            & (ProjectBudgetORM.organization_id == BudgetLineORM.organization_id)
+            & (ProjectBudgetORM.project_id == BudgetLineORM.project_id),
+        )
+        .where(
+            ProjectBudgetORM.tenant_id == ProjectORM.tenant_id,
+            ProjectBudgetORM.organization_id == ProjectORM.organization_id,
+            ProjectBudgetORM.project_id == ProjectORM.id,
+            ProjectBudgetORM.status == "approved",
+        )
+        .correlate(ProjectORM)
+        .scalar_subquery()
+    )
     return select(
         ProjectORM.id,
         ProjectORM.tenant_id,
         ProjectORM.organization_id,
-        ProjectORM.currency,
-        ProjectORM.planned_budget,
+        ProjectFinancialProfileORM.currency_code,
+        approved_budget.label("approved_budget"),
         ProjectORM.start_date,
         ProjectORM.end_date,
+    ).join(
+        ProjectFinancialProfileORM,
+        (ProjectFinancialProfileORM.project_id == ProjectORM.id)
+        & (ProjectFinancialProfileORM.tenant_id == ProjectORM.tenant_id)
+        & (ProjectFinancialProfileORM.organization_id == ProjectORM.organization_id),
     ).where(_project_scope(tenant_id=tenant_id, organization_id=organization_id, project_id=project_id))
 
 

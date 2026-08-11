@@ -132,8 +132,8 @@ class ProjectLifecycleMixin:
         description: str = "",
         client_name: str | None = None,
         client_contact: str | None = None,
-        planned_budget: float | None = None,
-        currency: str | None = None,
+        financial_currency_code: str | None = None,
+        status: ProjectStatus = ProjectStatus.PLANNED,
         start_date: date | None = None,
         end_date: date | None = None,
         organization_id: str | None = None,
@@ -150,15 +150,14 @@ class ProjectLifecycleMixin:
         resolved_currency = resolve_pm_currency(
             tenant_context_service=getattr(self, "_tenant_context_service", None),
             operation_label="create project",
-            explicit=currency,
+            explicit=financial_currency_code,
         )
         project = Project.create(
             name=name,
             description=description,
             client_name=client_name,
             client_contact=client_contact,
-            planned_budget=planned_budget,
-            currency=resolved_currency,
+            status=status,
             start_date=start_date,
             end_date=end_date,
             organization_id=resolved_organization_id,
@@ -272,8 +271,6 @@ class ProjectLifecycleMixin:
         end_date: date | None = None,
         client_name: str | None = None,
         client_contact: str | None = None,
-        planned_budget: float | None = None,
-        currency: str | None = None,
         organization_id: str | None = None,
         site_id: str | None = None,
         client_party_id: str | None = None,
@@ -290,18 +287,6 @@ class ProjectLifecycleMixin:
             "project.manage",
             operation_label="update project",
         )
-        if currency is not None:
-            require_permission(
-                self._user_session,
-                "finance.manage",
-                operation_label="update project currency",
-            )
-            require_project_permission(
-                self._user_session,
-                project.id,
-                "finance.manage",
-                operation_label="update project currency",
-            )
         if expected_version is not None and project.version != expected_version:
             raise ConcurrencyError(
                 "Project changed since you opened it. Refresh and try again.",
@@ -324,16 +309,6 @@ class ProjectLifecycleMixin:
             end_date=project.end_date if end_date is None else end_date,
             client_name=project.client_name if client_name is None else client_name,
             client_contact=project.client_contact if client_contact is None else client_contact,
-            planned_budget=project.planned_budget if planned_budget is None else planned_budget,
-            currency=(
-                project.currency
-                if currency is None
-                else resolve_pm_currency(
-                    tenant_context_service=getattr(self, "_tenant_context_service", None),
-                    operation_label="update project currency",
-                    explicit=currency,
-                )
-            ),
             organization_id=resolved_organization_id,
             site_id=project.site_id if site_id is None else site_id,
             client_party_id=project.client_party_id if client_party_id is None else client_party_id,
@@ -356,27 +331,6 @@ class ProjectLifecycleMixin:
 
         try:
             self._project_repo.update(project)
-            if currency is not None:
-                profile = self._financial_profile_repo.get_by_project(project.id)
-                if profile is None:
-                    raise NotFoundError(
-                        "Project financial profile not found.",
-                        code="FINANCIAL_PROFILE_NOT_FOUND",
-                    )
-                old_profile = replace(profile)
-                profile = replace(
-                    profile,
-                    currency_code=project.currency,
-                    updated_at=datetime.now(timezone.utc),
-                )
-                self._financial_profile_repo.update(profile)
-                # PROJECT-FINANCE-TRANSITION-ONLY(PF-B1-CURRENCY-DUAL-WRITE):
-                # Delete when all desktop/read-model currency access uses the profile.
-                self._record_financial_profile_audit(
-                    "currency_projection_update",
-                    profile,
-                    old=old_profile,
-                )
             self._session.commit()
             record_activity(
                 self,

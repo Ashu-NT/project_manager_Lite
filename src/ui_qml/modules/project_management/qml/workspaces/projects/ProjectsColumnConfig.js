@@ -10,7 +10,7 @@ function baseColumns() {
         { "key": "clientContact",      "label": "Contact",  "flex": 1.5,                                     "visibleByDefault": false },
         { "key": "startDateLabel",     "label": "Start",    "flex": 0,   "minWidth": 90,                     "visibleByDefault": true  },
         { "key": "endDateLabel",       "label": "Finish",   "flex": 0,   "minWidth": 90,                     "visibleByDefault": true  },
-        { "key": "plannedBudgetLabel", "label": "Budget",   "flex": 0,   "minWidth": 100,                    "visibleByDefault": true  }
+        { "key": "approvedBudgetLabel", "label": "Approved Budget", "flex": 0, "minWidth": 130, "visibleByDefault": true }
     ]
 }
 

@@ -153,8 +153,6 @@ class BaselineService(ProjectManagementModuleGuardMixin):
             raise ValidationError("Cannot baseline: project has no tasks.")
         task_name_by_id = {task.id: task.name for task in tasks}
 
-        proj_cur = (getattr(project, "currency", None) or "").upper().strip()
-
         # -------------------------
         # Baselines consume the latest immutable planned-cost snapshot at the
         # requested valuation date. Rate and allocation resolution belongs to
@@ -178,21 +176,10 @@ class BaselineService(ProjectManagementModuleGuardMixin):
                     "Cannot create baseline from an incomplete planned-cost snapshot.",
                     code="BASELINE_PLANNED_COST_INCOMPLETE",
                 )
-            if proj_cur and version.currency_code != proj_cur:
-                raise BusinessRuleError(
-                    "Planned-cost snapshot currency does not match the project currency.",
-                    code="BASELINE_PLANNED_COST_CURRENCY_MISMATCH",
-                )
             for line in self._planned_costs.list_lines(version.id):
                 planned_by_task[line.task_id] = (
                     planned_by_task.get(line.task_id, 0.0) + float(line.amount)
                 )
-
-        # If there are NO planned cost items at all, optionally fall back to project planned budget.
-        if (sum(planned_by_task.values()) + planned_unassigned) <= 0.0:
-            pb = float(getattr(project, "planned_budget", 0.0) or 0.0)
-            if pb > 0:
-                planned_unassigned = pb
 
         baseline = ProjectBaseline.create(project_id, name)
 

@@ -66,7 +66,7 @@ class CostPolicyEngine:
         facts: FinanceSnapshotFacts,
         labor_details: LaborDetailsResult | None = None,
     ) -> CostPolicyComposition:
-        project_currency = self._normalize_currency(facts.project.currency, None)
+        project_currency = self._normalize_currency(facts.project.currency_code, None)
         if project_currency == "-":
             project_currency = None
         maps: dict[str, dict[CostBucketKey, float]] = {
@@ -98,7 +98,7 @@ class CostPolicyEngine:
         snapshot = CostPolicySnapshot(
             project_id=facts.project_id,
             project_currency=project_currency,
-            budget=float(facts.project.planned_budget),
+            budget=float(facts.project.approved_budget),
             planned_map=maps["planned"],
             committed_map=maps["committed"],
             actual_map=maps["actual"],

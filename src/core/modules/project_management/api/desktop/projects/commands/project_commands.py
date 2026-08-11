@@ -12,8 +12,7 @@ class ProjectCreateCommand:
     status: str = ProjectStatus.PLANNED.value
     client_name: str | None = None
     client_contact: str | None = None
-    planned_budget: float | None = None
-    currency: str | None = None
+    financial_currency_code: str | None = None
     start_date: date | None = None
     end_date: date | None = None
     organization_id: str | None = None
@@ -31,8 +30,6 @@ class ProjectUpdateCommand:
     status: str = ProjectStatus.PLANNED.value
     client_name: str | None = None
     client_contact: str | None = None
-    planned_budget: float | None = None
-    currency: str | None = None
     start_date: date | None = None
     end_date: date | None = None
     organization_id: str | None = None

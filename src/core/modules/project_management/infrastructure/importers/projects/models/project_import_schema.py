@@ -6,8 +6,6 @@ PROJECT_IMPORT_SCHEMA: tuple[ImportFieldSpec, ...] = (
     ImportFieldSpec("description", "Description"),
     ImportFieldSpec("client_name", "Client"),
     ImportFieldSpec("client_contact", "Client Contact"),
-    ImportFieldSpec("planned_budget", "Planned Budget"),
-    ImportFieldSpec("currency", "Currency"),
     ImportFieldSpec("start_date", "Start Date"),
     ImportFieldSpec("end_date", "End Date"),
     ImportFieldSpec("status", "Status"),

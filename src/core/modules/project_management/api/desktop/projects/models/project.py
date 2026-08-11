@@ -21,9 +21,9 @@ class ProjectDesktopDto:
     end_date: date | None
     client_name: str | None
     client_contact: str | None
-    planned_budget: float | None
-    planned_budget_label: str
-    currency: str | None
+    approved_budget: float | None
+    approved_budget_label: str
+    financial_currency_code: str
     organization_id: str | None
     site_id: str | None
     site_label: str
