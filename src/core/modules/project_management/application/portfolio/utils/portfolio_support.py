@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from decimal import Decimal
 
 from src.core.modules.project_management.access.scope_permissions import filter_project_rows
 from src.core.platform.common.exceptions import ValidationError
@@ -56,8 +57,8 @@ class PortfolioSupportMixin:
         *,
         over_budget: bool,
         over_capacity: bool,
-        total_budget: float,
-        budget_limit: float | None,
+        total_budget: Decimal,
+        budget_limit: Decimal | None,
         total_capacity_percent: float,
         capacity_limit: float,
         selected_projects: int,

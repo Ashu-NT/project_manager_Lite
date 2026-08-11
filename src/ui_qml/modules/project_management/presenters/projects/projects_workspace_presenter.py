@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
@@ -112,8 +113,8 @@ class ProjectProjectsWorkspacePresenter:
         *,
         project_id: str,
         resource_id: str,
-        planned_hours: float,
-        hourly_rate: float | None,
+        planned_hours: Decimal,
+        hourly_rate: Decimal | None,
     ) -> None:
         assign_resource_to_project(
             self._desktop_api,
@@ -127,8 +128,8 @@ class ProjectProjectsWorkspacePresenter:
         self,
         *,
         project_resource_id: str,
-        planned_hours: float,
-        hourly_rate: float | None,
+        planned_hours: Decimal,
+        hourly_rate: Decimal | None,
         is_active: bool,
     ) -> None:
         update_project_resource(

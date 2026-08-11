@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from decimal import Decimal
+
 from src.core.modules.project_management.contracts.repositories.project import (
     ProjectRepository,
     ProjectResourceRepository,
@@ -64,9 +66,9 @@ class ProjectResourceCommandMixin:
         self,
         project_id: str,
         resource_id: str,
-        hourly_rate: float | None = None,
+        hourly_rate: Decimal | int | str | None = None,
         currency_code: str | None = None,
-        planned_hours: float = 0.0,
+        planned_hours: Decimal | int | str = Decimal("0"),
         is_active: bool = True,
     ) -> ProjectResource:
         require_permission(
@@ -144,9 +146,9 @@ class ProjectResourceCommandMixin:
     def update(
         self,
         pr_id: str,
-        hourly_rate: float | None,
+        hourly_rate: Decimal | int | str | None,
         currency_code: str | None,
-        planned_hours: float,
+        planned_hours: Decimal | int | str,
         is_active: bool,
     ) -> None:
         require_permission(

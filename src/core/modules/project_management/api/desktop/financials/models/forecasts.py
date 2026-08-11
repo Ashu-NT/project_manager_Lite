@@ -8,15 +8,15 @@ class FinancialForecastDto:
     project_id: str
     basis: str
     basis_label: str
-    budget: float
+    budget: str
     budget_label: str
-    actual: float
+    actual: str
     actual_label: str
-    etc: float | None
+    etc: str | None
     etc_label: str
-    eac: float | None
+    eac: str | None
     eac_label: str
-    vac: float | None
+    vac: str | None
     vac_label: str
     is_over_budget: bool
     has_approved_forecast: bool

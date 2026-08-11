@@ -8,6 +8,9 @@ from src.core.modules.project_management.api.desktop.common.financial_formatting
 from src.core.modules.project_management.api.desktop.financials.models.forecasts import (
     FinancialForecastDto,
 )
+from src.core.platform.finance.money import canonical_decimal_text
+
+
 def build_forecast_dto(
     project_id: str,
     *,
@@ -21,18 +24,18 @@ def build_forecast_dto(
         project_id=project_id,
         basis="approved_forecast",
         basis_label="Approved forecast" if has_forecast else "No approved forecast",
-        budget=float(snapshot.budget),
+        budget=canonical_decimal_text(snapshot.budget),
         budget_label=format_money(snapshot.budget, currency),
-        actual=float(snapshot.actual),
+        actual=canonical_decimal_text(snapshot.actual),
         actual_label=format_money(snapshot.actual, currency),
-        etc=None if not has_forecast else float(snapshot.forecast_etc),
+        etc=None if not has_forecast else canonical_decimal_text(snapshot.forecast_etc),
         etc_label=(
             format_money(snapshot.forecast_etc, currency)
             if has_forecast else "Not approved"
         ),
-        eac=None if eac is None else float(eac),
+        eac=None if eac is None else canonical_decimal_text(eac),
         eac_label="Not available" if eac is None else format_money(eac, currency),
-        vac=None if vac is None else float(vac),
+        vac=None if vac is None else canonical_decimal_text(vac),
         vac_label="Not available" if vac is None else format_money(vac, currency),
         is_over_budget=bool(vac is not None and vac < 0),
         has_approved_forecast=has_forecast,

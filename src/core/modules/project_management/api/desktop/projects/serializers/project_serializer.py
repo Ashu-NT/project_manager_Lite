@@ -1,9 +1,11 @@
 """Project domain-to-DTO serializer."""
 
 from collections.abc import Mapping
+from decimal import Decimal
 
 from src.core.modules.project_management.api.desktop.projects.models.project import ProjectDesktopDto
 from src.core.modules.project_management.api.desktop.common.financial_formatting import format_budget
+from src.core.platform.finance.money import canonical_decimal_text
 
 
 def serialize_project(
@@ -11,7 +13,7 @@ def serialize_project(
     *,
     site_lookup: Mapping[str, str] | None = None,
     financial_currency_code: str = "",
-    approved_budget: float | None = None,
+    approved_budget: Decimal | None = None,
 ) -> ProjectDesktopDto:
     resolved_currency = str(financial_currency_code or "").strip().upper()
     normalized_site_id = str(getattr(project, "site_id", "") or "").strip() or None
@@ -31,7 +33,9 @@ def serialize_project(
         end_date=project.end_date,
         client_name=project.client_name,
         client_contact=project.client_contact,
-        approved_budget=approved_budget,
+        approved_budget=(
+            None if approved_budget is None else canonical_decimal_text(approved_budget)
+        ),
         approved_budget_label=format_budget(approved_budget, resolved_currency or None),
         financial_currency_code=resolved_currency,
         organization_id=getattr(project, "organization_id", None),

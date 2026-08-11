@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
@@ -259,13 +260,13 @@ def test_da3_desktop_forwards_rate_fields_without_policy_decision() -> None:
             resource_id="resource-1",
             name="Planner",
             role="Planner",
-            hourly_rate=120.0,
+            hourly_rate=Decimal("120"),
             currency_code="USD",
             expected_version=1,
         )
     )
 
-    assert service.update_kwargs["hourly_rate"] == 120.0
+    assert service.update_kwargs["hourly_rate"] == Decimal("120")
     assert service.update_kwargs["currency_code"] == "USD"
     assert "effective_on" not in service.update_kwargs
 
@@ -328,9 +329,9 @@ def test_da0_characterizes_duplicate_project_resource_rate_precedence() -> None:
         id="project-resource-1",
         project_id="project-1",
         resource_id="resource-1",
-        hourly_rate=125.0,
+        hourly_rate=Decimal("125"),
         currency_code="GBP",
-        planned_hours=40.0,
+        planned_hours=Decimal("40"),
         is_active=True,
     )
     resource = SimpleNamespace(
@@ -338,7 +339,7 @@ def test_da0_characterizes_duplicate_project_resource_rate_precedence() -> None:
         name="Planner",
         role="Lead",
         worker_type="EXTERNAL",
-        hourly_rate=90.0,
+        hourly_rate=Decimal("90"),
         currency_code="EUR",
         is_active=True,
     )

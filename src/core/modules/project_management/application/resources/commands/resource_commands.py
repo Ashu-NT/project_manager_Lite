@@ -128,7 +128,7 @@ class ResourceCommandMixin:
             rate_card_id=card.id,
             rate_type=RateType.COST,
             unit="HOUR",
-            rate_amount=Decimal(str(resource.hourly_rate)),
+            rate_amount=resource.hourly_rate,
             rate_currency=resource.currency_code,
             origin=RateLineOrigin.LEGACY_SEEDED,
             resource_id=resource.id,
@@ -140,7 +140,7 @@ class ResourceCommandMixin:
         self,
         *,
         resource: Resource,
-        previous_hourly_rate: float,
+        previous_hourly_rate: Decimal,
         effective_on: date | None,
     ) -> None:
         """Zero-rate transition matrix (ADR-PF-005 cutover): ``0`` always
@@ -149,8 +149,8 @@ class ResourceCommandMixin:
         transition that actually changes the rate or its currency
         deactivates-and-replaces (same-day) or closes-and-opens (a later
         date) — never amends a line in place, for auditability."""
-        previous_rate = Decimal(str(previous_hourly_rate or 0))
-        new_rate = Decimal(str(resource.hourly_rate or 0))
+        previous_rate = previous_hourly_rate
+        new_rate = resource.hourly_rate
         if previous_rate == 0 and new_rate == 0:
             return
 
@@ -188,7 +188,7 @@ class ResourceCommandMixin:
         self,
         name: str,
         role: str = "",
-        hourly_rate: float = 0.0,
+        hourly_rate: Decimal | int | str = Decimal("0"),
         is_active: bool = True,
         cost_type: CostType = CostType.LABOR,
         currency_code: str | None = None,
@@ -290,7 +290,7 @@ class ResourceCommandMixin:
         resource_id: str,
         name: str | None = None,
         role: str | None = None,
-        hourly_rate: float | None = None,
+        hourly_rate: Decimal | int | str | None = None,
         is_active: bool | None = None,
         cost_type: CostType | None = None,
         currency_code: str | None = None,

@@ -34,7 +34,7 @@ def build_forecast_view_model(forecast_dto: Any) -> FinancialsForecastViewModel:
             color_hint=(
                 ""
                 if forecast_dto.vac is None
-                else "danger" if forecast_dto.vac < 0 else "success"
+                else "danger" if forecast_dto.is_over_budget else "success"
             ),
         ),
     )

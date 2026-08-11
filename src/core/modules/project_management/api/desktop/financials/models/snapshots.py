@@ -7,7 +7,7 @@ from datetime import date
 class FinancialLedgerRowDto:
     source_label: str
     stage: str
-    amount: float
+    amount: str
     amount_label: str
     reference_label: str
     task_name: str
@@ -20,15 +20,15 @@ class FinancialLedgerRowDto:
 @dataclass(frozen=True)
 class FinancialPeriodRowDto:
     period_key: str
-    planned: float
+    planned: str
     planned_label: str
-    committed: float
+    committed: str
     committed_label: str
-    actual: float
+    actual: str
     actual_label: str
-    forecast: float
+    forecast: str
     forecast_label: str
-    exposure: float
+    exposure: str
     exposure_label: str
 
 
@@ -37,15 +37,15 @@ class FinancialAnalyticsRowDto:
     dimension: str
     key: str
     label: str
-    planned: float
+    planned: str
     planned_label: str
-    committed: float
+    committed: str
     committed_label: str
-    actual: float
+    actual: str
     actual_label: str
-    forecast: float
+    forecast: str
     forecast_label: str
-    exposure: float
+    exposure: str
     exposure_label: str
 
 
@@ -53,17 +53,17 @@ class FinancialAnalyticsRowDto:
 class FinancialSnapshotDto:
     project_id: str
     project_currency: str | None
-    budget: float
+    budget: str
     budget_label: str
-    planned: float
+    planned: str
     planned_label: str
-    committed: float
+    committed: str
     committed_label: str
-    actual: float
+    actual: str
     actual_label: str
-    exposure: float
+    exposure: str
     exposure_label: str
-    available: float | None
+    available: str | None
     available_label: str
     ledger: tuple[FinancialLedgerRowDto, ...]
     cashflow: tuple[FinancialPeriodRowDto, ...]
@@ -74,11 +74,11 @@ class FinancialSnapshotDto:
     notes: tuple[str, ...]
     labor_rates_complete: bool = True
     unresolved_labor_rate_count: int = 0
-    forecast_etc: float | None = None
+    forecast_etc: str | None = None
     forecast_etc_label: str = "Not approved"
-    estimate_at_completion: float | None = None
+    estimate_at_completion: str | None = None
     estimate_at_completion_label: str = "Not available"
-    variance_at_completion: float | None = None
+    variance_at_completion: str | None = None
     variance_at_completion_label: str = "Not available"
     as_of: date | None = None
     approved_budget_id: str = ""

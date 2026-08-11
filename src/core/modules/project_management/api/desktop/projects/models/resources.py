@@ -10,10 +10,10 @@ class ProjectResourceDesktopDto:
     resource_name: str
     role: str
     worker_type_label: str
-    hourly_rate: float | None
+    hourly_rate: str | None
     hourly_rate_label: str
     currency_code: str | None
-    planned_hours: float
+    planned_hours: str
     planned_hours_label: str
     is_active: bool
     status_label: str

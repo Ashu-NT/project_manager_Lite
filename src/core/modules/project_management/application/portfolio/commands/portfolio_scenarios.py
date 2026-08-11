@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from decimal import Decimal
 
 from src.core.modules.project_management.domain.portfolio import PortfolioScenario
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
@@ -13,7 +14,7 @@ class PortfolioScenarioCommandMixin:
         self,
         *,
         name: str,
-        budget_limit: float | None = None,
+        budget_limit: Decimal | int | str | None = None,
         capacity_limit_percent: float | None = None,
         project_ids: list[str] | None = None,
         intake_item_ids: list[str] | None = None,

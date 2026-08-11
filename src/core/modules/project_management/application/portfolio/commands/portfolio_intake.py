@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from decimal import Decimal
 
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
@@ -18,7 +19,7 @@ class PortfolioIntakeCommandMixin:
         title: str,
         sponsor_name: str,
         summary: str = "",
-        requested_budget: float = 0.0,
+        requested_budget: Decimal | int | str = Decimal("0"),
         requested_capacity_percent: float = 0.0,
         target_start_date=None,
         strategic_score: int = 3,

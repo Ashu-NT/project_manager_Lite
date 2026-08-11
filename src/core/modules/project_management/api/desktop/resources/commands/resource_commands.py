@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
 
@@ -10,7 +11,7 @@ class ResourceCreateCommand:
     name: str = ""
     code: str = ""
     role: str = ""
-    hourly_rate: float = 0.0
+    hourly_rate: Decimal = Decimal("0")
     is_active: bool = True
     cost_type: str = CostType.LABOR.value
     currency_code: str | None = None
@@ -27,7 +28,7 @@ class ResourceUpdateCommand:
     name: str = ""
     code: str = ""
     role: str = ""
-    hourly_rate: float = 0.0
+    hourly_rate: Decimal = Decimal("0")
     is_active: bool = True
     cost_type: str = CostType.LABOR.value
     currency_code: str | None = None

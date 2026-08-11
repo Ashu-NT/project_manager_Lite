@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal, InvalidOperation
 
 from pydantic import field_validator, model_validator
 
@@ -90,9 +91,9 @@ class ProjectResource:
     id: str
     project_id: str
     resource_id: str
-    hourly_rate: float | None = None
+    hourly_rate: Decimal | None = None
     currency_code: str | None = None
-    planned_hours: float = 0.0
+    planned_hours: Decimal = Decimal("0")
     is_active: bool = True
     version: int = 1
 
@@ -132,11 +133,17 @@ class ProjectResource:
 
     @field_validator("hourly_rate", mode="before")
     @classmethod
-    def _validate_hourly_rate(cls, value: object) -> float | None:
+    def _validate_hourly_rate(cls, value: object) -> Decimal | None:
         if value in (None, ""):
             return None
-        resolved = float(value)
-        if resolved < 0:
+        try:
+            resolved = Decimal(str(value))
+        except (InvalidOperation, TypeError, ValueError) as exc:
+            raise ValidationError(
+                "Hourly rate must be a valid decimal value.",
+                code="PROJECT_RESOURCE_HOURLY_RATE_INVALID",
+            ) from exc
+        if not resolved.is_finite() or resolved < 0:
             raise ValidationError(
                 "Hourly rate cannot be negative.",
                 code="PROJECT_RESOURCE_HOURLY_RATE_INVALID",
@@ -145,9 +152,15 @@ class ProjectResource:
 
     @field_validator("planned_hours", mode="before")
     @classmethod
-    def _validate_planned_hours(cls, value: object) -> float:
-        resolved = float(value if value not in (None, "") else 0.0)
-        if resolved < 0:
+    def _validate_planned_hours(cls, value: object) -> Decimal:
+        try:
+            resolved = Decimal(str(value if value not in (None, "") else "0"))
+        except (InvalidOperation, TypeError, ValueError) as exc:
+            raise ValidationError(
+                "planned_hours must be a valid decimal value.",
+                code="PROJECT_RESOURCE_PLANNED_HOURS_INVALID",
+            ) from exc
+        if not resolved.is_finite() or resolved < 0:
             raise ValidationError(
                 "planned_hours cannot be negative.",
                 code="PROJECT_RESOURCE_PLANNED_HOURS_INVALID",
@@ -169,9 +182,9 @@ class ProjectResource:
     def create(
         project_id: str,
         resource_id: str,
-        hourly_rate: float | None = None,
+        hourly_rate: Decimal | int | str | None = None,
         currency_code: str | None = None,
-        planned_hours: float = 0.0,
+        planned_hours: Decimal | int | str = Decimal("0"),
         is_active: bool = True,
     ) -> "ProjectResource":
         return ProjectResource(

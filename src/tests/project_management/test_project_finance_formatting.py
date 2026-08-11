@@ -24,7 +24,13 @@ def test_financial_formatting_preserves_desktop_fallback_contracts() -> None:
     assert format_budget(None, "EUR") == "Not set"
     assert format_hourly_rate(None, "EUR") == "Rate not set"
     assert format_money(None, fallback="No limit") == "No limit"
-    assert format_money(12.5, "USD") == "USD 12.50"
+    assert format_money("12.5", "USD") == "USD 12.50"
+
+
+def test_financial_formatting_rejects_binary_float() -> None:
+    with pytest.raises(ValidationError) as exc:
+        format_money(12.5, "USD")  # type: ignore[arg-type]
+    assert exc.value.code == "DECIMAL_BINARY_FLOAT_FORBIDDEN"
 
 
 def test_financial_formatting_rejects_invalid_currency() -> None:

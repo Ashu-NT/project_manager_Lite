@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from decimal import Decimal, InvalidOperation
+
 from src.ui_qml.modules.project_management.controllers.common import run_mutation
 
 from .project_lazy_section_loader import load_project_resources
@@ -28,14 +30,17 @@ def select_project_resource(controller, project_resource_id: str) -> None:
 
 def assign_project_resource(controller, payload: dict[str, object]) -> dict[str, object]:
     resource_id = str(payload.get("resourceId", "") or "").strip()
-    planned_hours = float(payload.get("plannedHours", 0) or 0)
+    try:
+        planned_hours = Decimal(str(payload.get("plannedHours", "0") or "0"))
+    except (InvalidOperation, ValueError) as exc:
+        raise ValueError("Planned hours must be a valid decimal value.") from exc
     hourly_rate_str = str(payload.get("hourlyRate", "") or "").strip()
-    hourly_rate: float | None = None
+    hourly_rate: Decimal | None = None
     if hourly_rate_str:
         try:
-            hourly_rate = float(hourly_rate_str)
-        except ValueError:
-            hourly_rate = None
+            hourly_rate = Decimal(hourly_rate_str)
+        except (InvalidOperation, ValueError) as exc:
+            raise ValueError("Hourly rate must be a valid decimal value.") from exc
     return run_mutation(
         operation=lambda: controller._projects_workspace_presenter.assign_resource_to_project(
             project_id=controller._selected_project_id,
@@ -53,14 +58,17 @@ def assign_project_resource(controller, payload: dict[str, object]) -> dict[str,
 
 def update_project_resource(controller, payload: dict[str, object]) -> dict[str, object]:
     pr_id = str(payload.get("projectResourceId", "") or "").strip()
-    planned_hours = float(payload.get("plannedHours", 0) or 0)
+    try:
+        planned_hours = Decimal(str(payload.get("plannedHours", "0") or "0"))
+    except (InvalidOperation, ValueError) as exc:
+        raise ValueError("Planned hours must be a valid decimal value.") from exc
     hourly_rate_str = str(payload.get("hourlyRate", "") or "").strip()
-    hourly_rate: float | None = None
+    hourly_rate: Decimal | None = None
     if hourly_rate_str:
         try:
-            hourly_rate = float(hourly_rate_str)
-        except ValueError:
-            hourly_rate = None
+            hourly_rate = Decimal(hourly_rate_str)
+        except (InvalidOperation, ValueError) as exc:
+            raise ValueError("Hourly rate must be a valid decimal value.") from exc
     is_active = bool(payload.get("isActive", True))
     return run_mutation(
         operation=lambda: controller._projects_workspace_presenter.update_project_resource(

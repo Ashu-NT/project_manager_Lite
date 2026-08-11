@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from decimal import Decimal, InvalidOperation
+
 from pydantic import field_validator
 
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
@@ -20,7 +22,7 @@ class Resource:
     name: str
     code: str = ""
     role: str = ""
-    hourly_rate: float = 0.0
+    hourly_rate: Decimal = Decimal("0")
     is_active: bool = True
     cost_type: CostType = CostType.LABOR
     currency_code: str | None = None
@@ -54,9 +56,15 @@ class Resource:
 
     @field_validator("hourly_rate", mode="before")
     @classmethod
-    def _validate_hourly_rate(cls, value: object) -> float:
-        resolved = float(value if value not in (None, "") else 0.0)
-        if resolved < 0:
+    def _validate_hourly_rate(cls, value: object) -> Decimal:
+        try:
+            resolved = Decimal(str(value if value not in (None, "") else "0"))
+        except (InvalidOperation, TypeError, ValueError) as exc:
+            raise ValidationError(
+                "Hourly rate must be a valid decimal value.",
+                code="RESOURCE_HOURLY_RATE_INVALID",
+            ) from exc
+        if not resolved.is_finite() or resolved < 0:
             raise ValidationError(
                 "Hourly rate cannot be negative.",
                 code="RESOURCE_HOURLY_RATE_INVALID",
@@ -122,7 +130,7 @@ class Resource:
     def create(
         name: str,
         role: str = "",
-        hourly_rate: float = 0.0,
+        hourly_rate: Decimal | int | str = Decimal("0"),
         is_active: bool = True,
         cost_type: CostType = CostType.LABOR,
         currency_code: str | None = None,

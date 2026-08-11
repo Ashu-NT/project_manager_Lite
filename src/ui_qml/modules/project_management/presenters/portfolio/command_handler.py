@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from decimal import Decimal
 
 from src.core.modules.project_management.api.desktop import (
     PortfolioDependencyCreateCommand,
@@ -13,6 +14,7 @@ from src.core.modules.project_management.api.desktop import (
 from .validation import (
     list_text_values,
     optional_date,
+    optional_decimal,
     optional_float,
     optional_int,
     optional_text,
@@ -51,7 +53,7 @@ def create_intake_item(
         title=require_text(payload, "title", "Intake title is required."),
         sponsor_name=require_text(payload, "sponsorName", "Sponsor is required."),
         summary=optional_text(payload, "summary") or "",
-        requested_budget=optional_float(payload, "requestedBudget") or 0.0,
+        requested_budget=optional_decimal(payload, "requestedBudget") or Decimal("0"),
         requested_capacity_percent=optional_float(payload, "requestedCapacityPercent") or 0.0,
         target_start_date=optional_date(payload, "targetStartDate"),
         strategic_score=optional_int(payload, "strategicScore") or 3,
@@ -69,7 +71,7 @@ def create_scenario(
 ) -> None:
     command = PortfolioScenarioCreateCommand(
         name=require_text(payload, "name", "Scenario name is required."),
-        budget_limit=optional_float(payload, "budgetLimit"),
+        budget_limit=optional_decimal(payload, "budgetLimit"),
         capacity_limit_percent=optional_float(payload, "capacityLimitPercent"),
         project_ids=tuple(list_text_values(payload.get("projectIds"))),
         intake_item_ids=tuple(list_text_values(payload.get("intakeItemIds"))),
