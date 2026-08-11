@@ -354,13 +354,13 @@ Source: `../project_finance_existing_state_and_implementation_plan.md` §19 Phas
   fallback. Underlying Phase B regression: 86 passed; projection/isolation/pagination: 6 passed;
   combined application/desktop/QML/architecture checkpoint: 51 passed.
 
-The next unblocked consolidated phase is Finance Phase C in section 2. Item 7 remains a deliberate
-product/architecture decision gate and must not be implemented as a mechanical source swap.
+Finance Phase C in section 2 is complete under the pre-launch, fresh-database decision recorded
+below. No customer data exists and the product will not ship an upgrade path from the retired
+combined cost register.
 
-## 2. Finance — Phase C: actual ledger, commitments, time, procurement, periods (in progress)
+## 2. Finance — Phase C: actual ledger, commitments, time, procurement, periods (complete)
 
-Source: same doc, §19 Phase C. Items 1-6's permanent foundations are complete; items 7-8 are
-in progress or unstarted. The prerequisite
+Source: same doc, §19 Phase C. Items 1-8 are complete. The prerequisite
 `TRANSITION(PF-A0-UOW-BRIDGE)` cleanup that items 2/6 depend on is done (governed
 commands now own their own Unit of Work). ADR gate: ADR-PF-004/006/007/008 already
 ACCEPTED, so the ADR gate itself is not blocking.
@@ -426,18 +426,25 @@ ACCEPTED, so the ADR gate itself is not blocking.
    `ProjectCostEntry` commands; planned costs remain versioned planning snapshots and
    commitments remain source-owned Procurement projections. Posted actuals cannot be edited or
    deleted and use explicit reversal. Canonical audit/commit failures roll back the command Unit
-   of Work. The legacy `CostItem` query projection remains read-only for C.7 reconciliation.
-7. **In progress; migration control + actual split implemented 2026-08-09.** Durable directly
-   scoped/RLS migration runs and one restart-safe checkpoint per legacy row responsibility store
-   source/target Decimal amounts, rounding deltas, mapping decisions, targets, quarantine/deferred
-   reason codes, and audit evidence. Dry-run creates no financial target. Execute creates
-   idempotent `DATA_EXCHANGE/IMPORT_ROW/LEGACY_MIGRATION` actual drafts for review and never posts
-   them implicitly; missing default cost-code mapping quarantines. Planned and commitment values
-   are preserved as deferred checkpoints until their explicit legacy source variants are added;
-   forecast overrides are preserved for Phase D because no canonical forecast aggregate exists.
-   Report dual-read/parity and those planned/commitment variants remain open.
-8. Redesign QML Actuals/Commitments as ledgers (status, source, period, matching, approval,
-   posting, reversal); remove generic edit/delete on posted rows.
+   of Work. The read-only `CostItem` projection and all repository/service/DTO/presenter/QML
+   surfaces were subsequently deleted by C.7.
+7. **Fresh-database clean break complete 2026-08-11.** The team confirmed that there are no
+   customers or production rows to preserve. The proposed migration-run/checkpoint tables,
+   import-draft command, `DATA_EXCHANGE/IMPORT_ROW/LEGACY_MIGRATION` source variants, transition
+   evidence, dual-read, backfill, quarantine, and test seeder were therefore deleted rather than
+   promoted into permanent architecture. Revision `t7u8v9w0x1y2` is the undeployed clean-break
+   head and drops `cost_items`; its downgrade exists only for Alembic graph reversibility.
+   Planned, committed, and actual reads now compose exclusively from versioned planned-cost
+   lines, PM commitment projections, and posted/reversed `ProjectCostEntry` facts. Baselines,
+   reporting, forecasts, dashboard, and portfolio consume those canonical facts. Approved Time
+   is not recomputed as a second actual because its consumer already posts canonical entries.
+8. **Canonical QML ledgers complete 2026-08-11.** Actuals show the paged `ProjectCostEntry`
+   lifecycle with source, status, posting date, approval capabilities, and reversal capability;
+   posted rows have no generic edit/delete. Commitments show a separate server-paged PM-owned
+   projection with PO-line identity, lifecycle state, committed/matched/remaining values,
+   delivery/order date, task link, and source revision. The desktop boundary receives
+   `ProjectCommitmentService` through composition and does not import Inventory implementation
+   packages.
 
 Phase C.1 verification checkpoint: all 9 new domain/service/tenant/RBAC/desktop/migration/
 architecture tests pass; the combined period and Project Finance persistence-guard suite passes
@@ -497,20 +504,18 @@ including idempotency and fail-closed audit rollback. The complete legacy-report
 surface passes 103 tests with 1 skip. Its five remaining failures are pre-existing and unrelated:
 the scheduling-engine line budget, three unresolved-labor-rate export fixtures, and one module-
 entitlement expectation. Targeted `qmllint` reports no missing controller members after the PM
-controller typeinfo was synchronized. `TRANSITION(PF-C6-LEGACY-TEST-SEED)` exists only under
-`src/tests` to arrange historical read-model rows and must be deleted by C.7; no production
-legacy writer or dual-write path was restored. **Item 7 deterministic split/backfill,
-quarantine, reconciliation, and report dual-read is next.**
+controller typeinfo was synchronized. The temporary historical read-model test seeder introduced
+for C.6 was deleted by the C.7 clean break; no production writer or dual-write path was restored.
 
-Phase C.7 foundation checkpoint: migration `t7u8v9w0x1y2` adds durable run/checkpoint tables with
-direct tenant/organization/project ownership, scoped foreign keys, Numeric reconciliation values,
-stable source-purpose uniqueness, and forced PostgreSQL RLS. Four focused tests cover dry-run,
-actual execution, restart replay, reconciliation, quarantine, and reversible schema; the combined
-C.6/C.7 actual/security/persistence/QML checkpoint passes 33 tests, including active-organization
-isolation. Alembic is single-headed.
-`TRANSITION(PF-C7-LEGACY-IMPORT)` is open until all legacy actuals reconcile and the `CostItem`
-source is retired. C.7 is **not complete** while planned/commitment variants, raw-invalid-row
-quarantine, report parity/dual-read, and the C.6 test seeder deletion remain open.
+Phase C.7/C.8 clean-break checkpoint (2026-08-11): all runtime `CostItem` domain, ORM, mapper,
+repository, service, desktop DTO/API, presenter, controller, and QML list/editor files are removed.
+The transition import/checkpoint implementation and its tests are removed. The finance reader and
+portfolio reader use separate scoped canonical authorities and aggregate only after acquisition;
+architecture tests enforce scope and prohibit cross-source SQL fan-out. Alembic revision IDs are
+unique and the graph is single-headed. Focused canonical finance, commitment, command, migration,
+CQRS, and QML checks pass. The broader PM suite exposed obsolete legacy fixtures that are being
+deleted or rewritten as canonical test data; it also found and fixed one real baseline leftover
+(`planned_labor_total`).
 
 ## 3. Finance — Phase D and E (future, not started)
 
@@ -521,23 +526,17 @@ quarantine, report parity/dual-read, and the C.6 test seeder deletion remain ope
 - **Phase E** (billing/revenue/external accounting): blocked on ADR-PF-010 (currently
   PROPOSED, not accepted) and the product decisions in §24 items 10-15 of the master doc.
 
-## 4. Finance — open transition-code register items
+## 4. Finance — remaining transition-code register items
 
 Source: same doc §20 "Transition-code deletion register." `OPEN`/`NOT CREATED` rows only
 (everything else is `CLOSED`):
 
 | Component | Removal gate |
 | --- | --- |
-| `TRANSITION(PF-C6-LEGACY-TEST-SEED)` test-only row factory | C.7 canonical migration/report fixtures replace legacy service-shaped setup |
-| `TRANSITION(PF-C7-LEGACY-IMPORT)` canonical import-draft command | C.7 migration/reconciliation accepted and no legacy rows remain to replay |
-| Legacy `CostItem` reader/projection | Phase D ledger/report reconciliation complete |
 | `Project.planned_budget` compatibility projection | Budget read cutover + reconciliation complete |
 | `Project.currency` compatibility projection | Profile currency cutover, all consumers migrated |
 | Profile/Project currency dual-write (`PF-B1-CURRENCY-DUAL-WRITE`) | Desktop/presenters/reports/imports read profile currency exclusively; parity test passes |
 | Float monetary/rate/quantity persistence | Numeric backfill + read cutover + reconciliation complete |
-| Planned dual-read comparison (Phase C) | Phase D canonical report reconciliation complete — not created yet |
-| Planned dual-write adapter (Phase C, only if required) | not created yet |
-| Client-side fixed-limit Procurement lookup | Phase C typed project-source contract |
 | Legacy financial permission aliases/feature flags | Phase E final role/API/controller inventory — not created yet |
 | `Money.from_legacy_float` / `decimal_from_legacy_float` (`PF-A1-LEGACY-FLOAT`) | Phase D legacy reconciliation + float retirement complete |
 | PM desktop formatter legacy-float branch (`PF-A1-DESKTOP-FLOAT`) | Phase D canonical decimal-string read DTO cutover |

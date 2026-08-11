@@ -35,7 +35,6 @@ PATH_REWRITE_EXACT = {
     "core/services/resource/__init__.py": "src/core/modules/project_management/application/resources/__init__.py",
     "core/services/resource/service.py": "src/core/modules/project_management/application/resources/resource_service.py",
     "core/services/cost/__init__.py": "src/core/modules/project_management/application/financials/__init__.py",
-    "core/services/cost/service.py": "src/core/modules/project_management/application/financials/cost_service.py",
     "core/services/cost/query.py": "src/core/modules/project_management/application/financials/queries/cost_query.py",
     "core/services/finance/__init__.py": "src/core/modules/project_management/application/financials/__init__.py",
     "core/services/finance/service.py": "src/core/modules/project_management/application/financials/finance_service.py",

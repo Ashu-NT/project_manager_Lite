@@ -8,7 +8,7 @@ from openpyxl import load_workbook
 
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.modules.project_management.domain.enums import CostType, DependencyType
+from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.infrastructure.reporting import api as reporting_api
 from src.core.modules.project_management.infrastructure.reporting.models import (
     CostSourceBreakdown,
@@ -27,7 +27,6 @@ def _setup_report_project(services):
     ps = services["project_service"]
     ts = services["task_service"]
     rs = services["resource_service"]
-    cs = services["cost_service"]
     bs = services["baseline_service"]
 
     project = ps.create_project(
@@ -46,16 +45,6 @@ def _setup_report_project(services):
     res = rs.create_resource("Exporter Dev", "Developer", hourly_rate=100.0, currency_code="USD")
     assignment = ts.assign_resource(t1.id, res.id, allocation_percent=50.0)
     ts.set_assignment_hours(assignment.id, 4.0)
-
-    cs.add_cost_item(
-        project_id=pid,
-        task_id=t1.id,
-        description="Material line",
-        planned_amount=120.0,
-        actual_amount=60.0,
-        cost_type=CostType.MATERIAL,
-        currency_code="USD",
-    )
 
     baseline = bs.create_baseline(pid, "Baseline Export", rate_as_of=date.today())
     ts.update_progress(t1.id, percent_complete=50.0)

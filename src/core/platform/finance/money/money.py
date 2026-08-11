@@ -31,7 +31,7 @@ class Money:
     @classmethod
     def from_legacy_float(cls, amount: float, currency: CurrencyCode | str) -> Money:
         # TRANSITION(PF-A1-LEGACY-FLOAT): Deterministic migration input only.
-        # Remove after Phase D legacy CostItem reconciliation and float-column retirement.
+        # Temporary float conversion remains until monetary float columns are retired.
         return cls(
             amount=decimal_from_legacy_float(amount, label="Legacy money amount"),
             currency=currency,
