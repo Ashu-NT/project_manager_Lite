@@ -120,13 +120,17 @@ def approved_forecast_facts_statement(
             ProjectForecastORM.tenant_id == tenant_id,
             ProjectForecastORM.organization_id == organization_id,
             ProjectForecastORM.project_id == project_id,
-            ProjectForecastORM.status == "approved",
+            ProjectForecastORM.status.in_(("approved", "superseded")),
             ProjectForecastORM.as_of_date <= as_of,
             _project_scope(
                 tenant_id=tenant_id,
                 organization_id=organization_id,
                 project_id=project_id,
             ),
+        )
+        .order_by(
+            ProjectForecastORM.as_of_date.desc(),
+            ProjectForecastORM.revision.desc(),
         )
         .limit(1)
     )

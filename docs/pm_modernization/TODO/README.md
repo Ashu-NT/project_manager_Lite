@@ -586,10 +586,31 @@ unrelated repository-wide generated-file size guard deselected).
   projections and may change only through authoritative procurement revisions. PM project contract
   value does not yet exist and remains behind Phase E/ADR-PF-010 product decisions; D.2 does not
   create a fake contract authority or leave blocked/dead fields.
-- **Next Phase D slice - D.4:** snapshot/cash-flow/EVM/variance/
-  portfolio read-model cutover to canonical Money and approved/current forecasts; export
-  metadata and reconciliation; desktop formula deletion; QML Forecast/ETC/Change/Variance
-  redesign after read parity.
+- **Phase D.4 - COMPLETE (2026-08-11): disposable canonical finance read models.** The scoped
+  project snapshot, cash-flow, analytics, EVM, and batched portfolio paths now read Decimal Money
+  from approved budget versions, the latest approved/superseded forecast version valid for the
+  requested as-of date, net posted/reversed actual entries, and unmatched open Procurement
+  commitments. ETC is the approved forecast total; EAC is posted actual plus approved ETC; VAC is
+  approved budget minus EAC. Open commitments remain a separate control and are never added to EAC
+  a second time. Historical as-of reads select the applicable superseded approved forecast rather
+  than silently using today's version.
+- **Read-model ownership rule:** `FinanceSnapshotFacts`, `FinanceControlFact`, application snapshot,
+  cash-flow, analytics, and portfolio rows are rebuilt on demand, have no ORM/table/repository/write
+  command, and are disposable without data loss. The sources of truth remain the versioned budget/
+  forecast aggregates, immutable posting/reversal ledger, and Procurement-owned commitment
+  projection. An architecture test blocks a finance-snapshot persistence authority from appearing.
+- Cash flow now uses actual posting dates and approved forecast periods instead of `max(planned,
+  committed)` heuristics. EVM retains baseline-owned BAC/PV/EV and canonical posted AC, but EAC/ETC/
+  VAC use the approved forecast and are unavailable when one does not exist; the former CPI fallback
+  is deleted. Portfolio cost pressure now uses EAC minus approved budget and no longer performs
+  per-project labor-rate calculation to manufacture `actual - planned` variance.
+- The transient `ForecastCostService`, EAC method enum/formulas, runtime composition, tests, desktop
+  fallback path, recalculation action, fake invoiced/paid commitment totals, and duplicate Finance
+  "Earned Value" card were deleted. The QML forecast card now identifies approved revision/as-of and
+  displays approved budget, posted actual, ETC, EAC, and VAC only.
+- **Next Phase D slice - D.5:** export as-of/basis/period/version metadata, bounded pagination and
+  source drill-down, reconciliation/control totals, sensitive-field filtering, and report parity.
+  Continue D.7 QML Change/Variance/report redesign only after the D.5 export/read parity gate.
 - **Phase E** (billing/revenue/external accounting): blocked on ADR-PF-010 (currently
   PROPOSED, not accepted) and the product decisions in §24 items 10-15 of the master doc.
 
@@ -609,6 +630,13 @@ PM baseline passed (`567 passed`, 29 warnings); the current D.1B run reached 89%
 before the five-minute command limit. A combined run that also includes the older `src/tests/pm`
 tree reports 12 pre-existing scheduling-test contract mismatches (legacy `ValueError`/clamping
 expectations and legacy constraint-field fixtures); none touches Project Finance.
+
+Phase D.4 verification: focused canonical read-model, as-of forecast selection, reversal,
+desktop-mapping, security, disposal-guard, and CQRS architecture coverage passes (`38 passed`). The
+broader budget/forecast/change/actual/commitment/reporting/portfolio compatibility suite passes
+(`101 passed`, 10 warnings). Architecture/QML coverage passes 153 tests; its only three failures are
+the already documented stale removed-`cost.py` guard, scheduling-engine growth budget, and the
+repository-wide generated/platform hard-size guard. No D.4 architecture or QML guard fails.
 
 ## 4. Finance — remaining transition-code register items
 

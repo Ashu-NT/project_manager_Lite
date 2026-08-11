@@ -41,7 +41,6 @@ AppLayouts.WorkspaceFrame {
             "Actuals", "Forecast", "Commitments", "Invoices"
         ]
         if (root._hasProcPoCap) sections.push("Purchase Orders")
-        sections.push("Earned Value")
         sections.push("Variance")
         sections.push("Activity")
         return sections

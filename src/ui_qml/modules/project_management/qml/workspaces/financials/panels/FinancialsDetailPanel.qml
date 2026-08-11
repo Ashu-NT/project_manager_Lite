@@ -63,7 +63,6 @@ Item {
         if (name === "Commitments")     return _commitments.implicitHeight
         if (name === "Invoices")        return _invoices.implicitHeight
         if (name === "Purchase Orders") return _purchaseOrders.implicitHeight
-        if (name === "Earned Value")    return _earnedValue.implicitHeight
         if (name === "Activity")        return _activity.implicitHeight
         if (name === "Variance")        return _variance.implicitHeight
         return 0
@@ -223,21 +222,6 @@ Item {
         loadingMessage: "Loading financials..."
         sourceComponent: Component {
             FinancialsPurchaseOrdersSection { width: parent ? parent.width : 0 }
-        }
-    }
-
-    AppWidgets.LazySectionLoader {
-        id: _earnedValue
-        anchors.left: parent.left
-        anchors.right: parent.right
-        active: root._idx === root._secIdx("Earned Value")
-        loadingMessage: "Loading financials..."
-        sourceComponent: Component {
-            FinancialsEarnedValueSection {
-                width: parent ? parent.width : 0
-                forecastModel: root.forecastModel
-                isBusy: root.isBusy
-            }
         }
     }
 

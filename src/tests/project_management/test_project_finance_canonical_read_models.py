@@ -97,11 +97,11 @@ def _approved_controls(services):
         expected_version=entry.row_version,
         posting_date=date(2026, 8, 5),
     )
-    return project, budget, forecast, entry
+    return project, budget, forecast, entry, code
 
 
 def test_snapshot_reconciles_approved_budget_forecast_and_posted_actual(services) -> None:
-    project, budget, forecast, _entry = _approved_controls(services)
+    project, budget, forecast, _entry, _code = _approved_controls(services)
 
     snapshot = services["finance_service"].get_finance_snapshot(
         project.id, as_of=date(2026, 8, 31)
@@ -126,7 +126,7 @@ def test_snapshot_reconciles_approved_budget_forecast_and_posted_actual(services
 
 
 def test_snapshot_has_no_eac_or_vac_before_the_approved_forecast_basis(services) -> None:
-    project, _budget, _forecast, _entry = _approved_controls(services)
+    project, _budget, _forecast, _entry, _code = _approved_controls(services)
 
     snapshot = services["finance_service"].get_finance_snapshot(
         project.id, as_of=date(2026, 7, 31)
@@ -140,7 +140,7 @@ def test_snapshot_has_no_eac_or_vac_before_the_approved_forecast_basis(services)
 
 
 def test_posted_reversal_nets_actual_without_rewriting_forecast(services) -> None:
-    project, _budget, forecast, entry = _approved_controls(services)
+    project, _budget, forecast, entry, _code = _approved_controls(services)
     entries = services["cost_entry_service"]
     entries.reverse(
         entry.id,
@@ -158,3 +158,44 @@ def test_posted_reversal_nets_actual_without_rewriting_forecast(services) -> Non
     assert snapshot.forecast_etc == Decimal("80")
     assert snapshot.estimate_at_completion == Decimal("80")
     assert snapshot.approved_forecast_id == forecast.id
+
+
+def test_as_of_selects_superseded_approved_forecast_version(services) -> None:
+    project, _budget, first, _entry, code = _approved_controls(services)
+    forecasts = services["forecast_version_service"]
+    second = forecasts.create_forecast(
+        project.id,
+        name="September ETC",
+        as_of_date=date(2026, 9, 1),
+        generation_mode=ForecastGenerationMode.MANUAL,
+        created_by="admin",
+    )
+    forecasts.add_line(
+        second.id,
+        cost_code_id=code.id,
+        description="Revised remaining delivery",
+        amount=Decimal("60"),
+        source_kind=ForecastLineSourceKind.MANUAL,
+        source_type=ForecastLineSourceType.MANUAL_ESTIMATE,
+        created_by="admin",
+        expected_forecast_version=second.row_version,
+    )
+    second = forecasts.get_forecast(second.id)
+    second = forecasts.submit_forecast(
+        second.id, submitted_by="admin", expected_version=second.row_version
+    )
+    second = forecasts.approve_forecast(
+        second.id, approved_by="admin", expected_version=second.row_version
+    )
+
+    august = services["finance_service"].get_finance_snapshot(
+        project.id, as_of=date(2026, 8, 31)
+    )
+    september = services["finance_service"].get_finance_snapshot(
+        project.id, as_of=date(2026, 9, 30)
+    )
+
+    assert august.approved_forecast_id == first.id
+    assert august.forecast_etc == Decimal("80")
+    assert september.approved_forecast_id == second.id
+    assert september.forecast_etc == Decimal("60")

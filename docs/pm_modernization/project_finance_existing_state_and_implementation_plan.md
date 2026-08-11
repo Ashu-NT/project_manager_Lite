@@ -1,9 +1,16 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: audit complete; Phase A0-A2, Phase B item 8, and Phase C items 1-6 code gates complete; Phase C.7 in progress; hosted PostgreSQL validation pending
-Last updated: 2026-08-09
+Status: audit complete; Phase A-D.4 implementation gates complete; Phase D.5 next; hosted PostgreSQL validation pending
+Last updated: 2026-08-11
 Scope: Project Management finance plus reusable platform financial foundations
-Current increment: Task-owned WBS, effective-dated rate cards (ADR-PF-005) with the
+Current checkpoint: D.4 canonical read-model cutover is complete. Project snapshot, cash flow,
+analytics, EVM, portfolio variance, desktop forecast, and commitment controls now consume approved
+budget/current-or-historical-approved forecast versions, posted actuals/reversals, and open
+commitments as Decimal Money. The transient forecast formula service and misleading duplicate UI
+were deleted. D.5 export metadata, pagination, drill-down, reconciliation, and sensitive-field
+filtering is next. See [TODO/README.md](TODO/README.md) for the concise execution checkpoint.
+
+Historical implementation checkpoint: Task-owned WBS, effective-dated rate cards (ADR-PF-005) with the
 `CostPolicyEngine`/`LaborCostEngine` cutover, the versioned `ProjectBudget`/`BudgetLine`
 lifecycle (item 5, including governed approval integration), and versioned labor
 planned-cost snapshots (item 6) are all now implemented and tested (uncommitted); their
@@ -1076,9 +1083,8 @@ Implementation progress (2026-08-11):
   events. PostgreSQL forced RLS is delivered by reversible migration `v9w0x1y2z3a4`; D.1B
   revision `w0x1y2z3a4b5` now follows it as the sole Alembic head.
 - No data migration or compatibility path was created because the application is pre-release and
-  has no client forecast data. The transient `ForecastCostService` remains the current desktop
-  calculation source until D.4 produces and proves the canonical read models; it is
-  not a second persisted authority.
+  has no client forecast data. D.4 subsequently deleted the transient `ForecastCostService` after
+  canonical read reconciliation and desktop parity were proven.
 - Verification: 8 focused forecast lifecycle/tenant/migration tests pass; 44 RBAC/security tests
   pass; 12 desktop-adapter architecture tests pass; the migration graph passes with the unrelated
   repository size guard deselected; and the canonical PM suite passes with 567 tests. The older
@@ -1114,9 +1120,8 @@ Implementation progress (2026-08-11):
   linked-risk line constraint, and forced PostgreSQL RLS. It is the sole Alembic head and is
   reversible.
 - D.1B is a direct pre-release implementation: no backfill, compatibility facade, dual read/write,
-  legacy forecast model, or temporary transition file was introduced. The existing transient
-  desktop `ForecastCostService` is not a persisted authority and remains only until the later
-  canonical read-model/QML parity gate removes it.
+  legacy forecast model, or temporary transition file was introduced. D.4 has now removed the
+  transient desktop formula service at the canonical read-model/QML parity gate.
 - D.1B verification: 13 focused lifecycle/generation/precedence/risk/zero-ETC/atomicity/tenant/
   migration tests pass. The affected finance architecture, persistence, security, and composition
   checkpoint passes 39 tests; its only global-suite failure is the pre-existing hard-size guard for
@@ -1151,8 +1156,32 @@ Implementation progress (2026-08-11):
   removed `repositories/cost.py` and a 410-line budget for the pre-existing 449-line scheduling
   engine. Neither touches D.2.
 
-Continue to **D.4** canonical finance read models. Forecast read models and QML must
-not cut over until D.4 proves source reconciliation and read parity.
+**D.4 COMPLETE - disposable canonical finance read models (2026-08-11).**
+
+- `FinanceSnapshotFacts`, `FinanceControlFact`, application snapshots, cash-flow/analytics rows, and
+  portfolio rows are disposable, on-demand projections. They have no ORM, table, migration,
+  repository, or write command; deleting/rebuilding them loses no business data. An architecture
+  guard enforces this rule. Persisted approved budget/forecast versions, posted/reversal entries,
+  and Procurement-owned commitment projections remain the authorities.
+- The scoped reader preserves Decimal Money through the application boundary and selects the latest
+  approved or superseded-approved forecast valid at the requested as-of date. It reconciles approved
+  budget, net posted actual, unmatched open commitment, approved ETC, EAC (`actual + ETC`), and VAC
+  (`budget - EAC`). Open commitments are visible controls but are not added to forecast EAC again.
+- Cash flow uses posting dates and approved forecast periods, not `max(...)` exposure heuristics.
+  EVM retains baseline-owned BAC/PV/EV and posted AC, while EAC/ETC/VAC use the approved forecast and
+  remain unavailable without one. Portfolio overrun is EAC minus approved budget and no longer
+  invokes labor-rate calculation per project or reports `actual - planned` as cost variance.
+- The temporary `ForecastCostService`, EAC formula enum, composition/runtime plumbing, recalculation
+  action, old tests, fake invoiced/paid commitment totals, and duplicate non-EVM Finance UI section
+  were deleted. Desktop mapping converts Decimal only at the QML boundary; the forecast card now
+  exposes approved version/as-of, budget, posted actual, ETC, EAC, and VAC.
+- Verification: focused D.4/security/CQRS/disposal coverage passes 38 tests; broad affected finance,
+  reporting, and portfolio coverage passes 101 tests. Architecture/QML coverage passes 153 tests;
+  only the three already-documented repository-wide stale/size guard failures remain.
+
+Continue to **D.5** export metadata, bounded pagination, source drill-down, reconciliation/control
+totals, sensitive-field filtering, and report parity. Complete the remaining D.7 Change/Variance/
+report QML redesign only after that parity gate.
 
 ### Phase E - Billing preparation, revenue, and external accounting
 

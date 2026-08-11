@@ -250,14 +250,21 @@ class SqlAlchemyPortfolioHeatmapReader:
                     ProjectForecastORM.tenant_id == tenant_id,
                     ProjectForecastORM.organization_id == organization_id,
                     ProjectForecastORM.project_id.in_(scoped_project_ids),
-                    ProjectForecastORM.status == "approved",
+                    ProjectForecastORM.status.in_(("approved", "superseded")),
                     ProjectForecastORM.as_of_date <= as_of,
                 )
-                .order_by(ProjectForecastORM.project_id)
+                .order_by(
+                    ProjectForecastORM.project_id,
+                    ProjectForecastORM.as_of_date.desc(),
+                    ProjectForecastORM.revision.desc(),
+                )
             )
         )
-        forecast_by_project = {str(row.project_id): row for row in forecast_rows}
-        forecast_ids = tuple(str(row.id) for row in forecast_rows)
+        forecast_by_project = {}
+        for row in forecast_rows:
+            forecast_by_project.setdefault(str(row.project_id), row)
+        selected_forecasts = tuple(forecast_by_project.values())
+        forecast_ids = tuple(str(row.id) for row in selected_forecasts)
         forecast_line_rows = tuple(
             self._session.execute(
                 select(

@@ -28,7 +28,7 @@ def build_overview(
             FinancialsMetricViewModel(
                 label="Budget",
                 value=snapshot.budget_label,
-                supporting_text="Planned budget available to the selected project.",
+                supporting_text="Current approved budget authorization.",
             ),
             FinancialsMetricViewModel(
                 label="Planned",
@@ -36,19 +36,19 @@ def build_overview(
                 supporting_text="Current versioned planned-cost snapshot.",
             ),
             FinancialsMetricViewModel(
-                label="Committed",
+                label="Open commitments",
                 value=snapshot.committed_label,
-                supporting_text="Committed exposure recorded on the selected project.",
+                supporting_text="Unmatched Procurement commitment balance.",
             ),
             FinancialsMetricViewModel(
                 label="Actual",
                 value=snapshot.actual_label,
-                supporting_text="Actual spend captured in the project ledger.",
+                supporting_text="Net posted actuals, including reversal entries.",
             ),
             FinancialsMetricViewModel(
                 label="Available",
                 value=snapshot.available_label,
-                supporting_text="Remaining headroom after current exposure.",
+                supporting_text="Approved budget less posted actuals and open commitments.",
             ),
         ),
     )
