@@ -74,6 +74,36 @@ class FinancialsStateMixin:
         self._forecast = forecast
         self.forecastChanged.emit()
 
+    def _set_selected_forecast_id(self, value: str) -> None:
+        if value != self._selected_forecast_id:
+            self._selected_forecast_id = value
+            self.selectedForecastIdChanged.emit()
+
+    def _set_forecast_versions(self, value: FinancialsMap) -> None:
+        if value != self._forecast_versions:
+            self._forecast_versions = value
+            self.forecastVersionsChanged.emit()
+
+    def _set_forecast_lines(self, value: FinancialsMap) -> None:
+        if value != self._forecast_lines:
+            self._forecast_lines = value
+            self.forecastLinesChanged.emit()
+
+    def _set_selected_change_id(self, value: str) -> None:
+        if value != self._selected_change_id:
+            self._selected_change_id = value
+            self.selectedChangeIdChanged.emit()
+
+    def _set_financial_changes(self, value: FinancialsMap) -> None:
+        if value != self._financial_changes:
+            self._financial_changes = value
+            self.financialChangesChanged.emit()
+
+    def _set_financial_change_impacts(self, value: FinancialsMap) -> None:
+        if value != self._financial_change_impacts:
+            self._financial_change_impacts = value
+            self.financialChangeImpactsChanged.emit()
+
     def _set_commitment_summary(self, summary: FinancialsMap) -> None:
         if summary == self._commitment_summary:
             return
@@ -92,6 +122,26 @@ class FinancialsStateMixin:
             return
         self._baseline_variance = rows
         self.baselineVarianceChanged.emit()
+
+    def _set_selected_baseline_id(self, value: str) -> None:
+        if value != self._selected_baseline_id:
+            self._selected_baseline_id = value
+            self.selectedBaselineIdChanged.emit()
+
+    def _set_baseline_versions(self, value: FinancialsMap) -> None:
+        if value != self._baseline_versions:
+            self._baseline_versions = value
+            self.baselineVersionsChanged.emit()
+
+    def _set_variance_basis(self, value: FinancialsMap) -> None:
+        if value != self._variance_basis:
+            self._variance_basis = value
+            self.varianceBasisChanged.emit()
+
+    def _set_report_basis(self, value: FinancialsMap) -> None:
+        if value != self._report_basis:
+            self._report_basis = value
+            self.reportBasisChanged.emit()
 
     def _set_financial_profile(self, value: FinancialsMap) -> None:
         if value != self._financial_profile:

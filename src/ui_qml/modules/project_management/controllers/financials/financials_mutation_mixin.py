@@ -3,13 +3,29 @@ from __future__ import annotations
 from src.ui_qml.modules.project_management.controllers.common import (
     run_mutation,
 )
+from src.ui_qml.modules.project_management.utils.file_paths import (
+    local_path_from_qml_file_url,
+)
 
 
 class FinancialsMutationMixin:
-    def _export_financials(self) -> None:
-        self._set_error_message("")
-        self._set_feedback_message(
-            "Export is not available here. Open the Reports section to generate financial summaries, cost breakdowns, and variance exports."
+    def _export_financials(self, report_format: str, output_path: str) -> None:
+        normalized_path = local_path_from_qml_file_url(output_path)
+        if not normalized_path:
+            self._set_error_message("Choose an output file for the financial report.")
+            return
+        run_mutation(
+            operation=lambda: self._financials_workspace_presenter.export_financial_report(
+                project_id=self._selected_project_id,
+                output_path=normalized_path,
+                report_format=(report_format or "").strip().lower(),
+                baseline_id=self._selected_baseline_id or None,
+            ),
+            success_message=f"Financial report exported to {normalized_path}.",
+            on_success=lambda: None,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
         )
 
     def _create_manual_actual(self, payload: dict[str, object]) -> dict[str, object]:

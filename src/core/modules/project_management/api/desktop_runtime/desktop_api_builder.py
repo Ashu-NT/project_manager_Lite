@@ -70,6 +70,9 @@ def build_project_management_desktop_runtime_apis(
             financial_configuration_service=resolved.financial_configuration_service,
             cost_entry_service=resolved.cost_entry_service,
             commitment_service=resolved.commitment_service,
+            forecast_version_service=resolved.forecast_version_service,
+            financial_change_service=resolved.financial_change_service,
+            reporting_service=resolved.reporting_service,
         ),
         project_management_portfolio=build_project_management_portfolio_desktop_api(
             project_service=resolved.project_service,

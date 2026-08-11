@@ -51,9 +51,19 @@ class ProjectManagementFinancialsWorkspaceController(
     costTypeAnalyticsChanged = Signal()
     notesChanged = Signal()
     forecastChanged = Signal()
+    selectedForecastIdChanged = Signal()
+    forecastVersionsChanged = Signal()
+    forecastLinesChanged = Signal()
+    selectedChangeIdChanged = Signal()
+    financialChangesChanged = Signal()
+    financialChangeImpactsChanged = Signal()
     commitmentSummaryChanged = Signal()
     commitmentsChanged = Signal()
     baselineVarianceChanged = Signal()
+    selectedBaselineIdChanged = Signal()
+    baselineVersionsChanged = Signal()
+    varianceBasisChanged = Signal()
+    reportBasisChanged = Signal()
     financialProfileChanged = Signal()
     budgetVersionsChanged = Signal()
     budgetLinesChanged = Signal()
@@ -92,10 +102,20 @@ class ProjectManagementFinancialsWorkspaceController(
         self._cost_type_analytics = default_collection()
         self._notes: list[str] = []
         self._forecast = default_forecast()
+        self._selected_forecast_id = ""
+        self._forecast_versions = default_collection()
+        self._forecast_lines = default_collection()
+        self._selected_change_id = ""
+        self._financial_changes = default_collection()
+        self._financial_change_impacts = default_collection()
         self._commitment_summary = default_commitment_summary()
         self._commitments = default_collection()
         self._commitments_table_model = DynamicTableModel(self)
         self._baseline_variance: FinancialsObjectList = []
+        self._selected_baseline_id = ""
+        self._baseline_versions = default_collection()
+        self._variance_basis = default_detail()
+        self._report_basis = default_detail()
         self._financial_profile = default_detail()
         self._budget_versions = default_collection()
         self._budget_lines = default_collection()
@@ -146,6 +166,24 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property("QVariantMap", notify=forecastChanged)
     def forecast(self) -> FinancialsMap: return self._forecast
 
+    @Property(str, notify=selectedForecastIdChanged)
+    def selectedForecastId(self) -> str: return self._selected_forecast_id
+
+    @Property("QVariantMap", notify=forecastVersionsChanged)
+    def forecastVersions(self) -> FinancialsMap: return self._forecast_versions
+
+    @Property("QVariantMap", notify=forecastLinesChanged)
+    def forecastLines(self) -> FinancialsMap: return self._forecast_lines
+
+    @Property(str, notify=selectedChangeIdChanged)
+    def selectedChangeId(self) -> str: return self._selected_change_id
+
+    @Property("QVariantMap", notify=financialChangesChanged)
+    def financialChanges(self) -> FinancialsMap: return self._financial_changes
+
+    @Property("QVariantMap", notify=financialChangeImpactsChanged)
+    def financialChangeImpacts(self) -> FinancialsMap: return self._financial_change_impacts
+
     @Property("QVariantMap", notify=commitmentSummaryChanged)
     def commitmentSummary(self) -> FinancialsMap: return self._commitment_summary
 
@@ -157,6 +195,18 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Property("QVariantList", notify=baselineVarianceChanged)
     def baselineVariance(self) -> FinancialsObjectList: return self._baseline_variance
+
+    @Property(str, notify=selectedBaselineIdChanged)
+    def selectedBaselineId(self) -> str: return self._selected_baseline_id
+
+    @Property("QVariantMap", notify=baselineVersionsChanged)
+    def baselineVersions(self) -> FinancialsMap: return self._baseline_versions
+
+    @Property("QVariantMap", notify=varianceBasisChanged)
+    def varianceBasis(self) -> FinancialsMap: return self._variance_basis
+
+    @Property("QVariantMap", notify=reportBasisChanged)
+    def reportBasis(self) -> FinancialsMap: return self._report_basis
 
     @Property("QVariantMap", notify=financialProfileChanged)
     def financialProfile(self) -> FinancialsMap: return self._financial_profile
@@ -185,8 +235,21 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot(str)
     def selectProject(self, project_id: str) -> None: self._select_project(project_id)
 
-    @Slot()
-    def exportFinancials(self) -> None: self._export_financials()
+    @Slot(str, str)
+    def exportFinancials(self, report_format: str, output_path: str) -> None:
+        self._export_financials(report_format, output_path)
+
+    @Slot(str)
+    def selectForecastVersion(self, forecast_id: str) -> None:
+        self._select_forecast_version(forecast_id)
+
+    @Slot(str)
+    def selectFinancialChange(self, change_id: str) -> None:
+        self._select_financial_change(change_id)
+
+    @Slot(str)
+    def selectVarianceBaseline(self, baseline_id: str) -> None:
+        self._select_variance_baseline(baseline_id)
 
     @Slot("QVariantMap", result="QVariantMap")
     def createManualActual(self, payload: FinancialsMap) -> FinancialsMap: return self._create_manual_actual(payload)

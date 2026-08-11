@@ -533,7 +533,7 @@ Verification: the complete PM suite passes (`559 passed`), and the targeted arch
 migration-graph, service-composition, CQRS, and QML suite passes (`54 passed`, with only the
 unrelated repository-wide generated-file size guard deselected).
 
-## 3. Finance — Phase D in progress; Phase E future
+## 3. Finance — Phase D complete; Phase E future
 
 - **Phase D.1A — COMPLETE (2026-08-11): canonical forecast persistence and lifecycle.**
   Added PM-owned `ProjectForecast`/`ForecastLine` domain models, tenant/org/project-scoped
@@ -621,9 +621,21 @@ unrelated repository-wide generated-file size guard deselected).
   project scope. Offset pagination has a hard 500-row page limit; report totals and controls always
   come from the full reconciled snapshot, never from the page. The unused deprecated
   `infrastructure/reporting/exporters.py` compatibility wrapper was deleted.
-- **Next Phase D slice - D.7:** redesign the remaining QML Change, Variance, and report experiences
-  around approved version selection and source drill-down. D.5 adds no snapshot persistence,
-  duplicate finance formula, legacy branch, or temporary transition code.
+- **Phase D.7 - COMPLETE (2026-08-11): governed lifecycle and reporting workspace.** Forecast now
+  combines the canonical approved ETC/EAC/VAC controls with selectable forecast revisions and their
+  persisted source lines. Change Control exposes selectable governed requests, snapshotted budget/
+  forecast bases, typed impacts, and applied owner references. Variance exposes only approved or
+  superseded schedule baselines and clearly labels its stored plan-to-plan schedule/planned-cost
+  movement so it cannot be mistaken for actual-cost performance.
+- Reports is now a real finance section rather than a placeholder. Its fixed contextual toolbar
+  provides Excel/PDF export, passes the selected governed schedule baseline, and delegates to the
+  D.5 canonical reconciled snapshot/export projection. The desktop and QML layers perform no
+  finance calculations. Forecast-line and change-impact reads revalidate ownership against the
+  selected scoped project before child retrieval.
+- The exception-swallowing `build_baseline_variance` path, misleading financial export placeholder,
+  empty `FinancialsInsightsSection.qml`, and stale nonexistent `FinancialsWorkspaceState.qml`
+  module entry were deleted. No alias, compatibility branch, duplicate formula, persisted snapshot,
+  temporary adapter, or transition code was introduced.
 - **Phase E** (billing/revenue/external accounting): blocked on ADR-PF-010 (currently
   PROPOSED, not accepted) and the product decisions in §24 items 10-15 of the master doc.
 
@@ -661,6 +673,12 @@ bounded-page, reconciliation, redaction-state, and distinct-export-permission co
 architecture suite passes `153` tests; its only three failures remain the documented stale removed-
 `cost.py` guard, scheduling-engine growth budget, and repository-wide generated/platform hard-size
 guard. No D.5 boundary, persistence, or deleted-wrapper import failure exists.
+
+Phase D.7 verification: focused lifecycle ownership, authorization propagation, governed-baseline,
+and canonical report-delegation coverage passes `6` tests. The broader PM finance/financial/reporting
+selection passes `167 passed` (`427 deselected`, 19 dependency warnings). PM desktop-boundary and
+canonical read-model coverage passes `22` tests; existing presenter/QML runtime coverage passes
+`13` tests. `qmllint` reports no warnings or errors for every changed financial workspace QML file.
 
 ## 4. Finance — remaining transition-code register items
 

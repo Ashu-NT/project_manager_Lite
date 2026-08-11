@@ -1,15 +1,17 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: audit complete; Phase A-D.5 implementation gates complete; Phase D.7 next; hosted PostgreSQL validation pending
+Status: audit complete; Phase A-D implementation gates complete; Phase E blocked; hosted PostgreSQL validation pending
 Last updated: 2026-08-11
 Scope: Project Management finance plus reusable platform financial foundations
-Current checkpoint: D.5 governed finance report/export parity is complete. Project snapshot, cash flow,
+Current checkpoint: D.7 governed finance lifecycle/reporting workspace is complete. Project snapshot, cash flow,
 analytics, EVM, portfolio variance, desktop forecast, and commitment controls now consume approved
 budget/current-or-historical-approved forecast versions, posted actuals/reversals, and open
 commitments as Decimal Money. Excel and PDF now share one explicit as-of/currency/period/version
 basis, full-snapshot reconciliation controls, bounded source drill-down, and sensitive-detail state.
-The transient forecast formula service, misleading duplicate UI, and deprecated export wrapper are
-deleted. D.7 QML Change/Variance/report redesign is next. See [TODO/README.md](TODO/README.md) for
+The transient forecast formula service, misleading duplicate UI/export placeholder, empty Insights
+component, and deprecated export wrapper are deleted. Forecast/ETC, Change Control, stored baseline
+Variance, and Reports now expose canonical version basis and source drill-down without desktop
+formulas. Phase E remains blocked by ADR-PF-010 and unresolved product decisions. See [TODO/README.md](TODO/README.md) for
 the concise execution checkpoint.
 
 Historical implementation checkpoint: Task-owned WBS, effective-dated rate cards (ADR-PF-005) with the
@@ -1210,9 +1212,28 @@ Implementation progress (2026-08-11):
   reconciliation, and permission tests pass. Architecture passes 153 tests; only the three existing
   stale/size guard failures documented under D.4 remain, and none concerns D.5.
 
-Continue to **D.7** QML Change/Variance/report redesign around approved version selection and source
-drill-down. D.5 introduced no persisted snapshot, transition adapter, compatibility branch, or
-temporary code.
+**D.7 COMPLETE - governed QML lifecycle and report drill-down.** The financial workspace now reads
+forecast revisions/ETC source lines from `ForecastVersionService`, financial requests/typed impacts
+from `FinancialChangeService`, and approved/superseded schedule-baseline comparison history from
+`BaselineService`. Child forecast-line and change-impact reads first revalidate the requested parent
+against the selected scoped project's collection. Authorization and context failures propagate to
+the fixed section-scoped inline message instead of being swallowed as empty data.
+
+Forecast preserves the canonical approved ETC/EAC/VAC summary and adds selectable historical/current
+versions with source type/reference/snapshot/period drill-down. Change Control shows snapshotted base
+budget/forecast versions and applied owner references. Variance explicitly identifies its measure as
+stored plan-to-plan schedule and planned-cost movement, not actual-cost performance, and excludes
+draft/rejected baselines from selection. Reports exposes its currency/forecast/baseline/source-page
+basis and fixed contextual Excel/PDF actions; generation delegates to the D.5 shared reconciled
+projection with the selected governed baseline and performs no QML/controller/presenter formula.
+
+The broad exception fallback and old `build_baseline_variance` contract, the nonfunctional export
+message, empty `FinancialsInsightsSection.qml`, and stale nonexistent workspace-state module entry
+were deleted. No persisted snapshot, compatibility alias, legacy branch, temporary adapter, dual
+read, or transition code remains from D.7. Focused lifecycle/security/export tests pass `6`; the PM
+finance/financial/reporting selection passes `167` (`427 deselected`, 19 dependency warnings),
+desktop-boundary/canonical-read coverage passes `22`, presenter/QML runtime coverage passes `13`,
+and changed-workspace `qmllint` is clean.
 
 ### Phase E - Billing preparation, revenue, and external accounting
 

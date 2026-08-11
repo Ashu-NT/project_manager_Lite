@@ -9,6 +9,10 @@ Item {
     id: root
 
     property var baselineVarianceModel: []
+    property var baselineVersions: ({ "items": [] })
+    property var varianceBasis: ({ "fields": [] })
+    property string selectedBaselineId: ""
+    signal baselineSelected(string baselineId)
 
     implicitHeight: _col.implicitHeight
 
@@ -19,11 +23,42 @@ Item {
 
         AppWidgets.SectionHeading { width: parent.width; label: "Variance" }
 
+        Item {
+            width: parent.width
+            implicitHeight: _basisContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+            height: implicitHeight
+
+            ColumnLayout {
+                id: _basisContent
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: Theme.AppTheme.spacingMd
+                spacing: Theme.AppTheme.spacingMd
+
+                FinancialsCollectionBlock {
+                    Layout.fillWidth: true
+                    collection: root.baselineVersions
+                    selectable: true
+                    selectedId: root.selectedBaselineId
+                    onItemSelected: function(itemId) { root.baselineSelected(itemId) }
+                }
+
+                AppWidgets.InlineMessage {
+                    Layout.fillWidth: true
+                    visible: String(root.varianceBasis.title || "").length > 0
+                    tone: "info"
+                    message: "Showing stored movement for " + String(root.varianceBasis.title || "")
+                        + ". This compares approved plans; it is not actual-cost performance."
+                }
+            }
+        }
+
         AppWidgets.EmptyState {
             width: parent.width
             visible: (root.baselineVarianceModel || []).length === 0
             title: "No variance data"
-            message: "Approve a baseline to see cost drift against the plan."
+            message: "The selected baseline has no predecessor comparison records."
         }
 
         Item {
@@ -90,7 +125,7 @@ Item {
                                 font.pixelSize: Theme.AppTheme.captionSize
                             }
                             AppControls.Label {
-                                text: String(_varRow.modelData.costVarianceLabel || "—")
+                                text: String(_varRow.modelData.costVarianceLabel || "-")
                                 color: _varRow._toneColor
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.smallSize

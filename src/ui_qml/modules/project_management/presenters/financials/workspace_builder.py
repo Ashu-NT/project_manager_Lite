@@ -4,8 +4,8 @@ from src.core.modules.project_management.api.desktop import (
     ProjectManagementFinancialsDesktopApi,
 )
 from src.ui_qml.modules.project_management.view_models.financials import (
-    BaselineVarianceRowViewModel,
-    FinancialsForecastViewModel,
+    FinancialsDetailFieldViewModel,
+    FinancialsDetailViewModel,
     FinancialsManualActualOptionsViewModel,
     FinancialsSelectorOptionViewModel,
     FinancialsWorkspaceViewModel,
@@ -17,6 +17,7 @@ from .commitment_builder import build_commitment_collection, build_commitment_su
 from .configuration_builder import build_finance_configuration_views
 from .forecast_builder import build_forecast_view_model
 from .ledger_builder import build_ledger_collection
+from .lifecycle_builder import build_lifecycle_views
 from .overview_builder import build_overview
 from .selection import resolve_project_id
 
@@ -29,6 +30,9 @@ def build_workspace_state(
     rate_line_page: int = 1,
     planned_cost_line_page: int = 1,
     configuration_page_size: int = 50,
+    selected_forecast_id: str | None = None,
+    selected_change_id: str | None = None,
+    selected_baseline_id: str | None = None,
 ) -> FinancialsWorkspaceViewModel:
     project_options = tuple(
         FinancialsSelectorOptionViewModel(value=option.value, label=option.label)
@@ -56,6 +60,13 @@ def build_workspace_state(
             planned_cost_line_page=planned_cost_line_page,
             page_size=configuration_page_size,
         )
+    )
+    lifecycle_views = build_lifecycle_views(
+        desktop_api,
+        project_id=resolved_project_id,
+        selected_forecast_id=selected_forecast_id,
+        selected_change_id=selected_change_id,
+        selected_baseline_id=selected_baseline_id,
     )
     return FinancialsWorkspaceViewModel(
         overview=build_overview(
@@ -90,21 +101,42 @@ def build_workspace_state(
             rows=snapshot.by_cost_type,
         ),
         forecast=build_forecast_view_model(forecast_dto),
+        selected_forecast_id=lifecycle_views["selected_forecast_id"],
+        forecast_versions=lifecycle_views["forecast_versions"],
+        forecast_lines=lifecycle_views["forecast_lines"],
+        selected_change_id=lifecycle_views["selected_change_id"],
+        financial_changes=lifecycle_views["financial_changes"],
+        financial_change_impacts=lifecycle_views["financial_change_impacts"],
         commitment_summary=build_commitment_summary(
             desktop_api.get_commitment_summary(resolved_project_id)
         ),
         commitments=build_commitment_collection(commitment_page),
-        baseline_variance=tuple(
-            BaselineVarianceRowViewModel(
-                task_id=rec.task_id,
-                task_name=rec.task_name,
-                start_variance_days=rec.start_variance_days,
-                finish_variance_days=rec.finish_variance_days,
-                cost_variance=rec.cost_variance,
-                cost_variance_label=rec.cost_variance_label,
-                tone=rec.tone,
-            )
-            for rec in desktop_api.build_baseline_variance(resolved_project_id)
+        baseline_variance=lifecycle_views["baseline_variance"],
+        selected_baseline_id=lifecycle_views["selected_baseline_id"],
+        baseline_versions=lifecycle_views["baseline_versions"],
+        variance_basis=lifecycle_views["variance_basis"],
+        report_basis=FinancialsDetailViewModel(
+            id=resolved_project_id,
+            title="Canonical Financial Report",
+            status_label="Reconciled at export time" if resolved_project_id else "",
+            empty_state="Select a project before exporting a financial report.",
+            fields=(
+                FinancialsDetailFieldViewModel(
+                    "Currency basis", actual_options.currency_code or "Project currency"
+                ),
+                FinancialsDetailFieldViewModel(
+                    "Forecast basis", forecast_dto.basis_label or "No approved forecast"
+                ),
+                FinancialsDetailFieldViewModel(
+                    "Schedule baseline",
+                    lifecycle_views["variance_basis"].title or "No selected baseline",
+                ),
+                FinancialsDetailFieldViewModel(
+                    "Source detail",
+                    "Bounded to 500 ledger rows per export page",
+                    "Control totals always use the complete reconciled snapshot.",
+                ),
+            ) if resolved_project_id else (),
         ),
         financial_profile=configuration_views["profile"],
         budget_versions=configuration_views["budget_versions"],

@@ -5,7 +5,9 @@ from datetime import date
 
 from src.core.modules.project_management.application.financials import (
     FinancialConfigurationService,
+    FinancialChangeService,
     FinanceService,
+    ForecastVersionService,
     ProjectCommitmentService,
     ProjectCostEntryService,
     ProjectFinanceWorkspaceQuery,
@@ -13,13 +15,24 @@ from src.core.modules.project_management.application.financials import (
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import BaselineService
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.infrastructure.reporting import ReportingService
+from src.core.modules.project_management.infrastructure.reporting.api import (
+    generate_excel_report,
+    generate_pdf_report,
+)
 
 from src.core.modules.project_management.api.desktop.financials.models.commitments import (
     FinancialCommitmentLinePageDto,
     FinancialCommitmentSummaryDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.forecasts import FinancialForecastDto
-from src.core.modules.project_management.api.desktop.financials.models.baseline_variance import BaselineVarianceRecordDto
+from src.core.modules.project_management.api.desktop.financials.models.lifecycle import (
+    FinancialBaselineVarianceDto,
+    FinancialChangeDto,
+    FinancialChangeImpactDto,
+    FinancialForecastLineDto,
+    FinancialForecastVersionDto,
+)
 from src.core.modules.project_management.api.desktop.financials.models.options import (
     FinancialProjectOptionDescriptor,
     FinancialTaskOptionDescriptor,
@@ -55,7 +68,13 @@ from src.core.modules.project_management.api.desktop.financials.builders.commitm
     build_commitment_summary_dto,
 )
 from src.core.modules.project_management.api.desktop.financials.builders.baseline_variance_builder import (
-    build_baseline_variance,
+    build_baseline_variance_workspace,
+)
+from src.core.modules.project_management.api.desktop.financials.serializers.lifecycle_serializer import (
+    serialize_financial_change,
+    serialize_financial_change_impact,
+    serialize_forecast_line,
+    serialize_forecast_version,
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.cost_entry_serializer import (
     serialize_cost_entry,
@@ -81,6 +100,9 @@ class ProjectManagementFinancialsDesktopApi:
         financial_configuration_service: FinancialConfigurationService | None = None,
         cost_entry_service: ProjectCostEntryService | None = None,
         commitment_service: ProjectCommitmentService | None = None,
+        forecast_version_service: ForecastVersionService | None = None,
+        financial_change_service: FinancialChangeService | None = None,
+        reporting_service: ReportingService | None = None,
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
@@ -90,6 +112,9 @@ class ProjectManagementFinancialsDesktopApi:
         self._financial_configuration_service = financial_configuration_service
         self._cost_entry_service = cost_entry_service
         self._commitment_service = commitment_service
+        self._forecast_version_service = forecast_version_service
+        self._financial_change_service = financial_change_service
+        self._reporting_service = reporting_service
 
     def list_projects(self) -> tuple[FinancialProjectOptionDescriptor, ...]:
         return build_project_options(self._project_service)
@@ -287,8 +312,90 @@ class ProjectManagementFinancialsDesktopApi:
             limit=limit,
         )
 
-    def build_baseline_variance(self, project_id: str) -> tuple[BaselineVarianceRecordDto, ...]:
-        return build_baseline_variance(project_id, self._baseline_service)
+    def list_forecast_versions(
+        self, project_id: str
+    ) -> tuple[FinancialForecastVersionDto, ...]:
+        if not project_id or self._forecast_version_service is None:
+            return ()
+        return tuple(
+            serialize_forecast_version(item)
+            for item in self._forecast_version_service.list_forecasts(project_id)
+        )
+
+    def list_forecast_lines(
+        self, project_id: str, forecast_id: str
+    ) -> tuple[FinancialForecastLineDto, ...]:
+        if not project_id or not forecast_id or self._forecast_version_service is None:
+            return ()
+        versions = self._forecast_version_service.list_forecasts(project_id)
+        if not any(item.id == forecast_id for item in versions):
+            return ()
+        return tuple(
+            serialize_forecast_line(item)
+            for item in self._forecast_version_service.list_lines(forecast_id)
+        )
+
+    def list_financial_changes(
+        self, project_id: str
+    ) -> tuple[FinancialChangeDto, ...]:
+        if not project_id or self._financial_change_service is None:
+            return ()
+        return tuple(
+            serialize_financial_change(item)
+            for item in self._financial_change_service.list_changes(project_id)
+        )
+
+    def list_financial_change_impacts(
+        self, project_id: str, change_id: str
+    ) -> tuple[FinancialChangeImpactDto, ...]:
+        if not project_id or not change_id or self._financial_change_service is None:
+            return ()
+        changes = self._financial_change_service.list_changes(project_id)
+        if not any(item.id == change_id for item in changes):
+            return ()
+        return tuple(
+            serialize_financial_change_impact(item)
+            for item in self._financial_change_service.list_impacts(change_id)
+        )
+
+    def get_baseline_variance(
+        self, project_id: str, baseline_id: str | None = None
+    ) -> FinancialBaselineVarianceDto:
+        return build_baseline_variance_workspace(
+            project_id,
+            selected_baseline_id=baseline_id,
+            baseline_service=self._baseline_service,
+        )
+
+    def export_financial_report(
+        self,
+        project_id: str,
+        output_path: str,
+        *,
+        report_format: str,
+        baseline_id: str | None = None,
+    ) -> str:
+        if self._reporting_service is None:
+            raise RuntimeError("Project management reporting service is not connected.")
+        if report_format == "xlsx":
+            result = generate_excel_report(
+                self._reporting_service,
+                project_id,
+                output_path,
+                finance_service=self._require_finance_service(),
+                baseline_id=baseline_id or None,
+            )
+        elif report_format == "pdf":
+            result = generate_pdf_report(
+                self._reporting_service,
+                project_id,
+                output_path,
+                finance_service=self._require_finance_service(),
+                baseline_id=baseline_id or None,
+            )
+        else:
+            raise ValueError("Financial report format must be 'xlsx' or 'pdf'.")
+        return str(result)
 
     def get_configuration_workspace(
         self,

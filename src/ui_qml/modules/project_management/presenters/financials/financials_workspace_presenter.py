@@ -27,6 +27,9 @@ class ProjectFinancialsWorkspacePresenter:
         rate_line_page: int = 1,
         planned_cost_line_page: int = 1,
         configuration_page_size: int = 50,
+        selected_forecast_id: str | None = None,
+        selected_change_id: str | None = None,
+        selected_baseline_id: str | None = None,
     ) -> FinancialsWorkspaceViewModel:
         return build_workspace_state(
             self._desktop_api,
@@ -35,9 +38,27 @@ class ProjectFinancialsWorkspacePresenter:
             rate_line_page=rate_line_page,
             planned_cost_line_page=planned_cost_line_page,
             configuration_page_size=configuration_page_size,
+            selected_forecast_id=selected_forecast_id,
+            selected_change_id=selected_change_id,
+            selected_baseline_id=selected_baseline_id,
         )
 
     def create_manual_actual(self, payload: dict[str, Any]) -> None:
         create_manual_actual(self._desktop_api, payload)
+
+    def export_financial_report(
+        self,
+        *,
+        project_id: str,
+        output_path: str,
+        report_format: str,
+        baseline_id: str | None,
+    ) -> str:
+        return self._desktop_api.export_financial_report(
+            project_id,
+            output_path,
+            report_format=report_format,
+            baseline_id=baseline_id,
+        )
 
 __all__ = ["ProjectFinancialsWorkspacePresenter"]

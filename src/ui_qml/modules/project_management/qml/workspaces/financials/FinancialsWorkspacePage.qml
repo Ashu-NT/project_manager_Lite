@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Dialogs
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
@@ -38,10 +39,11 @@ AppLayouts.WorkspaceFrame {
     readonly property var _detailSections: {
         const sections = [
             "Profile", "Budget Versions", "Budget Lines", "Rate Cards", "Planned Costs",
-            "Actuals", "Forecast", "Commitments", "Invoices"
+            "Actuals", "Forecast", "Change Control", "Commitments", "Invoices"
         ]
         if (root._hasProcPoCap) sections.push("Purchase Orders")
         sections.push("Variance")
+        sections.push("Reports")
         sections.push("Activity")
         return sections
     }
@@ -51,8 +53,8 @@ AppLayouts.WorkspaceFrame {
         return index >= 0 && index < root._detailSections.length
             ? String(root._detailSections[index]) : ""
     }
-    readonly property var _detailActions: root._activeDetailSection === "Actuals" ? [
-        {
+    readonly property var _detailActions: {
+        if (root._activeDetailSection === "Actuals") return [{
             "id": "add_manual_actual",
             "label": "New Manual Actual",
             "icon": "add",
@@ -61,8 +63,51 @@ AppLayouts.WorkspaceFrame {
                     && (root.workspaceController.manualActualOptions.costCodes || []).length > 0
                 : false,
             "danger": false
+        }]
+        if (root._activeDetailSection === "Reports") return [
+            {
+                "id": "export_excel",
+                "label": "Export Excel",
+                "icon": "download",
+                "enabled": root.workspaceController
+                    ? root.workspaceController.selectedProjectId.length > 0 : false,
+                "danger": false
+            },
+            {
+                "id": "export_pdf",
+                "label": "Export PDF",
+                "icon": "download",
+                "enabled": root.workspaceController
+                    ? root.workspaceController.selectedProjectId.length > 0 : false,
+                "danger": false
+            }
+        ]
+        return []
+    }
+
+    FileDialog {
+        id: _excelExportDialog
+        title: "Export Financial Report to Excel"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["Excel files (*.xlsx)"]
+        defaultSuffix: "xlsx"
+        onAccepted: {
+            if (root.workspaceController !== null)
+                root.workspaceController.exportFinancials("xlsx", String(selectedFile || ""))
         }
-    ] : []
+    }
+
+    FileDialog {
+        id: _pdfExportDialog
+        title: "Export Financial Report to PDF"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["PDF files (*.pdf)"]
+        defaultSuffix: "pdf"
+        onAccepted: {
+            if (root.workspaceController !== null)
+                root.workspaceController.exportFinancials("pdf", String(selectedFile || ""))
+        }
+    }
 
     function _selectedProjectLabel() {
         const selectedId = root.workspaceController ? root.workspaceController.selectedProjectId : ""
@@ -115,6 +160,10 @@ AppLayouts.WorkspaceFrame {
                     onActionTriggered: function(actionId) {
                         if (actionId === "add_manual_actual") {
                             dialogHostLoader.invoke("openCreateManualActualDialog")
+                        } else if (actionId === "export_excel") {
+                            _excelExportDialog.open()
+                        } else if (actionId === "export_pdf") {
+                            _pdfExportDialog.open()
                         }
                     }
                 }
@@ -142,10 +191,20 @@ AppLayouts.WorkspaceFrame {
                     sourceAnalyticsModel: root.sourceAnalyticsModel
                     overviewModel: root.overviewModel
                     forecastModel: root.workspaceController ? root.workspaceController.forecast : ({})
+                    forecastVersionsModel: root.workspaceController ? root.workspaceController.forecastVersions : ({ "items": [] })
+                    forecastLinesModel: root.workspaceController ? root.workspaceController.forecastLines : ({ "items": [] })
+                    selectedForecastId: root.workspaceController ? root.workspaceController.selectedForecastId : ""
+                    financialChangesModel: root.workspaceController ? root.workspaceController.financialChanges : ({ "items": [] })
+                    financialChangeImpactsModel: root.workspaceController ? root.workspaceController.financialChangeImpacts : ({ "items": [] })
+                    selectedChangeId: root.workspaceController ? root.workspaceController.selectedChangeId : ""
                     commitmentSummaryModel: root.workspaceController ? root.workspaceController.commitmentSummary : ({})
                     commitmentsModel: root.workspaceController ? root.workspaceController.commitments : ({})
                     commitmentsTableModel: root.workspaceController ? root.workspaceController.commitmentsTableModel : null
                     baselineVarianceModel: root.baselineVarianceModel
+                    baselineVersionsModel: root.workspaceController ? root.workspaceController.baselineVersions : ({ "items": [] })
+                    varianceBasisModel: root.workspaceController ? root.workspaceController.varianceBasis : ({ "fields": [] })
+                    selectedBaselineId: root.workspaceController ? root.workspaceController.selectedBaselineId : ""
+                    reportBasisModel: root.workspaceController ? root.workspaceController.reportBasis : ({ "fields": [] })
                     financialProfileModel: root.workspaceController ? root.workspaceController.financialProfile : ({})
                     budgetVersionsModel: root.workspaceController ? root.workspaceController.budgetVersions : ({ "items": [] })
                     budgetLinesModel: root.workspaceController ? root.workspaceController.budgetLines : ({ "items": [] })
@@ -158,6 +217,18 @@ AppLayouts.WorkspaceFrame {
                         if (root.workspaceController !== null) {
                             root.workspaceController.setConfigurationPage(collection, page)
                         }
+                    }
+                    onForecastSelected: function(forecastId) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.selectForecastVersion(forecastId)
+                    }
+                    onFinancialChangeSelected: function(changeId) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.selectFinancialChange(changeId)
+                    }
+                    onVarianceBaselineSelected: function(baselineId) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.selectVarianceBaseline(baselineId)
                     }
                 }
             }

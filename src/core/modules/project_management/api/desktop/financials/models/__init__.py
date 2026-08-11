@@ -20,6 +20,14 @@ from src.core.modules.project_management.api.desktop.financials.models.cost_entr
     FinancialManualActualOptionsDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.forecasts import FinancialForecastDto
+from src.core.modules.project_management.api.desktop.financials.models.lifecycle import (
+    FinancialBaselineVarianceDto,
+    FinancialBaselineVersionDto,
+    FinancialChangeDto,
+    FinancialChangeImpactDto,
+    FinancialForecastLineDto,
+    FinancialForecastVersionDto,
+)
 from src.core.modules.project_management.api.desktop.financials.models.options import (
     FinancialProjectOptionDescriptor,
     FinancialTaskOptionDescriptor,
@@ -45,6 +53,12 @@ __all__ = [
     "FinancialCostEntryDto",
     "FinancialCostEntryPageDto",
     "FinancialForecastDto",
+    "FinancialForecastLineDto",
+    "FinancialForecastVersionDto",
+    "FinancialChangeDto",
+    "FinancialChangeImpactDto",
+    "FinancialBaselineVarianceDto",
+    "FinancialBaselineVersionDto",
     "FinancialLedgerRowDto",
     "FinancialManualActualOptionsDto",
     "FinancialPeriodRowDto",

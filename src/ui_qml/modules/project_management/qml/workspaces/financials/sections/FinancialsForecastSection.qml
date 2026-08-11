@@ -15,6 +15,10 @@ Item {
         "forecastRevision": null, "forecastAsOfLabel": "", "alertMessage": "", "metrics": []
     })
     property bool isBusy: false
+    property var forecastVersions: ({ "items": [] })
+    property var forecastLines: ({ "items": [] })
+    property string selectedForecastId: ""
+    signal forecastSelected(string forecastId)
 
     implicitHeight: _col.implicitHeight
 
@@ -121,6 +125,27 @@ Item {
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.smallSize
                     wrapMode: Text.WordWrap
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 1
+                    color: Theme.AppTheme.divider
+                }
+
+                FinancialsCollectionBlock {
+                    Layout.fillWidth: true
+                    collection: root.forecastVersions
+                    selectable: true
+                    selectedId: root.selectedForecastId
+                    busy: root.isBusy
+                    onItemSelected: function(itemId) { root.forecastSelected(itemId) }
+                }
+
+                FinancialsCollectionBlock {
+                    Layout.fillWidth: true
+                    collection: root.forecastLines
+                    busy: root.isBusy
                 }
             }
         }
