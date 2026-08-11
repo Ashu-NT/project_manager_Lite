@@ -7,7 +7,7 @@ from datetime import date
 
 import pytest
 
-from src.tests.project_management.test_reporting_financials_phase3b_measurement import (
+from src.tests.project_management._sql_measurement_helpers import (
     count_calls,
     measure_sql,
 )

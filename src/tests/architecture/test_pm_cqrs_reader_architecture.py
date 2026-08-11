@@ -72,9 +72,6 @@ FINANCE_STATEMENTS = FINANCE_READS / "statements/finance_snapshot_statements.py"
 FINANCE_READER = FINANCE_READS / "sqlalchemy_finance_snapshot_reader.py"
 FINANCE_POLICY = PM_ROOT / "application/financials/costs/cost_policy_engine.py"
 PROJECT_REGISTRY = REPO_ROOT / "src/infra/composition/project_registry.py"
-PHASE1_TEST = REPO_ROOT / "src/tests/project_management/test_finance_snapshot_phase1_reader.py"
-PHASE3A_TEST = REPO_ROOT / "src/tests/project_management/test_evm_series_phase3a_parity.py"
-PHASE3B_TEST = REPO_ROOT / "src/tests/project_management/test_reporting_financials_phase3b_parity.py"
 PORTFOLIO_POOL_READER = (
     PM_ROOT
     / "infrastructure/persistence/reads/portfolio/sqlalchemy_resource_pool_reader.py"
@@ -329,11 +326,10 @@ def test_finance_service_keeps_reader_labor_policy_ownership_and_no_fallback() -
 
 def test_runtime_composition_and_desktop_proof_remain_present() -> None:
     registry = PROJECT_REGISTRY.read_text(encoding="utf-8")
-    runtime_test = PHASE1_TEST.read_text(encoding="utf-8")
+    service_source = inspect.getsource(FinanceService.get_finance_snapshot)
 
     assert "finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session)" in registry
-    assert "isinstance(reader, SqlAlchemyFinanceSnapshotReader)" in runtime_test
-    assert "registry.project_management_financials.get_finance_snapshot" in runtime_test
+    assert "self._finance_snapshot_reader.read_facts(" in service_source
 
 
 def test_evm_series_keeps_bounded_reader_and_policy_ownership() -> None:
@@ -359,11 +355,10 @@ def test_evm_series_keeps_bounded_reader_and_policy_ownership() -> None:
 
 def test_evm_series_runtime_reader_proof_remains_present() -> None:
     registry = PROJECT_REGISTRY.read_text(encoding="utf-8")
-    runtime_test = PHASE3A_TEST.read_text(encoding="utf-8")
+    source = inspect.getsource(ReportingEvmSeriesMixin._make_evm_series_calculator)
 
     assert "evm_series_reader=SqlAlchemyEvmSeriesReader(session=session)" in registry
-    assert "isinstance(reader, SqlAlchemyEvmSeriesReader)" in runtime_test
-    assert "reporting.get_evm_series(" in runtime_test
+    assert "reader=self._evm_series_reader" in source
 
 
 def test_reporting_financial_reads_use_one_facts_policy_composition() -> None:
@@ -405,11 +400,10 @@ def test_reporting_financial_reads_use_one_facts_policy_composition() -> None:
 
 def test_reporting_financial_runtime_reader_proof_remains_present() -> None:
     registry = PROJECT_REGISTRY.read_text(encoding="utf-8")
-    runtime_test = PHASE3B_TEST.read_text(encoding="utf-8")
+    source = inspect.getsource(ReportingCostPolicyMixin._compose_finance_policy)
 
     assert "finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session)" in registry
-    assert "isinstance(reader, SqlAlchemyFinanceSnapshotReader)" in runtime_test
-    assert "reporting.get_project_cost_control_totals(" in runtime_test
+    assert "self._finance_snapshot_reader.read_facts(" in source
 
 
 def test_phase3b_removed_repository_backed_financial_transition_paths() -> None:

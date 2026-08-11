@@ -42,7 +42,13 @@ def _setup_report_project(services):
     t2 = ts.create_task(pid, "Task Beta", duration_days=2)
     ts.add_dependency(t1.id, t2.id, DependencyType.FINISH_TO_START, lag_days=0)
 
-    res = rs.create_resource("Exporter Dev", "Developer", hourly_rate=100.0, currency_code="USD")
+    res = rs.create_resource(
+        "Exporter Dev",
+        "Developer",
+        hourly_rate=100.0,
+        currency_code="USD",
+        rate_effective_on=date(2023, 11, 6),
+    )
     assignment = ts.assign_resource(t1.id, res.id, allocation_percent=50.0)
     ts.set_assignment_hours(assignment.id, 4.0)
 
@@ -65,7 +71,8 @@ def test_excel_export_contains_expected_sections_when_baseline_exists(services, 
 
     wb = load_workbook(output)
     names = set(wb.sheetnames)
-    assert {"Overview", "Tasks", "Resources", "EVM", "Variance", "Cost Breakdown", "Cost Sources"}.issubset(names)
+    assert {"Overview", "Tasks", "Resources", "EVM", "Variance", "Cost Sources"}.issubset(names)
+    assert "Cost Breakdown" not in names
     assert wb["Overview"]["A1"].value.startswith("Project KPIs - ")
     assert wb["Tasks"]["A1"].value == "Task ID"
     assert wb["EVM"]["A2"].value == "Metric"

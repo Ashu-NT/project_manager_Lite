@@ -280,9 +280,7 @@ def run_pm_data_integrity_checks(session: Session, *, sample_limit: int = 20) ->
             ),
             sample_limit=sample_limit,
         ),
-        # 8. Cost linked to a task that belongs to a different project.
-        # 9. Orphan cost — cost pointing at a non-existent project.
-        # 10. Baseline task snapshot whose live task is in a different project.
+        # 8. Baseline task snapshot whose live task is in a different project.
         _finding(
             session,
             category="baseline_task_cross_project",
@@ -296,7 +294,7 @@ def run_pm_data_integrity_checks(session: Session, *, sample_limit: int = 20) ->
             ),
             sample_limit=sample_limit,
         ),
-        # 11. Duplicate project-resource link (defense-in-depth; a unique index exists).
+        # 9. Duplicate project-resource link (defense-in-depth; a unique index exists).
         _finding(
             session,
             category="duplicate_project_resource",
@@ -309,7 +307,7 @@ def run_pm_data_integrity_checks(session: Session, *, sample_limit: int = 20) ->
             ),
             sample_limit=sample_limit,
         ),
-        # 12. Resource over-allocation (heuristic, date-agnostic sum of allocation %).
+        # 10. Resource over-allocation (heuristic, date-agnostic sum of allocation %).
         _finding(
             session,
             category="resource_overallocation",
