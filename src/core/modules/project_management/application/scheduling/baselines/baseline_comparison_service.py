@@ -4,6 +4,8 @@ from src.core.platform.contract.time_management.calendar.calendar_protocol impor
 
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
+from typing import Optional
 
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
 from src.core.modules.project_management.domain.scheduling.baseline import BaselineTask, ProjectBaseline
@@ -22,7 +24,7 @@ class TaskVariance:
     start_variance_days: int | None     # positive = delayed, negative = early
     finish_variance_days: int | None
     duration_variance_days: int | None
-    cost_variance: float | None         # current_cost - baseline_cost
+    cost_variance: Decimal | None       # current_cost - baseline_cost
     is_delayed: bool
     is_critical: bool
 
@@ -38,7 +40,7 @@ class BaselineComparisonReport:
     tasks_delayed: int
     tasks_on_time: int
     tasks_early: int
-    total_cost_variance: float
+    total_cost_variance: Decimal
 
 
 class BaselineComparisonService:
@@ -63,7 +65,7 @@ class BaselineComparisonService:
         project_id: str,
         cpm_result: dict[str, CPMTaskInfo],
         baseline_id: str | None = None,
-        current_costs_by_task: Optional[dict[str, float]] = None,
+        current_costs_by_task: Optional[dict[str, Decimal]] = None,
     ) -> BaselineComparisonReport:
         """
         Compare cpm_result against the specified baseline (latest if None).
@@ -101,7 +103,7 @@ class BaselineComparisonService:
             current_dur = int(info.task.duration_days or 0)
             dur_var = (current_dur - baseline_dur) if baseline_dur is not None else None
 
-            baseline_cost = float(bt.baseline_planned_cost) if bt else None
+            baseline_cost = bt.baseline_planned_cost if bt else None
             current_cost = costs.get(task_id)
             cost_var = (current_cost - baseline_cost) if (current_cost is not None and baseline_cost is not None) else None
 
@@ -123,7 +125,10 @@ class BaselineComparisonService:
             ))
 
         max_slip = max((v.finish_variance_days for v in variances if v.finish_variance_days is not None), default=0)
-        total_cost_var = sum(v.cost_variance for v in variances if v.cost_variance is not None)
+        total_cost_var = sum(
+            (v.cost_variance for v in variances if v.cost_variance is not None),
+            Decimal("0"),
+        )
 
         return BaselineComparisonReport(
             baseline_id=baseline.id,

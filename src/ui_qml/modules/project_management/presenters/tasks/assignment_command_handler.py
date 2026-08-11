@@ -9,7 +9,7 @@ from src.core.modules.project_management.api.desktop import (
     TaskAssignmentHoursCommand,
 )
 
-from .validation import require_float, require_text
+from .validation import require_decimal, require_float, require_text
 
 def create_assignment(desktop_api, payload: dict[str, Any]) -> None:
     command = TaskAssignmentCreateCommand(
@@ -43,7 +43,7 @@ def set_assignment_hours(desktop_api, payload: dict[str, Any]) -> None:
         assignment_id=require_text(
             payload, "assignmentId", "Assignment ID is required for effort updates."
         ),
-        hours_logged=require_float(
+        hours_logged=require_decimal(
             payload, "hoursLogged", "Hours logged is required."
         ),
     )

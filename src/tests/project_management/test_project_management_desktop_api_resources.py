@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 from types import SimpleNamespace
 
 from src.core.modules.project_management.api.desktop import (
@@ -33,7 +34,7 @@ def test_project_management_resources_desktop_api_mutates_resource_records() -> 
         SimpleNamespace(
             name="Electrical Crew",
             role="Lead Technician",
-            hourly_rate=95.0,
+            hourly_rate=Decimal("95"),
             is_active=True,
             cost_type="LABOR",
             currency_code="eur",
@@ -55,7 +56,7 @@ def test_project_management_resources_desktop_api_mutates_resource_records() -> 
         SimpleNamespace(
             name="",
             role="",
-            hourly_rate=80.0,
+            hourly_rate=Decimal("80"),
             is_active=True,
             cost_type="LABOR",
             currency_code="usd",
@@ -76,7 +77,7 @@ def test_project_management_resources_desktop_api_mutates_resource_records() -> 
             expected_version=resource_service.get_resource(created.id).version,
             name="Electrical Crew A",
             role="Field Supervisor",
-            hourly_rate=105.0,
+            hourly_rate=Decimal("105"),
             is_active=True,
             cost_type="EQUIPMENT",
             currency_code="usd",

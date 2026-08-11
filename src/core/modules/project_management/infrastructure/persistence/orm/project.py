@@ -6,7 +6,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import Boolean, Date, Enum as SAEnum, Float, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, Date, Enum as SAEnum, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.core.modules.project_management.domain.enums import ProjectStatus

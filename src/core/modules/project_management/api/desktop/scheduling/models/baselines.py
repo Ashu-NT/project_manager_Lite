@@ -36,7 +36,7 @@ class SchedulingBaselineComparisonRowDto:
     start_shift_days: int | None
     finish_shift_days: int | None
     duration_delta_days: int | None
-    planned_cost_delta: float
+    planned_cost_delta: str
 
 
 @dataclass(frozen=True)
@@ -49,7 +49,7 @@ class SchedulingBaselineVarianceRowDto:
     task_name: str
     start_variance_days: int
     finish_variance_days: int
-    cost_variance: float
+    cost_variance: str
     created_at: date | None
 
 

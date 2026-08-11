@@ -6,6 +6,7 @@ from src.core.modules.project_management.api.desktop.scheduling.models.baselines
     SchedulingBaselineVarianceRowDto,
 )
 from src.core.modules.project_management.api.desktop.scheduling.formatters.baseline_formatter import format_baseline_row
+from src.core.platform.finance.money import canonical_decimal_text
 
 
 def build_baseline_options(project_id: str, baseline_service=None) -> tuple[SchedulingBaselineOptionDescriptor, ...]:
@@ -44,7 +45,7 @@ def build_variance_rows(baseline_id: str, baseline_service=None) -> tuple[Schedu
             task_name=str(getattr(r, "task_name", "") or getattr(r, "task_id", "")),
             start_variance_days=int(getattr(r, "start_variance_days", 0) or 0),
             finish_variance_days=int(getattr(r, "finish_variance_days", 0) or 0),
-            cost_variance=float(getattr(r, "cost_variance", 0.0) or 0.0),
+            cost_variance=canonical_decimal_text(getattr(r, "cost_variance", 0) or 0),
             created_at=(r.created_at.date() if hasattr(r.created_at, "date") else getattr(r, "created_at", None)),
         )
         for r in records

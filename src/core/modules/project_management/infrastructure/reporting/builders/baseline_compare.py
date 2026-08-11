@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.modules.project_management.contracts.repositories.task import TaskRepository
 from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
@@ -103,8 +105,8 @@ class ReportingBaselineCompareMixin:
             b_finish = row_b.baseline_finish if row_b else None
             a_duration = row_a.baseline_duration_days if row_a else None
             b_duration = row_b.baseline_duration_days if row_b else None
-            a_cost = float(row_a.baseline_planned_cost or 0.0) if row_a else 0.0
-            b_cost = float(row_b.baseline_planned_cost or 0.0) if row_b else 0.0
+            a_cost = row_a.baseline_planned_cost if row_a else Decimal("0")
+            b_cost = row_b.baseline_planned_cost if row_b else Decimal("0")
 
             start_shift = (b_start - a_start).days if (a_start and b_start) else None
             finish_shift = (b_finish - a_finish).days if (a_finish and b_finish) else None
@@ -122,11 +124,11 @@ class ReportingBaselineCompareMixin:
                     baseline_a_start=a_start,
                     baseline_a_finish=a_finish,
                     baseline_a_duration_days=a_duration,
-                    baseline_a_planned_cost=(float(row_a.baseline_planned_cost or 0.0) if row_a else None),
+                    baseline_a_planned_cost=(row_a.baseline_planned_cost if row_a else None),
                     baseline_b_start=b_start,
                     baseline_b_finish=b_finish,
                     baseline_b_duration_days=b_duration,
-                    baseline_b_planned_cost=(float(row_b.baseline_planned_cost or 0.0) if row_b else None),
+                    baseline_b_planned_cost=(row_b.baseline_planned_cost if row_b else None),
                     start_shift_days=start_shift,
                     finish_shift_days=finish_shift,
                     duration_delta_days=duration_delta,
@@ -155,11 +157,8 @@ class ReportingBaselineCompareMixin:
             baseline_a_task.baseline_start == baseline_b_task.baseline_start
             and baseline_a_task.baseline_finish == baseline_b_task.baseline_finish
             and int(baseline_a_task.baseline_duration_days or 0) == int(baseline_b_task.baseline_duration_days or 0)
-            and abs(
-                float(baseline_a_task.baseline_planned_cost or 0.0)
-                - float(baseline_b_task.baseline_planned_cost or 0.0)
-            )
-            < 1e-9
+            and baseline_a_task.baseline_planned_cost
+            == baseline_b_task.baseline_planned_cost
         )
         return "UNCHANGED" if unchanged else "CHANGED"
 

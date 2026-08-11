@@ -6,6 +6,7 @@ from src.core.modules.project_management.api.desktop.tasks.models.assignment imp
 from src.core.modules.project_management.api.desktop.tasks.services.resource_lookup_service import (
     resource_name_for_assignment,
 )
+from src.core.platform.finance.money import canonical_decimal_text
 
 
 def serialize_assignment(
@@ -25,7 +26,7 @@ def serialize_assignment(
             resources_by_id=resources_by_id,
         ),
         allocation_percent=float(getattr(assignment, "allocation_percent", 0.0) or 0.0),
-        hours_logged=float(getattr(assignment, "hours_logged", 0.0) or 0.0),
+        hours_logged=canonical_decimal_text(getattr(assignment, "hours_logged", 0) or 0),
         project_resource_id=getattr(assignment, "project_resource_id", None),
         response_status=getattr(assignment, "response_status", "pending") or "pending",
         response_status_label=(getattr(assignment, "response_status", "pending") or "pending").title(),

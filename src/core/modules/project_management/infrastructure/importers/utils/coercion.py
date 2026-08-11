@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 
 from src.core.modules.project_management.domain.enums import CostType, ProjectStatus, TaskStatus
 
@@ -27,6 +28,11 @@ def optional_int(value: str | None) -> int | None:
 def optional_float(value: str | None) -> float | None:
     text = str(value or "").strip()
     return float(text) if text else None
+
+
+def optional_decimal(value: str | None) -> Decimal | None:
+    text = str(value or "").strip()
+    return Decimal(text) if text else None
 
 
 def optional_bool(value: str | None, *, default: bool) -> bool:
@@ -55,6 +61,7 @@ __all__ = [
     "optional_bool",
     "optional_cost_type",
     "optional_date",
+    "optional_decimal",
     "optional_float",
     "optional_int",
     "optional_project_status",

@@ -228,7 +228,7 @@ class _CapturingResourceService:
             name="Planner",
             code="RES-1",
             role="Planner",
-            hourly_rate=100.0,
+            hourly_rate=Decimal("100"),
             is_active=True,
             cost_type="LABOR",
             currency_code="EUR",
@@ -355,7 +355,7 @@ def test_da0_characterizes_duplicate_project_resource_rate_precedence() -> None:
         ),
     )
 
-    assert project_row.hourly_rate == 125.0
+    assert project_row.hourly_rate == "125"
     assert project_row.currency_code == "GBP"
     assert task_options[0].label == "Planner (125.00 GBP/hr)"
 

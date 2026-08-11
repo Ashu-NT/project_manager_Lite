@@ -63,6 +63,7 @@ from src.core.modules.project_management.api.desktop.scheduling.serializers.depe
 from src.core.modules.project_management.api.desktop.scheduling.services.calendar_adapter_service import (
     unwrap_platform_calendar_result,
 )
+from src.core.platform.finance.money import canonical_decimal_text
 from src.core.modules.project_management.api.desktop.scheduling.services.dependency_resolution_service import (
     build_tasks_by_id,
     get_task_method,
@@ -313,7 +314,7 @@ class ProjectManagementSchedulingDesktopApi:
                 baseline_b_start=row.baseline_b_start, baseline_b_finish=row.baseline_b_finish,
                 start_shift_days=row.start_shift_days, finish_shift_days=row.finish_shift_days,
                 duration_delta_days=row.duration_delta_days,
-                planned_cost_delta=float(row.planned_cost_delta or 0.0),
+                planned_cost_delta=canonical_decimal_text(row.planned_cost_delta),
             )
             for row in result.rows
         )

@@ -107,7 +107,7 @@ class FinanceControlFact:
 class ProjectResourceFact:
     project_resource_id: str
     resource_id: str
-    planned_hours: float
+    planned_hours: Decimal
     is_active: bool
 
 
@@ -116,7 +116,7 @@ class LaborAssignmentFact:
     assignment_id: str
     task_id: str
     resource_id: str
-    hours_logged: float
+    hours_logged: Decimal
 
 
 @dataclass(frozen=True, slots=True)

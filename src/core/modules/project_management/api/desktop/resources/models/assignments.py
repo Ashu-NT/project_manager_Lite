@@ -11,7 +11,7 @@ class ResourceAssignmentDesktopDto:
     project_id: str
     project_name: str
     allocation_percent: float
-    hours_logged: float
+    hours_logged: str
     allocation_label: str
     hours_label: str
 

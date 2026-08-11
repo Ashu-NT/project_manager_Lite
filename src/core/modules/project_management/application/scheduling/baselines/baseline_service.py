@@ -1,5 +1,6 @@
 # src/core/modules/project_management/application/scheduling/baseline_service.py
 from datetime import date
+from decimal import Decimal
 
 from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
 
@@ -158,8 +159,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         # requested valuation date. Rate and allocation resolution belongs to
         # PlannedCostService and is never repeated during baseline creation.
         # -------------------------
-        planned_by_task: dict[str, float] = {}
-        planned_unassigned = 0.0
+        planned_by_task: dict[str, Decimal] = {}
         versions = [
             version
             for version in self._planned_costs.list_for_project(project_id)
@@ -178,7 +178,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
                 )
             for line in self._planned_costs.list_lines(version.id):
                 planned_by_task[line.task_id] = (
-                    planned_by_task.get(line.task_id, 0.0) + float(line.amount)
+                    planned_by_task.get(line.task_id, Decimal("0")) + line.amount
                 )
 
         baseline = ProjectBaseline.create(project_id, name)
@@ -202,33 +202,11 @@ class BaselineService(ProjectManagementModuleGuardMixin):
             durations[t.id] = dur
             task_infos.append((t.id, bs, bf))
 
-        total_dur = sum(durations.values())
-
-        # -------------------------
-        # Allocate unassigned planned budget across tasks (duration-weighted, else equal)
-        # -------------------------
-        alloc_unassigned: dict[str, float] = {}
-        if planned_unassigned > 0 and tasks:
-            if total_dur > 0:
-                for tid in durations:
-                    w = durations[tid] / total_dur if total_dur else 0.0
-                    alloc_unassigned[tid] = planned_unassigned * w
-            else:
-                per = planned_unassigned / float(len(tasks))
-                for tid in durations:
-                    alloc_unassigned[tid] = per
-
         baseline_tasks: list[BaselineTask] = []
         for tid, bs, bf in task_infos:
             dur = durations.get(tid, 0)
 
-            # Canonical snapshot lines are already task-valued. The only
-            # allocation retained here is the project budget fallback used
-            # when no planned-cost snapshot exists.
-            planned_cost = (
-                float(planned_by_task.get(tid, 0.0) or 0.0)
-                + float(alloc_unassigned.get(tid, 0.0) or 0.0)
-            )
+            planned_cost = planned_by_task.get(tid, Decimal("0"))
 
             baseline_tasks.append(
                 BaselineTask.create(
@@ -514,7 +492,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
 
             cost_var = new_bt.baseline_planned_cost - prev_bt.baseline_planned_cost
 
-            if start_var == 0 and finish_var == 0 and cost_var == 0.0:
+            if start_var == 0 and finish_var == 0 and cost_var == 0:
                 continue  # no change — skip to keep variance log clean
 
             records.append(BaselineVarianceRecord.create(

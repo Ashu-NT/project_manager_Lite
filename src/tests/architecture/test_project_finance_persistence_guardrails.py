@@ -41,6 +41,16 @@ PROJECT_FINANCE_TRANSITION_FILES = (
 PROJECT_FINANCE_PLAN = Path(
     "docs/pm_modernization/project_finance_existing_state_and_implementation_plan.md"
 )
+CANONICAL_PM_NUMERIC_COLUMNS = {
+    ("resources", "hourly_rate"): FinancialNumericKind.RATE,
+    ("project_resources", "hourly_rate"): FinancialNumericKind.RATE,
+    ("project_resources", "planned_hours"): FinancialNumericKind.QUANTITY,
+    ("portfolio_intake_items", "requested_budget"): FinancialNumericKind.MONEY,
+    ("portfolio_scenarios", "budget_limit"): FinancialNumericKind.MONEY,
+    ("baseline_tasks", "baseline_planned_cost"): FinancialNumericKind.MONEY,
+    ("baseline_variance_records", "cost_variance"): FinancialNumericKind.MONEY,
+    ("task_assignments", "hours_logged"): FinancialNumericKind.QUANTITY,
+}
 
 
 def _quote(identifier: str) -> str:
@@ -148,3 +158,33 @@ def test_project_finance_has_no_currency_dual_write_or_project_finance_columns()
     assert "currency_projection_update" not in source
     assert "planned_budget" not in projects.c
     assert "currency" not in projects.c
+
+
+def test_pm_money_rate_and_quantity_columns_use_canonical_numeric_storage() -> None:
+    for (table_name, column_name), kind in CANONICAL_PM_NUMERIC_COLUMNS.items():
+        column = Base.metadata.tables[table_name].c[column_name]
+        convention = precision_for(kind)
+
+        assert isinstance(column.type, Numeric), f"{table_name}.{column_name} must be Numeric"
+        assert column.type.asdecimal is True
+        assert column.type.precision == convention.precision
+        assert column.type.scale == convention.scale
+        assert column.info.get("financial_numeric") == kind.value
+
+
+def test_legacy_float_conversion_apis_cannot_return() -> None:
+    source_roots = (
+        Path("src/core/platform/finance"),
+        Path("src/core/modules/project_management"),
+        Path("src/ui_qml/modules/project_management"),
+    )
+    source = "\n".join(
+        path.read_text(encoding="utf-8")
+        for root in source_roots
+        for path in root.rglob("*.py")
+    )
+
+    assert "decimal_from_legacy_float" not in source
+    assert "from_legacy_float" not in source
+    assert "PF-A1-DESKTOP-FLOAT" not in source
+    assert "PF-A1-LEGACY-FLOAT" not in source

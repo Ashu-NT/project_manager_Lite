@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 from types import SimpleNamespace
 
 from src.core.modules.project_management.api.desktop import (
@@ -36,7 +37,7 @@ class _FakePortfolioService(_FakePortfolioServiceBase):
         self,
         *,
         name: str,
-        budget_limit: float | None = None,
+        budget_limit: Decimal | None = None,
         capacity_limit_percent: float | None = None,
         project_ids: list[str] | None = None,
         intake_item_ids: list[str] | None = None,
@@ -69,12 +70,15 @@ class _FakePortfolioService(_FakePortfolioServiceBase):
             for item_id in scenario.intake_item_ids
             if item_id in self._intake_items
         ]
-        intake_budget = sum(float(item.requested_budget or 0.0) for item in selected_items)
+        intake_budget = sum(
+            (item.requested_budget for item in selected_items),
+            Decimal("0"),
+        )
         total_budget = intake_budget
         total_capacity = sum(float(item.requested_capacity_percent or 0.0) for item in selected_items)
         capacity_limit = scenario.capacity_limit_percent
         available_capacity = max(float(capacity_limit or 0.0) - total_capacity, 0.0)
-        over_budget = scenario.budget_limit is not None and total_budget > float(scenario.budget_limit)
+        over_budget = scenario.budget_limit is not None and total_budget > scenario.budget_limit
         over_capacity = capacity_limit is not None and total_capacity > float(capacity_limit)
         return PortfolioScenarioEvaluation(
             scenario_id=scenario.id,
@@ -148,7 +152,11 @@ class _FakePortfolioService(_FakePortfolioServiceBase):
                     late_tasks=1 if pressure_label == "Hot" else 0,
                     critical_tasks=1,
                     peak_utilization_percent=118.0 if pressure_label == "Hot" else 92.0,
-                    cost_variance=-8500.0 if pressure_label == "Hot" else 2500.0,
+                    cost_variance=(
+                        Decimal("-8500")
+                        if pressure_label == "Hot"
+                        else Decimal("2500")
+                    ),
                     pressure_score=90 if pressure_label == "Hot" else 40,
                     pressure_label=pressure_label,
                 )

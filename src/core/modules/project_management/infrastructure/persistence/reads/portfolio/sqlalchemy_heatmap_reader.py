@@ -552,7 +552,7 @@ class SqlAlchemyPortfolioHeatmapReader:
                     ProjectResourceFact(
                         project_resource_id=str(row.id),
                         resource_id=str(row.resource_id),
-                        planned_hours=float(row.planned_hours or 0.0),
+                        planned_hours=row.planned_hours or Decimal("0"),
                         is_active=bool(row.is_active),
                     )
                     for row in rows["project_resources"]
@@ -562,7 +562,7 @@ class SqlAlchemyPortfolioHeatmapReader:
                         assignment_id=str(row.id),
                         task_id=str(row.task_id),
                         resource_id=str(row.resource_id),
-                        hours_logged=float(row.hours_logged or 0.0),
+                        hours_logged=row.hours_logged or Decimal("0"),
                     )
                     for row in rows["assignments"]
                 ),

@@ -133,9 +133,7 @@ class SqlAlchemyProjectCatalogReader:
                     project=project_from_orm(project_row),
                     site_label=str(site_name or ""),
                     financial_currency_code=str(currency_code or ""),
-                    approved_budget=(
-                        None if approved_budget_value is None else float(approved_budget_value)
-                    ),
+                    approved_budget=approved_budget_value,
                 )
                 for project_row, site_name, currency_code, approved_budget_value in rows
             ),
