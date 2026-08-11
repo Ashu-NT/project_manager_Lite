@@ -2,7 +2,10 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Dialogs
+import QtQuick.Layouts
+import App.Controls 1.0 as AppControls
 import App.Layouts 1.0 as AppLayouts
+import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "dialogs" as Dialogs
@@ -38,20 +41,31 @@ AppLayouts.WorkspaceFrame {
         ? root.pmCatalog.hasCapability("procurement.purchase_orders.read") : false
     readonly property var _detailSections: {
         const sections = [
-            "Profile", "Budget Versions", "Budget Lines", "Rate Cards", "Planned Costs",
-            "Actuals", "Forecast", "Change Control", "Commitments", "Invoices"
+            { "label": "Profile", "group": "Configuration" },
+            { "label": "Budget Versions", "group": "Planning" },
+            { "label": "Budget Lines", "group": "Planning" },
+            { "label": "Rate Cards", "group": "Configuration" },
+            { "label": "Planned Costs", "group": "Planning" },
+            { "label": "Actuals", "group": "Cost Control" },
+            { "label": "Forecast", "group": "Planning" },
+            { "label": "Change Control", "group": "Cost Control" },
+            { "label": "Commitments", "group": "Cost Control" },
+            { "label": "Invoices", "group": "Commercial" }
         ]
-        if (root._hasProcPoCap) sections.push("Purchase Orders")
-        sections.push("Variance")
-        sections.push("Reports")
-        sections.push("Activity")
+        if (root._hasProcPoCap) {
+            sections.push({ "label": "Purchase Orders", "group": "Commercial" })
+        }
+        sections.push({ "label": "Variance", "group": "Insights" })
+        sections.push({ "label": "Reports", "group": "Insights" })
+        sections.push({ "label": "Activity", "group": "Insights" })
         return sections
     }
     readonly property string _activeDetailSection: {
         if (!root.detailPage) return ""
         const index = root.detailPage.activeSectionIndex
-        return index >= 0 && index < root._detailSections.length
-            ? String(root._detailSections[index]) : ""
+        if (index < 0 || index >= root._detailSections.length) return ""
+        const entry = root._detailSections[index]
+        return typeof entry === "string" ? entry : String(entry.label || "")
     }
     readonly property var _detailActions: {
         if (root._activeDetailSection === "Actuals") return [{
@@ -120,6 +134,17 @@ AppLayouts.WorkspaceFrame {
         return ""
     }
 
+    function _projectOptionIndex() {
+        const selectedId = root.workspaceController ? root.workspaceController.selectedProjectId : ""
+        const options = root.workspaceController ? (root.workspaceController.projectOptions || []) : []
+        for (let index = 0; index < options.length; index += 1) {
+            if (String(options[index].value || "") === String(selectedId || "")) {
+                return index
+            }
+        }
+        return options.length > 0 ? 0 : -1
+    }
+
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
@@ -148,6 +173,70 @@ AppLayouts.WorkspaceFrame {
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                 sections: root._detailSections
                 Component.onCompleted: scrollToSection(root._pendingDetailSection)
+
+                Rectangle {
+                    property bool detailPagePinned: true
+
+                    width: parent ? parent.width : 0
+                    implicitHeight: projectScopeRow.implicitHeight + (Theme.AppTheme.spacingSm * 2)
+                    color: Theme.AppTheme.surfaceRaised
+
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: 1
+                        color: Theme.AppTheme.divider
+                    }
+
+                    RowLayout {
+                        id: projectScopeRow
+                        anchors.fill: parent
+                        anchors.leftMargin: Theme.AppTheme.marginMd
+                        anchors.rightMargin: Theme.AppTheme.marginMd
+                        anchors.topMargin: Theme.AppTheme.spacingSm
+                        anchors.bottomMargin: Theme.AppTheme.spacingSm
+                        spacing: Theme.AppTheme.spacingSm
+
+                        AppControls.Label {
+                            text: "Project"
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            font.bold: true
+                        }
+
+                        AppControls.ComboBox {
+                            id: projectScopeCombo
+                            Layout.preferredWidth: 300
+                            Layout.maximumWidth: 420
+                            Layout.fillWidth: true
+                            model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
+                            textRole: "label"
+                            currentIndex: root._projectOptionIndex()
+                            enabled: root.workspaceController !== null
+                                && !root.workspaceController.isBusy
+                                && (root.workspaceController.projectOptions || []).length > 0
+
+                            onActivated: function(index) {
+                                const options = root.workspaceController
+                                    ? (root.workspaceController.projectOptions || []) : []
+                                if (root.workspaceController !== null && options[index]) {
+                                    root.workspaceController.selectProject(String(options[index].value || ""))
+                                }
+                            }
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        AppControls.SecondaryButton {
+                            text: "Refresh"
+                            iconName: "refresh"
+                            enabled: root.workspaceController !== null && !root.workspaceController.isBusy
+                            onClicked: root.workspaceController.refresh()
+                        }
+                    }
+                }
 
                 AppWidgets.ContextualActionToolbar {
                     detailPagePinned: true

@@ -27,6 +27,7 @@ SectionCard 1.0 SectionCard.qml
 SectionDetailPage 1.0 SectionDetailPage.qml
 SectionHeader 1.0 SectionHeader.qml
 SectionHeading 1.0 SectionHeading.qml
+SectionNavigationRail 1.0 SectionNavigationRail.qml
 SlideOverPanel 1.0 SlideOverPanel.qml
 StatusChip 1.0 StatusChip.qml
 TableColumnCustomizer 1.0 TableColumnCustomizer.qml

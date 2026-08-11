@@ -16,6 +16,7 @@ Item {
     property bool showEdit: true
     property bool showDelete: true
     property var sections: []
+    property bool sectionGroupsCollapsedByDefault: true
 
     readonly property int activeSectionIndex: _activeIdx
 
@@ -41,6 +42,7 @@ Item {
             return
         }
 
+        sectionNavigation.expandGroupForSection(index)
         _activeIdx = index
         contentFlickable.contentY = 0
         root.sectionChanged(index)
@@ -48,6 +50,11 @@ Item {
 
     property int _activeIdx: 0
     property var _sectionOffsets: []  // kept for API compat
+    onSectionsChanged: {
+        if (root._activeIdx >= root.sections.length) {
+            root._activeIdx = Math.max(0, root.sections.length - 1)
+        }
+    }
 
     function _updateActiveFromScroll() {}
 
@@ -211,128 +218,16 @@ Item {
                 Layout.fillHeight: true
                 spacing: 0
 
-                Rectangle {
+                SectionNavigationRail {
+                    id: sectionNavigation
+
                     Layout.preferredWidth: Theme.AppTheme.detailRailWidth
                     Layout.fillHeight: true
-                    color: Theme.AppTheme.surfaceRaised
-
-                    Rectangle {
-                        anchors.right: parent.right
-                        width: 1
-                        height: parent.height
-                        color: Theme.AppTheme.divider
-                    }
-
-                    Column {
-                        id: navColumn
-                        anchors.top: parent.top
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.margins: Theme.AppTheme.pagePadding
-                        spacing: Theme.AppTheme.sectionGap
-
-                        AppControls.Label {
-                            width: parent.width
-                            visible: root.sections.length > 0
-                            text: "SECTIONS"
-                            color: Theme.AppTheme.textMuted
-                            font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.captionSize
-                            font.bold: true
-                            font.letterSpacing: 0.8
-                        }
-
-                        Repeater {
-                            model: root.sections
-
-                            delegate: Item {
-                                id: navItem
-                                required property var modelData
-                                required property int index
-
-                                width: navColumn.width
-                                height: Theme.AppTheme.sidebarRowHeight
-
-                                readonly property bool   isActive: root._activeIdx === navItem.index
-                                readonly property string _label: typeof navItem.modelData === "string"
-                                    ? navItem.modelData
-                                    : String(navItem.modelData.label || "")
-                                readonly property int    _count: typeof navItem.modelData === "object"
-                                    ? (parseInt(navItem.modelData.count || 0))
-                                    : 0
-
-                                Rectangle {
-                                    anchors.fill: parent
-                                    radius: Theme.AppTheme.radiusSm
-                                    color: navItem.isActive
-                                        ? Theme.AppTheme.navSelectedBackground
-                                        : navHover.containsMouse
-                                            ? Theme.AppTheme.hoverSurface
-                                            : "transparent"
-                                }
-
-                                Rectangle {
-                                    anchors.left: parent.left
-                                    anchors.top: parent.top
-                                    anchors.bottom: parent.bottom
-                                    width: 3
-                                    radius: 2
-                                    color: Theme.AppTheme.accent
-                                    visible: navItem.isActive
-                                }
-
-                                AppControls.Label {
-                                    id: _navLabel
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    anchors.left:        parent.left
-                                    anchors.leftMargin:  14
-                                    anchors.right:       _countBadge.visible ? _countBadge.left : parent.right
-                                    anchors.rightMargin: Theme.AppTheme.spacingSm
-                                    text:           navItem._label
-                                    color:          navItem.isActive
-                                        ? Theme.AppTheme.navSelectedText
-                                        : Theme.AppTheme.textSecondary
-                                    font.family:    Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    font.bold:      navItem.isActive
-                                    elide:          Text.ElideRight
-                                }
-
-                                Rectangle {
-                                    id: _countBadge
-                                    anchors.right:          parent.right
-                                    anchors.rightMargin:    Theme.AppTheme.spacingSm
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    visible: navItem._count > 0
-                                    width:  _countLabel.implicitWidth + 8
-                                    height: 16
-                                    radius: 8
-                                    color:  navItem.isActive
-                                        ? Theme.AppTheme.accent
-                                        : Theme.AppTheme.surfaceOverlay
-
-                                    AppControls.Label {
-                                        id: _countLabel
-                                        anchors.centerIn: parent
-                                        text:           String(navItem._count)
-                                        color:          navItem.isActive
-                                            ? Theme.AppTheme.textOnAccent
-                                            : Theme.AppTheme.textMuted
-                                        font.family:    Theme.AppTheme.fontFamily
-                                        font.pixelSize: Theme.AppTheme.captionSize
-                                        font.bold:      true
-                                    }
-                                }
-
-                                MouseArea {
-                                    id: navHover
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.scrollToSection(navItem.index)
-                                }
-                            }
-                        }
+                    sections: root.sections
+                    activeSectionIndex: root._activeIdx
+                    groupsCollapsedByDefault: root.sectionGroupsCollapsedByDefault
+                    onSectionRequested: function(index) {
+                        root.scrollToSection(index)
                     }
                 }
 
