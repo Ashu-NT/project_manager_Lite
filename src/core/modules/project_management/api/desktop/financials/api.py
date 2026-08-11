@@ -7,6 +7,7 @@ from src.core.modules.project_management.application.financials import (
     FinancialConfigurationService,
     FinanceService,
     ForecastCostService,
+    ProjectCommitmentService,
     ProjectCostEntryService,
     ProjectFinanceWorkspaceQuery,
 )
@@ -14,7 +15,10 @@ from src.core.modules.project_management.application.projects import ProjectServ
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import BaselineService
 from src.core.modules.project_management.application.tasks import TaskService
 
-from src.core.modules.project_management.api.desktop.financials.models.commitments import FinancialCommitmentSummaryDto
+from src.core.modules.project_management.api.desktop.financials.models.commitments import (
+    FinancialCommitmentLinePageDto,
+    FinancialCommitmentSummaryDto,
+)
 from src.core.modules.project_management.api.desktop.financials.models.forecasts import FinancialForecastDto
 from src.core.modules.project_management.api.desktop.financials.models.baseline_variance import BaselineVarianceRecordDto
 from src.core.modules.project_management.api.desktop.financials.models.options import (
@@ -48,6 +52,7 @@ from src.core.modules.project_management.api.desktop.financials.builders.forecas
     build_forecast_dto,
 )
 from src.core.modules.project_management.api.desktop.financials.builders.commitment_builder import (
+    build_commitment_line_dto,
     build_commitment_summary_dto,
 )
 from src.core.modules.project_management.api.desktop.financials.builders.baseline_variance_builder import (
@@ -77,6 +82,7 @@ class ProjectManagementFinancialsDesktopApi:
         finance_workspace_query: ProjectFinanceWorkspaceQuery | None = None,
         financial_configuration_service: FinancialConfigurationService | None = None,
         cost_entry_service: ProjectCostEntryService | None = None,
+        commitment_service: ProjectCommitmentService | None = None,
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
@@ -86,6 +92,7 @@ class ProjectManagementFinancialsDesktopApi:
         self._finance_workspace_query = finance_workspace_query
         self._financial_configuration_service = financial_configuration_service
         self._cost_entry_service = cost_entry_service
+        self._commitment_service = commitment_service
 
     def list_projects(self) -> tuple[FinancialProjectOptionDescriptor, ...]:
         return build_project_options(self._project_service)
@@ -269,6 +276,21 @@ class ProjectManagementFinancialsDesktopApi:
             project_id,
             forecast_service=self._require_forecast_service(),
             currency=currency,
+        )
+
+    def list_commitments(
+        self, project_id: str, *, offset: int = 0, limit: int = 50
+    ) -> FinancialCommitmentLinePageDto:
+        if not project_id or self._commitment_service is None:
+            return FinancialCommitmentLinePageDto(offset=offset, limit=limit)
+        lines, total = self._commitment_service.list_for_project(
+            project_id, offset=offset, limit=limit
+        )
+        return FinancialCommitmentLinePageDto(
+            items=tuple(build_commitment_line_dto(line) for line in lines),
+            total=total,
+            offset=offset,
+            limit=limit,
         )
 
     def build_baseline_variance(self, project_id: str) -> tuple[BaselineVarianceRecordDto, ...]:

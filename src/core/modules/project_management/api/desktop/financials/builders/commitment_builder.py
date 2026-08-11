@@ -6,9 +6,32 @@ from src.core.modules.project_management.api.desktop.common.financial_formatting
     format_money,
 )
 from src.core.modules.project_management.api.desktop.financials.models.commitments import (
+    FinancialCommitmentLineDto,
     FinancialCommitmentSummaryDto,
 )
 from src.core.modules.project_management.application.financials import ForecastCostService
+
+
+def build_commitment_line_dto(line) -> FinancialCommitmentLineDto:
+    amount = float(line.amount)
+    matched = float(line.matched_amount)
+    return FinancialCommitmentLineDto(
+        id=line.id,
+        purchase_order_line_id=line.purchase_order_line_id,
+        state=line.state.value,
+        amount_label=format_money(amount, line.currency_code),
+        matched_amount_label=format_money(matched, line.currency_code),
+        remaining_amount_label=format_money(max(0.0, amount - matched), line.currency_code),
+        task_id=line.task_id or "",
+        quantity_label=f"{line.ordered_quantity} {line.quantity_unit}",
+        order_date=line.order_date.isoformat() if line.order_date else "",
+        expected_delivery_date=(
+            line.expected_delivery_date.isoformat()
+            if line.expected_delivery_date
+            else ""
+        ),
+        source_revision=line.source_revision,
+    )
 
 
 def build_commitment_summary_dto(
@@ -37,4 +60,4 @@ def build_commitment_summary_dto(
     )
 
 
-__all__ = ["build_commitment_summary_dto"]
+__all__ = ["build_commitment_line_dto", "build_commitment_summary_dto"]

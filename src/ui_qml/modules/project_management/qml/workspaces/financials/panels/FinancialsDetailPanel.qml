@@ -20,6 +20,8 @@ Item {
         "plannedLabel": "", "uncommittedLabel": "", "committedLabel": "",
         "invoicedLabel": "", "paidLabel": "", "exposureLabel": "", "commitmentRatePct": 0
     })
+    property var commitmentsModel: ({ "title": "", "subtitle": "", "emptyState": "", "items": [] })
+    property var commitmentsTableModel: null
     property var baselineVarianceModel: []
     property var financialProfileModel: ({ "id": "", "fields": [] })
     property var budgetVersionsModel: ({ "items": [] })
@@ -193,6 +195,8 @@ Item {
             FinancialsCommitmentsSection {
                 width: parent ? parent.width : 0
                 commitmentSummaryModel: root.commitmentSummaryModel
+                commitmentsModel: root.commitmentsModel
+                commitmentsTableModel: root.commitmentsTableModel
                 isBusy: root.isBusy
             }
         }

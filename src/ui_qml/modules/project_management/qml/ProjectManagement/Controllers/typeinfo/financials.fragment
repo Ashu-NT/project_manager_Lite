@@ -11,6 +11,8 @@ Component {
     Property { name: "cashflow"; type: "QVariantMap"; isReadonly: true }
     Property { name: "ledger"; type: "QVariantMap"; isReadonly: true }
     Property { name: "ledgerTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "commitments"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "commitmentsTableModel"; type: "QObject"; isReadonly: true }
     Property { name: "sourceAnalytics"; type: "QVariantMap"; isReadonly: true }
     Property { name: "costTypeAnalytics"; type: "QVariantMap"; isReadonly: true }
     Property { name: "notes"; type: "QVariantList"; isReadonly: true }

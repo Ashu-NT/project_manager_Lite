@@ -13,7 +13,7 @@ from src.ui_qml.modules.project_management.view_models.financials import (
 
 from .analytics_builder import build_analytics_collection
 from .cashflow_builder import build_cashflow_collection
-from .commitment_builder import build_commitment_summary
+from .commitment_builder import build_commitment_collection, build_commitment_summary
 from .configuration_builder import build_finance_configuration_views
 from .forecast_builder import build_forecast_view_model
 from .ledger_builder import build_ledger_collection
@@ -44,6 +44,7 @@ def build_workspace_state(
     )
     snapshot = desktop_api.get_finance_snapshot(resolved_project_id)
     actual_page = desktop_api.list_cost_entries(resolved_project_id, limit=50)
+    commitment_page = desktop_api.list_commitments(resolved_project_id, limit=50)
     actual_options = desktop_api.get_manual_actual_options(resolved_project_id)
     empty_state = "" if resolved_project_id else "Select a project to review financials."
     forecast_dto = desktop_api.get_cost_forecast(resolved_project_id, method="bac_over_cpi")
@@ -92,6 +93,7 @@ def build_workspace_state(
         commitment_summary=build_commitment_summary(
             desktop_api.get_commitment_summary(resolved_project_id)
         ),
+        commitments=build_commitment_collection(commitment_page),
         baseline_variance=tuple(
             BaselineVarianceRowViewModel(
                 task_id=rec.task_id,

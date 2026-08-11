@@ -125,6 +125,7 @@ class FinancialsWorkspaceViewModel:
     cost_type_analytics: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     forecast: FinancialsForecastViewModel = field(default_factory=FinancialsForecastViewModel)
     commitment_summary: FinancialsCommitmentSummaryViewModel = field(default_factory=FinancialsCommitmentSummaryViewModel)
+    commitments: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     baseline_variance: tuple[BaselineVarianceRowViewModel, ...] = field(default_factory=tuple)
     financial_profile: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     budget_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))

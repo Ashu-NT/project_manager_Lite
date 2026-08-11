@@ -144,6 +144,8 @@ AppLayouts.WorkspaceFrame {
                     overviewModel: root.overviewModel
                     forecastModel: root.workspaceController ? root.workspaceController.forecast : ({})
                     commitmentSummaryModel: root.workspaceController ? root.workspaceController.commitmentSummary : ({})
+                    commitmentsModel: root.workspaceController ? root.workspaceController.commitments : ({})
+                    commitmentsTableModel: root.workspaceController ? root.workspaceController.commitmentsTableModel : null
                     baselineVarianceModel: root.baselineVarianceModel
                     financialProfileModel: root.workspaceController ? root.workspaceController.financialProfile : ({})
                     budgetVersionsModel: root.workspaceController ? root.workspaceController.budgetVersions : ({ "items": [] })

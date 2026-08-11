@@ -17,6 +17,7 @@ def build_project_management_financials_desktop_api(
     finance_workspace_query=None,
     financial_configuration_service=None,
     cost_entry_service=None,
+    commitment_service=None,
 ) -> ProjectManagementFinancialsDesktopApi:
     return ProjectManagementFinancialsDesktopApi(
         project_service=project_service,
@@ -27,6 +28,7 @@ def build_project_management_financials_desktop_api(
         finance_workspace_query=finance_workspace_query,
         financial_configuration_service=financial_configuration_service,
         cost_entry_service=cost_entry_service,
+        commitment_service=commitment_service,
     )
 
 

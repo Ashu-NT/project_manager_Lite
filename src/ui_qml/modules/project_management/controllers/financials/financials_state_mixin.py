@@ -80,6 +80,13 @@ class FinancialsStateMixin:
         self._commitment_summary = summary
         self.commitmentSummaryChanged.emit()
 
+    def _set_commitments(self, commitments: FinancialsMap) -> None:
+        if commitments == self._commitments:
+            return
+        self._commitments = commitments
+        self._commitments_table_model.set_rows(commitments.get("items", []))
+        self.commitmentsChanged.emit()
+
     def _set_baseline_variance(self, rows: FinancialsObjectList) -> None:
         if rows == self._baseline_variance:
             return

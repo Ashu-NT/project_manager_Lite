@@ -12,6 +12,7 @@ from src.core.modules.project_management.application.financials import (
     FinancialConfigurationService,
     FinanceService,
     ForecastCostService,
+    ProjectCommitmentService,
     ProjectCostEntryService,
     ProjectFinanceWorkspaceQuery,
 )
@@ -62,6 +63,7 @@ class ProjectManagementDesktopRuntimeServices:
     finance_workspace_query: ProjectFinanceWorkspaceQuery | None
     financial_configuration_service: FinancialConfigurationService | None
     cost_entry_service: ProjectCostEntryService | None
+    commitment_service: ProjectCommitmentService | None
     baseline_service: BaselineService | None
     reporting_service: ReportingService | None
 
@@ -88,6 +90,7 @@ def resolve_project_management_desktop_runtime_services(
     finance_workspace_query = services.get("finance_workspace_query")
     financial_configuration_service = services.get("financial_configuration_service")
     cost_entry_service = services.get("cost_entry_service")
+    commitment_service = services.get("commitment_service")
     baseline_service = services.get("baseline_service")
     reporting_service = services.get("reporting_service")
 
@@ -180,6 +183,11 @@ def resolve_project_management_desktop_runtime_services(
         cost_entry_service=(
             cost_entry_service
             if isinstance(cost_entry_service, ProjectCostEntryService)
+            else None
+        ),
+        commitment_service=(
+            commitment_service
+            if isinstance(commitment_service, ProjectCommitmentService)
             else None
         ),
         baseline_service=(

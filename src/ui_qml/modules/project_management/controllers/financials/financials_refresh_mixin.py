@@ -77,6 +77,9 @@ class FinancialsRefreshMixin:
                     workspace_state.commitment_summary
                 )
             )
+            self._set_commitments(
+                serialize_financials_collection_view_model(workspace_state.commitments)
+            )
             self._set_baseline_variance(
                 serialize_financials_baseline_variance_view_models(
                     workspace_state.baseline_variance

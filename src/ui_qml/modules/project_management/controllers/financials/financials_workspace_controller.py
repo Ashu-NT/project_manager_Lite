@@ -52,6 +52,7 @@ class ProjectManagementFinancialsWorkspaceController(
     notesChanged = Signal()
     forecastChanged = Signal()
     commitmentSummaryChanged = Signal()
+    commitmentsChanged = Signal()
     baselineVarianceChanged = Signal()
     financialProfileChanged = Signal()
     budgetVersionsChanged = Signal()
@@ -92,6 +93,8 @@ class ProjectManagementFinancialsWorkspaceController(
         self._notes: list[str] = []
         self._forecast = default_forecast()
         self._commitment_summary = default_commitment_summary()
+        self._commitments = default_collection()
+        self._commitments_table_model = DynamicTableModel(self)
         self._baseline_variance: FinancialsObjectList = []
         self._financial_profile = default_detail()
         self._budget_versions = default_collection()
@@ -145,6 +148,12 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Property("QVariantMap", notify=commitmentSummaryChanged)
     def commitmentSummary(self) -> FinancialsMap: return self._commitment_summary
+
+    @Property("QVariantMap", notify=commitmentsChanged)
+    def commitments(self) -> FinancialsMap: return self._commitments
+
+    @Property(QObject, constant=True)
+    def commitmentsTableModel(self) -> DynamicTableModel: return self._commitments_table_model
 
     @Property("QVariantList", notify=baselineVarianceChanged)
     def baselineVariance(self) -> FinancialsObjectList: return self._baseline_variance
