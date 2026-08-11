@@ -109,6 +109,7 @@ def test_sensitive_labor_detail_is_redacted_without_sensitive_permission(service
 
     snapshot = services["finance_service"].get_finance_snapshot(project_id)
 
+    assert snapshot.sensitive_detail_included is False
     assert snapshot.by_resource == []
     labor_rows = [row for row in snapshot.ledger if row.cost_type == "LABOR"]
     assert labor_rows
@@ -128,6 +129,7 @@ def test_finance_controller_can_view_sensitive_labor_detail(services):
 
     snapshot = services["finance_service"].get_finance_snapshot(project_id)
 
+    assert snapshot.sensitive_detail_included is True
     assert snapshot.by_resource
     labor_rows = [row for row in snapshot.ledger if row.cost_type == "LABOR"]
     assert any(row.reference_type != "restricted_finance" for row in labor_rows)

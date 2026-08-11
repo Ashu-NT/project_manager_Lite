@@ -28,6 +28,10 @@ class FinanceLedgerRow:
     task_name: str | None
     resource_id: str | None
     resource_name: str | None
+    cost_code_id: str | None
+    source_type: str | None
+    period_start: date | None
+    period_end: date | None
     included_in_policy: bool
 
 
@@ -56,6 +60,44 @@ class FinanceAnalyticsRow:
 
 
 @dataclass(frozen=True)
+class FinanceReconciliation:
+    posted_actual_control: Decimal
+    posted_actual_ledger: Decimal
+    open_commitment_control: Decimal
+    open_commitment_ledger: Decimal
+    forecast_etc_control: Decimal | None
+    forecast_etc_ledger: Decimal | None
+
+    @property
+    def posted_actual_delta(self) -> Decimal:
+        return self.posted_actual_ledger - self.posted_actual_control
+
+    @property
+    def open_commitment_delta(self) -> Decimal:
+        return self.open_commitment_ledger - self.open_commitment_control
+
+    @property
+    def forecast_etc_delta(self) -> Decimal | None:
+        if self.forecast_etc_control is None or self.forecast_etc_ledger is None:
+            return None
+        return self.forecast_etc_ledger - self.forecast_etc_control
+
+    @property
+    def is_reconciled(self) -> bool:
+        return (
+            self.posted_actual_delta == 0
+            and self.open_commitment_delta == 0
+            and (
+                (
+                    self.forecast_etc_control is None
+                    and self.forecast_etc_ledger is None
+                )
+                or self.forecast_etc_delta == 0
+            )
+        )
+
+
+@dataclass(frozen=True)
 class FinanceSnapshot:
     project_id: str
     project_currency: str | None
@@ -74,6 +116,10 @@ class FinanceSnapshot:
     approved_forecast_id: str | None
     approved_forecast_revision: int | None
     approved_forecast_as_of: date | None
+    currency_basis: str
+    period_granularity: str
+    sensitive_detail_included: bool
+    reconciliation: FinanceReconciliation
     ledger: list[FinanceLedgerRow]
     cashflow: list[FinancePeriodRow]
     by_source: list[FinanceAnalyticsRow]
@@ -237,6 +283,7 @@ __all__ = [
     "FinanceLedgerRow",
     "FinancePeriodRow",
     "FinanceAnalyticsRow",
+    "FinanceReconciliation",
     "FinanceSnapshot",
     # Cost
     "CostSourceRow",

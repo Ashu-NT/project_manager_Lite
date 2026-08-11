@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
-from src.core.modules.project_management.infrastructure.reporting.models.contexts import ExcelReportContext, PdfReportContext
+from src.core.modules.project_management.infrastructure.reporting.models.contexts import (
+    ExcelReportContext,
+    FinanceLedgerExportPage,
+    PdfReportContext,
+)
 from src.core.modules.project_management.infrastructure.reporting.templates.definitions import register_project_management_report_definitions
 from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.evm import EvmCurveRenderer
 from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.excel import ExcelReportRenderer
@@ -50,6 +54,9 @@ class ExcelReportRequest:
     finance_service: FinanceService | None = None
     baseline_id: str | None = None
     as_of: date | None = None
+    finance_period: str = "month"
+    finance_ledger_offset: int = 0
+    finance_ledger_limit: int = 500
 
 
 @dataclass(frozen=True)
@@ -61,6 +68,9 @@ class PdfReportRequest:
     finance_service: FinanceService | None = None
     baseline_id: str | None = None
     as_of: date | None = None
+    finance_period: str = "month"
+    finance_ledger_offset: int = 0
+    finance_ledger_limit: int = 500
 
 
 _REPORT_RUNTIME: ReportRuntime | None = None
@@ -83,6 +93,26 @@ def _artifact_path(result: object) -> Path:
     if isinstance(result, ExportArtifact):
         return result.file_path
     return Path(result)
+
+
+def _finance_export_context(request, *, as_of: date):
+    FinanceLedgerExportPage.build(
+        [],
+        offset=request.finance_ledger_offset,
+        limit=request.finance_ledger_limit,
+    )
+    if request.finance_service is None:
+        return None, None
+    snapshot = request.finance_service.get_finance_export_snapshot(
+        request.project_id,
+        as_of=as_of,
+        period=request.finance_period,
+    )
+    return snapshot, FinanceLedgerExportPage.build(
+        snapshot.ledger,
+        offset=request.finance_ledger_offset,
+        limit=request.finance_ledger_limit,
+    )
 
 
 def _resolve_runtime_access_context(
@@ -109,10 +139,9 @@ def _build_excel_context(request: ExcelReportRequest) -> ExcelReportContext:
     get_variance = getattr(reporting_service, "get_baseline_schedule_variance", None)
     get_cost = getattr(reporting_service, "get_cost_breakdown", None)
     get_cost_sources = getattr(reporting_service, "get_project_cost_source_breakdown", None)
-    finance_snapshot = (
-        request.finance_service.get_finance_snapshot(request.project_id, as_of=as_of)
-        if request.finance_service is not None
-        else None
+    finance_snapshot, finance_ledger_page = _finance_export_context(
+        request,
+        as_of=as_of,
     )
     return ExcelReportContext(
         kpi=reporting_service.get_project_kpis(request.project_id),
@@ -138,7 +167,9 @@ def _build_excel_context(request: ExcelReportRequest) -> ExcelReportContext:
             get_cost_sources(request.project_id, as_of=as_of) if callable(get_cost_sources) else None
         ),
         finance_snapshot=finance_snapshot,
+        finance_ledger_page=finance_ledger_page,
         as_of=as_of,
+        generated_at=datetime.now(timezone.utc),
     )
 
 
@@ -150,10 +181,9 @@ def _build_pdf_context(request: PdfReportRequest, gantt_path: Path | None) -> Pd
     get_variance = getattr(reporting_service, "get_baseline_schedule_variance", None)
     get_cost = getattr(reporting_service, "get_cost_breakdown", None)
     get_cost_sources = getattr(reporting_service, "get_project_cost_source_breakdown", None)
-    finance_snapshot = (
-        request.finance_service.get_finance_snapshot(request.project_id, as_of=as_of)
-        if request.finance_service is not None
-        else None
+    finance_snapshot, finance_ledger_page = _finance_export_context(
+        request,
+        as_of=as_of,
     )
     return PdfReportContext(
         kpi=reporting_service.get_project_kpis(request.project_id),
@@ -179,7 +209,9 @@ def _build_pdf_context(request: PdfReportRequest, gantt_path: Path | None) -> Pd
             get_cost_sources(request.project_id, as_of=as_of) if callable(get_cost_sources) else None
         ),
         finance_snapshot=finance_snapshot,
+        finance_ledger_page=finance_ledger_page,
         as_of=as_of,
+        generated_at=datetime.now(timezone.utc),
     )
 
 
@@ -316,6 +348,9 @@ def generate_excel_report(
     finance_service: FinanceService | None = None,
     baseline_id: str | None = None,
     as_of: date | None = None,
+    finance_period: str = "month",
+    finance_ledger_offset: int = 0,
+    finance_ledger_limit: int = 500,
     *,
     user_session: object | None = None,
     module_catalog_service: object | None = None,
@@ -335,6 +370,9 @@ def generate_excel_report(
                 finance_service=finance_service,
                 baseline_id=baseline_id,
                 as_of=as_of,
+                finance_period=finance_period,
+                finance_ledger_offset=finance_ledger_offset,
+                finance_ledger_limit=finance_ledger_limit,
             ),
             user_session=resolved_user_session,
             module_catalog_service=resolved_module_catalog_service,
@@ -350,6 +388,9 @@ def generate_pdf_report(
     finance_service: FinanceService | None = None,
     baseline_id: str | None = None,
     as_of: date | None = None,
+    finance_period: str = "month",
+    finance_ledger_offset: int = 0,
+    finance_ledger_limit: int = 500,
     *,
     user_session: object | None = None,
     module_catalog_service: object | None = None,
@@ -370,6 +411,9 @@ def generate_pdf_report(
                 finance_service=finance_service,
                 baseline_id=baseline_id,
                 as_of=as_of,
+                finance_period=finance_period,
+                finance_ledger_offset=finance_ledger_offset,
+                finance_ledger_limit=finance_ledger_limit,
             ),
             user_session=resolved_user_session,
             module_catalog_service=resolved_module_catalog_service,

@@ -3,12 +3,15 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.modules.project_management.contracts.repositories.rate_resolution import (
     LaborRateResolver,
 )
 from src.core.modules.project_management.contracts.reads.financials.finance_snapshot_reader import (
     FinanceSnapshotReader,
+)
+from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
+    FinanceSnapshotFacts,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
@@ -23,6 +26,7 @@ from src.core.modules.project_management.application.financials.cashflow.cashflo
 )
 from src.core.modules.project_management.application.financials.utils.helpers import (
     normalize_currency,
+    normalize_period,
 )
 from src.core.modules.project_management.application.financials.costs.ledger import (
     build_finance_ledger_rows,
@@ -37,6 +41,7 @@ from src.core.modules.project_management.application.financials.models.finance_m
     FinanceAnalyticsRow,
     FinanceLedgerRow,
     FinancePeriodRow,
+    FinanceReconciliation,
     FinanceSnapshot,
 )
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
@@ -112,6 +117,12 @@ class FinanceService(ProjectManagementModuleGuardMixin):
                 row.reference_label.lower(),
             )
         )
+        reconciliation = self._build_reconciliation(facts, ledger)
+        if not reconciliation.is_reconciled:
+            raise BusinessRuleError(
+                "Finance controls do not reconcile to their canonical ledger sources.",
+                code="FINANCE_RECONCILIATION_FAILED",
+            )
 
         notes = list(source_breakdown.notes)
         notes.append(
@@ -180,6 +191,10 @@ class FinanceService(ProjectManagementModuleGuardMixin):
                 None if facts.approved_forecast is None
                 else facts.approved_forecast.as_of_date
             ),
+            currency_basis="PROJECT_CURRENCY",
+            period_granularity=normalize_period(period),
+            sensitive_detail_included=can_read_sensitive,
+            reconciliation=reconciliation,
             ledger=ledger,
             cashflow=build_period_cashflow(ledger=ledger, period=period, as_of=as_of),
             by_source=build_source_analytics(source_breakdown.rows),
@@ -233,6 +248,10 @@ class FinanceService(ProjectManagementModuleGuardMixin):
                     task_name=None,
                     resource_id=None,
                     resource_name=None,
+                    cost_code_id=None,
+                    source_type="restricted",
+                    period_start=None,
+                    period_end=None,
                     included_in_policy=True,
                 )
             )
@@ -245,6 +264,50 @@ class FinanceService(ProjectManagementModuleGuardMixin):
             )
         )
         return visible
+
+    @staticmethod
+    def _build_reconciliation(
+        facts: FinanceSnapshotFacts,
+        ledger: list[FinanceLedgerRow],
+    ) -> FinanceReconciliation:
+        def stage_total(stage: str) -> Decimal:
+            return sum(
+                (row.amount for row in ledger if row.stage == stage),
+                start=Decimal("0"),
+            )
+
+        return FinanceReconciliation(
+            posted_actual_control=facts.control.posted_actual,
+            posted_actual_ledger=stage_total("actual"),
+            open_commitment_control=facts.control.open_commitment,
+            open_commitment_ledger=stage_total("committed"),
+            forecast_etc_control=facts.control.forecast_etc,
+            forecast_etc_ledger=(
+                None
+                if facts.control.forecast_etc is None
+                else stage_total("forecast")
+            ),
+        )
+
+    def get_finance_export_snapshot(
+        self,
+        project_id: str,
+        *,
+        as_of: date | None = None,
+        period: str = "month",
+    ) -> FinanceSnapshot:
+        require_permission(
+            self._user_session,
+            "finance.export",
+            operation_label="export project finance",
+        )
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "finance.export",
+            operation_label="export project finance",
+        )
+        return self.get_finance_snapshot(project_id, as_of=as_of, period=period)
 
     def list_cost_ledger(self, project_id: str, *, as_of: date | None = None) -> list[FinanceLedgerRow]:
         return self.get_finance_snapshot(project_id, as_of=as_of).ledger

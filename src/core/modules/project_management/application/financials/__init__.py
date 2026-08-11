@@ -21,6 +21,7 @@ from src.core.modules.project_management.application.financials.models.finance_m
     FinanceAnalyticsRow,
     FinanceLedgerRow,
     FinancePeriodRow,
+    FinanceReconciliation,
     FinanceSnapshot,
 )
 from src.core.modules.project_management.application.financials.costs.cost_policy_engine import (
@@ -86,6 +87,7 @@ __all__ = [
     "FinanceAnalyticsRow",
     "FinanceLedgerRow",
     "FinancePeriodRow",
+    "FinanceReconciliation",
     "FinanceService",
     "FinancialChangeService",
     "FinanceSnapshot",

@@ -1178,6 +1178,10 @@ Implementation progress (2026-08-11):
 - Verification: focused D.4/security/CQRS/disposal coverage passes 38 tests; broad affected finance,
   reporting, and portfolio coverage passes 101 tests. Architecture/QML coverage passes 153 tests;
   only the three already-documented repository-wide stale/size guard failures remain.
+- Portfolio measurement passes at small/medium/large sizes and now enforces `13 + 4N` heatmap SQL
+  statements with zero per-project rate-resolution calls, improving the previous `12 + 6N` graph.
+  The complete PM run reached 73% before the five-minute limit; its only emitted failures were the
+  three stale performance expectations, which pass after updating the measurement contract.
 
 Continue to **D.5** export metadata, bounded pagination, source drill-down, reconciliation/control
 totals, sensitive-field filtering, and report parity. Complete the remaining D.7 Change/Variance/

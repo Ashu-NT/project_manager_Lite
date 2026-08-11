@@ -62,6 +62,7 @@ PROJECT_SCOPE_ROLE_PERMISSIONS: dict[str, set[str]] = {
         "cost.read",
         "finance.read",
         "finance.manage",
+        "finance.export",
         "forecast.manage",
         "forecast.approve",
         "baseline.manage",

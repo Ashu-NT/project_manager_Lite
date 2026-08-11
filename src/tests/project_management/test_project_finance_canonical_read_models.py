@@ -3,6 +3,9 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
+from openpyxl import load_workbook
+
+from src.core.modules.project_management.infrastructure.reporting import api as reporting_api
 from src.core.modules.project_management.domain.financials.forecast import (
     ForecastGenerationMode,
     ForecastLineSourceKind,
@@ -115,6 +118,12 @@ def test_snapshot_reconciles_approved_budget_forecast_and_posted_actual(services
     assert snapshot.approved_budget_id == budget.id
     assert snapshot.approved_forecast_id == forecast.id
     assert snapshot.approved_forecast_revision == forecast.revision
+    assert snapshot.currency_basis == "PROJECT_CURRENCY"
+    assert snapshot.period_granularity == "month"
+    assert snapshot.reconciliation.is_reconciled is True
+    assert snapshot.reconciliation.posted_actual_delta == Decimal("0")
+    assert snapshot.reconciliation.open_commitment_delta == Decimal("0")
+    assert snapshot.reconciliation.forecast_etc_delta == Decimal("0")
     assert sum(
         (row.amount for row in snapshot.ledger if row.stage == "forecast"),
         start=Decimal("0"),
@@ -123,6 +132,61 @@ def test_snapshot_reconciles_approved_budget_forecast_and_posted_actual(services
     assert august.actual == Decimal("25")
     assert august.forecast == Decimal("80")
     assert august.exposure == Decimal("105")
+
+
+def test_finance_excel_export_has_bounded_lineage_and_control_parity(
+    services,
+    tmp_path,
+) -> None:
+    project, budget, forecast, _entry, code = _approved_controls(services)
+    output = tmp_path / "finance-d5.xlsx"
+
+    reporting_api.generate_excel_report(
+        services["reporting_service"],
+        project.id,
+        output,
+        finance_service=services["finance_service"],
+        as_of=date(2026, 8, 31),
+        finance_ledger_offset=1,
+        finance_ledger_limit=1,
+    )
+
+    workbook = load_workbook(output, data_only=True)
+    finance = workbook["Finance"]
+    metadata = {
+        finance.cell(row=row, column=1).value: finance.cell(row=row, column=2).value
+        for row in range(1, finance.max_row + 1)
+    }
+    assert metadata["Snapshot as of"] == "2026-08-31"
+    assert metadata["Currency basis"].startswith("PROJECT_CURRENCY:")
+    assert metadata["Approved budget version"] == f"{budget.id} / revision {budget.revision}"
+    assert metadata["Approved forecast version"] == f"{forecast.id} / revision {forecast.revision}"
+    assert metadata["Reconciliation status"] == "Reconciled"
+    assert metadata["Ledger page limit"] == 1
+
+    ledger = workbook["Finance Ledger"]
+    headers = [cell.value for cell in ledger[1]]
+    assert headers == [
+        "Date",
+        "Period Start",
+        "Period End",
+        "Source",
+        "Source Type",
+        "Stage",
+        "Cost Type",
+        "Cost Code ID",
+        "Reference Type",
+        "Reference ID",
+        "Reference",
+        "Task ID",
+        "Task",
+        "Resource ID",
+        "Resource",
+        "Amount",
+        "Currency",
+    ]
+    assert ledger.max_row == 2
+    assert ledger.cell(row=2, column=8).value == code.id
 
 
 def test_snapshot_has_no_eac_or_vac_before_the_approved_forecast_basis(services) -> None:

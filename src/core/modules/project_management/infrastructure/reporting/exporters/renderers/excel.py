@@ -3,6 +3,13 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
 from src.core.modules.project_management.infrastructure.reporting.models.contexts import ExcelReportContext
+from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.finance import (
+    finance_ledger_headers,
+    finance_ledger_values,
+    finance_metadata_rows,
+    finance_reconciliation_rows,
+    finance_summary_rows,
+)
 
 
 class ExcelReportRenderer:
@@ -306,12 +313,41 @@ class ExcelReportRenderer:
                 ws_f[f"B{row}"].border = thin_border
                 row += 1
 
-            finance_kv("Budget", float(snap.budget))
-            finance_kv("Planned", float(snap.planned))
-            finance_kv("Committed", float(snap.committed))
-            finance_kv("Actual", float(snap.actual))
-            finance_kv("Exposure", float(snap.exposure))
-            finance_kv("Available", "" if snap.available is None else float(snap.available))
+            for key, value in finance_metadata_rows(ctx):
+                finance_kv(key, value)
+
+            row += 1
+            ws_f[f"A{row}"] = "Canonical Control Summary"
+            ws_f[f"A{row}"].font = header_font
+            row += 1
+            for key, value in finance_summary_rows(ctx):
+                finance_kv(key, "" if value is None else float(value))
+
+            row += 1
+            ws_f[f"A{row}"] = "Reconciliation Controls"
+            ws_f[f"A{row}"].font = header_font
+            row += 1
+            control_headers = ["Control", "Authority Total", "Ledger Total", "Delta"]
+            for idx, header in enumerate(control_headers, start=1):
+                cell = ws_f.cell(row=row, column=idx, value=header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.border = thin_border
+            row += 1
+            for label, authority, ledger_total, delta in finance_reconciliation_rows(ctx):
+                values = [
+                    label,
+                    "" if authority is None else float(authority),
+                    "" if ledger_total is None else float(ledger_total),
+                    "" if delta is None else float(delta),
+                ]
+                for idx, value in enumerate(values, start=1):
+                    ws_f.cell(row=row, column=idx, value=value).border = thin_border
+                row += 1
+            finance_kv(
+                "Reconciliation status",
+                "Reconciled" if snap.reconciliation.is_reconciled else "Failed",
+            )
 
             row += 1
             ws_f[f"A{row}"] = "Cashflow / Forecast by Period"
@@ -373,17 +409,7 @@ class ExcelReportRenderer:
             ws_f.column_dimensions["F"].width = 14
 
             ws_ledger = wb.create_sheet("Finance Ledger")
-            ledger_headers = [
-                "Date",
-                "Source",
-                "Stage",
-                "Type",
-                "Reference",
-                "Task",
-                "Resource",
-                "Amount",
-                "In Policy",
-            ]
+            ledger_headers = finance_ledger_headers()
             for idx, h in enumerate(ledger_headers, start=1):
                 cell = ws_ledger.cell(row=1, column=idx, value=h)
                 cell.font = header_font
@@ -391,31 +417,24 @@ class ExcelReportRenderer:
                 cell.alignment = center
                 cell.border = thin_border
 
-            for row_idx, row_data in enumerate(snap.ledger[:2000], start=2):
-                values = [
-                    row_data.occurred_on.isoformat() if row_data.occurred_on else "",
-                    row_data.source_label,
-                    row_data.stage,
-                    row_data.cost_type,
-                    row_data.reference_label,
-                    row_data.task_name or "",
-                    row_data.resource_name or "",
-                    float(row_data.amount),
-                    "Yes" if row_data.included_in_policy else "No",
-                ]
+            ledger_page = ctx.finance_ledger_page
+            if ledger_page is None:
+                raise ValueError("Finance ledger export page is required.")
+            for row_idx, row_data in enumerate(ledger_page.rows, start=2):
+                values = list(finance_ledger_values(row_data))
+                values[-2] = float(values[-2])
                 for idx, val in enumerate(values, start=1):
                     cell = ws_ledger.cell(row=row_idx, column=idx, value=val)
                     cell.border = thin_border
 
-            ws_ledger.column_dimensions["A"].width = 12
-            ws_ledger.column_dimensions["B"].width = 18
-            ws_ledger.column_dimensions["C"].width = 12
-            ws_ledger.column_dimensions["D"].width = 14
-            ws_ledger.column_dimensions["E"].width = 34
-            ws_ledger.column_dimensions["F"].width = 24
-            ws_ledger.column_dimensions["G"].width = 22
-            ws_ledger.column_dimensions["H"].width = 14
-            ws_ledger.column_dimensions["I"].width = 10
+            for column in ("A", "B", "C"):
+                ws_ledger.column_dimensions[column].width = 12
+            for column in ("D", "E", "F", "G", "I", "L", "N", "Q"):
+                ws_ledger.column_dimensions[column].width = 16
+            for column in ("H", "J", "M", "O"):
+                ws_ledger.column_dimensions[column].width = 24
+            ws_ledger.column_dimensions["K"].width = 34
+            ws_ledger.column_dimensions["P"].width = 14
 
         wb.save(output_path)
         return output_path

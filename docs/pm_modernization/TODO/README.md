@@ -637,6 +637,10 @@ broader budget/forecast/change/actual/commitment/reporting/portfolio compatibili
 (`101 passed`, 10 warnings). Architecture/QML coverage passes 153 tests; its only three failures are
 the already documented stale removed-`cost.py` guard, scheduling-engine growth budget, and the
 repository-wide generated/platform hard-size guard. No D.4 architecture or QML guard fails.
+Portfolio measurement now enforces the improved D.4 heatmap graph (`13 + 4N` statements for N
+projects, previously `12 + 6N`) and zero per-project rate-resolution calls; all three measured sizes
+pass. The complete PM run reached 73% before the five-minute limit; its only emitted failures were
+the three stale performance expectations, which were corrected and then passed separately.
 
 ## 4. Finance — remaining transition-code register items
 
