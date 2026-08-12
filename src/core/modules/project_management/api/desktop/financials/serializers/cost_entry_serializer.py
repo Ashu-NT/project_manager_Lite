@@ -9,12 +9,18 @@ from src.core.modules.project_management.api.desktop.financials.models.cost_entr
 )
 from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntry,
+    ProjectCostEntryKind,
     ProjectCostEntryStatus,
 )
 
 
 def serialize_cost_entry(entry: ProjectCostEntry) -> FinancialCostEntryDto:
     is_draft = entry.status is ProjectCostEntryStatus.DRAFT
+    # A reversal entry is itself already the correction — the domain
+    # (ProjectCostEntry.mark_reversed) forbids reversing a reversal, so the
+    # capability flag must agree rather than offer an action the service
+    # would reject.
+    is_reversible_kind = entry.entry_kind is not ProjectCostEntryKind.REVERSAL
     return FinancialCostEntryDto(
         id=entry.id,
         project_id=entry.project_id,
@@ -41,7 +47,7 @@ def serialize_cost_entry(entry: ProjectCostEntry) -> FinancialCostEntryDto:
         can_submit=is_draft,
         can_approve=entry.status is ProjectCostEntryStatus.SUBMITTED,
         can_post=entry.status is ProjectCostEntryStatus.APPROVED,
-        can_reverse=entry.status is ProjectCostEntryStatus.POSTED,
+        can_reverse=entry.status is ProjectCostEntryStatus.POSTED and is_reversible_kind,
     )
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 from src.core.modules.project_management.domain.portfolio import PortfolioIntakeStatus
 
 
@@ -9,7 +10,7 @@ class PortfolioIntakeCreateCommand:
     title: str
     sponsor_name: str
     summary: str = ""
-    requested_budget: float = 0.0
+    requested_budget: Decimal = Decimal("0")
     requested_capacity_percent: float = 0.0
     target_start_date: date | None = None
     strategic_score: int = 3

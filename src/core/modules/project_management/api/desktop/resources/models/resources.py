@@ -13,7 +13,7 @@ class ResourceDesktopDto:
     worker_type_label: str
     cost_type: str
     cost_type_label: str
-    hourly_rate: float
+    hourly_rate: str
     hourly_rate_label: str
     currency_code: str | None
     capacity_percent: float

@@ -186,7 +186,7 @@ class TaskAssignment:
     task_id: str
     resource_id: str
     allocation_percent: float = 100.0
-    hours_logged: float = 0.0
+    hours_logged: Decimal = Decimal("0")
     allocated_planned_hours: Decimal = Decimal("0")
     version: int = 1
     project_resource_id: str | None = None
@@ -229,8 +229,8 @@ class TaskAssignment:
 
     @field_validator("hours_logged", mode="before")
     @classmethod
-    def _validate_hours_logged(cls, value: object) -> float:
-        resolved = float(value if value not in (None, "") else 0.0)
+    def _validate_hours_logged(cls, value: object) -> Decimal:
+        resolved = Decimal(str(value if value not in (None, "") else "0"))
         if resolved < 0:
             raise ValidationError(
                 "hours_logged cannot be negative.",
@@ -292,7 +292,7 @@ class TaskAssignment:
         task_id: str,
         resource_id: str,
         allocation_percent: float = 100.0,
-        hours_logged: float = 0.0,
+        hours_logged: Decimal = Decimal("0"),
         allocated_planned_hours: Decimal = Decimal("0"),
     ) -> "TaskAssignment":
         return TaskAssignment(

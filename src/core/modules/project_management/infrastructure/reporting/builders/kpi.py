@@ -127,23 +127,28 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
         if start_date and end_date:
             duration_working_days = self._calendar.working_days_between(start_date, end_date)
 
-        # Cost summary (shared policy used by KPI, EVM, cost breakdown, and Cost tab)
-        cost_snapshot = self._build_cost_policy_snapshot(project_id=project_id)
-        total_planned = self._sum_bucket_map(
-            cost_snapshot.planned_map,
-            cost_snapshot.project_currency,
-        )
-        total_committed = self._sum_bucket_map(
-            cost_snapshot.committed_map,
-            cost_snapshot.project_currency,
-        )
-        total_actual = self._sum_bucket_map(
-            cost_snapshot.actual_map,
-            cost_snapshot.project_currency,
-        )
-
-        cost_variance = float(total_actual - total_planned)
-        committed_variance = float(total_committed - total_planned)
+        financial_detail_included = self._has_finance_view(project_id)
+        total_planned: float | None = None
+        total_committed: float | None = None
+        total_actual: float | None = None
+        cost_variance: float | None = None
+        committed_variance: float | None = None
+        if financial_detail_included:
+            cost_snapshot = self._build_cost_policy_snapshot(project_id=project_id)
+            total_planned = self._sum_bucket_map(
+                cost_snapshot.planned_map,
+                cost_snapshot.project_currency,
+            )
+            total_committed = self._sum_bucket_map(
+                cost_snapshot.committed_map,
+                cost_snapshot.project_currency,
+            )
+            total_actual = self._sum_bucket_map(
+                cost_snapshot.actual_map,
+                cost_snapshot.project_currency,
+            )
+            cost_variance = float(total_actual - total_planned)
+            committed_variance = float(total_committed - total_planned)
 
         return ProjectKPI(
             project_id=project.id,
@@ -164,6 +169,7 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
             total_actual_cost=total_actual,
             cost_variance=cost_variance,
             committment_variance= committed_variance,
+            financial_detail_included=financial_detail_included,
         )
 
     def get_critical_path(self, project_id: str) -> list[CPMTaskInfo]:

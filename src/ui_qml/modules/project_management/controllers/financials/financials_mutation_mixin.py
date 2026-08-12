@@ -2,33 +2,30 @@ from __future__ import annotations
 
 from src.ui_qml.modules.project_management.controllers.common import (
     run_mutation,
-    serialize_financials_forecast_view_model,
+)
+from src.ui_qml.modules.project_management.utils.file_paths import (
+    local_path_from_qml_file_url,
 )
 
 
 class FinancialsMutationMixin:
-    def _compute_forecast(self, method: str) -> dict[str, object]:
-        normalized = (method or "bac_over_cpi").strip().lower()
-        return run_mutation(
-            operation=lambda: self._apply_forecast(normalized),
-            success_message="Forecast recalculated.",
+    def _export_financials(self, report_format: str, output_path: str) -> None:
+        normalized_path = local_path_from_qml_file_url(output_path)
+        if not normalized_path:
+            self._set_error_message("Choose an output file for the financial report.")
+            return
+        run_mutation(
+            operation=lambda: self._financials_workspace_presenter.export_financial_report(
+                project_id=self._selected_project_id,
+                output_path=normalized_path,
+                report_format=(report_format or "").strip().lower(),
+                baseline_id=self._selected_baseline_id or None,
+            ),
+            success_message=f"Financial report exported to {normalized_path}.",
             on_success=lambda: None,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
-        )
-
-    def _apply_forecast(self, method: str) -> None:
-        vm = self._financials_workspace_presenter.compute_forecast(
-            self._selected_project_id,
-            method=method,
-        )
-        self._set_forecast(serialize_financials_forecast_view_model(vm))
-
-    def _export_financials(self) -> None:
-        self._set_error_message("")
-        self._set_feedback_message(
-            "Export is not available here. Open the Reports section to generate financial summaries, cost breakdowns, and variance exports."
         )
 
     def _create_manual_actual(self, payload: dict[str, object]) -> dict[str, object]:
@@ -37,6 +34,66 @@ class FinancialsMutationMixin:
                 dict(payload)
             ),
             success_message="Manual actual draft created.",
+            on_success=self._request_domain_refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    def _submit_actual(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._financials_workspace_presenter.submit_actual(
+                dict(payload)
+            ),
+            success_message="Actual submitted for approval.",
+            on_success=self._request_domain_refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    def _approve_actual(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._financials_workspace_presenter.approve_actual(
+                dict(payload)
+            ),
+            success_message="Actual approval decision recorded.",
+            on_success=self._request_domain_refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    def _reject_actual(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._financials_workspace_presenter.reject_actual(
+                dict(payload)
+            ),
+            success_message="Actual returned to draft.",
+            on_success=self._request_domain_refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    def _post_actual(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._financials_workspace_presenter.post_actual(
+                dict(payload)
+            ),
+            success_message="Actual posted to the ledger.",
+            on_success=self._request_domain_refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    def _reverse_actual(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._financials_workspace_presenter.reverse_actual(
+                dict(payload)
+            ),
+            success_message="Reversal posted.",
             on_success=self._request_domain_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,

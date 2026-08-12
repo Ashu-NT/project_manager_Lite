@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 
 
 @dataclass(frozen=True)
@@ -19,7 +20,7 @@ class TaskAssignmentAllocationCommand:
 @dataclass(frozen=True)
 class TaskAssignmentHoursCommand:
     assignment_id: str
-    hours_logged: float
+    hours_logged: Decimal
 
 
 __all__ = [

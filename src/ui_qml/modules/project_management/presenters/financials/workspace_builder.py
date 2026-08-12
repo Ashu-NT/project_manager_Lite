@@ -4,19 +4,21 @@ from src.core.modules.project_management.api.desktop import (
     ProjectManagementFinancialsDesktopApi,
 )
 from src.ui_qml.modules.project_management.view_models.financials import (
-    BaselineVarianceRowViewModel,
-    FinancialsForecastViewModel,
+    FinancialsDetailFieldViewModel,
+    FinancialsDetailViewModel,
     FinancialsManualActualOptionsViewModel,
     FinancialsSelectorOptionViewModel,
     FinancialsWorkspaceViewModel,
 )
 
 from .analytics_builder import build_analytics_collection
+from .billing_builder import build_billing_views
 from .cashflow_builder import build_cashflow_collection
 from .commitment_builder import build_commitment_collection, build_commitment_summary
 from .configuration_builder import build_finance_configuration_views
 from .forecast_builder import build_forecast_view_model
 from .ledger_builder import build_ledger_collection
+from .lifecycle_builder import build_lifecycle_views
 from .overview_builder import build_overview
 from .selection import resolve_project_id
 
@@ -28,7 +30,11 @@ def build_workspace_state(
     budget_line_page: int = 1,
     rate_line_page: int = 1,
     planned_cost_line_page: int = 1,
+    billing_preparation_page: int = 1,
     configuration_page_size: int = 50,
+    selected_forecast_id: str | None = None,
+    selected_change_id: str | None = None,
+    selected_baseline_id: str | None = None,
 ) -> FinancialsWorkspaceViewModel:
     project_options = tuple(
         FinancialsSelectorOptionViewModel(value=option.value, label=option.label)
@@ -47,13 +53,27 @@ def build_workspace_state(
     commitment_page = desktop_api.list_commitments(resolved_project_id, limit=50)
     actual_options = desktop_api.get_manual_actual_options(resolved_project_id)
     empty_state = "" if resolved_project_id else "Select a project to review financials."
-    forecast_dto = desktop_api.get_cost_forecast(resolved_project_id, method="bac_over_cpi")
+    forecast_dto = desktop_api.get_cost_forecast(resolved_project_id)
     configuration_views = build_finance_configuration_views(
         desktop_api.get_configuration_workspace(
             resolved_project_id,
             budget_line_page=budget_line_page,
             rate_line_page=rate_line_page,
             planned_cost_line_page=planned_cost_line_page,
+            page_size=configuration_page_size,
+        )
+    )
+    lifecycle_views = build_lifecycle_views(
+        desktop_api,
+        project_id=resolved_project_id,
+        selected_forecast_id=selected_forecast_id,
+        selected_change_id=selected_change_id,
+        selected_baseline_id=selected_baseline_id,
+    )
+    billing_views = build_billing_views(
+        desktop_api.get_billing_workspace(
+            resolved_project_id,
+            preparation_page=billing_preparation_page,
             page_size=configuration_page_size,
         )
     )
@@ -90,21 +110,42 @@ def build_workspace_state(
             rows=snapshot.by_cost_type,
         ),
         forecast=build_forecast_view_model(forecast_dto),
+        selected_forecast_id=lifecycle_views["selected_forecast_id"],
+        forecast_versions=lifecycle_views["forecast_versions"],
+        forecast_lines=lifecycle_views["forecast_lines"],
+        selected_change_id=lifecycle_views["selected_change_id"],
+        financial_changes=lifecycle_views["financial_changes"],
+        financial_change_impacts=lifecycle_views["financial_change_impacts"],
         commitment_summary=build_commitment_summary(
             desktop_api.get_commitment_summary(resolved_project_id)
         ),
         commitments=build_commitment_collection(commitment_page),
-        baseline_variance=tuple(
-            BaselineVarianceRowViewModel(
-                task_id=rec.task_id,
-                task_name=rec.task_name,
-                start_variance_days=rec.start_variance_days,
-                finish_variance_days=rec.finish_variance_days,
-                cost_variance=rec.cost_variance,
-                cost_variance_label=rec.cost_variance_label,
-                tone=rec.tone,
-            )
-            for rec in desktop_api.build_baseline_variance(resolved_project_id)
+        baseline_variance=lifecycle_views["baseline_variance"],
+        selected_baseline_id=lifecycle_views["selected_baseline_id"],
+        baseline_versions=lifecycle_views["baseline_versions"],
+        variance_basis=lifecycle_views["variance_basis"],
+        report_basis=FinancialsDetailViewModel(
+            id=resolved_project_id,
+            title="Canonical Financial Report",
+            status_label="Reconciled at export time" if resolved_project_id else "",
+            empty_state="Select a project before exporting a financial report.",
+            fields=(
+                FinancialsDetailFieldViewModel(
+                    "Currency basis", actual_options.currency_code or "Project currency"
+                ),
+                FinancialsDetailFieldViewModel(
+                    "Forecast basis", forecast_dto.basis_label or "No approved forecast"
+                ),
+                FinancialsDetailFieldViewModel(
+                    "Schedule baseline",
+                    lifecycle_views["variance_basis"].title or "No selected baseline",
+                ),
+                FinancialsDetailFieldViewModel(
+                    "Source detail",
+                    "Bounded to 500 ledger rows per export page",
+                    "Control totals always use the complete reconciled snapshot.",
+                ),
+            ) if resolved_project_id else (),
         ),
         financial_profile=configuration_views["profile"],
         budget_versions=configuration_views["budget_versions"],
@@ -113,17 +154,9 @@ def build_workspace_state(
         rate_lines=configuration_views["rate_lines"],
         planned_cost_versions=configuration_views["planned_cost_versions"],
         planned_cost_lines=configuration_views["planned_cost_lines"],
+        billing_profile=billing_views["billing_profile"],
+        billing_schedule=billing_views["billing_schedule"],
+        billing_preparations=billing_views["billing_preparations"],
         notes=tuple(snapshot.notes),
         empty_state=empty_state,
     )
-
-
-def compute_forecast(
-    desktop_api: ProjectManagementFinancialsDesktopApi,
-    selected_project_id: str | None,
-    *,
-    method: str = "bac_over_cpi",
-) -> FinancialsForecastViewModel:
-    normalized_method = (method or "bac_over_cpi").strip().lower()
-    forecast_dto = desktop_api.get_cost_forecast(selected_project_id, method=normalized_method)
-    return build_forecast_view_model(forecast_dto)

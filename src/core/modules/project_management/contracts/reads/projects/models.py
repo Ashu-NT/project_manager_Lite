@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 
 from src.core.modules.project_management.domain.projects.project import Project
 
@@ -10,7 +11,7 @@ class ProjectCatalogReadItem:
     project: Project
     site_label: str = ""
     financial_currency_code: str = ""
-    approved_budget: float | None = None
+    approved_budget: Decimal | None = None
 
 
 @dataclass(frozen=True, slots=True)

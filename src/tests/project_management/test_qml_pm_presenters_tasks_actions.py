@@ -2,9 +2,45 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 from src.tests.ui_runtime_helpers import wait_until
 from src.tests.project_management._pm_task_service_helpers import build_task_controller_bundle
+from src.ui_qml.modules.project_management.presenters.tasks.assignment_command_handler import (
+    preview_assignment,
+)
+
+
+def test_pm_assignment_preview_maps_availability_and_policy_evidence() -> None:
+    desktop_api = SimpleNamespace(
+        preview_assignment=lambda _task_id, _project_resource_id: SimpleNamespace(
+            overallocation_pct=25.0,
+            conflict_projects=("Project Alpha", "Project Beta"),
+            skills_matched=False,
+            certs_valid=True,
+            has_warnings=True,
+            warning_messages=("Missing commissioning skill",),
+            is_blocked=True,
+            block_messages=("Assignment policy blocked",),
+        )
+    )
+
+    result = preview_assignment(
+        desktop_api,
+        {"taskId": "task-1", "projectResourceId": "project-resource-1"},
+    )
+
+    assert result == {
+        "ok": True,
+        "overallocationPct": 25.0,
+        "conflictProjects": ["Project Alpha", "Project Beta"],
+        "skillsMatched": False,
+        "certsValid": True,
+        "hasWarnings": True,
+        "warningMessages": ["Missing commissioning skill"],
+        "isBlocked": True,
+        "blockMessages": ["Assignment policy blocked"],
+    }
 
 
 def test_pm_tasks_search_and_view_management(tmp_path: Path, qapp) -> None:

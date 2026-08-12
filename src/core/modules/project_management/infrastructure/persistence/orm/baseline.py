@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import Date, DateTime, Float, ForeignKey, Index, Integer, String
+from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infra.persistence.orm.base import Base
+from src.infra.persistence.db.financial_numeric import (
+    FinancialNumericKind,
+    financial_numeric,
+    financial_numeric_info,
+)
 
 
 class ProjectBaselineORM(Base):
@@ -51,7 +57,13 @@ class BaselineTaskORM(Base):
     baseline_start: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     baseline_finish: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     baseline_duration_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    baseline_planned_cost: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    baseline_planned_cost: Mapped[Decimal] = mapped_column(
+        financial_numeric(FinancialNumericKind.MONEY),
+        nullable=False,
+        default=Decimal("0"),
+        server_default="0",
+        info=financial_numeric_info(FinancialNumericKind.MONEY),
+    )
 
 
 Index("idx_baseline_task_baseline", BaselineTaskORM.baseline_id)
@@ -77,7 +89,13 @@ class BaselineVarianceRecordORM(Base):
     task_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     start_variance_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     finish_variance_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    cost_variance: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    cost_variance: Mapped[Decimal] = mapped_column(
+        financial_numeric(FinancialNumericKind.MONEY),
+        nullable=False,
+        default=Decimal("0"),
+        server_default="0",
+        info=financial_numeric_info(FinancialNumericKind.MONEY),
+    )
     created_at: Mapped[date] = mapped_column(Date, nullable=False)
 
 

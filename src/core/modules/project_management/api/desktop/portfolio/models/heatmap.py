@@ -10,7 +10,7 @@ class PortfolioHeatmapDesktopDto:
     critical_tasks: int
     peak_utilization_percent: float
     peak_utilization_label: str
-    cost_variance: float
+    cost_variance: str
     cost_variance_label: str
     pressure_label: str
 

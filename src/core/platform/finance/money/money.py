@@ -6,7 +6,7 @@ from typing import Iterable
 
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 
-from ._decimal import DecimalInput, decimal_from_legacy_float, decimal_value
+from ._decimal import DecimalInput, decimal_value
 from .currency import CurrencyCode
 from .rounding import DEFAULT_ROUNDING_POLICY, RoundingPolicy
 
@@ -27,15 +27,6 @@ class Money:
     @classmethod
     def zero(cls, currency: CurrencyCode | str) -> Money:
         return cls(amount=Decimal("0"), currency=currency)
-
-    @classmethod
-    def from_legacy_float(cls, amount: float, currency: CurrencyCode | str) -> Money:
-        # TRANSITION(PF-A1-LEGACY-FLOAT): Deterministic migration input only.
-        # Temporary float conversion remains until monetary float columns are retired.
-        return cls(
-            amount=decimal_from_legacy_float(amount, label="Legacy money amount"),
-            currency=currency,
-        )
 
     def _require_same_currency(self, other: Money) -> None:
         if not isinstance(other, Money) or self.currency != other.currency:

@@ -75,29 +75,25 @@ class FinancialsForecastMetricViewModel:
 
 @dataclass(frozen=True)
 class FinancialsForecastViewModel:
-    method: str = ""
-    method_label: str = ""
-    bac_label: str = ""
-    ac_label: str = ""
-    ev_label: str = ""
+    basis_label: str = ""
+    budget_label: str = ""
+    actual_label: str = ""
     etc_label: str = ""
     eac_label: str = ""
     vac_label: str = ""
-    cpi_label: str = ""
     is_over_budget: bool = False
-    exceeds_threshold: bool = False
-    threshold_percent: float = 10.0
+    has_approved_forecast: bool = False
+    forecast_revision: int | None = None
+    forecast_as_of_label: str = ""
     alert_message: str = ""
     metrics: tuple[FinancialsForecastMetricViewModel, ...] = field(default_factory=tuple)
 
 @dataclass(frozen=True)
 class FinancialsCommitmentSummaryViewModel:
-    planned_label: str = ""
-    uncommitted_label: str = ""
-    committed_label: str = ""
-    invoiced_label: str = ""
-    paid_label: str = ""
-    exposure_label: str = ""
+    approved_budget_label: str = ""
+    posted_actual_label: str = ""
+    open_commitment_label: str = ""
+    available_after_commitment_label: str = ""
     commitment_rate_pct: float = 0.0
 
 @dataclass(frozen=True)
@@ -106,7 +102,7 @@ class BaselineVarianceRowViewModel:
     task_name: str
     start_variance_days: int
     finish_variance_days: int
-    cost_variance: float
+    cost_variance: str
     cost_variance_label: str
     tone: str = "default"
 
@@ -124,9 +120,19 @@ class FinancialsWorkspaceViewModel:
     source_analytics: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     cost_type_analytics: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     forecast: FinancialsForecastViewModel = field(default_factory=FinancialsForecastViewModel)
+    selected_forecast_id: str = ""
+    forecast_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    forecast_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    selected_change_id: str = ""
+    financial_changes: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    financial_change_impacts: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     commitment_summary: FinancialsCommitmentSummaryViewModel = field(default_factory=FinancialsCommitmentSummaryViewModel)
     commitments: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     baseline_variance: tuple[BaselineVarianceRowViewModel, ...] = field(default_factory=tuple)
+    selected_baseline_id: str = ""
+    baseline_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    variance_basis: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
+    report_basis: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     financial_profile: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
     budget_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     budget_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
@@ -134,6 +140,9 @@ class FinancialsWorkspaceViewModel:
     rate_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     planned_cost_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     planned_cost_lines: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    billing_profile: FinancialsDetailViewModel = field(default_factory=FinancialsDetailViewModel)
+    billing_schedule: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    billing_preparations: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     notes: tuple[str, ...] = field(default_factory=tuple)
     empty_state: str = ""
 

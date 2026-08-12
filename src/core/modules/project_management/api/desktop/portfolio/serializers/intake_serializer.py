@@ -2,6 +2,7 @@ from src.core.modules.project_management.api.desktop.portfolio.models.intake imp
 from src.core.modules.project_management.api.desktop.common.financial_formatting import format_money
 from src.core.modules.project_management.api.desktop.portfolio.formatters.percent_formatter import format_percent
 from src.core.modules.project_management.api.desktop.portfolio.formatters.date_formatter import format_date
+from src.core.platform.finance.money import canonical_decimal_text
 
 
 def serialize_intake_item(item) -> PortfolioIntakeDesktopDto:
@@ -10,7 +11,7 @@ def serialize_intake_item(item) -> PortfolioIntakeDesktopDto:
         title=item.title,
         sponsor_name=item.sponsor_name,
         summary=item.summary or "",
-        requested_budget=float(item.requested_budget or 0.0),
+        requested_budget=canonical_decimal_text(item.requested_budget),
         requested_budget_label=format_money(item.requested_budget),
         requested_capacity_percent=float(item.requested_capacity_percent or 0.0),
         requested_capacity_label=format_percent(item.requested_capacity_percent),

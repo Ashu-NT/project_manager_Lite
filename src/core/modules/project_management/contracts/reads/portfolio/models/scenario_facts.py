@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 
 
 @dataclass(frozen=True, slots=True)
 class PortfolioScenarioFact:
     id: str
     name: str
-    budget_limit: float | None
+    budget_limit: Decimal | None
     capacity_limit_percent: float | None
     project_ids: tuple[str, ...]
     intake_item_ids: tuple[str, ...]
@@ -18,14 +19,14 @@ class PortfolioScenarioFact:
 class PortfolioScenarioProjectFact:
     id: str
     name: str
-    approved_budget: float
+    approved_budget: Decimal
 
 
 @dataclass(frozen=True, slots=True)
 class PortfolioScenarioIntakeFact:
     id: str
     title: str
-    requested_budget: float
+    requested_budget: Decimal
     requested_capacity_percent: float
     composite_score: int
 

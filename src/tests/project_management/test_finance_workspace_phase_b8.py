@@ -219,3 +219,25 @@ def test_qml_uses_five_project_level_finance_views_and_deletes_false_budget_view
     assert not (root / "sections/FinancialsBudgetSection.qml").exists()
     assert "FinancialsDetailPanel" in page
     assert "FinancialsListPage" not in page
+
+
+def test_financials_uses_grouped_scrollable_navigation_and_project_scope_selector() -> None:
+    financials_root = Path("src/ui_qml/modules/project_management/qml/workspaces/financials")
+    page = (financials_root / "FinancialsWorkspacePage.qml").read_text(encoding="utf-8")
+    section_page = Path(
+        "src/ui_qml/shared/qml/App/Widgets/SectionDetailPage.qml"
+    ).read_text(encoding="utf-8")
+    navigation_rail = Path(
+        "src/ui_qml/shared/qml/App/Widgets/SectionNavigationRail.qml"
+    ).read_text(encoding="utf-8")
+
+    for group in ("Configuration", "Planning", "Cost Control", "Commercial", "Insights"):
+        assert f'"group": "{group}"' in page
+
+    assert "projectOptions" in page
+    assert "selectedProjectId" in page
+    assert "workspaceController.selectProject" in page
+    assert "sectionGroupsCollapsedByDefault: true" in section_page
+    assert "SectionNavigationRail" in section_page
+    assert "contentHeight: navColumn.implicitHeight" in navigation_rail
+    assert "ScrollBar.vertical: ScrollBar" in navigation_rail

@@ -1,28 +1,27 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from datetime import date
 
 
 @dataclass(frozen=True)
 class FinancialForecastDto:
     project_id: str
-    method: str
-    bac: float
-    bac_label: str
-    ac: float
-    ac_label: str
-    ev: float
-    ev_label: str
-    etc: float
+    basis: str
+    basis_label: str
+    budget: str
+    budget_label: str
+    actual: str
+    actual_label: str
+    etc: str | None
     etc_label: str
-    eac: float
+    eac: str | None
     eac_label: str
-    vac: float
+    vac: str | None
     vac_label: str
-    cpi: float
-    cpi_label: str
     is_over_budget: bool
-    exceeds_threshold: bool
-    threshold_percent: float
+    has_approved_forecast: bool
+    forecast_revision: int | None
+    forecast_as_of: date | None
 
 
 __all__ = ["FinancialForecastDto"]

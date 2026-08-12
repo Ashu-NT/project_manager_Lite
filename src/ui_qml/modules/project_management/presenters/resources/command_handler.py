@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from decimal import Decimal
 
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementResourcesDesktopApi,
@@ -11,6 +12,7 @@ from src.core.modules.project_management.domain.enums import CostType, WorkerTyp
 
 from .validation import (
     optional_bool,
+    optional_decimal,
     optional_float,
     optional_int,
     optional_text,
@@ -43,7 +45,7 @@ def create_resource(
         name=optional_text(payload, "name") or "",
         code=optional_text(payload, "resourceCode"),
         role=optional_text(payload, "role") or "",
-        hourly_rate=optional_float(payload, "hourlyRate", "Hourly rate must be a valid number.", default=0.0),
+        hourly_rate=optional_decimal(payload, "hourlyRate", "Hourly rate must be a valid number.", default=Decimal("0")),
         is_active=optional_bool(payload, "isActive", default=True),
         cost_type=optional_text(payload, "costType") or CostType.LABOR.value,
         currency_code=optional_text(payload, "currency"),
@@ -64,7 +66,7 @@ def update_resource(
         name=optional_text(payload, "name") or "",
         code=optional_text(payload, "resourceCode"),
         role=optional_text(payload, "role") or "",
-        hourly_rate=optional_float(payload, "hourlyRate", "Hourly rate must be a valid number.", default=0.0),
+        hourly_rate=optional_decimal(payload, "hourlyRate", "Hourly rate must be a valid number.", default=Decimal("0")),
         is_active=optional_bool(payload, "isActive", default=True),
         cost_type=optional_text(payload, "costType") or CostType.LABOR.value,
         currency_code=optional_text(payload, "currency"),

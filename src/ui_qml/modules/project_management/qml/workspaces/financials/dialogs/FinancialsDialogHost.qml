@@ -10,11 +10,16 @@ Item {
     property var taskOptions: []
     property var manualActualOptions: ({ "currencyCode": "", "costCodes": [], "entryKinds": [] })
 
+    // The workspace controller's mutation slots (createManualActual,
+    // submitActual, approveActual, rejectActual, postActual, reverseActual)
+    // all return run_mutation()'s {"ok": bool, "message": str} contract.
+    // Close the dialog only once the backend actually confirms success;
+    // otherwise keep it open and show the real failure message.
     function _handleResult(dialog, result) {
-        if (!result || result.success) {
+        if (result && result.ok) {
             dialog.close()
         } else {
-            dialog.errorMessage = result.error || "An unexpected error occurred."
+            dialog.errorMessage = (result && result.message) || "An unexpected error occurred."
         }
     }
 
@@ -23,6 +28,19 @@ Item {
             ? root.workspaceController.newFinancialCommandId() : ""
         editorDialog.errorMessage = ""
         editorDialog.open()
+    }
+
+    // Opens the shared reject/post/reverse decision dialog for the given
+    // canonical ProjectCostEntry. Submit and approve need no extra fields
+    // and are dispatched directly by the caller without a dialog.
+    function openActualDecisionDialog(mode, entryId, rowVersion) {
+        actualLifecycleDialog.mode = String(mode || "reject")
+        actualLifecycleDialog.entryId = String(entryId || "")
+        actualLifecycleDialog.rowVersion = Number(rowVersion || 0)
+        actualLifecycleDialog.commandId = root.workspaceController
+            ? root.workspaceController.newFinancialCommandId() : ""
+        actualLifecycleDialog.errorMessage = ""
+        actualLifecycleDialog.open()
     }
 
     ProjectManagementDialogs.ManualActualEditorDialog {
@@ -37,6 +55,25 @@ Item {
             if (!root.workspaceController) return
             const result = root.workspaceController.createManualActual(payload)
             root._handleResult(editorDialog, result)
+        }
+    }
+
+    ProjectManagementDialogs.ActualLifecycleDialog {
+        id: actualLifecycleDialog
+
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+
+        onDecided: function(mode, payload) {
+            if (!root.workspaceController) return
+            let result
+            if (mode === "post") {
+                result = root.workspaceController.postActual(payload)
+            } else if (mode === "reverse") {
+                result = root.workspaceController.reverseActual(payload)
+            } else {
+                result = root.workspaceController.rejectActual(payload)
+            }
+            root._handleResult(actualLifecycleDialog, result)
         }
     }
 }

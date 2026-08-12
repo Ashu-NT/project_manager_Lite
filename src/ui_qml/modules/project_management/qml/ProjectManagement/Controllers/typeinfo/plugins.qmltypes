@@ -133,8 +133,18 @@ Component {
     Property { name: "costTypeAnalytics"; type: "QVariantMap"; isReadonly: true }
     Property { name: "notes"; type: "QVariantList"; isReadonly: true }
     Property { name: "forecast"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedForecastId"; type: "QString"; isReadonly: true }
+    Property { name: "forecastVersions"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "forecastLines"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "selectedChangeId"; type: "QString"; isReadonly: true }
+    Property { name: "financialChanges"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "financialChangeImpacts"; type: "QVariantMap"; isReadonly: true }
     Property { name: "commitmentSummary"; type: "QVariantMap"; isReadonly: true }
     Property { name: "baselineVariance"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedBaselineId"; type: "QString"; isReadonly: true }
+    Property { name: "baselineVersions"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "varianceBasis"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "reportBasis"; type: "QVariantMap"; isReadonly: true }
     Property { name: "financialProfile"; type: "QVariantMap"; isReadonly: true }
     Property { name: "budgetVersions"; type: "QVariantMap"; isReadonly: true }
     Property { name: "budgetLines"; type: "QVariantMap"; isReadonly: true }
@@ -142,11 +152,21 @@ Component {
     Property { name: "rateLines"; type: "QVariantMap"; isReadonly: true }
     Property { name: "plannedCostVersions"; type: "QVariantMap"; isReadonly: true }
     Property { name: "plannedCostLines"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "billingProfile"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "billingSchedule"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "billingPreparations"; type: "QVariantMap"; isReadonly: true }
     Method { name: "refresh" }
     Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
-    Method { name: "computeForecast"; type: "QVariantMap"; Parameter { name: "method"; type: "QString" } }
-    Method { name: "exportFinancials" }
+    Method { name: "exportFinancials"; Parameter { name: "reportFormat"; type: "QString" } Parameter { name: "outputPath"; type: "QString" } }
+    Method { name: "selectForecastVersion"; Parameter { name: "forecastId"; type: "QString" } }
+    Method { name: "selectFinancialChange"; Parameter { name: "changeId"; type: "QString" } }
+    Method { name: "selectVarianceBaseline"; Parameter { name: "baselineId"; type: "QString" } }
     Method { name: "createManualActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "submitActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "approveActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "rejectActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "postActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "reverseActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "newFinancialCommandId"; type: "QString" }
     Method { name: "setConfigurationPage"; Parameter { name: "collection"; type: "QString" } Parameter { name: "page"; type: "int" } }
 }

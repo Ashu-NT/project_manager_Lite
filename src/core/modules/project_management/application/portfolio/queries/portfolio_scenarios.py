@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
+from decimal import Decimal
 
 from src.core.modules.project_management.application.resources.resource_load_engine import (
     ResourceLoadEngine,
@@ -187,8 +188,14 @@ class PortfolioScenarioQueryMixin:
             accessible_projects={project.id: project for project in facts.projects},
             intake_by_id={item.id: item for item in facts.intake_items},
         )
-        total_budget = sum(project.approved_budget for project in selected_projects)
-        total_budget += sum(item.requested_budget for item in selected_intake)
+        total_budget = sum(
+            (project.approved_budget for project in selected_projects),
+            Decimal("0"),
+        )
+        total_budget += sum(
+            (item.requested_budget for item in selected_intake),
+            Decimal("0"),
+        )
         total_capacity_percent = sum(
             capacity_by_project.get(project.id, 0.0) for project in selected_projects
         )

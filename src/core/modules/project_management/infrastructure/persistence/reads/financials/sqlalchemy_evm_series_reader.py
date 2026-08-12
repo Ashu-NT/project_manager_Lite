@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
@@ -56,7 +57,7 @@ class SqlAlchemyEvmSeriesReader:
                     baseline_start=row.baseline_start,
                     baseline_finish=row.baseline_finish,
                     baseline_duration_days=int(row.baseline_duration_days or 0),
-                    baseline_planned_cost=float(row.baseline_planned_cost or 0.0),
+                    baseline_planned_cost=Decimal(str(row.baseline_planned_cost or 0)),
                 )
                 for row in self._session.execute(
                     evm_baseline_task_facts_statement(

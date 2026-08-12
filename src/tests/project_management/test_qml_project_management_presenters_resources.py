@@ -1,3 +1,4 @@
+from decimal import Decimal
 from types import SimpleNamespace
 
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
@@ -108,7 +109,7 @@ def test_project_management_workspace_catalog_exposes_typed_resources_controller
                     id="res-1",
                     name="Electrical Crew",
                     role="Lead Technician",
-                    hourly_rate=95.0,
+                    hourly_rate=Decimal("95"),
                     is_active=True,
                     cost_type=CostType.LABOR,
                     currency_code="EUR",
@@ -123,7 +124,7 @@ def test_project_management_workspace_catalog_exposes_typed_resources_controller
                     id="res-2",
                     name="Alex Taylor",
                     role="Planner",
-                    hourly_rate=80.0,
+                    hourly_rate=Decimal("80"),
                     is_active=False,
                     cost_type=CostType.LABOR,
                     currency_code="USD",

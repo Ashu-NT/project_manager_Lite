@@ -42,14 +42,10 @@ def test_currency_code_uses_current_iso_list_and_minor_units() -> None:
     assert historic.value.code == "CURRENCY_CODE_INVALID"
 
 
-def test_money_rejects_binary_float_and_has_explicit_legacy_conversion() -> None:
+def test_money_rejects_binary_float() -> None:
     with pytest.raises(ValidationError) as exc:
         Money.of(0.1, "EUR")
     assert exc.value.code == "DECIMAL_BINARY_FLOAT_FORBIDDEN"
-
-    migrated = Money.from_legacy_float(0.1, "EUR")
-    assert migrated.amount == Decimal("0.1")
-
 
 def test_money_supports_signed_exact_arithmetic_and_rejects_currency_mismatch() -> None:
     original = Money.of("125.40", "EUR")

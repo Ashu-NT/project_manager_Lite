@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from decimal import Decimal, InvalidOperation
 
 def require_text(payload: dict[str, Any], key: str, message: str) -> str:
     value = str(payload.get(key, "") or "").strip()
@@ -26,6 +27,24 @@ def optional_float(
         return float(value)
     except ValueError as exc:
         raise ValueError(message) from exc
+
+def optional_decimal(
+    payload: dict[str, Any],
+    key: str,
+    message: str,
+    *,
+    default: Decimal,
+) -> Decimal:
+    value = str(payload.get(key, "") or "").strip()
+    if not value:
+        return default
+    try:
+        resolved = Decimal(value)
+    except (InvalidOperation, ValueError) as exc:
+        raise ValueError(message) from exc
+    if not resolved.is_finite():
+        raise ValueError(message)
+    return resolved
 
 def optional_int(payload: dict[str, Any], key: str) -> int | None:
     value = payload.get(key)

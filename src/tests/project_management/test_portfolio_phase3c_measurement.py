@@ -186,11 +186,12 @@ def test_phase3c_measure_portfolio_read_candidates(services, size_name, capsys) 
             assert calls["resource_repo.list"] == 0
             assert calls["resource_repo.get"] == 0
         elif operation_name == "heatmap":
-            expected_sql = {1: 18, 5: 42, 12: 84}[project_count]
+            # D.4 removed per-project labor-rate resolution from canonical finance variance.
+            expected_sql = 13 + (4 * project_count)
             assert sql_stats.total_statements == expected_sql
             assert calls["portfolio_heatmap_reader.read_facts"] == 1
             assert calls["project_calendar.working_day_dates_between"] == project_count
-            assert calls["rate_resolver.resolve_many"] == project_count
+            assert calls["rate_resolver.resolve_many"] == 0
             assert calls["portfolio._accessible_projects"] == 1
             assert calls["project_repo.list"] == 1
             assert calls["reporting.get_project_kpis"] == 0

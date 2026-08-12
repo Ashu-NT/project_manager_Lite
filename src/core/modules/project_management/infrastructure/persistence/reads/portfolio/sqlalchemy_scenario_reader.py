@@ -75,7 +75,7 @@ class SqlAlchemyPortfolioScenarioReader:
             PortfolioScenarioFact(
                 id=str(row.id),
                 name=str(row.name or ""),
-                budget_limit=(None if row.budget_limit is None else float(row.budget_limit)),
+                budget_limit=row.budget_limit,
                 capacity_limit_percent=(
                     None
                     if row.capacity_limit_percent is None
@@ -113,7 +113,7 @@ class SqlAlchemyPortfolioScenarioReader:
                 PortfolioScenarioProjectFact(
                     id=str(row.id),
                     name=str(row.name or ""),
-                    approved_budget=float(row.approved_budget or 0.0),
+                    approved_budget=row.approved_budget,
                 )
                 for row in self._session.execute(
                     select(
@@ -186,7 +186,7 @@ class SqlAlchemyPortfolioScenarioReader:
             PortfolioScenarioIntakeFact(
                 id=str(row.id),
                 title=str(row.title or ""),
-                requested_budget=float(row.requested_budget or 0.0),
+                requested_budget=row.requested_budget,
                 requested_capacity_percent=float(row.requested_capacity_percent or 0.0),
                 composite_score=calculate_portfolio_intake_composite_score(
                     strategic_score=row.strategic_score,

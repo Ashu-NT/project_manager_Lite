@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import math
 from decimal import Decimal, InvalidOperation
 from typing import TypeAlias
 
@@ -33,17 +32,6 @@ def decimal_value(value: DecimalInput, *, label: str = "Decimal value") -> Decim
     return Decimal("0") if resolved.is_zero() else resolved
 
 
-def decimal_from_legacy_float(value: float, *, label: str = "Legacy decimal value") -> Decimal:
-    # TRANSITION(PF-A1-LEGACY-FLOAT): Migration and legacy-adapter input only.
-    # Remove after Phase D float-column and float-DTO retirement.
-    if isinstance(value, bool) or not isinstance(value, float) or not math.isfinite(value):
-        raise ValidationError(
-            f"{label} must be a finite binary float.",
-            code="LEGACY_FLOAT_INVALID",
-        )
-    return decimal_value(str(value), label=label)
-
-
 def canonical_decimal_text(value: DecimalInput) -> str:
     resolved = decimal_value(value)
     if resolved.is_zero():
@@ -54,6 +42,5 @@ def canonical_decimal_text(value: DecimalInput) -> str:
 __all__ = [
     "DecimalInput",
     "canonical_decimal_text",
-    "decimal_from_legacy_float",
     "decimal_value",
 ]

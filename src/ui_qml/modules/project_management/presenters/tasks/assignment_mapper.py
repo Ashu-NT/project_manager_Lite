@@ -4,18 +4,22 @@ from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskRecordViewModel,
     TaskSelectorOptionViewModel,
 )
+from src.core.modules.project_management.api.desktop.common.financial_formatting import (
+    format_decimal_amount,
+)
 
 
 def to_assignment_record_view_model(assignment) -> TaskRecordViewModel:
     allocation_percent = float(assignment.allocation_percent or 0.0)
-    hours_logged = float(assignment.hours_logged or 0.0)
+    hours_logged = assignment.hours_logged or "0"
+    hours_label = format_decimal_amount(hours_logged, grouping=False)
     state = {
         "assignmentId": assignment.id,
         "taskId": assignment.task_id,
         "resourceId": assignment.resource_id,
         "resourceName": assignment.resource_name,
         "allocationPercent": f"{allocation_percent:.1f}",
-        "hoursLogged": f"{hours_logged:.2f}",
+        "hoursLogged": hours_logged,
         "projectResourceId": assignment.project_resource_id or "",
         "responseStatus": assignment.response_status,
         "responseStatusLabel": assignment.response_status_label,
@@ -28,7 +32,7 @@ def to_assignment_record_view_model(assignment) -> TaskRecordViewModel:
         title=assignment.resource_name,
         status_label=assignment.response_status_label,
         subtitle="Resource assignment",
-        supporting_text=f"{hours_logged:.2f} h logged",
+        supporting_text=f"{hours_label} h logged",
         meta_text=f"{allocation_percent:.1f}%",
         state=state,
     )

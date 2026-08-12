@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
+from decimal import Decimal, InvalidOperation
 from enum import Enum
 from typing import Iterable
 
@@ -100,6 +101,24 @@ def _validate_optional_non_negative_float(
     return _validate_non_negative_float(value, label=label, code=code)
 
 
+def _validate_non_negative_decimal(value: object, *, label: str, code: str) -> Decimal:
+    try:
+        resolved = Decimal(str(value if value not in (None, "") else "0"))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise ValidationError(f"{label} must be a valid decimal value.", code=code) from exc
+    if not resolved.is_finite() or resolved < 0:
+        raise ValidationError(f"{label} cannot be negative.", code=code)
+    return resolved
+
+
+def _validate_optional_non_negative_decimal(
+    value: object, *, label: str, code: str
+) -> Decimal | None:
+    if value in (None, ""):
+        return None
+    return _validate_non_negative_decimal(value, label=label, code=code)
+
+
 def _normalize_identifier_list(value: object) -> list[str]:
     if value in (None, ""):
         return []
@@ -135,7 +154,7 @@ class PortfolioIntakeItem:
     sponsor_name: str
     organization_id: str = ""
     summary: str = ""
-    requested_budget: float = 0.0
+    requested_budget: Decimal = Decimal("0")
     requested_capacity_percent: float = 0.0
     target_start_date: date | None = None
     strategic_score: int = 3
@@ -193,8 +212,8 @@ class PortfolioIntakeItem:
 
     @field_validator("requested_budget", mode="before")
     @classmethod
-    def _validate_requested_budget(cls, value: object) -> float:
-        return _validate_non_negative_float(
+    def _validate_requested_budget(cls, value: object) -> Decimal:
+        return _validate_non_negative_decimal(
             value,
             label="Requested budget",
             code="PORTFOLIO_INTAKE_BUDGET_INVALID",
@@ -320,7 +339,7 @@ class PortfolioIntakeItem:
         title: str,
         sponsor_name: str,
         summary: str = "",
-        requested_budget: float = 0.0,
+        requested_budget: Decimal | int | str = Decimal("0"),
         requested_capacity_percent: float = 0.0,
         target_start_date: date | None = None,
         strategic_score: int = 3,
@@ -380,7 +399,7 @@ class PortfolioScenario:
     id: str
     name: str
     organization_id: str = ""
-    budget_limit: float | None = None
+    budget_limit: Decimal | None = None
     capacity_limit_percent: float | None = None
     project_ids: list[str] = field(default_factory=list)
     intake_item_ids: list[str] = field(default_factory=list)
@@ -408,8 +427,8 @@ class PortfolioScenario:
 
     @field_validator("budget_limit", mode="before")
     @classmethod
-    def _validate_budget_limit(cls, value: object) -> float | None:
-        return _validate_optional_non_negative_float(
+    def _validate_budget_limit(cls, value: object) -> Decimal | None:
+        return _validate_optional_non_negative_decimal(
             value,
             label="Budget limit",
             code="PORTFOLIO_SCENARIO_BUDGET_INVALID",
@@ -448,7 +467,7 @@ class PortfolioScenario:
         *,
         organization_id: str,
         name: str,
-        budget_limit: float | None = None,
+        budget_limit: Decimal | int | str | None = None,
         capacity_limit_percent: float | None = None,
         project_ids: Iterable[str] | None = None,
         intake_item_ids: Iterable[str] | None = None,
@@ -605,7 +624,7 @@ class PortfolioExecutiveRow:
     late_tasks: int
     critical_tasks: int
     peak_utilization_percent: float
-    cost_variance: float
+    cost_variance: Decimal
     pressure_score: int
     pressure_label: str
 
@@ -625,8 +644,8 @@ class PortfolioScenarioEvaluation:
     scenario_name: str
     selected_projects: int
     selected_intake_items: int
-    total_budget: float
-    budget_limit: float | None
+    total_budget: Decimal
+    budget_limit: Decimal | None
     total_capacity_percent: float
     capacity_limit_percent: float | None
     available_capacity_percent: float
@@ -644,7 +663,7 @@ class PortfolioScenarioComparison:
     candidate_scenario_name: str
     base_evaluation: PortfolioScenarioEvaluation
     candidate_evaluation: PortfolioScenarioEvaluation
-    budget_delta: float
+    budget_delta: Decimal
     capacity_delta_percent: float
     intake_score_delta: int
     selected_projects_delta: int

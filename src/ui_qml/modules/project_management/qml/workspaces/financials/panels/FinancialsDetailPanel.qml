@@ -12,17 +12,29 @@ Item {
     property var sourceAnalyticsModel: ({ "title": "", "subtitle": "", "emptyState": "", "items": [] })
     property var overviewModel: ({ "title": "", "subtitle": "", "metrics": [] })
     property var forecastModel: ({
-        "method": "", "methodLabel": "", "bacLabel": "", "acLabel": "", "evLabel": "",
-        "etcLabel": "", "eacLabel": "", "vacLabel": "", "cpiLabel": "",
-        "isOverBudget": false, "exceedsThreshold": false, "alertMessage": "", "metrics": []
+        "basisLabel": "", "budgetLabel": "", "actualLabel": "",
+        "etcLabel": "", "eacLabel": "", "vacLabel": "",
+        "isOverBudget": false, "hasApprovedForecast": false,
+        "forecastRevision": null, "forecastAsOfLabel": "", "alertMessage": "", "metrics": []
     })
+    property var forecastVersionsModel: ({ "items": [] })
+    property var forecastLinesModel: ({ "items": [] })
+    property string selectedForecastId: ""
+    property var financialChangesModel: ({ "items": [] })
+    property var financialChangeImpactsModel: ({ "items": [] })
+    property string selectedChangeId: ""
     property var commitmentSummaryModel: ({
-        "plannedLabel": "", "uncommittedLabel": "", "committedLabel": "",
-        "invoicedLabel": "", "paidLabel": "", "exposureLabel": "", "commitmentRatePct": 0
+        "approvedBudgetLabel": "", "postedActualLabel": "",
+        "openCommitmentLabel": "", "availableAfterCommitmentLabel": "",
+        "commitmentRatePct": 0
     })
     property var commitmentsModel: ({ "title": "", "subtitle": "", "emptyState": "", "items": [] })
     property var commitmentsTableModel: null
     property var baselineVarianceModel: []
+    property var baselineVersionsModel: ({ "items": [] })
+    property var varianceBasisModel: ({ "fields": [] })
+    property string selectedBaselineId: ""
+    property var reportBasisModel: ({ "fields": [] })
     property var financialProfileModel: ({ "id": "", "fields": [] })
     property var budgetVersionsModel: ({ "items": [] })
     property var budgetLinesModel: ({ "items": [] })
@@ -30,9 +42,17 @@ Item {
     property var rateLinesModel: ({ "items": [] })
     property var plannedCostVersionsModel: ({ "items": [] })
     property var plannedCostLinesModel: ({ "items": [] })
+    property var billingProfileModel: ({ "id": "", "fields": [] })
+    property var billingScheduleModel: ({ "items": [] })
+    property var billingPreparationsModel: ({ "items": [] })
     property bool isBusy: false
     property var detailPage: null
+    property string selectedActualEntryId: ""
     signal configurationPageRequested(string collection, int page)
+    signal forecastSelected(string forecastId)
+    signal financialChangeSelected(string changeId)
+    signal varianceBaselineSelected(string baselineId)
+    signal actualEntrySelected(string entryId)
 
     readonly property int _idx: root.detailPage ? root.detailPage.activeSectionIndex : 0
     readonly property var _sections: root.detailPage ? (root.detailPage.sections || []) : []
@@ -58,12 +78,13 @@ Item {
         if (name === "Planned Costs")   return _plannedCosts.implicitHeight
         if (name === "Actuals")         return _actuals.implicitHeight
         if (name === "Forecast")        return _forecast.implicitHeight
+        if (name === "Change Control")  return _changeControl.implicitHeight
         if (name === "Commitments")     return _commitments.implicitHeight
-        if (name === "Invoices")        return _invoices.implicitHeight
+        if (name === "Billing Preparation") return _invoices.implicitHeight
         if (name === "Purchase Orders") return _purchaseOrders.implicitHeight
-        if (name === "Earned Value")    return _earnedValue.implicitHeight
         if (name === "Activity")        return _activity.implicitHeight
         if (name === "Variance")        return _variance.implicitHeight
+        if (name === "Reports")         return _reports.implicitHeight
         return 0
     }
 
@@ -166,6 +187,8 @@ Item {
                 ledgerModel: root.ledgerModel
                 ledgerTableModel: root.ledgerTableModel
                 isBusy: root.isBusy
+                selectedEntryId: root.selectedActualEntryId
+                onEntrySelected: function(entryId) { root.actualEntrySelected(entryId) }
             }
         }
     }
@@ -181,6 +204,27 @@ Item {
                 width: parent ? parent.width : 0
                 forecastModel: root.forecastModel
                 isBusy: root.isBusy
+                forecastVersions: root.forecastVersionsModel
+                forecastLines: root.forecastLinesModel
+                selectedForecastId: root.selectedForecastId
+                onForecastSelected: function(forecastId) { root.forecastSelected(forecastId) }
+            }
+        }
+    }
+
+    AppWidgets.LazySectionLoader {
+        id: _changeControl
+        anchors.left: parent.left
+        anchors.right: parent.right
+        active: root._idx === root._secIdx("Change Control")
+        loadingMessage: "Loading financial changes..."
+        sourceComponent: Component {
+            FinancialsChangeSection {
+                width: parent ? parent.width : 0
+                changes: root.financialChangesModel
+                impacts: root.financialChangeImpactsModel
+                selectedChangeId: root.selectedChangeId
+                onChangeSelected: function(changeId) { root.financialChangeSelected(changeId) }
             }
         }
     }
@@ -206,10 +250,18 @@ Item {
         id: _invoices
         anchors.left: parent.left
         anchors.right: parent.right
-        active: root._idx === root._secIdx("Invoices")
+        active: root._idx === root._secIdx("Billing Preparation")
         loadingMessage: "Loading financials..."
         sourceComponent: Component {
-            FinancialsInvoicesSection { width: parent ? parent.width : 0 }
+            FinancialsBillingPreparationSection {
+                width: parent ? parent.width : 0
+                profile: root.billingProfileModel
+                schedule: root.billingScheduleModel
+                preparations: root.billingPreparationsModel
+                onPreparationPageRequested: function(page) {
+                    root.configurationPageRequested("billing_preparations", page)
+                }
+            }
         }
     }
 
@@ -221,21 +273,6 @@ Item {
         loadingMessage: "Loading financials..."
         sourceComponent: Component {
             FinancialsPurchaseOrdersSection { width: parent ? parent.width : 0 }
-        }
-    }
-
-    AppWidgets.LazySectionLoader {
-        id: _earnedValue
-        anchors.left: parent.left
-        anchors.right: parent.right
-        active: root._idx === root._secIdx("Earned Value")
-        loadingMessage: "Loading financials..."
-        sourceComponent: Component {
-            FinancialsEarnedValueSection {
-                width: parent ? parent.width : 0
-                forecastModel: root.forecastModel
-                isBusy: root.isBusy
-            }
         }
     }
 
@@ -263,6 +300,24 @@ Item {
             FinancialsVarianceSection {
                 width: parent ? parent.width : 0
                 baselineVarianceModel: root.baselineVarianceModel
+                baselineVersions: root.baselineVersionsModel
+                varianceBasis: root.varianceBasisModel
+                selectedBaselineId: root.selectedBaselineId
+                onBaselineSelected: function(baselineId) { root.varianceBaselineSelected(baselineId) }
+            }
+        }
+    }
+
+    AppWidgets.LazySectionLoader {
+        id: _reports
+        anchors.left: parent.left
+        anchors.right: parent.right
+        active: root._idx === root._secIdx("Reports")
+        loadingMessage: "Loading report basis..."
+        sourceComponent: Component {
+            FinancialsReportsSection {
+                width: parent ? parent.width : 0
+                reportBasis: root.reportBasisModel
             }
         }
     }

@@ -67,7 +67,7 @@ def test_platform_finance_and_integration_do_not_import_business_modules() -> No
     assert not violations, f"Platform foundations import business/UI modules: {violations}"
 
 
-def test_forecast_service_is_composed_and_desktop_builders_are_mapping_only() -> None:
+def test_canonical_finance_snapshot_replaces_transient_forecast_formulas() -> None:
     project_registry = (ROOT / "src" / "infra" / "composition" / "project_registry.py").read_text(
         encoding="utf-8"
     )
@@ -100,9 +100,10 @@ def test_forecast_service_is_composed_and_desktop_builders_are_mapping_only() ->
         for name in ("forecast_builder.py", "commitment_builder.py")
     )
 
-    assert "forecast_service = ForecastCostService(" in project_registry
-    assert "forecast_service: ForecastCostService" in app_container
-    assert "forecast_service=resolved.forecast_service" in runtime_builder
+    assert "ForecastCostService" not in project_registry
+    assert "forecast_service" not in app_container
+    assert "forecast_service=resolved.forecast_service" not in runtime_builder
+    assert "finance_service=resolved.finance_service" in runtime_builder
     dashboard_keywords = _call_keywords(
         runtime_builder,
         "build_project_management_dashboard_desktop_api",

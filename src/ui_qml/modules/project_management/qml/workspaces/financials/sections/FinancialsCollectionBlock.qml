@@ -11,8 +11,11 @@ Item {
 
     property var collection: ({ "title": "", "subtitle": "", "emptyState": "", "items": [] })
     property bool busy: false
+    property bool selectable: false
+    property string selectedId: ""
     readonly property var _items: root.collection.items || []
     signal pageRequested(int page)
+    signal itemSelected(string itemId)
 
     implicitHeight: _column.implicitHeight
 
@@ -79,11 +82,19 @@ Item {
                     width: parent ? parent.width : 0
                     implicitHeight: _rowContent.implicitHeight + Theme.AppTheme.spacingMd * 2
                     radius: Theme.AppTheme.radiusSm
-                    color: _row.index % 2 === 0
+                    color: root.selectable && String(_row.modelData.id || "") === root.selectedId
+                        ? Theme.AppTheme.accentSoft
+                        : _row.index % 2 === 0
                         ? Theme.AppTheme.surfaceAlt
                         : Theme.AppTheme.surfaceRaised
-                    border.width: 1
-                    border.color: Theme.AppTheme.subtleBorder
+                    border.width: root.selectable && String(_row.modelData.id || "") === root.selectedId ? 2 : 1
+                    border.color: root.selectable && String(_row.modelData.id || "") === root.selectedId
+                        ? Theme.AppTheme.accent : Theme.AppTheme.subtleBorder
+
+                    TapHandler {
+                        enabled: root.selectable
+                        onTapped: root.itemSelected(String(_row.modelData.id || ""))
+                    }
 
                     RowLayout {
                         id: _rowContent

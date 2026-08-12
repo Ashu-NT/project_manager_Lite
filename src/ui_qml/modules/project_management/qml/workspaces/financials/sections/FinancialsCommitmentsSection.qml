@@ -9,9 +9,9 @@ Item {
     id: root
 
     property var commitmentSummaryModel: ({
-        "plannedLabel": "", "uncommittedLabel": "", "committedLabel": "",
-        "invoicedLabel": "", "paidLabel": "", "exposureLabel": "",
-        "paidLabel": "", "commitmentRatePct": 0
+        "approvedBudgetLabel": "", "postedActualLabel": "",
+        "openCommitmentLabel": "", "availableAfterCommitmentLabel": "",
+        "commitmentRatePct": 0
     })
     property var commitmentsModel: ({ "title": "", "subtitle": "", "emptyState": "", "items": [] })
     property var commitmentsTableModel: null
@@ -53,10 +53,10 @@ Item {
 
                     Repeater {
                         model: [
-                            { "lbl": "Uncommitted", "val": root.commitmentSummaryModel.uncommittedLabel || "—" },
-                            { "lbl": "Committed",   "val": root.commitmentSummaryModel.committedLabel   || "—" },
-                            { "lbl": "Invoiced",    "val": root.commitmentSummaryModel.invoicedLabel    || "—" },
-                            { "lbl": "Paid",        "val": root.commitmentSummaryModel.paidLabel        || "—" }
+                            { "lbl": "Approved budget", "val": root.commitmentSummaryModel.approvedBudgetLabel || "-" },
+                            { "lbl": "Posted actual", "val": root.commitmentSummaryModel.postedActualLabel || "-" },
+                            { "lbl": "Open commitment", "val": root.commitmentSummaryModel.openCommitmentLabel || "-" },
+                            { "lbl": "Available", "val": root.commitmentSummaryModel.availableAfterCommitmentLabel || "-" }
                         ]
 
                         delegate: ColumnLayout {
@@ -95,8 +95,8 @@ Item {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: Theme.AppTheme.spacingXs
-                        AppControls.Label { Layout.fillWidth: true; text: "Exposure"; color: Theme.AppTheme.textMuted; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.captionSize }
-                        AppControls.Label { Layout.fillWidth: true; text: String(root.commitmentSummaryModel.exposureLabel || "—"); color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.bodySize; font.bold: true }
+                        AppControls.Label { Layout.fillWidth: true; text: "Open commitment"; color: Theme.AppTheme.textMuted; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.captionSize }
+                        AppControls.Label { Layout.fillWidth: true; text: String(root.commitmentSummaryModel.openCommitmentLabel || "-"); color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.bodySize; font.bold: true }
                     }
 
                     ColumnLayout {
@@ -109,14 +109,14 @@ Item {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: Theme.AppTheme.spacingXs
-                        AppControls.Label { Layout.fillWidth: true; text: "Planned Total"; color: Theme.AppTheme.textMuted; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.captionSize }
-                        AppControls.Label { Layout.fillWidth: true; text: String(root.commitmentSummaryModel.plannedLabel || "—"); color: Theme.AppTheme.textSecondary; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.smallSize }
+                        AppControls.Label { Layout.fillWidth: true; text: "Available after actual + commitment"; color: Theme.AppTheme.textMuted; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.captionSize }
+                        AppControls.Label { Layout.fillWidth: true; text: String(root.commitmentSummaryModel.availableAfterCommitmentLabel || "-"); color: Theme.AppTheme.textSecondary; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.smallSize }
                     }
                 }
 
                 AppControls.Label {
                     Layout.fillWidth: true
-                    visible: String(root.commitmentSummaryModel.plannedLabel || "").length === 0
+                    visible: String(root.commitmentSummaryModel.approvedBudgetLabel || "").length === 0
                     text: "Select a project to view the commitment lifecycle breakdown."
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily

@@ -238,6 +238,12 @@ def test_posted_receipt_actual_matches_once_and_reduces_remaining(services) -> N
     refreshed = service.get_line(line.id)
     assert refreshed.matched_amount == Decimal("40.00")
     assert refreshed.remaining_money.amount == Decimal("60.00")
+    snapshot = services["finance_service"].get_finance_snapshot(
+        project.id, as_of=date(2026, 8, 31)
+    )
+    assert snapshot.committed == Decimal("60.00")
+    assert snapshot.actual == Decimal("40.00")
+    assert snapshot.exposure == Decimal("100.00")
 
 
 def test_commitment_repository_isolates_active_organization(services) -> None:

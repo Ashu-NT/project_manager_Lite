@@ -28,6 +28,7 @@ from src.core.modules.project_management.domain.financials.forecast import (
     ForecastLineSourceKind,
     ForecastLineSourceType,
     ForecastStatus,
+    ForecastSourceDecision,
     ProjectForecast,
 )
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
@@ -101,6 +102,10 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
     def list_lines(self, forecast_id: str) -> list[ForecastLine]:
         forecast = self.get_forecast(forecast_id)
         return self._forecast_repo.list_lines(forecast.id)
+
+    def list_source_decisions(self, forecast_id: str) -> list[ForecastSourceDecision]:
+        forecast = self.get_forecast(forecast_id)
+        return self._forecast_repo.list_decisions(forecast.id)
 
     def create_forecast(
         self,
@@ -290,9 +295,12 @@ class ForecastVersionService(ProjectManagementModuleGuardMixin):
         forecast = self._require_mutable_forecast(
             forecast_id, expected_version, "submit project forecast"
         )
-        if not self._forecast_repo.list_lines(forecast_id):
+        if (
+            not self._forecast_repo.list_lines(forecast_id)
+            and not self._forecast_repo.list_decisions(forecast_id)
+        ):
             raise BusinessRuleError(
-                "Cannot submit an empty forecast.",
+                "Cannot submit a forecast without ETC lines or generation evidence.",
                 code="PROJECT_FORECAST_EMPTY",
             )
         forecast.submit(

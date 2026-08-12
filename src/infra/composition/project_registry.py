@@ -34,11 +34,14 @@ from src.core.modules.project_management.application.financials import (
     BudgetService,
     FinancialConfigurationService,
     FinanceService,
-    ForecastCostService,
+    FinancialChangeService,
+    ForecastGenerationService,
     ForecastVersionService,
     PlannedCostService,
     ProjectCostEntryService,
     ProjectCommitmentService,
+    ProjectBillingPreparationService,
+    ProjectBillingProfileService,
     ProcurementFinancialConsumer,
     ProjectFinanceWorkspaceQuery,
     ProjectRateCardService,
@@ -118,8 +121,11 @@ class ProjectManagementServiceBundle:
     timesheet_service: TimesheetService
     resource_service: ResourceService
     financial_configuration_service: FinancialConfigurationService
-    forecast_service: ForecastCostService
+    forecast_generation_service: ForecastGenerationService
     forecast_version_service: ForecastVersionService
+    financial_change_service: FinancialChangeService
+    billing_profile_service: ProjectBillingProfileService
+    billing_preparation_service: ProjectBillingPreparationService
     rate_card_service: ProjectRateCardService
     rate_card_resolver: RateCardResolver
     budget_service: BudgetService
@@ -454,12 +460,6 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
     )
-    forecast_service = ForecastCostService(
-        finance_service,
-        repositories.project_repo,
-        user_session=platform_services.user_session,
-        module_catalog_service=platform_services.module_catalog_service,
-    )
     forecast_version_service = ForecastVersionService(
         session=session,
         forecast_repo=repositories.project_forecast_repo,
@@ -472,6 +472,66 @@ def build_project_management_service_bundle(
         enterprise_audit_service=platform_services.enterprise_audit_service,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
+    )
+    forecast_generation_service = ForecastGenerationService(
+        session=session,
+        forecast_repo=repositories.project_forecast_repo,
+        project_repo=repositories.project_repo,
+        financial_profile_repo=repositories.project_financial_profile_repo,
+        cost_code_repo=repositories.project_cost_code_repo,
+        task_repo=repositories.task_repo,
+        planned_cost_repo=repositories.planned_cost_repo,
+        commitment_repo=repositories.project_commitment_repo,
+        cost_entry_repo=repositories.project_cost_entry_repo,
+        register_repo=repositories.register_repo,
+        clock=system_clock,
+        user_session=platform_services.user_session,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
+        module_catalog_service=platform_services.module_catalog_service,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    financial_change_service = FinancialChangeService(
+        session=session,
+        change_repo=repositories.financial_change_repo,
+        budget_repo=repositories.project_budget_repo,
+        forecast_repo=repositories.project_forecast_repo,
+        project_repo=repositories.project_repo,
+        financial_profile_repo=repositories.project_financial_profile_repo,
+        cost_code_repo=repositories.project_cost_code_repo,
+        task_repo=repositories.task_repo,
+        task_service=task_service,
+        approval_service=platform_services.approval_service,
+        clock=system_clock,
+        user_session=platform_services.user_session,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
+        module_catalog_service=platform_services.module_catalog_service,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    billing_profile_service = ProjectBillingProfileService(
+        session=session,
+        billing_repo=repositories.project_billing_repo,
+        financial_profile_repo=repositories.project_financial_profile_repo,
+        project_repo=repositories.project_repo,
+        tenant_context_service=platform_services.tenant_context_service,
+        clock=system_clock,
+        user_session=platform_services.user_session,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
+        module_catalog_service=platform_services.module_catalog_service,
+    )
+    billing_preparation_service = ProjectBillingPreparationService(
+        session=session,
+        billing_repo=repositories.project_billing_repo,
+        financial_profile_repo=repositories.project_financial_profile_repo,
+        cost_entry_repo=repositories.project_cost_entry_repo,
+        labor_posting_repo=repositories.approved_time_labor_posting_repo,
+        rate_resolver=rate_card_resolver,
+        financial_period_service=platform_services.financial_period_service,
+        approval_service=platform_services.approval_service,
+        tenant_context_service=platform_services.tenant_context_service,
+        clock=system_clock,
+        user_session=platform_services.user_session,
+        enterprise_audit_service=platform_services.enterprise_audit_service,
+        module_catalog_service=platform_services.module_catalog_service,
     )
     collaboration_service = CollaborationService(
         session=session,
@@ -560,6 +620,8 @@ def build_project_management_service_bundle(
         task_service=task_service,
         budget_service=budget_service,
         cost_entry_service=cost_entry_service,
+        financial_change_service=financial_change_service,
+        billing_preparation_service=billing_preparation_service,
         user_session=platform_services.user_session,
     )
     logger.debug("Project Management approval handlers registered")
@@ -575,8 +637,11 @@ def build_project_management_service_bundle(
         timesheet_service=timesheet_service,
         resource_service=resource_service,
         financial_configuration_service=financial_configuration_service,
-        forecast_service=forecast_service,
+        forecast_generation_service=forecast_generation_service,
         forecast_version_service=forecast_version_service,
+        financial_change_service=financial_change_service,
+        billing_profile_service=billing_profile_service,
+        billing_preparation_service=billing_preparation_service,
         rate_card_service=rate_card_service,
         rate_card_resolver=rate_card_resolver,
         budget_service=budget_service,
@@ -611,6 +676,8 @@ def _register_project_management_approval_handlers(
     task_service: TaskService,
     budget_service: BudgetService,
     cost_entry_service: ProjectCostEntryService,
+    financial_change_service: FinancialChangeService,
+    billing_preparation_service: ProjectBillingPreparationService,
     user_session=None,
 ) -> None:
     def _result(signal_name: str, payload: str) -> ApprovalHandlerResult:
@@ -694,6 +761,53 @@ def _register_project_management_approval_handlers(
         )
         return _result("cost_entries_changed", entry.project_id)
 
+    def _apply_financial_change(req) -> ApprovalHandlerResult:
+        change = financial_change_service._apply_approval_decision(
+            change_id=req.payload["change_id"],
+            approval_request_id=req.id,
+            applied_by=_require_financial_decision_actor(),
+            commit=False,
+        )
+        events = [
+            ApprovalPostCommitEvent("financial_changes_changed", change.project_id)
+        ]
+        if change.applied_budget_id:
+            events.append(ApprovalPostCommitEvent("budgets_changed", change.project_id))
+        if change.applied_forecast_id:
+            events.append(ApprovalPostCommitEvent("forecasts_changed", change.project_id))
+        if change.applied_schedule_count:
+            events.append(ApprovalPostCommitEvent("tasks_changed", change.project_id))
+        return ApprovalHandlerResult(post_commit_events=tuple(events))
+
+    def _reject_financial_change(req) -> ApprovalHandlerResult:
+        change = financial_change_service._apply_rejection_decision(
+            change_id=req.payload["change_id"],
+            approval_request_id=req.id,
+            rejected_by=_require_financial_decision_actor(),
+            notes=req.decision_note or "",
+            commit=False,
+        )
+        return _result("financial_changes_changed", change.project_id)
+
+    def _approve_billing_preparation(req) -> ApprovalHandlerResult:
+        preparation = billing_preparation_service._apply_approval_decision(
+            req.payload["preparation_id"],
+            approved_by=_require_financial_decision_actor(),
+            expected_version=req.payload["expected_version"] + 1,
+            commit=False,
+        )
+        return _result("billing_preparations_changed", preparation.project_id)
+
+    def _reject_billing_preparation(req) -> ApprovalHandlerResult:
+        preparation = billing_preparation_service._apply_rejection_decision(
+            req.payload["preparation_id"],
+            rejected_by=_require_financial_decision_actor(),
+            expected_version=req.payload["expected_version"] + 1,
+            notes=req.decision_note or "",
+            commit=False,
+        )
+        return _result("billing_preparations_changed", preparation.project_id)
+
     approval_service.register_apply_handler(
         "baseline.create",
         _apply_baseline,
@@ -721,6 +835,22 @@ def _register_project_management_approval_handlers(
     approval_service.register_reject_handler(
         "project_cost.approve",
         _apply_cost_entry_rejection,
+    )
+    approval_service.register_apply_handler(
+        "financial_change.apply",
+        _apply_financial_change,
+    )
+    approval_service.register_reject_handler(
+        "financial_change.apply",
+        _reject_financial_change,
+    )
+    approval_service.register_apply_handler(
+        "project_billing_preparation.approve",
+        _approve_billing_preparation,
+    )
+    approval_service.register_reject_handler(
+        "project_billing_preparation.approve",
+        _reject_billing_preparation,
     )
 
 

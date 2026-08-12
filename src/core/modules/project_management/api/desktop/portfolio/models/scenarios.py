@@ -6,7 +6,7 @@ from dataclasses import dataclass
 class PortfolioScenarioDesktopDto:
     id: str
     name: str
-    budget_limit: float | None
+    budget_limit: str | None
     budget_limit_label: str
     capacity_limit_percent: float | None
     capacity_limit_label: str

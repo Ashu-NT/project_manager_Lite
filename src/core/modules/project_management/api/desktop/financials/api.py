@@ -5,22 +5,36 @@ from datetime import date
 
 from src.core.modules.project_management.application.financials import (
     FinancialConfigurationService,
+    FinancialChangeService,
     FinanceService,
-    ForecastCostService,
+    ForecastVersionService,
     ProjectCommitmentService,
+    ProjectBillingPreparationService,
+    ProjectBillingProfileService,
     ProjectCostEntryService,
     ProjectFinanceWorkspaceQuery,
 )
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import BaselineService
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.infrastructure.reporting import ReportingService
+from src.core.modules.project_management.infrastructure.reporting.api import (
+    generate_excel_report,
+    generate_pdf_report,
+)
 
 from src.core.modules.project_management.api.desktop.financials.models.commitments import (
     FinancialCommitmentLinePageDto,
     FinancialCommitmentSummaryDto,
 )
 from src.core.modules.project_management.api.desktop.financials.models.forecasts import FinancialForecastDto
-from src.core.modules.project_management.api.desktop.financials.models.baseline_variance import BaselineVarianceRecordDto
+from src.core.modules.project_management.api.desktop.financials.models.lifecycle import (
+    FinancialBaselineVarianceDto,
+    FinancialChangeDto,
+    FinancialChangeImpactDto,
+    FinancialForecastLineDto,
+    FinancialForecastVersionDto,
+)
 from src.core.modules.project_management.api.desktop.financials.models.options import (
     FinancialProjectOptionDescriptor,
     FinancialTaskOptionDescriptor,
@@ -28,6 +42,12 @@ from src.core.modules.project_management.api.desktop.financials.models.options i
 from src.core.modules.project_management.api.desktop.financials.models.snapshots import FinancialSnapshotDto
 from src.core.modules.project_management.api.desktop.financials.models.configuration import (
     FinancialConfigurationWorkspaceDto,
+)
+from src.core.modules.project_management.api.desktop.financials.models.billing import (
+    FinancialBillingPreparationDto,
+    FinancialBillingProfileDto,
+    FinancialBillingScheduleLineDto,
+    FinancialBillingWorkspaceDto,
 )
 from src.core.modules.project_management.api.desktop.financials.commands.cost_entries import (
     FinancialCreateManualActualCommand,
@@ -56,7 +76,13 @@ from src.core.modules.project_management.api.desktop.financials.builders.commitm
     build_commitment_summary_dto,
 )
 from src.core.modules.project_management.api.desktop.financials.builders.baseline_variance_builder import (
-    build_baseline_variance,
+    build_baseline_variance_workspace,
+)
+from src.core.modules.project_management.api.desktop.financials.serializers.lifecycle_serializer import (
+    serialize_financial_change,
+    serialize_financial_change_impact,
+    serialize_forecast_line,
+    serialize_forecast_version,
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.cost_entry_serializer import (
     serialize_cost_entry,
@@ -77,22 +103,30 @@ class ProjectManagementFinancialsDesktopApi:
         project_service: ProjectService | None = None,
         task_service: TaskService | None = None,
         finance_service: FinanceService | None = None,
-        forecast_service: ForecastCostService | None = None,
         baseline_service: BaselineService | None = None,
         finance_workspace_query: ProjectFinanceWorkspaceQuery | None = None,
         financial_configuration_service: FinancialConfigurationService | None = None,
         cost_entry_service: ProjectCostEntryService | None = None,
         commitment_service: ProjectCommitmentService | None = None,
+        forecast_version_service: ForecastVersionService | None = None,
+        financial_change_service: FinancialChangeService | None = None,
+        billing_profile_service: ProjectBillingProfileService | None = None,
+        billing_preparation_service: ProjectBillingPreparationService | None = None,
+        reporting_service: ReportingService | None = None,
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
         self._finance_service = finance_service
-        self._forecast_service = forecast_service
         self._baseline_service = baseline_service
         self._finance_workspace_query = finance_workspace_query
         self._financial_configuration_service = financial_configuration_service
         self._cost_entry_service = cost_entry_service
         self._commitment_service = commitment_service
+        self._forecast_version_service = forecast_version_service
+        self._financial_change_service = financial_change_service
+        self._billing_profile_service = billing_profile_service
+        self._billing_preparation_service = billing_preparation_service
+        self._reporting_service = reporting_service
 
     def list_projects(self) -> tuple[FinancialProjectOptionDescriptor, ...]:
         return build_project_options(self._project_service)
@@ -259,14 +293,11 @@ class ProjectManagementFinancialsDesktopApi:
     def get_cost_forecast(
         self,
         project_id: str,
-        percent_complete: float = 0.0,
-        method: str = "bac_over_cpi",
-        threshold_percent: float = 10.0,
     ) -> FinancialForecastDto:
         currency = self._project_currency(project_id)
         return build_forecast_dto(
-            project_id, percent_complete, method, threshold_percent,
-            forecast_service=self._require_forecast_service(),
+            project_id,
+            snapshot=self._require_finance_service().get_finance_snapshot(project_id),
             currency=currency,
         )
 
@@ -274,7 +305,7 @@ class ProjectManagementFinancialsDesktopApi:
         currency = self._project_currency(project_id)
         return build_commitment_summary_dto(
             project_id,
-            forecast_service=self._require_forecast_service(),
+            snapshot=self._require_finance_service().get_finance_snapshot(project_id),
             currency=currency,
         )
 
@@ -293,8 +324,90 @@ class ProjectManagementFinancialsDesktopApi:
             limit=limit,
         )
 
-    def build_baseline_variance(self, project_id: str) -> tuple[BaselineVarianceRecordDto, ...]:
-        return build_baseline_variance(project_id, self._baseline_service)
+    def list_forecast_versions(
+        self, project_id: str
+    ) -> tuple[FinancialForecastVersionDto, ...]:
+        if not project_id or self._forecast_version_service is None:
+            return ()
+        return tuple(
+            serialize_forecast_version(item)
+            for item in self._forecast_version_service.list_forecasts(project_id)
+        )
+
+    def list_forecast_lines(
+        self, project_id: str, forecast_id: str
+    ) -> tuple[FinancialForecastLineDto, ...]:
+        if not project_id or not forecast_id or self._forecast_version_service is None:
+            return ()
+        versions = self._forecast_version_service.list_forecasts(project_id)
+        if not any(item.id == forecast_id for item in versions):
+            return ()
+        return tuple(
+            serialize_forecast_line(item)
+            for item in self._forecast_version_service.list_lines(forecast_id)
+        )
+
+    def list_financial_changes(
+        self, project_id: str
+    ) -> tuple[FinancialChangeDto, ...]:
+        if not project_id or self._financial_change_service is None:
+            return ()
+        return tuple(
+            serialize_financial_change(item)
+            for item in self._financial_change_service.list_changes(project_id)
+        )
+
+    def list_financial_change_impacts(
+        self, project_id: str, change_id: str
+    ) -> tuple[FinancialChangeImpactDto, ...]:
+        if not project_id or not change_id or self._financial_change_service is None:
+            return ()
+        changes = self._financial_change_service.list_changes(project_id)
+        if not any(item.id == change_id for item in changes):
+            return ()
+        return tuple(
+            serialize_financial_change_impact(item)
+            for item in self._financial_change_service.list_impacts(change_id)
+        )
+
+    def get_baseline_variance(
+        self, project_id: str, baseline_id: str | None = None
+    ) -> FinancialBaselineVarianceDto:
+        return build_baseline_variance_workspace(
+            project_id,
+            selected_baseline_id=baseline_id,
+            baseline_service=self._baseline_service,
+        )
+
+    def export_financial_report(
+        self,
+        project_id: str,
+        output_path: str,
+        *,
+        report_format: str,
+        baseline_id: str | None = None,
+    ) -> str:
+        if self._reporting_service is None:
+            raise RuntimeError("Project management reporting service is not connected.")
+        if report_format == "xlsx":
+            result = generate_excel_report(
+                self._reporting_service,
+                project_id,
+                output_path,
+                finance_service=self._require_finance_service(),
+                baseline_id=baseline_id or None,
+            )
+        elif report_format == "pdf":
+            result = generate_pdf_report(
+                self._reporting_service,
+                project_id,
+                output_path,
+                finance_service=self._require_finance_service(),
+                baseline_id=baseline_id or None,
+            )
+        else:
+            raise ValueError("Financial report format must be 'xlsx' or 'pdf'.")
+        return str(result)
 
     def get_configuration_workspace(
         self,
@@ -317,6 +430,84 @@ class ProjectManagementFinancialsDesktopApi:
             )
         )
 
+    def get_billing_workspace(
+        self, project_id: str, *, preparation_page: int = 1, page_size: int = 50
+    ) -> FinancialBillingWorkspaceDto:
+        if (
+            not project_id
+            or self._billing_profile_service is None
+            or self._billing_preparation_service is None
+        ):
+            return FinancialBillingWorkspaceDto()
+        profile = self._billing_profile_service.get_profile(project_id)
+        schedule = self._billing_profile_service.list_schedule(project_id) if profile else []
+        page = max(1, int(preparation_page))
+        bounded_size = max(1, min(int(page_size), 200))
+        if profile:
+            preparations, preparation_total = (
+                self._billing_preparation_service.list_preparations(
+                    project_id,
+                    offset=(page - 1) * bounded_size,
+                    limit=bounded_size,
+                )
+            )
+            latest_events = self._billing_preparation_service.list_latest_external_events(
+                project_id, tuple(item.id for item in preparations)
+            )
+        else:
+            preparations, preparation_total, latest_events = [], 0, {}
+        preparation_rows = []
+        for preparation in preparations:
+            latest = latest_events.get(preparation.id)
+            preparation_rows.append(
+                FinancialBillingPreparationDto(
+                    id=preparation.id,
+                    preparation_number=preparation.preparation_number,
+                    billing_method=preparation.billing_method.value,
+                    status=preparation.status.value,
+                    period_label=f"{preparation.period_start.isoformat()} - {preparation.period_end.isoformat()}",
+                    line_count=preparation.line_count,
+                    total_amount=format(preparation.total_amount, "f"),
+                    currency_code=preparation.currency_code,
+                    external_system=latest.external_system if latest else "",
+                    external_status=latest.external_status if latest else "",
+                    external_invoice_reference=(latest.external_invoice_reference or "") if latest else "",
+                    reconciliation_reference=(latest.reconciliation_reference or "") if latest else "",
+                    row_version=preparation.row_version,
+                )
+            )
+        return FinancialBillingWorkspaceDto(
+            profile=FinancialBillingProfileDto(
+                id=profile.id,
+                status=profile.status.value,
+                currency_code=profile.currency_code,
+                contract_reference=profile.contract_reference,
+                contract_value=format(profile.contract_value, "f"),
+                customer_party_id=profile.customer_party_id or "",
+                external_customer_reference=profile.external_customer_reference or "",
+                purchase_order_reference=profile.purchase_order_reference or "",
+                payment_terms_days=profile.payment_terms_days,
+            ) if profile else FinancialBillingProfileDto(),
+            schedule_lines=tuple(
+                FinancialBillingScheduleLineDto(
+                    id=line.id,
+                    name=line.name,
+                    status=line.status.value,
+                    amount=format(line.amount, "f"),
+                    currency_code=line.currency_code,
+                    due_date=line.due_date.isoformat(),
+                    task_id=line.task_id or "",
+                    acceptance_reference=line.acceptance_reference or "",
+                    row_version=line.row_version,
+                )
+                for line in schedule
+            ),
+            preparations=tuple(preparation_rows),
+            preparation_page=page,
+            preparation_page_size=bounded_size,
+            preparation_total=preparation_total,
+        )
+
     def _project_currency(self, project_id: str) -> str | None:
         if not project_id or self._financial_configuration_service is None:
             return None
@@ -335,10 +526,10 @@ class ProjectManagementFinancialsDesktopApi:
             raise RuntimeError("Project financial configuration service is not connected.")
         return self._financial_configuration_service
 
-    def _require_forecast_service(self) -> ForecastCostService:
-        if self._forecast_service is None:
-            raise RuntimeError("Project management forecast service is not connected.")
-        return self._forecast_service
+    def _require_finance_service(self) -> FinanceService:
+        if self._finance_service is None:
+            raise RuntimeError("Project management finance service is not connected.")
+        return self._finance_service
 
 
 __all__ = ["ProjectManagementFinancialsDesktopApi"]

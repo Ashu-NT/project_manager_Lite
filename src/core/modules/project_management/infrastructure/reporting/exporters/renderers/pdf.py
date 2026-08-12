@@ -12,6 +12,11 @@ from reportlab.platypus import (
 from reportlab.lib.styles import getSampleStyleSheet
 
 from src.core.modules.project_management.infrastructure.reporting.models.contexts import PdfReportContext
+from src.core.modules.project_management.infrastructure.reporting.exporters.renderers.finance import (
+    finance_metadata_rows,
+    finance_reconciliation_rows,
+    finance_summary_rows,
+)
 
 
 class PdfReportRenderer:
@@ -34,6 +39,11 @@ class PdfReportRenderer:
         story.append(Spacer(1, 12))
 
         # ---------------- Summary ----------------
+        def _money_or_restricted(value: float | None) -> str:
+            if value is None:
+                return "Restricted (finance.read required)"
+            return f"{value:.2f}"
+
         info = [
             f"Project ID: {ctx.kpi.project_id}",
             f"Start date: {ctx.kpi.start_date or '-'}",
@@ -42,9 +52,9 @@ class PdfReportRenderer:
             f"Tasks total: {ctx.kpi.tasks_total}",
             f"Critical tasks: {ctx.kpi.critical_tasks}",
             f"Late tasks: {ctx.kpi.late_tasks}",
-            f"Planned cost: {ctx.kpi.total_planned_cost:.2f}",
-            f"Actual cost: {ctx.kpi.total_actual_cost:.2f}",
-            f"Variance: {ctx.kpi.cost_variance:.2f}",
+            f"Planned cost: {_money_or_restricted(ctx.kpi.total_planned_cost)}",
+            f"Actual cost: {_money_or_restricted(ctx.kpi.total_actual_cost)}",
+            f"Variance: {_money_or_restricted(ctx.kpi.cost_variance)}",
         ]
 
         for line in info:
@@ -178,24 +188,59 @@ class PdfReportRenderer:
             story.append(Paragraph("Finance Summary", styles["Heading2"]))
             story.append(Spacer(1, 8))
 
-            summary_rows = [
-                ["Metric", "Value"],
-                ["Budget", f"{float(snap.budget or 0.0):.2f}"],
-                ["Planned", f"{float(snap.planned or 0.0):.2f}"],
-                ["Committed", f"{float(snap.committed or 0.0):.2f}"],
-                ["Actual", f"{float(snap.actual or 0.0):.2f}"],
-                ["Exposure", f"{float(snap.exposure or 0.0):.2f}"],
+            metadata_rows = [["Read Basis", "Value"]]
+            metadata_rows.extend(
+                [[label, str(value)] for label, value in finance_metadata_rows(ctx)]
+            )
+            table = Table(metadata_rows, colWidths=[190, 360])
+            table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ]))
+            story.append(table)
+            story.append(Spacer(1, 12))
+
+            summary_rows = [["Canonical Control", "Value"]]
+            summary_rows.extend(
                 [
-                    "Available",
-                    "-" if snap.available is None else f"{float(snap.available or 0.0):.2f}",
-                ],
-            ]
-            table = Table(summary_rows, colWidths=[180, 140])
+                    label,
+                    "-" if value is None else f"{float(value):.2f}",
+                ]
+                for label, value in finance_summary_rows(ctx)
+            )
+            table = Table(summary_rows, colWidths=[280, 140])
             table.setStyle(TableStyle([
                 ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
                 ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
                 ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
                 ("ALIGN", (1, 1), (1, -1), "RIGHT"),
+            ]))
+            story.append(table)
+            story.append(Spacer(1, 12))
+
+            reconciliation_rows = [["Control", "Authority", "Ledger", "Delta"]]
+            reconciliation_rows.extend(
+                [
+                    label,
+                    "-" if authority is None else f"{float(authority):.2f}",
+                    "-" if ledger_total is None else f"{float(ledger_total):.2f}",
+                    "-" if delta is None else f"{float(delta):.2f}",
+                ]
+                for label, authority, ledger_total, delta in finance_reconciliation_rows(ctx)
+            )
+            reconciliation_rows.append([
+                "Status",
+                "Reconciled" if snap.reconciliation.is_reconciled else "Failed",
+                "",
+                "",
+            ])
+            table = Table(reconciliation_rows, colWidths=[190, 120, 120, 120])
+            table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
             ]))
             story.append(table)
             story.append(Spacer(1, 12))
@@ -242,6 +287,56 @@ class PdfReportRenderer:
                     ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
                     ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
                     ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
+                ]))
+                story.append(table)
+                story.append(Spacer(1, 16))
+
+            ledger_page = ctx.finance_ledger_page
+            if ledger_page and ledger_page.rows:
+                story.append(Paragraph("Finance Ledger Source Drill-down", styles["Heading3"]))
+                story.append(Spacer(1, 6))
+                ledger_rows = [[
+                    "Date / Period",
+                    "Source",
+                    "Classification",
+                    "Reference",
+                    "Task",
+                    "Resource",
+                    "Amount",
+                ]]
+                for item in ledger_page.rows:
+                    period = ""
+                    if item.period_start or item.period_end:
+                        period = (
+                            f"{item.period_start or '-'} to {item.period_end or '-'}"
+                        )
+                    ledger_rows.append([
+                        f"{item.occurred_on or '-'}\n{period}",
+                        f"{item.source_label}\n{item.source_type or '-'}",
+                        (
+                            f"{item.stage} / {item.cost_type}\n"
+                            f"Cost code: {item.cost_code_id or '-'}\n"
+                            f"Period: {item.financial_period_id or '-'}"
+                        ),
+                        (
+                            f"{item.reference_type}:{item.reference_id}\n"
+                            f"{item.reference_label}"
+                        ),
+                        f"{item.task_id or '-'}\n{item.task_name or ''}",
+                        f"{item.resource_id or '-'}\n{item.resource_name or ''}",
+                        f"{float(item.amount):.2f} {item.currency or ''}",
+                    ])
+                table = Table(
+                    ledger_rows,
+                    repeatRows=1,
+                    colWidths=[82, 100, 100, 180, 105, 105, 80],
+                )
+                table.setStyle(TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("ALIGN", (-1, 1), (-1, -1), "RIGHT"),
                 ]))
                 story.append(table)
                 story.append(Spacer(1, 16))

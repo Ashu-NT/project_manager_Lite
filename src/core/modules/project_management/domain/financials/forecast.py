@@ -42,6 +42,30 @@ class ForecastLineSourceType(str, Enum):
     OPEN_COMMITMENT = "open_commitment"
     RISK = "risk"
     MANUAL_ESTIMATE = "manual_estimate"
+    POSTED_ACTUAL = "posted_actual"
+    BASE_FORECAST = "base_forecast"
+    FINANCIAL_CHANGE = "financial_change"
+
+
+class ForecastDecisionAction(str, Enum):
+    INCLUDED = "included"
+    OFFSET = "offset"
+    EXCLUDED = "excluded"
+
+
+class ForecastDecisionReason(str, Enum):
+    REMAINING_PLAN = "remaining_plan"
+    OPEN_COMMITMENT = "open_commitment"
+    POSTED_ACTUAL_OFFSET = "posted_actual_offset"
+    ACTUAL_CREDIT = "actual_credit"
+    REVERSED_ACTUAL = "reversed_actual"
+    MANUAL_OVERRIDE = "manual_override"
+    RISK_CONTINGENCY = "risk_contingency"
+    NO_REMAINING_AMOUNT = "no_remaining_amount"
+    CLOSED_OR_CANCELLED = "closed_or_cancelled"
+    AFTER_AS_OF = "after_as_of"
+    BASE_FORECAST = "base_forecast"
+    FINANCIAL_CHANGE = "financial_change"
 
 
 _ALLOWED_TRANSITIONS: dict[ForecastStatus, frozenset[ForecastStatus]] = {
@@ -348,10 +372,25 @@ class ForecastLine:
 
     @model_validator(mode="after")
     def _validate_source_and_period(self) -> "ForecastLine":
-        manual = self.source_kind == ForecastLineSourceKind.MANUAL
-        if manual != (self.source_type == ForecastLineSourceType.MANUAL_ESTIMATE):
+        manual_types = {
+            ForecastLineSourceType.MANUAL_ESTIMATE,
+            ForecastLineSourceType.RISK,
+            ForecastLineSourceType.FINANCIAL_CHANGE,
+        }
+        if self.source_kind == ForecastLineSourceKind.MANUAL and self.source_type not in manual_types:
             raise ValidationError(
-                "Manual forecast lines must use the manual-estimate source type.",
+                "Manual forecast lines must be an estimate, linked risk, or financial change.",
+                code="PROJECT_FORECAST_LINE_SOURCE_MISMATCH",
+            )
+        if (
+            self.source_kind == ForecastLineSourceKind.AUTOMATIC
+            and self.source_type in {
+                ForecastLineSourceType.MANUAL_ESTIMATE,
+                ForecastLineSourceType.POSTED_ACTUAL,
+            }
+        ):
+            raise ValidationError(
+                "Automatic forecast lines cannot represent manual estimates or posted actuals.",
                 code="PROJECT_FORECAST_LINE_SOURCE_MISMATCH",
             )
         if self.source_kind == ForecastLineSourceKind.AUTOMATIC:
@@ -364,6 +403,28 @@ class ForecastLine:
                 raise ValidationError(
                     "Automatic forecast lines require a source snapshot timestamp.",
                     code="PROJECT_FORECAST_LINE_SOURCE_SNAPSHOT_REQUIRED",
+                )
+        if self.source_type == ForecastLineSourceType.RISK:
+            if not self.source_reference_type or not self.source_reference_id:
+                raise ValidationError(
+                    "Risk contingency lines require a risk source reference.",
+                    code="PROJECT_FORECAST_LINE_RISK_REFERENCE_REQUIRED",
+                )
+            if self.source_snapshot_at is None:
+                raise ValidationError(
+                    "Risk contingency lines require a source snapshot timestamp.",
+                    code="PROJECT_FORECAST_LINE_RISK_SNAPSHOT_REQUIRED",
+                )
+        if self.source_type == ForecastLineSourceType.FINANCIAL_CHANGE:
+            if not self.source_reference_type or not self.source_reference_id:
+                raise ValidationError(
+                    "Financial-change forecast lines require an impact reference.",
+                    code="PROJECT_FORECAST_LINE_CHANGE_REFERENCE_REQUIRED",
+                )
+            if self.source_snapshot_at is None:
+                raise ValidationError(
+                    "Financial-change forecast lines require a source snapshot timestamp.",
+                    code="PROJECT_FORECAST_LINE_CHANGE_SNAPSHOT_REQUIRED",
                 )
         if (self.period_start is None) != (self.period_end is None):
             raise ValidationError(
@@ -418,11 +479,133 @@ class ForecastLine:
         )
 
 
+@validated_dataclass
+class ForecastSourceDecision:
+    """Durable evidence of how one source fact affected generated ETC."""
+
+    id: str
+    tenant_id: str
+    organization_id: str
+    forecast_id: str
+    project_id: str
+    cost_code_id: str
+    source_type: ForecastLineSourceType
+    source_reference_type: str
+    source_reference_id: str
+    action: ForecastDecisionAction
+    reason: ForecastDecisionReason
+    source_amount: Decimal
+    included_amount: Decimal
+    excluded_amount: Decimal
+    currency_code: str
+    source_snapshot_at: datetime
+    task_id: str | None = None
+    created_at: datetime = field(default_factory=_utc_now)
+
+    @field_validator(
+        "id", "tenant_id", "organization_id", "forecast_id", "project_id",
+        "cost_code_id", "source_reference_type", "source_reference_id",
+        mode="before",
+    )
+    @classmethod
+    def _validate_required(cls, value: object, info) -> str:
+        return _required_identifier(
+            value,
+            label=info.field_name.replace("_", " ").title(),
+            code=f"PROJECT_FORECAST_DECISION_{info.field_name.upper()}_REQUIRED",
+        )
+
+    @field_validator("task_id", mode="before")
+    @classmethod
+    def _normalize_task(cls, value: object) -> str | None:
+        return normalize_optional_identifier(value)
+
+    @field_validator("currency_code", mode="before")
+    @classmethod
+    def _validate_decision_currency(cls, value: object) -> str:
+        currency = CurrencyCode(str(value or ""))
+        currency.minor_unit_quantum()
+        return currency.code
+
+    @field_validator("source_amount", "included_amount", "excluded_amount", mode="before")
+    @classmethod
+    def _validate_decision_amount(cls, value: object) -> Decimal:
+        resolved = Decimal(str(value if value not in (None, "") else "0"))
+        if resolved < 0:
+            raise ValidationError(
+                "Forecast source-decision amounts cannot be negative.",
+                code="PROJECT_FORECAST_DECISION_AMOUNT_INVALID",
+            )
+        return resolved
+
+    @field_validator("source_snapshot_at", "created_at", mode="before")
+    @classmethod
+    def _validate_decision_timestamp(cls, value: object, info) -> datetime:
+        return _timestamp(
+            value,
+            code=f"PROJECT_FORECAST_DECISION_{info.field_name.upper()}_INVALID",
+        )
+
+    @model_validator(mode="after")
+    def _validate_allocation(self) -> "ForecastSourceDecision":
+        if self.included_amount + self.excluded_amount != self.source_amount:
+            raise ValidationError(
+                "Forecast source-decision included and excluded amounts must reconcile.",
+                code="PROJECT_FORECAST_DECISION_NOT_RECONCILED",
+            )
+        return self
+
+    @staticmethod
+    def create(
+        *,
+        tenant_id: str,
+        organization_id: str,
+        forecast_id: str,
+        project_id: str,
+        cost_code_id: str,
+        source_type: ForecastLineSourceType,
+        source_reference_type: str,
+        source_reference_id: str,
+        action: ForecastDecisionAction,
+        reason: ForecastDecisionReason,
+        source_amount: Decimal,
+        included_amount: Decimal,
+        excluded_amount: Decimal,
+        currency_code: str,
+        source_snapshot_at: datetime,
+        created_at: datetime | None = None,
+        **values,
+    ) -> "ForecastSourceDecision":
+        return ForecastSourceDecision(
+            id=generate_id(),
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            forecast_id=forecast_id,
+            project_id=project_id,
+            cost_code_id=cost_code_id,
+            source_type=source_type,
+            source_reference_type=source_reference_type,
+            source_reference_id=source_reference_id,
+            action=action,
+            reason=reason,
+            source_amount=source_amount,
+            included_amount=included_amount,
+            excluded_amount=excluded_amount,
+            currency_code=currency_code,
+            source_snapshot_at=source_snapshot_at,
+            created_at=created_at or _utc_now(),
+            **values,
+        )
+
+
 __all__ = [
+    "ForecastDecisionAction",
+    "ForecastDecisionReason",
     "ForecastGenerationMode",
     "ForecastLine",
     "ForecastLineSourceKind",
     "ForecastLineSourceType",
+    "ForecastSourceDecision",
     "ForecastStatus",
     "ProjectForecast",
 ]

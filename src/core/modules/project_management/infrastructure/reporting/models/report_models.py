@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 
 from src.core.modules.project_management.application.resources.resource_load_engine import (
     ResourceUtilizationBand,
@@ -50,11 +51,12 @@ class ProjectKPI:
     tasks_not_started: int
     critical_tasks: int
     late_tasks: int
-    total_planned_cost: float
-    total_actual_cost: float
-    cost_variance: float
-    total_committed_cost: float
-    committment_variance: float
+    total_planned_cost: float | None
+    total_actual_cost: float | None
+    cost_variance: float | None
+    total_committed_cost: float | None
+    committment_variance: float | None
+    financial_detail_included: bool = True
 
 @dataclass
 class ResourceLoadRow:
@@ -100,15 +102,15 @@ class BaselineComparisonRow:
     baseline_a_start: date | None
     baseline_a_finish: date | None
     baseline_a_duration_days: int | None
-    baseline_a_planned_cost: float | None
+    baseline_a_planned_cost: Decimal | None
     baseline_b_start: date | None
     baseline_b_finish: date | None
     baseline_b_duration_days: int | None
-    baseline_b_planned_cost: float | None
+    baseline_b_planned_cost: Decimal | None
     start_shift_days: int | None
     finish_shift_days: int | None
     duration_delta_days: int | None
-    planned_cost_delta: float
+    planned_cost_delta: Decimal
     change_type: str
 
 @dataclass

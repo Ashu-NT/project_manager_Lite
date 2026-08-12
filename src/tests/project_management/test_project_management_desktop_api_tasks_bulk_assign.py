@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 from types import SimpleNamespace
 
 from src.core.modules.project_management.api.desktop import (
@@ -149,11 +150,11 @@ def test_project_management_tasks_desktop_api_supports_assignments_and_dependenc
     hours_assignment = api.set_assignment_hours(
         SimpleNamespace(
             assignment_id=assignment.id,
-            hours_logged=16.0,
+            hours_logged=Decimal("16"),
         )
     )
 
-    assert hours_assignment.hours_logged == 16.0
+    assert hours_assignment.hours_logged == "16"
 
     dependency = api.create_dependency(
         SimpleNamespace(

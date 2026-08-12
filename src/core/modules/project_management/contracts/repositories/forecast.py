@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 
 from src.core.modules.project_management.domain.financials.forecast import (
     ForecastLine,
+    ForecastSourceDecision,
     ProjectForecast,
 )
 
@@ -47,6 +48,12 @@ class ProjectForecastRepository(ABC):
 
     @abstractmethod
     def list_lines(self, forecast_id: str) -> list[ForecastLine]: ...
+
+    @abstractmethod
+    def add_decisions(self, decisions: list[ForecastSourceDecision]) -> None: ...
+
+    @abstractmethod
+    def list_decisions(self, forecast_id: str) -> list[ForecastSourceDecision]: ...
 
     @abstractmethod
     def flush(self) -> None: ...

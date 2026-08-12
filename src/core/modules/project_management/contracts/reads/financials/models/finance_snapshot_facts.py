@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -12,7 +13,9 @@ class FinanceProjectFact:
     tenant_id: str
     organization_id: str
     currency_code: str
-    approved_budget: float
+    approved_budget: Decimal
+    approved_budget_id: str | None
+    approved_budget_revision: int | None
     start_date: date | None
     end_date: date | None
 
@@ -42,8 +45,13 @@ class FinanceLedgerFact:
     cost_type: str
     stage: str
     currency_code: str | None
-    amount: float
+    amount: Decimal
     occurred_on: date | None
+    cost_code_id: str | None = None
+    source_type: str | None = None
+    financial_period_id: str | None = None
+    period_start: date | None = None
+    period_end: date | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,15 +61,53 @@ class CostAggregateFact:
     stage: str
     cost_type: str
     currency_code: str | None
-    total_amount: float
+    total_amount: Decimal
     row_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class ApprovedForecastFact:
+    """The one approved ETC version selected for this read basis."""
+
+    forecast_id: str
+    revision: int
+    name: str
+    currency_code: str
+    as_of_date: date
+    etc_total: Decimal
+    line_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class FinanceControlFact:
+    """Reconciled project-currency totals from canonical financial authorities."""
+
+    approved_budget: Decimal
+    posted_actual: Decimal
+    open_commitment: Decimal
+    forecast_etc: Decimal | None
+
+    @property
+    def estimate_at_completion(self) -> Decimal | None:
+        if self.forecast_etc is None:
+            return None
+        return self.posted_actual + self.forecast_etc
+
+    @property
+    def variance_at_completion(self) -> Decimal | None:
+        eac = self.estimate_at_completion
+        return None if eac is None else self.approved_budget - eac
+
+    @property
+    def committed_available(self) -> Decimal:
+        return self.approved_budget - self.posted_actual - self.open_commitment
 
 
 @dataclass(frozen=True, slots=True)
 class ProjectResourceFact:
     project_resource_id: str
     resource_id: str
-    planned_hours: float
+    planned_hours: Decimal
     is_active: bool
 
 
@@ -70,7 +116,7 @@ class LaborAssignmentFact:
     assignment_id: str
     task_id: str
     resource_id: str
-    hours_logged: float
+    hours_logged: Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,6 +133,8 @@ class FinanceSnapshotFacts:
     project_id: str
     as_of: date
     project: FinanceProjectFact
+    approved_forecast: ApprovedForecastFact | None
+    control: FinanceControlFact
     tasks: tuple[TaskFact, ...]
     ledger_entries: tuple[FinanceLedgerFact, ...]
     cost_aggregates: tuple[CostAggregateFact, ...]
@@ -113,7 +161,7 @@ class EvmBaselineTaskFact:
     baseline_start: date | None
     baseline_finish: date | None
     baseline_duration_days: int
-    baseline_planned_cost: float
+    baseline_planned_cost: Decimal
 
 
 @dataclass(frozen=True, slots=True)

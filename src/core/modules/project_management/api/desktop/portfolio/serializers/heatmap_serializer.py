@@ -1,6 +1,7 @@
 from src.core.modules.project_management.api.desktop.portfolio.models.heatmap import PortfolioHeatmapDesktopDto
 from src.core.modules.project_management.api.desktop.common.financial_formatting import format_signed_money
 from src.core.modules.project_management.api.desktop.portfolio.formatters.percent_formatter import format_percent
+from src.core.platform.finance.money import canonical_decimal_text
 
 
 def serialize_heatmap_row(row) -> PortfolioHeatmapDesktopDto:
@@ -12,7 +13,7 @@ def serialize_heatmap_row(row) -> PortfolioHeatmapDesktopDto:
         critical_tasks=int(row.critical_tasks or 0),
         peak_utilization_percent=float(row.peak_utilization_percent or 0.0),
         peak_utilization_label=format_percent(row.peak_utilization_percent),
-        cost_variance=float(row.cost_variance or 0.0),
+        cost_variance=canonical_decimal_text(row.cost_variance),
         cost_variance_label=format_signed_money(row.cost_variance),
         pressure_label=row.pressure_label or "Stable",
     )

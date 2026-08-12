@@ -105,7 +105,13 @@ class TaskAssignmentORM(Base):
         nullable=False,
     )
     allocation_percent: Mapped[float] = mapped_column(Float, default=100.0)
-    hours_logged: Mapped[float] = mapped_column(Float, default=0.0)
+    hours_logged: Mapped[Decimal] = mapped_column(
+        financial_numeric(FinancialNumericKind.QUANTITY),
+        nullable=False,
+        default=Decimal("0"),
+        server_default="0",
+        info=financial_numeric_info(FinancialNumericKind.QUANTITY),
+    )
     allocated_planned_hours: Mapped[Decimal] = mapped_column(
         financial_numeric(FinancialNumericKind.QUANTITY),
         nullable=False,

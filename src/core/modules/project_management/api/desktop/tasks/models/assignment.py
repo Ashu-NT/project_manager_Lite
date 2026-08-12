@@ -10,7 +10,7 @@ class TaskAssignmentDesktopDto:
     resource_id: str
     resource_name: str
     allocation_percent: float
-    hours_logged: float
+    hours_logged: str
     project_resource_id: str | None
     response_status: str = "pending"
     response_status_label: str = "Pending"

@@ -2,13 +2,8 @@ from __future__ import annotations
 
 import logging
 from datetime import date, timedelta
+from decimal import Decimal
 
-from src.core.modules.project_management.application.financials.costs.cost_policy_engine import (
-    CostPolicyEngine,
-)
-from src.core.modules.project_management.application.financials.costs.labor_cost import (
-    LaborCostEngine,
-)
 from src.core.modules.project_management.application.resources.resource_load_engine import (
     ResourceLoadEngine,
 )
@@ -103,7 +98,7 @@ class PortfolioExecutiveQueryMixin:
                         critical_tasks=0,
                         late_tasks=0,
                         peak_utilization_percent=0.0,
-                        cost_variance=0.0,
+                        cost_variance=Decimal("0"),
                         pressure_score=0,
                         pressure_label="Stable",
                     )
@@ -150,20 +145,11 @@ class PortfolioExecutiveQueryMixin:
         )
         return max((row.utilization_percent for row in metrics), default=0.0)
 
-    def _heatmap_cost_variance(self, project: HeatmapProjectFacts) -> float:
-        labor = LaborCostEngine.for_facts(
-            rate_resolver=self._rate_resolver,
-            tenant_context_service=self._tenant_context_service,
-        ).calculate_project_labor_details(
-            project.project_id,
-            project.finance.as_of,
-            facts=project.finance,
-        )
-        policy = CostPolicyEngine.for_facts(
-            rate_resolver=self._rate_resolver,
-            tenant_context_service=self._tenant_context_service,
-        ).compose_from_facts(project.finance, labor)
-        return float(policy.totals.actual - policy.totals.planned)
+    def _heatmap_cost_variance(self, project: HeatmapProjectFacts) -> Decimal:
+        eac = project.finance.control.estimate_at_completion
+        if eac is None:
+            return Decimal("0")
+        return eac - project.finance.control.approved_budget
 
     def _heatmap_calendar(self, project: HeatmapProjectFacts) -> WorkingDaySnapshotCalendar:
         values = [

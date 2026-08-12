@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 from enum import Enum
 
 from src.core.modules.project_management.domain.identifiers import generate_id
@@ -55,15 +56,18 @@ def _coerce_non_negative_int(value: object, *, message: str, code: str) -> int:
     return resolved
 
 
-def _coerce_float(value: object, *, message: str, code: str) -> float:
+def _coerce_decimal(value: object, *, message: str, code: str) -> Decimal:
     try:
-        return float(value if value not in (None, "") else 0.0)
-    except (TypeError, ValueError) as exc:
+        resolved = Decimal(str(value if value not in (None, "") else "0"))
+    except (InvalidOperation, TypeError, ValueError) as exc:
         raise ValidationError(message, code=code) from exc
+    if not resolved.is_finite():
+        raise ValidationError(message, code=code)
+    return resolved
 
 
-def _coerce_non_negative_float(value: object, *, message: str, code: str) -> float:
-    resolved = _coerce_float(value, message=message, code=code)
+def _coerce_non_negative_decimal(value: object, *, message: str, code: str) -> Decimal:
+    resolved = _coerce_decimal(value, message=message, code=code)
     if resolved < 0:
         raise ValidationError(message, code=code)
     return resolved
@@ -278,7 +282,7 @@ class BaselineTask:
     baseline_start: date | None
     baseline_finish: date | None
     baseline_duration_days: int
-    baseline_planned_cost: float = 0.0
+    baseline_planned_cost: Decimal = Decimal("0")
 
     @field_validator("id", mode="before")
     @classmethod
@@ -328,8 +332,8 @@ class BaselineTask:
 
     @field_validator("baseline_planned_cost", mode="before")
     @classmethod
-    def _validate_planned_cost(cls, value: object) -> float:
-        return _coerce_non_negative_float(
+    def _validate_planned_cost(cls, value: object) -> Decimal:
+        return _coerce_non_negative_decimal(
             value,
             message="Baseline planned cost cannot be negative.",
             code="BASELINE_TASK_PLANNED_COST_INVALID",
@@ -356,7 +360,7 @@ class BaselineTask:
         baseline_start: date | None,
         baseline_finish: date | None,
         baseline_duration_days: int,
-        baseline_planned_cost: float,
+        baseline_planned_cost: Decimal,
     ) -> "BaselineTask":
         return BaselineTask(
             id=generate_id(),
@@ -387,7 +391,7 @@ class BaselineVarianceRecord:
     task_name: str | None
     start_variance_days: int    # (new_start - old_start).days; positive = later
     finish_variance_days: int   # (new_finish - old_finish).days
-    cost_variance: float        # new_planned_cost - old_planned_cost
+    cost_variance: Decimal      # new_planned_cost - old_planned_cost
     created_at: date
 
     @field_validator("id", mode="before")
@@ -464,8 +468,8 @@ class BaselineVarianceRecord:
 
     @field_validator("cost_variance", mode="before")
     @classmethod
-    def _validate_cost_variance(cls, value: object) -> float:
-        return _coerce_float(
+    def _validate_cost_variance(cls, value: object) -> Decimal:
+        return _coerce_decimal(
             value,
             message="Cost variance must be numeric.",
             code="BASELINE_VARIANCE_COST_INVALID",
@@ -489,7 +493,7 @@ class BaselineVarianceRecord:
         task_name: str | None,
         start_variance_days: int,
         finish_variance_days: int,
-        cost_variance: float,
+        cost_variance: Decimal,
     ) -> "BaselineVarianceRecord":
         return BaselineVarianceRecord(
             id=generate_id(),

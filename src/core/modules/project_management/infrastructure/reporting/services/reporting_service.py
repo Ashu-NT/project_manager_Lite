@@ -93,3 +93,37 @@ class ReportingService(
                 "report.view",
                 operation_label=operation_label,
             )
+
+    def _require_finance_view(self, operation_label: str, *, project_id: str) -> None:
+        """Gate for report methods whose entire result is Project Finance
+        authority data (EVM, cost breakdown, cost source breakdown, labor
+        cost). """
+        require_permission(self._user_session, "finance.read", operation_label=operation_label)
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "finance.read",
+            operation_label=operation_label,
+        )
+
+    def _require_finance_sensitive_view(self, operation_label: str, *, project_id: str) -> None:
+        """Gate for report methods that expose individually-identified
+        resource labor rates/costs — the same sensitivity tier
+        ``FinanceService`` protects with ``finance.read_sensitive``."""
+        require_permission(
+            self._user_session, "finance.read_sensitive", operation_label=operation_label
+        )
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "finance.read_sensitive",
+            operation_label=operation_label,
+        )
+
+    def _has_finance_view(self, project_id: str) -> bool:
+        """Non-raising finance.read check for reports that mix financial and
+        non-financial content and must redact rather than deny outright."""
+        return bool(
+            self._user_session is not None
+            and self._user_session.has_project_permission(project_id, "finance.read")
+        )

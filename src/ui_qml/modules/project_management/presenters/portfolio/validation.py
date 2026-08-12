@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 def require_text(payload: dict[str, Any], key: str, message: str) -> str:
@@ -24,6 +25,18 @@ def optional_float(payload: dict[str, Any], key: str) -> float | None:
     if value in (None, ""):
         return None
     return float(value)
+
+def optional_decimal(payload: dict[str, Any], key: str) -> Decimal | None:
+    value = str(payload.get(key, "") or "").strip()
+    if not value:
+        return None
+    try:
+        resolved = Decimal(value)
+    except (InvalidOperation, ValueError) as exc:
+        raise ValueError(f"{key} must be a valid decimal value.") from exc
+    if not resolved.is_finite():
+        raise ValueError(f"{key} must be a finite decimal value.")
+    return resolved
 
 def optional_date(payload: dict[str, Any], key: str) -> date | None:
     value = str(payload.get(key, "") or "").strip()

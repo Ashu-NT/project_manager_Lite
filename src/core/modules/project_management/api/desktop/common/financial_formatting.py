@@ -4,23 +4,12 @@ from decimal import Decimal
 from typing import TypeAlias
 
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.finance.money import (
-    decimal_from_legacy_float,
-    decimal_value,
-)
+from src.core.platform.finance.money import decimal_value
 from src.core.platform.finance.money.currency import CurrencyCode
 from src.core.platform.finance.money.rounding import DEFAULT_ROUNDING_POLICY
 
 
-DesktopNumericInput: TypeAlias = Decimal | int | str | float
-
-
-def _desktop_decimal(value: DesktopNumericInput, *, label: str) -> Decimal:
-    if isinstance(value, float):
-        # TRANSITION(PF-A1-DESKTOP-FLOAT): Existing PM read DTOs still expose floats.
-        # Delete this branch when Phase D switches all financial DTOs to decimal text.
-        return decimal_from_legacy_float(value, label=label)
-    return decimal_value(value, label=label)
+DesktopNumericInput: TypeAlias = Decimal | int | str
 
 
 def format_decimal_amount(
@@ -36,7 +25,7 @@ def format_decimal_amount(
             return fallback
         amount = Decimal("0")
     else:
-        amount = _desktop_decimal(value, label="Desktop financial amount")
+        amount = decimal_value(value, label="Desktop financial amount")
     rounded = DEFAULT_ROUNDING_POLICY.quantize(amount, scale=places)
     grouping_token = "," if grouping else ""
     sign_token = "+" if signed else ""

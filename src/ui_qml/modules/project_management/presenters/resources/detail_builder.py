@@ -21,7 +21,7 @@ def build_resource_state(resource: Any) -> dict[str, object]:
         "workerTypeLabel": resource.worker_type_label,
         "costType": resource.cost_type,
         "costTypeLabel": resource.cost_type_label,
-        "hourlyRate": f"{float(resource.hourly_rate or 0.0):.2f}",
+        "hourlyRate": resource.hourly_rate or "0",
         "hourlyRateLabel": resource.hourly_rate_label,
         "currency": resource.currency_code or "",
         "capacityPercent": f"{float(resource.capacity_percent or 0.0):.1f}",

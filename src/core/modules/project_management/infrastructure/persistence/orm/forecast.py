@@ -157,7 +157,8 @@ class ForecastLineORM(Base):
             name="ck_pf_forecast_lines_source_kind",
         ),
         CheckConstraint(
-            "source_type IN ('remaining_plan', 'open_commitment', 'risk', 'manual_estimate')",
+            "source_type IN ('remaining_plan', 'open_commitment', 'risk', 'manual_estimate', "
+            "'base_forecast', 'financial_change')",
             name="ck_pf_forecast_lines_source_type",
         ),
         CheckConstraint(
@@ -167,6 +168,12 @@ class ForecastLineORM(Base):
         ),
         CheckConstraint(
             "(source_kind = 'manual' AND source_type = 'manual_estimate') OR "
+            "(source_kind = 'manual' AND source_type = 'risk' "
+            "AND source_reference_type IS NOT NULL AND source_reference_id IS NOT NULL "
+            "AND source_snapshot_at IS NOT NULL) OR "
+            "(source_kind = 'manual' AND source_type = 'financial_change' "
+            "AND source_reference_type IS NOT NULL AND source_reference_id IS NOT NULL "
+            "AND source_snapshot_at IS NOT NULL) OR "
             "(source_kind = 'automatic' AND source_type <> 'manual_estimate' "
             "AND source_reference_type IS NOT NULL AND source_reference_id IS NOT NULL "
             "AND source_snapshot_at IS NOT NULL)",
@@ -217,4 +224,105 @@ Index(
 )
 
 
-__all__ = ["ForecastLineORM", "ProjectForecastORM"]
+class ForecastSourceDecisionORM(Base):
+    __tablename__ = "project_finance_forecast_source_decisions"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["tenant_id", "organization_id", "project_id", "forecast_id"],
+            [
+                "project_finance_forecasts.tenant_id",
+                "project_finance_forecasts.organization_id",
+                "project_finance_forecasts.project_id",
+                "project_finance_forecasts.id",
+            ],
+            name="fk_pf_forecast_decisions_scoped_forecast",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "organization_id", "cost_code_id"],
+            [
+                "project_finance_cost_codes.tenant_id",
+                "project_finance_cost_codes.organization_id",
+                "project_finance_cost_codes.id",
+            ],
+            name="fk_pf_forecast_decisions_scoped_cost_code",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "action IN ('included', 'offset', 'excluded')",
+            name="ck_pf_forecast_decisions_action",
+        ),
+        CheckConstraint(
+            "reason IN ('remaining_plan', 'open_commitment', 'posted_actual_offset', "
+            "'actual_credit', 'reversed_actual', "
+            "'manual_override', 'risk_contingency', "
+            "'no_remaining_amount', 'closed_or_cancelled', 'after_as_of', "
+            "'base_forecast', 'financial_change')",
+            name="ck_pf_forecast_decisions_reason",
+        ),
+        CheckConstraint(
+            "source_type IN ('remaining_plan', 'open_commitment', 'risk', 'manual_estimate', "
+            "'posted_actual', 'base_forecast', 'financial_change')",
+            name="ck_pf_forecast_decisions_source_type",
+        ),
+        CheckConstraint(
+            "source_amount >= 0 AND included_amount >= 0 AND excluded_amount >= 0",
+            name="ck_pf_forecast_decisions_amounts",
+        ),
+        CheckConstraint(
+            "included_amount + excluded_amount = source_amount",
+            name="ck_pf_forecast_decisions_reconciled",
+        ),
+        {"info": {"rls_scope": "tenant_organization"}},
+    )
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(
+        String, ForeignKey("tenants.id", ondelete="RESTRICT"), nullable=False
+    )
+    organization_id: Mapped[str] = mapped_column(String, nullable=False)
+    forecast_id: Mapped[str] = mapped_column(String, nullable=False)
+    project_id: Mapped[str] = mapped_column(String, nullable=False)
+    cost_code_id: Mapped[str] = mapped_column(String, nullable=False)
+    task_id: Mapped[str | None] = mapped_column(
+        String, ForeignKey("tasks.id", ondelete="RESTRICT"), nullable=True
+    )
+    source_type: Mapped[str] = mapped_column(String(24), nullable=False)
+    source_reference_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_reference_id: Mapped[str] = mapped_column(String, nullable=False)
+    action: Mapped[str] = mapped_column(String(16), nullable=False)
+    reason: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_amount: Mapped[Decimal] = mapped_column(
+        financial_numeric(FinancialNumericKind.MONEY),
+        nullable=False,
+        info=financial_numeric_info(FinancialNumericKind.MONEY),
+    )
+    included_amount: Mapped[Decimal] = mapped_column(
+        financial_numeric(FinancialNumericKind.MONEY),
+        nullable=False,
+        info=financial_numeric_info(FinancialNumericKind.MONEY),
+    )
+    excluded_amount: Mapped[Decimal] = mapped_column(
+        financial_numeric(FinancialNumericKind.MONEY),
+        nullable=False,
+        info=financial_numeric_info(FinancialNumericKind.MONEY),
+    )
+    currency_code: Mapped[str] = mapped_column(String(8), nullable=False)
+    source_snapshot_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+Index(
+    "idx_pf_forecast_decisions_scope",
+    ForecastSourceDecisionORM.tenant_id,
+    ForecastSourceDecisionORM.organization_id,
+)
+Index("idx_pf_forecast_decisions_forecast", ForecastSourceDecisionORM.forecast_id)
+Index(
+    "idx_pf_forecast_decisions_source",
+    ForecastSourceDecisionORM.source_reference_type,
+    ForecastSourceDecisionORM.source_reference_id,
+)
+
+
+__all__ = ["ForecastLineORM", "ForecastSourceDecisionORM", "ProjectForecastORM"]

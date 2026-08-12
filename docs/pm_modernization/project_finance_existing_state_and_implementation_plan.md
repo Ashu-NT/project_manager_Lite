@@ -1,9 +1,22 @@
 # Project Finance Existing-State Audit and Implementation Plan
 
-Status: audit complete; Phase A0-A2, Phase B item 8, and Phase C items 1-6 code gates complete; Phase C.7 in progress; hosted PostgreSQL validation pending
-Last updated: 2026-08-09
+Status: audit complete; Phase A-D complete; Phase E in progress
+Last updated: 2026-08-11
 Scope: Project Management finance plus reusable platform financial foundations
-Current increment: Task-owned WBS, effective-dated rate cards (ADR-PF-005) with the
+Current checkpoint: Phase D is complete. Project snapshot, cash flow,
+analytics, EVM, portfolio variance, desktop forecast, and commitment controls now consume approved
+budget/current-or-historical-approved forecast versions, posted actuals/reversals, and open
+commitments as Decimal Money. Excel and PDF now share one explicit as-of/currency/period/version
+basis, full-snapshot reconciliation controls, bounded source drill-down, and sensitive-detail state.
+The transient forecast formula service, misleading duplicate UI/export placeholder, empty Insights
+component, and deprecated export wrapper are deleted. Forecast/ETC, Change Control, stored baseline
+Variance, and Reports now expose canonical version basis and source drill-down without desktop
+formulas. All registered Phase D float conversions and Float-backed PM money/rate/quantity columns
+are retired. ADR-PF-010 and the Phase E product decisions were accepted on
+2026-08-11; Phase E implementation is now in progress. See [TODO/README.md](TODO/README.md) for
+the concise execution checkpoint.
+
+Historical implementation checkpoint: Task-owned WBS, effective-dated rate cards (ADR-PF-005) with the
 `CostPolicyEngine`/`LaborCostEngine` cutover, the versioned `ProjectBudget`/`BudgetLine`
 lifecycle (item 5, including governed approval integration), and versioned labor
 planned-cost snapshots (item 6) are all now implemented and tested (uncommitted); their
@@ -107,7 +120,7 @@ The module boundaries are broadly valid and should be retained. The problem is c
 | Import | `CostImportSchema`, `CostCsvImporter` | `infrastructure/importers/financials/` | Creates/updates mutable cost rows; no stable external idempotency key | Uses service path | importer tests | PARTIAL |
 | Export/reporting | Excel/PDF/report builders | `infrastructure/reporting/exporters.py`; reporting API | Summary, ledger, cash flow, EVM, variance; row/period caps in outputs | Uses scoped services and report permissions | integration/report tests | PARTIAL |
 | Budget package | package placeholder | `application/financials/budgets/__init__.py` | Documentation string only | N/A | None | MISSING |
-| Invoicing/revenue packages | package placeholders and QML empty states | `application/financials/invoicing/__init__.py`; `revenue/__init__.py`; `FinancialsInvoicesSection.qml` | No domain, persistence, or workflow | N/A | None | MISSING |
+| Billing preparation/revenue | billing profile, schedule, source-lock, preparation, typed Accounting boundary, reconciliation evidence, and read-only QML are implemented; commercial revenue/profitability projection remains pending | `application/financials/invoicing/`; `contracts/accounting_billing.py`; `FinancialsBillingPreparationSection.qml`; `revenue/__init__.py` | PM prepares commercial evidence; Accounting owns statutory truth | `finance.read`; `finance.manage`; platform approval permissions | Direct tenant/org/project ownership plus forced RLS | PARTIAL - PHASE E |
 | Money/currency foundation | strings, floats, organization base currency | `src/core/platform/org/domain/organization.py`; PM and Procurement types | Uppercases strings; no ISO/minor-unit validation or safe arithmetic | Organization-scoped config only | currency default tests | MISSING |
 | Financial periods/FX/accounting refs | no equivalent implementation found | repository-wide semantic search | Operational calendar and generic external references are not financial periods/FX/accounting references | N/A | None | MISSING |
 | QML finance workspace | sections/dialog host/list/detail | `src/ui_qml/modules/project_management/qml/workspaces/financials/` | Usable UI over current cost-line model; invoice/PO sections are explicit future states | Controller uses desktop API | presenter/API tests | PARTIAL |
@@ -1049,7 +1062,7 @@ Ownership: **PROJECT FINANCE**
 
 1. Add forecast versions/lines and explicit automatic/manual source metadata.
 2. Define ETC source precedence and exclusion/matching rules across remaining plan, commitments, risks, and manual estimates.
-3. Add typed financial change requests that apply approved budget, forecast, contract, and schedule impacts atomically by creating new versions.
+3. Add typed financial change requests that apply approved budget, forecast, and schedule impacts atomically through their canonical owners. Keep procurement commitments source-owned and defer project contract value to Phase E product decisions.
 4. Rebuild snapshot, cash flow, EVM, variance, and portfolio financial read models from canonical Money, posted actuals, open commitments, and approved/current forecast versions.
 5. Add as-of/basis/period metadata, pagination, source drill-down, reconciliation/control totals, and sensitive-field filtering to exports.
 6. Remove desktop forecast fallback formulas and legacy CostItem reporting once parity is proven.
@@ -1065,43 +1078,212 @@ Implementation progress (2026-08-11):
   `as_of_date`, generation mode, currency, actor/timestamp history, and one-open/one-approved
   database invariants. Approval atomically supersedes the prior approved forecast.
 - Forecast lines use canonical Decimal Money and carry cost-code, optional WBS task, optional
-  period, and explicit automatic/manual source metadata. Automatic remaining-plan,
-  open-commitment, or risk lines require a stable source type/id and snapshot timestamp; manual
-  lines are explicitly `manual_estimate`. Domain and database constraints reject mixed source
-  semantics, invalid periods, negative amounts, and cross-scope parent references.
+  period, and explicit automatic/manual source metadata. Automatic remaining-plan and
+  open-commitment lines require a stable source type/id and snapshot timestamp. Manual lines are
+  either explicit `manual_estimate` rows or contingencies linked to a snapshotted risk. Domain and
+  database constraints reject mixed source semantics, invalid periods, negative amounts, and
+  cross-scope parent references.
 - `ForecastVersionService` is composed through the PM service graph with `forecast.manage`/
   `forecast.approve` RBAC, project-scope enforcement, active tenant/organization ID scoping,
   optimistic concurrency, cost-code/task eligibility checks, fail-closed audit, and domain-change
-  events. PostgreSQL forced RLS is delivered by migration `v9w0x1y2z3a4`, which is the sole
-  Alembic head and is reversible.
+  events. PostgreSQL forced RLS is delivered by reversible migration `v9w0x1y2z3a4`; D.1B
+  revision `w0x1y2z3a4b5` now follows it as the sole Alembic head.
 - No data migration or compatibility path was created because the application is pre-release and
-  has no client forecast data. The transient `ForecastCostService` remains the current desktop
-  calculation source until D.1B-D.4 produce and prove the canonical generator/read models; it is
-  not a second persisted authority.
+  has no client forecast data. D.4 subsequently deleted the transient `ForecastCostService` after
+  canonical read reconciliation and desktop parity were proven.
 - Verification: 8 focused forecast lifecycle/tenant/migration tests pass; 44 RBAC/security tests
   pass; 12 desktop-adapter architecture tests pass; the migration graph passes with the unrelated
   repository size guard deselected; and the canonical PM suite passes with 567 tests. The older
   `src/tests/pm` tree still has 12 pre-existing scheduling contract mismatches unrelated to this
   implementation.
 
-Next implementation slice: **D.1B**, the automatic forecast generator plus explicit ETC source
-precedence/exclusion rules. It must write one complete draft snapshot atomically and prevent any
-open commitment from also being counted as remaining plan before forecast read models or QML are
-cut over.
+- **D.1B COMPLETE — canonical automatic ETC generation and source evidence.** The composed
+  `ForecastGenerationService` reads every paginated canonical source through PM repository
+  contracts and writes one `ProjectForecast`, all `ForecastLine` rows, all reason-coded
+  `ForecastSourceDecision` rows, and the fail-closed audit entry under one commit boundary. Any
+  persistence or audit failure rolls back the complete generated version. Permission checks remain
+  `forecast.manage` plus project scope; active tenant/organization scope is resolved once through
+  the canonical context service.
+- The generator selects the latest complete planned-cost version whose business `as_of` is not
+  later than the requested forecast date. Posted actuals at or before that date are netted as signed
+  offsets by cost-code/task; reversals and future postings are excluded with evidence. Each open
+  commitment contributes only `amount - matched_amount` (or its snapshotted base-currency
+  equivalent) to ETC and offsets the same remaining-plan envelope. Applying both offsets before
+  emitting remaining plan makes commitment/ETC double counting impossible. A taskless offset is
+  allocated deterministically across task slices for the same cost code.
+- Manual ETC has narrow replacement semantics: it suppresses remaining-plan ETC only for its exact
+  task dimension, or for the whole cost code when intentionally entered without a task. It never
+  suppresses an open commitment. Risk contingency is additive only when the caller supplies an
+  explicit monetary estimate linked to an active project risk; register severity is not assigned a
+  fabricated monetary value. Overlapping manual scopes, duplicate risks, inactive/newer risks,
+  incomplete plan snapshots, unsupported currencies, future forecast dates, and newer commitment
+  state without historical reconstruction fail with typed errors.
+- Every considered source leaves durable evidence containing source identity/type/snapshot,
+  cost-code/task dimension, action, reason, source amount, included amount, and excluded amount.
+  The amounts must reconcile in both Pydantic domain validation and database constraints.
+  Evidence-backed zero ETC is valid and submit-able; a request with no source facts is rejected.
+  Migration `w0x1y2z3a4b5` adds this tenant/org/project-scoped evidence table, task/source indexes,
+  linked-risk line constraint, and forced PostgreSQL RLS. It is the sole Alembic head and is
+  reversible.
+- D.1B is a direct pre-release implementation: no backfill, compatibility facade, dual read/write,
+  legacy forecast model, or temporary transition file was introduced. D.4 has now removed the
+  transient desktop formula service at the canonical read-model/QML parity gate.
+- D.1B verification: 13 focused lifecycle/generation/precedence/risk/zero-ETC/atomicity/tenant/
+  migration tests pass. The affected finance architecture, persistence, security, and composition
+  checkpoint passes 39 tests; its only global-suite failure is the pre-existing hard-size guard for
+  generated `resources/shared_resources_rc.py` and platform `enterprise_calendar.py`.
+
+- **D.2 COMPLETE - governed budget/forecast/schedule financial changes.** PM now owns scoped
+  `FinancialChangeRequest` and typed impacts with immutable change revisions, optimistic
+  concurrency, snapshotted approved bases, exact target-line deltas, actor/timestamp history,
+  applied-version references, and fail-closed audit. A two-actor Platform Approval decision
+  atomically supersedes the approved budget and/or forecast and creates approved successors.
+  Forecast copies and changes retain durable `base_forecast`/`financial_change` line and decision
+  lineage. Stale bases, concurrent open versions, invalid dimensions, negative successor values,
+  duplicate targets, unsupported dimensions, and audit failures fail closed and roll back.
+- Schedule impacts snapshot the target task version and apply through the PM task owner's internal
+  batch command. It accepts only unstarted execution leaves, validates project working days and
+  project bounds, writes all requested windows, recalculates dependencies once, and verifies the
+  exact approved result. Typed applied references identify budget lines, forecast lines, or tasks;
+  mixed changes participate in the same approval/audit transaction and publish only after commit.
+- Migration `pfchg_d2_001` is reversible and is the sole head. It adds composite scoped ownership,
+  typed-shape/lifecycle constraints, indexes, and forced PostgreSQL RLS. No legacy model, backfill,
+  dual path, compatibility facade, or temporary transition code was introduced.
+- **Ownership correction:** `contract` was removed from D.2 before release. Existing PM commitment
+  lines are procurement-sourced projections and must change only through ordered procurement source
+  revisions. Project contract value is a missing revenue/billing aggregate gated by Phase E and
+  ADR-PF-010. The ambiguous task-level planned-hours delta was also removed; cost effects require
+  explicit budget/forecast impacts, while assignment hours remain resource/task planning authority.
+- D.2 verification: nine focused change-control/domain/schedule/atomicity/migration tests pass;
+  combined change, forecast, task hierarchy/domain, schedule-impact, RBAC reconciliation, and
+  session-permission coverage passes 53 tests; the comprehensive affected budget/forecast/change/
+  task/schedule/RBAC checkpoint passes 95 tests. Architecture coverage with the known hard-line
+  limit deselected reports 152 passes and two unrelated stale-guard failures: a reference to the
+  removed `repositories/cost.py` and a 410-line budget for the pre-existing 449-line scheduling
+  engine. Neither touches D.2.
+
+**D.4 COMPLETE - disposable canonical finance read models (2026-08-11).**
+
+- `FinanceSnapshotFacts`, `FinanceControlFact`, application snapshots, cash-flow/analytics rows, and
+  portfolio rows are disposable, on-demand projections. They have no ORM, table, migration,
+  repository, or write command; deleting/rebuilding them loses no business data. An architecture
+  guard enforces this rule. Persisted approved budget/forecast versions, posted/reversal entries,
+  and Procurement-owned commitment projections remain the authorities.
+- The scoped reader preserves Decimal Money through the application boundary and selects the latest
+  approved or superseded-approved forecast valid at the requested as-of date. It reconciles approved
+  budget, net posted actual, unmatched open commitment, approved ETC, EAC (`actual + ETC`), and VAC
+  (`budget - EAC`). Open commitments are visible controls but are not added to forecast EAC again.
+- Cash flow uses posting dates and approved forecast periods, not `max(...)` exposure heuristics.
+  EVM retains baseline-owned BAC/PV/EV and posted AC, while EAC/ETC/VAC use the approved forecast and
+  remain unavailable without one. Portfolio overrun is EAC minus approved budget and no longer
+  invokes labor-rate calculation per project or reports `actual - planned` as cost variance.
+- The temporary `ForecastCostService`, EAC formula enum, composition/runtime plumbing, recalculation
+  action, old tests, fake invoiced/paid commitment totals, and duplicate non-EVM Finance UI section
+  were deleted. Desktop mapping converts Decimal only at the QML boundary; the forecast card now
+  exposes approved version/as-of, budget, posted actual, ETC, EAC, and VAC.
+- Verification: focused D.4/security/CQRS/disposal coverage passes 38 tests; broad affected finance,
+  reporting, and portfolio coverage passes 101 tests. Architecture/QML coverage passes 153 tests;
+  only the three already-documented repository-wide stale/size guard failures remain.
+- Portfolio measurement passes at small/medium/large sizes and now enforces `13 + 4N` heatmap SQL
+  statements with zero per-project rate-resolution calls, improving the previous `12 + 6N` graph.
+  The complete PM run reached 73% before the five-minute limit; its only emitted failures were the
+  three stale performance expectations, which pass after updating the measurement contract.
+
+**D.5 COMPLETE - governed finance report/export parity (2026-08-11).**
+
+- `FinanceSnapshot` remains disposable and now exposes `PROJECT_CURRENCY` basis, requested as-of,
+  period granularity, approved budget/forecast version evidence, sensitive-detail state, and exact
+  Decimal reconciliation controls. Posted actual, open commitment, and approved ETC authority totals
+  must equal their full ledger totals; an inconsistency fails closed before an export can render.
+- Canonical ledger rows retain source type, cost-code ID, reference type/ID, task/resource IDs,
+  actual financial-period IDs, and forecast period boundaries. Sensitive labor rows are aggregated
+  and replace those identifiers with an explicit restricted source; export metadata records whether
+  detail is included or redacted.
+- Excel and PDF consume the same shared finance export projection and expose equivalent metadata,
+  summary, controls, reconciliation status, cash-flow/source analytics, and source drill-down. Format
+  renderers do not calculate independent finance formulas.
+- Ledger detail uses validated offset paging with a hard 500-row page maximum. Page range, total,
+  limit, and continuation state are included in the report. Summary and reconciliation values always
+  come from the complete canonical snapshot, never a partial page.
+- Finance report generation requires the existing `report.export` runtime permission plus explicit
+  global/project `finance.export`; reading the snapshot still requires global/project `finance.read`.
+  Project owner scope now includes `finance.export`. The deprecated unused
+  `infrastructure/reporting/exporters.py` wrapper was deleted rather than retained as dead code.
+- Verification: the broad finance/reporting/commitment/portfolio selection passes 241 tests with 21
+  dependency warnings. Real Excel/PDF rendering, metadata, bounded lineage, redaction state,
+  reconciliation, and permission tests pass. Architecture passes 153 tests; only the three existing
+  stale/size guard failures documented under D.4 remain, and none concerns D.5.
+
+**D.7 COMPLETE - governed QML lifecycle and report drill-down.** The financial workspace now reads
+forecast revisions/ETC source lines from `ForecastVersionService`, financial requests/typed impacts
+from `FinancialChangeService`, and approved/superseded schedule-baseline comparison history from
+`BaselineService`. Child forecast-line and change-impact reads first revalidate the requested parent
+against the selected scoped project's collection. Authorization and context failures propagate to
+the fixed section-scoped inline message instead of being swallowed as empty data.
+
+Forecast preserves the canonical approved ETC/EAC/VAC summary and adds selectable historical/current
+versions with source type/reference/snapshot/period drill-down. Change Control shows snapshotted base
+budget/forecast versions and applied owner references. Variance explicitly identifies its measure as
+stored plan-to-plan schedule and planned-cost movement, not actual-cost performance, and excludes
+draft/rejected baselines from selection. Reports exposes its currency/forecast/baseline/source-page
+basis and fixed contextual Excel/PDF actions; generation delegates to the D.5 shared reconciled
+projection with the selected governed baseline and performs no QML/controller/presenter formula.
+
+The broad exception fallback and old `build_baseline_variance` contract, the nonfunctional export
+message, empty `FinancialsInsightsSection.qml`, and stale nonexistent workspace-state module entry
+were deleted. No persisted snapshot, compatibility alias, legacy branch, temporary adapter, dual
+read, or transition code remains from D.7. Focused lifecycle/security/export tests pass `6`; the PM
+finance/financial/reporting selection passes `167` (`427 deselected`, 19 dependency warnings),
+desktop-boundary/canonical-read coverage passes `22`, presenter/QML runtime coverage passes `13`,
+and changed-workspace `qmllint` is clean.
+
+Phase D closeout (2026-08-11): PM monetary/rate/quantity desktop DTOs now expose canonical decimal
+text, while authoritative domain/read models use `Decimal`. Revisions `pfnum_d8_001` and
+`pfnum_d8_002` migrate resource/project-resource rates and hours, portfolio budgets, baseline costs
+and variances, and assignment logged hours to platform `Numeric` precision. Percentage fields remain
+intentional floating-point ratios. `Money.from_legacy_float`, `decimal_from_legacy_float`, their
+exports/tests, both transition markers, and the PM formatter float branch are deleted. The obsolete
+baseline unassigned-budget allocation branch was deleted rather than converted. Architecture
+guardrails pin all eight canonical PM columns and reject restoration of either converter.
+Focused persistence/DTO/migration coverage passes `54` tests. The broader PM finance/resource/
+portfolio/baseline/assignment selection passes `342` tests (`253 deselected`, 22 dependency warnings).
 
 ### Phase E - Billing preparation, revenue, and external accounting
 
 Ownership: **PROJECT FINANCE + FUTURE BILLING/ACCOUNTING OWNER + INTEGRATION**
 
-ADR gate: ADR-PF-010 must be accepted before billing or external-accounting implementation.
+ADR gate: **OPENED 2026-08-11.** ADR-PF-010 and the first-release product scope are accepted.
 
-1. Resolve the product decisions in Section 24 before implementation.
-2. Add PM billing profiles/schedules and billing-preparation aggregates for the approved methods only.
-3. Select eligible billable time/expenses/milestones with idempotent source locks to prevent duplicate billing.
-4. Export approved billing preparations or posted costs through typed accounting contracts and store acknowledgement/reconciliation references.
-5. Add project contract-value, revenue projection, and profitability read models. Keep statutory revenue recognition, invoices, tax, payment, and GL posting external unless scope explicitly changes.
-6. Replace QML invoice EmptyState with billing-preparation and integration-status views only after backend ownership is real.
-7. Remove all remaining transition DTOs, dual writes, legacy columns/readers, aliases, and dead feature flags after migration verification.
+1. Complete: resolve the product decisions in Section 24 before implementation.
+2. **Complete 2026-08-11:** PM billing profiles, fixed-price schedules, preparation/line
+   aggregates, direct tenant/org/project ownership, optimistic versions, canonical Numeric storage,
+   scoped foreign keys, and forced PostgreSQL RLS are implemented by `pfbill_e1_001`.
+3. **Complete 2026-08-11:** fixed-price milestones, approved-time billing-rate snapshots, and
+   posted-cost markup snapshots use idempotent source locks. Approval finalizes locks; rejection
+   releases them; a scoped uniqueness constraint prevents duplicate selection under retry/race.
+4. **In progress:** the vendor-neutral `project_billing_preparation.v1` contract, durable
+   delivery-pending lifecycle, append-only idempotent outcomes, external invoice-reference display,
+   and reconciliation references are implemented. A deployable Accounting publisher/worker adapter
+   remains pending because no Accounting module/system is selected; PM does not simulate one.
+5. **Pending:** add disposable contract-value, billable/prepared/external-outcome, revenue projection,
+   and permission-redacted profitability read models. Statutory revenue recognition, invoices, tax,
+   payments, receivables, and GL posting remain external.
+6. **Complete read-only checkpoint 2026-08-11:** the misleading invoice EmptyState and legacy
+   section filename are removed. The Billing Preparation view shows commercial terms, schedules,
+   preparation lifecycle, and Accounting outcomes with database pagination and a batched latest-
+   outcome query. Governed command dialogs remain pending until their complete workflows are wired.
+7. **Pending final gate:** no Phase E transition DTO, dual write, legacy column/reader, permission
+   alias, or feature flag has been created. Repeat the inventory after the publisher and command-UI
+   cutovers, then close the phase only if it remains empty.
+
+Phase E foundation verification (2026-08-11): fresh full-history migration upgrade/downgrade,
+domain lifecycle, decimal contract, accounting-ownership guard, PM finance persistence/RLS,
+service composition, approval registration, tenant-scope architecture, desktop boundaries, and QML
+guardrails pass. Focused runs report `18 passed`, `41 passed`, `35 passed`, `12 passed`, and
+`24 passed`; the expanded PM financial/billing selection passes `48` tests and the combined
+architecture checkpoint passes `60` tests; `qmllint` reports no warnings. The repository-wide
+hard-size guard still has only its
+documented generated Qt-resource and pre-existing enterprise-calendar failures.
 
 Exit gate: duplicate billing/export is impossible under retry; external acknowledgements reconcile; margins honor sensitive permission; no PM code claims ownership of official accounting records; transition code inventory is empty.
 
@@ -1192,16 +1374,16 @@ This register is mandatory implementation scope. A phase cannot close while its 
 | `Project.planned_budget` compatibility projection | Pre-existing; retained in B | Approved-budget SQL read cutover complete | PM Finance | CLOSED 2026-08-11; field and column deleted by `u8v9w0x1y2z3` |
 | `Project.currency` compatibility projection | Pre-existing; retained in B | Profile currency cutover complete | PM Finance | CLOSED 2026-08-11; field and column deleted by `u8v9w0x1y2z3` |
 | Profile-to-Project and Project-to-profile currency synchronization | B1; `PF-B1-CURRENCY-DUAL-WRITE` | All consumers use profile currency | PM Finance / Desktop UI | CLOSED 2026-08-11; both branches and marker deleted |
-| Float monetary/rate/quantity persistence | Pre-existing | Relevant Numeric backfill, read cutover, and reconciliation complete | Platform/Data/Module owners | OPEN |
+| Float monetary/rate/quantity persistence | Pre-existing | Relevant Numeric backfill, read cutover, and reconciliation complete | Platform/Data/Module owners | CLOSED 2026-08-11; eight PM columns migrated by `pfnum_d8_001`/`pfnum_d8_002`, canonical reads active |
 | Planned dual-read comparison | C | D canonical report reconciliation complete | PM Finance | NOT CREATED |
 | Planned dual-write adapter, only if required | C | New writes and reports reconcile; legacy writes disabled | PM Finance | NOT CREATED |
-| Client-side fixed-limit Procurement lookup | Pre-existing | C typed project-source contract active | Procurement / PM Integration | OPEN |
+| Client-side fixed-limit Procurement lookup | Pre-existing | C typed project-source contract active | Procurement / PM Integration | CLOSED 2026-08-08; caller-free desktop projection deleted in DA0 instead of retained |
 | Legacy financial permission aliases/feature flags | A0 onward | E final role/API/controller inventory passes | Platform Security / PM Finance | NOT CREATED |
 | Approval `commit=False` transaction switches in legacy cost/baseline/dependency/scheduling services | A0 | C dedicated approved commands own the shared Unit of Work | Platform Workflow / PM | CLOSED 2026-08-06; `CostLifecycleMixin`/`BaselineService`/`TaskDependencyMixin` each split into a public governed method + a private `_apply_*_decision` (mirroring `BudgetService`); `SchedulingEngine`/`_sync_project_schedule`'s `commit` params re-scoped as plain caller-owned batching, not an approval bridge — no regressions (24 pre-existing failures unchanged, 428 passed) |
 | Approved-handler `bypass_approval=True` switches | Pre-existing; constrained in A0 handlers | C handlers call dedicated internal approved commands with no public bypass flag | Platform Workflow / PM | CLOSED 2026-08-06; `bypass_approval` parameter removed entirely from `add_cost_item`/`update_cost_item`/`delete_cost_item`/`create_baseline`/`add_dependency`/`remove_dependency` — no caller anywhere (checked) passed `bypass_approval=True` except the composition apply handlers, now rewired to call `_apply_*_decision` directly. `TaskDependencyMixin.update_dependency`'s governed branch was dead code (not in `DEFAULT_GOVERNED_ACTIONS`, no apply handler ever registered) — deleted rather than wired up. |
 | Unused FinanceService ReportingService compatibility argument | A0 candidate | Remove before A0 merge | PM Finance | CLOSED; deleted 2026-08-02 |
-| `Money.from_legacy_float` and `decimal_from_legacy_float` converters | A1 | D legacy CostItem reconciliation, float DTO, and float-column retirement complete | Platform Finance / Data Migration | OPEN; marked `TRANSITION(PF-A1-LEGACY-FLOAT)` |
-| PM desktop formatter legacy-float branch | A1 | D canonical decimal-string read DTO cutover complete | Desktop UI / PM Finance | OPEN; marked `TRANSITION(PF-A1-DESKTOP-FLOAT)` |
+| `Money.from_legacy_float` and `decimal_from_legacy_float` converters | A1 | D legacy CostItem reconciliation, float DTO, and float-column retirement complete | Platform Finance / Data Migration | CLOSED 2026-08-11; APIs, exports, tests, and marker deleted |
+| PM desktop formatter legacy-float branch | A1 | D canonical decimal-string read DTO cutover complete | Desktop UI / PM Finance | CLOSED 2026-08-11; branch and marker deleted after canonical-text DTO cutover |
 
 ## 21. Permission Migration Plan
 
@@ -1309,7 +1491,7 @@ The repository already uses global ADR-001 through ADR-004, so Project Finance d
 | [ADR-PF-007](../architecture_decisions/ADR-PF-007-procurement-financial-triggers.md) | Procurement commitment and actual triggers | ACCEPTED; PHASE C.5 PO/RECEIPT DELIVERY IMPLEMENTED | A2 contract/C consumer |
 | [ADR-PF-008](../architecture_decisions/ADR-PF-008-approval-unit-of-work.md) | Approval and unit-of-work transaction model | ACCEPTED; INITIAL TRANSACTION CUTOVER IMPLEMENTED | A0 approval refactor |
 | [ADR-PF-009](../architecture_decisions/ADR-PF-009-cost-code-ownership.md) | Cost-code ownership and hierarchy | ACCEPTED; PHASE B1 FOUNDATION IMPLEMENTED | B cost-code schema |
-| [ADR-PF-010](../architecture_decisions/ADR-PF-010-billing-and-accounting-boundary.md) | Billing versus external accounting ownership | PROPOSED | E implementation |
+| [ADR-PF-010](../architecture_decisions/ADR-PF-010-billing-and-accounting-boundary.md) | Billing versus external accounting ownership | ACCEPTED 2026-08-11; PHASE E IN PROGRESS | E implementation |
 | [ADR-PF-011](../architecture_decisions/ADR-PF-011-durable-integration-outbox-inbox.md) | Durable outbox/inbox ownership and delivery semantics | ACCEPTED; C.4/C.5 OWNED STORES AND CONSUMERS IMPLEMENTED | A2 decision/C consumers |
 
 ### Product questions
@@ -1325,22 +1507,25 @@ These are genuine product/ownership decisions. Questions mapped to A0/A1/A2 ADRs
 7. Resolved by ADR-PF-007: PO SENT creates commitment and receipt POSTED creates accrual actual; a later invoice reclassifies that accrual.
 8. Implementation baseline: manual actuals are allowed through the canonical governed lifecycle; Finance Controller authority plus project-owner scope may post/reverse. Confirm whether tenants may disable manual actuals or require stricter amount/department separation-of-duties policy.
 9. Which approval thresholds and separation-of-duties rules vary by tenant, organization, department, project, amount, and currency?
-10. Are expense claims in this product, a future Expenses module, or external-only?
-11. Which billing methods are in the first PM scope, and does PM only prepare billing or issue official invoices?
-12. Is revenue recognition required, or are contract/billable/invoiced projections sufficient?
-13. Which external accounting/ERP system is the first target, and what identifiers, export format, acknowledgements, and reconciliation workflow does it require?
-14. What period-close authority and late-adjustment policy applies?
-15. What retention and export rules apply to financial audit, approval, source documents, and reversals?
+10. Resolved by ADR-PF-010: expense-claim capture belongs to a future Expenses owner. Canonical externally sourced posted expenses may be selected for billing.
+11. Resolved by ADR-PF-010: first release supports T&M, fixed-price schedules/milestones, and cost-plus preparation only. PM does not issue official invoices.
+12. Resolved by ADR-PF-010: contract, billable, externally invoiced/paid, and profitability projections are sufficient; statutory revenue recognition remains external.
+13. Resolved by ADR-PF-010: use vendor-neutral `project_billing_preparation.v1` durable delivery and acknowledgement/reconciliation contracts; ERP adapters remain outside PM.
+14. Resolved by ADR-PF-010: closed periods reject new preparation; corrections use linked reversal/replacement preparations in an open period.
+15. Resolved by ADR-PF-010: approved billing and reconciliation evidence is immutable/append-only, legal hold blocks deletion, and tenant policy has a seven-year default.
 
 ## 25. Final Recommendation
 
 Proceed with the upgrade, but do not recreate the removed combined CostItem model. Phases A-C and
-the clean C.9 cutover are complete. Phase D.1A now provides canonical forecast-version and line
-persistence; continue with D.1B automatic generation and ETC precedence before changing finance
-read models or QML. Item 7's planned-cost source cutover remains explicitly blocked by planning
+the clean C.9 cutover are complete. Phase D.1A-D.2 now provide canonical forecast persistence,
+lifecycle, automatic ETC generation, durable source decisions, and governed atomic budget/forecast
+and schedule change control. Continue to D.4 canonical finance read models before changing QML;
+keep procurement commitments source-owned and project contract value behind its Phase E gate.
+Item 7's planned-cost source
+cutover remains explicitly blocked by planning
 semantics and freshness ownership; do not force it or treat the new forecast aggregate as a
 substitute for a real planning source.
 
-Then build Project Finance as explicit PM-owned aggregates while preserving valid module ownership: Time supplies approved hours, Procurement supplies PO/receipt facts, Party supplies identities, Approval and Audit remain platform services, and external accounting owns official ledger/payment behavior. Use additive persistence and temporary compatibility only to migrate verified data; delete every fallback, dual-write, alias, and transition adapter at its named phase gate.
+Then build Project Finance as explicit PM-owned aggregates while preserving valid module ownership: Time supplies approved hours, Procurement supplies PO/receipt facts, Party supplies identities, Approval and Audit remain platform services, and external accounting owns official ledger/payment behavior. Because the application is pre-release with no client data, use direct canonical cutovers and do not add fallback, dual-write, alias, compatibility, or transition adapters.
 
 The existing QML workspace is not a constraint. Redesign it to expose Financial Profile, Budget Versions, Planned Cost, Commitments, Posted Actuals, Forecast Versions, Change Control, and Billing Preparation as distinct lifecycle-aware sections. This backend-first sequence is the safest path from the current tested cost-reporting feature to a professional multi-tenant SaaS Project Finance capability without creating an unnecessary accounting application.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from src.core.modules.project_management.api.desktop.financials.models.snapshots import FinancialAnalyticsRowDto
 from src.core.modules.project_management.api.desktop.common.financial_formatting import format_money
+from src.core.platform.finance.money import canonical_decimal_text
 
 
 def serialize_analytics(rows, currency: str | None) -> tuple[FinancialAnalyticsRowDto, ...]:
@@ -12,15 +13,15 @@ def serialize_analytics(rows, currency: str | None) -> tuple[FinancialAnalyticsR
             dimension=row.dimension,
             key=row.key,
             label=row.label,
-            planned=float(row.planned or 0.0),
+            planned=canonical_decimal_text(row.planned),
             planned_label=format_money(row.planned, currency),
-            committed=float(row.committed or 0.0),
+            committed=canonical_decimal_text(row.committed),
             committed_label=format_money(row.committed, currency),
-            actual=float(row.actual or 0.0),
+            actual=canonical_decimal_text(row.actual),
             actual_label=format_money(row.actual, currency),
-            forecast=float(row.forecast or 0.0),
+            forecast=canonical_decimal_text(row.forecast),
             forecast_label=format_money(row.forecast, currency),
-            exposure=float(row.exposure or 0.0),
+            exposure=canonical_decimal_text(row.exposure),
             exposure_label=format_money(row.exposure, currency),
         )
         for row in rows

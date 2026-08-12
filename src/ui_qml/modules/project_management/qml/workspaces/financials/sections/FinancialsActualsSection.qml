@@ -8,6 +8,9 @@ Item {
     property var ledgerModel: ({ "title": "", "subtitle": "", "emptyState": "", "items": [] })
     property var ledgerTableModel: null
     property bool isBusy: false
+    property string selectedEntryId: ""
+
+    signal entrySelected(string entryId)
 
     readonly property var _columns: [
         { "key": "title",         "label": "Reference",        "flex": 2 },
@@ -44,6 +47,11 @@ Item {
                 sourceModel: root.ledgerTableModel
                 loading: root.isBusy
                 emptyText: root.ledgerModel.emptyState || "No ledger entries."
+                selectedRowId: root.selectedEntryId
+                onRowSelected: function(rowId) {
+                    root.selectedEntryId = String(rowId || "")
+                    root.entrySelected(root.selectedEntryId)
+                }
             }
         }
     }

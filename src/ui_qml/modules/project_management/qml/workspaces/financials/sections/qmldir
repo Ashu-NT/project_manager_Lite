@@ -8,10 +8,10 @@ FinancialsRateCardsSection 1.0 FinancialsRateCardsSection.qml
 FinancialsPlannedCostsSection 1.0 FinancialsPlannedCostsSection.qml
 FinancialsActualsSection 1.0 FinancialsActualsSection.qml
 FinancialsForecastSection 1.0 FinancialsForecastSection.qml
+FinancialsChangeSection 1.0 FinancialsChangeSection.qml
 FinancialsCommitmentsSection 1.0 FinancialsCommitmentsSection.qml
-FinancialsInvoicesSection 1.0 FinancialsInvoicesSection.qml
+FinancialsBillingPreparationSection 1.0 FinancialsBillingPreparationSection.qml
 FinancialsPurchaseOrdersSection 1.0 FinancialsPurchaseOrdersSection.qml
-FinancialsEarnedValueSection 1.0 FinancialsEarnedValueSection.qml
 FinancialsActivitySection 1.0 FinancialsActivitySection.qml
 FinancialsVarianceSection 1.0 FinancialsVarianceSection.qml
-FinancialsInsightsSection 1.0 FinancialsInsightsSection.qml
+FinancialsReportsSection 1.0 FinancialsReportsSection.qml

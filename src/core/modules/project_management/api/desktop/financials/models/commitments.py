@@ -5,18 +5,14 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class FinancialCommitmentSummaryDto:
     project_id: str
-    planned_total: float
-    planned_label: str
-    uncommitted_total: float
-    uncommitted_label: str
-    committed_total: float
-    committed_label: str
-    invoiced_total: float
-    invoiced_label: str
-    paid_total: float
-    paid_label: str
-    exposure: float
-    exposure_label: str
+    approved_budget: str
+    approved_budget_label: str
+    posted_actual: str
+    posted_actual_label: str
+    open_commitment: str
+    open_commitment_label: str
+    available_after_commitment: str | None
+    available_after_commitment_label: str
     commitment_rate_pct: float
 
 

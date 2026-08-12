@@ -56,7 +56,10 @@ class ReportingLaborMixin:
     def calculate_project_labor_details(
         self, project_id: str, as_of: date | None = None
     ) -> LaborDetailsResult:
-        self._require_view("view labor details", project_id=project_id)
+        # Every row here identifies a specific resource alongside its
+        # hourly rate and cost — the finance.read_sensitive tier, matching
+        # FinanceService's own resource-identified labor redaction policy.
+        self._require_finance_sensitive_view("view labor details", project_id=project_id)
         return self._make_labor_engine().calculate_project_labor_details(
             project_id, as_of or date.today()
         )
@@ -69,7 +72,9 @@ class ReportingLaborMixin:
     def get_project_labor_plan_vs_actual(
         self, project_id: str, as_of: date | None = None
     ) -> list[LaborPlanActualRow]:
-        self._require_view("view labor plan versus actual", project_id=project_id)
+        self._require_finance_sensitive_view(
+            "view labor plan versus actual", project_id=project_id
+        )
         return self._make_labor_engine().get_project_labor_plan_vs_actual(
             project_id, as_of or date.today()
         )

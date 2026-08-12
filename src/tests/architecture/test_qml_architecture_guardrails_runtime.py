@@ -41,7 +41,11 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "ProjectEditorDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "ProjectStatusDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "financials" / "FinancialsWorkspacePage.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "financials" / "panels" / "FinancialsDetailPanel.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "financials" / "sections" / "FinancialsActualsSection.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "financials" / "dialogs" / "FinancialsDialogHost.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "ManualActualEditorDialog.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "ActualLifecycleDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "resources" / "ResourcesWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "ResourceEditorDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "risk" / "RiskWorkspacePage.qml",
@@ -193,6 +197,29 @@ def test_platform_admin_console_clears_workspace_messages_on_context_switch() ->
     assert "function _clearWorkspaceMessages()" in text
     assert "root.workspaceController.clearMessages()" in text
     assert text.count("root._clearWorkspaceMessages()") >= 4
+
+
+def test_financials_dialog_host_checks_the_real_mutation_result_contract() -> None:
+    # run_mutation() (src/ui_qml/modules/project_management/controllers/common/
+    # mutation_runner.py) returns {"ok": bool, "message": str}. The dialog
+    # host must check those exact keys — checking "success"/"error" instead
+    # left every mutation dialog unable to detect success, so it never closed
+    # and always showed a spurious error even when the backend succeeded.
+    host_path = (
+        UI_QML_ROOT
+        / "modules"
+        / "project_management"
+        / "qml"
+        / "workspaces"
+        / "financials"
+        / "dialogs"
+        / "FinancialsDialogHost.qml"
+    )
+    text = host_path.read_text(encoding="utf-8", errors="ignore")
+
+    assert "result.ok" in text
+    assert "result.success" not in text
+    assert "result.error" not in text
 
 
 def test_project_management_dashboard_load_is_qml_driven_and_selector_sync_is_guarded() -> None:

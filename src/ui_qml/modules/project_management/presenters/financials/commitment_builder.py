@@ -10,12 +10,12 @@ from src.ui_qml.modules.project_management.view_models.financials import (
 
 def build_commitment_summary(summary_dto: Any) -> FinancialsCommitmentSummaryViewModel:
     return FinancialsCommitmentSummaryViewModel(
-        planned_label=summary_dto.planned_label,
-        uncommitted_label=summary_dto.uncommitted_label,
-        committed_label=summary_dto.committed_label,
-        invoiced_label=summary_dto.invoiced_label,
-        paid_label=summary_dto.paid_label,
-        exposure_label=summary_dto.exposure_label,
+        approved_budget_label=summary_dto.approved_budget_label,
+        posted_actual_label=summary_dto.posted_actual_label,
+        open_commitment_label=summary_dto.open_commitment_label,
+        available_after_commitment_label=(
+            summary_dto.available_after_commitment_label
+        ),
         commitment_rate_pct=summary_dto.commitment_rate_pct,
     )
 

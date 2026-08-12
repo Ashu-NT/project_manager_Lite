@@ -1,4 +1,5 @@
 module ProjectManagement.Dialogs
+ActualLifecycleDialog 1.0 ActualLifecycleDialog.qml
 ManualActualEditorDialog 1.0 ManualActualEditorDialog.qml
 ProjectEditorDialog 1.0 ProjectEditorDialog.qml
 ProjectsImportDialog 1.0 ProjectsImportDialog.qml

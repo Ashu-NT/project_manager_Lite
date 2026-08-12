@@ -5,6 +5,7 @@ from src.core.modules.project_management.api.desktop.common.financial_formatting
     format_hourly_rate,
     format_hours,
 )
+from src.core.platform.finance.money import canonical_decimal_text
 
 
 def serialize_project_resource(project_resource, *, resource_by_id) -> ProjectResourceDesktopDto:
@@ -24,7 +25,7 @@ def serialize_project_resource(project_resource, *, resource_by_id) -> ProjectRe
     worker_type_raw = str(getattr(resource_by_id, "worker_type", "") or "")
     worker_type_label = worker_type_raw.replace("_", " ").title() if worker_type_raw else "Unknown"
     is_active = bool(getattr(project_resource, "is_active", True))
-    planned_hours = float(getattr(project_resource, "planned_hours", 0.0) or 0.0)
+    planned_hours = project_resource.planned_hours
     return ProjectResourceDesktopDto(
         id=str(getattr(project_resource, "id", "") or ""),
         project_id=str(getattr(project_resource, "project_id", "") or ""),
@@ -36,10 +37,12 @@ def serialize_project_resource(project_resource, *, resource_by_id) -> ProjectRe
         ),
         role=str(getattr(resource_by_id, "role", "") or ""),
         worker_type_label=worker_type_label,
-        hourly_rate=resolved_rate,
+        hourly_rate=(
+            None if resolved_rate is None else canonical_decimal_text(resolved_rate)
+        ),
         hourly_rate_label=format_hourly_rate(resolved_rate, resolved_currency),
         currency_code=resolved_currency,
-        planned_hours=planned_hours,
+        planned_hours=canonical_decimal_text(planned_hours),
         planned_hours_label=format_hours(planned_hours),
         is_active=is_active,
         status_label="Active" if is_active else "Inactive",

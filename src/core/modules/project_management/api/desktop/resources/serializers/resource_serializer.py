@@ -16,6 +16,7 @@ from src.core.modules.project_management.api.desktop.resources.utils.resource_en
     coerce_cost_type,
     coerce_worker_type,
 )
+from src.core.platform.finance.money import canonical_decimal_text
 
 
 def serialize_resource(
@@ -44,7 +45,7 @@ def serialize_resource(
         worker_type_label=format_enum_label(worker_type.value),
         cost_type=cost_type.value,
         cost_type_label=format_enum_label(cost_type.value),
-        hourly_rate=float(getattr(resource, "hourly_rate", 0.0) or 0.0),
+        hourly_rate=canonical_decimal_text(resource.hourly_rate),
         hourly_rate_label=format_money(
             getattr(resource, "hourly_rate", 0.0),
             resolved_currency,

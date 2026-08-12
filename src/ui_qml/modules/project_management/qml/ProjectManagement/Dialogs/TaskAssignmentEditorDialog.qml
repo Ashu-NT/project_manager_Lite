@@ -15,6 +15,10 @@ AppWidgets.EntityDialog {
     property var assignmentData: ({})
     property var workspaceController: null
     property var _skillValidation: ({})
+    property var _availabilityPreview: ({})
+
+    readonly property bool _checksBlocked: root._skillValidation.isBlocked === true
+        || root._availabilityPreview.isBlocked === true
 
     signal submitted(var payload)
 
@@ -28,7 +32,8 @@ AppWidgets.EntityDialog {
         : "Adjust the active allocation commitment for this task assignment."
     primaryText: root.mode === "create" ? "Assign Resource" : "Save Allocation"
     primaryIcon: root.mode === "create" ? "resources" : "save"
-    primaryEnabled: root.mode !== "create" || (root.resourceOptions || []).length > 0
+    primaryEnabled: root.mode !== "create"
+        || ((root.resourceOptions || []).length > 0 && !root._checksBlocked)
 
     onAccepted: root.submitDialog()
     onRejected: root.close()
@@ -67,11 +72,14 @@ AppWidgets.EntityDialog {
         )
         root.errorMessage = ""
         root._skillValidation = {}
+        root._availabilityPreview = {}
+        Qt.callLater(root.runAssignmentChecks)
     }
 
-    function runSkillValidation() {
+    function runAssignmentChecks() {
         if (root.mode !== "create" || root.workspaceController === null) {
             root._skillValidation = {}
+            root._availabilityPreview = {}
             return
         }
         const taskState = root.selectedTaskState()
@@ -80,12 +88,18 @@ AppWidgets.EntityDialog {
         const taskId = String(taskState.taskId || "")
         if (!taskId || !projectResourceId) {
             root._skillValidation = {}
+            root._availabilityPreview = {}
             return
         }
-        root._skillValidation = root.workspaceController.validateAssignment({
+        const payload = {
             "taskId": taskId,
             "projectResourceId": projectResourceId
-        }) || {}
+        }
+        root._skillValidation = root.workspaceController.validateAssignment(payload) || {}
+        const assignmentController = root.workspaceController.assignmentsController
+        root._availabilityPreview = assignmentController
+            ? (assignmentController.previewAssignment(payload) || {})
+            : ({})
     }
 
     function buildPayload() {
@@ -109,8 +123,8 @@ AppWidgets.EntityDialog {
             root.errorMessage = "Allocation percentage is required."
             return
         }
-        if (root.mode === "create" && root._skillValidation.isBlocked === true) {
-            root.errorMessage = "Assignment is blocked due to unmet skill/certification requirements."
+        if (root.mode === "create" && root._checksBlocked) {
+            root.errorMessage = "Assignment is blocked by availability, skill, or certification policy."
             return
         }
         root.errorMessage = ""
@@ -148,7 +162,75 @@ AppWidgets.EntityDialog {
             visible: root.mode === "create"
             model: root.resourceOptions
             textRole: "label"
-            onCurrentIndexChanged: Qt.callLater(root.runSkillValidation)
+            onCurrentIndexChanged: Qt.callLater(root.runAssignmentChecks)
+        }
+    }
+
+    Rectangle {
+        id: availabilityPanel
+
+        readonly property bool _hasResult: Object.keys(root._availabilityPreview).length > 0
+        readonly property bool _isBlocked: root._availabilityPreview.isBlocked === true
+        readonly property real _overallocation: Number(root._availabilityPreview.overallocationPct || 0)
+        readonly property bool _hasWarnings: root._availabilityPreview.hasWarnings === true
+            || _overallocation > 0
+        readonly property var _conflicts: root._availabilityPreview.conflictProjects || []
+
+        Layout.fillWidth: true
+        visible: root.mode === "create" && _hasResult
+        implicitHeight: visible ? _availabilityCol.implicitHeight + 16 : 0
+        radius: Theme.AppTheme.radiusSm
+        color: _isBlocked
+            ? Theme.AppTheme.dangerSoft
+            : _hasWarnings ? Theme.AppTheme.warningSoft : Theme.AppTheme.successSoft
+        border.color: _isBlocked
+            ? Theme.AppTheme.dangerSoftBorder
+            : _hasWarnings ? Theme.AppTheme.warningSoftBorder : Theme.AppTheme.successSoftBorder
+        border.width: 1
+
+        ColumnLayout {
+            id: _availabilityCol
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 8 }
+            spacing: 4
+
+            AppControls.Label {
+                Layout.fillWidth: true
+                text: availabilityPanel._isBlocked
+                    ? "Availability check blocked this assignment"
+                    : availabilityPanel._overallocation > 0
+                        ? "Resource would be overallocated by " + availabilityPanel._overallocation + "%"
+                        : "Resource availability check passed"
+                color: availabilityPanel._isBlocked
+                    ? Theme.AppTheme.danger
+                    : availabilityPanel._hasWarnings ? Theme.AppTheme.warning : Theme.AppTheme.success
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.smallSize
+                font.bold: true
+                wrapMode: Text.WordWrap
+            }
+
+            AppControls.Label {
+                Layout.fillWidth: true
+                visible: availabilityPanel._conflicts.length > 0
+                text: "Conflicting projects: " + availabilityPanel._conflicts.join(", ")
+                color: availabilityPanel._isBlocked ? Theme.AppTheme.danger : Theme.AppTheme.warning
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.smallSize
+                wrapMode: Text.WordWrap
+            }
+
+            Repeater {
+                model: (root._availabilityPreview.blockMessages || [])
+                    .concat(root._availabilityPreview.warningMessages || [])
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    text: String(modelData)
+                    color: availabilityPanel._isBlocked ? Theme.AppTheme.danger : Theme.AppTheme.warning
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    wrapMode: Text.WordWrap
+                }
+            }
         }
     }
 

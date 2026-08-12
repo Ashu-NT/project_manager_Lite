@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
@@ -259,7 +261,7 @@ class ProjectManagementProjectsDesktopApi:
             normalized_id,
             hourly_rate=command.hourly_rate,
             currency_code=None,
-            planned_hours=max(0.0, command.planned_hours),
+            planned_hours=max(Decimal("0"), command.planned_hours),
             is_active=command.is_active,
         )
 

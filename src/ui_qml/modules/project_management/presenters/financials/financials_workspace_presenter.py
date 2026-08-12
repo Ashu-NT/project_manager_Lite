@@ -6,13 +6,17 @@ from src.core.modules.project_management.api.desktop import (
     ProjectManagementFinancialsDesktopApi,
     build_project_management_financials_desktop_api,
 )
-from src.ui_qml.modules.project_management.view_models.financials import (
-    FinancialsForecastViewModel,
-    FinancialsWorkspaceViewModel,
-)
+from src.ui_qml.modules.project_management.view_models.financials import FinancialsWorkspaceViewModel
 
-from .command_handler import create_manual_actual
-from .workspace_builder import build_workspace_state, compute_forecast
+from .command_handler import (
+    approve_actual,
+    create_manual_actual,
+    post_actual,
+    reject_actual,
+    reverse_actual,
+    submit_actual,
+)
+from .workspace_builder import build_workspace_state
 
 class ProjectFinancialsWorkspacePresenter:
     def __init__(
@@ -29,7 +33,11 @@ class ProjectFinancialsWorkspacePresenter:
         budget_line_page: int = 1,
         rate_line_page: int = 1,
         planned_cost_line_page: int = 1,
+        billing_preparation_page: int = 1,
         configuration_page_size: int = 50,
+        selected_forecast_id: str | None = None,
+        selected_change_id: str | None = None,
+        selected_baseline_id: str | None = None,
     ) -> FinancialsWorkspaceViewModel:
         return build_workspace_state(
             self._desktop_api,
@@ -37,18 +45,44 @@ class ProjectFinancialsWorkspacePresenter:
             budget_line_page=budget_line_page,
             rate_line_page=rate_line_page,
             planned_cost_line_page=planned_cost_line_page,
+            billing_preparation_page=billing_preparation_page,
             configuration_page_size=configuration_page_size,
+            selected_forecast_id=selected_forecast_id,
+            selected_change_id=selected_change_id,
+            selected_baseline_id=selected_baseline_id,
         )
 
     def create_manual_actual(self, payload: dict[str, Any]) -> None:
         create_manual_actual(self._desktop_api, payload)
 
-    def compute_forecast(
+    def submit_actual(self, payload: dict[str, Any]) -> None:
+        submit_actual(self._desktop_api, payload)
+
+    def approve_actual(self, payload: dict[str, Any]) -> None:
+        approve_actual(self._desktop_api, payload)
+
+    def reject_actual(self, payload: dict[str, Any]) -> None:
+        reject_actual(self._desktop_api, payload)
+
+    def post_actual(self, payload: dict[str, Any]) -> None:
+        post_actual(self._desktop_api, payload)
+
+    def reverse_actual(self, payload: dict[str, Any]) -> None:
+        reverse_actual(self._desktop_api, payload)
+
+    def export_financial_report(
         self,
-        selected_project_id: str | None,
         *,
-        method: str = "bac_over_cpi",
-    ) -> FinancialsForecastViewModel:
-        return compute_forecast(self._desktop_api, selected_project_id, method=method)
+        project_id: str,
+        output_path: str,
+        report_format: str,
+        baseline_id: str | None,
+    ) -> str:
+        return self._desktop_api.export_financial_report(
+            project_id,
+            output_path,
+            report_format=report_format,
+            baseline_id=baseline_id,
+        )
 
 __all__ = ["ProjectFinancialsWorkspacePresenter"]

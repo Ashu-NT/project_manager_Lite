@@ -3,13 +3,19 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import Boolean, Date, Enum as SAEnum, Float, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, Date, Enum as SAEnum, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.infra.persistence.orm.base import Base
+from src.infra.persistence.db.financial_numeric import (
+    FinancialNumericKind,
+    financial_numeric,
+    financial_numeric_info,
+)
 
 
 class ProjectORM(Base):
@@ -82,9 +88,19 @@ class ProjectResourceORM(Base):
         ForeignKey("resources.id", ondelete="CASCADE"),
         nullable=False,
     )
-    hourly_rate: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    hourly_rate: Mapped[Optional[Decimal]] = mapped_column(
+        financial_numeric(FinancialNumericKind.RATE),
+        info=financial_numeric_info(FinancialNumericKind.RATE),
+        nullable=True,
+    )
     currency_code: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
-    planned_hours: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    planned_hours: Mapped[Decimal] = mapped_column(
+        financial_numeric(FinancialNumericKind.QUANTITY),
+        info=financial_numeric_info(FinancialNumericKind.QUANTITY),
+        nullable=False,
+        default=Decimal("0"),
+        server_default="0",
+    )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 

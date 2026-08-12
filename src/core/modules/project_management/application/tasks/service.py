@@ -13,6 +13,9 @@ from src.core.modules.project_management.application.tasks.commands.assignment i
 from src.core.modules.project_management.application.tasks.commands.assignment_bridge import (
     TaskAssignmentBridgeMixin,
 )
+from src.core.modules.project_management.application.tasks.commands.approved_schedule_change import (
+    ApprovedScheduleChangeMixin,
+)
 from src.core.modules.project_management.application.tasks.commands.dependency import (
     TaskDependencyMixin,
 )
@@ -74,6 +77,7 @@ from src.core.platform.contract.time_management.calendar.calendar_protocol impor
 
 class TaskService(
     ProjectManagementModuleGuardMixin,
+    ApprovedScheduleChangeMixin,
     TaskScheduleSyncMixin,
     TaskHierarchySupportMixin,
     TaskHierarchyQueryMixin,

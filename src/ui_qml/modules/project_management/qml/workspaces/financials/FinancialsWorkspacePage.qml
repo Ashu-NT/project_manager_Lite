@@ -1,7 +1,11 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Dialogs
+import QtQuick.Layouts
+import App.Controls 1.0 as AppControls
 import App.Layouts 1.0 as AppLayouts
+import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "dialogs" as Dialogs
@@ -32,38 +36,145 @@ AppLayouts.WorkspaceFrame {
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
     readonly property var detailPage: detailPageLoader.item
     property int _pendingDetailSection: 0
+    property string _selectedActualEntryId: ""
+
+    function _selectedActualEntry() {
+        const items = (root.ledgerModel.items || [])
+        for (let index = 0; index < items.length; index += 1) {
+            if (String(items[index].id || "") === root._selectedActualEntryId) {
+                return items[index]
+            }
+        }
+        return null
+    }
 
     readonly property bool _hasProcPoCap: root.pmCatalog
         ? root.pmCatalog.hasCapability("procurement.purchase_orders.read") : false
     readonly property var _detailSections: {
         const sections = [
-            "Profile", "Budget Versions", "Budget Lines", "Rate Cards", "Planned Costs",
-            "Actuals", "Forecast", "Commitments", "Invoices"
+            { "label": "Profile", "group": "Configuration" },
+            { "label": "Budget Versions", "group": "Planning" },
+            { "label": "Budget Lines", "group": "Planning" },
+            { "label": "Rate Cards", "group": "Configuration" },
+            { "label": "Planned Costs", "group": "Planning" },
+            { "label": "Actuals", "group": "Cost Control" },
+            { "label": "Forecast", "group": "Planning" },
+            { "label": "Change Control", "group": "Cost Control" },
+            { "label": "Commitments", "group": "Cost Control" },
+            { "label": "Billing Preparation", "group": "Commercial" }
         ]
-        if (root._hasProcPoCap) sections.push("Purchase Orders")
-        sections.push("Earned Value")
-        sections.push("Variance")
-        sections.push("Activity")
+        if (root._hasProcPoCap) {
+            sections.push({ "label": "Purchase Orders", "group": "Commercial" })
+        }
+        sections.push({ "label": "Variance", "group": "Insights" })
+        sections.push({ "label": "Reports", "group": "Insights" })
+        sections.push({ "label": "Activity", "group": "Insights" })
         return sections
     }
     readonly property string _activeDetailSection: {
         if (!root.detailPage) return ""
         const index = root.detailPage.activeSectionIndex
-        return index >= 0 && index < root._detailSections.length
-            ? String(root._detailSections[index]) : ""
+        if (index < 0 || index >= root._detailSections.length) return ""
+        const entry = root._detailSections[index]
+        return typeof entry === "string" ? entry : String(entry.label || "")
     }
-    readonly property var _detailActions: root._activeDetailSection === "Actuals" ? [
-        {
-            "id": "add_manual_actual",
-            "label": "New Manual Actual",
-            "icon": "add",
-            "enabled": root.workspaceController
-                ? root.workspaceController.selectedProjectId.length > 0
-                    && (root.workspaceController.manualActualOptions.costCodes || []).length > 0
-                : false,
-            "danger": false
+    readonly property var _detailActions: {
+        if (root._activeDetailSection === "Actuals") {
+            const selected = root._selectedActualEntry()
+            const state = selected ? (selected.state || {}) : {}
+            const busy = root.workspaceController ? root.workspaceController.isBusy : false
+            return [
+                {
+                    "id": "add_manual_actual",
+                    "label": "New Manual Actual",
+                    "icon": "add",
+                    "enabled": !busy && root.workspaceController
+                        ? root.workspaceController.selectedProjectId.length > 0
+                            && (root.workspaceController.manualActualOptions.costCodes || []).length > 0
+                        : false,
+                    "danger": false
+                },
+                {
+                    "id": "submit_actual",
+                    "label": "Submit",
+                    "icon": "approve",
+                    "enabled": !busy && Boolean(state.canSubmit),
+                    "danger": false
+                },
+                {
+                    "id": "approve_actual",
+                    "label": "Approve",
+                    "icon": "success",
+                    "enabled": !busy && Boolean(state.canApprove),
+                    "danger": false
+                },
+                {
+                    "id": "reject_actual",
+                    "label": "Reject",
+                    "icon": "reject",
+                    "enabled": !busy && Boolean(state.canApprove),
+                    "danger": true
+                },
+                {
+                    "id": "post_actual",
+                    "label": "Post",
+                    "icon": "save",
+                    "enabled": !busy && Boolean(state.canPost),
+                    "danger": false
+                },
+                {
+                    "id": "reverse_actual",
+                    "label": "Reverse",
+                    "icon": "delete",
+                    "enabled": !busy && Boolean(state.canReverse),
+                    "danger": true
+                }
+            ]
         }
-    ] : []
+        if (root._activeDetailSection === "Reports") return [
+            {
+                "id": "export_excel",
+                "label": "Export Excel",
+                "icon": "download",
+                "enabled": root.workspaceController
+                    ? root.workspaceController.selectedProjectId.length > 0 : false,
+                "danger": false
+            },
+            {
+                "id": "export_pdf",
+                "label": "Export PDF",
+                "icon": "download",
+                "enabled": root.workspaceController
+                    ? root.workspaceController.selectedProjectId.length > 0 : false,
+                "danger": false
+            }
+        ]
+        return []
+    }
+
+    FileDialog {
+        id: _excelExportDialog
+        title: "Export Financial Report to Excel"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["Excel files (*.xlsx)"]
+        defaultSuffix: "xlsx"
+        onAccepted: {
+            if (root.workspaceController !== null)
+                root.workspaceController.exportFinancials("xlsx", String(selectedFile || ""))
+        }
+    }
+
+    FileDialog {
+        id: _pdfExportDialog
+        title: "Export Financial Report to PDF"
+        fileMode: FileDialog.SaveFile
+        nameFilters: ["PDF files (*.pdf)"]
+        defaultSuffix: "pdf"
+        onAccepted: {
+            if (root.workspaceController !== null)
+                root.workspaceController.exportFinancials("pdf", String(selectedFile || ""))
+        }
+    }
 
     function _selectedProjectLabel() {
         const selectedId = root.workspaceController ? root.workspaceController.selectedProjectId : ""
@@ -74,6 +185,17 @@ AppLayouts.WorkspaceFrame {
             }
         }
         return ""
+    }
+
+    function _projectOptionIndex() {
+        const selectedId = root.workspaceController ? root.workspaceController.selectedProjectId : ""
+        const options = root.workspaceController ? (root.workspaceController.projectOptions || []) : []
+        for (let index = 0; index < options.length; index += 1) {
+            if (String(options[index].value || "") === String(selectedId || "")) {
+                return index
+            }
+        }
+        return options.length > 0 ? 0 : -1
     }
 
     AppWidgets.LazyObjectLoader {
@@ -105,6 +227,70 @@ AppLayouts.WorkspaceFrame {
                 sections: root._detailSections
                 Component.onCompleted: scrollToSection(root._pendingDetailSection)
 
+                Rectangle {
+                    property bool detailPagePinned: true
+
+                    width: parent ? parent.width : 0
+                    implicitHeight: projectScopeRow.implicitHeight + (Theme.AppTheme.spacingSm * 2)
+                    color: Theme.AppTheme.surfaceRaised
+
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: 1
+                        color: Theme.AppTheme.divider
+                    }
+
+                    RowLayout {
+                        id: projectScopeRow
+                        anchors.fill: parent
+                        anchors.leftMargin: Theme.AppTheme.marginMd
+                        anchors.rightMargin: Theme.AppTheme.marginMd
+                        anchors.topMargin: Theme.AppTheme.spacingSm
+                        anchors.bottomMargin: Theme.AppTheme.spacingSm
+                        spacing: Theme.AppTheme.spacingSm
+
+                        AppControls.Label {
+                            text: "Project"
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            font.bold: true
+                        }
+
+                        AppControls.ComboBox {
+                            id: projectScopeCombo
+                            Layout.preferredWidth: 300
+                            Layout.maximumWidth: 420
+                            Layout.fillWidth: true
+                            model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []
+                            textRole: "label"
+                            currentIndex: root._projectOptionIndex()
+                            enabled: root.workspaceController !== null
+                                && !root.workspaceController.isBusy
+                                && (root.workspaceController.projectOptions || []).length > 0
+
+                            onActivated: function(index) {
+                                const options = root.workspaceController
+                                    ? (root.workspaceController.projectOptions || []) : []
+                                if (root.workspaceController !== null && options[index]) {
+                                    root.workspaceController.selectProject(String(options[index].value || ""))
+                                }
+                            }
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        AppControls.SecondaryButton {
+                            text: "Refresh"
+                            iconName: "refresh"
+                            enabled: root.workspaceController !== null && !root.workspaceController.isBusy
+                            onClicked: root.workspaceController.refresh()
+                        }
+                    }
+                }
+
                 AppWidgets.ContextualActionToolbar {
                     detailPagePinned: true
                     width: parent ? parent.width : 0
@@ -116,6 +302,31 @@ AppLayouts.WorkspaceFrame {
                     onActionTriggered: function(actionId) {
                         if (actionId === "add_manual_actual") {
                             dialogHostLoader.invoke("openCreateManualActualDialog")
+                            return
+                        }
+                        if (actionId === "export_excel") {
+                            _excelExportDialog.open()
+                            return
+                        }
+                        if (actionId === "export_pdf") {
+                            _pdfExportDialog.open()
+                            return
+                        }
+                        const selected = root._selectedActualEntry()
+                        if (!selected || !root.workspaceController) return
+                        const state = selected.state || {}
+                        const entryId = String(state.entryId || selected.id || "")
+                        const rowVersion = Number(state.rowVersion || 0)
+                        if (actionId === "submit_actual") {
+                            root.workspaceController.submitActual({ "entryId": entryId, "rowVersion": rowVersion })
+                        } else if (actionId === "approve_actual") {
+                            root.workspaceController.approveActual({ "entryId": entryId, "rowVersion": rowVersion })
+                        } else if (actionId === "reject_actual") {
+                            dialogHostLoader.invoke("openActualDecisionDialog", "reject", entryId, rowVersion)
+                        } else if (actionId === "post_actual") {
+                            dialogHostLoader.invoke("openActualDecisionDialog", "post", entryId, rowVersion)
+                        } else if (actionId === "reverse_actual") {
+                            dialogHostLoader.invoke("openActualDecisionDialog", "reverse", entryId, rowVersion)
                         }
                     }
                 }
@@ -140,13 +351,25 @@ AppLayouts.WorkspaceFrame {
                     cashflowModel: root.cashflowModel
                     ledgerModel: root.ledgerModel
                     ledgerTableModel: root.workspaceController ? root.workspaceController.ledgerTableModel : null
+                    selectedActualEntryId: root._selectedActualEntryId
+                    onActualEntrySelected: function(entryId) { root._selectedActualEntryId = entryId }
                     sourceAnalyticsModel: root.sourceAnalyticsModel
                     overviewModel: root.overviewModel
                     forecastModel: root.workspaceController ? root.workspaceController.forecast : ({})
+                    forecastVersionsModel: root.workspaceController ? root.workspaceController.forecastVersions : ({ "items": [] })
+                    forecastLinesModel: root.workspaceController ? root.workspaceController.forecastLines : ({ "items": [] })
+                    selectedForecastId: root.workspaceController ? root.workspaceController.selectedForecastId : ""
+                    financialChangesModel: root.workspaceController ? root.workspaceController.financialChanges : ({ "items": [] })
+                    financialChangeImpactsModel: root.workspaceController ? root.workspaceController.financialChangeImpacts : ({ "items": [] })
+                    selectedChangeId: root.workspaceController ? root.workspaceController.selectedChangeId : ""
                     commitmentSummaryModel: root.workspaceController ? root.workspaceController.commitmentSummary : ({})
                     commitmentsModel: root.workspaceController ? root.workspaceController.commitments : ({})
                     commitmentsTableModel: root.workspaceController ? root.workspaceController.commitmentsTableModel : null
                     baselineVarianceModel: root.baselineVarianceModel
+                    baselineVersionsModel: root.workspaceController ? root.workspaceController.baselineVersions : ({ "items": [] })
+                    varianceBasisModel: root.workspaceController ? root.workspaceController.varianceBasis : ({ "fields": [] })
+                    selectedBaselineId: root.workspaceController ? root.workspaceController.selectedBaselineId : ""
+                    reportBasisModel: root.workspaceController ? root.workspaceController.reportBasis : ({ "fields": [] })
                     financialProfileModel: root.workspaceController ? root.workspaceController.financialProfile : ({})
                     budgetVersionsModel: root.workspaceController ? root.workspaceController.budgetVersions : ({ "items": [] })
                     budgetLinesModel: root.workspaceController ? root.workspaceController.budgetLines : ({ "items": [] })
@@ -154,11 +377,26 @@ AppLayouts.WorkspaceFrame {
                     rateLinesModel: root.workspaceController ? root.workspaceController.rateLines : ({ "items": [] })
                     plannedCostVersionsModel: root.workspaceController ? root.workspaceController.plannedCostVersions : ({ "items": [] })
                     plannedCostLinesModel: root.workspaceController ? root.workspaceController.plannedCostLines : ({ "items": [] })
+                    billingProfileModel: root.workspaceController ? root.workspaceController.billingProfile : ({ "id": "", "fields": [] })
+                    billingScheduleModel: root.workspaceController ? root.workspaceController.billingSchedule : ({ "items": [] })
+                    billingPreparationsModel: root.workspaceController ? root.workspaceController.billingPreparations : ({ "items": [] })
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     onConfigurationPageRequested: function(collection, page) {
                         if (root.workspaceController !== null) {
                             root.workspaceController.setConfigurationPage(collection, page)
                         }
+                    }
+                    onForecastSelected: function(forecastId) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.selectForecastVersion(forecastId)
+                    }
+                    onFinancialChangeSelected: function(changeId) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.selectFinancialChange(changeId)
+                    }
+                    onVarianceBaselineSelected: function(baselineId) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.selectVarianceBaseline(baselineId)
                     }
                 }
             }

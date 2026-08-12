@@ -186,7 +186,7 @@ def test_project_management_workspace_catalog_exposes_typed_scheduling_controlle
                         start_shift_days=1,
                         finish_shift_days=1,
                         duration_delta_days=0,
-                        planned_cost_delta=1200.0,
+                        planned_cost_delta="1200",
                     )
                 ]
             }

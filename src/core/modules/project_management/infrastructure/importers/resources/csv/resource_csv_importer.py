@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from src.core.modules.project_management.domain.enums import CostType
 from src.core.platform.domain.data_operations.importing import ImportPreview, ImportPreviewRow, ImportSummary
 from src.core.modules.project_management.infrastructure.importers.utils.coercion import (
     optional_bool,
     optional_cost_type,
+    optional_decimal,
     optional_float,
     required,
 )
@@ -24,7 +27,7 @@ def preview_resources(
         try:
             name = required(row, "name")
             resource = existing.get(row.get("id") or "") or existing_by_name.get(name.strip().lower())
-            optional_float(row.get("hourly_rate"))
+            optional_decimal(row.get("hourly_rate"))
             optional_float(row.get("capacity_percent"))
             optional_bool(row.get("is_active"), default=True)
             optional_cost_type(row.get("cost_type"))
@@ -65,7 +68,7 @@ def import_resources(
             payload = {
                 "name": required(row, "name"),
                 "role": row.get("role", ""),
-                "hourly_rate": optional_float(row.get("hourly_rate")) or 0.0,
+                "hourly_rate": optional_decimal(row.get("hourly_rate")) or Decimal("0"),
                 "is_active": optional_bool(row.get("is_active"), default=True),
                 "cost_type": optional_cost_type(row.get("cost_type")) or CostType.LABOR,
                 "currency_code": row.get("currency_code") or None,

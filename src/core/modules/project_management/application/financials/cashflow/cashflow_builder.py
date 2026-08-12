@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 
 from src.core.modules.project_management.application.financials.utils.helpers import (
     normalize_period,
@@ -32,18 +33,21 @@ def build_period_cashflow(
                 "period_key": period_key,
                 "period_start": start,
                 "period_end": end,
-                "planned": 0.0,
-                "committed": 0.0,
-                "actual": 0.0,
+                "planned": Decimal("0"),
+                "committed": Decimal("0"),
+                "actual": Decimal("0"),
+                "forecast": Decimal("0"),
             }
             buckets[period_key] = bucket
-        bucket[entry.stage] = float(bucket[entry.stage] or 0.0) + float(entry.amount or 0.0)
+        if entry.stage in {"planned", "committed", "actual", "forecast"}:
+            bucket[entry.stage] = Decimal(bucket[entry.stage] or 0) + entry.amount
 
     out: list[FinancePeriodRow] = []
     for row in sorted(buckets.values(), key=lambda item: item["period_start"]):
-        planned = float(row["planned"] or 0.0)
-        committed = float(row["committed"] or 0.0)
-        actual = float(row["actual"] or 0.0)
+        planned = Decimal(row["planned"] or 0)
+        committed = Decimal(row["committed"] or 0)
+        actual = Decimal(row["actual"] or 0)
+        forecast = Decimal(row["forecast"] or 0)
         out.append(
             FinancePeriodRow(
                 period_key=str(row["period_key"]),
@@ -52,8 +56,8 @@ def build_period_cashflow(
                 planned=planned,
                 committed=committed,
                 actual=actual,
-                forecast=float(max(planned, committed)),
-                exposure=float(max(committed, actual)),
+                forecast=forecast,
+                exposure=actual + forecast,
             )
         )
     return out

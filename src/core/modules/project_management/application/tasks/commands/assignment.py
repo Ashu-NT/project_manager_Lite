@@ -95,7 +95,7 @@ class TaskAssignmentMixin:
         )
         return self._assignment_repo.list_by_task(task_id)
 
-    def set_assignment_hours(self, assignment_id: str, hours_logged: float) -> TaskAssignment:
+    def set_assignment_hours(self, assignment_id: str, hours_logged: Decimal) -> TaskAssignment:
         assignment = self._assignment_repo.get(assignment_id)
         if not assignment:
             raise NotFoundError("Assignment not found.", code="ASSIGNMENT_NOT_FOUND")

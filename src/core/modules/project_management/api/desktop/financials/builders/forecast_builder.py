@@ -1,4 +1,4 @@
-"""Map canonical application forecast results to desktop DTOs."""
+"""Map the canonical approved-forecast control snapshot to desktop DTOs."""
 
 from __future__ import annotations
 
@@ -8,57 +8,39 @@ from src.core.modules.project_management.api.desktop.common.financial_formatting
 from src.core.modules.project_management.api.desktop.financials.models.forecasts import (
     FinancialForecastDto,
 )
-from src.core.modules.project_management.application.financials import (
-    EACMethod,
-    ForecastCostService,
-)
+from src.core.platform.finance.money import canonical_decimal_text
 
 
 def build_forecast_dto(
     project_id: str,
-    percent_complete: float,
-    method: str,
-    threshold_percent: float,
     *,
-    forecast_service: ForecastCostService,
+    snapshot,
     currency: str | None = None,
 ) -> FinancialForecastDto:
-    method_map = {
-        "manual": EACMethod.MANUAL,
-        "bac_over_cpi": EACMethod.BAC_OVER_CPI,
-        "ac_etc_plan": EACMethod.AC_PLUS_ETC_AT_PLAN,
-        "ac_etc_cpi": EACMethod.AC_PLUS_ETC_AT_CPI,
-    }
-    eac_method = method_map.get(
-        str(method or EACMethod.BAC_OVER_CPI.value).strip().lower(),
-        EACMethod.BAC_OVER_CPI,
-    )
-    result = forecast_service.compute_forecast(
-        project_id,
-        percent_complete,
-        method=eac_method,
-        threshold_percent=threshold_percent,
-    )
+    has_forecast = snapshot.forecast_etc is not None
+    eac = snapshot.estimate_at_completion
+    vac = snapshot.variance_at_completion
     return FinancialForecastDto(
         project_id=project_id,
-        method=result.method.value,
-        bac=result.bac,
-        bac_label=format_money(result.bac, currency),
-        ac=result.ac,
-        ac_label=format_money(result.ac, currency),
-        ev=result.ev,
-        ev_label=format_money(result.ev, currency),
-        etc=result.etc,
-        etc_label=format_money(result.etc, currency),
-        eac=result.eac,
-        eac_label=format_money(result.eac, currency),
-        vac=result.vac,
-        vac_label=format_money(result.vac, currency),
-        cpi=round(result.cpi, 3),
-        cpi_label=f"{result.cpi:.3f}",
-        is_over_budget=result.is_over_budget,
-        exceeds_threshold=result.exceeds_threshold,
-        threshold_percent=result.threshold_percent,
+        basis="approved_forecast",
+        basis_label="Approved forecast" if has_forecast else "No approved forecast",
+        budget=canonical_decimal_text(snapshot.budget),
+        budget_label=format_money(snapshot.budget, currency),
+        actual=canonical_decimal_text(snapshot.actual),
+        actual_label=format_money(snapshot.actual, currency),
+        etc=None if not has_forecast else canonical_decimal_text(snapshot.forecast_etc),
+        etc_label=(
+            format_money(snapshot.forecast_etc, currency)
+            if has_forecast else "Not approved"
+        ),
+        eac=None if eac is None else canonical_decimal_text(eac),
+        eac_label="Not available" if eac is None else format_money(eac, currency),
+        vac=None if vac is None else canonical_decimal_text(vac),
+        vac_label="Not available" if vac is None else format_money(vac, currency),
+        is_over_budget=bool(vac is not None and vac < 0),
+        has_approved_forecast=has_forecast,
+        forecast_revision=snapshot.approved_forecast_revision,
+        forecast_as_of=snapshot.approved_forecast_as_of,
     )
 
 

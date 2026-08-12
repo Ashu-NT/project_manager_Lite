@@ -7,33 +7,21 @@ from src.ui_qml.modules.project_management.view_models.financials import (
     FinancialsForecastViewModel,
 )
 
-_METHOD_LABELS = {
-    "bac_over_cpi": "BAC / CPI",
-    "ac_etc_plan": "AC + ETC at plan rate",
-    "ac_etc_cpi": "AC + ETC at CPI rate",
-    "manual": "Manual (sum of forecast amounts)",
-}
 
 def build_forecast_view_model(forecast_dto: Any) -> FinancialsForecastViewModel:
-    method_label = _METHOD_LABELS.get(forecast_dto.method, forecast_dto.method)
     alert = ""
-    if forecast_dto.exceeds_threshold:
-        pct = forecast_dto.threshold_percent
-        alert = (
-            f"EAC exceeds planned budget by more than {pct:.0f}%. "
-            "Cost approval may be required."
-        )
+    if not forecast_dto.has_approved_forecast:
+        alert = "No approved forecast exists for this as-of date. EAC and VAC are unavailable."
     elif forecast_dto.is_over_budget:
-        alert = "EAC exceeds the planned budget (BAC). Review cost exposure."
-    cpi_hint = ""
-    if forecast_dto.cpi > 0:
-        cpi_hint = (
-            "success" if forecast_dto.cpi >= 1.0 else "warning" if forecast_dto.cpi >= 0.9 else "danger"
-        )
+        alert = "Approved forecast EAC exceeds the approved budget. Review the forecast variance."
+
     metrics = (
-        FinancialsForecastMetricViewModel(label="BAC", value=forecast_dto.bac_label),
-        FinancialsForecastMetricViewModel(label="AC", value=forecast_dto.ac_label),
-        FinancialsForecastMetricViewModel(label="EV", value=forecast_dto.ev_label),
+        FinancialsForecastMetricViewModel(
+            label="Approved budget", value=forecast_dto.budget_label
+        ),
+        FinancialsForecastMetricViewModel(
+            label="Posted actual", value=forecast_dto.actual_label
+        ),
         FinancialsForecastMetricViewModel(label="ETC", value=forecast_dto.etc_label),
         FinancialsForecastMetricViewModel(
             label="EAC",
@@ -43,27 +31,30 @@ def build_forecast_view_model(forecast_dto: Any) -> FinancialsForecastViewModel:
         FinancialsForecastMetricViewModel(
             label="VAC",
             value=forecast_dto.vac_label,
-            color_hint="danger" if forecast_dto.vac < 0 else "success",
-        ),
-        FinancialsForecastMetricViewModel(
-            label="CPI",
-            value=forecast_dto.cpi_label,
-            color_hint=cpi_hint,
+            color_hint=(
+                ""
+                if forecast_dto.vac is None
+                else "danger" if forecast_dto.is_over_budget else "success"
+            ),
         ),
     )
     return FinancialsForecastViewModel(
-        method=forecast_dto.method,
-        method_label=method_label,
-        bac_label=forecast_dto.bac_label,
-        ac_label=forecast_dto.ac_label,
-        ev_label=forecast_dto.ev_label,
+        basis_label=forecast_dto.basis_label,
+        budget_label=forecast_dto.budget_label,
+        actual_label=forecast_dto.actual_label,
         etc_label=forecast_dto.etc_label,
         eac_label=forecast_dto.eac_label,
         vac_label=forecast_dto.vac_label,
-        cpi_label=forecast_dto.cpi_label,
         is_over_budget=forecast_dto.is_over_budget,
-        exceeds_threshold=forecast_dto.exceeds_threshold,
-        threshold_percent=forecast_dto.threshold_percent,
+        has_approved_forecast=forecast_dto.has_approved_forecast,
+        forecast_revision=forecast_dto.forecast_revision,
+        forecast_as_of_label=(
+            "" if forecast_dto.forecast_as_of is None
+            else forecast_dto.forecast_as_of.isoformat()
+        ),
         alert_message=alert,
         metrics=metrics,
     )
+
+
+__all__ = ["build_forecast_view_model"]

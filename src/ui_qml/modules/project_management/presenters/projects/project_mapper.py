@@ -21,9 +21,7 @@ def build_project_state(project: Any) -> dict[str, object]:
         "startDateLabel": format_date_label(project.start_date),
         "endDate": format_date(project.end_date),
         "endDateLabel": format_date_label(project.end_date),
-        "approvedBudget": (
-            "" if project.approved_budget is None else f"{float(project.approved_budget):.2f}"
-        ),
+        "approvedBudget": "" if project.approved_budget is None else project.approved_budget,
         "approvedBudgetLabel": project.approved_budget_label,
         "financialCurrencyCode": project.financial_currency_code or "",
         "organizationId": getattr(project, "organization_id", None) or "",

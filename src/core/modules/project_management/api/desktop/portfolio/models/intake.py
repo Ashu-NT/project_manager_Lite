@@ -9,7 +9,7 @@ class PortfolioIntakeDesktopDto:
     title: str
     sponsor_name: str
     summary: str
-    requested_budget: float
+    requested_budget: str
     requested_budget_label: str
     requested_capacity_percent: float
     requested_capacity_label: str

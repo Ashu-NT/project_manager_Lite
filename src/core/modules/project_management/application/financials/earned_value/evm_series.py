@@ -123,6 +123,7 @@ class EarnedValueSeriesCalculator:
                 as_of=pe,
                 prepared_facts=facts,
                 actual_cost=policy.totals.actual,
+                approved_forecast_etc=policy.totals.forecast_etc,
                 working_days_between=working_days_between,
             )
             out.append(EvmSeriesPoint(

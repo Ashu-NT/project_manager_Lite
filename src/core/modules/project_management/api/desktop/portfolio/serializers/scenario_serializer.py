@@ -13,13 +13,18 @@ from src.core.modules.project_management.api.desktop.portfolio.formatters.percen
     format_signed_percent,
 )
 from src.core.modules.project_management.api.desktop.portfolio.formatters.date_formatter import format_datetime
+from src.core.platform.finance.money import canonical_decimal_text
 
 
 def serialize_scenario(scenario) -> PortfolioScenarioDesktopDto:
     return PortfolioScenarioDesktopDto(
         id=scenario.id,
         name=scenario.name,
-        budget_limit=scenario.budget_limit,
+        budget_limit=(
+            None
+            if scenario.budget_limit is None
+            else canonical_decimal_text(scenario.budget_limit)
+        ),
         budget_limit_label=format_money(scenario.budget_limit, fallback="No budget limit"),
         capacity_limit_percent=scenario.capacity_limit_percent,
         capacity_limit_label=format_percent(scenario.capacity_limit_percent, fallback="No capacity limit"),

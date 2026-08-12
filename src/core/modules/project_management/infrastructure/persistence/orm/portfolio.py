@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infra.persistence.orm.base import Base
+from src.infra.persistence.db.financial_numeric import (
+    FinancialNumericKind,
+    financial_numeric,
+    financial_numeric_info,
+)
 
 
 class PortfolioScoringTemplateORM(Base):
@@ -63,7 +69,13 @@ class PortfolioIntakeItemORM(Base):
     title: Mapped[str] = mapped_column(String(256), nullable=False)
     sponsor_name: Mapped[str] = mapped_column(String(256), nullable=False, default="", server_default="")
     summary: Mapped[str] = mapped_column(Text, nullable=False, default="", server_default="")
-    requested_budget: Mapped[float] = mapped_column(Float, nullable=False, default=0.0, server_default="0.0")
+    requested_budget: Mapped[Decimal] = mapped_column(
+        financial_numeric(FinancialNumericKind.MONEY),
+        info=financial_numeric_info(FinancialNumericKind.MONEY),
+        nullable=False,
+        default=Decimal("0"),
+        server_default="0",
+    )
     requested_capacity_percent: Mapped[float] = mapped_column(
         Float,
         nullable=False,
@@ -116,7 +128,11 @@ class PortfolioScenarioORM(Base):
         server_default="",
     )
     name: Mapped[str] = mapped_column(String(256), nullable=False)
-    budget_limit: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    budget_limit: Mapped[Optional[Decimal]] = mapped_column(
+        financial_numeric(FinancialNumericKind.MONEY),
+        info=financial_numeric_info(FinancialNumericKind.MONEY),
+        nullable=True,
+    )
     capacity_limit_percent: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     project_ids_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")
     intake_item_ids_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]", server_default="[]")

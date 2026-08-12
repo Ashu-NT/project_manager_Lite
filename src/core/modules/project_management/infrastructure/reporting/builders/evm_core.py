@@ -33,7 +33,7 @@ class ReportingEvmCoreMixin(ReportingCostPolicyMixin):
         as_of: date | None = None,
         baseline_id: str | None = None,
     ) -> EarnedValueMetrics:
-        self._require_view("view earned value report", project_id=project_id)
+        self._require_finance_view("view earned value report", project_id=project_id)
         resolved_as_of = as_of or date.today()
         facts, policy = self._compose_evm_policy(
             project_id,
@@ -51,4 +51,5 @@ class ReportingEvmCoreMixin(ReportingCostPolicyMixin):
             as_of=resolved_as_of,
             prepared_facts=facts,
             actual_cost=policy.totals.actual,
+            approved_forecast_etc=policy.totals.forecast_etc,
         )
