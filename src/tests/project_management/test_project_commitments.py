@@ -8,13 +8,15 @@ import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
 
-from src.core.modules.project_management.contracts.financial_sources import (
+from src.core.modules.project_management.contracts.financial_sources.procurement import (
+    ProcurementCommitmentFinancialSource,
+    ProcurementCommitmentState,
+)
+from src.core.modules.project_management.contracts.financial_sources.reference import (
     FinancialPostingPurpose,
     FinancialSourceModule,
     FinancialSourceReference,
     FinancialSourceType,
-    ProcurementCommitmentFinancialSource,
-    ProcurementCommitmentState,
 )
 from src.core.modules.project_management.domain.financials.commitment import (
     ProjectCommitmentLine,

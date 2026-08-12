@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from src.core.modules.project_management.contracts.schedule_change import (
+from src.core.modules.project_management.contracts.ports.schedule_change import (
     AppliedTaskScheduleChange,
     ApprovedTaskScheduleChange,
 )

@@ -16,13 +16,17 @@ from src.core.modules.project_management.application.financials.cost_entries.app
     CostEntryApprovalOutcome,
     CostEntryApprovalResult,
 )
-from src.core.modules.project_management.contracts.financial_sources import (
+from src.core.modules.project_management.contracts.financial_sources.approved_time import (
     ApprovedTimeFinancialSource,
+)
+from src.core.modules.project_management.contracts.financial_sources.procurement import (
+    ProcurementReceiptAccrualFinancialSource,
+)
+from src.core.modules.project_management.contracts.financial_sources.reference import (
     FinancialPostingPurpose,
     FinancialSourceModule,
     FinancialSourceReference,
     FinancialSourceType,
-    ProcurementReceiptAccrualFinancialSource,
     financial_source_content_hash,
 )
 from src.core.modules.project_management.contracts.repositories.finance.cost_entries.labor_posting import ApprovedTimeLaborPostingRepository

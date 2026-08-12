@@ -15,10 +15,12 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from src.core.modules.project_management.contracts.financial_sources import (
-    FinancialSourcePage,
+from src.core.modules.project_management.contracts.financial_sources.procurement import (
     ProcurementCommitmentFinancialSource,
     ProcurementReceiptAccrualFinancialSource,
+)
+from src.core.modules.project_management.contracts.financial_sources.reference import (
+    FinancialSourcePage,
 )
 
 

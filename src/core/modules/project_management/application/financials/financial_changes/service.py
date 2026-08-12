@@ -12,7 +12,7 @@ from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.contracts.schedule_change import (
+from src.core.modules.project_management.contracts.ports.schedule_change import (
     ApprovedScheduleChangePort,
     ApprovedTaskScheduleChange,
 )

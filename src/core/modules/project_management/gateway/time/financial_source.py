@@ -14,8 +14,10 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from src.core.modules.project_management.contracts.financial_sources import (
+from src.core.modules.project_management.contracts.financial_sources.approved_time import (
     ApprovedTimeFinancialSource,
+)
+from src.core.modules.project_management.contracts.financial_sources.reference import (
     FinancialSourcePage,
 )
 

@@ -11,7 +11,7 @@ from alembic.config import Config
 from src.core.modules.project_management.application.financials.cost_entries import (
     CostEntryApprovalOutcome,
 )
-from src.core.modules.project_management.contracts.financial_sources import (
+from src.core.modules.project_management.contracts.financial_sources.reference import (
     FinancialPostingPurpose,
     FinancialSourceModule,
     FinancialSourceReference,

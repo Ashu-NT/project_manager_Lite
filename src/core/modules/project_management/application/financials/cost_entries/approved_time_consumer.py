@@ -1,6 +1,8 @@
 from src.core.modules.project_management.application.financials.cost_entries.cost_entry_service import ProjectCostEntryService
-from src.core.modules.project_management.contracts.financial_sources import (
+from src.core.modules.project_management.contracts.financial_sources.approved_time import (
     ApprovedTimeFinancialSource,
+)
+from src.core.modules.project_management.contracts.financial_sources.reference import (
     FinancialPostingPurpose,
     FinancialSourceModule,
     FinancialSourceReference,
