@@ -755,8 +755,25 @@ Phase E implementation checkpoint (2026-08-11):
   batched query rather than an N+1 loop.
 - Pending: a real Accounting publisher/worker adapter, because no target Accounting module/system
   exists yet; PM will not manufacture a fake authoritative invoice path.
-- Pending: complete governed billing command dialogs and the final no-transition/no-dead-code
-  inventory (item 7 gate).
+- Pending: complete governed billing command dialogs (QML/controller wiring for the 9 write
+  commands; UI-layer work, tracked separately from the backend inventory below).
+- **Item-7 no-transition/no-dead-code inventory — backend half complete (2026-08-12).** Audited the
+  full Phase E billing/profitability code path (commands, DTOs, serializers, desktop API, service,
+  reporting builder, permission wiring) for dead or orphaned code. Findings: zero `TRANSITION(PF-...)`
+  markers remain anywhere in `src/`; no legacy financial permission alias or feature-flag code was
+  ever added (the transition-code register's row for it closes as never-created, not removed); all
+  9 governed billing commands and 9 of 10 desktop API methods have real test callers; no duplicate
+  cost/margin/billable-total composition path exists outside the single canonical chain
+  (`profitability_calculator.py` -> `builders/profitability.py`, reusing `CostPolicyEngine`); exactly
+  one `finance.read_profitability` check site exists with no bypass. One real gap was found and
+  fixed: the `get_commercial_projection` desktop-facade method (`api.py:609`) had zero callers
+  anywhere, including tests, despite the service method it wraps being thoroughly tested — added
+  `test_desktop_api_get_commercial_projection_serializes_service_result` and
+  `test_desktop_api_get_commercial_projection_without_reporting_service_returns_empty_dto` to
+  `test_project_finance_profitability_projection.py` (13 passed). `record_external_outcome` remains
+  intentionally unexposed on the desktop surface pending a real Accounting integration boundary, not
+  dead code. Remaining item-7 scope is the QML dialog wiring noted above, which is UI-layer work, not
+  a backend transition/dead-code concern.
 
 Commercial/profitability projection checkpoint (2026-08-12):
 
@@ -887,27 +904,40 @@ profitability projection; Inventory/Procurement owns material/procurement operat
 Accounting owns invoice/payment/statutory truth. T&M profitability must never cause PM to take
 ownership of Inventory/Procurement persistence or of accounting behavior.
 
-## 5A. PM / Inventory-Procurement boundary — architecture debt (found 2026-08-12, not yet fixed)
+## 5A. PM / Inventory-Procurement boundary — architecture debt (found 2026-08-12, fixed 2026-08-12)
 
-Found while investigating T&M material facts (§5 above) — **unrelated to profitability
-implementation, recorded separately, not fixed as part of this documentation pass.**
+Found while investigating T&M material facts (§5 above) — unrelated to profitability
+implementation, recorded and fixed separately.
 
-PM's `TasksApi` (`api/desktop/tasks/api.py:614-664`, reservation listing/creation) receives
+PM's `TasksApi` (`api/desktop/tasks/api.py`, reservation listing/creation) previously received
 Inventory's live `ReservationService` object directly through the composition root
-(`src/infra/composition/inventory_registry.py:307`, `src/application/runtime/desktop_api_registry.py:328`),
-typed as plain `object` in PM's own registry (`api/desktop_runtime/registry.py:42-43`) specifically
-to avoid a static import. This is a real, synchronous, direct-object-reference cross-module
+(`src/infra/composition/inventory_registry.py`, `src/application/runtime/desktop_api_registry.py`),
+typed as plain `object` in PM's own registry (`api/desktop_runtime/registry.py`) specifically to
+avoid a static import. This was a real, synchronous, direct-object-reference cross-module
 dependency that the static-import architecture guard
-(`src/tests/architecture/test_pm_inventory_module_boundary.py`) cannot detect, since that test only
-AST-walks for static imports and this channel is duck-typed. A parallel `procurement_service`
-dependency is threaded through the same registry but is currently unused (dead wiring) —
-worth removing independently of the reservation fix.
+(`src/tests/architecture/test_pm_inventory_module_boundary.py`) could not detect, since that test
+only AST-walks for static imports and this channel was duck-typed. A parallel `procurement_service`
+dependency threaded through the same registry was also unused (dead wiring).
 
-Future goal: PM should depend on a stable, PM-owned Reservation contract/port; Inventory provides
-the concrete implementation behind it (dependency inversion), removing the duck-typed `object`
-parameter. A synchronous contract is acceptable in this modular monolith — this does not need to
-become an integration event merely to remove the concrete-class dependency. Not refactored here;
-this section only records the finding.
+**Fix applied:** PM now owns a structural `Protocol` port,
+`src/core/modules/project_management/gateway/task/reservation.py::TaskReservationGateway`
+(mirroring the existing zero-import `ProcurementFinancialSourceProvider` pattern in
+`contracts/financial_sources.py`), declaring exactly the `list_reservations`/`create_reservation`
+shape `TasksApi` needs. `api/desktop_runtime/registry.py`, `api/desktop/tasks/factories/
+tasks_api_factory.py`, and `api/desktop/tasks/api.py` now type `reservation_service` as
+`TaskReservationGateway | None` instead of plain `object`; Inventory's existing `ReservationService`
+satisfies it structurally with no import in either direction and no code change on the Inventory
+side. `TasksApi`'s defensive `getattr`/`callable` guards around the two calls were simplified to
+direct method calls now that the type is proper. The dead `procurement_service` field was deleted
+from the registry dataclass and its construction site in `desktop_api_registry.py`; the unrelated,
+still-used `procurement_service=` wiring for `InventoryDataExchangeService`/`InventoryReportingService`/
+`MaintenanceMaterialService` in `inventory_registry.py` was left untouched.
+
+Verification: the PM/Inventory static-import boundary test passes, all 20 reservation-scoped tests
+pass, and the combined `project_management` + `architecture` regression passes 802 tests with only
+4 pre-existing, unrelated failures (the generated `shared_resources_rc.py`/`enterprise_calendar.py`
+hard line-limit guard, its paired growth-budget guard, a legacy-ORM import guardrail, and a QML
+Projects-presenter catalog test) — none reference reservations, the gateway, or this change.
 
 ## 6. PM Enterprise UI/UX — pending items
 

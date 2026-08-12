@@ -5,6 +5,9 @@ from decimal import Decimal
 
 import pytest
 
+from src.core.modules.project_management.api.desktop.financials.api import (
+    ProjectManagementFinancialsDesktopApi,
+)
 from src.core.modules.project_management.domain.financials.billing_preparation import (
     BillingExternalEventType,
 )
@@ -118,6 +121,35 @@ def test_fixed_price_projected_margin_and_percent(services) -> None:
     assert projection.forecast_revenue_at_completion == Decimal("1000000")
     assert projection.projected_margin_amount == Decimal("280000")
     assert projection.projected_margin_percent == pytest.approx(Decimal("28"))
+
+
+def test_desktop_api_get_commercial_projection_serializes_service_result(services) -> None:
+    _organization, project, cost_code = _setup_billable_project(
+        services, billing_method=BillingMethod.FIXED_PRICE
+    )
+    _create_billing_profile(services, project.id, contract_value=Decimal("1000000"))
+    _approve_forecast_with_etc(services, project.id, cost_code, etc_amount="720000")
+
+    api = ProjectManagementFinancialsDesktopApi(reporting_service=services["reporting_service"])
+    dto = api.get_commercial_projection(project.id)
+
+    assert dto.project_id == project.id
+    assert dto.profitability_detail_included is True
+    assert dto.revenue_basis == "contract_value"
+    assert Decimal(dto.contract_value) == Decimal("1000000")
+    assert Decimal(dto.forecast_revenue_at_completion) == Decimal("1000000")
+    assert Decimal(dto.projected_margin_amount) == Decimal("280000")
+    assert Decimal(dto.projected_margin_percent) == pytest.approx(Decimal("28"))
+
+
+def test_desktop_api_get_commercial_projection_without_reporting_service_returns_empty_dto() -> None:
+    api = ProjectManagementFinancialsDesktopApi()
+
+    dto = api.get_commercial_projection("any-project-id")
+
+    assert dto.project_id == ""
+    assert dto.contract_value == ""
+    assert dto.billable_amount == "0"
 
 
 def test_fixed_price_negative_margin_on_cost_overrun(services) -> None:
