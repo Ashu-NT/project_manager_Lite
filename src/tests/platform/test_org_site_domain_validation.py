@@ -18,7 +18,15 @@ class _FakeSession:
     def commit(self) -> None:
         self.commit_calls += 1
 
+    def flush(self) -> None:
+        return None
+
     def rollback(self) -> None:
+        return None
+
+
+class _FakeEnterpriseAuditService:
+    def record(self, **kwargs) -> None:
         return None
 
 
@@ -162,6 +170,7 @@ def _make_organization_service(monkeypatch: pytest.MonkeyPatch) -> OrganizationS
         session=_FakeSession(),
         organization_repo=_FakeOrganizationRepo(),
         user_session=_FakeUserSession(),
+        enterprise_audit_service=_FakeEnterpriseAuditService(),
     )
 
 

@@ -444,6 +444,7 @@ def build_platform_service_bundle(
         organization_service=organization_service,
         tenant_context_service=tenant_context_service,
         user_session=user_session,
+        session=session,
     )
     runtime_execution_service = RuntimeExecutionService(
         runtime_execution_repo=SqlAlchemyRuntimeExecutionRepository(

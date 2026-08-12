@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from sqlalchemy.orm import Session
+
 from src.core.platform.api.desktop_runtime.service_resolver import (
     ModuleRuntimeSnapshot,
     build_module_runtime_snapshot,
@@ -12,6 +14,7 @@ from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.application.master_data.org.organization_service import OrganizationService
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.application.tenant.tenancy import TenantContextService
+from src.core.shared.events.domain_events import domain_events
 
 
 @dataclass(frozen=True)
@@ -34,11 +37,13 @@ class PlatformRuntimeApplicationService:
         organization_service: OrganizationService | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session: UserSessionContext | None = None,
+        session: Session | None = None,
     ) -> None:
         self._module_catalog_service = module_catalog_service
         self._organization_service = organization_service
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
+        self._session = session
 
     @property
     def module_catalog_service(self) -> ModuleCatalogService:
@@ -181,6 +186,8 @@ class PlatformRuntimeApplicationService:
     ) -> Organization:
         if self._organization_service is None:
             raise RuntimeError("Organization service is not configured.")
+        if self._session is None:
+            raise RuntimeError("Session is not configured.")
 
         selected_module_codes = (
             set(initial_module_codes)
@@ -191,30 +198,46 @@ class PlatformRuntimeApplicationService:
                 if module.default_enabled and module.stage != "planned"
             }
         )
+        # Stage every write with commit=False so the organization row, its
+        # module entitlements, and (if requested) its activation all commit
+        # in one transaction, together with their audit entries (ADR-003).
         organization = self._organization_service.create_organization(
             organization_code=organization_code,
             display_name=display_name,
             timezone_name=timezone_name,
             base_currency=base_currency,
             is_active=False,
+            commit=False,
         )
         self._module_catalog_service.provision_organization_entitlements(
             organization.id,
             licensed_module_codes=selected_module_codes,
             enabled_module_codes=selected_module_codes,
+            commit=False,
         )
         if is_active:
             self._require_settings_manage("set active organization context")
-            if self._tenant_context_service is not None:
-                return self._tenant_context_service.set_active_organization(organization.id)
-            raise RuntimeError("Tenant context service is not configured.")
+            organization = self._organization_service.set_active_organization(
+                organization.id, commit=False
+            )
+        self._session.commit()
+        domain_events.organizations_changed.emit(organization.id)
+        if is_active:
+            if self._tenant_context_service is None:
+                raise RuntimeError("Tenant context service is not configured.")
+            self._tenant_context_service.set_active_organization(organization.id)
         return organization
 
     def set_active_organization(self, organization_id: str) -> Organization:
-        self._require_settings_manage("set active organization context")
-        if self._tenant_context_service is not None:
-            return self._tenant_context_service.set_active_organization(organization_id)
-        raise RuntimeError("Tenant context service is not configured.")
+        if self._organization_service is None:
+            raise RuntimeError("Organization service is not configured.")
+        # Routes through OrganizationService so activation is actually
+        # persisted (is_active=True, other organizations deactivated, audited)
+        # before the in-memory tenant context is rebuilt — calling
+        # tenant_context_service directly here previously skipped persistence
+        # entirely, which also made this the root cause of provision_organization's
+        # is_active=True branch always raising ORGANIZATION_INACTIVE.
+        return self._organization_service.set_active_organization(organization_id)
 
     def _require_settings_manage(self, operation_label: str) -> None:
         require_permission(
