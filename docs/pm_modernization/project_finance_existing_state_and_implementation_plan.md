@@ -712,6 +712,15 @@ Implementation progress (2026-08-02):
 - Verification: the final focused A0 approval/event/security/RLS set has 32 passing tests; the finance/forecast/reporting batch has 30 passes; and 116 Inventory tests pass. The wider PM/platform run has 465 passes and 15 independently identified unrelated legacy/date-relative failures.
 - All A0 code gates are met. A hosted PostgreSQL run under a non-owner, non-superuser, non-`BYPASSRLS` application role remains a deployment-environment gate; it is not replaced by SQLite architecture tests.
 
+Implementation progress (2026-08-11 update — F0, `RBAC reporting`):
+
+- The 2026-08-02 pass above closed `report.view` only for `FinanceService`/`ProjectFinanceWorkspaceQuery`. `ReportingService` (EVM, cost breakdown, cost source breakdown, labor detail) and `DashboardService` (cost-source/EVM/KPI financial fields) still authorized on `report.view` alone, re-exposing the same finding through the reporting/dashboard/export surface.
+- Added `ReportingService._require_finance_view` (`finance.read`) and `_require_finance_sensitive_view` (`finance.read_sensitive`) gates and wired them into `get_cost_breakdown`/`get_project_cost_source_breakdown`/`get_project_cost_control_totals` (`cost_breakdown.py`, `cost_policy.py`), `get_earned_value`/`get_evm_series` (`evm_core.py`, `evm_series.py`), and `get_project_labor_details`/`get_project_labor_plan_vs_actual`/`calculate_project_labor_details` (`labor.py`).
+- `report.view` remains the correct, sufficient gate for genuinely non-financial reports (`get_gantt_data`, `get_resource_load_summary`, `get_critical_path`) — it was not blanket-replaced.
+- `get_project_kpis` and `DashboardService.get_dashboard_data` mix schedule/non-financial facts with financial fields in one DTO; both now redact the financial fields (`financial_detail_included`/`cost_sources`/`evm` become `false`/`None`) for a `report.view`-only caller instead of denying the whole call, mirroring the existing `FinanceService` labor-redaction convention.
+- New regression coverage in `src/tests/project_management/test_project_finance_phase_a0_security.py` (the "F0 — ReportingService / DashboardService authorization boundary closure" section): `report.view`-alone allow/deny split, KPI/dashboard redaction-not-denial, `finance.read` vs `finance.read_sensitive` tiering, export-permission-is-not-read, and cross-project/cross-organization isolation. Full file: 18 passed.
+- All A0 code gates are now met for the reporting/dashboard/export surface as well, not only `FinanceService`.
+
 #### Phase A1 - Monetary foundations
 
 Ownership: **PLATFORM FOUNDATION + PLATFORM ORGANIZATION + PROJECT FINANCE/PROCUREMENT/TIME ADOPTION**
@@ -1362,7 +1371,7 @@ This register is mandatory implementation scope. A phase cannot close while its 
 | Transitional component | Origin/added in | Removal gate | Owner | Status |
 | --- | --- | --- | --- | --- |
 | Desktop forecast/commitment fallback builders | Pre-existing | A2 canonical service composition and parity tests pass | PM Finance | CLOSED; formulas and empty compatibility paths deleted 2026-08-02 |
-| `report.view` finance authorization | Pre-existing | A0 finance permission grants and policy tests pass | Platform Security / PM Finance | CLOSED; replaced by `finance.read` on 2026-08-02 |
+| `report.view` finance authorization | Pre-existing | A0 finance permission grants and policy tests pass | Platform Security / PM Finance | CLOSED; replaced by `finance.read` on 2026-08-02 for `FinanceService`; extended to `ReportingService`/`DashboardService` (EVM, cost breakdown, cost source breakdown, labor detail, KPI/dashboard redaction) on 2026-08-11 (F0, commit `RBAC reporting`) — see Phase A0 implementation progress above |
 | Admin-session cost-governance bypass | Pre-existing | A0 removal tests pass | Platform Security | CLOSED; removed 2026-08-02 |
 | `cost.manage` umbrella/alias | Pre-existing; transitional mapping in A0 | Target command permissions active across desktop/services | Platform Security / PM Finance | CLOSED 2026-08-09; removed after C.6 runtime command/QML cutover |
 | Hard-coded PM `EUR` defaults | Pre-existing | A1 Organization/Profile currency resolution cutover | Platform Foundation / PM | CLOSED; command constants removed and Organization resolution active 2026-08-02 |

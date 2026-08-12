@@ -705,6 +705,18 @@ graph checkpoint passes `54` tests. The broader PM finance/resource/portfolio/ba
 selection passes `342` tests (`253 deselected`, 22 dependency warnings) after correcting stale
 Decimal-contract fixtures. Phase E implementation is proceeding under accepted ADR-PF-010.
 
+- **F0 — `report.view` finance-authorization boundary, full closure (complete 2026-08-11).** The
+  2026-08-02 A0 pass replaced `report.view` with `finance.read`/`finance.read_sensitive` only for
+  `FinanceService`; `ReportingService` (EVM, cost breakdown, cost source breakdown, labor detail)
+  and `DashboardService` (cost-source/EVM/KPI financial fields) still authorized on `report.view`
+  alone. Both now gate financial-authority methods on `finance.read`/`finance.read_sensitive`,
+  while `report.view` correctly remains sufficient for genuinely non-financial reports (Gantt,
+  resource load, critical path), and mixed schedule/financial DTOs (`get_project_kpis`,
+  dashboard data) redact financial fields for a `report.view`-only caller instead of denying the
+  whole call. See `../project_finance_existing_state_and_implementation_plan.md` Phase A0
+  implementation progress and the transition-code register (§20) for detail. Regression:
+  `src/tests/project_management/test_project_finance_phase_a0_security.py`, 18 passed.
+
 ## 5. Finance — resolved Phase E product decisions
 
 Source: master doc section 24 and accepted ADR-PF-010.

@@ -94,42 +94,42 @@ AppLayouts.WorkspaceFrame {
                         : false,
                     "danger": false
                 },
-                {
+                Boolean(state.canSubmit) ? {
                     "id": "submit_actual",
                     "label": "Submit",
                     "icon": "approve",
-                    "enabled": !busy && Boolean(state.canSubmit),
+                    "enabled": !busy,
                     "danger": false
-                },
-                {
+                } : null,
+                Boolean(state.canApprove) ? {
                     "id": "approve_actual",
                     "label": "Approve",
                     "icon": "success",
-                    "enabled": !busy && Boolean(state.canApprove),
+                    "enabled": !busy,
                     "danger": false
-                },
-                {
+                } : null,
+                Boolean(state.canApprove) ? {
                     "id": "reject_actual",
                     "label": "Reject",
                     "icon": "reject",
-                    "enabled": !busy && Boolean(state.canApprove),
+                    "enabled": !busy,
                     "danger": true
-                },
-                {
+                } : null,
+                Boolean(state.canPost) ? {
                     "id": "post_actual",
                     "label": "Post",
                     "icon": "save",
-                    "enabled": !busy && Boolean(state.canPost),
+                    "enabled": !busy,
                     "danger": false
-                },
-                {
+                } : null,
+                Boolean(state.canReverse) ? {
                     "id": "reverse_actual",
                     "label": "Reverse",
                     "icon": "delete",
-                    "enabled": !busy && Boolean(state.canReverse),
+                    "enabled": !busy,
                     "danger": true
-                }
-            ]
+                } : null
+            ].filter(Boolean)
         }
         if (root._activeDetailSection === "Reports") return [
             {
