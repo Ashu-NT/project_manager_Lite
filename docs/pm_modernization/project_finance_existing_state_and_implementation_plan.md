@@ -294,7 +294,8 @@ authorization.
 
 ### 11.6 Planned Costing
 
-**Status: IMPLEMENTED (tactical), assignment-labor-only (2026-08-06).** Versioned
+**Status: IMPLEMENTED, authoritative for KPI/dashboard/FinanceSnapshot planned totals
+(2026-08-11; item 7 closure 2026-08-12).** Versioned
 `ProjectPlannedCostVersion`/`ProjectPlannedCostLine` snapshots (CURRENT/SUPERSEDED, no
 approval lifecycle — see `project_planned_cost_snapshot_plan.md`, deleted 2026-08-06: its
 design deviated from what was actually built, see 11.6 below for the accurate shape)
@@ -304,13 +305,21 @@ the same rate-card resolver `CostPolicyEngine`/`LaborCostEngine` use, with sourc
 `ProjectFinancialProfile.default_cost_code_id` — a stated, coarser-than-`BudgetLine`
 limitation) dimensions. Completeness is tracked as three independent flags
 (`rates_complete`/`allocations_complete`/`cost_codes_complete`) plus diagnostic reason codes,
-not one ambiguous flag. `ProjectResource.planned_hours` remains the authoritative
-project-resource planning envelope; `allocated_planned_hours` is a constrained WBS
-distribution of it, enforced at write time, not an independent planning total — a design
-review's recommendation to instead build a full versioned `ProjectLaborPlan`/
-`LaborPlanAllocation` aggregate (its own DRAFT/SUBMIT/APPROVE lifecycle) was deliberately
-deferred as a larger, separately scoped future phase rather than done here. Manual/material
-planned-cost lines and baseline-comparison sourcing remain unimplemented in this slice.
+not one ambiguous flag. `CostPolicyEngine`/`ledger.py` now source KPI, dashboard, cost
+breakdown, and `FinanceSnapshot.planned` totals from this versioned, allocated-to-task model —
+not from `ProjectResource.planned_hours` (see §19 Phase B item 7). `calculate_snapshot` is a
+governed, permission-gated (`plannedcost.manage`) action, consistent with Budget/Forecast/
+Baseline generation elsewhere in this system — it is not, and does not need to be,
+auto-triggered on every assignment/rate mutation; a project with no snapshot yet correctly
+shows no planned-cost contribution rather than an error. A design review's recommendation to
+additionally build a full versioned `ProjectLaborPlan`/`LaborPlanAllocation` aggregate (its own
+DRAFT/SUBMIT/APPROVE lifecycle, and a genuinely distinct resource-envelope-capacity question,
+not a competing "planned cost" source) remains deliberately deferred as a larger, separately
+scoped future phase; the interim `LaborCostEngine.calculate_project_labor_plan_vs_actual`
+placeholder for that question was unreached by any production caller and was deleted
+(2026-08-12) rather than left half-alive. Manual/material planned-cost lines and
+baseline-comparison sourcing (which exact rate-card line/version valued each baseline task)
+remain unimplemented.
 
 ### 11.7 Commitments
 
@@ -801,58 +810,41 @@ ADR gate: complete. ADR-PF-003, ADR-PF-005, and ADR-PF-009 are accepted.
    allocation) and `BaselineTask.baseline_planned_cost`'s `float` type are
    both deliberately unchanged. `create_baseline` now requires an explicit
    `rate_as_of: date` argument (never `date.today()` inside the service).
-   **Still remaining under item 7:** the "planning reports" half —
-   `CostPolicyEngine`/`LaborCostEngine`'s own "planned" figures (feeding
-   KPIs/dashboards/`FinanceSnapshot.planned`) still read
-   `ProjectResource.planned_hours` directly rather than the new
-   `ProjectPlannedCostVersion`. Baseline provenance (which exact rate-card
-   line/version valued each task) is also not recorded — a later baseline
-   financial-snapshot extension would be needed for that.
-
-   **Investigated and explicitly rejected (2026-08-06): cutting
-   `CostPolicyEngine`/`ledger.py`/`LaborCostEngine` over onto
-   `ProjectPlannedCostVersion`.** This is not a safe data-source swap and
-   would be a regression if done as literally scoped:
-   - **Granularity mismatch.** The three existing call sites
-     (`CostPolicyEngine._resolve_planned_labor_map`, `ledger.py`'s
-     `build_computed_labor_plan_rows`, `LaborCostEngine
-     .calculate_project_labor_plan_vs_actual`) all sum a resource's full
-     `ProjectResource.planned_hours` *envelope*, with no dependency on any
-     task assignment existing. `ProjectPlannedCostVersion` only counts
-     hours actually *allocated* to a task
-     (`TaskAssignment.allocated_planned_hours`) — partial/zero allocation
-     is an explicitly normal state. Cutting over would silently drop
-     unallocated planned hours from every KPI/dashboard reading them (a
-     real, confirmed test regression: `test_technical_math_reporting_
-     cost_policy.py::test_cost_policy_consistent_across_kpi_evm_
-     breakdown_and_totals` has 10 planned hours with 0 allocated to any
-     task; `total_planned_cost` would drop from 1150.0 to 150.0).
-   - **Three call sites, not one, and they'd disagree.** `ledger.py`'s own
-     docstring states its planned-labor rows intentionally share
-     `CostPolicyEngine`'s exact source "so this ledger's rows never
-     disagree with the engine's totals in the same finance snapshot."
-     Cutting over only one of the three would break that invariant within
-     a single `FinanceSnapshot`.
-   - **No freshness mechanism exists.** `ProjectPlannedCostVersion` only
-     updates via an explicit `calculate_snapshot()` call; nothing in
-     production ever calls it today (only tests do), `planned_costs_changed`
-     has zero subscribers, and no assignment-mutating command triggers a
-     recalculation. `CostPolicyEngine`/KPIs are live, always-current read
-     paths — reading this snapshot instead would show `$0` planned for
-     every project until someone manually triggers a calculation.
-
-   Decision: leave `CostPolicyEngine`/`ledger.py`/`LaborCostEngine` as they
-   are — they already resolve through the rate-card resolver correctly at
-   their own (coarser, envelope-level) granularity, which is not wrong,
-   just a different, legitimate view than the new snapshot's
-   allocated-to-task view. The real gap is that nothing yet surfaces
-   `ProjectPlannedCostVersion` to users (no desktop endpoint/report exists
-   for it) — a future additive report, not a replacement of existing
-   figures, would be the correct way to make it visible. A genuine full
-   cutover would require, at minimum, an assignment-change-triggered
-   recalculation mechanism and a product decision on whether unallocated
-   envelope hours should still count as "planned" — out of scope for this
-   phase.
+   **Item 7 closed (2026-08-12).** The rejection below (2026-08-06) is
+   retained as historical record, but the cutover it rejected was
+   subsequently performed anyway by an unrelated legacy-`CostItem` deletion
+   pass (2026-08-11, `CostPolicyEngine`/`ledger.py` rewrite) — and, once
+   re-audited, the two objections that made it look unsafe turned out not
+   to hold at the scope this project actually needed:
+   - **The granularity mismatch was real, but resolvable by not merging.**
+     `CostPolicyEngine`/`ledger.py`'s KPI/dashboard/`FinanceSnapshot.planned`
+     figures now source exclusively from `ProjectPlannedCostVersion`
+     (allocated-to-task), which is correct — this is the single canonical
+     "planned cost" figure. `LaborCostEngine.calculate_project_labor_plan_vs_actual`
+     (the third call site, answering the *different* question "is this
+     resource over/under their envelope") was never merged into it; it sat
+     unreached by any production caller and has been **deleted** (pre-release,
+     no compatibility burden to preserve) rather than resurrected as a
+     competing "planned" source. A resource-capacity plan-vs-actual report,
+     if wanted later, should be rebuilt cleanly and explicitly scoped as
+     that — not left half-alive next to the canonical figure.
+   - **The "no freshness mechanism" concern was investigated further and is
+     not a gap.** `PlannedCostService.calculate_snapshot` requires
+     `plannedcost.manage` — it is an explicit, governed, permission-gated
+     action, exactly like Budget-version and Forecast-version generation and
+     Baseline creation elsewhere in this system. None of those recalculate
+     automatically on every underlying mutation either. A project with no
+     snapshot calculated yet correctly shows no planned-cost contribution —
+     the same graceful-degradation behavior `BaselineService.create_baseline`
+     already relies on today (verified: it creates baselines against
+     projects with zero `ProjectPlannedCostVersion` rows without error,
+     `test_baseline_comparison_workflow.py`). This is optional-capability
+     behavior, not tactical debt, and does not require an auto-recalculation
+     pipeline.
+   - Baseline provenance (which exact rate-card line/version valued each
+     task) remains unrecorded — still a real, separately-scoped gap if a
+     baseline financial-snapshot extension is ever wanted, not part of this
+     item's closure.
 8. Complete (2026-08-09): replaced the QML combined "Budget" cost-line section with separate Profile, Budget Versions, Budget Lines, Rate Cards, and Planned Costs views. The false legacy component was deleted rather than retained as compatibility UI.
 
 Exit gate: approved budgets cannot mutate; rate selection is deterministic; historical snapshots remain stable after rate changes; plan totals reconcile by cost code/WBS/period; cross-tenant references fail.

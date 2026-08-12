@@ -27,7 +27,6 @@ from src.core.modules.project_management.application.financials.costs.labor_cost
 from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
     LaborAssignmentRow,
     LaborDetailsResult,
-    LaborPlanActualRow,
     LaborResourceRow,
 )
 
@@ -68,13 +67,3 @@ class ReportingLaborMixin:
         self, project_id: str, as_of: date | None = None
     ) -> list[LaborResourceRow]:
         return list(self.calculate_project_labor_details(project_id, as_of).rows)
-
-    def get_project_labor_plan_vs_actual(
-        self, project_id: str, as_of: date | None = None
-    ) -> list[LaborPlanActualRow]:
-        self._require_finance_sensitive_view(
-            "view labor plan versus actual", project_id=project_id
-        )
-        return self._make_labor_engine().get_project_labor_plan_vs_actual(
-            project_id, as_of or date.today()
-        )

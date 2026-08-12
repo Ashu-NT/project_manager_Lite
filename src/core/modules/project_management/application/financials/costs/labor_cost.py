@@ -1,7 +1,8 @@
 """Labor cost engine — owns all labor cost calculation logic.
 
-Computes labor details and plan-vs-actual from assignments and project resources.
-Reporting delegates here; this class is the authoritative source for labor figures.
+Computes labor details (actual, from assignments) and, as diagnostics on the
+same result, unpriced resource-envelope planning rows. Reporting delegates
+here; this class is the authoritative source for labor figures.
 
 Labor rates are resolved through the ADR-PF-005 rate-card system
 (``LaborRateResolver.resolve_many``), batched once per calculation rather
@@ -37,8 +38,6 @@ from src.core.platform.application.tenant.tenancy.tenant_context import TenantCo
 from src.core.modules.project_management.application.financials.models.finance_models import (
     LaborAssignmentRow,
     LaborDetailsResult,
-    LaborPlanActualRow,
-    LaborPlanResult,
     LaborResourceRow,
     PlannedLaborResourceRow,
 )
@@ -51,12 +50,13 @@ if TYPE_CHECKING:
 
 class LaborCostEngine:
     """
-    Compute labor cost details and plan-vs-actual for a project.
+    Compute labor cost details for a project.
 
     Uses assignment execution data (hours_logged x resolved rate) for actuals,
-    and ProjectResource planning data (planned_hours x resolved rate) for
-    planned figures. Both rates come from the same batched rate-card
-    resolution per calculation — never a per-assignment/per-resource call.
+    and ProjectResource planning data (planned_hours x resolved rate) for the
+    planned-envelope diagnostic rows carried alongside them. Both rates come
+    from the same batched rate-card resolution per calculation — never a
+    per-assignment/per-resource call.
     """
 
     def __init__(
@@ -382,104 +382,6 @@ class LaborCostEngine:
         self, project_id: str, as_of: date
     ) -> tuple[UnresolvedLaborRate, ...]:
         return self.calculate_project_labor_details(project_id, as_of).unresolved_rates
-
-    def calculate_project_labor_plan_vs_actual(
-        self, project_id: str, as_of: date
-    ) -> LaborPlanResult:
-        project = self._project_repo.get(project_id)
-        if not project:
-            raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
-        tenant_id, organization_id = self._resolve_scope(project)
-
-        profile = (
-            self._financial_profile_repo.get_by_project(project_id)
-            if self._financial_profile_repo is not None
-            else None
-        )
-        proj_cur = str(getattr(profile, "currency_code", "") or "").upper() or None
-
-        actual_result = self.calculate_project_labor_details(project_id, as_of)
-        actual_by_res: dict[str, LaborResourceRow] = {
-            r.resource_id: r for r in actual_result.rows
-        }
-
-        prs = self._project_resource_repo.list_by_project(project_id)
-        pr_by_res: dict[str, object] = {
-            pr.resource_id: pr
-            for pr in prs
-            if getattr(pr, "resource_id", None)
-        }
-
-        resource_ids = tuple(set(actual_by_res.keys()) | set(pr_by_res.keys()))
-        planned_batch = self._rate_resolver.resolve_many(
-            tenant_id=tenant_id,
-            organization_id=organization_id,
-            project_id=project_id,
-            resource_ids=resource_ids,
-            rate_type=RateType.COST,
-            as_of=as_of,
-            unit="HOUR",
-        )
-        unresolved: list[UnresolvedLaborRate] = list(actual_result.unresolved_rates)
-        seen_unresolved = {u.resource_id for u in unresolved}
-
-        out: list[LaborPlanActualRow] = []
-        for rid in resource_ids:
-            res = self._resource_repo.get(rid)
-            if not res:
-                continue
-
-            pr = pr_by_res.get(rid)
-            planned_hours = float(getattr(pr, "planned_hours", 0.0) or 0.0) if pr else 0.0
-            planned_snapshot = planned_batch.snapshot_for(rid)
-
-            if planned_hours > 0 and planned_snapshot is None:
-                if rid not in seen_unresolved:
-                    for reason in planned_batch.unresolved:
-                        if reason.resource_id == rid:
-                            unresolved.append(reason)
-                            seen_unresolved.add(rid)
-                            break
-                continue  # excluded from rows — a real planned cost we can't price
-
-            planned_rate = (
-                float(planned_snapshot.monetary_rate.money.amount)
-                if planned_snapshot is not None
-                else 0.0
-            )
-            planned_cur = (
-                planned_snapshot.monetary_rate.money.currency.code
-                if planned_snapshot is not None
-                else proj_cur
-            )
-            planned_cost = planned_hours * planned_rate
-
-            ar = actual_by_res.get(rid)
-            actual_hours = float(getattr(ar, "total_hours", 0.0) or 0.0) if ar else 0.0
-            actual_cost = float(getattr(ar, "total_cost", 0.0) or 0.0) if ar else 0.0
-            actual_cur = (ar.currency_code if ar else None) or planned_cur
-
-            out.append(LaborPlanActualRow(
-                resource_id=rid,
-                resource_name=getattr(res, "name", "<unknown>"),
-                planned_hours=planned_hours,
-                planned_hourly_rate=planned_rate,
-                planned_currency_code=planned_cur,
-                planned_cost=planned_cost,
-                actual_hours=actual_hours,
-                actual_currency_code=actual_cur,
-                actual_cost=actual_cost,
-                variance_cost=actual_cost - planned_cost,
-            ))
-
-        out.sort(key=lambda r: r.variance_cost, reverse=True)
-        return LaborPlanResult(rows=tuple(out), unresolved_rates=tuple(unresolved))
-
-    def get_project_labor_plan_vs_actual(
-        self, project_id: str, as_of: date
-    ) -> list[LaborPlanActualRow]:
-        """Return plan vs actual labor per resource using planning + execution data."""
-        return list(self.calculate_project_labor_plan_vs_actual(project_id, as_of).rows)
 
 
 __all__ = ["LaborCostEngine"]

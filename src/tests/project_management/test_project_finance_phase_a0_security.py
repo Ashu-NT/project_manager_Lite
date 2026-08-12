@@ -440,7 +440,7 @@ def test_finance_read_without_sensitive_denies_identified_labor_detail(services)
     """Case B (redact/deny half): individually resource-identified labor
     rate/cost detail requires finance.read_sensitive, matching the existing
     FinanceService labor redaction convention. There is no non-sensitive
-    aggregate variant of these ReportingService methods, so the established
+    aggregate variant of this ReportingService method, so the established
     convention is enforced as a denial rather than a silent redaction."""
     project_id = _seed_labor_finance_project(services)
     _register_and_login(services, "finance-reader-nonsensitive-2", role_names=["project_manager"])
@@ -449,9 +449,6 @@ def test_finance_read_without_sensitive_denies_identified_labor_detail(services)
     with pytest.raises(BusinessRuleError, match="finance.read_sensitive") as exc:
         reporting.get_project_labor_details(project_id)
     assert exc.value.code == "PERMISSION_DENIED"
-
-    with pytest.raises(BusinessRuleError, match="finance.read_sensitive"):
-        reporting.get_project_labor_plan_vs_actual(project_id)
 
 
 def test_finance_read_sensitive_allows_identified_labor_detail(services):

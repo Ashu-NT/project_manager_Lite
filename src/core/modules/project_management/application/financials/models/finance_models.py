@@ -203,20 +203,6 @@ class PlannedLaborResourceRow:
     total_cost: float
 
 
-@dataclass
-class LaborPlanActualRow:
-    resource_id: str
-    resource_name: str
-    planned_hours: float
-    planned_hourly_rate: float
-    planned_currency_code: str | None
-    planned_cost: float
-    actual_hours: float
-    actual_currency_code: str | None
-    actual_cost: float
-    variance_cost: float
-
-
 @dataclass(frozen=True)
 class LaborDetailsResult:
     """Rich result for labor details — rows plus which resources' rates
@@ -230,16 +216,6 @@ class LaborDetailsResult:
     unresolved_rates: tuple[UnresolvedLaborRate, ...]
     planned_rows: tuple[PlannedLaborResourceRow, ...] = ()
     planned_unresolved_rates: tuple[UnresolvedLaborRate, ...] = ()
-
-    @property
-    def is_complete(self) -> bool:
-        return not self.unresolved_rates
-
-
-@dataclass(frozen=True)
-class LaborPlanResult:
-    rows: tuple[LaborPlanActualRow, ...]
-    unresolved_rates: tuple[UnresolvedLaborRate, ...]
 
     @property
     def is_complete(self) -> bool:
@@ -294,9 +270,7 @@ __all__ = [
     "LaborAssignmentRow",
     "LaborResourceRow",
     "PlannedLaborResourceRow",
-    "LaborPlanActualRow",
     "LaborDetailsResult",
-    "LaborPlanResult",
     # EVM
     "EarnedValueMetrics",
     "EvmSeriesPoint",

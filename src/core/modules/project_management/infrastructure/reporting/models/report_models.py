@@ -19,8 +19,6 @@ from src.core.modules.project_management.application.financials.models.finance_m
     EvmSeriesPoint,
     LaborAssignmentRow,
     LaborDetailsResult,
-    LaborPlanActualRow,
-    LaborPlanResult,
     LaborResourceRow,
 )
 

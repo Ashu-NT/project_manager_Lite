@@ -12,7 +12,6 @@ from src.core.modules.project_management.application.financials.models.finance_m
     FinanceReconciliation,
     FinanceSnapshot,
     LaborAssignmentRow,
-    LaborPlanActualRow,
     LaborResourceRow,
 )
 
@@ -28,6 +27,5 @@ __all__ = [
     "FinanceReconciliation",
     "FinanceSnapshot",
     "LaborAssignmentRow",
-    "LaborPlanActualRow",
     "LaborResourceRow",
 ]

@@ -331,20 +331,26 @@ then passed with its affected six-test cluster. Query budgets are pinned at 4/4/
 for Projects/Tasks/Resources/Register/empty Timesheet review, including the shared entitlement
 guard statement.
 
-## 1. Finance — Phase B, remaining
+## 1. Finance — Phase B (complete)
 
 Source: `../project_finance_existing_state_and_implementation_plan.md` §19 Phase B, items 7-8.
 
-- **Item 7, second half (not done):** `CostPolicyEngine`/`LaborCostEngine`'s own "planned"
-  figures (feeding KPIs/dashboards/`FinanceSnapshot.planned`) still read
-  `ProjectResource.planned_hours` directly instead of `ProjectPlannedCostVersion`. A full
-  cutover was investigated and explicitly rejected for now — see the doc's Phase B item 7
-  sub-section — because of a granularity mismatch (envelope-level vs allocated-to-task),
-  three call sites that would disagree, and no freshness/recalculation-trigger mechanism.
-  Before revisiting: decide whether unallocated envelope hours should still count as
-  "planned," and build an assignment-change-triggered recalculation mechanism.
+- **Item 7 closed (2026-08-12).** `CostPolicyEngine`/`ledger.py`'s own "planned" figures
+  (feeding KPIs/dashboards/`FinanceSnapshot.planned`) now source from the versioned,
+  allocated-to-task `ProjectPlannedCostVersion` (cut over 2026-08-11, alongside the legacy
+  `CostItem` deletion), not `ProjectResource.planned_hours` — see the doc's Phase B item 7
+  sub-section for what the original 2026-08-06 rejection got right (the granularity
+  mismatch was real) versus what it got wrong (the "no freshness mechanism" concern; the
+  versioned snapshot is a governed, explicitly-triggered action like Budget/Forecast/
+  Baseline generation, not something that needs auto-recalculation). The third, competing
+  call site the rejection cited — `LaborCostEngine.calculate_project_labor_plan_vs_actual`,
+  a resource-envelope-capacity report, not a "planned cost" duplicate — was unreached by any
+  production caller and was deleted (2026-08-12) rather than merged or left half-alive; a
+  distinct resource-capacity report remains deliberately deferred to the still-unscoped
+  `ProjectLaborPlan`/`LaborPlanAllocation` future phase if wanted.
 - Baseline provenance (which exact rate-card line/version valued each baseline task) is not
-  recorded — would need a baseline financial-snapshot extension.
+  recorded — would need a baseline financial-snapshot extension. Not part of item 7's
+  closure; still open if ever needed.
 - **Item 8 (complete 2026-08-09):** replaced the QML combined "Budget" cost-line section with
   separate project-level Profile, Budget Versions, Budget Lines, Rate Cards, and Planned Costs
   views. A canonical application projection owns RBAC, scope, totals, and label resolution with a
