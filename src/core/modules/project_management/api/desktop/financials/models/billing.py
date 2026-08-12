@@ -14,6 +14,7 @@ class FinancialBillingProfileDto:
     external_customer_reference: str = ""
     purchase_order_reference: str = ""
     payment_terms_days: int = 0
+    row_version: int = 1
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,6 +48,23 @@ class FinancialBillingPreparationDto:
 
 
 @dataclass(frozen=True, slots=True)
+class FinancialBillingPreparationLineDto:
+    id: str
+    preparation_id: str
+    source_type: str
+    source_id: str
+    description: str
+    source_date: str
+    quantity: str
+    unit: str
+    unit_rate: str
+    net_amount: str
+    currency_code: str
+    task_id: str = ""
+    resource_id: str = ""
+
+
+@dataclass(frozen=True, slots=True)
 class FinancialBillingWorkspaceDto:
     profile: FinancialBillingProfileDto = field(default_factory=FinancialBillingProfileDto)
     schedule_lines: tuple[FinancialBillingScheduleLineDto, ...] = field(default_factory=tuple)
@@ -58,6 +76,7 @@ class FinancialBillingWorkspaceDto:
 
 __all__ = [
     "FinancialBillingPreparationDto",
+    "FinancialBillingPreparationLineDto",
     "FinancialBillingProfileDto",
     "FinancialBillingScheduleLineDto",
     "FinancialBillingWorkspaceDto",

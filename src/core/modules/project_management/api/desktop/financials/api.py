@@ -45,6 +45,7 @@ from src.core.modules.project_management.api.desktop.financials.models.configura
 )
 from src.core.modules.project_management.api.desktop.financials.models.billing import (
     FinancialBillingPreparationDto,
+    FinancialBillingPreparationLineDto,
     FinancialBillingProfileDto,
     FinancialBillingScheduleLineDto,
     FinancialBillingWorkspaceDto,
@@ -56,6 +57,17 @@ from src.core.modules.project_management.api.desktop.financials.commands.cost_en
     FinancialReverseActualCommand,
     FinancialUpdateActualDraftCommand,
     FinancialVersionedActualCommand,
+)
+from src.core.modules.project_management.api.desktop.financials.commands.billing import (
+    FinancialActivateBillingProfileCommand,
+    FinancialAddApprovedTimeBillingSourceCommand,
+    FinancialAddBillingScheduleLineCommand,
+    FinancialAddCostPlusBillingSourceCommand,
+    FinancialAddFixedPriceBillingSourceCommand,
+    FinancialCreateBillingPreparationCommand,
+    FinancialCreateBillingProfileCommand,
+    FinancialMarkBillingScheduleLineReadyCommand,
+    FinancialVersionedBillingPreparationCommand,
 )
 from src.core.modules.project_management.api.desktop.financials.models.cost_entries import (
     FinancialCostCodeOptionDescriptor,
@@ -93,6 +105,12 @@ from src.core.modules.project_management.api.desktop.financials.serializers.snap
 )
 from src.core.modules.project_management.api.desktop.financials.serializers.configuration_serializer import (
     serialize_finance_configuration_workspace,
+)
+from src.core.modules.project_management.api.desktop.financials.serializers.billing_serializer import (
+    serialize_billing_preparation,
+    serialize_billing_preparation_line,
+    serialize_billing_profile,
+    serialize_billing_schedule_line,
 )
 
 
@@ -456,57 +474,135 @@ class ProjectManagementFinancialsDesktopApi:
             )
         else:
             preparations, preparation_total, latest_events = [], 0, {}
-        preparation_rows = []
-        for preparation in preparations:
-            latest = latest_events.get(preparation.id)
-            preparation_rows.append(
-                FinancialBillingPreparationDto(
-                    id=preparation.id,
-                    preparation_number=preparation.preparation_number,
-                    billing_method=preparation.billing_method.value,
-                    status=preparation.status.value,
-                    period_label=f"{preparation.period_start.isoformat()} - {preparation.period_end.isoformat()}",
-                    line_count=preparation.line_count,
-                    total_amount=format(preparation.total_amount, "f"),
-                    currency_code=preparation.currency_code,
-                    external_system=latest.external_system if latest else "",
-                    external_status=latest.external_status if latest else "",
-                    external_invoice_reference=(latest.external_invoice_reference or "") if latest else "",
-                    reconciliation_reference=(latest.reconciliation_reference or "") if latest else "",
-                    row_version=preparation.row_version,
-                )
+        preparation_rows = [
+            serialize_billing_preparation(
+                preparation, latest_external_event=latest_events.get(preparation.id)
             )
+            for preparation in preparations
+        ]
         return FinancialBillingWorkspaceDto(
-            profile=FinancialBillingProfileDto(
-                id=profile.id,
-                status=profile.status.value,
-                currency_code=profile.currency_code,
-                contract_reference=profile.contract_reference,
-                contract_value=format(profile.contract_value, "f"),
-                customer_party_id=profile.customer_party_id or "",
-                external_customer_reference=profile.external_customer_reference or "",
-                purchase_order_reference=profile.purchase_order_reference or "",
-                payment_terms_days=profile.payment_terms_days,
-            ) if profile else FinancialBillingProfileDto(),
+            profile=serialize_billing_profile(profile),
             schedule_lines=tuple(
-                FinancialBillingScheduleLineDto(
-                    id=line.id,
-                    name=line.name,
-                    status=line.status.value,
-                    amount=format(line.amount, "f"),
-                    currency_code=line.currency_code,
-                    due_date=line.due_date.isoformat(),
-                    task_id=line.task_id or "",
-                    acceptance_reference=line.acceptance_reference or "",
-                    row_version=line.row_version,
-                )
-                for line in schedule
+                serialize_billing_schedule_line(line) for line in schedule
             ),
             preparations=tuple(preparation_rows),
             preparation_page=page,
             preparation_page_size=bounded_size,
             preparation_total=preparation_total,
         )
+
+    def create_billing_profile(
+        self, command: FinancialCreateBillingProfileCommand
+    ) -> FinancialBillingProfileDto:
+        profile = self._require_billing_profile_service().create_profile(
+            command.project_id,
+            contract_reference=command.contract_reference,
+            contract_value=command.contract_value,
+            customer_party_id=command.customer_party_id,
+            external_customer_reference=command.external_customer_reference,
+            purchase_order_reference=command.purchase_order_reference,
+            cost_plus_markup_percent=command.cost_plus_markup_percent,
+            payment_terms_days=command.payment_terms_days,
+            retention_years=command.retention_years,
+        )
+        return serialize_billing_profile(profile)
+
+    def activate_billing_profile(
+        self, command: FinancialActivateBillingProfileCommand
+    ) -> FinancialBillingProfileDto:
+        profile = self._require_billing_profile_service().activate_profile(
+            command.project_id, expected_row_version=command.expected_version
+        )
+        return serialize_billing_profile(profile)
+
+    def add_billing_schedule_line(
+        self, command: FinancialAddBillingScheduleLineCommand
+    ) -> FinancialBillingScheduleLineDto:
+        line = self._require_billing_profile_service().add_schedule_line(
+            command.project_id,
+            name=command.name,
+            amount=command.amount,
+            due_date=command.due_date,
+            task_id=command.task_id,
+            acceptance_reference=command.acceptance_reference,
+        )
+        return serialize_billing_schedule_line(line)
+
+    def mark_billing_schedule_line_ready(
+        self, command: FinancialMarkBillingScheduleLineReadyCommand
+    ) -> FinancialBillingScheduleLineDto:
+        line = self._require_billing_profile_service().mark_schedule_line_ready(
+            command.line_id, expected_row_version=command.expected_version
+        )
+        return serialize_billing_schedule_line(line)
+
+    def create_billing_preparation(
+        self, command: FinancialCreateBillingPreparationCommand
+    ) -> FinancialBillingPreparationDto:
+        preparation = self._require_billing_preparation_service().create_preparation(
+            command.project_id,
+            preparation_number=command.preparation_number,
+            period_start=command.period_start,
+            period_end=command.period_end,
+            idempotency_key=command.idempotency_key,
+            correction_of_preparation_id=command.correction_of_preparation_id,
+        )
+        return serialize_billing_preparation(preparation)
+
+    def add_fixed_price_billing_source(
+        self, command: FinancialAddFixedPriceBillingSourceCommand
+    ) -> FinancialBillingPreparationLineDto:
+        line = self._require_billing_preparation_service().add_fixed_price_source(
+            command.preparation_id,
+            schedule_line_id=command.schedule_line_id,
+            expected_row_version=command.expected_version,
+        )
+        return serialize_billing_preparation_line(line)
+
+    def add_approved_time_billing_source(
+        self, command: FinancialAddApprovedTimeBillingSourceCommand
+    ) -> FinancialBillingPreparationLineDto:
+        line = self._require_billing_preparation_service().add_approved_time_source(
+            command.preparation_id,
+            time_entry_id=command.time_entry_id,
+            expected_row_version=command.expected_version,
+        )
+        return serialize_billing_preparation_line(line)
+
+    def add_cost_plus_billing_source(
+        self, command: FinancialAddCostPlusBillingSourceCommand
+    ) -> FinancialBillingPreparationLineDto:
+        line = self._require_billing_preparation_service().add_cost_plus_source(
+            command.preparation_id,
+            cost_entry_id=command.cost_entry_id,
+            expected_row_version=command.expected_version,
+        )
+        return serialize_billing_preparation_line(line)
+
+    def submit_billing_preparation(
+        self, command: FinancialVersionedBillingPreparationCommand
+    ) -> FinancialBillingPreparationDto:
+        preparation = self._require_billing_preparation_service().submit_preparation(
+            command.preparation_id, expected_row_version=command.expected_version
+        )
+        return serialize_billing_preparation(preparation)
+
+    def request_billing_delivery(
+        self, command: FinancialVersionedBillingPreparationCommand
+    ) -> FinancialBillingPreparationDto:
+        # request_delivery() returns the outbound project_billing_preparation.v1
+        # payload for a future Accounting publisher/worker to transmit -- that
+        # payload is not surfaced here. Only PM's own preparation-state DTO is
+        # returned, matching every other command on this facade; PM requests
+        # delivery of its own evidence, it does not itself deliver or record
+        # what Accounting did with it (see record_external_outcome, which is
+        # deliberately not exposed on this desktop surface).
+        service = self._require_billing_preparation_service()
+        service.request_delivery(
+            command.preparation_id, expected_row_version=command.expected_version
+        )
+        preparation = service.get_preparation(command.preparation_id)
+        return serialize_billing_preparation(preparation)
 
     def _project_currency(self, project_id: str) -> str | None:
         if not project_id or self._financial_configuration_service is None:
@@ -518,6 +614,16 @@ class ProjectManagementFinancialsDesktopApi:
         if self._cost_entry_service is None:
             raise RuntimeError("Project cost-entry service is not connected.")
         return self._cost_entry_service
+
+    def _require_billing_profile_service(self) -> ProjectBillingProfileService:
+        if self._billing_profile_service is None:
+            raise RuntimeError("Project billing profile service is not connected.")
+        return self._billing_profile_service
+
+    def _require_billing_preparation_service(self) -> ProjectBillingPreparationService:
+        if self._billing_preparation_service is None:
+            raise RuntimeError("Project billing preparation service is not connected.")
+        return self._billing_preparation_service
 
     def _require_financial_configuration_service(
         self,
