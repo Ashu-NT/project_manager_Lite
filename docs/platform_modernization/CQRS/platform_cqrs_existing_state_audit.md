@@ -231,6 +231,14 @@ skip/xfail markers found), plus the 9 files under `src/tests/architecture/` that
 `test_pm_phase0c_repository_scope_architecture.py`, `test_project_finance_a2_architecture.py`,
 `test_project_finance_persistence_guardrails.py`, `test_service_architecture.py`).
 
+**Architecture decision records cross-checked against this audit's findings**
+(`docs/architecture_decisions/`): ADR-001 (Cross-Platform Ownership), ADR-002 (Location/System
+Ownership — not relevant to Platform's own findings), ADR-003 (Tenancy and Authorization
+Authority), ADR-004 (Calendar Assignment Split Ownership), ADR-005 (Domain Events — status
+**proposed**, not yet accepted), ADR-PF-008 (Approval Unit of Work). Corrections and corroborations
+this cross-check produced are folded into §10, §11, §18, and the affected write/read-path findings
+directly, with each one flagged inline as it occurs.
+
 **Explicitly not in scope for this pass**: full semantic review of every service body in
 `application/**` (§9's repository/persistence audit and §6/§7's traces cover the write/read paths
 that were actually followed; a large residual of Platform service logic was not opened line-by-line).
@@ -480,7 +488,14 @@ cross-module orchestrator *and* Platform's own desktop-API assembly site.
   at its source.
 - **`GlobalCalendarShim`/`EnterpriseCalendarResolver`** — each constructed exactly once
   (`platform_registry.py:607`, `:619`), deliberately shared into 5 PM application services plus 3
-  more PM helper classes. `EnterpriseCalendarResolver.invalidate_cache()` exists but **has zero
+  more PM helper classes. **This cross-module sharing, and the `ProjectCalendarAssignment`/
+  `ResourceCalendarAssignment` tables living in PM rather than Platform despite being two more
+  rungs on the same calendar-assignment ladder as Site/Department/Employee, is deliberate, documented
+  architecture — ADR-004 (Calendar Assignment Split Ownership, accepted) — not an anomaly this audit
+  is the first to notice.** ADR-004 explains the split follows FK ownership (PM owns `project_id`/
+  `resource_id`) while keeping one unified service/resolver API via `Any`-typed constructor
+  parameters and function-local imports, enforced by
+  `test_platform_calendar_does_not_import_project_management_at_module_scope`. `EnterpriseCalendarResolver.invalidate_cache()` exists but **has zero
   callers anywhere** (grep-confirmed) — its `_rules_cache`/`_recurring_cache`, shared as a singleton
   across all those consumers, can silently serve stale rules after any calendar write in the same
   process. This matters directly for §6's finding that `working_rule_service.py` writes carry no
@@ -685,7 +700,16 @@ inconsistent error-handling convention versus every other method in the module.
 Ten write paths traced end-to-end (file:line for every hop); full detail preserved from the source
 research pass.
 
-**W1 — Create Organization.** `PlatformRuntimeDesktopApi.provision_organization` →
+**W1 — Create Organization — confirmed to violate an already-accepted ADR, not merely inefficient.**
+ADR-003 (Tenancy and Authorization Authority, accepted) requires under "Audit Retention" that,
+for a named list of security-relevant operations including **platform provisioning**, "the
+business mutation and successful security audit intent commit atomically." `provision_organization`
+is exactly that operation, and the trace below finds its business-mutation commits (#1, #3) and its
+audit-intent commits (#2, #4) are **four separate, non-atomic transactions**, not one. This is a
+confirmed gap against a decision the team has already accepted, not merely a style inconsistency
+this audit is proposing.
+
+`PlatformRuntimeDesktopApi.provision_organization` →
 `PlatformRuntimeApplicationService.provision_organization` → `OrganizationService.create_organization`
 (always called with `is_active=False`, regardless of the caller's request) → domain factory →
 uniqueness check → `add` → **commit #1** → `record_audit_entry` with default `commit=True` →
@@ -866,7 +890,11 @@ write side is actively used (wired into `approval_service`/`tenant_membership_se
 exhaustive grep across all of `api/desktop/**` and all of `src/ui_qml/**` for
 `list_my_notifications|mark_read|NotificationService|NotificationRepository` returns zero real
 matches. **Notifications today are write-only from the UI's perspective** — dispatched and stored,
-never surfaced as a viewable inbox; exercised only at the service-test layer.
+never surfaced as a viewable inbox; exercised only at the service-test layer. **This matches
+ADR-001 (Cross-Platform Ownership, accepted)'s own status tracking**, which lists "platform
+notifications and inbox awareness" as `[~]` partially implemented — "not yet a full standalone
+platform-owned generic inbox workflow" — a known, already-tracked gap rather than a surprise this
+audit is the first to surface.
 
 **R7 — "Totals"/rollup-shaped reads (SQL-side aggregation audit).** Grepped `func.sum`,
 `func.count`, `group_by` across all 21 Platform repository files: **`func.sum` — zero occurrences
@@ -1038,7 +1066,26 @@ directly (`approval_service.py:211-253`/`:171-209`): handler runs first (folded 
 fail_closed=True)` → **one single commit** covers the handler's mutation, the status change, and the
 audit row together. Post-commit signal/notification only after that commit succeeds. Identical in
 shape to what the PM audit found for the same file (line numbers drifted slightly due to unrelated
-changes; the sequence is unchanged).
+changes; the sequence is unchanged). **This is not incidental — it is the deliberate, already-
+accepted outcome of ADR-PF-008 (Approval Unit of Work, accepted 2026-08-02)**, which decided
+exactly this shape ("the outer approve-and-apply application use case owns one database
+transaction... financial mutation, approval decision, Enterprise Audit intent/row... commit
+atomically") specifically to close a real prior gap where a financial mutation could commit while
+its approval remained pending. This audit's finding corroborates that the decision is correctly
+implemented today, not merely a coincidentally-good pattern.
+
+**Cross-reference: ADR-005 (Domain Events) is a proposed, not-yet-accepted, module-agnostic
+redesign that directly targets this section's core gap.** ADR-005 (status: proposed, extensively
+reviewed) would replace today's dead `session_scope()` with a real `UnitOfWork` abstraction and
+split domain-event dispatch into a transactional phase (runs before commit, rolls back the whole
+transaction on failure) and a post-commit phase (best-effort, UI-refresh only) — precisely the
+distinction this audit's three-tier audit-atomicity finding below shows Platform's own code needs
+but does not yet have uniformly. ADR-005 is written generically for any module's Unit of Work, not
+Platform-specific, and its own text independently confirms this audit's finding that
+`src/infra/persistence/db/unit_of_work.py`'s `session_scope()` has zero callers repo-wide. If ADR-005
+is accepted, a future Platform Unit of Work should follow its shape rather than this audit
+inventing a second design; until then, Platform's audit-atomicity inconsistency described below
+remains real and unaddressed.
 
 **Can nested Platform services commit independently (double-commit risk)?** No instance of PM's
 `TaskAssignmentBridgeMixin`-style double-commit was found; `EmployeeService.create_employee`'s
@@ -1123,9 +1170,13 @@ mechanisms** — no table appears under either that isn't listed above:
 - **`notifications`** — has `tenant_id`, no RLS.
 - **RBAC/identity root tables** (`roles`, `role_bindings`, `role_delegation_policies`, `permissions`,
   `role_permissions`, `auth_sessions`, `auth_policy_reconciliations`, `users`) — none RLS'd;
-  `roles`/`role_bindings`' nullable `tenant_id` is enforced by a CHECK constraint, plausibly
-  intentional given authentication must resolve *before* a tenant context exists, but no ADR or
-  comment confirming that rationale was found.
+  `roles`/`role_bindings`' nullable `tenant_id` is enforced by a CHECK constraint. **Corrected from
+  this audit's own first-pass finding**: this is not merely "plausibly intentional" — ADR-003
+  (Tenancy and Authorization Authority, accepted) explicitly defines this as the canonical scope
+  model: `platform` scope is `tenant_id`/`actual_scope_id` both null by design, `tenant` scope
+  requires `tenant_id`, and "a platform-managed role definition is a reusable template, not a global
+  grant." The nullable hybrid on `roles`/`role_bindings` is the accepted, documented architecture,
+  not an unreviewed gap.
 - **`organizations`, `tenants`, `user_tenants`** — root bootstrap tables, exempt for the same
   chicken-and-egg reason.
 - **Calendar child tables** (`calendar_working_rules`, `calendar_exceptions`,
@@ -1283,9 +1334,12 @@ Synthesized ranking across all five research passes, ordered by evidence strengt
 2. **Platform's own calendar-editing write path reproduces the exact defect PM already fixed on its
    own side, and is worse** (§6 W9) — 7 sequential, individually-committed weekday saves, with no
    repository-level batch primitive to fix it from the caller side.
-3. **Three-tier audit-atomicity inconsistency** (§10, §12) — a real, live risk that any CQRS/UoW
-   consolidation could accidentally regress the strict tier or leave the lenient tier permanently
-   silent-droppable.
+3. **Three-tier audit-atomicity inconsistency, and — for organization provisioning specifically —
+   a confirmed violation of an already-accepted decision** (§10, §12; §6 W1). ADR-003 requires
+   atomic business-mutation + audit commits for platform provisioning; `provision_organization`'s
+   four separate, non-atomic commits (business write, audit, entitlement write, audit again) do not
+   meet that bar today. This is no longer just a risk a future CQRS pass could regress — it is a
+   present-day gap against a decision the team has already made.
 4. **Tenant-scoping non-uniformity** (§9a, §11) — several whole subsystems architecturally global,
    `organizations.list_all()` genuinely cross-tenant, `audit_entries` missing RLS unlike its sibling
    `activity_entries`.
@@ -1374,6 +1428,11 @@ defect (§6 W9) in the same pass — that is a separate, write-side fix with its
 
 ## 18. Open questions and decisions
 
+0. **`provision_organization`'s non-atomic audit commits appear to violate ADR-003's accepted
+   audit-retention requirement for platform provisioning (§6 W1, §14 #3) — should this be treated as
+   a bug-fix (already governed by an accepted ADR) rather than a CQRS-adjacent design question?**
+   Recommend routing this to whoever owns ADR-003 compliance directly, independent of any CQRS
+   pilot decision, since the standard to meet is already decided.
 1. **Should Platform's own calendar-editing writes (`seed_standard_week`) be fixed to use one batched
    commit before or independently of any CQRS work?** This audit found it as a write-side defect,
    not a read-side one — recommend treating it as a separate, small write-path fix rather than
