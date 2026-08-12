@@ -110,7 +110,7 @@ class BaselineComparisonRow:
     start_shift_days: int | None
     finish_shift_days: int | None
     duration_delta_days: int | None
-    planned_cost_delta: Decimal
+    planned_cost_delta: Decimal | None
     change_type: str
 
 @dataclass
@@ -128,3 +128,4 @@ class BaselineComparisonResult:
     removed_tasks: int
     unchanged_tasks: int
     rows: list[BaselineComparisonRow]
+    financial_detail_included: bool = True

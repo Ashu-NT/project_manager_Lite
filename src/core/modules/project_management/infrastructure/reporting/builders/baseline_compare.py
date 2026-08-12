@@ -50,11 +50,19 @@ class ReportingBaselineCompareMixin:
                 code="BASELINE_COMPARE_PROJECT_MISMATCH",
             )
 
+        # Baseline comparison mixes non-financial schedule facts (dates,
+        # duration, change type) with Project Finance authority data
+        # (planned cost). report.view is sufficient for the former; the
+        # latter is redacted to None without a finance.read grant, matching
+        # the mixed-content pattern used by get_project_kpis.
+        financial_detail_included = self._has_finance_view(project_id)
+
         all_rows = self._build_baseline_comparison_rows(
             project_id=project_id,
             baseline_a_id=baseline_a_id,
             baseline_b_id=baseline_b_id,
             include_unchanged=True,
+            financial_detail_included=financial_detail_included,
         )
         rows = (
             all_rows
@@ -76,6 +84,7 @@ class ReportingBaselineCompareMixin:
             removed_tasks=sum(1 for row in all_rows if row.change_type == "REMOVED"),
             unchanged_tasks=sum(1 for row in all_rows if row.change_type == "UNCHANGED"),
             rows=rows,
+            financial_detail_included=financial_detail_included,
         )
 
     def _build_baseline_comparison_rows(
@@ -84,6 +93,7 @@ class ReportingBaselineCompareMixin:
         baseline_a_id: str,
         baseline_b_id: str,
         include_unchanged: bool,
+        financial_detail_included: bool,
     ) -> list[BaselineComparisonRow]:
         baseline_a_tasks = {row.task_id: row for row in self._baseline_repo.list_tasks(baseline_a_id)}
         baseline_b_tasks = {row.task_id: row for row in self._baseline_repo.list_tasks(baseline_b_id)}
@@ -124,15 +134,21 @@ class ReportingBaselineCompareMixin:
                     baseline_a_start=a_start,
                     baseline_a_finish=a_finish,
                     baseline_a_duration_days=a_duration,
-                    baseline_a_planned_cost=(row_a.baseline_planned_cost if row_a else None),
+                    baseline_a_planned_cost=(
+                        (row_a.baseline_planned_cost if row_a else None)
+                        if financial_detail_included else None
+                    ),
                     baseline_b_start=b_start,
                     baseline_b_finish=b_finish,
                     baseline_b_duration_days=b_duration,
-                    baseline_b_planned_cost=(row_b.baseline_planned_cost if row_b else None),
+                    baseline_b_planned_cost=(
+                        (row_b.baseline_planned_cost if row_b else None)
+                        if financial_detail_included else None
+                    ),
                     start_shift_days=start_shift,
                     finish_shift_days=finish_shift,
                     duration_delta_days=duration_delta,
-                    planned_cost_delta=b_cost - a_cost,
+                    planned_cost_delta=(b_cost - a_cost) if financial_detail_included else None,
                     change_type=change_type,
                 )
             )
