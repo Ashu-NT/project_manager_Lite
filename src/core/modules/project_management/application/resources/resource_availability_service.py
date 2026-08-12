@@ -5,8 +5,8 @@ from src.core.platform.contract.time_management.calendar.calendar_protocol impor
 from dataclasses import dataclass, field
 from datetime import date
 
-from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from src.core.modules.project_management.contracts.repositories.task import (
+from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     TaskRepository,
 )

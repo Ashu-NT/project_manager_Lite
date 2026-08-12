@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from src.core.modules.project_management.contracts.repositories.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
 from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.domain.tasks.hierarchy import (
     TaskHierarchyNode,

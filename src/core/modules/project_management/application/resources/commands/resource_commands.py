@@ -15,9 +15,9 @@ from src.core.modules.project_management.domain.financials.rate_cards import (
     RateType,
 )
 from src.core.modules.project_management.domain.resources.resource import Resource
-from src.core.modules.project_management.contracts.repositories.project import ProjectResourceRepository
-from src.core.modules.project_management.contracts.repositories.task import AssignmentRepository
-from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import ProjectResourceRepository
+from src.core.modules.project_management.contracts.repositories.tasks.task import AssignmentRepository
+from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
 from src.core.platform.contract.time_management.time.contracts import TimeEntryRepository
 from src.core.platform.contract.master_data.employee.contracts import EmployeeRepository
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError

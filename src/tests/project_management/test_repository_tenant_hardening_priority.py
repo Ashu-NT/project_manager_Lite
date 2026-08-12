@@ -40,10 +40,10 @@ from src.core.modules.project_management.domain.scheduling.baseline import (
     ProjectBaseline,
 )
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment, TaskDependency
-from src.core.modules.project_management.infrastructure.persistence.repositories.collaboration import (
+from src.core.modules.project_management.infrastructure.persistence.repositories.collaboration.collaboration import (
     SqlAlchemyTaskPresenceRepository,
 )
-from src.core.modules.project_management.infrastructure.persistence.repositories.task import (
+from src.core.modules.project_management.infrastructure.persistence.repositories.tasks.task import (
     SqlAlchemyDependencyRepository,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError

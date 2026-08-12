@@ -32,15 +32,15 @@ from src.core.modules.project_management.application.collaboration.queries.colla
 from src.core.modules.project_management.application.collaboration.queries.collaboration_presence import (
     CollaborationPresenceQueryMixin,
 )
-from src.core.modules.project_management.contracts.repositories.collaboration import (
+from src.core.modules.project_management.contracts.repositories.collaboration.collaboration import (
     TaskCommentRepository,
     TaskPresenceRepository,
 )
 from src.core.modules.project_management.contracts.reads.collaboration import (
     CollaborationWorkspaceReader,
 )
-from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
 from src.core.platform.contract.history.audit.contracts import AuditRepository
 from src.core.platform.contract.security.auth import UserRepository
 from src.core.platform.application.master_data.documents import DocumentIntegrationService

@@ -4,20 +4,20 @@ from src.core.platform.contract.time_management.calendar.calendar_protocol impor
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.repositories.project import (
+from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectRepository,
     ProjectResourceRepository,
 )
-from src.core.modules.project_management.contracts.repositories.task import (
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     TaskRepository,
 )
-from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
-from src.core.modules.project_management.contracts.repositories.billing import (
+from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.scheduling.baseline import BaselineRepository
+from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import (
     ProjectBillingRepository,
 )
-from src.core.modules.project_management.contracts.repositories.rate_resolution import (
+from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
     LaborRateResolver,
 )
 from src.core.modules.project_management.contracts.reads.financials.evm_series_reader import (

@@ -16,7 +16,7 @@ from src.core.modules.project_management.contracts.reads.financials.models.finan
     FinanceLedgerFact,
     FinanceSnapshotFacts,
 )
-from src.core.modules.project_management.contracts.repositories.rate_resolution import (
+from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
     UnresolvedLaborRate,
 )
 from src.core.modules.project_management.domain.enums import CostType

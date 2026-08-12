@@ -1,0 +1,1 @@
+"""Procurement commitment projection persistence."""

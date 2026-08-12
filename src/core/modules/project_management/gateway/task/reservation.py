@@ -2,7 +2,7 @@
 Procurement provides.
 
 This mirrors the existing `ProcurementFinancialSourceProvider` pattern
-(`contracts/financial_sources.py`): PM defines the shape it needs; the
+(`gateway/procurement/financial_source.py`): PM defines the shape it needs; the
 Inventory/Procurement module's `ReservationService` already satisfies it
 structurally (same method names, same keyword arguments) and requires no
 change and no import of this module to do so -- Python's `Protocol` typing

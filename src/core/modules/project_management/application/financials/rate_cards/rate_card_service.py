@@ -11,10 +11,10 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.contracts.repositories.rate_cards import (
+from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_cards import (
     ProjectRateCardRepository,
 )
-from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
 from src.core.modules.project_management.domain.financials.rate_cards import (
     ProjectRateCard,
     RateCardLine,

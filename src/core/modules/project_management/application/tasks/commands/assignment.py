@@ -9,9 +9,9 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.application.tasks.commands.assignment_activity import (
     record_assignment_action,
 )
-from src.core.modules.project_management.contracts.repositories.project import ProjectResourceRepository
-from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from src.core.modules.project_management.contracts.repositories.task import (
+from src.core.modules.project_management.contracts.repositories.projects.project import ProjectResourceRepository
+from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     TaskRepository,
 )

@@ -4,8 +4,8 @@ from datetime import date
 
 from src.core.modules.project_management.domain.risk.register import RegisterEntry, RegisterEntrySeverity, RegisterEntryStatus, RegisterEntryType
 from src.core.platform.common.exceptions import NotFoundError
-from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.register import RegisterEntryRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.register.register import RegisterEntryRepository
 from src.core.modules.project_management.application.common.pagination import PageRequest
 from src.core.modules.project_management.contracts.reads.register import (
     RegisterCatalogReadPage,

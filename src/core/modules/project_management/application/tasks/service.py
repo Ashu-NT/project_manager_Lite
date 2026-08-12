@@ -55,12 +55,12 @@ from src.core.modules.project_management.application.tasks.queries.task_query im
 from src.core.modules.project_management.application.tasks.queries.hierarchy_query import (
     TaskHierarchyQueryMixin,
 )
-from src.core.modules.project_management.contracts.repositories.project import (
+from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectRepository,
     ProjectResourceRepository,
 )
-from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from src.core.modules.project_management.contracts.repositories.task import (
+from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     DependencyRepository,
     TaskRepository,

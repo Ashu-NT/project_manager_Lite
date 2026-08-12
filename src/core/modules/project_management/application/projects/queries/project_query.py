@@ -4,7 +4,7 @@ from src.core.modules.project_management.access.scope_permissions import (
     filter_project_rows,
     require_project_permission,
 )
-from src.core.modules.project_management.contracts.repositories.project import (
+from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectRepository,
 )
 from src.core.modules.project_management.application.common.pagination import PageRequest

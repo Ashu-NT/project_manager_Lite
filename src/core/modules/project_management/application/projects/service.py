@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
 from src.core.modules.project_management.contracts.reads.projects import ProjectCatalogReader
-from src.core.modules.project_management.contracts.repositories.financial_configuration import (
+from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectFinancialProfileRepository,
 )
-from src.core.modules.project_management.contracts.repositories.task import (
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     DependencyRepository,
     TaskRepository,

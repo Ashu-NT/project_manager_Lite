@@ -16,17 +16,17 @@ from datetime import date
 from typing import TYPE_CHECKING
 
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.modules.project_management.contracts.repositories.project import (
+from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectRepository,
     ProjectResourceRepository,
 )
-from src.core.modules.project_management.contracts.repositories.task import (
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     TaskRepository,
 )
-from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from src.core.modules.project_management.contracts.repositories.financial_configuration import ProjectFinancialProfileRepository
-from src.core.modules.project_management.contracts.repositories.rate_resolution import (
+from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import ProjectFinancialProfileRepository
+from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
     LaborRateResolver,
     RateResolutionBatch,
     UnresolvedLaborRate,

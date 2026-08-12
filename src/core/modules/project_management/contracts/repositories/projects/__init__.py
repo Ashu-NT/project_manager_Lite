@@ -1,0 +1,1 @@
+"""Project aggregate repository contract."""

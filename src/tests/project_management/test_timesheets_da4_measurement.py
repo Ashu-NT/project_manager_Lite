@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy import event
 
-from src.core.modules.project_management.contracts.repositories.task import (
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
     TimesheetAssignmentContext,
 )
 

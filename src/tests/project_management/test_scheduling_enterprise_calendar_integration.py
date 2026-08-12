@@ -24,7 +24,7 @@ from src.core.platform.infrastructure.persistence.repositories.time_management.c
     SqlAlchemyPlatformCalendarRepository,
 )
 from src.infra.persistence.orm import Base
-from src.core.modules.project_management.infrastructure.persistence.repositories.calendar_assignment import (
+from src.core.modules.project_management.infrastructure.persistence.repositories.scheduling.calendar_assignment import (
     SqlAlchemyProjectCalendarAssignmentRepository,
     SqlAlchemyResourceCalendarAssignmentRepository,
 )

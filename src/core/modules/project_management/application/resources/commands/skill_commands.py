@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.modules.project_management.contracts.repositories.skills import (
+from src.core.modules.project_management.contracts.repositories.resources.skills import (
     ResourceCertificationRepository,
     ResourceSkillRepository,
 )

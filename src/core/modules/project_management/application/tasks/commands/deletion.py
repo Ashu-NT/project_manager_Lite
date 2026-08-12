@@ -6,7 +6,7 @@ from dataclasses import replace
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.repositories.task import (
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     DependencyRepository,
     TaskRepository,

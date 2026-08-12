@@ -7,7 +7,7 @@ from dataclasses import dataclass, replace
 from datetime import date
 
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
-from src.core.modules.project_management.contracts.repositories.task import (
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
     DependencyRepository,
     TaskRepository,
 )

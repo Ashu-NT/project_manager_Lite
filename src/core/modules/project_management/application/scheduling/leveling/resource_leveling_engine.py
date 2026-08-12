@@ -4,12 +4,12 @@ from src.core.platform.contract.time_management.calendar.calendar_protocol impor
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.repositories.task import (
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     DependencyRepository,
     TaskRepository,
 )
-from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
 from src.core.modules.project_management.application.scheduling.models.leveling import (
     ResourceConflict,
     ResourceLevelingAction,

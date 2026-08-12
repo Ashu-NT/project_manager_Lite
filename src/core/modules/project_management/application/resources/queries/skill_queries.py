@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 
-from src.core.modules.project_management.contracts.repositories.skills import (
+from src.core.modules.project_management.contracts.repositories.resources.skills import (
     ResourceCertificationRepository,
     ResourceSkillRepository,
 )

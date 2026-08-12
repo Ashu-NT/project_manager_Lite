@@ -47,7 +47,7 @@ from src.core.modules.project_management.application.financials import (
     ProjectRateCardService,
     RateCardResolver,
 )
-from src.core.modules.project_management.infrastructure.persistence.repositories.rate_resolution_reader import (
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_resolution_reader import (
     SqlAlchemyRateResolutionReader,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.financials import (

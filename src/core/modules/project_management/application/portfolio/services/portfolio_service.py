@@ -13,20 +13,20 @@ from src.core.modules.project_management.application.portfolio.queries.portfolio
 from src.core.modules.project_management.application.portfolio.queries.portfolio_intake import PortfolioIntakeQueryMixin
 from src.core.modules.project_management.application.portfolio.queries.portfolio_scenarios import PortfolioScenarioQueryMixin
 from src.core.modules.project_management.application.portfolio.queries.portfolio_templates import PortfolioTemplateQueryMixin
-from src.core.modules.project_management.contracts.repositories.portfolio import (
+from src.core.modules.project_management.contracts.repositories.portfolio.portfolio import (
     PortfolioIntakeRepository,
     PortfolioProjectDependencyRepository,
     PortfolioScoringTemplateRepository,
     PortfolioScenarioRepository,
 )
-from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
 from src.core.modules.project_management.contracts.reads.portfolio.scenario_reader import (
     PortfolioScenarioReader,
 )
 from src.core.modules.project_management.contracts.reads.portfolio.heatmap_reader import (
     PortfolioHeatmapReader,
 )
-from src.core.modules.project_management.contracts.repositories.rate_resolution import (
+from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
     LaborRateResolver,
 )
 from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (

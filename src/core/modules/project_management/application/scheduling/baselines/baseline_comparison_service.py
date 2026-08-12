@@ -7,7 +7,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Optional
 
-from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
+from src.core.modules.project_management.contracts.repositories.scheduling.baseline import BaselineRepository
 from src.core.modules.project_management.domain.scheduling.baseline import BaselineTask, ProjectBaseline
 from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
 from src.core.platform.common.exceptions import NotFoundError

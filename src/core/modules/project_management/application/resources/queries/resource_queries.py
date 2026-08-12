@@ -3,7 +3,7 @@ from __future__ import annotations
 from src.core.modules.project_management.access.scope_permissions import (
     require_any_project_permission,
 )
-from src.core.modules.project_management.contracts.repositories.resource import (
+from src.core.modules.project_management.contracts.repositories.resources.resource import (
     ResourceRepository,
 )
 from src.core.modules.project_management.application.common.pagination import PageRequest

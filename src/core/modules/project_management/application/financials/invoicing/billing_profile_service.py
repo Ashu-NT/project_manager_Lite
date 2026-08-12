@@ -9,9 +9,9 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
 from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
-from src.core.modules.project_management.contracts.repositories.billing import ProjectBillingRepository
-from src.core.modules.project_management.contracts.repositories.financial_configuration import ProjectFinancialProfileRepository
-from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import ProjectBillingRepository
+from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import ProjectFinancialProfileRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
 from src.core.modules.project_management.domain.financials.billing_profile import (
     BillingProfileStatus,
     ProjectBillingProfile,

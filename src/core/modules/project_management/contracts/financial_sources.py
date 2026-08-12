@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from datetime import date, datetime, timezone
 from decimal import Decimal
 from enum import Enum
-from typing import Generic, Literal, Protocol, TypeVar
+from typing import Generic, Literal, TypeVar
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, field_validator, model_validator
 
@@ -336,43 +336,8 @@ class FinancialSourcePage(_FinancialSourceContract, Generic[FinancialSourceT]):
         return normalized or None
 
 
-class ApprovedTimeFinancialSourceProvider(Protocol):
-    def list_approved_time_sources(
-        self,
-        *,
-        tenant_id: str,
-        organization_id: str,
-        project_id: str,
-        cursor: str | None = None,
-        limit: int = 100,
-    ) -> FinancialSourcePage[ApprovedTimeFinancialSource]: ...
-
-
-class ProcurementFinancialSourceProvider(Protocol):
-    def list_commitment_sources(
-        self,
-        *,
-        tenant_id: str,
-        organization_id: str,
-        project_id: str,
-        cursor: str | None = None,
-        limit: int = 100,
-    ) -> FinancialSourcePage[ProcurementCommitmentFinancialSource]: ...
-
-    def list_receipt_accrual_sources(
-        self,
-        *,
-        tenant_id: str,
-        organization_id: str,
-        project_id: str,
-        cursor: str | None = None,
-        limit: int = 100,
-    ) -> FinancialSourcePage[ProcurementReceiptAccrualFinancialSource]: ...
-
-
 __all__ = [
     "ApprovedTimeFinancialSource",
-    "ApprovedTimeFinancialSourceProvider",
     "FinancialPostingPurpose",
     "FinancialSourceModule",
     "FinancialSourcePage",
@@ -380,7 +345,6 @@ __all__ = [
     "FinancialSourceType",
     "ProcurementCommitmentFinancialSource",
     "ProcurementCommitmentState",
-    "ProcurementFinancialSourceProvider",
     "ProcurementReceiptAccrualFinancialSource",
     "financial_source_content_hash",
 ]

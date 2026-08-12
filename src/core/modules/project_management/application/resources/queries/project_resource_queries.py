@@ -4,7 +4,7 @@ from src.core.modules.project_management.access.scope_permissions import (
     require_any_project_permission,
     require_project_permission,
 )
-from src.core.modules.project_management.contracts.repositories.project import (
+from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectResourceRepository,
 )
 from src.core.modules.project_management.domain.projects.project import ProjectResource

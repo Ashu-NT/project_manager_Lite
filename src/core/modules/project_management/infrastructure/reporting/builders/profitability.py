@@ -21,13 +21,13 @@ from src.core.modules.project_management.application.financials.revenue.profitab
     ProfitabilityInputs,
     ProjectProfitabilityCalculator,
 )
-from src.core.modules.project_management.contracts.repositories.billing import (
+from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import (
     ProjectBillingRepository,
 )
-from src.core.modules.project_management.contracts.repositories.financial_configuration import (
+from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectFinancialProfileRepository,
 )
-from src.core.modules.project_management.contracts.repositories.project import (
+from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectRepository,
 )
 from src.core.modules.project_management.domain.financials.billing_preparation import (

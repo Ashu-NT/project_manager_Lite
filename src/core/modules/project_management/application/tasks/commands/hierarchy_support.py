@@ -7,7 +7,7 @@ from dataclasses import replace
 
 from sqlalchemy.exc import IntegrityError
 
-from src.core.modules.project_management.contracts.repositories.task import (
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     DependencyRepository,
     TaskRepository,

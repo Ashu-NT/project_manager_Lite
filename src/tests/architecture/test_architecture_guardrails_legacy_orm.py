@@ -130,7 +130,7 @@ def test_composition_imports_focused_persistence_adapters():
     assert not (ROOT / "src" / "infra" / "persistence" / "db" / "platform").exists()
     assert "from infra.platform.db.repositories import" not in text
     assert "from infra.platform.db.mappers import" not in text
-    assert "from src.core.modules.project_management.infrastructure.persistence.repositories.task import" in text
+    assert "from src.core.modules.project_management.infrastructure.persistence.repositories.tasks.task import" in text
     assert "from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import" in text
     assert "from src.core.platform.infrastructure.persistence.repositories.master_data.department.departments import" in text
     assert "from src.core.platform.infrastructure.persistence.repositories.master_data.employee.employee import" in text
@@ -152,13 +152,13 @@ def test_project_management_persistence_imports_project_management_orm_models():
     assert not (ROOT / "src" / "infra" / "persistence" / "orm" / "project_management").exists()
     assert not (ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "orm" / "models.py").exists()
     checked_files = [
-        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "project.py",
-        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "task.py",
-        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "resource.py",
-        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "baseline.py",
+        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "projects" / "project.py",
+        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "tasks" / "task.py",
+        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "resources" / "resource.py",
+        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "scheduling" / "baseline.py",
         ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "cost.py",
-        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "portfolio.py",
-        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "collaboration.py",
+        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "portfolio" / "portfolio.py",
+        ROOT / "src" / "core" / "modules" / "project_management" / "infrastructure" / "persistence" / "repositories" / "collaboration" / "collaboration.py",
     ]
 
     for path in checked_files:

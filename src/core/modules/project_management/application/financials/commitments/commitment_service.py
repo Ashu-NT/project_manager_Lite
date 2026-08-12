@@ -18,18 +18,18 @@ from src.core.modules.project_management.contracts.financial_sources import (
     FinancialSourceType,
     ProcurementCommitmentFinancialSource,
 )
-from src.core.modules.project_management.contracts.repositories.commitment import (
+from src.core.modules.project_management.contracts.repositories.finance.commitments.commitment import (
     ProjectCommitmentRepository,
 )
-from src.core.modules.project_management.contracts.repositories.cost_entry import (
+from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
     ProjectCostEntryRepository,
 )
-from src.core.modules.project_management.contracts.repositories.financial_configuration import (
+from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectCostCodeRepository,
     ProjectFinancialProfileRepository,
 )
-from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
 from src.core.modules.project_management.domain.financials.commitment import (
     ProjectCommitment,
     ProjectCommitmentLine,

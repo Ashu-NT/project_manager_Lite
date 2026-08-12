@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.register import RegisterEntryRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.register.register import RegisterEntryRepository
 from src.core.modules.project_management.contracts.reads.register import RegisterCatalogReader
 from src.core.platform.application.history.activity.activity_service import ActivityService
 from src.core.platform.domain.security.auth.session import UserSessionContext

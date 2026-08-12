@@ -18,21 +18,21 @@ from src.core.modules.project_management.application.financials.workspace_models
     FinanceRateLineRead,
     ProjectFinanceWorkspaceRead,
 )
-from src.core.modules.project_management.contracts.repositories.budget import (
+from src.core.modules.project_management.contracts.repositories.finance.budgets.budget import (
     ProjectBudgetRepository,
 )
-from src.core.modules.project_management.contracts.repositories.financial_configuration import (
+from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectCostCodeRepository,
     ProjectFinancialProfileRepository,
 )
-from src.core.modules.project_management.contracts.repositories.planned_cost import (
+from src.core.modules.project_management.contracts.repositories.finance.planned_costs.planned_cost import (
     ProjectPlannedCostVersionRepository,
 )
-from src.core.modules.project_management.contracts.repositories.rate_cards import (
+from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_cards import (
     ProjectRateCardRepository,
 )
-from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from src.core.modules.project_management.contracts.repositories.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )

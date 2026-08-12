@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal
 
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.modules.project_management.contracts.repositories.rate_resolution import (
+from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
     LaborRateResolver,
 )
 from src.core.modules.project_management.contracts.reads.financials.finance_snapshot_reader import (

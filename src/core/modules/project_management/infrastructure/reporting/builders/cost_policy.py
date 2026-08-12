@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import date
 
 from src.core.modules.project_management.domain.enums import CostType
-from src.core.modules.project_management.contracts.repositories.rate_resolution import (
+from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
     LaborRateResolver,
 )
 from src.core.modules.project_management.contracts.reads.financials import (

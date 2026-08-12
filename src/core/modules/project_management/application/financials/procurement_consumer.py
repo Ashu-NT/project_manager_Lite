@@ -17,7 +17,7 @@ from src.core.modules.project_management.contracts.financial_sources import (
     ProcurementCommitmentState,
     ProcurementReceiptAccrualFinancialSource,
 )
-from src.core.modules.project_management.contracts.repositories.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.integration import (
     PROCUREMENT_COMMITMENT_EVENT_TYPE,

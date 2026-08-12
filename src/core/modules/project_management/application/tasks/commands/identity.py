@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from sqlalchemy.exc import IntegrityError
 
-from src.core.modules.project_management.contracts.repositories.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
 from src.core.platform.common.code_generation import (
     CodeGenerator,
     assert_code_unique,
