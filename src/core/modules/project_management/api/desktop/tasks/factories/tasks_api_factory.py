@@ -18,6 +18,9 @@ from src.core.modules.project_management.application.scheduling.forecasting.sche
     ScheduleChangeImpactService,
 )
 from src.core.modules.project_management.application.tasks import TaskService
+from src.core.modules.project_management.gateway.task.reservation import (
+    TaskReservationGateway,
+)
 
 
 def build_project_management_tasks_desktop_api(
@@ -26,7 +29,7 @@ def build_project_management_tasks_desktop_api(
     task_service: TaskService | None = None,
     project_resource_service: ProjectResourceService | None = None,
     resource_service: ResourceService | None = None,
-    reservation_service: object | None = None,
+    reservation_service: TaskReservationGateway | None = None,
     assignment_skill_validator: AssignmentSkillValidator | None = None,
     schedule_change_impact_service: ScheduleChangeImpactService | None = None,
     resource_availability_service: ResourceAvailabilityService | None = None,

@@ -207,7 +207,6 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
     baseline_service = services.get("baseline_service")
     inventory_service = services.get("inventory_service")
     inventory_reservation_service = services.get("inventory_reservation_service")
-    inventory_procurement_service = services.get("inventory_procurement_service")
     inventory_purchasing_service = services.get("inventory_purchasing_service")
 
     platform_site_api = PlatformSiteDesktopApi(site_service=site_service)
@@ -324,7 +323,6 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             employee_service=employee_service,
             site_service=site_service,
             approval_service=approval_service,
-            procurement_service=inventory_procurement_service,
             reservation_service=inventory_reservation_service,
             enterprise_calendar_api=enterprise_calendar_api,
         ),

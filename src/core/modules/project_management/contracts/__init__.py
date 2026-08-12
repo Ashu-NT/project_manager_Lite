@@ -14,7 +14,6 @@ from src.core.modules.project_management.contracts.financial_sources import (
     ProcurementReceiptAccrualFinancialSource,
     financial_source_content_hash,
 )
-
 __all__ = [
     "ApprovedTimeFinancialSource",
     "ApprovedTimeFinancialSourceProvider",

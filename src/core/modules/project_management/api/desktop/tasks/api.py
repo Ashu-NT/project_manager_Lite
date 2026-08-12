@@ -125,6 +125,9 @@ from src.core.modules.project_management.application.scheduling.forecasting.sche
 )
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
+from src.core.modules.project_management.gateway.task.reservation import (
+    TaskReservationGateway,
+)
 from src.core.platform.common.exceptions import BusinessRuleError
 
 
@@ -139,7 +142,7 @@ class ProjectManagementTasksDesktopApi:
         task_service: TaskService | None = None,
         project_resource_service: ProjectResourceService | None = None,
         resource_service: ResourceService | None = None,
-        reservation_service: object | None = None,
+        reservation_service: TaskReservationGateway | None = None,
         assignment_skill_validator: AssignmentSkillValidator | None = None,
         schedule_change_impact_service: ScheduleChangeImpactService | None = None,
         resource_availability_service: ResourceAvailabilityService | None = None,
@@ -614,10 +617,7 @@ class ProjectManagementTasksDesktopApi:
     def list_task_reservations(self, task_id: str) -> tuple[TaskReservationDesktopDto, ...]:
         if not task_id or self._reservation_service is None:
             return ()
-        list_reservations = getattr(self._reservation_service, "list_reservations", None)
-        if not callable(list_reservations):
-            return ()
-        all_reservations = list_reservations(limit=500)
+        all_reservations = self._reservation_service.list_reservations(limit=500)
         task_reservations = [
             reservation for reservation in all_reservations
             if getattr(reservation, "source_reference_type", "") == "task"
@@ -637,15 +637,10 @@ class ProjectManagementTasksDesktopApi:
     ) -> TaskReservationDesktopDto:
         if self._reservation_service is None:
             raise RuntimeError("Inventory reservation service is not connected.")
-        create_reservation = getattr(self._reservation_service, "create_reservation", None)
-        if not callable(create_reservation):
-            raise RuntimeError(
-                "Inventory reservation service does not support create_reservation."
-            )
         task = self._require_task_service().get_task(command.task_id)
         if task is None:
             raise RuntimeError("Task not found.")
-        reservation = create_reservation(
+        reservation = self._reservation_service.create_reservation(
             stock_item_id=command.stock_item_id,
             storeroom_id=command.storeroom_id,
             reserved_qty=command.reserved_qty,
