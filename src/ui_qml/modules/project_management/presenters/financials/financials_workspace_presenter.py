@@ -8,7 +8,14 @@ from src.core.modules.project_management.api.desktop import (
 )
 from src.ui_qml.modules.project_management.view_models.financials import FinancialsWorkspaceViewModel
 
-from .command_handler import create_manual_actual
+from .command_handler import (
+    approve_actual,
+    create_manual_actual,
+    post_actual,
+    reject_actual,
+    reverse_actual,
+    submit_actual,
+)
 from .workspace_builder import build_workspace_state
 
 class ProjectFinancialsWorkspacePresenter:
@@ -47,6 +54,21 @@ class ProjectFinancialsWorkspacePresenter:
 
     def create_manual_actual(self, payload: dict[str, Any]) -> None:
         create_manual_actual(self._desktop_api, payload)
+
+    def submit_actual(self, payload: dict[str, Any]) -> None:
+        submit_actual(self._desktop_api, payload)
+
+    def approve_actual(self, payload: dict[str, Any]) -> None:
+        approve_actual(self._desktop_api, payload)
+
+    def reject_actual(self, payload: dict[str, Any]) -> None:
+        reject_actual(self._desktop_api, payload)
+
+    def post_actual(self, payload: dict[str, Any]) -> None:
+        post_actual(self._desktop_api, payload)
+
+    def reverse_actual(self, payload: dict[str, Any]) -> None:
+        reverse_actual(self._desktop_api, payload)
 
     def export_financial_report(
         self,

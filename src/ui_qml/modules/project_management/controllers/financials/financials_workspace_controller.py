@@ -270,6 +270,21 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot("QVariantMap", result="QVariantMap")
     def createManualActual(self, payload: FinancialsMap) -> FinancialsMap: return self._create_manual_actual(payload)
 
+    @Slot("QVariantMap", result="QVariantMap")
+    def submitActual(self, payload: FinancialsMap) -> FinancialsMap: return self._submit_actual(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def approveActual(self, payload: FinancialsMap) -> FinancialsMap: return self._approve_actual(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def rejectActual(self, payload: FinancialsMap) -> FinancialsMap: return self._reject_actual(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def postActual(self, payload: FinancialsMap) -> FinancialsMap: return self._post_actual(payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def reverseActual(self, payload: FinancialsMap) -> FinancialsMap: return self._reverse_actual(payload)
+
     @Slot(result=str)
     def newFinancialCommandId(self) -> str: return str(uuid4())
 

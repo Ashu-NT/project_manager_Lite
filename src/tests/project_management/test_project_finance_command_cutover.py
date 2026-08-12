@@ -10,6 +10,7 @@ from src.core.modules.project_management.api.desktop.financials import (
     FinancialCreateManualActualCommand,
     FinancialDecideActualCommand,
     FinancialPostActualCommand,
+    FinancialReverseActualCommand,
     FinancialUpdateActualDraftCommand,
     FinancialVersionedActualCommand,
     ProjectManagementFinancialsDesktopApi,
@@ -121,6 +122,61 @@ def test_desktop_cutover_creates_canonical_draft_and_preserves_posted_immutabili
     assert page.total == 1
     assert page.items[0].id == posted.id
     assert page.items[0].source_label == "Manual entry"
+
+    reversed_command_id = "desktop-command-1-reversal"
+    reversal = api.reverse_actual(
+        FinancialReverseActualCommand(
+            entry_id=posted.id,
+            expected_version=posted.row_version,
+            command_id=reversed_command_id,
+            posting_date=date(2026, 1, 14),
+            reason="Field commissioning expense corrected after reversal.",
+        )
+    )
+    assert reversal.status == "posted"
+    assert reversal.entry_kind == "reversal"
+    # A reversal entry is itself the correction — it cannot be reversed again.
+    assert reversal.can_reverse is False
+
+    page_after_reversal = api.list_cost_entries(project.id)
+    assert page_after_reversal.total == 2
+    reversed_original = next(
+        item for item in page_after_reversal.items if item.id == posted.id
+    )
+    assert reversed_original.status == "reversed"
+    assert reversed_original.can_reverse is False
+
+
+def test_desktop_reject_actual_returns_submitted_entry_to_draft(services) -> None:
+    organization, project, task, cost_code = _setup_project(services)
+    api = _build_api(services)
+
+    draft = api.create_manual_actual(
+        FinancialCreateManualActualCommand(
+            project_id=project.id,
+            command_id="desktop-command-reject-1",
+            description="Awaiting approval",
+            amount=Decimal("42.00"),
+            currency_code=organization.base_currency,
+            transaction_date=date(2026, 1, 12),
+            cost_code_id=cost_code.id,
+            task_id=task.id,
+        )
+    )
+    submitted = api.submit_actual(
+        FinancialVersionedActualCommand(draft.id, draft.row_version)
+    )
+    assert submitted.can_approve
+
+    rejected = api.reject_actual(
+        FinancialDecideActualCommand(
+            submitted.id, submitted.row_version, notes="Wrong cost code."
+        )
+    )
+
+    assert rejected.status == "draft"
+    assert rejected.can_edit and rejected.can_delete and rejected.can_submit
+    assert not rejected.can_approve
 
 
 def test_legacy_combined_write_adapters_and_import_contract_are_deleted() -> None:

@@ -47,10 +47,12 @@ Item {
     property var billingPreparationsModel: ({ "items": [] })
     property bool isBusy: false
     property var detailPage: null
+    property string selectedActualEntryId: ""
     signal configurationPageRequested(string collection, int page)
     signal forecastSelected(string forecastId)
     signal financialChangeSelected(string changeId)
     signal varianceBaselineSelected(string baselineId)
+    signal actualEntrySelected(string entryId)
 
     readonly property int _idx: root.detailPage ? root.detailPage.activeSectionIndex : 0
     readonly property var _sections: root.detailPage ? (root.detailPage.sections || []) : []
@@ -185,6 +187,8 @@ Item {
                 ledgerModel: root.ledgerModel
                 ledgerTableModel: root.ledgerTableModel
                 isBusy: root.isBusy
+                selectedEntryId: root.selectedActualEntryId
+                onEntrySelected: function(entryId) { root.actualEntrySelected(entryId) }
             }
         }
     }

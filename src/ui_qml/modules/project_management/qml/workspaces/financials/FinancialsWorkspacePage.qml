@@ -36,6 +36,17 @@ AppLayouts.WorkspaceFrame {
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
     readonly property var detailPage: detailPageLoader.item
     property int _pendingDetailSection: 0
+    property string _selectedActualEntryId: ""
+
+    function _selectedActualEntry() {
+        const items = (root.ledgerModel.items || [])
+        for (let index = 0; index < items.length; index += 1) {
+            if (String(items[index].id || "") === root._selectedActualEntryId) {
+                return items[index]
+            }
+        }
+        return null
+    }
 
     readonly property bool _hasProcPoCap: root.pmCatalog
         ? root.pmCatalog.hasCapability("procurement.purchase_orders.read") : false
@@ -68,16 +79,58 @@ AppLayouts.WorkspaceFrame {
         return typeof entry === "string" ? entry : String(entry.label || "")
     }
     readonly property var _detailActions: {
-        if (root._activeDetailSection === "Actuals") return [{
-            "id": "add_manual_actual",
-            "label": "New Manual Actual",
-            "icon": "add",
-            "enabled": root.workspaceController
-                ? root.workspaceController.selectedProjectId.length > 0
-                    && (root.workspaceController.manualActualOptions.costCodes || []).length > 0
-                : false,
-            "danger": false
-        }]
+        if (root._activeDetailSection === "Actuals") {
+            const selected = root._selectedActualEntry()
+            const state = selected ? (selected.state || {}) : {}
+            const busy = root.workspaceController ? root.workspaceController.isBusy : false
+            return [
+                {
+                    "id": "add_manual_actual",
+                    "label": "New Manual Actual",
+                    "icon": "add",
+                    "enabled": !busy && root.workspaceController
+                        ? root.workspaceController.selectedProjectId.length > 0
+                            && (root.workspaceController.manualActualOptions.costCodes || []).length > 0
+                        : false,
+                    "danger": false
+                },
+                {
+                    "id": "submit_actual",
+                    "label": "Submit",
+                    "icon": "approve",
+                    "enabled": !busy && Boolean(state.canSubmit),
+                    "danger": false
+                },
+                {
+                    "id": "approve_actual",
+                    "label": "Approve",
+                    "icon": "success",
+                    "enabled": !busy && Boolean(state.canApprove),
+                    "danger": false
+                },
+                {
+                    "id": "reject_actual",
+                    "label": "Reject",
+                    "icon": "reject",
+                    "enabled": !busy && Boolean(state.canApprove),
+                    "danger": true
+                },
+                {
+                    "id": "post_actual",
+                    "label": "Post",
+                    "icon": "save",
+                    "enabled": !busy && Boolean(state.canPost),
+                    "danger": false
+                },
+                {
+                    "id": "reverse_actual",
+                    "label": "Reverse",
+                    "icon": "delete",
+                    "enabled": !busy && Boolean(state.canReverse),
+                    "danger": true
+                }
+            ]
+        }
         if (root._activeDetailSection === "Reports") return [
             {
                 "id": "export_excel",
@@ -249,10 +302,31 @@ AppLayouts.WorkspaceFrame {
                     onActionTriggered: function(actionId) {
                         if (actionId === "add_manual_actual") {
                             dialogHostLoader.invoke("openCreateManualActualDialog")
-                        } else if (actionId === "export_excel") {
+                            return
+                        }
+                        if (actionId === "export_excel") {
                             _excelExportDialog.open()
-                        } else if (actionId === "export_pdf") {
+                            return
+                        }
+                        if (actionId === "export_pdf") {
                             _pdfExportDialog.open()
+                            return
+                        }
+                        const selected = root._selectedActualEntry()
+                        if (!selected || !root.workspaceController) return
+                        const state = selected.state || {}
+                        const entryId = String(state.entryId || selected.id || "")
+                        const rowVersion = Number(state.rowVersion || 0)
+                        if (actionId === "submit_actual") {
+                            root.workspaceController.submitActual({ "entryId": entryId, "rowVersion": rowVersion })
+                        } else if (actionId === "approve_actual") {
+                            root.workspaceController.approveActual({ "entryId": entryId, "rowVersion": rowVersion })
+                        } else if (actionId === "reject_actual") {
+                            dialogHostLoader.invoke("openActualDecisionDialog", "reject", entryId, rowVersion)
+                        } else if (actionId === "post_actual") {
+                            dialogHostLoader.invoke("openActualDecisionDialog", "post", entryId, rowVersion)
+                        } else if (actionId === "reverse_actual") {
+                            dialogHostLoader.invoke("openActualDecisionDialog", "reverse", entryId, rowVersion)
                         }
                     }
                 }
@@ -277,6 +351,8 @@ AppLayouts.WorkspaceFrame {
                     cashflowModel: root.cashflowModel
                     ledgerModel: root.ledgerModel
                     ledgerTableModel: root.workspaceController ? root.workspaceController.ledgerTableModel : null
+                    selectedActualEntryId: root._selectedActualEntryId
+                    onActualEntrySelected: function(entryId) { root._selectedActualEntryId = entryId }
                     sourceAnalyticsModel: root.sourceAnalyticsModel
                     overviewModel: root.overviewModel
                     forecastModel: root.workspaceController ? root.workspaceController.forecast : ({})
