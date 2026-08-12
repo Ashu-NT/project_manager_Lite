@@ -5,6 +5,10 @@ from src.core.modules.project_management.api.desktop.financials.models.billing i
     FinancialBillingPreparationLineDto,
     FinancialBillingProfileDto,
     FinancialBillingScheduleLineDto,
+    FinancialCommercialProjectionDto,
+)
+from src.core.modules.project_management.application.financials.models.finance_models import (
+    ProjectCommercialProjection,
 )
 from src.core.modules.project_management.domain.financials.billing_preparation import (
     ProjectBillingExternalEvent,
@@ -98,9 +102,45 @@ def serialize_billing_preparation_line(
     )
 
 
+def serialize_commercial_projection(
+    projection: ProjectCommercialProjection,
+) -> FinancialCommercialProjectionDto:
+    return FinancialCommercialProjectionDto(
+        project_id=projection.project_id,
+        project_currency=projection.project_currency or "",
+        contract_value=(
+            format(projection.contract_value, "f")
+            if projection.contract_value is not None
+            else ""
+        ),
+        billable_amount=format(projection.billable_amount, "f"),
+        externally_invoiced_amount=format(projection.externally_invoiced_amount, "f"),
+        externally_paid_amount=format(projection.externally_paid_amount, "f"),
+        external_accounting_data_available=projection.external_accounting_data_available,
+        forecast_revenue_at_completion=(
+            format(projection.forecast_revenue_at_completion, "f")
+            if projection.forecast_revenue_at_completion is not None
+            else ""
+        ),
+        revenue_basis=projection.revenue_basis,
+        projected_margin_amount=(
+            format(projection.projected_margin_amount, "f")
+            if projection.projected_margin_amount is not None
+            else ""
+        ),
+        projected_margin_percent=(
+            format(projection.projected_margin_percent, "f")
+            if projection.projected_margin_percent is not None
+            else ""
+        ),
+        profitability_detail_included=projection.profitability_detail_included,
+    )
+
+
 __all__ = [
     "serialize_billing_preparation",
     "serialize_billing_preparation_line",
     "serialize_billing_profile",
     "serialize_billing_schedule_line",
+    "serialize_commercial_projection",
 ]

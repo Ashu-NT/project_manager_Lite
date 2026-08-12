@@ -450,6 +450,7 @@ def build_project_management_service_bundle(
         evm_series_reader=SqlAlchemyEvmSeriesReader(session=session),
         finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session),
         financial_profile_repo=repositories.project_financial_profile_repo,
+        billing_repo=repositories.project_billing_repo,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
     )

@@ -49,6 +49,7 @@ from src.core.modules.project_management.api.desktop.financials.models.billing i
     FinancialBillingProfileDto,
     FinancialBillingScheduleLineDto,
     FinancialBillingWorkspaceDto,
+    FinancialCommercialProjectionDto,
 )
 from src.core.modules.project_management.api.desktop.financials.commands.cost_entries import (
     FinancialCreateManualActualCommand,
@@ -111,6 +112,7 @@ from src.core.modules.project_management.api.desktop.financials.serializers.bill
     serialize_billing_preparation_line,
     serialize_billing_profile,
     serialize_billing_schedule_line,
+    serialize_commercial_projection,
 )
 
 
@@ -603,6 +605,15 @@ class ProjectManagementFinancialsDesktopApi:
         )
         preparation = service.get_preparation(command.preparation_id)
         return serialize_billing_preparation(preparation)
+
+    def get_commercial_projection(
+        self, project_id: str
+    ) -> FinancialCommercialProjectionDto:
+        if not project_id or self._reporting_service is None:
+            return FinancialCommercialProjectionDto()
+        return serialize_commercial_projection(
+            self._reporting_service.get_project_commercial_projection(project_id)
+        )
 
     def _project_currency(self, project_id: str) -> str | None:
         if not project_id or self._financial_configuration_service is None:

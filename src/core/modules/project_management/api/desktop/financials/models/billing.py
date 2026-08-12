@@ -74,10 +74,33 @@ class FinancialBillingWorkspaceDto:
     preparation_total: int = 0
 
 
+@dataclass(frozen=True, slots=True)
+class FinancialCommercialProjectionDto:
+    """ADR-PF-010's five commercial projections. contract_value/billable_amount/
+    externally_invoiced_amount/externally_paid_amount require only finance.read;
+    forecast_revenue_at_completion/revenue_basis/projected_margin_amount/
+    projected_margin_percent require finance.read_profitability and are blank
+    (profitability_detail_included=False) otherwise."""
+
+    project_id: str = ""
+    project_currency: str = ""
+    contract_value: str = ""
+    billable_amount: str = "0"
+    externally_invoiced_amount: str = "0"
+    externally_paid_amount: str = "0"
+    external_accounting_data_available: bool = False
+    forecast_revenue_at_completion: str = ""
+    revenue_basis: str = ""
+    projected_margin_amount: str = ""
+    projected_margin_percent: str = ""
+    profitability_detail_included: bool = True
+
+
 __all__ = [
     "FinancialBillingPreparationDto",
     "FinancialBillingPreparationLineDto",
     "FinancialBillingProfileDto",
     "FinancialBillingScheduleLineDto",
     "FinancialBillingWorkspaceDto",
+    "FinancialCommercialProjectionDto",
 ]
