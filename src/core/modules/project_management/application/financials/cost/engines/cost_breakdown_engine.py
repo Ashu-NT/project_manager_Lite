@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Iterable
 
 from src.core.modules.project_management.domain.enums import CostType
-from src.core.modules.project_management.application.financials.costs.cost_policy_engine import (
+from src.core.modules.project_management.application.financials.cost.engines.cost_policy_engine import (
     CostPolicyEngine,
     CostPolicySnapshot,
 )

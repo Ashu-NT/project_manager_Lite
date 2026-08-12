@@ -10,10 +10,10 @@ from datetime import date
 from src.core.modules.project_management.contracts.reads.financials.evm_series_reader import (
     EvmSeriesReader,
 )
-from src.core.modules.project_management.application.financials.costs.cost_policy_engine import (
+from src.core.modules.project_management.application.financials.cost.engines.cost_policy_engine import (
     CostPolicyEngine,
 )
-from src.core.modules.project_management.application.financials.costs.labor_cost import (
+from src.core.modules.project_management.application.financials.cost.engines.labor_cost import (
     LaborCostEngine,
 )
 from src.core.modules.project_management.application.financials.earned_value.evm_series import (

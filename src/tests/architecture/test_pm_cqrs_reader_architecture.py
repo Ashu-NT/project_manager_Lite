@@ -20,10 +20,10 @@ from src.core.modules.project_management.application.financials.earned_value.evm
 from src.core.modules.project_management.application.financials.earned_value.evm_calculator import (
     EarnedValueCalculator,
 )
-from src.core.modules.project_management.application.financials.costs.cost_breakdown_engine import (
+from src.core.modules.project_management.application.financials.cost.engines.cost_breakdown_engine import (
     CostBreakdownEngine,
 )
-from src.core.modules.project_management.application.financials.costs.cost_policy_engine import (
+from src.core.modules.project_management.application.financials.cost.engines.cost_policy_engine import (
     CostPolicyEngine,
 )
 from src.core.modules.project_management.infrastructure.reporting.builders.cost_breakdown import (
@@ -70,7 +70,7 @@ CONTRACT_READS = PM_ROOT / "contracts/reads"
 FINANCE_READS = PM_ROOT / "infrastructure/persistence/reads/financials"
 FINANCE_STATEMENTS = FINANCE_READS / "statements/finance_snapshot_statements.py"
 FINANCE_READER = FINANCE_READS / "sqlalchemy_finance_snapshot_reader.py"
-FINANCE_POLICY = PM_ROOT / "application/financials/costs/cost_policy_engine.py"
+FINANCE_POLICY = PM_ROOT / "application/financials/cost/engines/cost_policy_engine.py"
 PROJECT_REGISTRY = REPO_ROOT / "src/infra/composition/project_registry.py"
 PORTFOLIO_POOL_READER = (
     PM_ROOT

@@ -21,13 +21,13 @@ from src.core.modules.project_management.contracts.reads.financials import (
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.platform.common.exceptions import NotFoundError
-from src.core.modules.project_management.application.financials.costs.cost_policy_engine import (
+from src.core.modules.project_management.application.financials.cost.engines.cost_policy_engine import (
     CostControlTotals,
     CostPolicyComposition,
     CostPolicyEngine,
     CostPolicySnapshot,
 )
-from src.core.modules.project_management.application.financials.costs.labor_cost import (
+from src.core.modules.project_management.application.financials.cost.engines.labor_cost import (
     LaborCostEngine,
 )
 

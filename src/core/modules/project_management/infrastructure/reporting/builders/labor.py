@@ -21,7 +21,7 @@ from src.core.modules.project_management.contracts.repositories.finance.rate_car
     LaborRateResolver,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
-from src.core.modules.project_management.application.financials.costs.labor_cost import (
+from src.core.modules.project_management.application.financials.cost.engines.labor_cost import (
     LaborCostEngine,
 )
 from src.core.modules.project_management.infrastructure.reporting.models.report_models import (

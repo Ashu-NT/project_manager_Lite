@@ -8,7 +8,7 @@ import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
 
-from src.core.modules.project_management.application.financials.cost_entries import (
+from src.core.modules.project_management.application.financials.cost.entries import (
     CostEntryApprovalOutcome,
 )
 from src.core.modules.project_management.contracts.financial_sources.reference import (

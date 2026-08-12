@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from src.core.modules.project_management.application.financials.commitments import (
     ProjectCommitmentService,
 )
-from src.core.modules.project_management.application.financials.cost_entries import (
+from src.core.modules.project_management.application.financials.cost.entries import (
     ProjectCostEntryService,
 )
 from src.core.modules.project_management.contracts.financial_sources.procurement import (
