@@ -243,10 +243,16 @@ def test_qml_shared_theme_matches_legacy_widget_tokens() -> None:
     theme_qml = (QML_SHARED_ROOT / "Theme" / "AppTheme.qml").read_text(encoding="utf-8")
 
     assert 'property string densityMode: "compact"' in theme_qml
-    assert 'readonly property color appBackground: "#F3F6FA"' in theme_qml
+    # R1.10 made these dark-mode-aware (root.darkMode ? <dark> : <light>) rather
+    # than flat literals; the light-mode value is preserved unchanged, so check
+    # for the property declaration and its light-mode value separately instead
+    # of one exact-literal assignment.
+    assert "readonly property color appBackground:" in theme_qml
+    assert '"#F3F6FA"' in theme_qml
     assert "readonly property color background: appBackground" in theme_qml
     assert "readonly property color workspaceBackground:" in theme_qml
-    assert 'readonly property color accent: "#0A66A8"' in theme_qml
+    assert "readonly property color accent:" in theme_qml
+    assert '"#0A66A8"' in theme_qml
     assert "readonly property int toolbarHeight:" in theme_qml
     assert "readonly property int compactRowHeight:" in theme_qml
     assert 'readonly property string fontFamily: "Segoe UI Variable Text"' in theme_qml

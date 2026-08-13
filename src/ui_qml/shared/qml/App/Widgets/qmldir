@@ -5,6 +5,7 @@ AppDivider 1.0 AppDivider.qml
 BulkActionBar 1.0 BulkActionBar.qml
 BulkChangePropertyPopup 1.0 BulkChangePropertyPopup.qml
 CodeFieldRow 1.0 CodeFieldRow.qml
+ContextBar 1.0 ContextBar.qml
 ContextualActionToolbar 1.0 ContextualActionToolbar.qml
 DataTable 1.0 DataTable.qml
 DetailTabBar 1.0 DetailTabBar.qml
@@ -12,7 +13,9 @@ EmptyState 1.0 EmptyState.qml
 EntityDialog 1.0 EntityDialog.qml
 FilterBar 1.0 FilterBar.qml
 FormField 1.0 FormField.qml
+GroupedNavigationRail 1.0 GroupedNavigationRail.qml
 InlineMessage 1.0 InlineMessage.qml
+InspectorPanel 1.0 InspectorPanel.qml
 SectionScopedInlineMessage 1.0 SectionScopedInlineMessage.qml
 KpiStrip 1.0 KpiStrip.qml
 LazySectionLoader 1.0 LazySectionLoader.qml
@@ -20,6 +23,7 @@ LazyObjectLoader 1.0 LazyObjectLoader.qml
 LoadingOverlay 1.0 LoadingOverlay.qml
 MetricCard 1.0 MetricCard.qml
 PageHeader 1.0 PageHeader.qml
+PermissionState 1.0 PermissionState.qml
 ProgressBar 1.0 ProgressBar.qml
 RecordDetailPage 1.0 RecordDetailPage.qml
 SectionAnchor 1.0 SectionAnchor.qml

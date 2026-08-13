@@ -14,7 +14,7 @@ Item {
 
     signal sectionChanged(string section)
 
-    implicitWidth: root.collapsed ? 48 : 220
+    implicitWidth: root.collapsed ? Theme.AppTheme.navRailCollapsedWidth : Theme.AppTheme.navRailExpandedWidth
 
     Behavior on implicitWidth {
         NumberAnimation { duration: 180; easing.type: Easing.OutCubic }

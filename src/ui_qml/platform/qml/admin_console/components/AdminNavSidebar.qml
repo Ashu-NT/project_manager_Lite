@@ -16,7 +16,7 @@ Item {
 
     signal sectionChanged(string section)
 
-    implicitWidth: root.collapsed ? 48 : 220
+    implicitWidth: root.collapsed ? Theme.AppTheme.navRailCollapsedWidth : Theme.AppTheme.navRailExpandedWidth
 
     Behavior on implicitWidth {
         NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
@@ -101,7 +101,7 @@ Item {
         model: [
             { type: "group", label: "ORGANIZATION"                                              },
             { type: "item",  section: "organizations", label: "Organizations", icon: "admin"    },
-            { type: "item",  section: "calendars",     label: "Calendars",     icon: "scheduling" },
+            { type: "item",  section: "calendars",     label: "Calendars",     icon: "calendar" },
             { type: "item",  section: "sites",         label: "Sites",         icon: "location" },
             { type: "item",  section: "departments",   label: "Departments",   icon: "resources"},
             { type: "group", label: "WORKFORCE"                                                 },

@@ -230,6 +230,13 @@ def test_financials_uses_grouped_scrollable_navigation_and_project_scope_selecto
     navigation_rail = Path(
         "src/ui_qml/shared/qml/App/Widgets/SectionNavigationRail.qml"
     ).read_text(encoding="utf-8")
+    # R1.4 re-implemented SectionNavigationRail on top of the shared
+    # GroupedNavigationRail primitive (R0.1 D7); the scrollable-content
+    # implementation now lives there, not in SectionNavigationRail.qml
+    # itself, which is now a thin wrapper.
+    grouped_rail = Path(
+        "src/ui_qml/shared/qml/App/Widgets/GroupedNavigationRail.qml"
+    ).read_text(encoding="utf-8")
 
     for group in ("Configuration", "Planning", "Cost Control", "Commercial", "Insights"):
         assert f'"group": "{group}"' in page
@@ -239,5 +246,6 @@ def test_financials_uses_grouped_scrollable_navigation_and_project_scope_selecto
     assert "workspaceController.selectProject" in page
     assert "sectionGroupsCollapsedByDefault: true" in section_page
     assert "SectionNavigationRail" in section_page
-    assert "contentHeight: navColumn.implicitHeight" in navigation_rail
-    assert "ScrollBar.vertical: ScrollBar" in navigation_rail
+    assert "GroupedNavigationRail" in navigation_rail
+    assert "contentHeight: navColumn.implicitHeight" in grouped_rail
+    assert "ScrollBar.vertical: ScrollBar" in grouped_rail
