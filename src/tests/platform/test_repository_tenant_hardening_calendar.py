@@ -151,6 +151,16 @@ def test_calendar_repositories_scope_cross_organization_access(services) -> None
     assignment_repo = services["calendar_assignment_service"]._assignment_repo
 
     assert calendar_repo.get(seeded["calendar_other"]) is None
+    # batch lookup (list_by_ids) must apply the same tenant/organization
+    # scoping as get() -- asking for both the current and the other org's
+    # calendar in one call must silently drop the other org's row rather
+    # than leaking it into a shared assignment-serialization cache.
+    batch_ids = [row.id for row in calendar_repo.list_by_ids(
+        [seeded["calendar_current"], seeded["calendar_other"]]
+    )]
+    assert seeded["calendar_current"] in batch_ids
+    assert seeded["calendar_other"] not in batch_ids
+    assert calendar_repo.list_by_ids([]) == []
     assert rule_repo.get(seeded["rule_other"]) is None
     assert exception_repo.get(seeded["exception_other"]) is None
     assert recurring_repo.get(seeded["event_other"]) is None

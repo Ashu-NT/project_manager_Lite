@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from dataclasses import replace
 from datetime import date, datetime
 from datetime import timezone as zone
@@ -91,6 +92,23 @@ class EnterpriseCalendarService:
     def get_calendar(self, calendar_id: str) -> PlatformCalendar:
         require_permission(self._user_session, "task.read", operation_label="get calendar")
         return self._require_calendar_in_active_organization(calendar_id)
+
+    def get_calendars_by_ids(
+        self, calendar_ids: Iterable[str]
+    ) -> dict[str, PlatformCalendar]:
+        """Batch calendar lookup, scoped to the active organization.
+
+        Serving one map lookup per assignment (instead of one
+        get_calendar() call per assignment) is what keeps assignment-list
+        serialization at a constant query count regardless of how many
+        assignments are returned.
+        """
+        require_permission(self._user_session, "task.read", operation_label="get calendars")
+        ids = set(calendar_ids)
+        if not ids:
+            return {}
+        calendars = self._calendar_repo.list_by_ids(ids)
+        return {cal.id: cal for cal in calendars}
 
     def get_default_calendar(self) -> PlatformCalendar:
         require_permission(

@@ -1,9 +1,12 @@
 # Platform — CQRS Existing-State Audit
 
-Status: **Read-only existing-state audit, complete (2026-08-12).** This document follows the exact
-methodology of `docs/pm_modernization/CQRS/project_management_cqrs_existing_state_audit.md` (the
-"PM audit"), applied to `src/core/platform/` instead of Project Management. It is an audit only —
-**no code was changed to produce it**, and no CQRS implementation work has started for Platform.
+Status: **Read-only existing-state audit, complete (2026-08-12); now a living document tracking
+remediation and CQRS pilot work executed against its findings (see P0-P5 sections below).** This
+document follows the exact methodology of
+`docs/pm_modernization/CQRS/project_management_cqrs_existing_state_audit.md` (the "PM audit"),
+applied to `src/core/platform/` instead of Project Management. The original audit pass itself was
+read-only — **no code was changed to produce it** — but code has since changed as a direct result of
+its findings, tracked section-by-section as each phase closed.
 Every claim below was verified by opening the cited file and, where a call chain is described,
 following it to its concrete runtime implementation; file:line citations are given wherever the
 source PM audit gives them. Sections that would require dynamic/runtime confirmation beyond static
@@ -377,6 +380,143 @@ pass/fail breakdown against this session's established baseline.
 
 ---
 
+## P4 PlatformUserDesktopApi._find_user N+1 remediation (2026-08-13)
+
+Closes opportunity #3 from this audit's ranked list (executive summary, §14): after every
+`assign_role`/`revoke_role`/`reset_password` write, `PlatformUserDesktopApi._find_user` called
+`AuthService.list_users()` (`list_all()`/`list_for_tenant()` underneath) and linearly scanned the
+full result for the one user just touched — the same "write, then re-fetch the whole collection
+and scan for the one row" shape the PM audit flagged for `Portfolio.create_project_dependency`.
+
+**P4.0 — measured baseline.** Real composition root, in-memory SQLite, direct instrumentation of
+`UserRepository.list_all()`/`list_for_tenant()` (call count and hydrated-row count, not SQL-statement
+count — the acting principal in the `services` fixture is a platform operator, so `list_users()`
+takes the single-`SELECT` `list_all()` branch; the defect shows up as full row **hydration**, not
+extra statements, for that branch). At 2 users total, `assign_role` hydrated 3 `UserAccount` rows to
+use 1; at 27 users total, it hydrated 28 — confirmed scaling 1:1 with total tenant user count, not
+with the write itself. The legitimate per-write `get()` calls (from `AuthService._require_user` and
+`RoleGovernanceService`'s own lookup) stayed constant at 3 regardless of tenant size, isolating the
+defect specifically to the post-write re-fetch.
+
+**P4.1 — resolution chosen.** Inspected what `_find_user` actually needed rather than reaching for a
+Reader by default. `assign_role`/`revoke_role` (`role_assignment_service.py`) and
+`reset_user_password` (`password_service.py`) each already call `AuthService._require_user(user_id)`
+internally — one `UserRepository.get(user_id)` call — and hold the resulting `UserAccount` for the
+rest of the function. For `assign_role`/`revoke_role` this object is never mutated (role membership
+lives in a separate role-binding table, and `_serialize_user` already derives `role_names` via its
+own independent `get_user_role_names` call); for `reset_user_password` it is mutated in place and
+committed before being returned. Returning that already-held object is strictly cheaper than even a
+fresh `UserRepository.get(user_id)` call: zero additional queries, not one. No dedicated Reader was
+introduced — `UserDto` needs no projection beyond what `UserAccount` plus the pre-existing
+`get_user_role_names` call already provide, matching this audit's own CQRS-fit criterion (§15).
+
+**P4.2 — implementation.** `assign_role`, `revoke_role`, `assign_customer_role`, `revoke_customer_role`
+(`role_assignment_service.py`) and `reset_user_password` (`password_service.py`) changed from `-> None`
+to `-> UserAccount`, returning the already-fetched object; `AuthService`'s five matching wrapper
+methods updated to propagate the return value instead of discarding it. `PlatformUserDesktopApi`'s
+`_assign_role_and_get_user`/`_revoke_role_and_get_user`/`_reset_password_and_get_user` now serialize
+the returned `UserAccount` directly. `_find_user` — the full-list scan, with no other callers anywhere
+in the repository — was deleted entirely.
+
+**P4.3 — regression guardrails.** New
+`src/tests/platform/test_platform_user_find_user_n_plus_one.py` (2 tests): asserts
+`list_all()`/`list_for_tenant()` are never called by `assign_role`/`revoke_role`/`reset_password` and
+that zero rows are hydrated, at both 1 and 30 total tenant users; and separately pins the exact
+desktop response shape (`role_names` reflecting the assignment/revocation, `must_change_password`
+after a reset) so a naive "just return `None`" regression would fail immediately rather than silently
+passing a type check.
+
+**P4.4 — regression.** Targeted `platform`+`architecture` run (see P5.6 below for the final combined
+count with P5's changes also in place): zero new failures relative to this document's established
+baseline — every failure/error observed is one already catalogued above (calendar `MagicMock`-fixture
+issues, the `Site` tz-naive/aware bug, the `audit_entries`/PM-finance RLS classification gap,
+`test_qml_platform_routes`, the flaky project-membership scope assertion, the PM module-size budget,
+and the legacy-ORM-import check).
+
+---
+
+## P5 EnterpriseCalendarDesktopApi assignment-serialization N+1 remediation (2026-08-13)
+
+Closes opportunity #4 from this audit's ranked list (executive summary, §14): `_serialize_assignment`
+called `EnterpriseCalendarService.get_calendar(assignment.calendar_id)` once per returned assignment,
+across the 9 methods in `EnterpriseCalendarDesktopApi` that serialize calendar assignments.
+
+**P5.0 — measured baseline.** Real composition root, in-memory SQLite, direct call-count
+instrumentation on `PlatformCalendarRepository.get()` (not SQL-statement text matching, since a
+single batched `SELECT ... WHERE id IN (...)` and N separate `SELECT`s can both register as "1
+statement" when N=1). Built 1, 10, and 50 department-calendar assignments **all referencing the same
+single calendar** (so any measured growth is purely the defect, not legitimate per-distinct-calendar
+cost) and called `list_calendar_assignments` for that calendar: `get()` call count scaled exactly
+1 / 10 / 50 — reproduced directly, not estimated.
+
+**P5.1 — caller inventory.** All 9 `_serialize_assignment` call sites traced: `assign_site_calendar`,
+`assign_department_calendar`, `assign_employee_calendar`, `assign_project_calendar`,
+`assign_resource_calendar` (each serializes exactly the one assignment it just created — not part of
+the N+1 by construction, since one assignment is always one calendar); `list_site_calendar_assignments`,
+`list_department_calendar_assignments`, `list_employee_calendar_assignments` (each can return several
+assignments for one entity, potentially referencing *different* calendars over time — these genuinely
+need a many-distinct-ids batch); and `list_calendar_assignments(calendar_id)` (a "who currently uses
+this calendar" usage summary spanning all 5 entity types — confirmed via
+`CalendarAssignmentService.list_calendar_assignments`'s own implementation that every returned
+assignment already shares the *same*, already-known `calendar_id`, so this method needs only one
+single-calendar fetch shared across all 5 categories, not even a dict-keyed batch). All 5 entity-type
+paths (site/department/employee/project/resource) share the identical `_serialize_assignment`
+contract and DTO shape; authorization for every path funnels through
+`EnterpriseCalendarService.get_calendar`/`get_calendars_by_ids` (`task.read` permission check +
+tenant/organization scoping via the repository's existing `_context()` helper), so no caller was
+left checking authorization differently from the others.
+
+**P5.2 — batch retrieval added.** `list_by_ids(calendar_ids)` added to `PlatformCalendarRepository`
+(contract, `contract/time_management/calendar/contracts.py:` new abstract method) and its one
+concrete implementer `SqlAlchemyPlatformCalendarRepository`
+(`infrastructure/persistence/repositories/time_management/calendar/enterprise_calendar.py`) — a
+single `SELECT ... WHERE id IN (...)` scoped by the exact same tenant+organization `ctx` every
+sibling method on that class already uses; an empty id set short-circuits before issuing any query.
+`EnterpriseCalendarService.get_calendars_by_ids` wraps it with the identical `task.read` permission
+check `get_calendar` already enforces, returning a `dict[str, PlatformCalendar]` keyed by id.
+
+**P5.3 — `_serialize_assignment` made pure.** No longer performs I/O — it now takes an
+already-resolved `calendar` parameter instead of calling `get_calendar` itself. Each caller fetches
+that calendar the way appropriate to its own shape: the 5 single-assignment write methods fetch the
+one calendar they just assigned (unchanged cost — 1 query, as before); the 3 per-entity list methods
+batch-fetch via `get_calendars_by_ids({a.calendar_id for a in assignments})` and look up per
+assignment from the returned dict through a small `_require_batched_calendar` helper (raises
+`NotFoundError` rather than a raw `KeyError` in the — currently unreachable, since assignment
+creation already validates the calendar exists — case of a calendar missing from the batch);
+`list_calendar_assignments` fetches the one shared calendar exactly once and reuses it across all 5
+categories.
+
+**P5.4 — semantics preserved.** New tests confirm all 5 assignment categories (site, department,
+employee, project, resource) still serialize identical `entity_type`/`entity_id`/`calendar_name`/
+`calendar_type`/`is_default`/`priority`/effective-date fields through `list_calendar_assignments`,
+and that the single-assignment write path (`assign_site_calendar`, sharing the now-pure
+`_serialize_assignment`) is unchanged. Tenant/organization scoping verified by extending the existing
+multi-organization fixture in `test_repository_tenant_hardening_calendar.py`
+(`_seed_calendar_scope_rows`): `list_by_ids` requested across both a current-organization and an
+other-organization calendar in the same call returns only the current-organization row — the same
+scoping guarantee `get()` already had, now confirmed for the batch path too — and an empty id list
+returns `[]` without touching the repository.
+
+**P5.5 — SQL-count/call-count guardrails added.** New
+`src/tests/platform/test_enterprise_calendar_assignment_n_plus_one.py` (4 tests):
+`list_department_calendar_assignments` never calls `get_calendar()` directly, and its batch-lookup
+call count matches the number of API calls made (1 department listed → 1 batch call, 10 departments
+listed one at a time → 10 batch calls) regardless of how many assignments any one department has —
+this same shape covers `list_site_`/`list_employee_calendar_assignments`, which share the identical
+batch-then-serialize code path; `list_calendar_assignments`'s `get_calendar()` call count stays at
+exactly 1 for 1, 10, and 50 assignments sharing one calendar (the confirmed N+1 this audit flagged);
+full 5-entity-type semantic equivalence; and the single-assignment write-path serialization shape.
+
+**P5.6 — full regression.** `platform`+`architecture`+`project_management` suites run together with
+both P4 and P5's changes in place: zero new failures beyond this document's established baseline —
+see the full-suite result recorded at the point this section was written for the complete pass/fail
+breakdown, including the one environment-only addition explained there (a freshly-populated local
+`pmenv/` virtualenv sitting inside the repository root trips the hard-line-limit architecture
+guardrail on its own vendored third-party packages — unrelated to any code this session touched, and
+not a regression in the reviewed sense).
+
+---
+
 ## 1. Executive summary
 
 **Architectural style today.** Platform is not a separate service or process — it is the
@@ -455,13 +595,16 @@ boundary in any of the write/read paths traced.
    exposes only `get(id)`, no batch form, so any batch of approved time entries triggers one query
    per entry.~~ **Fixed (P3, 2026-08-13)** — see "P3 timesheet financial-event N+1 remediation"
    below.
-3. **`PlatformUserDesktopApi._find_user` re-fetches and linearly scans the entire user list** after
+3. ~~**`PlatformUserDesktopApi._find_user` re-fetches and linearly scans the entire user list** after
    every `assign_role`/`revoke_role`/`reset_password` write (`security/auth/user.py:155-159`) — the
    same "write, then re-fetch the whole collection and scan for the one row just touched" shape the
-   PM audit flagged for `Portfolio.create_project_dependency`.
-4. **`EnterpriseCalendarDesktopApi._serialize_assignment` does a per-row `get_calendar()` lookup**
+   PM audit flagged for `Portfolio.create_project_dependency`.~~ **Fixed (P4, 2026-08-13)** — see "P4
+   PlatformUserDesktopApi._find_user N+1 remediation" below.
+4. ~~**`EnterpriseCalendarDesktopApi._serialize_assignment` does a per-row `get_calendar()` lookup**
    for every assignment row returned, repeated across roughly 9 of that file's 39 methods — an N+1
-   at the desktop-API layer itself, independent of what the underlying service does.
+   at the desktop-API layer itself, independent of what the underlying service does.~~ **Fixed (P5,
+   2026-08-13)** — see "P5 EnterpriseCalendarDesktopApi assignment-serialization N+1 remediation"
+   below.
 5. **Platform's own calendar-editing primitive has the exact defect the PM audit found (and
    recommended fixing) in PM's own now-deleted calendar adapter — and it is *worse* here.**
    `WorkingRuleService.save_rule` commits **inside itself**, once per call; `seed_standard_week`
@@ -1931,5 +2074,16 @@ mass rewrite, microservice split, event sourcing, or separate read database is j
 found in this audit; every finding here is addressable as a narrowly-scoped, incremental change,
 consistent with the same governing conclusion the companion PM audit reached.
 
-This document is an audit only. No code was changed. No CQRS implementation, migration plan
-execution, or write-path fix has been started for Platform as a result of this pass.
+**This closing note reflects the document's original 2026-08-12 audit-only state and is kept for
+historical context; it no longer describes the document's current status.** As tracked in the
+sections above, the team elected to remediate correctness/security findings (P0), then execute this
+audit's own recommended first CQRS pilot (P1, module entitlement read) and its next three ranked
+opportunities (P3 timesheet N+1, P4 `PlatformUserDesktopApi._find_user` N+1, P5
+`EnterpriseCalendarDesktopApi` assignment-serialization N+1), plus a model-duplication
+investigation (P2) that found no code change was needed. Of the six ranked opportunities in §14/this
+executive summary, four are now fixed (#1, #2, #3, #4); #5 (calendar-editing atomicity) was fixed
+independently under P0.3/P0.6; #6 (no SQL-side rollups anywhere in Platform) remains open, along with
+§18's items 6 (dynamic confirmation of `is_active=True` reachability) and 7 (notifications inbox
+read path, a product decision). No mass rewrite, microservice split, event sourcing, or separate read
+database has been introduced at any point — every change made has been a narrowly-scoped, evidence-led
+fix or Reader, consistent with this document's own governing conclusion.

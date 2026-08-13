@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from datetime import date
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     CalendarException,
@@ -33,6 +34,9 @@ class PlatformCalendarRepository(ABC):
         calendar_type: str | None = None,
         active_only: bool | None = None,
     ) -> list[PlatformCalendar]: ...
+
+    @abstractmethod
+    def list_by_ids(self, calendar_ids: Iterable[str]) -> list[PlatformCalendar]: ...
 
     @abstractmethod
     def add(self, calendar: PlatformCalendar) -> None: ...

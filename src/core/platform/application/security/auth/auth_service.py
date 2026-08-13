@@ -242,20 +242,20 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
     def force_user_password_reset(self, user_id: str) -> None:
         _pw.force_user_password_reset(self, user_id)
 
-    def reset_user_password(self, user_id: str, new_password: str) -> None:
-        _pw.reset_user_password(self, user_id, new_password)
+    def reset_user_password(self, user_id: str, new_password: str) -> UserAccount:
+        return _pw.reset_user_password(self, user_id, new_password)
 
-    def assign_role(self, user_id: str, role_name: str) -> None:
-        _roles.assign_role(self, user_id, role_name)
+    def assign_role(self, user_id: str, role_name: str) -> UserAccount:
+        return _roles.assign_role(self, user_id, role_name)
 
-    def revoke_role(self, user_id: str, role_name: str) -> None:
-        _roles.revoke_role(self, user_id, role_name)
+    def revoke_role(self, user_id: str, role_name: str) -> UserAccount:
+        return _roles.revoke_role(self, user_id, role_name)
 
-    def assign_customer_role(self, user_id: str, role_name: str) -> None:
-        _roles.assign_customer_role(self, user_id, role_name)
+    def assign_customer_role(self, user_id: str, role_name: str) -> UserAccount:
+        return _roles.assign_customer_role(self, user_id, role_name)
 
-    def revoke_customer_role(self, user_id: str, role_name: str) -> None:
-        _roles.revoke_customer_role(self, user_id, role_name)
+    def revoke_customer_role(self, user_id: str, role_name: str) -> UserAccount:
+        return _roles.revoke_customer_role(self, user_id, role_name)
 
     def list_users(self) -> list[UserAccount]:
         return _users.list_users(self)

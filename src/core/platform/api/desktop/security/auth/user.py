@@ -141,22 +141,19 @@ class PlatformUserDesktopApi:
         )
 
     def _assign_role_and_get_user(self, *, user_id: str, role_name: str) -> UserDto:
-        self._auth_service.assign_customer_role(user_id, role_name)
-        return self._serialize_user(self._find_user(user_id))
+        return self._serialize_user(
+            self._auth_service.assign_customer_role(user_id, role_name)
+        )
 
     def _revoke_role_and_get_user(self, *, user_id: str, role_name: str) -> UserDto:
-        self._auth_service.revoke_customer_role(user_id, role_name)
-        return self._serialize_user(self._find_user(user_id))
+        return self._serialize_user(
+            self._auth_service.revoke_customer_role(user_id, role_name)
+        )
 
     def _reset_password_and_get_user(self, command: UserPasswordResetCommand) -> UserDto:
-        self._auth_service.reset_user_password(command.user_id, command.new_password)
-        return self._serialize_user(self._find_user(command.user_id))
-
-    def _find_user(self, user_id: str) -> UserAccount:
-        for user in self._auth_service.list_users():
-            if user.id == user_id:
-                return user
-        raise RuntimeError(f"User '{user_id}' was not found after the desktop API operation completed.")
+        return self._serialize_user(
+            self._auth_service.reset_user_password(command.user_id, command.new_password)
+        )
 
 
 __all__ = ["PlatformUserDesktopApi"]

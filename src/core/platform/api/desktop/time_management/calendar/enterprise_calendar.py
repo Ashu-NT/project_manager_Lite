@@ -60,6 +60,7 @@ from src.core.platform.domain.time_management.calendar.enterprise_calendar impor
     ShiftPattern,
     ShiftPatternDay,
 )
+from src.core.platform.common.exceptions import NotFoundError
 
 
 def _parse_date(value: str) -> date | None:
@@ -533,117 +534,148 @@ class EnterpriseCalendarDesktopApi:
     # --- Assignments ---
 
     def assign_site_calendar(self, command: SiteCalendarAssignCommand) -> DesktopApiResult:
-        return execute_desktop_operation(
-            lambda: self._serialize_assignment(
-                self._assignment_service.assign_site_calendar(
-                    command.site_id,
-                    command.calendar_id,
-                    effective_from=_parse_date(command.effective_from),
-                    effective_to=_parse_date(command.effective_to),
-                    is_default=command.is_default,
-                    priority=command.priority,
-                ),
-                entity_type="site",
+        def _assign():
+            assignment = self._assignment_service.assign_site_calendar(
+                command.site_id,
+                command.calendar_id,
+                effective_from=_parse_date(command.effective_from),
+                effective_to=_parse_date(command.effective_to),
+                is_default=command.is_default,
+                priority=command.priority,
             )
-        )
+            calendar = self._calendar_service.get_calendar(assignment.calendar_id)
+            return self._serialize_assignment(assignment, entity_type="site", calendar=calendar)
+
+        return execute_desktop_operation(_assign)
 
     def assign_department_calendar(
         self, command: DeptCalendarAssignCommand
     ) -> DesktopApiResult:
-        return execute_desktop_operation(
-            lambda: self._serialize_assignment(
-                self._assignment_service.assign_department_calendar(
-                    command.department_id,
-                    command.calendar_id,
-                    effective_from=_parse_date(command.effective_from),
-                    effective_to=_parse_date(command.effective_to),
-                    is_default=command.is_default,
-                    priority=command.priority,
-                ),
-                entity_type="department",
+        def _assign():
+            assignment = self._assignment_service.assign_department_calendar(
+                command.department_id,
+                command.calendar_id,
+                effective_from=_parse_date(command.effective_from),
+                effective_to=_parse_date(command.effective_to),
+                is_default=command.is_default,
+                priority=command.priority,
             )
-        )
+            calendar = self._calendar_service.get_calendar(assignment.calendar_id)
+            return self._serialize_assignment(
+                assignment, entity_type="department", calendar=calendar
+            )
+
+        return execute_desktop_operation(_assign)
 
     def assign_employee_calendar(
         self, command: EmpCalendarAssignCommand
     ) -> DesktopApiResult:
-        return execute_desktop_operation(
-            lambda: self._serialize_assignment(
-                self._assignment_service.assign_employee_calendar(
-                    command.employee_id,
-                    command.calendar_id,
-                    effective_from=_parse_date(command.effective_from),
-                    effective_to=_parse_date(command.effective_to),
-                    is_default=command.is_default,
-                    priority=command.priority,
-                ),
-                entity_type="employee",
+        def _assign():
+            assignment = self._assignment_service.assign_employee_calendar(
+                command.employee_id,
+                command.calendar_id,
+                effective_from=_parse_date(command.effective_from),
+                effective_to=_parse_date(command.effective_to),
+                is_default=command.is_default,
+                priority=command.priority,
             )
-        )
+            calendar = self._calendar_service.get_calendar(assignment.calendar_id)
+            return self._serialize_assignment(
+                assignment, entity_type="employee", calendar=calendar
+            )
+
+        return execute_desktop_operation(_assign)
 
     def assign_project_calendar(
         self, command: ProjectCalendarAssignCommand
     ) -> DesktopApiResult:
-        return execute_desktop_operation(
-            lambda: self._serialize_assignment(
-                self._assignment_service.assign_project_calendar(
-                    command.project_id,
-                    command.calendar_id,
-                    effective_from=_parse_date(command.effective_from),
-                    effective_to=_parse_date(command.effective_to),
-                    is_default=command.is_default,
-                    priority=command.priority,
-                ),
-                entity_type="project",
+        def _assign():
+            assignment = self._assignment_service.assign_project_calendar(
+                command.project_id,
+                command.calendar_id,
+                effective_from=_parse_date(command.effective_from),
+                effective_to=_parse_date(command.effective_to),
+                is_default=command.is_default,
+                priority=command.priority,
             )
-        )
+            calendar = self._calendar_service.get_calendar(assignment.calendar_id)
+            return self._serialize_assignment(
+                assignment, entity_type="project", calendar=calendar
+            )
+
+        return execute_desktop_operation(_assign)
 
     def assign_resource_calendar(
         self, command: ResourceCalendarAssignCommand
     ) -> DesktopApiResult:
-        return execute_desktop_operation(
-            lambda: self._serialize_assignment(
-                self._assignment_service.assign_resource_calendar(
-                    command.resource_id,
-                    command.calendar_id,
-                    effective_from=_parse_date(command.effective_from),
-                    effective_to=_parse_date(command.effective_to),
-                    is_default=command.is_default,
-                    priority=command.priority,
-                ),
-                entity_type="resource",
+        def _assign():
+            assignment = self._assignment_service.assign_resource_calendar(
+                command.resource_id,
+                command.calendar_id,
+                effective_from=_parse_date(command.effective_from),
+                effective_to=_parse_date(command.effective_to),
+                is_default=command.is_default,
+                priority=command.priority,
             )
-        )
+            calendar = self._calendar_service.get_calendar(assignment.calendar_id)
+            return self._serialize_assignment(
+                assignment, entity_type="resource", calendar=calendar
+            )
+
+        return execute_desktop_operation(_assign)
 
     def list_site_calendar_assignments(self, site_id: str) -> DesktopApiResult:
-        return execute_desktop_operation(
-            lambda: tuple(
-                self._serialize_assignment(assignment, entity_type="site")
-                for assignment in self._assignment_service.list_site_assignments(site_id)
+        def _list():
+            assignments = self._assignment_service.list_site_assignments(site_id)
+            calendar_by_id = self._calendar_service.get_calendars_by_ids(
+                {a.calendar_id for a in assignments}
             )
-        )
+            return tuple(
+                self._serialize_assignment(
+                    assignment,
+                    entity_type="site",
+                    calendar=self._require_batched_calendar(calendar_by_id, assignment),
+                )
+                for assignment in assignments
+            )
+
+        return execute_desktop_operation(_list)
 
     def list_department_calendar_assignments(
         self, department_id: str
     ) -> DesktopApiResult:
-        return execute_desktop_operation(
-            lambda: tuple(
-                self._serialize_assignment(assignment, entity_type="department")
-                for assignment in self._assignment_service.list_department_assignments(
-                    department_id
-                )
+        def _list():
+            assignments = self._assignment_service.list_department_assignments(department_id)
+            calendar_by_id = self._calendar_service.get_calendars_by_ids(
+                {a.calendar_id for a in assignments}
             )
-        )
+            return tuple(
+                self._serialize_assignment(
+                    assignment,
+                    entity_type="department",
+                    calendar=self._require_batched_calendar(calendar_by_id, assignment),
+                )
+                for assignment in assignments
+            )
+
+        return execute_desktop_operation(_list)
 
     def list_employee_calendar_assignments(self, employee_id: str) -> DesktopApiResult:
-        return execute_desktop_operation(
-            lambda: tuple(
-                self._serialize_assignment(assignment, entity_type="employee")
-                for assignment in self._assignment_service.list_employee_assignments(
-                    employee_id
-                )
+        def _list():
+            assignments = self._assignment_service.list_employee_assignments(employee_id)
+            calendar_by_id = self._calendar_service.get_calendars_by_ids(
+                {a.calendar_id for a in assignments}
             )
-        )
+            return tuple(
+                self._serialize_assignment(
+                    assignment,
+                    entity_type="employee",
+                    calendar=self._require_batched_calendar(calendar_by_id, assignment),
+                )
+                for assignment in assignments
+            )
+
+        return execute_desktop_operation(_list)
 
     def remove_assignment(self, assignment_id: str, assignment_type: str) -> DesktopApiResult:
         def _remove():
@@ -664,32 +696,42 @@ class EnterpriseCalendarDesktopApi:
     def list_calendar_assignments(self, calendar_id: str) -> DesktopApiResult:
         def _list_assignments():
             assignments = self._assignment_service.list_calendar_assignments(calendar_id)
+            # Every assignment returned here is FOR this one calendar_id
+            # (list_calendar_assignments is a "who uses this calendar"
+            # usage summary) -- one lookup covers every category below.
+            calendar = self._calendar_service.get_calendar(calendar_id)
             return {
                 "sites": tuple(
-                    self._serialize_assignment(assignment, entity_type="site")
+                    self._serialize_assignment(assignment, entity_type="site", calendar=calendar)
                     for assignment in assignments.get("sites", ())
                 ),
                 "departments": tuple(
-                    self._serialize_assignment(assignment, entity_type="department")
+                    self._serialize_assignment(
+                        assignment, entity_type="department", calendar=calendar
+                    )
                     for assignment in assignments.get("departments", ())
                 ),
                 "employees": tuple(
-                    self._serialize_assignment(assignment, entity_type="employee")
+                    self._serialize_assignment(
+                        assignment, entity_type="employee", calendar=calendar
+                    )
                     for assignment in assignments.get("employees", ())
                 ),
                 "projects": tuple(
-                    self._serialize_assignment(assignment, entity_type="project")
+                    self._serialize_assignment(
+                        assignment, entity_type="project", calendar=calendar
+                    )
                     for assignment in assignments.get("projects", ())
                 ),
                 "resources": tuple(
-                    self._serialize_assignment(assignment, entity_type="resource")
+                    self._serialize_assignment(
+                        assignment, entity_type="resource", calendar=calendar
+                    )
                     for assignment in assignments.get("resources", ())
                 ),
             }
 
-        return execute_desktop_operation(
-            _list_assignments
-        )
+        return execute_desktop_operation(_list_assignments)
 
     # --- Resolution ---
 
@@ -835,8 +877,19 @@ class EnterpriseCalendarDesktopApi:
 
     # --- Helpers ---
 
-    def _serialize_assignment(self, assignment, entity_type: str) -> CalendarAssignmentDto:
-        cal = self._calendar_service.get_calendar(assignment.calendar_id)
+    @staticmethod
+    def _require_batched_calendar(calendar_by_id: dict, assignment):
+        calendar = calendar_by_id.get(assignment.calendar_id)
+        if calendar is None:
+            raise NotFoundError(f"Calendar '{assignment.calendar_id}' not found.")
+        return calendar
+
+    def _serialize_assignment(
+        self, assignment, entity_type: str, calendar
+    ) -> CalendarAssignmentDto:
+        """Pure -- performs no I/O. Callers fetch `calendar` (a single
+        lookup or a batch, as appropriate for how many distinct calendars
+        the assignments being serialized can reference) up front."""
         entity_id = getattr(
             assignment,
             f"{entity_type}_id",
@@ -847,8 +900,8 @@ class EnterpriseCalendarDesktopApi:
             entity_type=entity_type,
             entity_id=entity_id,
             calendar_id=assignment.calendar_id,
-            calendar_name=cal.name,
-            calendar_type=cal.calendar_type,
+            calendar_name=calendar.name,
+            calendar_type=calendar.calendar_type,
             is_default=assignment.is_default,
             priority=assignment.priority,
             effective_from=_fmt_date(assignment.effective_from),
