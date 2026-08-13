@@ -1548,8 +1548,10 @@ layer each have dedicated coverage (see file-name list in the underlying researc
 
 Synthesized ranking across all five research passes, ordered by evidence strength and reach:
 
-1. **Module entitlement read N+1** (§7 R7a) — the single most PM-Finance-Snapshot-comparable finding:
-   exact, reproducible, fires on every app-context load.
+1. ~~**Module entitlement read N+1** (§7 R7a) — the single most PM-Finance-Snapshot-comparable
+   finding: exact, reproducible, fires on every app-context load.~~ **Fixed (P1 CQRS pilot,
+   2026-08-13)** — see §17's pilot execution write-up; `list_entitlements()`/`shell_summary()` went
+   from 5/8 queries to 1 each, pinned by a SQL-count guardrail test.
 2. ~~**Platform's own calendar-editing write path reproduces the exact defect PM already fixed on
    its own side, and is worse** (§6 W9) — 7 sequential, individually-committed weekday saves, with
    no repository-level batch primitive to fix it from the caller side.~~ **Fixed (P0.3,
@@ -1645,6 +1647,64 @@ organization. Reuses the existing shared session, per this audit's session-lifec
 of scope for the pilot: any change to the *write* side (`set_module_state`/`patch_module_state`),
 any change to `PlatformSupportDesktopApi`, and any attempt to also fix the calendar-editing atomicity
 defect (§6 W9) in the same pass — that is a separate, write-side fix with its own scope.
+
+**Pilot executed 2026-08-13 — P1.0-P1.6, all complete.**
+
+- **P1.0 (baseline).** Measured against the real composition root (`build_service_dict`, in-memory
+  SQLite, SQLAlchemy `before_cursor_execute` counting — no estimation) with the 5 default
+  modules: `list_entitlements()` issued **5** near-identical `SELECT * FROM
+  organization_module_entitlements` statements (one per module), `shell_summary()` issued **8**,
+  `snapshot()` issued **4**, and a combined "one shell load" sequence (`list_entitlements` +
+  `shell_summary` + `snapshot`, mirroring `get_runtime_context`) issued **17** — matching this
+  audit's "15-20" estimate almost exactly.
+- **P1.1-P1.2 (contract + reader).** `ModuleEntitlementReader` (Protocol) and its immutable
+  `ModuleEntitlementSnapshot` fact (`@dataclass(frozen=True, slots=True)`, one `record_for(code)`
+  accessor) live in `contract/tenant/modules/read/module_entitlement_reader.py`; the concrete
+  `SqlAlchemyModuleEntitlementReader` lives in `infrastructure/persistence/repositories/read/
+  tenant/modules/module_entitlement_reader.py` — a `read/` split mirroring PM's own established
+  `contracts/reads/<domain>/`, `infrastructure/persistence/reads/<domain>/` CQRS convention, not
+  the older single-file `RateResolutionReader` shape this audit originally pointed to as the only
+  precedent available at write-time. The reader takes `tenant_id`/`organization_id` explicitly
+  (never resolves them from ambient session state) and issues exactly one `SELECT`, independent of
+  the write repository, with the same canonical-code dedup precedence
+  `SqlAlchemyModuleEntitlementRepository` already uses.
+- **P1.3 (rewire).** `ModuleCatalogService` gained an optional `entitlement_reader` constructor
+  parameter (wired in `platform_registry.py`, alongside the existing `entitlement_repo`).
+  `module_catalog_context.py` gained `_fetch_snapshot()` (one reader call, memoized for the
+  duration of a single logical read) and `_codes_from_records()` (licensed/enabled-set derivation
+  extracted so it can run against an already-fetched snapshot); `module_catalog_query.py`'s
+  `list_entitlements()`, `shell_summary()`, and `snapshot()` each now fetch one snapshot and derive
+  every per-module answer from it in Python, instead of each module (or each sub-call) independently
+  re-querying — the same "bulk-fetch once, iterate in Python" shape as
+  `EnterpriseCalendarResolver.resolve_range()`. A real, if minor, second bug surfaced and was fixed
+  during this rewire: the first version of `_fetch_snapshot()` called `_current_organization()`
+  (which fetches the *full* `Organization` row) to obtain `organization_id`, adding one unnecessary
+  query per call; fixed to prefer `user_session.active_organization_id()` — a pure in-memory getter,
+  the same "fast path" `TenantContextService.require_active_scope_ids()` already documents for
+  repository-level predicates. Only the write side (`set_module_state`/`patch_module_state`),
+  `PlatformSupportDesktopApi`, and the calendar-editing defect were left untouched, exactly as
+  scoped.
+- **P1.4-P1.5 (tests).** `src/tests/platform/test_module_entitlement_reader.py` (11 tests, all
+  passing): 4 reader-level unit tests (exact-one-query assertion, strict tenant+organization
+  scoping — including a same-organization-id-under-the-wrong-tenant case — legacy-alias dedup, and
+  empty-snapshot handling), 2 service-level result-equivalence/tenancy tests through the real
+  `services` fixture (writes via `set_module_state` are correctly reflected by every read method;
+  switching active organization correctly switches the visible entitlement state, with no leakage
+  either direction), and 5 SQL-count guardrail tests pinning `list_entitlements()`/
+  `shell_summary()`/`snapshot()`/`is_enabled()`/`get_entitlement()` at exactly one
+  `organization_module_entitlements` query each, plus the combined three-call sequence at exactly
+  three — so a future change that reintroduces the per-module loop fails a test, not just a code
+  review.
+- **P1.6 (guardrails + regression).** Re-measuring after the rewire (same P1.0 harness):
+  `list_entitlements()` **5→1**, `shell_summary()` **8→1**, `snapshot()` **4→2** (one entitlement
+  query plus one pre-existing, out-of-scope organization lookup for `context_label`), `is_enabled()`
+  and `get_entitlement()` unchanged at **1→1** (already optimal, confirmed no regression), combined
+  shell load **17→4**. Full `platform`+`architecture` regression (864 passed — the 11 new tests
+  above accounting for the entire increase from 853 — 14 failed, 12 errors) reproduces the identical
+  pre-existing failure/error set documented throughout this audit, zero new failures; the
+  architecture guardrail suite run alone shows the same 3 pre-existing, unrelated failures
+  (PM module-size budgets, a legacy-ORM-import check) with nothing newly broken by the new
+  `read/` packages or the rewired read path.
 
 ---
 

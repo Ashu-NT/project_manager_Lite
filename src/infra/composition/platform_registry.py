@@ -62,6 +62,7 @@ from src.core.platform.application.time_management.calendar.capacity.enterprise_
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import WorkingTimeCalculator
 from src.core.platform.application.time_management.calendar.capacity.global_calendar_shim import GlobalCalendarShim
 from src.core.platform.infrastructure.persistence.repositories.tenant.modules.modules import SqlAlchemyModuleEntitlementRepository
+from src.core.platform.infrastructure.persistence.repositories.read.tenant.modules.module_entitlement_reader import SqlAlchemyModuleEntitlementReader
 from src.core.platform.infrastructure.persistence.repositories.data_operations.runtime_tracking.runtime_tracking import SqlAlchemyRuntimeExecutionRepository
 from src.infra.composition.repositories import RepositoryBundle
 from src.infra.platform.operational_support import current_trace_id
@@ -417,6 +418,7 @@ def build_platform_service_bundle(
         session,
         tenant_context_service=tenant_context_service,
     )
+    module_entitlement_reader = SqlAlchemyModuleEntitlementReader(session)
     configure_session_rls_context(session, user_session=user_session)
     validate_postgresql_execution_role(session)
     module_catalog_service = ModuleCatalogService(
@@ -428,6 +430,7 @@ def build_platform_service_bundle(
             else os.getenv("PM_ENABLED_MODULES")
         ),
         entitlement_repo=module_entitlement_repo,
+        entitlement_reader=module_entitlement_reader,
         session=session,
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,

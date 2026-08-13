@@ -14,6 +14,7 @@ from src.core.platform.application.tenant.modules.module_catalog_mutation import
 )
 from src.core.platform.application.tenant.modules.module_catalog_query import ModuleCatalogQueryMixin
 from src.core.platform.contract.tenant.modules.contracts import ModuleEntitlementRepository
+from src.core.platform.contract.tenant.modules.read.module_entitlement_reader import ModuleEntitlementReader
 from src.core.platform.domain.tenant.modules import (
     DEFAULT_ENTERPRISE_MODULES,
     DEFAULT_PLATFORM_CAPABILITIES,
@@ -48,6 +49,7 @@ class ModuleCatalogService(
         licensed_codes: Iterable[str] | None = None,
         platform_capabilities: Iterable[PlatformCapability] | None = None,
         entitlement_repo: ModuleEntitlementRepository | None = None,
+        entitlement_reader: ModuleEntitlementReader | None = None,
         session: Session | None = None,
         user_session: Any = None,
         enterprise_audit_service: Any = None,
@@ -75,6 +77,7 @@ class ModuleCatalogService(
         self._licensed_codes = set(code for code in licensed if code in known_codes)
         self._enabled_codes = set(code for code in enabled if code in self._licensed_codes)
         self._entitlement_repo = entitlement_repo
+        self._entitlement_reader = entitlement_reader
         self._session = session
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
