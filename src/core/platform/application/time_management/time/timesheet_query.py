@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 
 from src.core.platform.common.exceptions import NotFoundError
-from src.core.platform.contract.time_management.time.contracts import (
+from src.core.platform.contract.repositories.time_management.time.contracts import (
     TimeEntryRepository,
     TimesheetPeriodRepository,
     WorkAllocationRepository,

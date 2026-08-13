@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.application.security.auth.auth_query import AuthQueryMixin
 from src.core.platform.application.security.auth.auth_validation import AuthValidationMixin
-from src.core.platform.contract.security.auth import (
+from src.core.platform.contract.repositories.security.auth import (
     AuthSessionRepository,
     PermissionRepository,
     RoleBindingRepository,
@@ -36,8 +36,8 @@ from src.core.platform.application.security.authorization.roles.canonical_role_r
 
 if TYPE_CHECKING:
     from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
-    from src.core.platform.contract.history.audit.contracts import AuditRepository
-    from src.core.platform.contract.tenant.tenancy.contracts import UserTenantMembershipRepository
+    from src.core.platform.contract.repositories.history.audit.contracts import AuditRepository
+    from src.core.platform.contract.repositories.tenant.tenancy.contracts import UserTenantMembershipRepository
     from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
     from src.core.platform.application.security.authorization.roles.role_governance_service import RoleGovernanceService

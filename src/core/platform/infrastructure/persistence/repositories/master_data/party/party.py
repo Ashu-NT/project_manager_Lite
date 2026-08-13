@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.core.platform.domain.master_data.party import Party
-from src.core.platform.contract.master_data.party.contracts import PartyRepository
+from src.core.platform.contract.repositories.master_data.party.contracts import PartyRepository
 from src.core.platform.infrastructure.persistence.orm.master_data.party.party import PartyORM
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,

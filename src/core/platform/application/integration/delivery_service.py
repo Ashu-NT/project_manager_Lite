@@ -7,7 +7,7 @@ from typing import Protocol
 from uuid import uuid4
 
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.contract.integration import (
+from src.core.platform.contract.repositories.integration import (
     IntegrationInboxRepository,
     IntegrationOutboxRepository,
 )

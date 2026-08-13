@@ -3,7 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Protocol
 
-from src.core.platform.contract.tenant.tenancy.contracts import TenantRepository
+from src.core.platform.contract.repositories.tenant.tenancy.contracts import TenantRepository
 from src.core.platform.domain.tenant.tenancy.tenant import Tenant
 
 

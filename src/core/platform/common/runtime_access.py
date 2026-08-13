@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.core.platform.contract.tenant.modules import SupportsModuleEntitlements
+from src.core.platform.contract.port.tenant.modules import SupportsModuleEntitlements
 from src.core.platform.application.tenant.modules import require_module_enabled
 
 

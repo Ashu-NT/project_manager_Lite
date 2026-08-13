@@ -11,7 +11,7 @@ from src.core.platform.infrastructure.persistence.orm.master_data.employee.emplo
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )
-from src.core.platform.contract.master_data.employee.contracts import EmployeeRepository
+from src.core.platform.contract.repositories.master_data.employee.contracts import EmployeeRepository
 from src.core.platform.domain.master_data.employee import Employee
 from src.infra.persistence.db.optimistic import update_with_version_check
 

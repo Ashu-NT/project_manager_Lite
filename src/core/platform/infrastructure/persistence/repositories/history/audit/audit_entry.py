@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.history.audit.contracts import AuditRepository
+from src.core.platform.contract.repositories.history.audit.contracts import AuditRepository
 from src.core.platform.domain.history.audit.audit_entry import AuditEntry
 from src.core.platform.infrastructure.persistence.mappers.history.audit.audit_entry import (
     audit_entry_from_orm,

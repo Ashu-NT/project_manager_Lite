@@ -9,7 +9,7 @@ from typing import Any, Callable
 from sqlalchemy.orm import Session
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.contract.time_management.calendar.contracts import ShiftPatternRepository
+from src.core.platform.contract.repositories.time_management.calendar.contracts import ShiftPatternRepository
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     ShiftPattern,
     ShiftPatternDay,

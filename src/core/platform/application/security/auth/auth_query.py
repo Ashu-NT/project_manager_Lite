@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.core.platform.common.exceptions import NotFoundError
-from src.core.platform.contract.security.auth import (
+from src.core.platform.contract.repositories.security.auth import (
     PermissionRepository,
     RolePermissionRepository,
     RoleRepository,

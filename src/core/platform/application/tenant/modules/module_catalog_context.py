@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.core.platform.contract.tenant.modules.contracts import ModuleEntitlementRepository
-from src.core.platform.contract.tenant.modules.read.module_entitlement_reader import (
+from src.core.platform.contract.repositories.tenant.modules.contracts import ModuleEntitlementRepository
+from src.core.platform.contract.read.tenant.modules.module_entitlement_reader import (
     ModuleEntitlementReader,
     ModuleEntitlementSnapshot,
 )

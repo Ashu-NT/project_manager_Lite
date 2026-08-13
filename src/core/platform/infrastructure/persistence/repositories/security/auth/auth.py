@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import UserTenantORM
-from src.core.platform.contract.security.auth import (
+from src.core.platform.contract.repositories.security.auth import (
     AuthPolicyReconciliationRepository,
     AuthSessionRepository,
     PermissionRepository,

@@ -20,7 +20,7 @@ from src.core.modules.project_management.application.projects.queries.project_qu
 )
 from src.core.platform.application.history.activity.activity_service import ActivityService
 from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.core.platform.contract.time_management.time.contracts import TimeEntryRepository
+from src.core.platform.contract.repositories.time_management.time.contracts import TimeEntryRepository
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 
 

@@ -10,7 +10,7 @@ from src.core.platform.domain.tenant.modules import (
     module_storage_codes,
     normalize_module_code,
 )
-from src.core.platform.contract.tenant.modules.contracts import ModuleEntitlementRepository
+from src.core.platform.contract.repositories.tenant.modules.contracts import ModuleEntitlementRepository
 from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
 from src.core.platform.infrastructure.persistence.orm.tenant.modules.modules import ModuleEntitlementORM
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (

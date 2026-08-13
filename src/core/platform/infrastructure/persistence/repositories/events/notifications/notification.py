@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.events.notifications.contracts import NotificationRepository
+from src.core.platform.contract.repositories.events.notifications.contracts import NotificationRepository
 from src.core.platform.domain.events.notifications import Notification
 from src.core.platform.infrastructure.persistence.mappers.events.notifications.notification import (
     notification_from_orm,

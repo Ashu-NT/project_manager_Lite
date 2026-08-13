@@ -8,7 +8,7 @@ from src.core.platform.infrastructure.persistence.orm.master_data.site.sites imp
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )
-from src.core.platform.contract.master_data.site.contracts import SiteRepository
+from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
 from src.core.platform.domain.master_data.site import Site
 from src.infra.persistence.db.optimistic import update_with_version_check
 

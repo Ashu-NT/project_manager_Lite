@@ -8,7 +8,7 @@ from typing import Any, Callable
 from sqlalchemy.orm import Session
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.contract.time_management.calendar.contracts import (
+from src.core.platform.contract.repositories.time_management.calendar.contracts import (
     CalendarWorkingRuleRepository,
     PlatformCalendarRepository,
 )

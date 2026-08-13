@@ -10,7 +10,7 @@ from src.core.modules.inventory_procurement.contracts.repositories.catalog impor
 from src.core.modules.inventory_procurement.domain.catalog.item import StockItem
 from src.core.platform.application.master_data.documents import DocumentIntegrationService
 from src.core.platform.domain.master_data.documents import Document, DocumentLink
-from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.application.master_data.party.party_service import PartyService
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,

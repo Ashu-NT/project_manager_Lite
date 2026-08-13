@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.master_data.documents.contracts import (
+from src.core.platform.contract.repositories.master_data.documents.contracts import (
     DocumentLinkRepository,
     DocumentRepository,
     DocumentStructureRepository,

@@ -8,7 +8,7 @@ from src.core.modules.project_management.contracts.ports.schedule_change import 
 )
 from src.core.modules.project_management.domain.enums import TaskStatus
 from src.core.modules.project_management.domain.tasks.task import Task
-from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 from src.core.platform.common.exceptions import (
     BusinessRuleError,
     ConcurrencyError,

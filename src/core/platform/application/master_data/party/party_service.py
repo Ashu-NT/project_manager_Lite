@@ -9,9 +9,9 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission, require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
-from src.core.platform.contract.master_data.party.contracts import PartyRepository
+from src.core.platform.contract.repositories.master_data.party.contracts import PartyRepository
 from src.core.platform.domain.master_data.party import (
     Party,
     PartyType,

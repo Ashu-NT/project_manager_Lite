@@ -3,7 +3,7 @@
 from __future__ import annotations
 from datetime import date
 
-from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.scheduling import SchedulingEngine

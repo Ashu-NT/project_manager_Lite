@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.history.activity.contracts import ActivityRepository
+from src.core.platform.contract.repositories.history.activity.contracts import ActivityRepository
 from src.core.platform.domain.history.activity.activity_entry import ActivityEntry
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.infrastructure.persistence.mappers.history.activity.activity import activity_from_orm, activity_to_orm

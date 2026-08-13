@@ -15,7 +15,7 @@ from __future__ import annotations
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.master_data.employee.read.employee_headcount_reader import (
+from src.core.platform.contract.read.master_data.employee.employee_headcount_reader import (
     EmployeeHeadcountSummary,
 )
 from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import EmployeeORM

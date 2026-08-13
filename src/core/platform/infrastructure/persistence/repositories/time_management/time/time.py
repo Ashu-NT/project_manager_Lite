@@ -5,7 +5,7 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.time_management.time.contracts import TimeEntryRepository, TimesheetPeriodRepository
+from src.core.platform.contract.repositories.time_management.time.contracts import TimeEntryRepository, TimesheetPeriodRepository
 from src.core.platform.domain.time_management.time import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,

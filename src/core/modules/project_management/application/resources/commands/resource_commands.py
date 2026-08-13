@@ -18,8 +18,8 @@ from src.core.modules.project_management.domain.resources.resource import Resour
 from src.core.modules.project_management.contracts.repositories.projects.project import ProjectResourceRepository
 from src.core.modules.project_management.contracts.repositories.tasks.task import AssignmentRepository
 from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
-from src.core.platform.contract.time_management.time.contracts import TimeEntryRepository
-from src.core.platform.contract.master_data.employee.contracts import EmployeeRepository
+from src.core.platform.contract.repositories.time_management.time.contracts import TimeEntryRepository
+from src.core.platform.contract.repositories.master_data.employee.contracts import EmployeeRepository
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.shared.activity import record_activity

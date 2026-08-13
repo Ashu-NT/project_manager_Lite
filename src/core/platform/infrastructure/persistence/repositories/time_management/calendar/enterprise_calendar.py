@@ -8,7 +8,7 @@ from datetime import date
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.time_management.calendar.contracts import (
+from src.core.platform.contract.repositories.time_management.calendar.contracts import (
     CalendarAssignmentRepository,
     CalendarExceptionRepository,
     CalendarRecurringEventRepository,

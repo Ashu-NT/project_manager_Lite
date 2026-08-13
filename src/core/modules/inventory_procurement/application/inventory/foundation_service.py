@@ -34,7 +34,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.common.ids import generate_id
 from src.core.shared.events.domain_events import domain_events
-from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.application.master_data.party.party_service import PartyService
 from src.core.platform.application.tenant.tenancy.tenant_context import (

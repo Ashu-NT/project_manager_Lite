@@ -5,7 +5,7 @@ from datetime import date, datetime, timezone
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import ValidationError
 from src.core.shared.events.domain_events import domain_events
-from src.core.platform.contract.time_management.time.contracts import (
+from src.core.platform.contract.repositories.time_management.time.contracts import (
     TimeEntryRepository,
     WorkAllocationRepository,
     WorkOwnerRepository,

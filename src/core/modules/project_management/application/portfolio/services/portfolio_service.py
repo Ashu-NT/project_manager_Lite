@@ -32,8 +32,8 @@ from src.core.modules.project_management.contracts.repositories.finance.rate_car
 from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import (
     ProjectCalendarAdapter,
 )
-from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
-from src.core.platform.contract.history.audit.contracts import AuditRepository
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.repositories.history.audit.contracts import AuditRepository
 from src.core.platform.common.exceptions import BusinessRuleError
 
 

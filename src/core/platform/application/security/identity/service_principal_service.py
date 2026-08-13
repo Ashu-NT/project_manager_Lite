@@ -9,11 +9,11 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.history.audit.contracts import AuditRepository
+from src.core.platform.contract.repositories.history.audit.contracts import AuditRepository
 from src.core.platform.domain.history.audit import AuditEntry
 from src.core.platform.application.security.auth import AuthService
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.contract.security.auth import UserRepository
+from src.core.platform.contract.repositories.security.auth import UserRepository
 from src.core.platform.domain.security.auth import (
     ACCOUNT_TYPE_SERVICE,
     UserSessionContext,
@@ -24,7 +24,7 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from src.core.platform.contract.security.identity.contracts import (
+from src.core.platform.contract.repositories.security.identity.contracts import (
     ApiKeyCredentialRepository,
     ServicePrincipalRepository,
 )
@@ -35,8 +35,8 @@ from src.core.platform.domain.security.identity.service_principal import (
     SERVICE_PRINCIPAL_STATUS_DISABLED,
     ServicePrincipal,
 )
-from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
-from src.core.platform.contract.tenant.tenancy.contracts import (
+from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.repositories.tenant.tenancy.contracts import (
     TenantRepository,
     UserTenantMembershipRepository,
 )

@@ -15,12 +15,12 @@ from src.core.modules.maintenance.contracts.repositories import (
 )
 from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.site import Site
 from src.core.platform.domain.master_data.party import Party, PartyType
-from src.core.platform.contract.master_data.party.contracts import PartyRepository
+from src.core.platform.contract.repositories.master_data.party.contracts import PartyRepository
 
 
 class _OrgRepo(OrganizationRepository):

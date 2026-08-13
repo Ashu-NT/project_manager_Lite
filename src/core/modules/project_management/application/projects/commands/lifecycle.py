@@ -33,7 +33,7 @@ from src.core.shared.activity import record_activity
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.contract.time_management.time.contracts import TimeEntryRepository
+from src.core.platform.contract.repositories.time_management.time.contracts import TimeEntryRepository
 from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.platform.domain.security.auth.session import UserSessionContext

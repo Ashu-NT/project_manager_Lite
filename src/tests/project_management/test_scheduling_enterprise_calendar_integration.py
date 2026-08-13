@@ -356,7 +356,7 @@ def test_scheduling_engine_falls_back_to_base_calendar_when_not_bootstrapped(
     """
     from unittest.mock import MagicMock
     from src.core.modules.project_management.application.scheduling.services.scheduling_engine import SchedulingEngine
-    from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
+    from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 
     mock_cal = MagicMock(spec=CalendarProtocol)
     engine = SchedulingEngine(
@@ -382,7 +382,7 @@ def test_scheduling_engine_uses_enterprise_calendar_when_assigned(
     """
     from unittest.mock import MagicMock
     from src.core.modules.project_management.application.scheduling.services.scheduling_engine import SchedulingEngine
-    from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
+    from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 
     _seed_project(db_session, tenant_context, "proj-enterprise-cal")
     assignment_service.assign_project_calendar("proj-enterprise-cal", global_cal.id)

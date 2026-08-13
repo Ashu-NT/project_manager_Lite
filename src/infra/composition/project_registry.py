@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 
 import logging
 from dataclasses import dataclass
@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.access import ScopedRolePolicy
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.contract.approval.contracts import (
+from src.core.platform.contract.models.approval.contracts import (
     ApprovalHandlerResult,
     ApprovalPostCommitEvent,
 )

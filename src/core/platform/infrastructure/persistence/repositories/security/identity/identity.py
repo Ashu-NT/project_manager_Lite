@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.contract.security.identity.contracts import (
+from src.core.platform.contract.repositories.security.identity.contracts import (
     ApiKeyCredentialRepository,
     ServicePrincipalRepository,
 )

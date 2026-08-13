@@ -8,8 +8,8 @@ from src.core.modules.maintenance.contracts.repositories import (
     MaintenanceWorkOrderRepository,
     MaintenanceWorkOrderTaskRepository,
 )
-from src.core.platform.contract.master_data.employee.contracts import EmployeeRepository
-from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.repositories.master_data.employee.contracts import EmployeeRepository
+from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContextService,
     require_tenant_context_service,

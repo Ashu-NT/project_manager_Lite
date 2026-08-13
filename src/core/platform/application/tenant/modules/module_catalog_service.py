@@ -13,8 +13,8 @@ from src.core.platform.application.tenant.modules.module_catalog_mutation import
     ModuleCatalogMutationMixin,
 )
 from src.core.platform.application.tenant.modules.module_catalog_query import ModuleCatalogQueryMixin
-from src.core.platform.contract.tenant.modules.contracts import ModuleEntitlementRepository
-from src.core.platform.contract.tenant.modules.read.module_entitlement_reader import ModuleEntitlementReader
+from src.core.platform.contract.repositories.tenant.modules.contracts import ModuleEntitlementRepository
+from src.core.platform.contract.read.tenant.modules.module_entitlement_reader import ModuleEntitlementReader
 from src.core.platform.domain.tenant.modules import (
     DEFAULT_ENTERPRISE_MODULES,
     DEFAULT_PLATFORM_CAPABILITIES,

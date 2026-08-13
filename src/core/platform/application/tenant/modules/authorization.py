@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.contract.tenant.modules.contracts import SupportsModuleEntitlements
+from src.core.platform.contract.port.tenant.modules.supports_module_entitlements import SupportsModuleEntitlements
 
 
 def require_module_enabled(

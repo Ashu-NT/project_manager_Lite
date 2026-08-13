@@ -2,7 +2,7 @@
 from datetime import date
 from decimal import Decimal
 
-from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 
 from sqlalchemy.orm import Session
 

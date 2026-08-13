@@ -11,9 +11,9 @@ from src.core.platform.common.exceptions import (
     DomainError,
     NotFoundError,
 )
-from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
-from src.core.platform.contract.tenant.tenancy.contracts import TenantRepository, UserTenantMembershipRepository
+from src.core.platform.contract.repositories.tenant.tenancy.contracts import TenantRepository, UserTenantMembershipRepository
 from src.core.platform.application.tenant.tenancy.context_policy import (
     LocalSingleTenantContextPolicy,
     TenancyMode,

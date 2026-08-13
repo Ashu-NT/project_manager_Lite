@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
-from src.core.platform.contract.security.auth import (
+from src.core.platform.contract.repositories.security.auth import (
     PermissionRepository,
     RoleBindingRepository,
     RolePermissionRepository,

@@ -11,7 +11,7 @@ from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.contract.master_data.documents.contracts import (
+from src.core.platform.contract.repositories.master_data.documents.contracts import (
     DocumentLinkRepository,
     DocumentRepository,
     DocumentStructureRepository,
@@ -31,7 +31,7 @@ from src.core.platform.domain.master_data.documents.support import (
     infer_title,
     normalize_optional_text,
 )
-from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.application.tenant.tenancy import TenantContextService
 

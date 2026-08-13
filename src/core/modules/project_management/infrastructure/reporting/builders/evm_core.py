@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.modules.project_management.application.financials.earned_value.evm_calculator import (
     EarnedValueCalculator,

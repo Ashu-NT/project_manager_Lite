@@ -54,8 +54,8 @@ from src.core.platform.application.security.authorization.enforcement.permission
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from src.core.platform.contract.master_data.party.contracts import PartyRepository
-from src.core.platform.contract.master_data.site.contracts import SiteRepository
+from src.core.platform.contract.repositories.master_data.party.contracts import PartyRepository
+from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
 from src.core.platform.finance import (
     EXCHANGE_RATE_STORAGE,
     DecimalQuantity,

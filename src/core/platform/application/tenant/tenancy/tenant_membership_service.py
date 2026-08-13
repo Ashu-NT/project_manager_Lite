@@ -9,14 +9,14 @@ import secrets
 
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.history.audit.contracts import AuditRepository
+from src.core.platform.contract.repositories.history.audit.contracts import AuditRepository
 from src.core.platform.domain.history.audit import AuditEntry
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     authorization_denied,
     require_permission,
 )
 from src.core.platform.domain.security.auth.datetime_utils import ensure_utc_datetime
-from src.core.platform.contract.security.auth import (
+from src.core.platform.contract.repositories.security.auth import (
     AuthSessionRepository,
     RoleBindingRepository,
     RoleRepository,
@@ -36,7 +36,7 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
 )
 from src.core.platform.application.events.notifications.notification_service import NotificationService
-from src.core.platform.contract.tenant.tenancy.contracts import (
+from src.core.platform.contract.repositories.tenant.tenancy.contracts import (
     TenantRepository,
     UserTenantMembershipRepository,
 )

@@ -13,7 +13,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.tenant.modules.read.module_entitlement_reader import (
+from src.core.platform.contract.read.tenant.modules.module_entitlement_reader import (
     ModuleEntitlementSnapshot,
 )
 from src.core.platform.domain.tenant.modules.module_codes import normalize_module_code

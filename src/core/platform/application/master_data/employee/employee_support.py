@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.contract.master_data.department.contracts import DepartmentRepository
+from src.core.platform.contract.repositories.master_data.department.contracts import DepartmentRepository
 from src.core.platform.domain.master_data.department import Department
-from src.core.platform.contract.master_data.employee.contracts import (
-    LinkedEmployeeResource,
+from src.core.platform.contract.interface.master_data.employee.contracts import LinkedEmployeeResource
+from src.core.platform.contract.repositories.master_data.employee.contracts import (
     LinkedEmployeeResourceRepository,
 )
 from src.core.platform.domain.master_data.employee import Employee
 from src.core.platform.domain.master_data.employee.support import employee_contact
-from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
-from src.core.platform.contract.master_data.site.contracts import SiteRepository
+from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
 from src.core.platform.domain.master_data.site import Site
 
 

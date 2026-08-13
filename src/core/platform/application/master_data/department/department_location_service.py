@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import ValidationError
-from src.core.platform.contract.master_data.site.contracts import LocationReferenceRepository
+from src.core.platform.contract.repositories.master_data.site.contracts import LocationReferenceRepository
 
 from .department_context import active_organization
 from .department_validation import validate_site_id

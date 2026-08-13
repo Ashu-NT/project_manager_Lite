@@ -34,10 +34,10 @@ from src.core.platform.infrastructure.persistence.read.master_data.employee.empl
     SqlAlchemyEmployeeHeadcountReader,
 )
 from src.core.platform.application.master_data.org.organization_service import OrganizationService
-from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.application.master_data.site.site_service import SiteService
-from src.core.platform.contract.master_data.site.contracts import SiteRepository
+from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
 from src.core.platform.domain.master_data.site.access_policy import (
     SITE_SCOPE_ROLE_CHOICES,
     normalize_site_scope_role,
@@ -52,7 +52,7 @@ from src.core.platform.application.tenant.tenancy import (
     build_tenant_context_policy,
 )
 from src.core.platform.application.master_data.party.party_service import PartyService
-from src.core.platform.contract.master_data.party.contracts import PartyRepository
+from src.core.platform.contract.repositories.master_data.party.contracts import PartyRepository
 from src.core.platform.application.data_operations.runtime_tracking import RuntimeExecutionService
 from src.core.platform.application.security.identity import ServicePrincipalService
 from src.core.platform.application.time_management.calendar.enterprise_calendar_service import EnterpriseCalendarService
