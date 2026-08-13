@@ -1,8 +1,46 @@
 # Platform — CQRS Existing-State Audit
 
-Status: **Read-only existing-state audit, complete (2026-08-12); now a living document tracking
-remediation and CQRS pilot work executed against its findings (see P0-P5 sections below).** This
-document follows the exact methodology of
+Status: **Modernization CLOSED (2026-08-13).** This document began as a read-only existing-state
+audit (complete 2026-08-12) and has since become the authoritative record of every remediation and
+CQRS pilot phase executed against its own findings, through to closure. **Historical framing below is
+intentional and preserved, not an oversight**: sentences written during the original audit pass (e.g.
+"no CQRS implementation has been started," "no existing reader precedent exists") were true *at that
+time* and are kept verbatim wherever they appear, each immediately followed by the phase that
+resolved it and the current status. Nowhere in this document should an "unresolved"/"not started"/
+"no Reader" statement be read as describing the *current* state unless it is not followed by a
+resolution note — see the status block immediately below for the single authoritative summary.
+
+---
+
+## Platform CQRS Modernization — Final Status
+
+**Engineering roadmap — all phases complete, no phase left in progress:**
+
+| Phase | Scope | Status |
+|---|---|---|
+| P0 (P0.1-P0.6) | Correctness/security remediation (organization provisioning atomicity, event-timing bug, calendar transaction defect, `audit_entries` RLS, master-data audit atomicity, calendar-resolver cache invalidation) | **COMPLETE** (2026-08-12) |
+| P1 | Module Entitlement CQRS pilot (`ModuleEntitlementReader`) | **COMPLETE** (2026-08-13) |
+| P2 | Model-duplication investigation (`FinancialPeriod`, `IntegrationDelivery`) | **COMPLETE** (2026-08-13) — both false positives, no code change needed |
+| P3 | Timesheet `WorkAllocationRepository` N+1 (batch repository fix) | **COMPLETE** (2026-08-13) |
+| P4 | `PlatformUserDesktopApi` post-write re-fetch (targeted lookup correction) | **COMPLETE** (2026-08-13) |
+| P5 | `EnterpriseCalendarDesktopApi` assignment-serialization N+1 (remove per-row I/O) | **COMPLETE** (2026-08-13) |
+| P6 | SQL-side rollup pilot — employee headcount (`EmployeeHeadcountReader`) | **COMPLETE** (2026-08-13) |
+
+**Open engineering blockers: none.**
+
+**Open product decisions:** notifications inbox UI/UX experience — **DEFERRED**, a product/UX
+decision, not an engineering blocker (§18 item 7). The backend is fully built and SQL-paginated
+already; only a user-facing surface has never been designed or requested.
+
+**Backlog (explicitly not modernization work):** the P6.0 discovery pass surfaced several master-data
+rollup candidates (employees per department, employees per site, users per role, resources by
+organizational unit) that were evaluated and **not selected** for CQRS remediation on current
+evidence — see "P6.0 Rollup Discovery Report" below. These remain valid *future* Platform Admin
+Insights product capabilities, to be scoped separately from — and only if/when the business case
+justifies it, e.g. alongside a Platform UI/UX redesign — not unfinished engineering from this
+modernization effort. **No P7 phase exists or is planned as a result of this document.**
+
+This document follows the exact methodology of
 `docs/pm_modernization/CQRS/project_management_cqrs_existing_state_audit.md` (the "PM audit"),
 applied to `src/core/platform/` instead of Project Management. The original audit pass itself was
 read-only — **no code was changed to produce it** — but code has since changed as a direct result of
@@ -18,6 +56,8 @@ transactions/authorization/events/tests), each instructed to match the PM audit'
 standard, then synthesized into one document with the same section numbering. Where a Platform
 finding directly mirrors, contradicts, or extends a specific PM audit finding, that relationship is
 called out explicitly, since the two documents are meant to be read together.
+
+---
 
 ## P0 correctness/security remediation status (started 2026-08-12)
 
@@ -539,6 +579,207 @@ Zero failures trace to `PlatformUserDesktopApi`, `AuthService`, `role_assignment
 
 ---
 
+## P6 SQL-side rollup pilot: employee headcount (2026-08-13)
+
+Closes ranked opportunity #6 ("no SQL-side rollups anywhere in Platform" — §1, §7 R7, §14) with a
+single, narrowly-scoped, evidence-backed pilot, per the same discipline P1's pilot used: discover
+first (P6.0), measure the baseline (P6.1), design the smallest correct Reader (P6.2), implement
+(P6.3), verify correctness (P6.4), pin the fix with a guardrail (P6.5), then run the full regression
+(P6.6). No generic aggregation framework (`GenericAggregateReader`/`GroupByRepository`) was built —
+only the one metric an existing screen actually needs.
+
+### P6.0 Rollup Discovery Report
+
+Seven master-data rollup candidates were investigated against the same seven evidence questions (is
+it displayed today; does the current path materialize a full collection; call frequency; expected
+table scale; is aggregation repeated in Python; would SQL `GROUP BY`/`COUNT` materially help; is the
+read model reusable by an existing screen). **Being marked DEFER below does not mean "bad idea" or
+"should never be built" — it means "not selected for CQRS/performance remediation given current
+evidence." Each deferred candidate may still be a valid future SaaS/Admin Insights product
+capability**, tracked as backlog (see the "Deferred product capability backlog" note near the end of
+this document), distinct from the performance-remediation work this pilot addresses.
+
+| # | Candidate | Existing consumer today | Current path | Verdict |
+|---|---|---|---|---|
+| 1 | Employees per department | `AdminDepartmentDetailPage.qml` — filters the already-fully-loaded employee list in client-side JavaScript | No backend read exists at all; not even a materialize-then-`len()` version | **Evaluated — not selected for CQRS remediation.** No backend path exists to modernize; the JS filter is not a performance problem at this scale. May be implemented later as a dedicated backend capability if a real screen needs the count server-side. |
+| 2 | Employees per site | None found | No backend read, no computation anywhere | **Evaluated — not selected.** Zero consumers; nothing to modernize. |
+| 3 | **Active/inactive employee counts** | `PlatformAdminWorkspacePresenter.build_overview()` — Admin Console overview tiles, refreshed on nearly every admin mutation | `list_employees(active_only=None)` → full `Employee` row materialization → Python `sum()` | **Selected as the P6 pilot** (see P6.1-P6.6 below) — the one candidate with a real, frequently-invoked consumer and a genuine repeated Python aggregation to replace. |
+| 4 | Sites per organization | Same Admin Console overview tile | Full site-list materialization → Python `sum()` | **Evaluated — not selected.** Table is tiny (dozens of sites, single org at a time); `sum()` over an already-small in-memory list is not a bottleneck worth a rollup yet. |
+| 5 | Users per role | None found (only "roles for a user" exists, the reverse direction) | No count computed anywhere; `list_active_for_role` used only for session-revocation logic, never as a reported number | **Evaluated — not selected.** No consumer needs this number today; roles/holder-counts are small. |
+| 6 | People/resources by organizational unit | `AdminDepartmentDetailPage.qml`'s employee count (same underlying full-list read as #1); admin dashboard tallies | No backend `GROUP BY department_id, COUNT(*)`; PM's `PortfolioResourcePoolService` does **not** cover this — confirmed a genuinely distinct gap, different domain (capacity-% vs. headcount) | **Evaluated — not selected.** A real, architecturally-correct future rollup, but admin-only and low-frequency against a small table — doesn't meet the pilot's evidence bar yet. |
+| 7 | Timesheet/status counts | Timesheets review-queue screen, used regularly by approvers | `SqlAlchemyTimesheetReviewReader.read_page` **already** runs `func.count`/`func.count(distinct)`/`func.sum` with `GROUP BY` — a genuine, already-wired SQL rollup | **Evaluated — not selected; already effectively resolved.** The only gap is a minor "combined tally across all statuses in one query" convenience, not a fresh CQRS candidate. |
+
+**Distinguishing the two categories, per this pilot's own governing principle:**
+- **(A) Existing inefficient read paths that justified modernization:** only candidate #3.
+- **(B) Useful product capabilities that do not currently justify performance remediation:** #1, #2,
+  #4, #5, #6 (also #7, which is not even inefficient). None of these are "unfinished P6 work" — each
+  was evaluated on its own merits and explicitly not selected.
+
+### P6.1 — measured baseline
+
+`PlatformAdminWorkspacePresenter.build_overview()` (`src/ui_qml/platform/presenters/admin_presenter.py`)
+called `self._employee_api.list_employees(active_only=None)` → `EmployeeService.list_employees` →
+`EmployeeRepository.list_for_organization` (a plain `SELECT * FROM employees WHERE organization_id=…
+AND tenant_id=…`, all columns, all rows, hydrated into full `Employee` domain objects), then computed
+`active_employee_count = sum(1 for employee in employees if employee.is_active)` and used `len(employees)`
+for the total — refreshed by `admin_refresh_service.py` on nearly every employee/site/department/user/
+party/document mutation, not just an occasional report view.
+
+Measured against the real composition root (`build_service_dict`, in-memory SQLite, direct
+instrumentation of `EmployeeRepository.list_for_organization` — call count and hydrated-row count, not
+SQL-statement count, since the query issues exactly one `SELECT` at every size and the defect is row
+**hydration**, the same shape P4 found for `PlatformUserDesktopApi._find_user`):
+
+| Total employees | `list_for_organization` calls | Rows hydrated | SQL statements |
+|---|---|---|---|
+| 1 | 1 | 1 | 1 |
+| 11 | 1 | 11 | 1 |
+| 61 | 1 | 61 | 1 |
+
+Query count never grows — one `SELECT` regardless of size — but every one of the N rows is fully
+hydrated into an `Employee` object (all columns: name, department, site, employment type, contact
+fields, …) just to compute two integers.
+
+### P6.2 — design
+
+A single purpose-built `EmployeeHeadcountReader` (Protocol) with an immutable
+`EmployeeHeadcountSummary` fact (`@dataclass(frozen=True, slots=True)`, fields `total: int`,
+`active: int`) — not a `GenericAggregateReader`. It exists because `build_overview()`'s employee tiles
+need exactly these two integers and nothing else; a generic aggregate framework would be solving a
+problem no caller has. Mirrors the P1 `ModuleEntitlementReader` precedent exactly: the reader takes
+`tenant_id`/`organization_id` explicitly as method parameters rather than resolving them from ambient
+session state, so it never depends on which service happens to be calling it.
+
+### P6.3 — implementation
+
+- **Contract** (`src/core/platform/contract/read/master_data/employee/employee_headcount_reader.py`):
+  `EmployeeHeadcountSummary` dataclass + `EmployeeHeadcountReader` Protocol (`get_summary(*, tenant_id,
+  organization_id) -> EmployeeHeadcountSummary`).
+- **Concrete reader**
+  (`src/core/platform/infrastructure/persistence/read/master_data/employee/employee_headcount_reader.py`):
+  `SqlAlchemyEmployeeHeadcountReader.get_summary` issues exactly one aggregate query —
+  `select(func.count(EmployeeORM.id), func.sum(case((EmployeeORM.is_active.is_(True), 1), else_=0)))`
+  filtered by `organization_id`/`tenant_id` — and returns the two scalars directly; zero `Employee`
+  rows are ever constructed.
+- **`EmployeeService`** (`application/master_data/employee/employee_service.py`): gained an optional
+  `headcount_reader` constructor parameter and a `get_headcount_summary()` method (permission-checked
+  with the same `employee.read` permission `list_employees` already uses).
+- **`PlatformEmployeeDesktopApi`**
+  (`api/desktop/master_data/employee/employee.py`/`models/employee.py`): new
+  `get_headcount_summary()` desktop method + `EmployeeHeadcountSummaryDto(total, active)`.
+- **`platform_registry.py`**: constructs `SqlAlchemyEmployeeHeadcountReader(session)` and wires it into
+  `EmployeeService`.
+- **`PlatformAdminWorkspacePresenter.build_overview()`**: employee tiles now call
+  `get_headcount_summary()` directly — `list_employees(active_only=None)` is no longer called for
+  this metric at all; the full-list materialization for employee counts is removed entirely, not just
+  optimized.
+
+### P6.4 — correctness and security
+
+- **Semantic equivalence**: zero employees (`total=0, active=0`), all-active, all-inactive, and mixed
+  cases all verified equal to the pre-fix Python-`sum()` result via reader-level unit tests with
+  seeded rows.
+- **Tenant isolation**: seeded rows across `tenant-a`/`org-a`, `tenant-a`/`org-b`, and — the
+  security-critical case — `tenant-b`/`org-a` (same organization id, different tenant) confirmed each
+  combination's summary reflects only its own rows.
+- **Organization isolation**: `test_employee_headcount_is_isolated_per_organization` — creating a
+  second organization and switching the active organization via the real `services` fixture confirms
+  the summary switches with it, with no leakage in either direction, mirroring P1's own org-isolation
+  test shape.
+- **Permissions**: `get_headcount_summary()` requires `employee.read`, identical to the existing
+  `list_employees` permission — no new or weaker authorization surface introduced.
+
+### P6.5 — SQL-count/row-materialization guardrail
+
+New `src/tests/platform/test_employee_headcount_reader.py` (7 tests): 3 reader-level unit tests
+(exact-one-statement assertion, tenant+organization scoping including the same-org-under-wrong-tenant
+case, empty-summary handling), 2 service-level equivalence/isolation tests through the real `services`
+fixture, and 2 guardrail tests pinning the fix — `get_headcount_summary` never calls
+`list_for_organization` (0 calls, regardless of 50 employees created in the test) and issues exactly 1
+`employees`-table `SELECT`; a true end-to-end test builds the real desktop-API registry and Admin
+Console presenter and confirms `list_for_organization` is called 0 times regardless of employee count,
+with the tile values matching the reader's output exactly.
+
+Before/after, using the same P6.1 harness:
+
+| Total employees | Rows hydrated (before) | Rows hydrated (after) | `list_for_organization` calls (after) |
+|---|---|---|---|
+| 1 | 1 | 0 | 0 |
+| 11 | 11 | 0 | 0 |
+| 61 | 61 | 0 | 0 |
+
+SQL statement count for this metric was already 1 before the fix and stays 1 after (an aggregate
+query replacing a full-row query, not a query-count reduction) — the defect this pilot closes is row
+**materialization**, not statement count, the same shape as P4.
+
+### P6.6 — full regression
+
+`src/tests/platform/test_employee_headcount_reader.py`: 7/7 passing. Combined with P4/P5, the full
+`platform`+`architecture`+`project_management` regression and the subsequent whole-repository
+(`src/tests`) regression are recorded in this document's final regression evidence — see the
+"Verification" note appended at the end of this document for the exact final counts, including the
+one genuine regression this session's *separate* `infrastructure/persistence/repositories/read/` →
+`infrastructure/persistence/read/` relocation caused (an architecture guardrail test's hardcoded
+directory-name set, fixed by adding `"read"` to it — a test-only change, not a production-behavior
+change, and unrelated to P0-P6's CQRS remediation).
+
+---
+
+## Contract package restructuring (2026-08-13)
+
+Separate from the P0-P6 CQRS remediation phases above, `src/core/platform/contract/` was
+reorganized twice in the same session, at the user's explicit direction, into a taxonomy that makes
+each contract's *capability* — not just its domain — visible from its path. **This is a structural
+reorganization of where contracts live, not a change to what any contract does**; every class kept
+its exact name, fields, and method signatures.
+
+**Final taxonomy** (`src/core/platform/contract/`):
+
+- **`repositories/`** — write-side persistence boundaries: every `*Repository` ABC/Protocol (e.g.
+  `EmployeeRepository`, `PlatformCalendarRepository`, `UserRepository`, `ApprovalRepository`,
+  `ModuleEntitlementRepository`), one subfolder per original domain path (e.g.
+  `repositories/master_data/employee/contracts.py`, `repositories/security/auth/auth_repository.py`).
+- **`read/`** — CQRS reader/projection boundaries: `ModuleEntitlementReader` (P1) and
+  `EmployeeHeadcountReader` (P6), each returning an immutable fact/snapshot dataclass, never an ORM
+  row, never committing.
+- **`port/`** — collaboration/capability boundaries: behavioral `Protocol`s with methods that *do*
+  something, independent of persistence — `AuthorizationEngine` (permission-check engine),
+  `CalendarProtocol` (structural interface any calendar engine satisfies),
+  `NotificationChannel` (external delivery channel, `send()`), `SupportsModuleEntitlements`
+  (`get_entitlement`/`is_enabled` capability check).
+- **`models/`** — plain immutable data contracts that are neither repositories nor ports: currently
+  `ApprovalPostCommitEvent`/`ApprovalHandlerResult` (`@dataclass(frozen=True)`, no methods, no I/O).
+- **`interface/`** — structural (duck-typed, attribute-only) `Protocol`s with no behavior: purely-data
+  shapes that describe what a cross-module collaborator's object looks like, without prescribing how
+  to fetch or mutate it — `LinkedEmployeeResource`, `LocationReference`, `WorkAllocationRecord`/
+  `WorkOwnerRecord`/`WorkResourceRecord`. Distinguished from `port/` by the absence of any method: a
+  `port/` Protocol is called to do something; an `interface/` Protocol is only ever read from.
+
+**Mixed `contracts.py` files split during the restructuring** (a single original file split into two
+or three new files, one per capability, with no class ever changed — only relocated and, where a
+dependency crossed the split, re-imported from its new location):
+
+| Original file | Split into |
+|---|---|
+| `approval/contracts.py` | `repositories/approval/contracts.py` (`ApprovalRepository`) + `models/approval/contracts.py` (`ApprovalPostCommitEvent`, `ApprovalHandlerResult`) |
+| `events/notifications/contracts.py` | `repositories/events/notifications/contracts.py` (`NotificationRepository`) + `port/events/notifications/notification_channel.py` (`NotificationChannel`) |
+| `master_data/employee/contracts.py` | `repositories/master_data/employee/contracts.py` (`EmployeeRepository`, `LinkedEmployeeResourceRepository`) + `interface/master_data/employee/contracts.py` (`LinkedEmployeeResource`) |
+| `master_data/site/contracts.py` | `repositories/master_data/site/contracts.py` (`SiteRepository`, `LocationReferenceRepository`) + `interface/master_data/site/contracts.py` (`LocationReference`) |
+| `tenant/modules/contracts.py` | `repositories/tenant/modules/contracts.py` (`ModuleEntitlementRepository`) + `port/tenant/modules/supports_module_entitlements.py` (`SupportsModuleEntitlements`) |
+| `time_management/time/contracts.py` | `repositories/time_management/time/contracts.py` (`WorkAllocationRepository`/`WorkOwnerRepository`/`WorkResourceRepository`/`TimeEntryRepository`/`TimesheetPeriodRepository` + aliases) + `interface/time_management/time/contracts.py` (`WorkAllocationRecord`/`WorkOwnerRecord`/`WorkResourceRecord` + aliases) |
+
+All ~93 files across `src/core/` and `src/infra/` that imported from the old domain-grouped paths
+were repointed to the new capability-grouped paths; every file that imported classes spanning two new
+buckets in one statement (`employee_support.py`, `timesheet_support.py`, `approval_service.py`,
+`notification_service.py`) had that one statement split into two, each importing from its correct new
+location. The old `contract/<domain>/` folders (e.g. `contract/finance/`, `contract/tenant/`,
+`contract/security/`) no longer exist — everything now lives under one of the five buckets above. The
+concrete-repository read-side tree
+(`infrastructure/persistence/repositories/read/` → `infrastructure/persistence/read/`) was relocated
+the same way, as a sibling of `repositories/` rather than nested inside it.
+
+---
+
 ## 1. Executive summary
 
 **Architectural style today.** Platform is not a separate service or process — it is the
@@ -594,7 +835,11 @@ found three pieces of pre-existing "raw material" for a clean split (`RateResolu
 audit's five research passes found no equivalent read-only `Protocol`/reader class, no
 cursor-paginated generic page wrapper, and no consistent query/command method-naming split anywhere
 in `src/core/platform/`. **A Platform CQRS effort would be starting from less existing precedent
-than PM's did**, not more.
+than PM's did**, not more. *(Original-audit-state finding, 2026-08-12 — no longer the current state:
+P1 established `ModuleEntitlementReader` and P6 established `EmployeeHeadcountReader`, both under
+`contract/read/`+`infrastructure/persistence/read/`; Platform now has its own Reader/CQRS precedent,
+independent of PM's. See "Contract package restructuring" above and "Final architecture summary"
+near the end of this document.)*
 
 **Where domain entities and ORM objects cross boundaries.** Same convention as PM: domain
 dataclasses, not ORM rows, cross from application services to desktop APIs, serialized once at the
@@ -627,20 +872,30 @@ boundary in any of the write/read paths traced.
    at the desktop-API layer itself, independent of what the underlying service does.~~ **Fixed (P5,
    2026-08-13)** — see "P5 EnterpriseCalendarDesktopApi assignment-serialization N+1 remediation"
    below.
-5. **Platform's own calendar-editing primitive has the exact defect the PM audit found (and
+5. ~~**Platform's own calendar-editing primitive has the exact defect the PM audit found (and
    recommended fixing) in PM's own now-deleted calendar adapter — and it is *worse* here.**
    `WorkingRuleService.save_rule` commits **inside itself**, once per call; `seed_standard_week`
    calls it 7 times sequentially for the 7 weekdays, producing **7 independent, non-atomic commits**
    for what a user experiences as "set up this calendar's working week" — a mid-loop failure leaves
    a partially-edited week with no compensating action. `CalendarWorkingRuleRepository`'s contract
    exposes only a singular `save()` — there is no batch primitive at the repository-contract level
-   either, so this cannot be fixed by the caller alone.
+   either, so this cannot be fixed by the caller alone.~~ **Fixed (P0.3/P0.6, 2026-08-12)** —
+   `seed_standard_week` now stages all 7 saves and commits once; the resolver's cache-invalidation gap
+   this defect fed into was closed the same day. See "P0 correctness/security remediation status"
+   above.
 6. **Every "totals"/rollup-shaped read in Platform is computed in Python over a materialized list**,
    exactly matching PM's module-wide finding: a repo-wide grep across all 21 Platform repository
    files for `func.sum`/`group_by` returns **zero matches**; `func.count` appears in exactly 4 narrow
    calendar-count call sites and nowhere else. No master-data rollup (employees per department,
    sites per organization, anything portfolio-shaped) exists at all — not even a materialize-then-
-   `len()` version — the capability simply hasn't been built yet.
+   `len()` version — the capability simply hasn't been built yet. *(Original-audit-state finding,
+   2026-08-12.)* **Partially addressed (P6, 2026-08-13)** — one pilot rollup (active/inactive
+   employee counts) was built as `EmployeeHeadcountReader`, the evidence-backed highest-value
+   candidate; the P6.0 discovery pass evaluated 6 further candidates (employees per department/site,
+   sites per organization, users per role, resources by organizational unit, timesheet-status
+   tallies) and explicitly did not select any for further CQRS remediation — see "P6 SQL-side rollup
+   pilot" above for the full evidence table. This finding is **resolved as far as this modernization
+   effort's own scope goes**; the remaining candidates are backlog/product work, not open engineering.
 
 **Major risks of introducing CQRS incorrectly, specific to Platform.** (i) **Audit atomicity is
 inconsistent within Platform itself, in a way a naive read-model consolidation could paper over.**
@@ -685,11 +940,11 @@ boundary.
 | Layer-first composition structure | Good, once traced | Layer-first grouping is real and consistently applied; `finance`/`integration` initially looked like flat packages duplicating layered application/contract/persistence models, but tracing the import graph (P2, 2026-08-13) showed each is one correctly-layered mechanism (`finance/periods/` is Platform's `domain/finance/`; `integration/delivery.py` is ADR-PF-011's domain-object layer) | No action needed — see "P2 model-duplication investigation status" above |
 | Write transaction handling | Mixed, worse skew than PM | Every write-capable service commits its own transaction correctly (35 files); but Platform's own calendar-editing primitive re-introduces a defect PM already found and fixed on its own side | Standardize, starting with calendar |
 | Audit/activity discipline | Inconsistent, three parallel implementations | A strict, test-verified tier (approval/finance/auth) coexists with a lenient, silently-droppable tier (all master-data writes) and a third hand-rolled bypass (role governance) | Consolidate onto one discipline |
-| Read scalability | Weak, and starting from less precedent than PM | Full-list materialization is the default everywhere; zero SQL-side sum/group-by; a confirmed live N+1 on the most-frequently-hit read (module entitlements) | Introduce selective Readers |
+| Read scalability | *Original audit (2026-08-12): Weak, and starting from less precedent than PM.* **Current (2026-08-13): established** — full-list materialization was the default everywhere; zero SQL-side sum/group-by; a confirmed live N+1 on the most-frequently-hit read | P1/P4/P5/P6 closed the confirmed N+1s and added Platform's first two Readers; remaining candidates are P6.0 backlog, not weaknesses | Selective Readers introduced (P1, P6); remaining gaps are backlog |
 | Tenant/security foundation | Good core mechanism, uneven table-by-table coverage | The two-layer (service check + DB RLS) pattern is real Platform infrastructure, turned on once for the whole process — but RLS coverage is genuinely inconsistent across tables, and `audit_entries` is a confirmed compliance-relevant gap | Correct independently, prioritize `audit_entries` |
 | Session lifecycle | Structural risk, shared with PM | Identical single-process-lifetime session as PM — this is one shared risk, not two separate ones | Investigate jointly with PM, not separately |
 | Approval governance | Good engine, Platform is host-only | `ApprovalService`'s own transaction handling is exemplary (handler → status → audit, one commit); Platform never uses it for its own writes and built weaker local substitutes instead | Route Platform's own governed writes through it, or explicitly decide not to |
-| CQRS readiness | Lower than PM | No existing reader/Protocol precedent found anywhere in Platform, unlike PM's three | Will need to establish the pattern from scratch, likely importing PM's precedent rather than inventing a new one |
+| CQRS readiness | *Original audit (2026-08-12): Lower than PM — no existing reader/Protocol precedent found anywhere in Platform.* **Current (2026-08-13): pattern established** — `ModuleEntitlementReader` (P1) and `EmployeeHeadcountReader` (P6) both live under `contract/read/`/`infrastructure/persistence/read/` | Not imported from PM after all — Platform built its own convention, now precedent for any future Platform Reader | Pattern established (P1); reused, not reinvented, for P6 |
 
 Explicitly, based on the evidence in this document:
 
@@ -1436,6 +1691,13 @@ notifications and inbox awareness" as `[~]` partially implemented — "not yet a
 platform-owned generic inbox workflow" — a known, already-tracked gap rather than a surprise this
 audit is the first to surface.
 
+**Status: PRODUCT / UX DECISION — DEFERRED.** Not an engineering blocker. The
+backend/persistence/query capability already exists and is SQL-paginated (§18 item 7); exposing a
+user-facing notifications inbox requires product decisions this audit does not make on its own
+authority — where notifications surface, unread/read semantics, badge behavior, mark-read behavior,
+retention/archive semantics, filtering, and desktop-vs-future-web behavior. This is intentionally not
+implemented as part of the P0-P6 modernization effort and should not be read as unfinished CQRS work.
+
 **R7 — "Totals"/rollup-shaped reads (SQL-side aggregation audit).** Grepped `func.sum`,
 `func.count`, `group_by` across all 21 Platform repository files: **`func.sum` — zero occurrences
 anywhere**; **`group_by` — zero occurrences anywhere**; **`func.count` — exactly 4 occurrences, all
@@ -1445,6 +1707,10 @@ latter itself doing 3 separate SQL counts summed in Python). **No master-data ro
 organization," or any portfolio-shaped Platform report simply hasn't been built yet. **This exactly
 matches PM's module-wide finding** — the sole DB-side aggregation primitives anywhere in Platform's
 persistence layer are `.limit()`-bounded "recent N" reads and these 4 narrow counts; nothing else.
+*(Original-audit-state finding, 2026-08-12.)* **Status: partially resolved (P6, 2026-08-13)** — see
+"P6 SQL-side rollup pilot" and its "P6.0 Rollup Discovery Report" above for the evidence-backed
+outcome of all 7 investigated candidates. `func.sum`/`group_by`/`func.count` usage now also includes
+`EmployeeHeadcountReader`'s `func.count`/`func.sum(case(...))`.
 
 **R7a (bonus) — Module entitlement read: the confirmed N+1.** `get_runtime_context` →
 `list_entitlements`/`shell_summary()`: `_build_entitlement` re-derives the full entitlement-record
@@ -1894,11 +2160,22 @@ Synthesized ranking across all five research passes, ordered by evidence strengt
    remediation status" above.
 5. ~~**Confirmed pre-commit event emission bug** (§6 W3) — `resources_changed.emit()` inside a loop,
    before commit, in a live cross-module write path.~~ **Fixed (P0.2, 2026-08-12).**
-6. **`PlatformUserDesktopApi` / `EnterpriseCalendarDesktopApi` desktop-layer N+1s** (§5, §9d) —
-   confirmed at the desktop-API layer independent of what the underlying services do.
+6. ~~**`PlatformUserDesktopApi` / `EnterpriseCalendarDesktopApi` desktop-layer N+1s** (§5, §9d) —
+   confirmed at the desktop-API layer independent of what the underlying services do.~~ **Resolved:**
+   `PlatformUserDesktopApi._find_user`'s post-write full-list re-fetch was removed under **P4**
+   (2026-08-13) — `assign_role`/`revoke_role`/`reset_password` now return the `UserAccount` each write
+   path already holds internally, so the desktop API never re-lists the user collection at all (0
+   `list_all()`/`list_for_tenant()` calls, was scaling 1:1 with total tenant user count).
+   `EnterpriseCalendarDesktopApi._serialize_assignment`'s per-row `get_calendar()` lookup was removed
+   under **P5** (2026-08-13) — the method was made pure (takes an already-resolved `calendar`
+   parameter) and every caller now batch-fetches or single-fetches the calendar(s) it needs up front
+   (`get_calendar()` call count pinned at exactly 1 for 1/10/50 assignments sharing a calendar, was
+   scaling 1:1). Both fixes verified with SQL-count/call-count guardrail tests; see "P4" and "P5"
+   above.
 7. **Notifications: fully-built backend, zero UI read path** (§7 R6) — not a CQRS problem per se, but
    a completeness gap worth noting since any Platform read-model work would naturally also want to
-   expose this.
+   expose this. **Status: PRODUCT / UX DECISION — DEFERRED**, not an engineering blocker — see the
+   status note added directly under R6 above and §18 item 7.
 8. ~~**`EnterpriseCalendarResolver`'s cache has no invalidation path** (§4c, §7 R7b) — a stale-read
    risk shared by 5+ PM consumer services through the `GlobalCalendarShim` singleton.~~ **Fixed
    (P0.6, 2026-08-12)** — see "P0 correctness/security remediation status" above.
@@ -1908,9 +2185,18 @@ Synthesized ranking across all five research passes, ordered by evidence strengt
    positives; each is one correctly-layered mechanism, not two models. See "P2 model-duplication
    investigation status" above. A future Reader for either can safely target the single existing
    model.
-10. **A likely-broken `is_active=True` branch in organization provisioning** (§6 W1) — flagged as a
+10. ~~**A likely-broken `is_active=True` branch in organization provisioning** (§6 W1) — flagged as a
     static-reading-only finding requiring dynamic confirmation, per this audit's own methodology
-    discipline.
+    discipline.~~ **RESOLVED (2026-08-13).** A new dynamic runtime test,
+    `test_provision_organization_with_is_active_true_activates_in_one_transaction`
+    (`test_platform_runtime_application_service.py`), actually calls `provision_organization` with
+    `is_active=True` end-to-end for the first time in this codebase's test suite — every prior
+    provisioning test used `is_active=False` only. It confirms the branch is reachable and correct:
+    the new organization persists `is_active=True` (re-read from the repository, not the in-memory
+    return value), its entitlements are licensed and enabled, the tenant context and
+    application-service facade both report it active with no manual follow-up call needed, and the
+    previously-active organization is correctly deactivated, not lost. See §18 item 6 for the same
+    resolution recorded against its original open question.
 
 ---
 
@@ -1923,12 +2209,19 @@ What a CQRS effort should *not* do is wrap any of Platform's `commit: bool`-thre
 "Command" abstraction that hardcodes `commit=True` — that would silently break the one part of
 Platform's transaction handling that's already correctly governed.
 
-**Read side — where the real work belongs.** Unlike PM, Platform has **no existing reader precedent**
-to extend — no `Protocol`-based read-only class, no cursor-paginated generic page wrapper, no
-consistent query/command naming split. A Platform CQRS effort would need to **establish** the
-pattern, and the most defensible way to do that is to reuse PM's already-built, already-tested
-`RateResolutionReader`-style shape rather than invent a second one. The clearest, most evidence-
-backed first candidate is the **module entitlement read** (§7 R7a, §14 #1): a single
+**Read side — where the real work belongs.** *(Original audit state, 2026-08-12 — resolved by P1/P6,
+see below.)* Unlike PM, Platform has **no existing reader precedent** to extend — no `Protocol`-based
+read-only class, no cursor-paginated generic page wrapper, no consistent query/command naming split.
+A Platform CQRS effort would need to **establish** the pattern, and the most defensible way to do that
+is to reuse PM's already-built, already-tested `RateResolutionReader`-style shape rather than invent a
+second one. **Current state (2026-08-13): the pattern is now established, by Platform itself.** P1
+built `ModuleEntitlementReader` (`contract/read/tenant/modules/`,
+`infrastructure/persistence/read/tenant/modules/`), and P6 reused the exact same shape for
+`EmployeeHeadcountReader` (`contract/read/master_data/employee/`,
+`infrastructure/persistence/read/master_data/employee/`) rather than inventing a second convention —
+any future Platform Reader now has two worked examples to extend, not zero. The clearest, most
+evidence-backed first candidate at the time of the original audit was the **module entitlement read**
+(§7 R7a, §14 #1): a single
 `ModuleEntitlementReader`-style class returning one purpose-built dataclass per organization,
 replacing the current 15-20-query cycle with one SQL statement, mirroring exactly how the PM audit's
 own pilot chose Finance Snapshot for its combination of measured redundancy and high call frequency.
@@ -1942,7 +2235,12 @@ are candidates for a *future* pass, not this document's recommended first pilot.
 
 ---
 
-## 16. Proposed target structure (light-touch)
+## 16. Proposed target structure (light-touch) — superseded by what was actually built
+
+*This section is preserved as originally written (2026-08-12) for historical context; the structure
+it proposed is no longer what exists. See "Contract package restructuring" near the top of this
+document for the actual final `contract/` taxonomy (`repositories/`/`read/`/`port/`/`models/`/
+`interface/`), which went further than this section originally proposed.*
 
 Platform's persistence layer is already grouped by content taxonomy (the 9 groups), so — unlike PM,
 which needed a `repositories/` flattening fix earlier in this engagement — **no directory
@@ -1952,6 +2250,16 @@ group's existing repository (e.g. `infrastructure/persistence/repositories/tenan
 `ModuleEntitlementReader`), following the same "sibling of the repository it reads from" convention
 PM's `RateResolutionReader` already established (`contracts/repositories/finance/rate_cards/
 rate_resolution.py` sits beside `rate_cards.py`).
+
+**What was actually built (2026-08-13) went further than this recommendation**: rather than nesting
+each Reader inside its own repository's folder, both `contract/` and
+`infrastructure/persistence/` gained a dedicated top-level `read/` sibling to `repositories/` —
+`contract/read/tenant/modules/`, `infrastructure/persistence/read/tenant/modules/` (P1) and
+`contract/read/master_data/employee/`, `infrastructure/persistence/read/master_data/employee/` (P6).
+`contract/` was further split into `repositories/`/`read/`/`port/`/`models/`/`interface/` by
+capability (see "Contract package restructuring" above) — a broader reorganization than this
+section's "light-touch" recommendation, done at explicit user direction once two Readers existed and
+the capability groupings became visible in practice.
 
 ---
 
@@ -2092,34 +2400,100 @@ defect (§6 W9) in the same pass — that is a separate, write-side fix with its
    exists and is fully SQL-paginated? This is a product decision, not purely a CQRS one, but is a
    near-zero-cost addition if a Reader-style pattern is being established anyway.
 
+   **Status: PRODUCT / UX DECISION — DEFERRED. Not an engineering blocker.** The
+   backend/persistence/query capability already exists and is SQL-paginated (`list_my_notifications`,
+   correctly filtered/ordered/limited in SQL — §7 R6), but exposing a user-facing notifications inbox
+   requires product decisions outside this document's authority: where notifications surface,
+   unread/read semantics, badge behavior, mark-read behavior, retention/archive semantics, filtering,
+   and desktop-vs-future-web behavior. **This is deliberately not implemented** as part of the P0-P6
+   modernization effort and must not be classified as unfinished CQRS engineering — it is the one item
+   in this entire document intentionally left open, and it is left open on purpose.
+
+---
+
+## Final architecture summary — what actually changed
+
+**Principles established by implementation** (confirmed in the current codebase, not aspirational):
+
+- Platform remains **logical CQRS in the same application and database** — no separate service, no
+  separate read database; every Reader shares the one process-lifetime SQLAlchemy `Session` every
+  write path already uses.
+- **Readers are read-only and never commit.** `ModuleEntitlementReader`/`EmployeeHeadcountReader`
+  issue exactly one `SELECT` and return; neither calls `session.commit()`, `add()`, or `update()`.
+- **Readers take `tenant_id`/`organization_id` explicitly**, never resolved from ambient session
+  state — established by P1, reused verbatim by P6, now the standing convention for any future
+  Platform Reader.
+- **Immutable projection/fact boundaries**: `ModuleEntitlementSnapshot` and `EmployeeHeadcountSummary`
+  are both `@dataclass(frozen=True, slots=True)` — plain facts, never ORM rows, never mutated after
+  construction.
+- **SQL-side projection/aggregation where the evidence justifies it, and only there**:
+  `EmployeeHeadcountReader` uses `func.count`/`func.sum(case(...))`; nothing was built for the 6 P6.0
+  candidates the evidence didn't support.
+- **No ORM leakage through any Reader contract** — both Readers' Protocols return the dataclass fact,
+  never an ORM model class.
+- **Serializers no longer perform per-row database I/O**: `EnterpriseCalendarDesktopApi
+  ._serialize_assignment` (P5) and `PlatformUserDesktopApi`'s write-result serialization (P4) both
+  became pure — no I/O — with callers responsible for supplying already-resolved data.
+- **Repositories remain the write/domain persistence boundary** — no repository gained reader
+  behavior, no reader gained write methods; batch repository operations (`list_by_ids`) are used where
+  a full CQRS Reader is unnecessary (P3), reserving Readers for genuinely aggregate/projection-shaped
+  reads (P1, P6).
+- **Query-count/row-materialization guardrail tests protect every optimized path** — P1 (5 tests), P3
+  (2 tests), P4 (2 tests), P5 (4 tests), P6 (7 tests): 20 new regression tests total, each pinning an
+  exact query count or hydration count so the fixed N+1 cannot silently reappear.
+
+**Which phases used a Reader vs. a smaller fix — by design, not by default:**
+
+| Phase | Finding | Solution shape | Why |
+|---|---|---|---|
+| P1 | Module entitlement 15-20 query N+1 | **Reader/CQRS** (`ModuleEntitlementReader`) | Genuinely aggregate/projection-shaped question ("what is this org entitled to"), asked from multiple call sites |
+| P3 | Timesheet `WorkAllocationRepository.get()` N+1 | **Batch repository fix** (`list_by_ids()`) | One caller, one list of ids — a batch method on the existing write repository was sufficient; no new read model needed |
+| P4 | `PlatformUserDesktopApi` post-write full-list re-fetch | **Targeted lookup/read-after-write correction** | The write path already held the exact object needed; returning it was strictly cheaper than any new fetch, Reader or not |
+| P5 | `EnterpriseCalendarDesktopApi` per-row `get_calendar()` | **Remove per-row serialization I/O** (pure serializer + caller-supplied batch/single fetch) | The inefficiency was *where* the I/O happened (inside a serializer called once per row), not a missing aggregate — fixed by moving the fetch, not by building a new read model |
+| P6 | No SQL-side rollups anywhere | **SQL aggregate Reader/projection** (`EmployeeHeadcountReader`) | Genuinely aggregate-shaped question ("how many, how many active") that full-row materialization could never answer efficiently no matter how the caller batched it |
+
+This range — from "reuse an existing batch method" (P3) through "return what you already have" (P4)
+through "stop doing I/O inside a serializer" (P5) to "build a dedicated aggregate Reader" (P1, P6) —
+is itself evidence against a generic CQRS framework: each fix was sized to its finding, not to a
+one-size-fits-all pattern.
+
+---
+
+## Deferred product capability backlog (not modernization work)
+
+The P6.0 discovery pass surfaced several master-data rollup ideas that are real, useful, and **not**
+part of this modernization effort's scope:
+
+- Employees per department
+- Employees per site
+- Users per role
+- People/resources by organizational unit
+- Organization/workforce distribution more generally
+
+These are potential future **Platform Admin Insights** capabilities — dashboard-shaped product
+features — not unfinished CQRS engineering. They should be scoped as their own product initiative,
+with real UI/UX design (not just a backend query), separately from any further CQRS remediation, and
+are natural candidates to revisit **alongside a future Platform UI/UX redesign**, not before or
+instead of one. Each was evaluated against the same evidence bar P6's actual pilot met (existing
+consumer, call frequency, expected scale, repeated Python aggregation) and none currently clears it —
+see "P6.0 Rollup Discovery Report" above for the full per-candidate evidence. **No engineering work
+against this list should be started without a separate product decision to do so.**
+
 ---
 
 ## Terminal summary
 
-Platform is architecturally sound at the layer level — no `relationship()` indirection, no
-repository-level commits, a real and consistently-applied 8-plus-1-group content taxonomy, and a
-genuinely atomic user-registration write path that exceeds its own master-data services' discipline.
-Its CQRS readiness, however, starts from a weaker position than PM's did: no existing reader
-precedent exists anywhere in Platform to extend, tenant-scoping coverage is meaningfully less
-uniform than PM's, and its own audit-atomicity story is split across three parallel, inconsistently-
-applied implementations rather than PM's more uniform (if imperfect) one. The clearest, most
-evidence-backed opportunity is the module-entitlement read — a confirmed, exact N+1 that fires on
-every session's context load — and the clearest write-side risk is that Platform's own calendar-
-editing primitive reproduces a defect PM already found and fixed on its own side, only worse. No
-mass rewrite, microservice split, event sourcing, or separate read database is justified by anything
-found in this audit; every finding here is addressable as a narrowly-scoped, incremental change,
-consistent with the same governing conclusion the companion PM audit reached.
-
-**This closing note reflects the document's original 2026-08-12 audit-only state and is kept for
-historical context; it no longer describes the document's current status.** As tracked in the
-sections above, the team elected to remediate correctness/security findings (P0), then execute this
-audit's own recommended first CQRS pilot (P1, module entitlement read) and its next three ranked
-opportunities (P3 timesheet N+1, P4 `PlatformUserDesktopApi._find_user` N+1, P5
-`EnterpriseCalendarDesktopApi` assignment-serialization N+1), plus a model-duplication
-investigation (P2) that found no code change was needed. Of the six ranked opportunities in §14/this
-executive summary, four are now fixed (#1, #2, #3, #4); #5 (calendar-editing atomicity) was fixed
-independently under P0.3/P0.6; #6 (no SQL-side rollups anywhere in Platform) remains open, along with
-§18's items 6 (dynamic confirmation of `is_active=True` reachability) and 7 (notifications inbox
-read path, a product decision). No mass rewrite, microservice split, event sourcing, or separate read
-database has been introduced at any point — every change made has been a narrowly-scoped, evidence-led
-fix or Reader, consistent with this document's own governing conclusion.
+**Platform CQRS modernization engineering work is CLOSED.** Every phase P0 through P6 is complete;
+every one of §14's ten ranked architectural problems is resolved; every one of §18's questions 0
+through 6 is resolved; the sole remaining open item — §18 question 7, the notifications inbox — is
+explicitly a product/UX decision, deliberately deferred, and not an engineering blocker. **No P7 phase
+was created or is planned.** Platform is architecturally sound at the layer level — no
+`relationship()` indirection, no repository-level commits, and a genuinely atomic user-registration
+write path — and now also has its own established Reader/CQRS precedent (P1, P6), its confirmed
+desktop-layer N+1s closed (P3, P4, P5), and its `contract/` package reorganized into a
+capability-visible taxonomy (`repositories/`/`read/`/`port/`/`models/`/`interface/`). No mass rewrite,
+microservice split, event sourcing, or separate read database was ever justified or introduced;
+every change made was a narrowly-scoped, evidence-led fix or Reader, exactly as this document's own
+governing conclusion (§1, §16) always recommended. Future Platform Admin Insights capabilities
+identified along the way are recorded as backlog above, explicitly out of this effort's scope, to be
+taken up only by a separate, deliberate product decision.

@@ -50,7 +50,7 @@ def test_platform_persistence_uses_module_style_layout() -> None:
         if path.is_dir() and path.name != "__pycache__"
     }
 
-    assert source_dirs == {"mappers", "orm", "repositories"}
+    assert source_dirs == {"mappers", "orm", "repositories", "read"}
     for area in ("orm", "repositories"):
         assert _source_file_stems(PERSISTENCE_ROOT / area) == FLAT_AREAS
         for nested_file in NESTED_AREA_FILES | NESTED_AREA_FILES_NO_MAPPER:
