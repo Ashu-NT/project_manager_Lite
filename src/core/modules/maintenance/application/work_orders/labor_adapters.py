@@ -72,6 +72,14 @@ class MaintenanceTaskWorkAllocationRepository:
             return None
         return self._build_allocation(task, work_order)
 
+    def list_by_ids(self, work_allocation_ids: list[str]) -> list[MaintenanceTaskWorkAllocationRecord]:
+        # Not currently reachable in production (no caller wires an
+        # approved-time outbox for maintenance labor yet) -- kept as a
+        # correct, unoptimized per-id loop so WorkAllocationRepository stays
+        # fully satisfied rather than silently missing a method.
+        records = (self.get(work_allocation_id) for work_allocation_id in work_allocation_ids)
+        return [record for record in records if record is not None]
+
     def list_by_resource(self, resource_id: str) -> list[MaintenanceTaskWorkAllocationRecord]:
         organization_id = self._tenant_context_service.get_active_organization_id()
         if organization_id is None:

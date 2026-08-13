@@ -45,6 +45,12 @@ class AssignmentRepository(ABC):
     def get(self, assignment_id: str) -> TaskAssignment | None: ...
 
     @abstractmethod
+    def list_by_ids(self, assignment_ids: list[str]) -> list[TaskAssignment]:
+        """Batch fetch by assignment id -- the WorkAllocationRepository-side
+        counterpart callers must use instead of calling get() in a loop."""
+        ...
+
+    @abstractmethod
     def list_by_task(self, task_id: str) -> list[TaskAssignment]: ...
 
     @abstractmethod

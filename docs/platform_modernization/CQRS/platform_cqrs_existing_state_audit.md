@@ -298,6 +298,85 @@ value-object file as an independent, competing concept.
 
 ---
 
+## P3 timesheet financial-event N+1 remediation (2026-08-13)
+
+Closes §7's R-item and §9d #1: `TimesheetFinancialEventsMixin._enqueue_approved_time_events`
+(`application/time_management/time/timesheet_financial_events.py`) called
+`self._work_allocation_repo.get(entry.work_allocation_id)` once per approved time entry, inside the
+loop — a confirmed, live N+1 (not just a structural risk) on the approve-timesheet-period write
+path.
+
+**P3.0 — measured baseline.** Using the real composition root (`build_service_dict`, in-memory
+SQLite, SQLAlchemy `before_cursor_execute` counting) against the same project/resource/task/
+assignment shape as `test_approved_time_labor_integration.py`, with 1/10/50 time entries against
+one shared work allocation, submitted and approved:
+
+| Time entries | `WorkAllocationRepository.get()` calls | `task_assignments` SELECTs | Total SQL (submit+approve) | Financial events produced |
+|---|---|---|---|---|
+| 1 | 1 | 3 | 44 | 1 |
+| 10 | 10 | 12 | 215 | 10 |
+| 50 | 50 | 52 | 975 | 50 |
+
+`get()` calls and `task_assignments` SELECTs both scale exactly 1:1 with entry count (the constant
++2 offset in the SELECT column is fixed overhead elsewhere in submit/approve, unrelated to the
+loop) — confirming the N+1 precisely, not just in principle.
+
+**P3.1 — batch allocation retrieval added.** `list_by_ids()` added to Platform's
+`WorkAllocationRepository` (`Protocol`, `contract/time_management/time/contracts.py`) and to PM's
+`AssignmentRepository` (`ABC`, `contracts/repositories/tasks/task.py`, so the concrete class fails
+loudly at class-definition time if it's ever left unimplemented — the same enforcement approach
+P0.1 used for `ModuleEntitlementRepository`). Implemented as one batched `SELECT ... WHERE id IN
+(...)` in `SqlAlchemyAssignmentRepository` (real production repo, `project_management/
+infrastructure/persistence/repositories/tasks/task.py`). A second, independent implementer of the
+Platform Protocol — `MaintenanceTaskWorkAllocationRepository`
+(`maintenance/application/work_orders/labor_adapters.py`) — also gained `list_by_ids()`, but as an
+unoptimized per-id loop over its existing `get()`: confirmed via composition-root trace that no
+caller currently wires an approved-time outbox for maintenance labor, so this path is unreachable
+in production today; the method exists only so the Protocol stays honestly satisfied rather than
+leaving a latent trap for whenever that wiring is added. Fixing this maintenance-side gap for real
+would need its own batch methods on `MaintenanceWorkOrderTaskRepository`/
+`MaintenanceWorkOrderRepository` first — out of scope for this pass, noted for a future one.
+
+**P3.2 — per-entry loop replaced.** `_enqueue_approved_time_events` now resolves each entry's
+`project_id` up front (identical skip condition as before), collects the distinct
+`work_allocation_id`s from entries that pass that filter, and calls `list_by_ids()` exactly once
+before the emission loop — which now does a dict lookup instead of a repository call. Re-measuring
+with the same P3.0 harness after the fix:
+
+| Time entries | `get()` calls | `list_by_ids()` calls | `task_assignments` SELECTs | Total SQL | Financial events produced |
+|---|---|---|---|---|---|
+| 1 | 0 | 1 | 3 | 44 | 1 |
+| 10 | 0 | 1 | 3 | 206 | 10 |
+| 50 | 0 | 1 | 3 | 926 | 50 |
+
+`get()` calls: eliminated entirely. `task_assignments` SELECTs: flat at 3 regardless of entry
+count — O(1) instead of O(N). Total SQL still grows with entry count (unchanged) because the bulk
+of it is unrelated per-entry work (cost-entry posting, labor-posting inserts, outbox/inbox rows) —
+this pass only targeted the confirmed work-allocation N+1, per its explicit scope.
+
+**P3.3 — semantics preserved.** Financial events produced is identical before and after the fix at
+every size (1/10/50) — same content-hash/revision/correction-of-revision logic, same
+`ApprovedTimeEntryEventPayload` fields, same emitted count. The full existing
+`test_approved_time_labor_integration.py` suite (correction/reversal, rejection, atomic-outbox
+rollback, closed-financial-period retry, post-commit-refresh-failure isolation, migration
+reversibility — 6 tests) passes unchanged.
+
+**P3.4 — regression guardrail added.**
+`src/tests/project_management/test_approved_time_work_allocation_n_plus_one.py` (2 tests): asserts
+`get()` is never called from the emission path, `list_by_ids()` is called exactly once regardless
+of whether 1 or 50 entries are approved, and the `task_assignments` SELECT count for approving 50
+entries equals the count for approving 1 — i.e., cost scales with distinct allocations, not entry
+count. Verified meaningful via `git stash`: both tests fail with `AttributeError: ... has no
+attribute 'list_by_ids'` against the pre-fix code, confirming they would have caught this exact
+regression.
+
+**P3.5 — full regression.** `platform`+`architecture`+`project_management`+`maintenance` suites
+run together (173 targeted tests across the PM assignment-repo and maintenance suites passed
+first); see the full-suite result recorded at the point this section was written for the complete
+pass/fail breakdown against this session's established baseline.
+
+---
+
 ## 1. Executive summary
 
 **Architectural style today.** Platform is not a separate service or process — it is the
@@ -370,11 +449,12 @@ boundary in any of the write/read paths traced.
    `SELECT * FROM organization_module_entitlements`** statements to answer one "what's entitled"
    question, with zero caching across calls. This is Platform's closest analogue to PM's Finance
    Snapshot finding, and it fires on **every app-context load**, not just an occasional report view.
-2. **`TimesheetFinancialEventsMixin`'s per-entry loop is a confirmed, live N+1** (not just a
+2. ~~**`TimesheetFinancialEventsMixin`'s per-entry loop is a confirmed, live N+1** (not just a
    structural risk): `for entry in entries: ... self._work_allocation_repo.get(entry.work_allocation_id)`
    (`application/time_management/time/timesheet_financial_events.py:31-35`) — `WorkAllocationRepository`
    exposes only `get(id)`, no batch form, so any batch of approved time entries triggers one query
-   per entry.
+   per entry.~~ **Fixed (P3, 2026-08-13)** — see "P3 timesheet financial-event N+1 remediation"
+   below.
 3. **`PlatformUserDesktopApi._find_user` re-fetches and linearly scans the entire user list** after
    every `assign_role`/`revoke_role`/`reset_password` write (`security/auth/user.py:155-159`) — the
    same "write, then re-fetch the whole collection and scan for the one row just touched" shape the
@@ -1311,10 +1391,12 @@ method (e.g. `ApprovalRepository`'s `outerjoin` to `ProjectORM`, the calendar re
 
 ### 9d. N+1 / over-fetching risk register
 
-1. **Confirmed live, not just structural** — `TimesheetFinancialEventsMixin`
+1. ~~**Confirmed live, not just structural** — `TimesheetFinancialEventsMixin`
    (`timesheet_financial_events.py:31-35`): `for entry in entries: ... work_allocation_repo.get(entry.
    work_allocation_id)`. `WorkAllocationRepository` exposes only `get(id)`/`list_by_resource(id)` —
-   no batch form — so any batch of approved time entries triggers one query per entry.
+   no batch form — so any batch of approved time entries triggers one query per entry.~~ **Fixed
+   (P3, 2026-08-13)** — `list_by_ids()` added; see "P3 timesheet financial-event N+1 remediation"
+   above.
 2. `CalendarAssignmentRepository.get_employee_assignment`/`get_department_assignment`/
    `get_site_assignment` — single-entity only; used by `EnterpriseCalendarResolver._build_chain`,
    which resolves one chain per call. No confirmed multi-resource loop invoking it was found — flagged

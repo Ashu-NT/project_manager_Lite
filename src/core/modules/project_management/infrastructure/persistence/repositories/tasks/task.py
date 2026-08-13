@@ -226,6 +226,13 @@ class SqlAlchemyAssignmentRepository(AssignmentRepository):
         row = self.session.execute(stmt).scalar_one_or_none()
         return assignment_from_orm(row) if row else None
 
+    def list_by_ids(self, assignment_ids: list[str]) -> list[TaskAssignment]:
+        if not assignment_ids:
+            return []
+        stmt = self._project_scoped_stmt().where(TaskAssignmentORM.id.in_(set(assignment_ids)))
+        rows = self.session.execute(stmt).scalars().all()
+        return [assignment_from_orm(row) for row in rows]
+
     def list_by_task(self, task_id: str) -> list[TaskAssignment]:
         stmt = self._project_scoped_stmt().where(TaskAssignmentORM.task_id == task_id)
         rows = self.session.execute(stmt).scalars().all()
