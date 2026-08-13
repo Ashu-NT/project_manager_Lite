@@ -23,6 +23,13 @@ AppLayouts.WorkspaceFrame {
         ? root.platformCatalog.controlWorkspace
         : null
 
+    // -- R2 external navigation (PlatformNavigation) ---------------
+    // Lets PlatformWorkspace select which of Control's own tabs (Approvals/
+    // Audit -- its own internal, legitimate section navigation, unchanged)
+    // is initially active when arriving from the new unified nav. Nothing
+    // about the tab bar itself changes.
+    property alias activePanel: state.activePanel
+
     title:    root.workspaceController
         ? (root.workspaceController.overview.title || root.workspaceModel.title)
         : root.workspaceModel.title

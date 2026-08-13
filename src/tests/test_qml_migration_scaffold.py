@@ -50,9 +50,7 @@ def test_qml_main_window_navigation_uses_registry_routes():
 
     assert [item.title for item in navigation] == [
         "QML Home",
-        "Admin Console",
-        "Control Center",
-        "Settings",
+        "Platform",
         "Projects",
         "Tasks",
         "Scheduling",

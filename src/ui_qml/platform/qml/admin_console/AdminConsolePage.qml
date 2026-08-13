@@ -44,6 +44,20 @@ AppLayouts.WorkspaceFrame {
     property PlatformControllers.PlatformSettingsWorkspaceController settingsController: root.platformCatalog
         ? root.platformCatalog.settingsWorkspace
         : null
+
+    // -- R2 external navigation (PlatformNavigation) ---------------
+    // When true, PlatformWorkspace's PlatformNavigation now owns top-level
+    // destination selection for this page's sections; the page's own
+    // internal AdminNavSidebar is redundant top-level navigation (R2 §9)
+    // and is hidden rather than duplicating the new shared rail. The
+    // section content itself (list/detail/dialogs) is completely
+    // unchanged -- only which control drives `activeSection` changes.
+    property bool externallyNavigated: false
+    property alias activeSection: adminState.activeSection
+    property alias detailOpen: adminState.detailOpen
+    property alias entityDetailOpen: adminState.entityDetailOpen
+    property alias accessDetailOpen: adminState.accessDetailOpen
+
     property var organizationCatalog: root.workspaceController
         ? root.workspaceController.organizations
         : ({ "title": "Organizations", "subtitle": "", "emptyState": "", "items": [] })
@@ -399,10 +413,15 @@ AppLayouts.WorkspaceFrame {
         spacing: 0
 
         // -- Left navigation sidebar -------------------------------
+        // Hidden when PlatformNavigation (R2) already owns top-level
+        // destination selection for this page -- kept, unmodified, for the
+        // route-compatible standalone case (§11) where this page might still
+        // be reached directly without the new shell around it.
             Components.AdminNavSidebar {
                 id: _sidebar
+                visible:               !root.externallyNavigated
                 Layout.fillHeight:     true
-                Layout.preferredWidth: implicitWidth
+                Layout.preferredWidth: root.externallyNavigated ? 0 : implicitWidth
                 activeSection: adminState.activeSection
                 onSectionChanged: function(section) {
                     adminState.activeSection = section

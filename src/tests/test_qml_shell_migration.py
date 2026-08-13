@@ -35,9 +35,7 @@ def test_qml_shell_navigation_view_models_are_built_from_registry() -> None:
 
     assert [(item.route_id, item.title) for item in items] == [
         ("shell.home", "QML Home"),
-        ("platform.admin", "Admin Console"),
-        ("platform.control", "Control Center"),
-        ("platform.settings", "Settings"),
+        ("platform.workspace", "Platform"),
         ("project_management.projects", "Projects"),
         ("project_management.tasks", "Tasks"),
         ("project_management.scheduling", "Scheduling"),
@@ -76,9 +74,7 @@ def test_qml_shell_context_exposes_navigation_for_qml_binding() -> None:
     assert context.currentRouteSource == route_by_id["shell.home"].qml_path.as_uri()
     assert [item["routeId"] for item in context.navigationItems] == [
         "shell.home",
-        "platform.admin",
-        "platform.control",
-        "platform.settings",
+        "platform.workspace",
         "project_management.projects",
         "project_management.tasks",
         "project_management.scheduling",
@@ -107,14 +103,14 @@ def test_qml_shell_context_exposes_navigation_for_qml_binding() -> None:
     ]
     assert context.navigationItems[0]["qmlSource"] == route_by_id["shell.home"].qml_path.as_uri()
 
-    context.selectRoute("platform.admin")
+    context.selectRoute("platform.workspace")
 
-    assert context.currentRouteId == "platform.admin"
-    assert context.currentRouteSource == route_by_id["platform.admin"].qml_path.as_uri()
+    assert context.currentRouteId == "platform.workspace"
+    assert context.currentRouteSource == route_by_id["platform.workspace"].qml_path.as_uri()
 
     context.selectRoute("platform.unknown")
 
-    assert context.currentRouteId == "platform.admin"
+    assert context.currentRouteId == "platform.workspace"
 
 
 def test_qml_shell_context_can_reload_active_route(qapp) -> None:

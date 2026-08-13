@@ -3,3 +3,4 @@ AdminEntityDetailPage 1.0 AdminEntityDetailPage.qml
 AdminEntityWorkspace 1.0 AdminEntityWorkspace.qml
 AdminDetailTableSection 1.0 AdminDetailTableSection.qml
 AdminInformationalDetailSection 1.0 AdminInformationalDetailSection.qml
+PlatformNavigation 1.0 PlatformNavigation.qml
