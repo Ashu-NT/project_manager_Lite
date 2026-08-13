@@ -5,7 +5,7 @@ import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
-import Platform.Widgets 1.0 as PlatformWidgets
+import App.Widgets 1.0 as AppWidgets
 
 Item {
     id: root
@@ -78,7 +78,7 @@ Item {
                     model: root.workspaceController
                         ? (root.workspaceController.overview.sections || []) : []
 
-                    delegate: PlatformWidgets.OverviewSectionCard {
+                    delegate: AppWidgets.OverviewSectionCard {
                         required property var modelData
                         title: modelData.title || ""
                         emptyState: modelData.emptyState || ""

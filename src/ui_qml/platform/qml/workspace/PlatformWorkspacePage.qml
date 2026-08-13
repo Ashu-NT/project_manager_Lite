@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
+import App.Layouts 1.0 as AppLayouts
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
 import Platform.Components 1.0 as PlatformComponents
@@ -11,24 +12,7 @@ import control 1.0 as Control
 import settings 1.0 as Settings
 import tenants 1.0 as Tenants
 
-// The unified Platform workspace shell (R2):
-//
-//   PlatformWorkspace
-//   |-- PlatformNavigation
-//   |-- ContextBar
-//   `-- content host (the existing 4 pages, hosted persistently)
-//
-// This is the single canonical source of truth for the selected Platform
-// destination (`activeDestination`); PlatformNavigation's selection and the
-// content host's visible page both derive from it, rather than each holding
-// independent state that has to stay in sync.
-//
-// R2 does not redesign any capability's internals: AdminConsolePage.qml,
-// ControlWorkspacePage.qml, SettingsWorkspacePage.qml, and
-// TenantManagementWorkspacePage.qml are hosted here exactly as they exist
-// today, minus their own now-redundant top-level navigation where one
-// existed (AdminConsolePage's internal AdminNavSidebar -- see its
-// `externallyNavigated` property).
+
 Item {
     id: root
 
@@ -133,6 +117,67 @@ Item {
         return options
     }
 
+    // -- Overview (R3) -------------------------------------------------
+    // All figures below are read directly from already-backed, already-
+    // refreshed controller state (admin_presenter.build_overview() and
+    // Control's approval queue) -- no new backend, no invented metrics.
+    // Department/Site breakdowns are explicitly out of scope (design doc
+    // §6/§25 -- not backed today, tracked as separate backlog).
+    readonly property var _overview: root.platformCatalog
+        ? (root.platformCatalog.adminWorkspace.overview || {})
+        : {}
+
+    readonly property var _overviewMetrics: root._overview.metrics || []
+
+    // Metric label -> Platform destination id, for click-to-navigate.
+    readonly property var _metricDestinationByLabel: ({
+        "Organizations": "organizations",
+        "Sites": "sites",
+        "Departments": "departments",
+        "Employees": "employees",
+        "Users": "users",
+        "Documents": "documents"
+    })
+
+    readonly property int _pendingApprovalsCount: root.platformCatalog
+        ? (root.platformCatalog.controlWorkspace.approvalQueue.items || []).length
+        : 0
+
+    readonly property var _overviewHighlightCards: [
+        {
+            "title": "Pending Approvals",
+            "rows": [
+                { "label": "Open", "value": String(root._pendingApprovalsCount), "supportingText": "Awaiting review" }
+            ]
+        }
+    ]
+
+    // Doc §6: "Overview would show a trimmed, most-recent slice of the same
+    // feed, not a new data source" -- the raw feed can return up to 50
+    // entries; Overview shows only the most recent handful.
+    readonly property var _overviewActivityItems: (root._overview.activityFeed || []).slice(0, 6)
+
+    // Employees/Sites-by-department/site breakdowns are explicitly not
+    // backed today (design doc §6/§25 -- backlog, not part of this
+    // redesign). Shown as labeled placeholder cards rather than silently
+    // omitted or faked.
+    readonly property var _overviewUnavailableBreakdowns: [
+        { "title": "Employees by Department", "message": "Not yet available — requires new backend rollup work, tracked as backlog." },
+        { "title": "Employees by Site", "message": "Not yet available — requires new backend rollup work, tracked as backlog." }
+    ]
+
+    function _onOverviewMetricActivated(index) {
+        const metrics = root._overviewMetrics
+        if (index < 0 || index >= metrics.length) {
+            return
+        }
+        const label = String(metrics[index].label || "")
+        const destination = root._metricDestinationByLabel[label]
+        if (destination) {
+            root.activeDestination = destination
+        }
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
@@ -167,7 +212,6 @@ Item {
             PlatformComponents.PlatformNavigation {
                 Layout.fillHeight: true
                 selectedDestination: root.activeDestination
-                tenantAdministrationVisible: root._isMultiTenant
                 onDestinationSelected: function(destinationId) {
                     root.activeDestination = destinationId
                 }
@@ -183,11 +227,18 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
-                AppWidgets.EmptyState {
+                AppLayouts.WorkspaceOverviewPage {
                     anchors.fill: parent
                     visible: root._activeSurface === "overview"
                     title: "Platform Overview"
-                    message: "The full Overview dashboard is implemented in a later phase (R3). This destination is a structural placeholder only."
+                    subtitle: String(root._overview.subtitle || "")
+                    metrics: root._overviewMetrics
+                    metricsClickable: true
+                    onMetricActivated: function(index) { root._onOverviewMetricActivated(index) }
+                    highlightCards: root._overviewHighlightCards
+                    activityItems: root._overviewActivityItems
+                    activityEmptyText: "No recent activity"
+                    unavailableBreakdowns: root._overviewUnavailableBreakdowns
                 }
 
                 AdminConsole.AdminConsolePage {

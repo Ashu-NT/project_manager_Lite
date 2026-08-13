@@ -1,2 +1,3 @@
 module App.Layouts
 WorkspaceFrame 1.0 WorkspaceFrame.qml
+WorkspaceOverviewPage 1.0 WorkspaceOverviewPage.qml
