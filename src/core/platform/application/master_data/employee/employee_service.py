@@ -113,6 +113,20 @@ class EmployeeService:
         )
         try:
             self._employee_repo.add(employee)
+            # Audit is staged in the same transaction as the business write (ADR-003:
+            # "the business mutation and successful security audit intent commit
+            # atomically") — never a second, separate commit.
+            record_audit_entry(
+                self,
+                operation="create",
+                entity_type="employee",
+                entity_id=employee.id,
+                module="platform",
+                severity="low",
+                metadata={"action": "employee.create", **build_employee_audit_details(employee)},
+                commit=False,
+                fail_closed=True,
+            )
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -120,15 +134,6 @@ class EmployeeService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit_entry(
-            self,
-            operation="create",
-            entity_type="employee",
-            entity_id=employee.id,
-            module="platform",
-            severity="low",
-            metadata={"action": "employee.create", **build_employee_audit_details(employee)},
-        )
         domain_events.employees_changed.emit(employee.id)
         return employee
 
@@ -208,7 +213,21 @@ class EmployeeService:
 
         try:
             self._employee_repo.update(candidate)
-            sync_linked_employee_resources(candidate, self._resource_repo)
+            touched_resource_ids = sync_linked_employee_resources(candidate, self._resource_repo)
+            # Audit is staged in the same transaction as the business write (ADR-003:
+            # "the business mutation and successful security audit intent commit
+            # atomically") — never a second, separate commit.
+            record_audit_entry(
+                self,
+                operation="update",
+                entity_type="employee",
+                entity_id=candidate.id,
+                module="platform",
+                severity="low",
+                metadata={"action": "employee.update", **build_employee_audit_details(candidate)},
+                commit=False,
+                fail_closed=True,
+            )
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -216,15 +235,11 @@ class EmployeeService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit_entry(
-            self,
-            operation="update",
-            entity_type="employee",
-            entity_id=candidate.id,
-            module="platform",
-            severity="low",
-            metadata={"action": "employee.update", **build_employee_audit_details(candidate)},
-        )
+        # Only emit resources_changed once the linked-resource mutations above
+        # are actually durable — emitting inside sync_linked_employee_resources
+        # (before commit) would fire events for rows that could still roll back.
+        for resource_id in touched_resource_ids:
+            domain_events.resources_changed.emit(resource_id)
         domain_events.employees_changed.emit(candidate.id)
         return candidate
 

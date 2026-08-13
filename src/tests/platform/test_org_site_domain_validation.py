@@ -207,6 +207,7 @@ def _make_site_service(monkeypatch: pytest.MonkeyPatch) -> tuple[SiteService, Or
         site_repo=_FakeSiteRepo(),
         organization_repo=organization_repo,
         user_session=object(),
+        enterprise_audit_service=_FakeEnterpriseAuditService(),
         tenant_context_service=_FakeTenantContext(organization_repo, organization.id),
     )
     return service, organization

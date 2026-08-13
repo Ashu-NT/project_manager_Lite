@@ -568,11 +568,32 @@ def build_platform_service_bundle(
         user_session=user_session,
         tenant_context_service=tenant_context_service,
     )
+
+    def _get_active_org_id() -> str:
+        return tenant_context_service.get_active_organization_id() or ""
+
+    # Constructed before the write-side calendar services below so its
+    # invalidate_cache can be wired into them — this resolver is a single
+    # process-lifetime instance (built once here), so a mutation that never
+    # invalidates its caches leaves every later read stale until restart.
+    enterprise_calendar_resolver = EnterpriseCalendarResolver(
+        organization_id=_get_active_org_id(),
+        calendar_repo=repositories.platform_calendar_repo,
+        rule_repo=repositories.calendar_working_rule_repo,
+        exception_repo=repositories.calendar_exception_repo,
+        recurring_repo=repositories.calendar_recurring_event_repo,
+        assignment_repo=repositories.calendar_assignment_repo,
+        project_assignment_repo=repositories.project_calendar_assignment_repo,
+        resource_assignment_repo=repositories.resource_calendar_assignment_repo,
+        calculator=working_time_calculator,
+        shift_pattern_repo=repositories.shift_pattern_repo,
+    )
     working_rule_service = WorkingRuleService(
         session=session,
         calendar_repo=repositories.platform_calendar_repo,
         rule_repo=repositories.calendar_working_rule_repo,
         user_session=user_session,
+        on_calendar_data_changed=enterprise_calendar_resolver.invalidate_cache,
     )
     calendar_exception_service = CalendarExceptionService(
         session=session,
@@ -585,6 +606,7 @@ def build_platform_service_bundle(
         calendar_repo=repositories.platform_calendar_repo,
         event_repo=repositories.calendar_recurring_event_repo,
         user_session=user_session,
+        on_calendar_data_changed=enterprise_calendar_resolver.invalidate_cache,
     )
     shift_pattern_service = ShiftPatternService(
         session=session,
@@ -592,6 +614,7 @@ def build_platform_service_bundle(
         organization_repo=repositories.organization_repo,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
+        on_calendar_data_changed=enterprise_calendar_resolver.invalidate_cache,
     )
     calendar_assignment_service = CalendarAssignmentService(
         session=session,
@@ -600,22 +623,6 @@ def build_platform_service_bundle(
         project_assignment_repo=repositories.project_calendar_assignment_repo,
         resource_assignment_repo=repositories.resource_calendar_assignment_repo,
         user_session=user_session,
-    )
-
-    def _get_active_org_id() -> str:
-        return tenant_context_service.get_active_organization_id() or ""
-
-    enterprise_calendar_resolver = EnterpriseCalendarResolver(
-        organization_id=_get_active_org_id(),
-        calendar_repo=repositories.platform_calendar_repo,
-        rule_repo=repositories.calendar_working_rule_repo,
-        exception_repo=repositories.calendar_exception_repo,
-        recurring_repo=repositories.calendar_recurring_event_repo,
-        assignment_repo=repositories.calendar_assignment_repo,
-        project_assignment_repo=repositories.project_calendar_assignment_repo,
-        resource_assignment_repo=repositories.resource_calendar_assignment_repo,
-        calculator=working_time_calculator,
-        shift_pattern_repo=repositories.shift_pattern_repo,
     )
     global_calendar_shim = GlobalCalendarShim(resolver=enterprise_calendar_resolver)
     # Bootstrap global calendar. After the Alembic migration drops legacy tables,

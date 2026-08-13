@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from src.core.platform.common.exceptions import ValidationError
-from src.core.shared.events.domain_events import domain_events
 from src.core.platform.contract.master_data.department.contracts import DepartmentRepository
 from src.core.platform.domain.master_data.department import Department
 from src.core.platform.contract.master_data.employee.contracts import (
@@ -31,9 +30,15 @@ def build_employee_audit_details(employee: Employee) -> dict[str, str]:
 def sync_linked_employee_resources(
     employee: Employee,
     resource_repo: LinkedEmployeeResourceRepository | None,
-) -> None:
+) -> tuple[str, ...]:
+    """Stages the linked-resource mutations only — does not emit events or
+    commit. Returns the IDs of every touched resource so the caller can emit
+    `resources_changed` for each one only after its own commit succeeds;
+    emitting here, before the caller's commit, would fire events for rows
+    that could still be rolled back."""
     if resource_repo is None:
-        return
+        return ()
+    touched_resource_ids: list[str] = []
     for resource in resource_repo.list_by_employee(employee.id):
         if _worker_type_code(resource) != "employee":
             continue
@@ -42,7 +47,8 @@ def sync_linked_employee_resources(
             resource.role = employee.title
         resource.contact = employee_contact(employee)
         resource_repo.update(resource)
-        domain_events.resources_changed.emit(resource.id)
+        touched_resource_ids.append(resource.id)
+    return tuple(touched_resource_ids)
 
 
 def _worker_type_code(resource: LinkedEmployeeResource) -> str:

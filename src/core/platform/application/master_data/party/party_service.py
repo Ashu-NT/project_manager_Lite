@@ -149,6 +149,27 @@ class PartyService:
             raise ValidationError("Party code already exists in the active organization.", code="PARTY_CODE_EXISTS")
         try:
             self._party_repo.add(party)
+            # Audit is staged in the same transaction as the business write (ADR-003:
+            # "the business mutation and successful security audit intent commit
+            # atomically") — never a second, separate commit.
+            record_audit_entry(
+                self,
+                operation="create",
+                entity_type="party",
+                entity_id=party.id,
+                module="platform",
+                severity="low",
+                metadata={
+                    "action": "party.create",
+                    "organization_id": organization.id,
+                    "party_code": party.party_code,
+                    "party_name": party.party_name,
+                    "party_type": party.party_type.value,
+                    "is_active": str(party.is_active),
+                },
+                commit=False,
+                fail_closed=True,
+            )
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -156,22 +177,6 @@ class PartyService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit_entry(
-            self,
-            operation="create",
-            entity_type="party",
-            entity_id=party.id,
-            module="platform",
-            severity="low",
-            metadata={
-                "action": "party.create",
-                "organization_id": organization.id,
-                "party_code": party.party_code,
-                "party_name": party.party_name,
-                "party_type": party.party_type.value,
-                "is_active": str(party.is_active),
-            },
-        )
         domain_events.parties_changed.emit(party.id)
         return party
 
@@ -246,6 +251,27 @@ class PartyService:
 
         try:
             self._party_repo.update(candidate)
+            # Audit is staged in the same transaction as the business write (ADR-003:
+            # "the business mutation and successful security audit intent commit
+            # atomically") — never a second, separate commit.
+            record_audit_entry(
+                self,
+                operation="update",
+                entity_type="party",
+                entity_id=candidate.id,
+                module="platform",
+                severity="low",
+                metadata={
+                    "action": "party.update",
+                    "organization_id": organization.id,
+                    "party_code": candidate.party_code,
+                    "party_name": candidate.party_name,
+                    "party_type": candidate.party_type.value,
+                    "is_active": str(candidate.is_active),
+                },
+                commit=False,
+                fail_closed=True,
+            )
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -253,22 +279,6 @@ class PartyService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit_entry(
-            self,
-            operation="update",
-            entity_type="party",
-            entity_id=candidate.id,
-            module="platform",
-            severity="low",
-            metadata={
-                "action": "party.update",
-                "organization_id": organization.id,
-                "party_code": candidate.party_code,
-                "party_name": candidate.party_name,
-                "party_type": candidate.party_type.value,
-                "is_active": str(candidate.is_active),
-            },
-        )
         domain_events.parties_changed.emit(candidate.id)
         return candidate
 

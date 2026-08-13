@@ -171,6 +171,29 @@ class SiteService:
             raise ValidationError("Site code already exists in the active organization.", code="SITE_CODE_EXISTS")
         try:
             self._site_repo.add(site)
+            # Audit is staged in the same transaction as the business write (ADR-003:
+            # "the business mutation and successful security audit intent commit
+            # atomically") — never a second, separate commit.
+            record_audit_entry(
+                self,
+                operation="create",
+                entity_type="site",
+                entity_id=site.id,
+                module="platform",
+                severity="low",
+                metadata={
+                    "action": "site.create",
+                    "organization_id": organization.id,
+                    "site_code": site.site_code,
+                    "name": site.name,
+                    "status": site.status,
+                    "city": site.city,
+                    "country": site.country,
+                    "is_active": str(site.is_active),
+                },
+                commit=False,
+                fail_closed=True,
+            )
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -178,24 +201,6 @@ class SiteService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit_entry(
-            self,
-            operation="create",
-            entity_type="site",
-            entity_id=site.id,
-            module="platform",
-            severity="low",
-            metadata={
-                "action": "site.create",
-                "organization_id": organization.id,
-                "site_code": site.site_code,
-                "name": site.name,
-                "status": site.status,
-                "city": site.city,
-                "country": site.country,
-                "is_active": str(site.is_active),
-            },
-        )
         domain_events.sites_changed.emit(site.id)
         return site
 
@@ -281,6 +286,29 @@ class SiteService:
             raise ValidationError("Site code already exists in the active organization.", code="SITE_CODE_EXISTS")
         try:
             self._site_repo.update(candidate)
+            # Audit is staged in the same transaction as the business write (ADR-003:
+            # "the business mutation and successful security audit intent commit
+            # atomically") — never a second, separate commit.
+            record_audit_entry(
+                self,
+                operation="update",
+                entity_type="site",
+                entity_id=candidate.id,
+                module="platform",
+                severity="low",
+                metadata={
+                    "action": "site.update",
+                    "organization_id": organization.id,
+                    "site_code": candidate.site_code,
+                    "name": candidate.name,
+                    "status": candidate.status,
+                    "city": candidate.city,
+                    "country": candidate.country,
+                    "is_active": str(candidate.is_active),
+                },
+                commit=False,
+                fail_closed=True,
+            )
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -288,24 +316,6 @@ class SiteService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit_entry(
-            self,
-            operation="update",
-            entity_type="site",
-            entity_id=candidate.id,
-            module="platform",
-            severity="low",
-            metadata={
-                "action": "site.update",
-                "organization_id": organization.id,
-                "site_code": candidate.site_code,
-                "name": candidate.name,
-                "status": candidate.status,
-                "city": candidate.city,
-                "country": candidate.country,
-                "is_active": str(candidate.is_active),
-            },
-        )
         domain_events.sites_changed.emit(candidate.id)
         return candidate
 

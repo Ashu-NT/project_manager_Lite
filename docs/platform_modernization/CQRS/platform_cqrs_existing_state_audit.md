@@ -16,6 +16,216 @@ standard, then synthesized into one document with the same section numbering. Wh
 finding directly mirrors, contradicts, or extends a specific PM audit finding, that relationship is
 called out explicitly, since the two documents are meant to be read together.
 
+## P0 correctness/security remediation status (started 2026-08-12)
+
+The team elected to fix correctness/security findings from this audit before any CQRS work begins.
+Six items were prioritized (P0.1-P0.6); status is tracked here and updated as each is closed. This
+is now a living document, not a frozen snapshot — findings below are annotated in place as fixed.
+
+| # | Finding | Status |
+|---|---|---|
+| P0.1 | Organization provisioning atomicity (§6 W1) + `is_active=True` crash | **Fixed** — see inline note at W1 below |
+| P0.2 | Employee → Resource pre-commit event bug (§6 W3) | **Fixed** — see inline note at W3 below |
+| P0.3 | Calendar `seed_standard_week` transaction defect (§6 W9) | **Fixed** — see inline note at W9 below |
+| P0.4 | `audit_entries` RLS gap (§11) | **Fixed** — see inline note below |
+| P0.5 | Master-data audit atomicity policy (§10, §12) | **Fixed** — see inline note below |
+| P0.6 | Calendar resolver stale-cache invalidation (§4c, §7 R7b) | **Fixed** — see inline note below |
+
+**P0.1 — fixed 2026-08-12.** `OrganizationService.create_organization`, `OrganizationService.
+set_active_organization`, and `ModuleCatalogService.provision_organization_entitlements` each gained
+a `commit: bool = True` parameter; their audit calls now happen *before* the commit point
+(`commit=False, fail_closed=True`) so the business write and its audit entry commit or roll back
+together, closing the ADR-003 gap. `PlatformRuntimeApplicationService.provision_organization` now
+stages all sub-operations with `commit=False` and issues one final commit (mirroring ADR-PF-008's
+approval pattern), then emits events/rebuilds tenant context only after that commit succeeds. The
+`is_active=True` crash is fixed by routing both `provision_organization` and the desktop-exposed
+`set_active_organization` through `OrganizationService.set_active_organization` (which actually
+persists activation) instead of calling `TenantContextService` directly (which only rebuilds
+in-memory state).
+
+Fixing this also required resolving a second, previously-undiscovered bug it exposed:
+`SqlAlchemyModuleEntitlementRepository` only permitted entitlement reads/writes for the *currently
+active* organization, which made `provision_organization_entitlements` fundamentally incapable of
+seeding a newly-created (not-yet-active) organization's entitlements — confirmed via `git stash` to
+predate all of today's changes. Resolved per an explicit product decision: ordinary/runtime
+entitlement operations (`get_for_organization`, `list_all_for_organization`,
+`upsert_for_organization`) remain scoped to the active organization only; a new pair of
+tenant-administration/provisioning-scoped methods (`upsert_for_organization_in_tenant`,
+`list_all_for_organization_in_tenant`) were added, scoped to "belongs to the authenticated tenant"
+via a live DB check, and `provision_organization_entitlements` now uses those instead. Verified: the
+17 previously-failing/blocked provisioning tests now pass, the two tests asserting ordinary
+operations still reject non-active organizations still pass, and a full `platform`+`architecture`
+regression shows zero new failures (and several previously-failing tests now pass as a side effect)
+— the remaining failures are the same pre-existing, unrelated set documented throughout this audit
+(calendar test fixtures, the `audit_entries` RLS gap this is itself tracking as P0.4, the Site
+tz-naive/aware bug, the generated-file line-limit guard).
+
+**P0.2 — fixed 2026-08-12.** `employee_support.py::sync_linked_employee_resources` no longer emits
+`domain_events.resources_changed` itself — it now only stages the linked-resource mutations
+(`resource_repo.update(...)`) and returns the tuple of touched resource IDs. `EmployeeService.
+update_employee` emits `resources_changed` for each returned ID only after its own
+`session.commit()` succeeds, alongside the existing (already-correct) post-commit
+`employees_changed` emission. This closes the "event fired before commit, for rows that could still
+roll back" gap found in §6 W3. The unused `domain_events` import was removed from
+`employee_support.py`. Verified: a direct unit check confirms `sync_linked_employee_resources` no
+longer emits anything and correctly returns touched IDs; all 16 employee/resource-scoped platform
+tests pass; a full `platform`+`architecture` regression shows zero new failures.
+
+**P0.3 — fixed 2026-08-12.** `WorkingRuleService.save_rule` gained a `commit: bool = True`
+parameter (flush instead of commit when `False`), and `seed_standard_week` now stages all 7 weekday
+rules with `commit=False` inside a `try`/`except: rollback` block, followed by exactly one
+`session.commit()` — replacing the previous 7 independent, per-call commits. A mid-loop failure now
+rolls back the whole week instead of leaving a partially-edited one. All other `save_rule` call
+sites (direct single-rule saves from the desktop API and tests) are unaffected — they keep the
+`commit=True` default. Verified: `test_working_rule_seed_standard_week` and the full
+`test_enterprise_calendar_crud_rules.py`/`test_enterprise_calendar_desktop_api_working_days.py`
+suites pass (aside from the two calendar tests already documented as pre-existing/unrelated
+MagicMock-fixture failures), and the broader calendar-scoped platform test run shows the identical
+pre-existing 6-failed/12-error set with zero new failures.
+
+**Consolidated P0.1-P0.3 regression (2026-08-12).** A full `platform`+`architecture` run with all
+three fixes combined reproduced the exact same 14-failed/853-passed/12-error baseline documented
+throughout this audit (calendar `MagicMock`-fixture issues in
+`test_enterprise_calendar_exceptions_events_shifts.py`/`test_enterprise_calendar_resolver.py`/
+`test_enterprise_calendar_shift_pattern_resolution.py`, a flaky
+`test_platform_access_scopes.py` project-membership scope assertion, the `Site` tz-naive/aware bug,
+the `audit_entries` RLS gap tracked below as P0.4, `test_qml_platform_routes`, and the three
+generated-file/module-size architecture guardrails) — zero tests newly failing. The specific set of
+calendar tests reported as FAILED vs ERRORed varies slightly run-to-run (pre-existing test-order
+sensitivity in that fixture, not something P0.1-P0.3 touch); confirmed via `git stash` that the same
+failures reproduce identically with P0.2/P0.3's changes removed.
+
+**P0.4 — fixed 2026-08-12.** `audit_entries` had no PostgreSQL RLS policy at all — worse, the
+existing `test_postgresql_rls_context.py::test_every_tenant_bearing_table_has_rls_or_explicit_
+bootstrap_classification` test explicitly classified it as an "identity bootstrap" table (alongside
+`organizations`, `roles`, `role_bindings`, `role_delegation_policies`, `user_tenants`,
+`notifications`) exempt from RLS entirely. That classification was too broad: bootstrap tables are
+exempt because they must be queryable *before* `app.tenant_id` can be set (the tenant-resolution
+chicken-and-egg problem during login) — but `audit_entries`' tenant-scoped write/read paths
+(`add()`, `add_for_tenant()`, `list_recent()`, `list_recent_for_organization()`) all operate
+*within* an already-resolved tenant context and have no such bootstrap need. Only one of its three
+write paths, `add_platform()`, genuinely requires no tenant context — it explicitly asserts
+`tenant_id is None and organization_id is None` and is used for platform-level security events
+(login, registration, role governance, tenant/organization provisioning — confirmed via grep across
+`security_audit.py`, `audit_recorder.py`, `role_governance_service.py`,
+`platform_owner_provisioning_service.py`). Lumping all of `audit_entries` into the bootstrap
+exemption meant its tenant-scoped rows — which can carry sensitive `old_value`/`new_value` business
+data — had zero database-level tenant-isolation enforcement; if the application-layer `WHERE`
+clause in `list_recent()`/`list_recent_for_organization()` were ever bypassed or buggy, or a
+reporting/ad-hoc query hit the table directly, cross-tenant rows would be visible with nothing at
+the database layer to stop it.
+
+Reusing the generic `TENANT_RLS_TABLES` single-predicate policy
+(`tenant_id = current_setting('app.tenant_id')`) was not an option: under `FORCE ROW LEVEL
+SECURITY`, `NULL = 'sometenant'` evaluates to `NULL` (not `TRUE`), so that policy would reject every
+`add_platform()` insert under `WITH CHECK` and hide every already-inserted platform row under
+`USING`. New migration `pfaudit_p04_001_enable_audit_entries_rls.py` (chained onto the current head,
+`pfbill_e1_001`) adds a bespoke policy scoped to `audit_entries` only:
+`USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '') OR tenant_id IS NULL)`, same
+predicate for `WITH CHECK` — tenant-scoped rows get the same enforcement as every other
+`TENANT_RLS_TABLES` member, and `tenant_id IS NULL` platform rows pass through unconditionally, in
+either direction, regardless of the calling session's tenant context. `audit_entries` was removed
+from `test_postgresql_rls_context.py`'s `_IDENTITY_BOOTSTRAP_TABLES` set and now lives in a new
+`_CUSTOM_POLICY_TABLES` set (sourced directly from the migration module, so the test breaks loudly
+if the migration's table name ever drifts) documenting *why* it needs a bespoke predicate instead of
+either the generic policy or a bootstrap exemption. Like all Platform RLS migrations, this is a
+no-op on SQLite (`if bind.dialect.name != "postgresql": return`), so it does not affect the
+dev/test database used throughout this audit. Verified: `python -m alembic heads` still reports a
+single head (`pfaudit_p04_001`) after adding the migration; the new migration file compiles; all 39
+tests exercising `add_platform()` call sites (`test_auth_security_audit_atomicity.py`,
+`test_auth_registration_role_audit_atomicity.py`, `test_auth_login_session_audit_atomicity.py`,
+`test_platform_owner_provisioning.py`) pass unchanged; `test_postgresql_rls_context.py`'s
+classification test no longer lists `audit_entries` among its mismatches — the table is now fully
+accounted for by `TENANT_RLS_TABLES | _IDENTITY_BOOTSTRAP_TABLES | _CUSTOM_POLICY_TABLES`. That test
+still fails, unchanged from before this fix and unrelated to it: a set of newer PM project-finance
+tables (`project_billing_profiles`, `project_finance_rate_card_lines`,
+`project_finance_inbox_receipts`, `project_commitment_lines`, `project_finance_budgets`, and others)
+carry `tenant_id` but were never classified into either set — a pre-existing PM-module gap outside
+this Platform audit's P0 scope.
+
+**P0.5 — fixed 2026-08-12.** Every master-data write in Platform (`create`/`update`/`delete` across
+`OrganizationService` — already fixed under P0.1 — plus `EmployeeService`, `SiteService`,
+`PartyService`, `department_commands.py`, `DocumentService`, and `DocumentIntegrationService`)
+followed the same non-atomic shape: stage the repository write, `session.commit()`, and only *after*
+that commit succeeded call `record_audit_entry(...)` using its lenient default
+(`commit=True, fail_closed=False`). Two failure modes followed directly from that ordering: (i) if
+the audit write itself failed for any reason, `record_audit_entry`'s lenient default silently
+swallows the exception — the business mutation stands committed with no audit trail at all, and
+the caller never finds out; (ii) even when the audit call succeeds, it does so as a *second*,
+independent transaction, so the business row and its audit entry are never guaranteed to land or
+roll back together — the exact "business mutation and successful security audit intent commit
+atomically" requirement ADR-003 states for master-data operations, which P0.1 already fixed for
+organization provisioning specifically. This closes it for the rest of master-data.
+
+All 17 remaining write methods across the 6 files above were changed to the same shape P0.1
+established: the repository write and `record_audit_entry(..., commit=False, fail_closed=True)` are
+both staged inside the existing `try` block, *before* the single `session.commit()` that already
+existed for the business write — so audit and business-row durability now share one transaction,
+and a failed audit write now raises loudly (via `fail_closed=True`) and rolls back the whole
+mutation instead of vanishing silently. No `commit: bool` parameter was added to these methods
+(unlike P0.1's `OrganizationService`/`ModuleCatalogService`) since none of them are composed into a
+larger orchestrator transaction the way organization provisioning is — each is already the outermost
+unit of work for its own request. `DocumentIntegrationService.register_entity_attachments`, which
+stages a variable number of document+link pairs in a loop before one shared commit, now stages an
+audit entry per document inside that same loop (before the commit) and defers all `documents_changed`
+event emissions to after the commit succeeds, matching P0.3's `seed_standard_week` precedent for
+multi-row loops sharing one commit.
+
+Three existing unit-test fixtures constructed these services without an `enterprise_audit_service`
+(`test_org_site_domain_validation.py`'s `SiteService` fixture, `test_party_domain_validation.py`'s
+`PartyService` fixture, and `test_department_employee_domain_validation.py`'s `DepartmentService`
+and `EmployeeService` fixtures) — previously harmless under the lenient default, these would now
+trip `fail_closed=True`'s `ENTERPRISE_AUDIT_REQUIRED` error the moment a test called `create_*`/
+`update_*`. All four fixtures were given a `_FakeEnterpriseAuditService` (a bare `record(self,
+**kwargs) -> None: return None`), mirroring the fix already applied to `OrganizationService`'s
+fixture under P0.1; production wiring in `platform_registry.py` already passed a real
+`enterprise_audit_service` to every one of these six services, so no production code needed to
+change. A separate check confirmed the one other place a bare Platform `SiteService`/`DepartmentService`/
+`PartyService`/`DocumentService` is constructed in tests (`test_tenant_isolation_services_platform.py`)
+only exercises read-only `list_*` methods, so it needed no fixture change. Verified: all 10 tests in
+the three edited domain-validation test files pass; a full `platform`+`architecture` regression
+(with all of P0.1-P0.5 combined) reproduces the identical pre-existing failure/error set documented
+throughout this audit, confirmed by `git stash`-isolating today's P0.2/P0.3/P0.4/P0.5 changes and
+re-running — zero new failures, including for the two `test_enterprise_calendar_desktop_api_working_days.py`
+tests that a fuller (untruncated) regression run surfaced for the first time in this audit but which
+predate every P0 fix made here.
+
+**P0.6 — fixed 2026-08-12.** `EnterpriseCalendarResolver` already had an `invalidate_cache()` method
+(clearing `_rules_cache`, `_recurring_cache`, `_shift_pattern_cache`, `_shift_pattern_days_cache`,
+and the missing-rule warning dedupe set) — but a repo-wide grep confirmed it had **zero callers
+anywhere**. The resolver itself is a single process-lifetime instance (`platform_registry.py`
+constructs exactly one `EnterpriseCalendarResolver`, shared by `GlobalCalendarShim` and every
+PM consumer through it), so any working rule, recurring event, or shift pattern change made after
+that first cache-warming read stayed invisible to every subsequent resolved-calendar read for the
+rest of the application's process lifetime — not just within one request, as "cache" might suggest,
+but until the desktop app itself restarts. This is exactly the finding this audit raised in §4c/§7
+R7b.
+
+Note that `CalendarException`s and calendar/assignment lookups are **not** cached by the resolver
+(`_collect_exceptions`/`_build_chain` query their repositories directly on every call) — only rules,
+recurring events, and shift patterns/days are, so only the services that mutate those needed wiring:
+`WorkingRuleService` (`save_rule`, `seed_standard_week`, `delete_rule`), `RecurringEventService`
+(`add_recurring_event`, `update_recurring_event`, `delete_recurring_event`), and
+`ShiftPatternService` (`create_shift_pattern`, `update_shift_pattern`, `delete_shift_pattern`,
+`set_day`, `delete_day`). Each gained an optional `on_calendar_data_changed: Callable[[], None] |
+None = None` constructor parameter, called once immediately after that method's own
+`session.commit()` succeeds (for `save_rule`, only on its `commit=True` path — when called with
+`commit=False` from `seed_standard_week`, invalidation is deferred to `seed_standard_week`'s own
+single commit, so seeding a full week invalidates the cache exactly once, not seven times).
+`CalendarExceptionService` and `CalendarAssignmentService` were left unchanged since nothing they
+touch is cached. In `platform_registry.py`, `EnterpriseCalendarResolver` construction was moved
+earlier (it has no dependency on the write-side services) so `enterprise_calendar_resolver.
+invalidate_cache` could be passed directly into the three services above — plain constructor
+injection, no new global state or event bus. Verified with a standalone script (in-memory SQLite,
+outside pytest, cleaned up automatically) exercising all 8 mutation paths end-to-end: each of
+`save_rule`, `seed_standard_week`, `delete_rule`, `add_recurring_event`,
+`delete_recurring_event`, `update_shift_pattern`, and `delete_day` correctly evicts the resolver's
+corresponding cache entry, and a stale `resolve_calendar_context()` call that previously returned 0
+available hours (rule not yet cached) correctly returns 8 available hours immediately after
+`save_rule` adds one — no resolver restart or manual cache clear required. A full
+`platform`+`architecture` regression shows the identical pre-existing failure/error set with zero
+new failures.
+
 ---
 
 ## 1. Executive summary
@@ -495,11 +705,12 @@ cross-module orchestrator *and* Platform's own desktop-API assembly site.
   is the first to notice.** ADR-004 explains the split follows FK ownership (PM owns `project_id`/
   `resource_id`) while keeping one unified service/resolver API via `Any`-typed constructor
   parameters and function-local imports, enforced by
-  `test_platform_calendar_does_not_import_project_management_at_module_scope`. `EnterpriseCalendarResolver.invalidate_cache()` exists but **has zero
+  `test_platform_calendar_does_not_import_project_management_at_module_scope`. ~~`EnterpriseCalendarResolver.invalidate_cache()` exists but **has zero
   callers anywhere** (grep-confirmed) — its `_rules_cache`/`_recurring_cache`, shared as a singleton
   across all those consumers, can silently serve stale rules after any calendar write in the same
   process. This matters directly for §6's finding that `working_rule_service.py` writes carry no
-  cache-invalidation hook at all.
+  cache-invalidation hook at all.~~ **FIXED 2026-08-12, P0.6** — see "P0 correctness/security
+  remediation status" above.
 - **`unit_of_work.py`'s `session_scope()` — zero callers repo-wide**, confirmed independently of and
   in addition to the PM audit's identical finding — this is a whole-application dead abstraction, not
   a PM-specific one.
@@ -700,7 +911,8 @@ inconsistent error-handling convention versus every other method in the module.
 Ten write paths traced end-to-end (file:line for every hop); full detail preserved from the source
 research pass.
 
-**W1 — Create Organization — confirmed to violate an already-accepted ADR, not merely inefficient.**
+**W1 — Create Organization — confirmed to violate an already-accepted ADR, not merely inefficient.
+FIXED 2026-08-12 — see "P0 correctness/security remediation status" above.**
 ADR-003 (Tenancy and Authorization Authority, accepted) requires under "Audit Retention" that,
 for a named list of security-relevant operations including **platform provisioning**, "the
 business mutation and successful security audit intent commit atomically." `provision_organization`
@@ -732,7 +944,9 @@ confirmed) — Platform master-data writes only ever touch the audit trail.
 concurrency checks (an app-layer `version` compare, then a DB-row-level `update_with_version_check`)
 that correctly close the TOCTOU gap either check alone would leave; same audit-after-commit gap.
 
-**W3 — Update Employee (richest master-data write, chosen for its cross-module coupling).**
+**W3 — Update Employee (richest master-data write, chosen for its cross-module coupling).
+The pre-commit event-emission bug below is FIXED (P0.2, 2026-08-12) — see "P0 correctness/
+security remediation status" above.**
 `PlatformEmployeeDesktopApi.update_employee` → `EmployeeService.update_employee` → (if
 department/site given by name) `resolve_department_reference`/`resolve_site_reference` — each does a
 **full-list fetch of the organization's departments/sites, then a Python case-insensitive name
@@ -800,7 +1014,9 @@ one commit) is unchanged from what the PM audit found for the same file, confirm
 document referenced remains correctly wired. `reject` is structurally identical via
 `self._reject_handlers`.
 
-**W9 — Enterprise Calendar mutation (canonical Platform Admin write path).**
+**W9 — Enterprise Calendar mutation (canonical Platform Admin write path).
+The `seed_standard_week` non-atomic-commit defect below is FIXED (P0.3, 2026-08-12) — see "P0
+correctness/security remediation status" above.**
 `save_working_rule` → `WorkingRuleService.save_rule`: permission check → calendar-existence check
 (no version read) → fetch-or-create the weekday's rule row → **`self._session.commit()` — inside
 `save_rule` itself, one commit per weekday**. `seed_standard_week` calls `save_rule` **7 times
@@ -1164,9 +1380,12 @@ tables with real DB RLS**: `activity_entries`, `approval_requests`, `departments
 **Confirmed RLS-exempt tables, checked against every table in Platform's ORM against both enabling
 mechanisms** — no table appears under either that isn't listed above:
 
-- **`audit_entries`** — has a nullable `tenant_id` column but **no RLS at all**, unlike its sibling
+- ~~**`audit_entries`** — has a nullable `tenant_id` column but **no RLS at all**, unlike its sibling
   `activity_entries`, which *is* protected. A real inconsistency, and in the wrong direction: the
-  more compliance-critical table is the one without the DB backstop.
+  more compliance-critical table is the one without the DB backstop.~~ **FIXED 2026-08-12, P0.4** —
+  see "P0 correctness/security remediation status" above. `audit_entries` now has its own bespoke
+  RLS policy (`pfaudit_p04_001` migration) that enforces tenant isolation on its tenant-scoped rows
+  while still permitting `add_platform()`'s deliberate `tenant_id IS NULL` rows through.
 - **`notifications`** — has `tenant_id`, no RLS.
 - **RBAC/identity root tables** (`roles`, `role_bindings`, `role_delegation_policies`, `permissions`,
   `role_permissions`, `auth_sessions`, `auth_policy_reconciliations`, `users`) — none RLS'd;
@@ -1331,27 +1550,30 @@ Synthesized ranking across all five research passes, ordered by evidence strengt
 
 1. **Module entitlement read N+1** (§7 R7a) — the single most PM-Finance-Snapshot-comparable finding:
    exact, reproducible, fires on every app-context load.
-2. **Platform's own calendar-editing write path reproduces the exact defect PM already fixed on its
-   own side, and is worse** (§6 W9) — 7 sequential, individually-committed weekday saves, with no
-   repository-level batch primitive to fix it from the caller side.
-3. **Three-tier audit-atomicity inconsistency, and — for organization provisioning specifically —
-   a confirmed violation of an already-accepted decision** (§10, §12; §6 W1). ADR-003 requires
-   atomic business-mutation + audit commits for platform provisioning; `provision_organization`'s
-   four separate, non-atomic commits (business write, audit, entitlement write, audit again) do not
-   meet that bar today. This is no longer just a risk a future CQRS pass could regress — it is a
-   present-day gap against a decision the team has already made.
+2. ~~**Platform's own calendar-editing write path reproduces the exact defect PM already fixed on
+   its own side, and is worse** (§6 W9) — 7 sequential, individually-committed weekday saves, with
+   no repository-level batch primitive to fix it from the caller side.~~ **Fixed (P0.3,
+   2026-08-12)** — `seed_standard_week` now stages all 7 saves and commits once.
+3. ~~**Three-tier audit-atomicity inconsistency, and — for organization provisioning specifically —
+   a confirmed violation of an already-accepted decision** (§10, §12; §6 W1).~~ **Fully resolved
+   (P0.1 + P0.5, 2026-08-12).** The organization-provisioning half was fixed under P0.1 —
+   `provision_organization`'s four separate commits are now one, per ADR-003. The broader
+   atomicity gap across the rest of master-data (site/employee/department/party/document) was
+   fixed under P0.5 — see "P0 correctness/security remediation status" above.
 4. **Tenant-scoping non-uniformity** (§9a, §11) — several whole subsystems architecturally global,
-   `organizations.list_all()` genuinely cross-tenant, `audit_entries` missing RLS unlike its sibling
-   `activity_entries`.
-5. **Confirmed pre-commit event emission bug** (§6 W3) — `resources_changed.emit()` inside a loop,
-   before commit, in a live cross-module write path.
+   `organizations.list_all()` genuinely cross-tenant, ~~`audit_entries` missing RLS unlike its
+   sibling `activity_entries`~~ **fixed (P0.4, 2026-08-12)** — see "P0 correctness/security
+   remediation status" above.
+5. ~~**Confirmed pre-commit event emission bug** (§6 W3) — `resources_changed.emit()` inside a loop,
+   before commit, in a live cross-module write path.~~ **Fixed (P0.2, 2026-08-12).**
 6. **`PlatformUserDesktopApi` / `EnterpriseCalendarDesktopApi` desktop-layer N+1s** (§5, §9d) —
    confirmed at the desktop-API layer independent of what the underlying services do.
 7. **Notifications: fully-built backend, zero UI read path** (§7 R6) — not a CQRS problem per se, but
    a completeness gap worth noting since any Platform read-model work would naturally also want to
    expose this.
-8. **`EnterpriseCalendarResolver`'s cache has no invalidation path** (§4c, §7 R7b) — a stale-read
-   risk shared by 5+ PM consumer services through the `GlobalCalendarShim` singleton.
+8. ~~**`EnterpriseCalendarResolver`'s cache has no invalidation path** (§4c, §7 R7b) — a stale-read
+   risk shared by 5+ PM consumer services through the `GlobalCalendarShim` singleton.~~ **Fixed
+   (P0.6, 2026-08-12)** — see "P0 correctness/security remediation status" above.
 9. **Two unreconciled "financial period" and two unreconciled "integration delivery" models** (§3c)
    — should be resolved before any read-model work touches either concept, to avoid building a
    Reader against the wrong one or against both.
@@ -1428,27 +1650,32 @@ defect (§6 W9) in the same pass — that is a separate, write-side fix with its
 
 ## 18. Open questions and decisions
 
-0. **`provision_organization`'s non-atomic audit commits appear to violate ADR-003's accepted
-   audit-retention requirement for platform provisioning (§6 W1, §14 #3) — should this be treated as
-   a bug-fix (already governed by an accepted ADR) rather than a CQRS-adjacent design question?**
-   Recommend routing this to whoever owns ADR-003 compliance directly, independent of any CQRS
-   pilot decision, since the standard to meet is already decided.
-1. **Should Platform's own calendar-editing writes (`seed_standard_week`) be fixed to use one batched
-   commit before or independently of any CQRS work?** This audit found it as a write-side defect,
-   not a read-side one — recommend treating it as a separate, small write-path fix rather than
-   bundling it into the read-model pilot above.
+0. ~~`provision_organization`'s non-atomic audit commits appear to violate ADR-003's accepted
+   audit-retention requirement for platform provisioning (§6 W1, §14 #3)~~ — **Resolved (P0.1,
+   2026-08-12).** Fixed as a direct bug-fix against the already-accepted ADR-003 standard,
+   independent of any CQRS pilot decision, exactly as recommended here. See "P0 correctness/
+   security remediation status" at the top of this document for what changed.
+1. ~~**Should Platform's own calendar-editing writes (`seed_standard_week`) be fixed to use one
+   batched commit before or independently of any CQRS work?**~~ — **Resolved (P0.3, 2026-08-12).**
+   Fixed independently of any CQRS pilot decision, exactly as recommended here — see "P0
+   correctness/security remediation status" at the top of this document.
 2. **Which of the two "financial period" models is authoritative**, and should the flat
    `finance/periods/financial_period.py` value-object model be retired, merged, or kept deliberately
    separate from the layered/persisted one? Needs resolution before any Reader is built against
    "financial period."
 3. **Same question for the two "integration delivery" models.**
-4. **Should `audit_entries` gain the same RLS protection `activity_entries` already has?** This is a
-   security/compliance decision, not a CQRS one, but was surfaced by this audit and should not be
-   lost.
-5. **Should Platform's own master-data mutations (org/site/employee/department/party/document) be
+4. ~~**Should `audit_entries` gain the same RLS protection `activity_entries` already has?**~~ —
+   **Resolved (P0.4, 2026-08-12).** Fixed with a bespoke policy rather than reusing
+   `activity_entries`' generic one, since `audit_entries` has a legitimate `tenant_id IS NULL`
+   write path (`add_platform()`) that the generic policy would have broken — see "P0
+   correctness/security remediation status" at the top of this document.
+5. ~~**Should Platform's own master-data mutations (org/site/employee/department/party/document) be
    moved onto the strict, same-transaction audit tier**, matching approval/finance/auth, or is the
-   lenient tier an accepted tradeoff for those specific capabilities? No ADR or comment justifying
-   the current split was found.
+   lenient tier an accepted tradeoff for those specific capabilities?~~ — **Resolved (P0.5,
+   2026-08-12).** Moved onto the strict tier — every master-data write now stages its audit entry
+   with `commit=False, fail_closed=True` inside the same transaction as the business write, matching
+   approval/finance/auth's existing pattern. See "P0 correctness/security remediation status" at the
+   top of this document.
 6. **Is the `is_active=True` branch of `provision_organization` genuinely unreachable/broken, or is
    there a caller this audit didn't find?** Requires dynamic confirmation (running the actual code
    path), not resolvable from static reading alone.

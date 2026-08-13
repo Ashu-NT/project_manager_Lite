@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import date, time
-from typing import Any
+from typing import Any, Callable
 
 from sqlalchemy.orm import Session
 
@@ -36,11 +36,16 @@ class RecurringEventService:
         calendar_repo: PlatformCalendarRepository,
         event_repo: CalendarRecurringEventRepository,
         user_session: Any = None,
+        on_calendar_data_changed: Callable[[], None] | None = None,
     ) -> None:
         self._session = session
         self._calendar_repo = calendar_repo
         self._event_repo = event_repo
         self._user_session = user_session
+        # Invalidates the (process-lifetime) EnterpriseCalendarResolver's
+        # recurring-event cache — without this, a saved/deleted event stays
+        # invisible to every resolver-backed read until the app restarts.
+        self._on_calendar_data_changed = on_calendar_data_changed
 
     def list_recurring_events(
         self, calendar_id: str, *, active_only: bool = True
@@ -91,6 +96,7 @@ class RecurringEventService:
         )
         self._event_repo.add(event)
         self._session.commit()
+        self._invalidate_resolver_cache()
         return event
 
     def update_recurring_event(
@@ -139,6 +145,7 @@ class RecurringEventService:
 
         self._event_repo.update(updated)
         self._session.commit()
+        self._invalidate_resolver_cache()
         return updated
 
     def delete_recurring_event(self, event_id: str) -> None:
@@ -150,6 +157,7 @@ class RecurringEventService:
             raise NotFoundError(f"Recurring event '{event_id}' not found.")
         self._event_repo.delete(event_id)
         self._session.commit()
+        self._invalidate_resolver_cache()
 
     def expand_occurrences(
         self, event_id: str, start: date, end: date
@@ -169,6 +177,10 @@ class RecurringEventService:
             return [dt.date() for dt in rule.between(range_start, range_end, inc=True)]
         except Exception:
             return []
+
+    def _invalidate_resolver_cache(self) -> None:
+        if self._on_calendar_data_changed is not None:
+            self._on_calendar_data_changed()
 
     def _require_calendar(self, calendar_id: str) -> None:
         if self._calendar_repo.get(calendar_id) is None:

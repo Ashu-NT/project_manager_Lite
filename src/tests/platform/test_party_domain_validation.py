@@ -27,6 +27,11 @@ class _FakeTenantContext:
         return self._organization
 
 
+class _FakeEnterpriseAuditService:
+    def record(self, **kwargs) -> None:
+        return None
+
+
 class _FakePartyRepo:
     def __init__(self) -> None:
         self._rows: dict[str, Party] = {}
@@ -85,6 +90,7 @@ def _make_service(monkeypatch: pytest.MonkeyPatch) -> PartyService:
         party_repo=_FakePartyRepo(),
         organization_repo=object(),
         user_session=object(),
+        enterprise_audit_service=_FakeEnterpriseAuditService(),
         tenant_context_service=_FakeTenantContext(_make_organization()),
     )
 

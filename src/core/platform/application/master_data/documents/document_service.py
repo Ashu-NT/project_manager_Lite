@@ -121,6 +121,26 @@ class DocumentService:
             )
         try:
             self._structure_repo.add(structure)
+            # Audit is staged in the same transaction as the business write (ADR-003:
+            # "the business mutation and successful security audit intent commit
+            # atomically") — never a second, separate commit.
+            record_audit_entry(
+                self,
+                operation="create",
+                entity_type="document_structure",
+                entity_id=structure.id,
+                module="platform",
+                severity="low",
+                metadata={
+                    "action": "document_structure.create",
+                    "organization_id": organization.id,
+                    "structure_code": structure.structure_code,
+                    "object_scope": structure.object_scope,
+                    "default_document_type": structure.default_document_type.value,
+                },
+                commit=False,
+                fail_closed=True,
+            )
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -131,21 +151,6 @@ class DocumentService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit_entry(
-            self,
-            operation="create",
-            entity_type="document_structure",
-            entity_id=structure.id,
-            module="platform",
-            severity="low",
-            metadata={
-                "action": "document_structure.create",
-                "organization_id": organization.id,
-                "structure_code": structure.structure_code,
-                "object_scope": structure.object_scope,
-                "default_document_type": structure.default_document_type.value,
-            },
-        )
         domain_events.documents_changed.emit(structure.id)
         return structure
 
@@ -208,6 +213,27 @@ class DocumentService:
                 )
         try:
             self._structure_repo.update(updated)
+            # Audit is staged in the same transaction as the business write (ADR-003:
+            # "the business mutation and successful security audit intent commit
+            # atomically") — never a second, separate commit.
+            record_audit_entry(
+                self,
+                operation="update",
+                entity_type="document_structure",
+                entity_id=updated.id,
+                module="platform",
+                severity="low",
+                metadata={
+                    "action": "document_structure.update",
+                    "organization_id": organization.id,
+                    "structure_code": updated.structure_code,
+                    "object_scope": updated.object_scope,
+                    "default_document_type": updated.default_document_type.value,
+                    "is_active": str(updated.is_active),
+                },
+                commit=False,
+                fail_closed=True,
+            )
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -218,22 +244,6 @@ class DocumentService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit_entry(
-            self,
-            operation="update",
-            entity_type="document_structure",
-            entity_id=updated.id,
-            module="platform",
-            severity="low",
-            metadata={
-                "action": "document_structure.update",
-                "organization_id": organization.id,
-                "structure_code": updated.structure_code,
-                "object_scope": updated.object_scope,
-                "default_document_type": updated.default_document_type.value,
-                "is_active": str(updated.is_active),
-            },
-        )
         domain_events.documents_changed.emit(updated.id)
         return updated
 
@@ -296,6 +306,28 @@ class DocumentService:
             document.mime_type = _infer_mime_type(document.file_name or document.storage_uri)
         try:
             self._document_repo.add(document)
+            # Audit is staged in the same transaction as the business write (ADR-003:
+            # "the business mutation and successful security audit intent commit
+            # atomically") — never a second, separate commit.
+            record_audit_entry(
+                self,
+                operation="create",
+                entity_type="document",
+                entity_id=document.id,
+                module="platform",
+                severity="low",
+                metadata={
+                    "action": "document.create",
+                    "organization_id": organization.id,
+                    "document_code": document.document_code,
+                    "title": document.title,
+                    "document_type": document.document_type.value,
+                    "document_structure_id": document.document_structure_id,
+                    "storage_kind": document.storage_kind.value,
+                },
+                commit=False,
+                fail_closed=True,
+            )
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -303,23 +335,6 @@ class DocumentService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit_entry(
-            self,
-            operation="create",
-            entity_type="document",
-            entity_id=document.id,
-            module="platform",
-            severity="low",
-            metadata={
-                "action": "document.create",
-                "organization_id": organization.id,
-                "document_code": document.document_code,
-                "title": document.title,
-                "document_type": document.document_type.value,
-                "document_structure_id": document.document_structure_id,
-                "storage_kind": document.storage_kind.value,
-            },
-        )
         domain_events.documents_changed.emit(document.id)
         return document
 
@@ -420,6 +435,29 @@ class DocumentService:
                 updated.mime_type = _infer_mime_type(updated.file_name or updated.storage_uri)
         try:
             self._document_repo.update(updated)
+            # Audit is staged in the same transaction as the business write (ADR-003:
+            # "the business mutation and successful security audit intent commit
+            # atomically") — never a second, separate commit.
+            record_audit_entry(
+                self,
+                operation="update",
+                entity_type="document",
+                entity_id=updated.id,
+                module="platform",
+                severity="low",
+                metadata={
+                    "action": "document.update",
+                    "organization_id": organization.id,
+                    "document_code": updated.document_code,
+                    "title": updated.title,
+                    "document_type": updated.document_type.value,
+                    "document_structure_id": updated.document_structure_id,
+                    "storage_kind": updated.storage_kind.value,
+                    "is_active": str(updated.is_active),
+                },
+                commit=False,
+                fail_closed=True,
+            )
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -427,24 +465,6 @@ class DocumentService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit_entry(
-            self,
-            operation="update",
-            entity_type="document",
-            entity_id=updated.id,
-            module="platform",
-            severity="low",
-            metadata={
-                "action": "document.update",
-                "organization_id": organization.id,
-                "document_code": updated.document_code,
-                "title": updated.title,
-                "document_type": updated.document_type.value,
-                "document_structure_id": updated.document_structure_id,
-                "storage_kind": updated.storage_kind.value,
-                "is_active": str(updated.is_active),
-            },
-        )
         domain_events.documents_changed.emit(updated.id)
         return updated
 
@@ -483,6 +503,26 @@ class DocumentService:
             raise ValidationError("This document link already exists.", code="DOCUMENT_LINK_EXISTS")
         try:
             self._link_repo.add(link)
+            # Audit is staged in the same transaction as the business write (ADR-003:
+            # "the business mutation and successful security audit intent commit
+            # atomically") — never a second, separate commit.
+            record_audit_entry(
+                self,
+                operation="update",
+                entity_type="document",
+                entity_id=document.id,
+                module="platform",
+                severity="low",
+                metadata={
+                    "action": "document.link",
+                    "module_code": link.module_code,
+                    "entity_type": link.entity_type,
+                    "entity_id": link.entity_id,
+                    "link_role": link.link_role,
+                },
+                commit=False,
+                fail_closed=True,
+            )
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -490,21 +530,6 @@ class DocumentService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit_entry(
-            self,
-            operation="update",
-            entity_type="document",
-            entity_id=document.id,
-            module="platform",
-            severity="low",
-            metadata={
-                "action": "document.link",
-                "module_code": link.module_code,
-                "entity_type": link.entity_type,
-                "entity_id": link.entity_id,
-                "link_role": link.link_role,
-            },
-        )
         domain_events.documents_changed.emit(document.id)
         return link
 
@@ -516,25 +541,30 @@ class DocumentService:
         document = self._require_document_in_context(link.document_id)
         try:
             self._link_repo.delete(link.id)
+            # Audit is staged in the same transaction as the business write (ADR-003:
+            # "the business mutation and successful security audit intent commit
+            # atomically") — never a second, separate commit.
+            record_audit_entry(
+                self,
+                operation="delete",
+                entity_type="document",
+                entity_id=document.id,
+                module="platform",
+                severity="low",
+                metadata={
+                    "action": "document.unlink",
+                    "module_code": link.module_code,
+                    "entity_type": link.entity_type,
+                    "entity_id": link.entity_id,
+                    "link_role": link.link_role,
+                },
+                commit=False,
+                fail_closed=True,
+            )
             self._session.commit()
         except Exception:
             self._session.rollback()
             raise
-        record_audit_entry(
-            self,
-            operation="delete",
-            entity_type="document",
-            entity_id=document.id,
-            module="platform",
-            severity="low",
-            metadata={
-                "action": "document.unlink",
-                "module_code": link.module_code,
-                "entity_type": link.entity_type,
-                "entity_id": link.entity_id,
-                "link_role": link.link_role,
-            },
-        )
         domain_events.documents_changed.emit(document.id)
 
     def list_links_for_entity(self, *, module_code: str, entity_type: str, entity_id: str) -> list[DocumentLink]:
