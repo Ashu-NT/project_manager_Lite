@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import Platform.Components 1.0
 
 AdminEntityDetailPage {
     id: root

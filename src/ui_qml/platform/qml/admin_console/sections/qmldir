@@ -1,4 +1,2 @@
-﻿module workspaces.admin.sections
+module admin_console.sections
 AdminAuditSection 1.0 AdminAuditSection.qml
-AdminCalendarAssignmentSection 1.0 AdminCalendarAssignmentSection.qml
-AdminSupportSection 1.0 AdminSupportSection.qml

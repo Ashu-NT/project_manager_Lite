@@ -1,3 +1,17 @@
+"""Composite-controller signal rewiring for the temporary Admin Console facade.
+
+Why it still exists: `PlatformAdminWorkspaceController` composes 9 single-entity
+sub-controllers but exposes them to QML as if they were its own signals, since
+AdminConsolePage.qml binds to one controller instance. This function rewires
+each sub-controller's own Qt signals onto the composite's signals.
+
+What contract it preserves: byte-for-byte the same signal-forwarding wiring
+that previously lived in `controllers.admin.admin_child_signal_binder`.
+
+Which later phase removes it: R2, when each capability controller is bound
+directly to its own QML page and no composite re-forwarding is needed.
+"""
+
 from __future__ import annotations
 
 

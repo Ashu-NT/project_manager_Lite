@@ -5,8 +5,8 @@ from datetime import datetime
 from src.core.platform.api.desktop.approval.models.approval import ApprovalRequestDto
 from src.core.platform.domain.approval import ApprovalStatus
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
-from src.ui_qml.platform.presenters.control_presenter import PlatformControlWorkspacePresenter
-from src.ui_qml.platform.presenters.control_queue_presenter import PlatformControlQueuePresenter
+from src.ui_qml.platform.presenters.control.control_presenter import PlatformControlWorkspacePresenter
+from src.ui_qml.platform.presenters.control.control_queue_presenter import PlatformControlQueuePresenter
 from src.tests.platform._platform_test_helpers import (
     FakePlatformApprovalApi,
     build_connected_platform_registry,

@@ -1,0 +1,4 @@
+module documents.dialogs
+DocumentEditorDialog 1.0 DocumentEditorDialog.qml
+DocumentLinkEditorDialog 1.0 DocumentLinkEditorDialog.qml
+DocumentStructureEditorDialog 1.0 DocumentStructureEditorDialog.qml

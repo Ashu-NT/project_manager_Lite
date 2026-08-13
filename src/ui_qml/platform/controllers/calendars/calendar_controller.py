@@ -3,7 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
-from src.ui_qml.platform.presenters.calendar_catalog_presenter import PlatformCalendarCatalogPresenter
+from src.ui_qml.platform.presenters.calendars.calendar_catalog_presenter import PlatformCalendarCatalogPresenter
 
 from ..common import serialize_action_list
 

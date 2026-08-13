@@ -17,7 +17,7 @@ def build_platform_routes() -> list[QmlRoute]:
             module_label="Platform",
             group_label="Administration",
             title="Admin Console",
-            qml_path=platform_qml_path("workspaces", "admin", "AdminWorkspace.qml"),
+            qml_path=platform_qml_path("admin_console", "AdminWorkspace.qml"),
             presenter_key="platform.admin",
         ),
         QmlRoute(
@@ -26,7 +26,7 @@ def build_platform_routes() -> list[QmlRoute]:
             module_label="Platform",
             group_label="Control",
             title="Control Center",
-            qml_path=platform_qml_path("workspaces", "control", "ControlWorkspace.qml"),
+            qml_path=platform_qml_path("control", "ControlWorkspace.qml"),
             presenter_key="platform.control",
         ),
         QmlRoute(
@@ -35,7 +35,7 @@ def build_platform_routes() -> list[QmlRoute]:
             module_label="Platform",
             group_label="Settings",
             title="Settings",
-            qml_path=platform_qml_path("workspaces", "settings", "SettingsWorkspace.qml"),
+            qml_path=platform_qml_path("settings", "SettingsWorkspace.qml"),
             presenter_key="platform.settings",
         ),
         QmlRoute(
@@ -44,7 +44,7 @@ def build_platform_routes() -> list[QmlRoute]:
             module_label="Platform",
             group_label="Tenants",
             title="Tenant Management",
-            qml_path=platform_qml_path("workspaces", "tenants", "TenantManagementWorkspace.qml"),
+            qml_path=platform_qml_path("tenants", "TenantManagementWorkspace.qml"),
             presenter_key=None,
         ),
     ]

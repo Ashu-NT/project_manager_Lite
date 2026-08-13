@@ -1,2 +1,2 @@
-﻿module Platform.AdminPanels
+module admin_console.panels
 AdminEntityDetailPanel 1.0 AdminEntityDetailPanel.qml

@@ -3,8 +3,8 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
-from src.ui_qml.platform.presenters.document_catalog_presenter import PlatformDocumentCatalogPresenter
-from src.ui_qml.platform.presenters.document_management_presenter import (
+from src.ui_qml.platform.presenters.documents.document_catalog_presenter import PlatformDocumentCatalogPresenter
+from src.ui_qml.platform.presenters.documents.document_management_presenter import (
     PlatformDocumentManagementPresenter,
 )
 

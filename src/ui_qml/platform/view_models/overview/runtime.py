@@ -2,12 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
-@dataclass(frozen=True)
-class PlatformMetricViewModel:
-    label: str
-    value: str
-    supporting_text: str
+from src.ui_qml.platform.view_models.common.workspace import PlatformMetricViewModel
 
 
 @dataclass(frozen=True)
@@ -18,4 +13,4 @@ class PlatformRuntimeOverviewViewModel:
     metrics: tuple[PlatformMetricViewModel, ...]
 
 
-__all__ = ["PlatformMetricViewModel", "PlatformRuntimeOverviewViewModel"]
+__all__ = ["PlatformRuntimeOverviewViewModel"]

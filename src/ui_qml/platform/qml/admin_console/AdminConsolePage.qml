@@ -4,9 +4,18 @@ import QtQuick.Layouts
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import Platform.Controllers 1.0 as PlatformControllers
-import Platform.Widgets 1.0 as PlatformWidgets
+import identity_access.access 1.0 as PlatformAccess
+import Platform.Components 1.0 as PlatformComponents
+import organization.organizations 1.0 as OrganizationsDetail
+import organization.sites 1.0 as SitesDetail
+import organization.departments 1.0 as DepartmentsDetail
+import organization.employees 1.0 as EmployeesDetail
+import organization.parties 1.0 as PartiesDetail
+import calendars 1.0 as CalendarsDetail
+import identity_access.users 1.0 as UsersDetail
+import documents 1.0 as DocumentsDetail
+import support.sections 1.0 as SupportSections
 import "components" as Components
-import "detail" as Detail
 import "panels" as Panels
 import "sections" as Sections
 import "dialogs" as Dialogs
@@ -409,7 +418,7 @@ AppLayouts.WorkspaceFrame {
             Layout.fillHeight: true
 
             // -- Organizations -------------------------------------
-            Components.AdminEntityWorkspace {
+            PlatformComponents.AdminEntityWorkspace {
                 anchors.fill:    parent
                 visible:         adminState.activeSection === "organizations" && !adminState.detailOpen
                 sectionTitle:    "Organizations"
@@ -437,7 +446,7 @@ AppLayouts.WorkspaceFrame {
                 asynchronous: true
 
                 sourceComponent: Component {
-                    Detail.AdminOrganizationDetailPage {
+                    OrganizationsDetail.AdminOrganizationDetailPage {
                         organization: root._detailItem || ({})
                         busy: adminState.busy
                         errorMessage: adminState.err
@@ -463,7 +472,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             // -- Sites ---------------------------------------------
-            Components.AdminEntityWorkspace {
+            PlatformComponents.AdminEntityWorkspace {
                 anchors.fill:    parent
                 visible:         adminState.activeSection === "calendars" && !adminState.detailOpen
                 sectionTitle:    "Calendars"
@@ -491,7 +500,7 @@ AppLayouts.WorkspaceFrame {
                 asynchronous: true
 
                 sourceComponent: Component {
-                    Detail.AdminCalendarDetailPage {
+                    CalendarsDetail.AdminCalendarDetailPage {
                         property var _calendarContext: root._calendarDetailContext(root._detailItem, root.calendarCatalog)
                         property var _calendarState: root._detailItem && root._detailItem.state ? root._detailItem.state : ({})
                         property string _calendarId: String(_calendarState.calendarId || _calendarState.id || (root._detailItem ? root._detailItem.id : "") || "")
@@ -515,7 +524,7 @@ AppLayouts.WorkspaceFrame {
                 }
             }
 
-            Components.AdminEntityWorkspace {
+            PlatformComponents.AdminEntityWorkspace {
                 anchors.fill:    parent
                 visible:         adminState.activeSection === "sites" && !adminState.detailOpen
                 sectionTitle:    "Sites"
@@ -536,7 +545,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             // -- Departments ---------------------------------------
-            Components.AdminEntityWorkspace {
+            PlatformComponents.AdminEntityWorkspace {
                 anchors.fill:    parent
                 visible:         adminState.activeSection === "departments" && !adminState.detailOpen
                 sectionTitle:    "Departments"
@@ -557,7 +566,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             // -- Employees -----------------------------------------
-            Components.AdminEntityWorkspace {
+            PlatformComponents.AdminEntityWorkspace {
                 anchors.fill:    parent
                 visible:         adminState.activeSection === "employees" && !adminState.detailOpen
                 sectionTitle:    "Employees"
@@ -578,7 +587,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             // -- Users ---------------------------------------------
-            Components.AdminEntityWorkspace {
+            PlatformComponents.AdminEntityWorkspace {
                 anchors.fill:    parent
                 visible:         adminState.activeSection === "users" && !adminState.detailOpen
                 sectionTitle:    "Users"
@@ -599,7 +608,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             // -- Parties -------------------------------------------
-            Components.AdminEntityWorkspace {
+            PlatformComponents.AdminEntityWorkspace {
                 anchors.fill:    parent
                 visible:         adminState.activeSection === "parties" && !adminState.detailOpen
                 sectionTitle:    "Parties"
@@ -620,7 +629,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             // -- Documents -----------------------------------------
-            Components.AdminEntityWorkspace {
+            PlatformComponents.AdminEntityWorkspace {
                 anchors.fill:    parent
                 visible:         adminState.activeSection === "documents" && !adminState.detailOpen
                 sectionTitle:    "Documents"
@@ -644,7 +653,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             // -- Document Structures -------------------------------
-            Components.AdminEntityWorkspace {
+            PlatformComponents.AdminEntityWorkspace {
                 anchors.fill:    parent
                 visible:         adminState.activeSection === "structures" && !adminState.detailOpen
                 sectionTitle:    "Document Structures"
@@ -672,7 +681,7 @@ AppLayouts.WorkspaceFrame {
                 asynchronous: true
 
                 sourceComponent: Component {
-                    Detail.AdminSiteDetailPage {
+                    SitesDetail.AdminSiteDetailPage {
                         property var _calendarContext: root._calendarAssignmentContext("sites", root._detailItem, root.calendarCatalog)
 
                         platformCatalog: root.platformCatalog
@@ -703,7 +712,7 @@ AppLayouts.WorkspaceFrame {
                 asynchronous: true
 
                 sourceComponent: Component {
-                    Detail.AdminDepartmentDetailPage {
+                    DepartmentsDetail.AdminDepartmentDetailPage {
                         property var _calendarContext: root._calendarAssignmentContext("departments", root._detailItem, root.calendarCatalog)
 
                         platformCatalog: root.platformCatalog
@@ -734,7 +743,7 @@ AppLayouts.WorkspaceFrame {
                 asynchronous: true
 
                 sourceComponent: Component {
-                    Detail.AdminEmployeeDetailPage {
+                    EmployeesDetail.AdminEmployeeDetailPage {
                         property var _calendarContext: root._calendarAssignmentContext("employees", root._detailItem, root.calendarCatalog)
 
                         employee: root._detailItem || ({})
@@ -760,7 +769,7 @@ AppLayouts.WorkspaceFrame {
                 asynchronous: true
 
                 sourceComponent: Component {
-                    Detail.AdminUserDetailPage {
+                    UsersDetail.AdminUserDetailPage {
                         user: root._detailItem || ({})
                         moduleEntitlementCatalog: root.moduleEntitlementCatalog
                         moduleEntitlementColumns: adminState.moduleColumns
@@ -783,7 +792,7 @@ AppLayouts.WorkspaceFrame {
                 asynchronous: true
 
                 sourceComponent: Component {
-                    Detail.AdminPartyDetailPage {
+                    PartiesDetail.AdminPartyDetailPage {
                         party: root._detailItem || ({})
                         inventoryEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("inventory_procurement") : false
                         pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false
@@ -806,7 +815,7 @@ AppLayouts.WorkspaceFrame {
                 asynchronous: true
 
                 sourceComponent: Component {
-                    Detail.AdminDocumentsDetailPage {
+                    DocumentsDetail.AdminDocumentsDetailPage {
                         document: root._detailItem || ({})
                         selectedDocument: root.selectedDocument
                         documentPreviewState: root.documentPreviewState
@@ -832,7 +841,7 @@ AppLayouts.WorkspaceFrame {
                 asynchronous: true
 
                 sourceComponent: Component {
-                    Detail.AdminDocumentStructureDetailPage {
+                    DocumentsDetail.AdminDocumentStructureDetailPage {
                         structure: root._detailItem || ({})
                         busy: adminState.busy
                         errorMessage: adminState.err
@@ -850,7 +859,7 @@ AppLayouts.WorkspaceFrame {
                 anchors.fill: parent
                 visible:      adminState.activeSection === "access"
 
-                PlatformWidgets.AccessSecurityPanel {
+                PlatformAccess.AccessSecurityPanel {
                     anchors.fill: parent
                     visible:      !adminState.accessDetailOpen
                     controller:   root.accessController
@@ -866,7 +875,7 @@ AppLayouts.WorkspaceFrame {
                     visible:      active && status === Loader.Ready
                     asynchronous: true
                     sourceComponent: Component {
-                        Detail.AdminAccessDetailPage {
+                        PlatformAccess.AdminAccessDetailPage {
                             controller:      root.accessController
                             grantId:         adminState.accessGrantId
                             busy:            root.accessController ? root.accessController.isBusy : false
@@ -879,7 +888,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             // -- Support -------------------------------------------
-            Sections.AdminSupportSection {
+            SupportSections.AdminSupportSection {
                 anchors.fill:      parent
                 visible:           adminState.activeSection === "support"
                 supportController: root.supportController

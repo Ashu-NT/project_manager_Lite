@@ -2,6 +2,14 @@ import QtQuick
 import QtQuick.Controls
 import Platform.Controllers 1.0 as PlatformControllers
 import Platform.Dialogs 1.0 as PlatformDialogs
+import organization.organizations.dialogs 1.0 as OrganizationDialogs
+import organization.sites.dialogs 1.0 as SiteDialogs
+import organization.departments.dialogs 1.0 as DepartmentDialogs
+import organization.employees.dialogs 1.0 as EmployeeDialogs
+import organization.parties.dialogs 1.0 as PartyDialogs
+import identity_access.users.dialogs 1.0 as UserDialogs
+import documents.dialogs 1.0 as DocumentDialogs
+import calendars.dialogs 1.0 as CalendarDialogs
 
 Item {
     id: root
@@ -215,7 +223,7 @@ Item {
         )
     }
 
-    PlatformDialogs.OrganizationEditorDialog {
+    OrganizationDialogs.OrganizationEditorDialog {
         id: organizationDialog
 
         parent: Overlay.overlay
@@ -232,7 +240,7 @@ Item {
         }
     }
 
-    PlatformDialogs.SiteEditorDialog {
+    SiteDialogs.SiteEditorDialog {
         id: siteDialog
 
         parent: Overlay.overlay
@@ -249,7 +257,7 @@ Item {
         }
     }
 
-    PlatformDialogs.DepartmentEditorDialog {
+    DepartmentDialogs.DepartmentEditorDialog {
         id: departmentDialog
 
         parent: Overlay.overlay
@@ -266,7 +274,7 @@ Item {
         }
     }
 
-    PlatformDialogs.EmployeeEditorDialog {
+    EmployeeDialogs.EmployeeEditorDialog {
         id: employeeDialog
 
         parent: Overlay.overlay
@@ -283,7 +291,7 @@ Item {
         }
     }
 
-    PlatformDialogs.UserEditorDialog {
+    UserDialogs.UserEditorDialog {
         id: userDialog
 
         parent: Overlay.overlay
@@ -299,7 +307,7 @@ Item {
         }
     }
 
-    PlatformDialogs.PartyEditorDialog {
+    PartyDialogs.PartyEditorDialog {
         id: partyDialog
 
         parent: Overlay.overlay
@@ -316,7 +324,7 @@ Item {
         }
     }
 
-    PlatformDialogs.DocumentEditorDialog {
+    DocumentDialogs.DocumentEditorDialog {
         id: documentDialog
 
         parent: Overlay.overlay
@@ -333,7 +341,7 @@ Item {
         }
     }
 
-    PlatformDialogs.DocumentLinkEditorDialog {
+    DocumentDialogs.DocumentLinkEditorDialog {
         id: documentLinkDialog
 
         parent: Overlay.overlay
@@ -347,7 +355,7 @@ Item {
         }
     }
 
-    PlatformDialogs.DocumentStructureEditorDialog {
+    DocumentDialogs.DocumentStructureEditorDialog {
         id: documentStructureDialog
 
         parent: Overlay.overlay
@@ -364,7 +372,7 @@ Item {
         }
     }
 
-    PlatformDialogs.CalendarEditorDialog {
+    CalendarDialogs.CalendarEditorDialog {
         id: calendarEditorDialog
 
         parent: Overlay.overlay
@@ -380,7 +388,7 @@ Item {
         }
     }
 
-    PlatformDialogs.CalendarExceptionDialog {
+    CalendarDialogs.CalendarExceptionDialog {
         id: calendarExceptionDialog
 
         parent: Overlay.overlay
@@ -395,7 +403,7 @@ Item {
         }
     }
 
-    PlatformDialogs.CalendarRecurringEventDialog {
+    CalendarDialogs.CalendarRecurringEventDialog {
         id: calendarRecurringEventDialog
 
         parent: Overlay.overlay

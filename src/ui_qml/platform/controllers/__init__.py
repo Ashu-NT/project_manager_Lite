@@ -1,4 +1,5 @@
-from .admin import PlatformAdminAccessWorkspaceController, PlatformAdminWorkspaceController
+from .admin_console import PlatformAdminWorkspaceController
+from .identity_access.access import PlatformAdminAccessWorkspaceController
 from .common import (
     PlatformWorkspaceControllerBase,
     run_mutation,
@@ -9,7 +10,7 @@ from .common import (
 )
 from .control import PlatformControlWorkspaceController
 from .settings import PlatformSettingsWorkspaceController
-from .shell import TenantSwitcherController
+from .tenants import TenantSwitcherController
 
 __all__ = [
     "PlatformAdminAccessWorkspaceController",

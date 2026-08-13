@@ -1,13 +1,34 @@
 from __future__ import annotations
 
-from .admin_calendar_serializers import (
+from .serializers import (
     serialize_assignment_groups,
     serialize_calendar_assignment,
     serialize_calendar_exception,
     serialize_recurring_event,
     serialize_working_rule,
 )
-from .admin_helpers import empty_calendar_assignment_context, empty_calendar_detail_context
+
+
+def empty_calendar_detail_context() -> dict[str, object]:
+    return {
+        "workingRules": [],
+        "exceptions": [],
+        "recurringEvents": [],
+        "assignments": {
+            "sites": [],
+            "departments": [],
+            "employees": [],
+            "projects": [],
+            "resources": [],
+        },
+    }
+
+
+def empty_calendar_assignment_context() -> dict[str, object]:
+    return {
+        "assignedCalendar": {},
+        "sourceChain": [],
+    }
 
 
 def result_sequence(result) -> list[object]:
@@ -136,5 +157,7 @@ __all__ = [
     "calendar_assignment_context",
     "calendar_detail_context",
     "calendar_source_chain",
+    "empty_calendar_assignment_context",
+    "empty_calendar_detail_context",
     "result_sequence",
 ]

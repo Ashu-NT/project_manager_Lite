@@ -45,12 +45,11 @@ def test_qml_platform_widgets_module_exists() -> None:
         QML_PLATFORM_CONTROLLERS / "typeinfo" / "settings.fragment",
         QML_PLATFORM_CONTROLLERS / "typeinfo" / "catalog.fragment",
         QML_PLATFORM_DIALOGS / "qmldir",
-        QML_PLATFORM_DIALOGS / "DocumentLinkEditorDialog.qml",
-        QML_PLATFORM_DIALOGS / "DocumentStructureEditorDialog.qml",
+        Path("src/ui_qml/platform/qml/documents/dialogs/DocumentLinkEditorDialog.qml"),
+        Path("src/ui_qml/platform/qml/documents/dialogs/DocumentStructureEditorDialog.qml"),
         QML_PLATFORM_WIDGETS / "OverviewSectionCard.qml",
         QML_PLATFORM_WIDGETS / "RecordListCard.qml",
-        QML_PLATFORM_WIDGETS / "DocumentDetailPanel.qml",
-        QML_PLATFORM_WIDGETS / "WorkspaceStateBanner.qml",
+        Path("src/ui_qml/platform/qml/documents/DocumentDetailPanel.qml"),
         QML_PLATFORM_WIDGETS / "qmldir",
     ]
 

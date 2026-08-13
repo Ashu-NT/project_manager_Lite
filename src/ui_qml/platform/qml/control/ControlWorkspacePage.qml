@@ -8,7 +8,7 @@ import App.Icons 1.0 as AppIcons
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
-import Platform.Dialogs 1.0 as PlatformDialogs
+import control.dialogs 1.0 as PlatformDialogs
 import "detail" as Detail
 
 AppLayouts.WorkspaceFrame {

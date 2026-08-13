@@ -1,0 +1,9 @@
+module support.sections
+AdminSupportSection 1.0 AdminSupportSection.qml
+AdminSupportActivityPanel 1.0 AdminSupportActivityPanel.qml
+AdminSupportDiagnosticsPanel 1.0 AdminSupportDiagnosticsPanel.qml
+AdminSupportPathsPanel 1.0 AdminSupportPathsPanel.qml
+AdminSupportReleasePanel 1.0 AdminSupportReleasePanel.qml
+AdminSupportRuntimePanel 1.0 AdminSupportRuntimePanel.qml
+SupportMetaRow 1.0 SupportMetaRow.qml
+SupportPathRow 1.0 SupportPathRow.qml

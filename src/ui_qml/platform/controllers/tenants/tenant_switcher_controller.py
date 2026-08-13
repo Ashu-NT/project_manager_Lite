@@ -7,7 +7,7 @@ from src.ui_qml.platform.controllers.common import (
     PlatformWorkspaceControllerBase,
     run_mutation,
 )
-from src.ui_qml.platform.presenters.tenant_switcher_presenter import TenantSwitcherPresenter
+from src.ui_qml.platform.presenters.tenants.tenant_switcher_presenter import TenantSwitcherPresenter
 
 QML_IMPORT_NAME = "Platform.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1

@@ -1,0 +1,2 @@
+module organization.organizations.dialogs
+OrganizationEditorDialog 1.0 OrganizationEditorDialog.qml

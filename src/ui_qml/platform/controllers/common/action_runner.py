@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-from src.ui_qml.platform.controllers.common import serialize_operation_result
+from .serializers import serialize_operation_result
 
 def run_admin_action(
     controller,

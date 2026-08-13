@@ -3,9 +3,9 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
-from src.ui_qml.platform.presenters.department_catalog_presenter import PlatformDepartmentCatalogPresenter
+from src.ui_qml.platform.presenters.organization.departments.department_catalog_presenter import PlatformDepartmentCatalogPresenter
 
-from ..common import run_mutation, serialize_action_list
+from src.ui_qml.platform.controllers.common import run_mutation, serialize_action_list
 
 
 class PlatformDepartmentController(QObject):

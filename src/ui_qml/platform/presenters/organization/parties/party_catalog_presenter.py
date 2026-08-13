@@ -10,7 +10,7 @@ from src.core.platform.api.desktop.master_data.party.models.party import (
 from src.core.platform.api.desktop.master_data.party.party import PlatformPartyDesktopApi
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.domain.master_data.party import PartyType
-from src.ui_qml.platform.presenters.support import (
+from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     bool_value,
     option_item,
     optional_string_value,

@@ -10,10 +10,10 @@ from src.ui_qml.shell.qml_engine import create_qml_engine, load_qml
 
 
 APPROVAL_DECISION_DIALOG = Path(
-    "src/ui_qml/platform/qml/Platform/Dialogs/ApprovalDecisionDialog.qml"
+    "src/ui_qml/platform/qml/control/dialogs/ApprovalDecisionDialog.qml"
 )
 ORGANIZATION_EDITOR_DIALOG = Path(
-    "src/ui_qml/platform/qml/Platform/Dialogs/OrganizationEditorDialog.qml"
+    "src/ui_qml/platform/qml/organization/organizations/dialogs/OrganizationEditorDialog.qml"
 )
 
 # Module-level reference prevents premature GC of the Qt application instance.

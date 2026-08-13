@@ -11,7 +11,7 @@ from src.core.platform.api.desktop.master_data.department.models.department impo
 )
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.ui_qml.platform.presenters.support import (
+from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     bool_value,
     int_value,
     option_item,

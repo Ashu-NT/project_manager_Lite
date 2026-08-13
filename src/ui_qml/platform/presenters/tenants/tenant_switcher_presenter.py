@@ -3,8 +3,8 @@ from __future__ import annotations
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.tenant.tenancy.models.tenant import TenantDto
 from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
-from src.ui_qml.platform.presenters.support import preview_error_result
-from src.ui_qml.platform.view_models.tenant import TenantSwitcherItemViewModel
+from src.ui_qml.platform.presenters.common.presenter_support_helpers import preview_error_result
+from src.ui_qml.platform.view_models.tenants.tenant import TenantSwitcherItemViewModel
 
 
 class TenantSwitcherPresenter:

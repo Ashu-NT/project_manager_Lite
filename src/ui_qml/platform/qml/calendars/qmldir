@@ -1,0 +1,3 @@
+module calendars
+AdminCalendarDetailPage 1.0 AdminCalendarDetailPage.qml
+AdminCalendarAssignmentSection 1.0 AdminCalendarAssignmentSection.qml

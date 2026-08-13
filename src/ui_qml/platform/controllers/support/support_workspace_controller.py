@@ -6,7 +6,7 @@ from PySide6.QtCore import Property, QObject, Signal, Slot, QUrl
 from PySide6.QtGui import QDesktopServices, QGuiApplication
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.ui_qml.platform.presenters.support_workspace_presenter import (
+from src.ui_qml.platform.presenters.support.support_workspace_presenter import (
     PlatformSupportWorkspacePresenter,
 )
 

@@ -5,14 +5,14 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.platform.api.desktop.integration import IntegrationCapabilityDesktopApi
 from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
-from src.ui_qml.platform.controllers.admin import (
+from src.ui_qml.platform.controllers.admin_console import PlatformAdminWorkspaceController
+from src.ui_qml.platform.controllers.identity_access.access import (
     PlatformAdminAccessWorkspaceController,
-    PlatformAdminWorkspaceController,
-    PlatformSupportWorkspaceController,
 )
+from src.ui_qml.platform.controllers.support import PlatformSupportWorkspaceController
 from src.ui_qml.platform.controllers.control import PlatformControlWorkspaceController
 from src.ui_qml.platform.controllers.settings import PlatformSettingsWorkspaceController
-from src.ui_qml.platform.controllers.shell import TenantSwitcherController
+from src.ui_qml.platform.controllers.tenants import TenantSwitcherController
 from src.ui_qml.platform.presenters import (
     PlatformAccessWorkspacePresenter,
     PlatformAdminWorkspacePresenter,

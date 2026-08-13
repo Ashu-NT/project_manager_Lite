@@ -257,7 +257,7 @@ def test_qml_shell_controller_module_is_registered():
 
 def test_qml_platform_controller_packages_exist():
     for rel_path in (
-        "src/ui_qml/platform/controllers/admin/access_workspace_controller.py",
+        "src/ui_qml/platform/controllers/identity_access/access/access_workspace_controller.py",
         "src/ui_qml/platform/controllers/control/control_workspace_controller.py",
         "src/ui_qml/platform/controllers/settings/settings_workspace_controller.py",
         "src/ui_qml/platform/controllers/common/workspace_controller_base.py",

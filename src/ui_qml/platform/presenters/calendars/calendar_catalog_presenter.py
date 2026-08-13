@@ -7,7 +7,7 @@ from src.core.platform.api.desktop.time_management.calendar.models.calendar impo
     WorkingDayCalculationCommand,
     WorkingDayCalculationDto,
 )
-from src.ui_qml.platform.presenters.support import int_value, preview_error_result, string_value
+from src.ui_qml.platform.presenters.common.presenter_support_helpers import int_value, preview_error_result, string_value
 from src.ui_qml.platform.view_models import (
     PlatformWorkspaceActionItemViewModel,
     PlatformWorkspaceActionListViewModel,

@@ -6,7 +6,7 @@ from typing import Any
 from src.core.platform.api.desktop.support.models.support import SupportSettingsUpdateCommand
 from src.core.platform.api.desktop.support.support import PlatformSupportDesktopApi
 from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.ui_qml.platform.presenters.support import (
+from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     bool_value,
     option_item,
     preview_error_result,

@@ -8,9 +8,9 @@ from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.shared.events.domain_events import domain_events
-from src.ui_qml.platform.presenters.access_workspace_presenter import PlatformAccessWorkspacePresenter
+from src.ui_qml.platform.presenters.identity_access.access.access_workspace_presenter import PlatformAccessWorkspacePresenter
 
-from ..common import (
+from src.ui_qml.platform.controllers.common import (
     PlatformWorkspaceControllerBase,
     run_mutation,
     serialize_action_list,

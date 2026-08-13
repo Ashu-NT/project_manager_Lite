@@ -6,7 +6,7 @@ import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
-import Platform.Widgets 1.0 as PlatformWidgets
+import documents 1.0 as PlatformDocuments
 
 Rectangle {
     id: root
@@ -115,7 +115,7 @@ Rectangle {
                     visible: root.activeSection === "documents"
                     spacing: 0
 
-                    PlatformWidgets.DocumentDetailPanel {
+                    PlatformDocuments.DocumentDetailPanel {
                         Layout.fillWidth: true
                         details: root.selectedDocument
                         previewState: root.documentPreviewState

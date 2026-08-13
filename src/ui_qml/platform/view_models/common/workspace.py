@@ -3,7 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.ui_qml.platform.view_models.runtime import PlatformMetricViewModel
+
+@dataclass(frozen=True)
+class PlatformMetricViewModel:
+    label: str
+    value: str
+    supporting_text: str
 
 @dataclass(frozen=True)
 class PlatformWorkspaceRowViewModel:
@@ -47,6 +52,7 @@ class PlatformWorkspaceActionListViewModel:
     items: tuple[PlatformWorkspaceActionItemViewModel, ...] = field(default_factory=tuple)
 
 __all__ = [
+    "PlatformMetricViewModel",
     "PlatformWorkspaceActionItemViewModel",
     "PlatformWorkspaceActionListViewModel",
     "PlatformWorkspaceOverviewViewModel",

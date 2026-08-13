@@ -1,1 +1,2 @@
-module Platform.SettingsDialogs
+module settings.dialogs
+ModuleLifecycleDialog 1.0 ModuleLifecycleDialog.qml

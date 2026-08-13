@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from .admin_action_runner import run_admin_action
-from .admin_refresh_service import (
+from src.ui_qml.platform.controllers.common import run_admin_action
+
+from .refresh import (
     refresh_after_document_change,
     refresh_after_document_link_change,
     refresh_after_document_structure_change,

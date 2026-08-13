@@ -11,7 +11,7 @@ from src.core.platform.api.desktop.security.auth.models.user import (
 )
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
 from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.ui_qml.platform.presenters.support import (
+from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     bool_value,
     option_item,
     optional_string_value,

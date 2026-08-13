@@ -1,0 +1,2 @@
+module identity_access.users.dialogs
+UserEditorDialog 1.0 UserEditorDialog.qml

@@ -11,7 +11,7 @@ from src.core.platform.api.desktop.master_data.documents.models.document import 
 )
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.domain.master_data.documents import DocumentStorageKind, DocumentType
-from src.ui_qml.platform.presenters.support import (
+from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
     bool_value,
     int_value,
     option_item,

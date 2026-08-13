@@ -29,14 +29,14 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
     ]
 
     targets = [
-        UI_QML_ROOT / "platform" / "qml" / "workspaces" / "admin" / "AdminWorkspace.qml",
-        UI_QML_ROOT / "platform" / "qml" / "workspaces" / "control" / "ControlWorkspace.qml",
-        UI_QML_ROOT / "platform" / "qml" / "workspaces" / "settings" / "SettingsWorkspace.qml",
-        UI_QML_ROOT / "platform" / "qml" / "Platform" / "Widgets" / "AccessSecurityPanel.qml",
-        UI_QML_ROOT / "platform" / "qml" / "Platform" / "Widgets" / "DocumentDetailPanel.qml",
-        UI_QML_ROOT / "platform" / "qml" / "Platform" / "Dialogs" / "DocumentLinkEditorDialog.qml",
-        UI_QML_ROOT / "platform" / "qml" / "Platform" / "Dialogs" / "DocumentStructureEditorDialog.qml",
-        UI_QML_ROOT / "platform" / "qml" / "workspaces" / "admin" / "AdminSupportSection.qml",
+        UI_QML_ROOT / "platform" / "qml" / "admin_console" / "AdminWorkspace.qml",
+        UI_QML_ROOT / "platform" / "qml" / "control" / "ControlWorkspace.qml",
+        UI_QML_ROOT / "platform" / "qml" / "settings" / "SettingsWorkspace.qml",
+        UI_QML_ROOT / "platform" / "qml" / "identity_access" / "access" / "AccessSecurityPanel.qml",
+        UI_QML_ROOT / "platform" / "qml" / "documents" / "DocumentDetailPanel.qml",
+        UI_QML_ROOT / "platform" / "qml" / "documents" / "dialogs" / "DocumentLinkEditorDialog.qml",
+        UI_QML_ROOT / "platform" / "qml" / "documents" / "dialogs" / "DocumentStructureEditorDialog.qml",
+        UI_QML_ROOT / "platform" / "qml" / "support" / "sections" / "AdminSupportSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "projects" / "ProjectsWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "ProjectEditorDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "ProjectStatusDialog.qml",
@@ -187,8 +187,7 @@ def test_platform_admin_console_clears_workspace_messages_on_context_switch() ->
         UI_QML_ROOT
         / "platform"
         / "qml"
-        / "workspaces"
-        / "admin"
+        / "admin_console"
         / "AdminConsolePage.qml"
     )
 
