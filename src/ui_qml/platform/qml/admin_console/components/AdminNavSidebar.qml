@@ -99,15 +99,8 @@ Item {
         boundsBehavior: Flickable.StopAtBounds
 
         model: [
-            { type: "group", label: "ORGANIZATION"                                              },
-            { type: "item",  section: "organizations", label: "Organizations", icon: "admin"    },
-            { type: "item",  section: "calendars",     label: "Calendars",     icon: "calendar" },
-            { type: "item",  section: "sites",         label: "Sites",         icon: "location" },
-            { type: "item",  section: "departments",   label: "Departments",   icon: "resources"},
             { type: "group", label: "WORKFORCE"                                                 },
-            { type: "item",  section: "employees",     label: "Employees",     icon: "user"     },
             { type: "item",  section: "users",         label: "Users",         icon: "admin"    },
-            { type: "item",  section: "parties",       label: "Parties",       icon: "collaboration" },
             { type: "group", label: "CONTENT"                                                   },
             { type: "item",  section: "documents",     label: "Documents",     icon: "documents"  },
             { type: "item",  section: "structures",    label: "Structures",    icon: "register" },

@@ -6,17 +6,10 @@ import App.Widgets 1.0 as AppWidgets
 import Platform.Controllers 1.0 as PlatformControllers
 import identity_access.access 1.0 as PlatformAccess
 import Platform.Components 1.0 as PlatformComponents
-import organization.organizations 1.0 as OrganizationsDetail
-import organization.sites 1.0 as SitesDetail
-import organization.departments 1.0 as DepartmentsDetail
-import organization.employees 1.0 as EmployeesDetail
-import organization.parties 1.0 as PartiesDetail
-import calendars 1.0 as CalendarsDetail
 import identity_access.users 1.0 as UsersDetail
 import documents 1.0 as DocumentsDetail
 import support.sections 1.0 as SupportSections
 import "components" as Components
-import "panels" as Panels
 import "sections" as Sections
 import "dialogs" as Dialogs
 
@@ -58,27 +51,9 @@ AppLayouts.WorkspaceFrame {
     property alias entityDetailOpen: adminState.entityDetailOpen
     property alias accessDetailOpen: adminState.accessDetailOpen
 
-    property var organizationCatalog: root.workspaceController
-        ? root.workspaceController.organizations
-        : ({ "title": "Organizations", "subtitle": "", "emptyState": "", "items": [] })
-    property var calendarCatalog: root.workspaceController
-        ? root.workspaceController.calendars
-        : ({ "title": "Calendars", "subtitle": "", "emptyState": "", "items": [] })
-    property var siteCatalog: root.workspaceController
-        ? root.workspaceController.sites
-        : ({ "title": "Sites", "subtitle": "", "emptyState": "", "items": [] })
-    property var departmentCatalog: root.workspaceController
-        ? root.workspaceController.departments
-        : ({ "title": "Departments", "subtitle": "", "emptyState": "", "items": [] })
-    property var employeeCatalog: root.workspaceController
-        ? root.workspaceController.employees
-        : ({ "title": "Employees", "subtitle": "", "emptyState": "", "items": [] })
     property var userCatalog: root.workspaceController
         ? root.workspaceController.users
         : ({ "title": "Users", "subtitle": "", "emptyState": "", "items": [] })
-    property var partyCatalog: root.workspaceController
-        ? root.workspaceController.parties
-        : ({ "title": "Parties", "subtitle": "", "emptyState": "", "items": [] })
     property var documentCatalog: root.workspaceController
         ? root.workspaceController.documents
         : ({ "title": "Documents", "subtitle": "", "emptyState": "", "items": [] })
@@ -101,18 +76,12 @@ AppLayouts.WorkspaceFrame {
         : ({ "title": "Module Entitlements", "subtitle": "", "emptyState": "", "items": [] })
 
     // -- Python-owned table models ---------------------------------
-    property var organizationsTableModel:     root.workspaceController ? root.workspaceController.organizationsTableModel     : null
-    property var calendarsTableModel:         root.workspaceController ? root.workspaceController.calendarsTableModel         : null
-    property var sitesTableModel:             root.workspaceController ? root.workspaceController.sitesTableModel             : null
-    property var departmentsTableModel:       root.workspaceController ? root.workspaceController.departmentsTableModel       : null
-    property var employeesTableModel:         root.workspaceController ? root.workspaceController.employeesTableModel         : null
     property var usersTableModel:             root.workspaceController ? root.workspaceController.usersTableModel             : null
-    property var partiesTableModel:           root.workspaceController ? root.workspaceController.partiesTableModel           : null
     property var documentsTableModel:         root.workspaceController ? root.workspaceController.documentsTableModel         : null
     property var documentStructuresTableModel:root.workspaceController ? root.workspaceController.documentStructuresTableModel : null
 
     // -- Navigation & selection state ------------------------------
-    property string _activeSection: "organizations"
+    property string _activeSection: "users"
     property string _selectedRowId: ""
     property bool _entityDetailOpen: false
 
@@ -137,13 +106,7 @@ AppLayouts.WorkspaceFrame {
         const rowId   = adminState.selectedRowId
         if (!rowId) return null
         let cat = null
-        if      (section === "organizations") cat = root.organizationCatalog
-        else if (section === "calendars")     cat = root.calendarCatalog
-        else if (section === "sites")         cat = root.siteCatalog
-        else if (section === "departments")   cat = root.departmentCatalog
-        else if (section === "employees")     cat = root.employeeCatalog
-        else if (section === "users")         cat = root.userCatalog
-        else if (section === "parties")       cat = root.partyCatalog
+        if      (section === "users")         cat = root.userCatalog
         else if (section === "documents")     cat = root.documentCatalog
         else if (section === "structures")    cat = root.documentStructureCatalog
         if (!cat) return null
@@ -157,21 +120,9 @@ AppLayouts.WorkspaceFrame {
 
 
 
-    function openOrganizationEdit(itemId) {
-        const item = adminState.catalogItemById(root.organizationCatalog, itemId)
-        if (item !== null) dialogHostLoader.invoke("openOrganizationEdit", item.state || {})
-    }
-
     function _clearWorkspaceMessages() {
         if (root.workspaceController)
             root.workspaceController.clearMessages()
-    }
-
-    function openCalendarEdit(itemId) {
-        const item = adminState.catalogItemById(root.calendarCatalog, itemId)
-        if (item !== null) {
-            dialogHostLoader.invoke("openCalendarEdit", item.state || {})
-        }
     }
 
     function openEntityDetail(sectionId, itemId) {
@@ -199,119 +150,8 @@ AppLayouts.WorkspaceFrame {
         root._clearWorkspaceMessages()
     }
 
-    function _calendarEntityType(sectionId) {
-        if (sectionId === "sites")
-            return "site"
-        if (sectionId === "departments")
-            return "department"
-        if (sectionId === "employees")
-            return "employee"
-        return ""
-    }
-
-    function _calendarOptions() {
-        const rows = root.calendarCatalog.items || []
-        const options = []
-        for (let i = 0; i < rows.length; i++) {
-            const item = rows[i] || {}
-            const state = item.state || {}
-            const id = String(state.calendarId || state.id || item.id || "")
-            if (!id.length)
-                continue
-            options.push({
-                "id": id,
-                "name": String(state.name || item.title || id),
-                "code": String(state.code || ""),
-                "calendarType": String(state.calendarType || item.statusLabel || "")
-            })
-        }
-        return options
-    }
-
-    function _calendarEntityId(sectionId, item) {
-        const state = item && item.state ? item.state : {}
-        if (sectionId === "sites")
-            return String(state.siteId || state.id || item.id || "")
-        if (sectionId === "departments")
-            return String(state.departmentId || state.id || item.id || "")
-        if (sectionId === "employees")
-            return String(state.employeeId || state.id || item.id || "")
-        return ""
-    }
-
-    function _calendarAssignmentContext(sectionId, item, refreshKey) {
-        if (!root.workspaceController || !item)
-            return ({ "assignedCalendar": {}, "sourceChain": [] })
-        const state = item.state || {}
-        const entityType = root._calendarEntityType(sectionId)
-        const entityId = root._calendarEntityId(sectionId, item)
-        if (!entityType.length || !entityId.length)
-            return ({ "assignedCalendar": {}, "sourceChain": [] })
-        return root.workspaceController.calendarAssignmentContext(
-            entityType,
-            entityId,
-            String(state.siteId || ""),
-            String(state.departmentId || "")
-        )
-    }
-
-    function _calendarDetailContext(item, refreshKey) {
-        if (!root.workspaceController || !item)
-            return ({ "workingRules": [], "exceptions": [], "recurringEvents": [], "assignments": {} })
-        const state = item.state || {}
-        const calendarId = String(state.calendarId || state.id || item.id || "")
-        if (!calendarId.length)
-            return ({ "workingRules": [], "exceptions": [], "recurringEvents": [], "assignments": {} })
-        return root.workspaceController.calendarDetailContext(calendarId)
-    }
-
     function handleEntityDetailAction(sectionId, actionId) {
         const id = adminState.selectedRowId
-        if (actionId === "assign_calendar") {
-            const entityType = root._calendarEntityType(sectionId)
-            const item = root._detailItem || {}
-            const entityId = root._calendarEntityId(sectionId, item)
-            if (entityType.length && entityId.length) {
-                dialogHostLoader.invoke(
-                    "openCalendarAssign",
-                    entityType,
-                    entityId,
-                    String(item.title || entityId),
-                    root._calendarOptions()
-                )
-            }
-            return
-        }
-        if (actionId === "clear_calendar_assignment") {
-            const entityType = root._calendarEntityType(sectionId)
-            const ctx = root._calendarAssignmentContext(sectionId, root._detailItem, root.calendarCatalog)
-            const assigned = ctx.assignedCalendar || {}
-            const assignmentId = String(assigned.assignmentId || "")
-            if (root.workspaceController && entityType.length && assignmentId.length) {
-                root.workspaceController.removeCalendarAssignment(assignmentId, entityType)
-            }
-            return
-        }
-        if (actionId === "open_calendar_mgmt") {
-            root.openAdminEntitySection("calendars", "")
-            return
-        }
-        if (actionId === "create_department") {
-            dialogHostLoader.invoke("openDepartmentCreate")
-            return
-        }
-        if (actionId === "create_employee") {
-            dialogHostLoader.invoke("openEmployeeCreate")
-            return
-        }
-        if (actionId === "show_departments") {
-            root.openAdminEntitySection("departments", "")
-            return
-        }
-        if (actionId === "show_employees") {
-            root.openAdminEntitySection("employees", "")
-            return
-        }
         if (actionId === "show_users") {
             root.openAdminEntitySection("users", "")
             return
@@ -335,49 +175,21 @@ AppLayouts.WorkspaceFrame {
             return
         }
         if (actionId === "edit") {
-            if      (sectionId === "sites")      root.openSiteEdit(id)
-            else if (sectionId === "departments") root.openDepartmentEdit(id)
-            else if (sectionId === "employees")   root.openEmployeeEdit(id)
-            else if (sectionId === "users")       root.openUserEdit(id)
-            else if (sectionId === "parties")     root.openPartyEdit(id)
+            if      (sectionId === "users")       root.openUserEdit(id)
             else if (sectionId === "documents")   root.openDocumentEdit(id)
             else if (sectionId === "structures")  root.openDocumentStructureEdit(id)
             return
         }
         if (actionId === "toggle_active" && root.workspaceController) {
-            if      (sectionId === "sites")       root.workspaceController.toggleSiteActive(id)
-            else if (sectionId === "departments") root.workspaceController.toggleDepartmentActive(id)
-            else if (sectionId === "employees")   root.workspaceController.toggleEmployeeActive(id)
-            else if (sectionId === "users")       root.workspaceController.toggleUserActive(id)
-            else if (sectionId === "parties")     root.workspaceController.togglePartyActive(id)
+            if      (sectionId === "users")       root.workspaceController.toggleUserActive(id)
             else if (sectionId === "documents")   root.workspaceController.toggleDocumentActive(id)
             else if (sectionId === "structures")  root.workspaceController.toggleDocumentStructureActive(id)
         }
     }
 
-    function openSiteEdit(itemId) {
-        const item = adminState.catalogItemById(root.siteCatalog, itemId)
-        if (item !== null) dialogHostLoader.invoke("openSiteEdit", item.state || {})
-    }
-
-    function openDepartmentEdit(itemId) {
-        const item = adminState.catalogItemById(root.departmentCatalog, itemId)
-        if (item !== null) dialogHostLoader.invoke("openDepartmentEdit", item.state || {})
-    }
-
-    function openEmployeeEdit(itemId) {
-        const item = adminState.catalogItemById(root.employeeCatalog, itemId)
-        if (item !== null) dialogHostLoader.invoke("openEmployeeEdit", item.state || {})
-    }
-
     function openUserEdit(itemId) {
         const item = adminState.catalogItemById(root.userCatalog, itemId)
         if (item !== null) dialogHostLoader.invoke("openUserEdit", item.state || {})
-    }
-
-    function openPartyEdit(itemId) {
-        const item = adminState.catalogItemById(root.partyCatalog, itemId)
-        if (item !== null) dialogHostLoader.invoke("openPartyEdit", item.state || {})
     }
 
     function inspectDocument(itemId) {
@@ -436,175 +248,6 @@ AppLayouts.WorkspaceFrame {
             Layout.fillWidth:  true
             Layout.fillHeight: true
 
-            // -- Organizations -------------------------------------
-            PlatformComponents.AdminEntityWorkspace {
-                anchors.fill:    parent
-                visible:         adminState.activeSection === "organizations" && !adminState.detailOpen
-                sectionTitle:    "Organizations"
-                entityLabel:     "Organization"
-                catalog:         root.organizationCatalog
-                catalogModel:    root.organizationsTableModel
-                columns:         adminState.orgColumns
-                isBusy:          adminState.busy
-                isLoading:       adminState.load
-                errorMessage:    adminState.err
-                feedbackMessage: adminState.ok
-                selectedRowId:   adminState.selectedRowId
-
-                onCreateRequested:  dialogHostLoader.invoke("openOrganizationCreate")
-                onRowSelected:      function(id) { adminState.selectedRowId = id }
-                onRowActivated:     function(id) { root.openEntityDetail("organizations", id) }
-                onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
-            }
-
-            Loader {
-                id: organizationDetailLoader
-                anchors.fill: parent
-                active: adminState.activeSection === "organizations" && adminState.detailOpen
-                visible: active
-                asynchronous: true
-
-                sourceComponent: Component {
-                    OrganizationsDetail.AdminOrganizationDetailPage {
-                        organization: root._detailItem || ({})
-                        busy: adminState.busy
-                        errorMessage: adminState.err
-                        feedbackMessage: adminState.ok
-
-                        onBackRequested: root.closeEntityDetail()
-
-                        onActionRequested: function(actionId) {
-                            if (actionId === "edit") {
-                                root.openOrganizationEdit(adminState.selectedRowId)
-                            } else if (actionId === "set_active") {
-                                if (root.workspaceController)
-                                    root.workspaceController.setActiveOrganization(adminState.selectedRowId)
-                            } else if (actionId === "refresh") {
-                                if (root.workspaceController)
-                                    root.workspaceController.refresh()
-                            } else if (actionId === "show_audit") {
-                                root.openAdminEntitySection("audit", "")
-                            }
-                        }
-                    }
-                }
-            }
-
-            // -- Sites ---------------------------------------------
-            PlatformComponents.AdminEntityWorkspace {
-                anchors.fill:    parent
-                visible:         adminState.activeSection === "calendars" && !adminState.detailOpen
-                sectionTitle:    "Calendars"
-                entityLabel:     "Calendar"
-                catalog:         root.calendarCatalog
-                catalogModel:    root.calendarsTableModel
-                columns:         adminState.calendarColumns
-                isBusy:          adminState.busy
-                isLoading:       adminState.load
-                errorMessage:    adminState.err
-                feedbackMessage: adminState.ok
-                selectedRowId:   adminState.selectedRowId
-
-                onCreateRequested:  dialogHostLoader.invoke("openCalendarCreate")
-                onRowSelected:      function(id) { adminState.selectedRowId = id }
-                onRowActivated:     function(id) { root.openEntityDetail("calendars", id) }
-                onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
-            }
-
-            Loader {
-                id: calendarDetailLoader
-                anchors.fill: parent
-                active: adminState.activeSection === "calendars" && adminState.detailOpen
-                visible: active
-                asynchronous: true
-
-                sourceComponent: Component {
-                    CalendarsDetail.AdminCalendarDetailPage {
-                        property var _calendarContext: root._calendarDetailContext(root._detailItem, root.calendarCatalog)
-                        property var _calendarState: root._detailItem && root._detailItem.state ? root._detailItem.state : ({})
-                        property string _calendarId: String(_calendarState.calendarId || _calendarState.id || (root._detailItem ? root._detailItem.id : "") || "")
-
-                        workspaceController: root.workspaceController
-                        calendar: root._detailItem || ({})
-                        workingRules: _calendarContext.workingRules || []
-                        enterpriseExceptions: _calendarContext.exceptions || []
-                        recurringEvents: _calendarContext.recurringEvents || []
-                        assignments: _calendarContext.assignments || ({})
-                        busy: adminState.busy
-                        errorMessage: adminState.err
-                        feedbackMessage: adminState.ok
-                        isEnterpriseCalendar: _calendarState.isEnterpriseCalendar === true
-                        onBackRequested: root.closeEntityDetail()
-                        onEditRequested: root.openCalendarEdit(adminState.selectedRowId)
-                        onAddExceptionRequested: dialogHostLoader.invoke("openCalendarExceptionCreate", _calendarId)
-                        onAddRecurringEventRequested: dialogHostLoader.invoke("openCalendarRecurringEventCreate", _calendarId)
-                        onOpenAuditRequested: root.openAdminEntitySection("audit", "")
-                    }
-                }
-            }
-
-            PlatformComponents.AdminEntityWorkspace {
-                anchors.fill:    parent
-                visible:         adminState.activeSection === "sites" && !adminState.detailOpen
-                sectionTitle:    "Sites"
-                entityLabel:     "Site"
-                catalog:         root.siteCatalog
-                catalogModel:    root.sitesTableModel
-                columns:         adminState.siteColumns
-                isBusy:          adminState.busy
-                isLoading:       adminState.load
-                errorMessage:    adminState.err
-                feedbackMessage: adminState.ok
-                selectedRowId:   adminState.selectedRowId
-
-                onCreateRequested:  dialogHostLoader.invoke("openSiteCreate")
-                onRowSelected:      function(id) { adminState.selectedRowId = id }
-                onRowActivated:     function(id) { root.openEntityDetail("sites", id) }
-                onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
-            }
-
-            // -- Departments ---------------------------------------
-            PlatformComponents.AdminEntityWorkspace {
-                anchors.fill:    parent
-                visible:         adminState.activeSection === "departments" && !adminState.detailOpen
-                sectionTitle:    "Departments"
-                entityLabel:     "Department"
-                catalog:         root.departmentCatalog
-                catalogModel:    root.departmentsTableModel
-                columns:         adminState.deptColumns
-                isBusy:          adminState.busy
-                isLoading:       adminState.load
-                errorMessage:    adminState.err
-                feedbackMessage: adminState.ok
-                selectedRowId:   adminState.selectedRowId
-
-                onCreateRequested:  dialogHostLoader.invoke("openDepartmentCreate")
-                onRowSelected:      function(id) { adminState.selectedRowId = id }
-                onRowActivated:     function(id) { root.openEntityDetail("departments", id) }
-                onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
-            }
-
-            // -- Employees -----------------------------------------
-            PlatformComponents.AdminEntityWorkspace {
-                anchors.fill:    parent
-                visible:         adminState.activeSection === "employees" && !adminState.detailOpen
-                sectionTitle:    "Employees"
-                entityLabel:     "Employee"
-                catalog:         root.employeeCatalog
-                catalogModel:    root.employeesTableModel
-                columns:         adminState.employeeColumns
-                isBusy:          adminState.busy
-                isLoading:       adminState.load
-                errorMessage:    adminState.err
-                feedbackMessage: adminState.ok
-                selectedRowId:   adminState.selectedRowId
-
-                onCreateRequested:  dialogHostLoader.invoke("openEmployeeCreate")
-                onRowSelected:      function(id) { adminState.selectedRowId = id }
-                onRowActivated:     function(id) { root.openEntityDetail("employees", id) }
-                onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
-            }
-
             // -- Users ---------------------------------------------
             PlatformComponents.AdminEntityWorkspace {
                 anchors.fill:    parent
@@ -623,27 +266,6 @@ AppLayouts.WorkspaceFrame {
                 onCreateRequested:  dialogHostLoader.invoke("openUserCreate")
                 onRowSelected:      function(id) { adminState.selectedRowId = id }
                 onRowActivated:     function(id) { root.openEntityDetail("users", id) }
-                onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
-            }
-
-            // -- Parties -------------------------------------------
-            PlatformComponents.AdminEntityWorkspace {
-                anchors.fill:    parent
-                visible:         adminState.activeSection === "parties" && !adminState.detailOpen
-                sectionTitle:    "Parties"
-                entityLabel:     "Party"
-                catalog:         root.partyCatalog
-                catalogModel:    root.partiesTableModel
-                columns:         adminState.partyColumns
-                isBusy:          adminState.busy
-                isLoading:       adminState.load
-                errorMessage:    adminState.err
-                feedbackMessage: adminState.ok
-                selectedRowId:   adminState.selectedRowId
-
-                onCreateRequested:  dialogHostLoader.invoke("openPartyCreate")
-                onRowSelected:      function(id) { adminState.selectedRowId = id }
-                onRowActivated:     function(id) { root.openEntityDetail("parties", id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
 
@@ -693,94 +315,6 @@ AppLayouts.WorkspaceFrame {
             }
 
             Loader {
-                id: siteDetailLoader
-                anchors.fill: parent
-                active: adminState.activeSection === "sites" && adminState.detailOpen
-                visible: active
-                asynchronous: true
-
-                sourceComponent: Component {
-                    SitesDetail.AdminSiteDetailPage {
-                        property var _calendarContext: root._calendarAssignmentContext("sites", root._detailItem, root.calendarCatalog)
-
-                        platformCatalog: root.platformCatalog
-                        site: root._detailItem || ({})
-                        departmentCatalog: root.departmentCatalog
-                        departmentColumns: adminState.deptColumns
-                        siteCalendarAssignment: _calendarContext.assignedCalendar || ({})
-                        calendarSourceChain: _calendarContext.sourceChain || []
-                        busy: adminState.busy
-                        errorMessage: adminState.err
-                        feedbackMessage: adminState.ok
-                        onBackRequested: root.closeEntityDetail()
-                        onActionRequested: function(actionId) {
-                            root.handleEntityDetailAction("sites", actionId)
-                        }
-                        onRelatedRowActivated: function(sectionId, rowId) {
-                            root.openAdminEntitySection(sectionId, rowId)
-                        }
-                    }
-                }
-            }
-
-            Loader {
-                id: departmentDetailLoader
-                anchors.fill: parent
-                active: adminState.activeSection === "departments" && adminState.detailOpen
-                visible: active
-                asynchronous: true
-
-                sourceComponent: Component {
-                    DepartmentsDetail.AdminDepartmentDetailPage {
-                        property var _calendarContext: root._calendarAssignmentContext("departments", root._detailItem, root.calendarCatalog)
-
-                        platformCatalog: root.platformCatalog
-                        department: root._detailItem || ({})
-                        employeeCatalog: root.employeeCatalog
-                        employeeColumns: adminState.employeeColumns
-                        deptCalendarAssignment: _calendarContext.assignedCalendar || ({})
-                        calendarSourceChain: _calendarContext.sourceChain || []
-                        busy: adminState.busy
-                        errorMessage: adminState.err
-                        feedbackMessage: adminState.ok
-                        onBackRequested: root.closeEntityDetail()
-                        onActionRequested: function(actionId) {
-                            root.handleEntityDetailAction("departments", actionId)
-                        }
-                        onRelatedRowActivated: function(sectionId, rowId) {
-                            root.openAdminEntitySection(sectionId, rowId)
-                        }
-                    }
-                }
-            }
-
-            Loader {
-                id: employeeDetailLoader
-                anchors.fill: parent
-                active: adminState.activeSection === "employees" && adminState.detailOpen
-                visible: active
-                asynchronous: true
-
-                sourceComponent: Component {
-                    EmployeesDetail.AdminEmployeeDetailPage {
-                        property var _calendarContext: root._calendarAssignmentContext("employees", root._detailItem, root.calendarCatalog)
-
-                        employee: root._detailItem || ({})
-                        pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false
-                        empCalendarAssignment: _calendarContext.assignedCalendar || ({})
-                        calendarSourceChain: _calendarContext.sourceChain || []
-                        busy: adminState.busy
-                        errorMessage: adminState.err
-                        feedbackMessage: adminState.ok
-                        onBackRequested: root.closeEntityDetail()
-                        onActionRequested: function(actionId) {
-                            root.handleEntityDetailAction("employees", actionId)
-                        }
-                    }
-                }
-            }
-
-            Loader {
                 id: userDetailLoader
                 anchors.fill: parent
                 active: adminState.activeSection === "users" && adminState.detailOpen
@@ -798,29 +332,6 @@ AppLayouts.WorkspaceFrame {
                         onBackRequested: root.closeEntityDetail()
                         onActionRequested: function(actionId) {
                             root.handleEntityDetailAction("users", actionId)
-                        }
-                    }
-                }
-            }
-
-            Loader {
-                id: partyDetailLoader
-                anchors.fill: parent
-                active: adminState.activeSection === "parties" && adminState.detailOpen
-                visible: active
-                asynchronous: true
-
-                sourceComponent: Component {
-                    PartiesDetail.AdminPartyDetailPage {
-                        party: root._detailItem || ({})
-                        inventoryEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("inventory_procurement") : false
-                        pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false
-                        busy: adminState.busy
-                        errorMessage: adminState.err
-                        feedbackMessage: adminState.ok
-                        onBackRequested: root.closeEntityDetail()
-                        onActionRequested: function(actionId) {
-                            root.handleEntityDetailAction("parties", actionId)
                         }
                     }
                 }
@@ -920,49 +431,6 @@ AppLayouts.WorkspaceFrame {
                 workspaceController: root.workspaceController
             }
         }
-
-
-        // -- Right detail panel ------------------------------------
-        Panels.AdminEntityDetailPanel {
-            id: _detailPanel
-            Layout.fillHeight:     true
-            Layout.preferredWidth: 288
-            visible:               false
-            activeSection:   adminState.activeSection
-            detailItem:      root._detailItem
-            selectedRowId:   adminState.selectedRowId
-            selectedDocument:      root.selectedDocument
-            documentPreviewState:  root.documentPreviewState
-            documentLinkCatalog:   root.documentLinkCatalog
-            workspaceController:   root.workspaceController
-            busy:            adminState.busy
-            onCloseRequested:                adminState.selectedRowId = ""
-            onEditRequested: function(sectionId, itemId) {
-                if      (sectionId === "organizations") root.openOrganizationEdit(itemId)
-                else if (sectionId === "calendars")     root.openCalendarEdit(itemId)
-                else if (sectionId === "sites")         root.openSiteEdit(itemId)
-                else if (sectionId === "departments")   root.openDepartmentEdit(itemId)
-                else if (sectionId === "employees")     root.openEmployeeEdit(itemId)
-                else if (sectionId === "users")         root.openUserEdit(itemId)
-                else if (sectionId === "parties")       root.openPartyEdit(itemId)
-                else if (sectionId === "structures")    root.openDocumentStructureEdit(itemId)
-            }
-            onSetActiveOrganizationRequested: function(itemId) {
-                if (root.workspaceController) root.workspaceController.setActiveOrganization(itemId)
-            }
-            onToggleEntityRequested: function(sectionId, itemId) {
-                if (!root.workspaceController) return
-                if      (sectionId === "sites")       root.workspaceController.toggleSiteActive(itemId)
-                else if (sectionId === "departments") root.workspaceController.toggleDepartmentActive(itemId)
-                else if (sectionId === "employees")   root.workspaceController.toggleEmployeeActive(itemId)
-                else if (sectionId === "users")       root.workspaceController.toggleUserActive(itemId)
-                else if (sectionId === "parties")     root.workspaceController.togglePartyActive(itemId)
-                else if (sectionId === "structures")  root.workspaceController.toggleDocumentStructureActive(itemId)
-            }
-            onDocumentLinkCreateRequested: root.openDocumentLinkCreate()
-            onDocumentEditRequested: function(itemId) { root.openDocumentEdit(itemId) }
-        }
-
     }
 
     // -- Dialog host -----------------------------------------------

@@ -11,6 +11,12 @@ import admin_console 1.0 as AdminConsole
 import control 1.0 as Control
 import settings 1.0 as Settings
 import tenants 1.0 as Tenants
+import organization.organizations 1.0 as OrganizationsOrg
+import organization.sites 1.0 as SitesOrg
+import organization.departments 1.0 as DepartmentsOrg
+import organization.employees 1.0 as EmployeesOrg
+import organization.parties 1.0 as PartiesOrg
+import calendars 1.0 as CalendarsOrg
 
 
 Item {
@@ -25,11 +31,12 @@ Item {
         ? root.platformCatalog.tenantSwitcher.isMultiTenant
         : false
 
-    // Destinations hosted by the existing Admin Console page (unchanged
-    // content, only which section is externally selected changes).
+    // R4: Organizations/Sites/Departments/Employees/Parties/Calendars have
+    // been extracted into their own standalone pages (below) and no longer
+    // route through the Admin Console facade. The facade still hosts the
+    // remaining 3 master-data entities plus the two non-entity sections.
     readonly property var _adminSurfaceDestinations: [
-        "organizations", "sites", "departments", "employees", "parties",
-        "calendars", "users", "access", "documents", "structures", "support"
+        "users", "access", "documents", "structures", "support"
     ]
 
     readonly property string _activeSurface: {
@@ -45,7 +52,27 @@ Item {
         if (root._adminSurfaceDestinations.indexOf(root.activeDestination) >= 0) {
             return "admin"
         }
+        if (root.activeDestination === "organizations" || root.activeDestination === "sites"
+            || root.activeDestination === "departments" || root.activeDestination === "employees"
+            || root.activeDestination === "parties" || root.activeDestination === "calendars") {
+            return root.activeDestination
+        }
         return "overview"
+    }
+
+    // R4.7: cross-entity "jump to related record" navigation. Sites' and
+    // Departments' detail pages already surface related-record rows
+    // (departments/employees); this bubbles those clicks to a destination
+    // switch plus opening the specific row on the target page, which stays
+    // instantiated (persistent sibling) so its own state survives the jump.
+    function _onRelatedRecordRequested(destinationId, rowId) {
+        root.activeDestination = destinationId
+        if (destinationId === "organizations") _organizationsPage.openRecord(rowId)
+        else if (destinationId === "sites") _sitesPage.openRecord(rowId)
+        else if (destinationId === "departments") _departmentsPage.openRecord(rowId)
+        else if (destinationId === "employees") _employeesPage.openRecord(rowId)
+        else if (destinationId === "parties") _partiesPage.openRecord(rowId)
+        else if (destinationId === "calendars") _calendarsPage.openRecord(rowId)
     }
 
     // -- Active organization (for ContextBar) ------------------------
@@ -248,7 +275,61 @@ Item {
                     externallyNavigated: true
                     activeSection: root._adminSurfaceDestinations.indexOf(root.activeDestination) >= 0
                         ? root.activeDestination
-                        : "organizations"
+                        : "users"
+                }
+
+                OrganizationsOrg.OrganizationsWorkspacePage {
+                    id: _organizationsPage
+                    anchors.fill: parent
+                    visible: root._activeSurface === "organizations"
+                    platformCatalog: root.platformCatalog
+                    onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                }
+
+                SitesOrg.SitesWorkspacePage {
+                    id: _sitesPage
+                    anchors.fill: parent
+                    visible: root._activeSurface === "sites"
+                    platformCatalog: root.platformCatalog
+                    onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                    onRelatedRecordRequested: function(destinationId, rowId) {
+                        root._onRelatedRecordRequested(destinationId, rowId)
+                    }
+                }
+
+                DepartmentsOrg.DepartmentsWorkspacePage {
+                    id: _departmentsPage
+                    anchors.fill: parent
+                    visible: root._activeSurface === "departments"
+                    platformCatalog: root.platformCatalog
+                    onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                    onRelatedRecordRequested: function(destinationId, rowId) {
+                        root._onRelatedRecordRequested(destinationId, rowId)
+                    }
+                }
+
+                EmployeesOrg.EmployeesWorkspacePage {
+                    id: _employeesPage
+                    anchors.fill: parent
+                    visible: root._activeSurface === "employees"
+                    platformCatalog: root.platformCatalog
+                    onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                }
+
+                PartiesOrg.PartiesWorkspacePage {
+                    id: _partiesPage
+                    anchors.fill: parent
+                    visible: root._activeSurface === "parties"
+                    platformCatalog: root.platformCatalog
+                    onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                }
+
+                CalendarsOrg.CalendarsWorkspacePage {
+                    id: _calendarsPage
+                    anchors.fill: parent
+                    visible: root._activeSurface === "calendars"
+                    platformCatalog: root.platformCatalog
+                    onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
                 }
 
                 Control.ControlWorkspacePage {
