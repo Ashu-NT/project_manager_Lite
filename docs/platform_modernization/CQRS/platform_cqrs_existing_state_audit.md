@@ -228,6 +228,76 @@ new failures.
 
 ---
 
+## P2 model-duplication investigation status (2026-08-13)
+
+This audit's §3c flagged two "structural anomalies" — two independent `FinancialPeriod` models and
+two independent "integration delivery" models — as open questions requiring reconciliation (§18
+items 2-3). Per explicit instruction, before touching either, both were independently traced across
+all nine dimensions (domain/application meaning, contracts, persistence/ORM, migrations, composition
+wiring, desktop API callers, cross-module callers, tests, documentation), evaluated against five
+hypotheses (genuinely duplicated / value object vs. persisted aggregate / transport vs. domain model
+/ legacy code / deliberately separate concepts sharing a name), with no code changed until each trace
+was complete and independently spot-verified.
+
+**Verdict for both: this audit's own §3c anomalies #2 and #3 were false positives.** Both were
+produced by judging *directory shape* (a flat package sitting next to `application/`+`contract/`
+subpackages elsewhere in Platform) rather than tracing the actual import graph. Once traced, each
+turns out to be a single, correctly-layered mechanism — not two competing models — and retiring or
+merging either "half" would break a deliberate, tested, and (for integration delivery) formally
+accepted architectural boundary.
+
+**FinancialPeriod** — authoritative model = `FinancialPeriod`
+(`src/core/platform/finance/periods/financial_period.py`), the *only* `class FinancialPeriod` in the
+entire repository (grep-confirmed). `application/finance/financial_period_service.py`,
+`contract/finance/periods.py`, and the full ORM/repository/mapper persistence trio all construct,
+mutate, and return this exact same class — there is no second, competing type. The apparent "no
+persistence layer of its own" is a **deliberately enforced purity boundary**, not abandonment:
+`src/tests/architecture/test_financial_period_architecture.py::
+test_platform_period_domain_is_business_module_and_operational_calendar_independent` asserts (and
+therefore locks in) that nothing under `finance/periods/` imports `src.core.modules`,
+`time_management`, or `sqlalchemy` — i.e., `finance/periods/` is Platform's `domain/finance/`, just
+filed under a differently-named top-level folder (matching `access/`'s similar non-four-layer
+shape, already noted elsewhere in this audit). Every cross-module caller (PM's
+`cost_entry_service.py`, `preparation_service.py`) and every ADR (ADR-PF-006, ADR-PF-007,
+ADR-PF-010) treat "financial period" as one Platform-owned concept.
+**Other model: does not exist as a separate thing — reclassified, not retired.** No code change.
+
+**IntegrationDelivery** — authoritative model = the ADR-PF-011 (accepted) transactional
+outbox/inbox mechanism as a whole: `integration/delivery.py` (`IntegrationOutboxRecord`/
+`IntegrationInboxReceipt`, the domain value objects — immutable, no I/O), layered under
+`contract/integration/delivery.py` (`IntegrationOutboxRepository`/`IntegrationInboxRepository`,
+which import those exact value-object classes directly — grep/read-confirmed), orchestrated by
+`application/integration/delivery_service.py` (`IntegrationOutboxService`/`IntegrationInboxService`).
+Fully wired end-to-end: one migration (`r5s6t7u8v9w0_add_financial_integration_delivery.py`) creating
+three owned tables (`platform_time_financial_outbox`, `inventory_procurement_financial_outbox`,
+`project_finance_inbox_receipts`), composition wiring in `app_container.py`/`project_registry.py`/
+`inventory_registry.py`, two dispatcher consumers (`ApprovedTimeFinancialDispatcher`,
+`ProcurementFinancialDispatcher`), and 3 test files exercising the combined stack. ADR-PF-011's own
+"Implementation Evidence" section cites `integration/delivery.py` and
+`application/integration/delivery_service.py` **together** as one design, and explicitly
+distinguishes this durable mechanism from the unrelated user-facing collaboration inbox (a different,
+non-durable concept some grep hits for "inbox" pointed to). Zero callers anywhere use the flat
+value-object file as an independent, competing concept.
+**Other model: does not exist as a separate thing — reclassified, not retired.** No code change.
+
+**P2 exit gate:**
+- FinancialPeriod: authoritative persistence model = `FinancialPeriod`
+  (`finance/periods/financial_period.py` + its application/contract/persistence layers); other
+  model = **deliberately separate layering, not a duplicate** — no second model was ever created.
+- IntegrationDelivery: authoritative delivery model = the ADR-PF-011 outbox/inbox mechanism
+  (`integration/delivery.py` + `contract/integration/delivery.py` +
+  `application/integration/delivery_service.py`); other model = **deliberately separate layering,
+  not a duplicate** — no second model was ever created.
+- No duplicate ambiguous terminology remains once §3c/§14/§18 below are read together with this
+  section. No imports changed (none were stale). No composition wiring changed (none was broken).
+  All tests green against the same pre-existing baseline this audit has tracked throughout (853/864
+  passed, 14 failed/12 errored, zero new failures — confirmed by re-running the full
+  `platform`+`architecture` suite after this investigation with no code changes to re-verify).
+  Architecture guardrail suite green against that same baseline (3 pre-existing, unrelated
+  failures — PM module-size budgets and a legacy-ORM-import check — nothing newly broken).
+
+---
+
 ## 1. Executive summary
 
 **Architectural style today.** Platform is not a separate service or process — it is the
@@ -367,7 +437,7 @@ boundary.
 | Area | Assessment | Verified strength or weakness | Direction |
 |---|---|---|---|
 | Domain/persistence separation | Strong | No `relationship()` anywhere (21 ORM files checked); no ORM leakage across boundaries | Preserve |
-| Layer-first composition structure | Good, with drift | Layer-first grouping is real and consistently applied, but `finance`/`integration` exist as both flat packages *and* duplicated layered application/contract/persistence models — two independent "financial period" and two independent "integration delivery" models coexist | Reconcile before building on either |
+| Layer-first composition structure | Good, once traced | Layer-first grouping is real and consistently applied; `finance`/`integration` initially looked like flat packages duplicating layered application/contract/persistence models, but tracing the import graph (P2, 2026-08-13) showed each is one correctly-layered mechanism (`finance/periods/` is Platform's `domain/finance/`; `integration/delivery.py` is ADR-PF-011's domain-object layer) | No action needed — see "P2 model-duplication investigation status" above |
 | Write transaction handling | Mixed, worse skew than PM | Every write-capable service commits its own transaction correctly (35 files); but Platform's own calendar-editing primitive re-introduces a defect PM already found and fixed on its own side | Standardize, starting with calendar |
 | Audit/activity discipline | Inconsistent, three parallel implementations | A strict, test-verified tier (approval/finance/auth) coexists with a lenient, silently-droppable tier (all master-data writes) and a third hand-rolled bypass (role governance) | Consolidate onto one discipline |
 | Read scalability | Weak, and starting from less precedent than PM | Full-list materialization is the default everywhere; zero SQL-side sum/group-by; a confirmed live N+1 on the most-frequently-hit read (module entitlements) | Introduce selective Readers |
@@ -585,16 +655,25 @@ extend.
 
 1. **`domain/finance/` and `domain/integration/` do not exist** — `finance` and `integration` are
    pseudo-content-groups under `application/`/`contract/`(/`persistence` for finance) only.
-2. **Two independent "financial period" models coexist**: the layered
+2. ~~**Two independent "financial period" models coexist**: the layered
    `application/finance/financial_period_service.py` (355) + `contract/finance/periods.py` (48) +
    full persistence trio (a real, DB-backed, RLS'd aggregate — see §9), **versus** the flat
    `finance/periods/financial_period.py` (388), a value-object-style model with no persistence
    layer of its own. Their semantic relationship (legacy holdover vs. deliberate split) was not
    resolved in this pass and should be reconciled before any read-model work touches "financial
-   period."
-3. **Two independent "integration delivery" models coexist**: flat `integration/delivery.py` (326)
+   period."~~ **Reclassified, not a duplication (P2, 2026-08-13)** — there is exactly one
+   `class FinancialPeriod` in the repo; `finance/periods/financial_period.py` is Platform's
+   `domain/finance/` layer (its independence from `sqlalchemy`/business modules is an enforced
+   architecture-test invariant, not abandonment), and `application/finance/`+`contract/finance/`+
+   the persistence trio are its application/contract/infrastructure layers around that same class.
+   See "P2 model-duplication investigation status" above.
+3. ~~**Two independent "integration delivery" models coexist**: flat `integration/delivery.py` (326)
    vs. layered `application/integration/delivery_service.py` (404) + `contract/integration/
-   delivery.py` (78).
+   delivery.py` (78).~~ **Reclassified, not a duplication (P2, 2026-08-13)** — `contract/integration/
+   delivery.py` imports `IntegrationOutboxRecord`/`IntegrationInboxReceipt` directly from
+   `integration/delivery.py`; this is ADR-PF-011's (accepted) transactional outbox/inbox mechanism
+   correctly split across domain/contract/application layers, not two competing models. See "P2
+   model-duplication investigation status" above.
 4. **`contract/security/authorization/` has no `roles/` subfolder** despite both `domain` and
    `application` having large `authorization/roles/` content (role governance, delegation, canonical
    resolution, 797+648+403+361+212+167 = 2588 lines across 6 files) — no formal contract exists for
@@ -1576,9 +1655,12 @@ Synthesized ranking across all five research passes, ordered by evidence strengt
 8. ~~**`EnterpriseCalendarResolver`'s cache has no invalidation path** (§4c, §7 R7b) — a stale-read
    risk shared by 5+ PM consumer services through the `GlobalCalendarShim` singleton.~~ **Fixed
    (P0.6, 2026-08-12)** — see "P0 correctness/security remediation status" above.
-9. **Two unreconciled "financial period" and two unreconciled "integration delivery" models** (§3c)
-   — should be resolved before any read-model work touches either concept, to avoid building a
-   Reader against the wrong one or against both.
+9. ~~**Two unreconciled "financial period" and two unreconciled "integration delivery" models**
+   (§3c) — should be resolved before any read-model work touches either concept, to avoid building
+   a Reader against the wrong one or against both.~~ **Resolved (P2, 2026-08-13)** — both were false
+   positives; each is one correctly-layered mechanism, not two models. See "P2 model-duplication
+   investigation status" above. A future Reader for either can safely target the single existing
+   model.
 10. **A likely-broken `is_active=True` branch in organization provisioning** (§6 W1) — flagged as a
     static-reading-only finding requiring dynamic confirmation, per this audit's own methodology
     discipline.
@@ -1719,11 +1801,17 @@ defect (§6 W9) in the same pass — that is a separate, write-side fix with its
    batched commit before or independently of any CQRS work?**~~ — **Resolved (P0.3, 2026-08-12).**
    Fixed independently of any CQRS pilot decision, exactly as recommended here — see "P0
    correctness/security remediation status" at the top of this document.
-2. **Which of the two "financial period" models is authoritative**, and should the flat
+2. ~~**Which of the two "financial period" models is authoritative**, and should the flat
    `finance/periods/financial_period.py` value-object model be retired, merged, or kept deliberately
    separate from the layered/persisted one? Needs resolution before any Reader is built against
-   "financial period."
-3. **Same question for the two "integration delivery" models.**
+   "financial period."~~ — **Resolved (P2, 2026-08-13).** There is only one `FinancialPeriod` model;
+   `finance/periods/financial_period.py` is its domain layer, kept deliberately separate from
+   `sqlalchemy`/business-module imports by an enforced architecture test, not a competing model.
+   Nothing to retire or merge. See "P2 model-duplication investigation status" above.
+3. ~~**Same question for the two "integration delivery" models.**~~ — **Resolved (P2,
+   2026-08-13).** One ADR-PF-011 mechanism, correctly layered across domain/contract/application;
+   `contract/integration/delivery.py` imports its value objects directly from `integration/
+   delivery.py`. Nothing to retire or merge. See "P2 model-duplication investigation status" above.
 4. ~~**Should `audit_entries` gain the same RLS protection `activity_entries` already has?**~~ —
    **Resolved (P0.4, 2026-08-12).** Fixed with a bespoke policy rather than reusing
    `activity_entries`' generic one, since `audit_entries` has a legitimate `tenant_id IS NULL`
