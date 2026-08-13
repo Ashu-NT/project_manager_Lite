@@ -29,14 +29,11 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
     ]
 
     targets = [
-        UI_QML_ROOT / "platform" / "qml" / "admin_console" / "AdminWorkspace.qml",
-        UI_QML_ROOT / "platform" / "qml" / "control" / "ControlWorkspace.qml",
-        UI_QML_ROOT / "platform" / "qml" / "settings" / "SettingsWorkspace.qml",
+        UI_QML_ROOT / "platform" / "qml" / "workspace" / "PlatformWorkspacePage.qml",
         UI_QML_ROOT / "platform" / "qml" / "identity_access" / "access" / "AccessSecurityPanel.qml",
         UI_QML_ROOT / "platform" / "qml" / "documents" / "DocumentDetailPanel.qml",
         UI_QML_ROOT / "platform" / "qml" / "documents" / "dialogs" / "DocumentLinkEditorDialog.qml",
         UI_QML_ROOT / "platform" / "qml" / "documents" / "dialogs" / "DocumentStructureEditorDialog.qml",
-        UI_QML_ROOT / "platform" / "qml" / "support" / "sections" / "AdminSupportSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "projects" / "ProjectsWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "ProjectEditorDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "ProjectStatusDialog.qml",
@@ -182,20 +179,31 @@ def test_project_management_portfolio_heatmap_search_and_paging_are_controller_o
     assert "pagedHeatmapRows" not in state_text
 
 
-def test_platform_admin_console_clears_workspace_messages_on_context_switch() -> None:
-    page_path = (
-        UI_QML_ROOT
-        / "platform"
-        / "qml"
-        / "admin_console"
-        / "AdminConsolePage.qml"
-    )
+def test_platform_standalone_pages_clear_workspace_messages_on_context_switch() -> None:
+    # R5.9: the old monolithic AdminConsolePage.qml (deleted -- its facade
+    # retirement gate is documented in routes.py) called a single
+    # `_clearWorkspaceMessages()` helper >=4 times across its 9 sections'
+    # context switches. That responsibility is now distributed across the
+    # 10 standalone Platform pages it used to host (R4's 6 + R5's 4) --
+    # each clears its own controller's messages when closing its detail
+    # view, which is the same underlying behavior this test always
+    # verified, just no longer countable in one file.
+    page_paths = [
+        UI_QML_ROOT / "platform" / "qml" / "organization" / "organizations" / "OrganizationsWorkspacePage.qml",
+        UI_QML_ROOT / "platform" / "qml" / "organization" / "sites" / "SitesWorkspacePage.qml",
+        UI_QML_ROOT / "platform" / "qml" / "organization" / "departments" / "DepartmentsWorkspacePage.qml",
+        UI_QML_ROOT / "platform" / "qml" / "organization" / "employees" / "EmployeesWorkspacePage.qml",
+        UI_QML_ROOT / "platform" / "qml" / "organization" / "parties" / "PartiesWorkspacePage.qml",
+        UI_QML_ROOT / "platform" / "qml" / "calendars" / "CalendarsWorkspacePage.qml",
+        UI_QML_ROOT / "platform" / "qml" / "identity_access" / "users" / "UsersWorkspacePage.qml",
+        UI_QML_ROOT / "platform" / "qml" / "documents" / "DocumentsWorkspacePage.qml",
+        UI_QML_ROOT / "platform" / "qml" / "documents" / "DocumentStructuresWorkspacePage.qml",
+        UI_QML_ROOT / "platform" / "qml" / "identity_access" / "access" / "AccessWorkspacePage.qml",
+    ]
 
-    text = page_path.read_text(encoding="utf-8", errors="ignore")
-
-    assert "function _clearWorkspaceMessages()" in text
-    assert "root.workspaceController.clearMessages()" in text
-    assert text.count("root._clearWorkspaceMessages()") >= 4
+    for page_path in page_paths:
+        text = page_path.read_text(encoding="utf-8", errors="ignore")
+        assert "clearMessages()" in text, f"{page_path.name} does not clear workspace messages"
 
 
 def test_financials_dialog_host_checks_the_real_mutation_result_contract() -> None:

@@ -11,6 +11,13 @@ import identity_access.users.dialogs 1.0 as UserDialogs
 import documents.dialogs 1.0 as DocumentDialogs
 import calendars.dialogs 1.0 as CalendarDialogs
 
+// Relocated here in R5.9 (Admin facade retirement) -- this dialog host is a
+// genuine shared dependency of every standalone Platform capability page
+// (R4's six entity pages, R5's four), reached via LazyObjectLoader, and had
+// to survive admin_console/'s deletion. Nothing about its own content
+// changed; only its physical location and module registration moved from
+// admin_console.dialogs to the existing, already-shared Platform.Dialogs
+// module (which also hosts CalendarAssignmentDialog).
 Item {
     id: root
 
@@ -432,4 +439,3 @@ Item {
         }
     }
 }
-

@@ -99,11 +99,9 @@ Item {
             { type: "item",  section: "runtime",      label: "Runtime",               icon: "settings"  },
             { type: "item",  section: "modules",      label: "Module Entitlements",   icon: "project"   },
             { type: "group", label: "CONFIGURATION" },
-            { type: "item",  section: "defaults",      label: "Platform Defaults",         icon: "register"      },
             { type: "item",  section: "integrations",  label: "Integration Capabilities",  icon: "collaboration" },
-            { type: "item",  section: "security",      label: "Security",                  icon: "control"       },
             { type: "group", label: "SYSTEM" },
-            { type: "item",  section: "sysinfo",       label: "Support & Diagnostics",     icon: "maintenance"   }
+            { type: "item",  section: "sysinfo",       label: "Diagnostics",               icon: "maintenance"   }
         ]
 
         delegate: Item {

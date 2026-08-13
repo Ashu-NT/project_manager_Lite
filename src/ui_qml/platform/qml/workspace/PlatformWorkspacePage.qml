@@ -7,7 +7,6 @@ import App.Layouts 1.0 as AppLayouts
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
 import Platform.Components 1.0 as PlatformComponents
-import admin_console 1.0 as AdminConsole
 import control 1.0 as Control
 import settings 1.0 as Settings
 import tenants 1.0 as Tenants
@@ -17,6 +16,9 @@ import organization.departments 1.0 as DepartmentsOrg
 import organization.employees 1.0 as EmployeesOrg
 import organization.parties 1.0 as PartiesOrg
 import calendars 1.0 as CalendarsOrg
+import identity_access.users 1.0 as UsersOrg
+import identity_access.access 1.0 as AccessOrg
+import documents 1.0 as DocumentsOrg
 
 
 Item {
@@ -31,12 +33,14 @@ Item {
         ? root.platformCatalog.tenantSwitcher.isMultiTenant
         : false
 
-    // R4: Organizations/Sites/Departments/Employees/Parties/Calendars have
-    // been extracted into their own standalone pages (below) and no longer
-    // route through the Admin Console facade. The facade still hosts the
-    // remaining 3 master-data entities plus the two non-entity sections.
-    readonly property var _adminSurfaceDestinations: [
-        "users", "access", "documents", "structures", "support"
+    // R4/R5: every Platform capability (Organizations/Sites/Departments/
+    // Employees/Parties/Calendars in R4; Users/Access/Documents/Structures
+    // in R5) is its own standalone page, hosted here as a persistent
+    // sibling gated purely by destination id -- the Admin Console facade
+    // that used to compose these has been fully retired (R5.9).
+    readonly property var _directSurfaceDestinations: [
+        "organizations", "sites", "departments", "employees", "parties", "calendars",
+        "users", "access", "documents", "structures"
     ]
 
     readonly property string _activeSurface: {
@@ -49,12 +53,7 @@ Item {
         if (root.activeDestination === "tenants") {
             return "tenants"
         }
-        if (root._adminSurfaceDestinations.indexOf(root.activeDestination) >= 0) {
-            return "admin"
-        }
-        if (root.activeDestination === "organizations" || root.activeDestination === "sites"
-            || root.activeDestination === "departments" || root.activeDestination === "employees"
-            || root.activeDestination === "parties" || root.activeDestination === "calendars") {
+        if (root._directSurfaceDestinations.indexOf(root.activeDestination) >= 0) {
             return root.activeDestination
         }
         return "overview"
@@ -268,14 +267,36 @@ Item {
                     unavailableBreakdowns: root._overviewUnavailableBreakdowns
                 }
 
-                AdminConsole.AdminConsolePage {
+                UsersOrg.UsersWorkspacePage {
+                    id: _usersPage
                     anchors.fill: parent
-                    visible: root._activeSurface === "admin"
+                    visible: root._activeSurface === "users"
                     platformCatalog: root.platformCatalog
-                    externallyNavigated: true
-                    activeSection: root._adminSurfaceDestinations.indexOf(root.activeDestination) >= 0
-                        ? root.activeDestination
-                        : "users"
+                    onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                }
+
+                AccessOrg.AccessWorkspacePage {
+                    id: _accessPage
+                    anchors.fill: parent
+                    visible: root._activeSurface === "access"
+                    platformCatalog: root.platformCatalog
+                    onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                }
+
+                DocumentsOrg.DocumentsWorkspacePage {
+                    id: _documentsPage
+                    anchors.fill: parent
+                    visible: root._activeSurface === "documents"
+                    platformCatalog: root.platformCatalog
+                    onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
+                }
+
+                DocumentsOrg.DocumentStructuresWorkspacePage {
+                    id: _structuresPage
+                    anchors.fill: parent
+                    visible: root._activeSurface === "structures"
+                    platformCatalog: root.platformCatalog
+                    onNavigateToDestination: function(destinationId) { root.activeDestination = destinationId }
                 }
 
                 OrganizationsOrg.OrganizationsWorkspacePage {

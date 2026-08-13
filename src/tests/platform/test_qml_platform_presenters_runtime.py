@@ -46,15 +46,21 @@ def test_platform_workspace_catalog_falls_back_to_direct_runtime_api() -> None:
 
 
 def test_platform_workspace_catalog_exposes_qml_safe_maps() -> None:
+    # R5.9: "platform.admin" (and the other 3 legacy per-surface routes) was
+    # retired once every capability it hosted got its own standalone
+    # extraction -- "platform.workspace" is now the only registered
+    # Platform route, so the workspace() lookup is exercised against that
+    # one instead. The lookup mechanism itself (route_id -> {routeId,
+    # title, summary}) is unchanged.
     catalog = PlatformWorkspaceCatalog(FakePlatformRuntimeApi())
 
-    workspace = catalog.workspace("platform.admin")
+    workspace = catalog.workspace("platform.workspace")
     overview = catalog.runtimeOverview()
 
     assert workspace == {
-        "routeId": "platform.admin",
-        "title": "Admin Console",
-        "summary": "Platform / Administration",
+        "routeId": "platform.workspace",
+        "title": "Platform",
+        "summary": "Platform / Platform",
     }
     assert overview["statusLabel"] == "Connected"
     assert overview["metrics"][0] == {

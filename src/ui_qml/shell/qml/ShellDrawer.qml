@@ -26,9 +26,7 @@ Rectangle {
     function iconForRoute(routeId) {
         const icons = {
             "shell.home": "home",
-            "platform.admin": "admin",
-            "platform.control": "control",
-            "platform.settings": "settings",
+            "platform.workspace": "admin",
             "project_management.projects": "project",
             "project_management.tasks": "tasks",
             "project_management.scheduling": "calendar",

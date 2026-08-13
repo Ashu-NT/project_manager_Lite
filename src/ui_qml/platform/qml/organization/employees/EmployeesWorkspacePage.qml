@@ -5,7 +5,7 @@ import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import Platform.Controllers 1.0 as PlatformControllers
 import Platform.Components 1.0 as PlatformComponents
-import admin_console.dialogs 1.0 as AdminDialogs
+import Platform.Dialogs 1.0 as AdminDialogs
 
 // R4: Employees as a standalone Platform destination. Same shape as
 // OrganizationsWorkspacePage, plus calendar-assignment context (fixed to

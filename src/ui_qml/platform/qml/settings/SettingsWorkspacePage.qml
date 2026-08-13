@@ -22,11 +22,17 @@ AppLayouts.WorkspaceFrame {
     // ── Public API (backward-compatible) ─────────────────────────
     property ShellContexts.ShellContext shellModel
     property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
-    property var workspaceModel: root.platformCatalog
-        ? root.platformCatalog.workspace("platform.settings")
-        : ({ "routeId": "platform.settings", "title": "Settings", "summary": "" })
+    // R5.9: the route-based `workspace("platform.settings")` lookup this
+    // used to build (routeId/title/summary from the now-retired legacy
+    // route) is gone along with the route itself -- the summary text was
+    // always just a fixed "Platform / Settings" label, so it's inlined
+    // directly rather than derived from a route that no longer exists.
+    property var workspaceModel: ({ "routeId": "platform.workspace", "title": "Settings", "summary": "Platform / Settings" })
     property PlatformControllers.PlatformSettingsWorkspaceController workspaceController: root.platformCatalog
         ? root.platformCatalog.settingsWorkspace
+        : null
+    property PlatformControllers.PlatformSupportWorkspaceController supportController: root.platformCatalog
+        ? root.platformCatalog.adminSupportWorkspace
         : null
 
     function moduleItemById(itemId) {
@@ -39,8 +45,8 @@ AppLayouts.WorkspaceFrame {
     }
 
     title: root.workspaceController
-        ? (root.workspaceController.overview.title || root.workspaceModel.title)
-        : root.workspaceModel.title
+        ? (root.workspaceController.overview.title || "Settings")
+        : "Settings"
     subtitle: root.workspaceController ? root.workspaceController.overview.subtitle : ""
 
     // ── Internal state ────────────────────────────────────────────
@@ -180,11 +186,6 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    Sections.SettingsDefaultsSection {
-                        anchors.fill: parent
-                        visible: root._activeSection === "defaults"
-                    }
-
                     Sections.SettingsIntegrationsSection {
                         anchors.fill: parent
                         visible: root._activeSection === "integrations"
@@ -195,15 +196,11 @@ AppLayouts.WorkspaceFrame {
                         load: root._load
                     }
 
-                    Sections.SettingsSecuritySection {
-                        anchors.fill: parent
-                        visible: root._activeSection === "security"
-                    }
-
-                    Sections.SettingsSysInfoSection {
+                    Sections.SettingsDiagnosticsSection {
                         anchors.fill: parent
                         visible: root._activeSection === "sysinfo"
                         workspaceController: root.workspaceController
+                        supportController: root.supportController
                         busy: root._busy
                     }
                 }

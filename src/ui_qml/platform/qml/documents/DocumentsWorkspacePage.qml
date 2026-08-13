@@ -7,10 +7,10 @@ import Platform.Controllers 1.0 as PlatformControllers
 import Platform.Components 1.0 as PlatformComponents
 import Platform.Dialogs 1.0 as AdminDialogs
 
-// R4: Parties as a standalone Platform destination. Same shape as
-// OrganizationsWorkspacePage. No calendar assignment, no related-record
-// list -- Parties has no natural hierarchy parent. Keeps the existing
-// module-gated inventory/PM sections, reused verbatim.
+// R5: Documents as a standalone Platform destination. List+inspector use
+// the standard shape; the full detail page keeps its existing bespoke
+// composition (DocumentDetailPanel preview + linked-records table)
+// unchanged, reused verbatim.
 AppLayouts.WorkspaceFrame {
     id: root
 
@@ -24,17 +24,29 @@ AppLayouts.WorkspaceFrame {
     function openRecord(rowId) {
         root.selectedRowId = String(rowId || "")
         root.detailOpen = root.selectedRowId.length > 0
+        if (root.detailOpen) root.inspectDocument(root.selectedRowId)
     }
 
-    property var partyCatalog: root.workspaceController
-        ? root.workspaceController.parties
-        : ({ "title": "Parties", "subtitle": "", "emptyState": "", "items": [] })
+    property var documentCatalog: root.workspaceController
+        ? root.workspaceController.documents
+        : ({ "title": "Documents", "subtitle": "", "emptyState": "", "items": [] })
+    property var selectedDocument: root.workspaceController
+        ? root.workspaceController.selectedDocument
+        : ({ "hasSelection": false, "documentId": "", "title": "Select a document",
+             "summary": "", "badges": [], "metadataRows": [], "notes": "" })
+    property var documentPreviewState: root.workspaceController
+        ? root.workspaceController.documentPreview
+        : ({ "statusLabel": "No document selected", "summary": "",
+             "canOpen": false, "openLabel": "Open Source", "openTargetUrl": "" })
+    property var documentLinkCatalog: root.workspaceController
+        ? root.workspaceController.documentLinks
+        : ({ "title": "Linked Records", "subtitle": "", "emptyState": "", "items": [] })
 
     readonly property var _columns: [
-        { key: "title",       label: "Name",        flex: 3, minWidth: 160, sortable: true,  visible: true },
+        { key: "title",       label: "Title",       flex: 3, minWidth: 180, sortable: true,  visible: true },
         { key: "subtitle",    label: "Code / Type", flex: 3, minWidth: 160, sortable: false, visible: true },
         { key: "statusLabel", label: "Status",      flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
-        { key: "metaText",    label: "Legal Name",  flex: 3, minWidth: 160, sortable: false, visible: true }
+        { key: "metaText",    label: "Storage",     flex: 3, minWidth: 160, sortable: false, visible: true }
     ]
 
     property string selectedRowId: ""
@@ -48,7 +60,7 @@ AppLayouts.WorkspaceFrame {
     readonly property var _selectedItem: {
         const id = root.selectedRowId
         if (!id) return null
-        const items = root.partyCatalog.items || []
+        const items = root.documentCatalog.items || []
         for (let i = 0; i < items.length; i += 1) {
             if (String(items[i].id) === String(id)) return items[i]
         }
@@ -65,16 +77,28 @@ AppLayouts.WorkspaceFrame {
     }
 
     function _itemById(itemId) {
-        const items = root.partyCatalog.items || []
+        const items = root.documentCatalog.items || []
         for (let i = 0; i < items.length; i += 1) {
             if (items[i].id === itemId) return items[i]
         }
         return null
     }
 
+    function inspectDocument(itemId) {
+        if (root.workspaceController !== null) root.workspaceController.selectDocument(itemId)
+    }
+
     function openEdit(itemId) {
         const item = root._itemById(itemId)
-        if (item !== null) dialogHostLoader.invoke("openPartyEdit", item.state || {})
+        if (item !== null) {
+            root.inspectDocument(itemId)
+            dialogHostLoader.invoke("openDocumentEdit", item.state || {})
+        }
+    }
+
+    function openDocumentLinkCreate() {
+        if (root.selectedDocument.hasSelection)
+            dialogHostLoader.invoke("openDocumentLinkCreate", root.selectedDocument.documentId || "")
     }
 
     function closeDetail() {
@@ -84,14 +108,16 @@ AppLayouts.WorkspaceFrame {
 
     function handleDetailAction(actionId) {
         const id = root.selectedRowId
-        if (actionId === "refresh") { if (root.workspaceController) root.workspaceController.refresh(); return }
-        if (actionId === "show_audit") { root.navigateToDestination("control_audit"); return }
         if (actionId === "edit") { root.openEdit(id); return }
-        if (actionId === "toggle_active" && root.workspaceController) { root.workspaceController.togglePartyActive(id); return }
+        if (actionId === "toggle_active" && root.workspaceController) { root.workspaceController.toggleDocumentActive(id); return }
+        if (actionId === "refresh") { if (root.workspaceController) root.workspaceController.refresh(); return }
+        if (actionId === "create_document_link") { root.openDocumentLinkCreate(); return }
+        if (actionId === "open_control") { root.navigateToDestination("control_approvals"); return }
+        if (actionId === "show_audit") { root.navigateToDestination("control_audit"); return }
     }
 
-    title: "Parties"
-    subtitle: String(root.partyCatalog.subtitle || "")
+    title: "Documents"
+    subtitle: String(root.documentCatalog.subtitle || "")
 
     Item {
         anchors.fill: parent
@@ -104,10 +130,10 @@ AppLayouts.WorkspaceFrame {
             PlatformComponents.AdminEntityWorkspace {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                sectionTitle: "Parties"
-                entityLabel: "Party"
-                catalog: root.partyCatalog
-                catalogModel: root.workspaceController ? root.workspaceController.partiesTableModel : null
+                sectionTitle: "Documents"
+                entityLabel: "Document"
+                catalog: root.documentCatalog
+                catalogModel: root.workspaceController ? root.workspaceController.documentsTableModel : null
                 columns: root._columns
                 isBusy: root.busy
                 isLoading: root.load
@@ -115,9 +141,9 @@ AppLayouts.WorkspaceFrame {
                 feedbackMessage: root.ok
                 selectedRowId: root.selectedRowId
 
-                onCreateRequested: dialogHostLoader.invoke("openPartyCreate")
-                onRowSelected: function(id) { root.selectedRowId = id }
-                onRowActivated: function(id) { root.selectedRowId = id; root.detailOpen = true }
+                onCreateRequested: dialogHostLoader.invoke("openDocumentCreate")
+                onRowSelected: function(id) { root.selectedRowId = id; root.inspectDocument(id) }
+                onRowActivated: function(id) { root.selectedRowId = id; root.detailOpen = true; root.inspectDocument(id) }
                 onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
             }
 
@@ -136,7 +162,7 @@ AppLayouts.WorkspaceFrame {
                 onCloseRequested: root.selectedRowId = ""
                 onEditRequested: root.openEdit(root.selectedRowId)
                 onSecondaryActionRequested: {
-                    if (root.workspaceController) root.workspaceController.togglePartyActive(root.selectedRowId)
+                    if (root.workspaceController) root.workspaceController.toggleDocumentActive(root.selectedRowId)
                 }
             }
         }
@@ -148,16 +174,19 @@ AppLayouts.WorkspaceFrame {
             asynchronous: true
 
             sourceComponent: Component {
-                AdminPartyDetailPage {
-                    party: root._selectedItem || ({})
-                    inventoryEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("inventory_procurement") : false
-                    pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false
+                AdminDocumentsDetailPage {
+                    document: root._selectedItem || ({})
+                    selectedDocument: root.selectedDocument
+                    documentPreviewState: root.documentPreviewState
+                    documentLinkCatalog: root.documentLinkCatalog
+                    workspaceController: root.workspaceController
                     busy: root.busy
                     errorMessage: root.err
                     feedbackMessage: root.ok
 
                     onBackRequested: root.closeDetail()
                     onActionRequested: function(actionId) { root.handleDetailAction(actionId) }
+                    onDocumentLinkCreateRequested: root.openDocumentLinkCreate()
                 }
             }
         }

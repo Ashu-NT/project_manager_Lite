@@ -1,2 +1,3 @@
 module Platform.Dialogs
 CalendarAssignmentDialog 1.0 CalendarAssignmentDialog.qml
+AdminDialogHost 1.0 AdminDialogHost.qml

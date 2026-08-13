@@ -38,7 +38,6 @@ Item {
             { id: "control_approvals", label: "Approvals", group: "Control", icon: "approve" },
             { id: "control_audit", label: "Audit", group: "Control", icon: "audit" },
             { id: "settings", label: "Settings", icon: "settings" },
-            { id: "support", label: "Support", icon: "support" },
         ]
         if (root.tenantAdministrationVisible) {
             list.push({ id: "tenants", label: "Tenant Administration", icon: "tenant" })

@@ -1,2 +1,0 @@
-module admin_console.sections
-AdminAuditSection 1.0 AdminAuditSection.qml

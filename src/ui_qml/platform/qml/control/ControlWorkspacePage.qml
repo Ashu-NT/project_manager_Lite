@@ -16,9 +16,6 @@ AppLayouts.WorkspaceFrame {
 
     // ── Public API ────────────────────────────────────────────────
     property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
-    property var workspaceModel: root.platformCatalog
-        ? root.platformCatalog.workspace("platform.control")
-        : ({ "routeId": "platform.control", "title": "Control", "summary": "" })
     property PlatformControllers.PlatformControlWorkspaceController workspaceController: root.platformCatalog
         ? root.platformCatalog.controlWorkspace
         : null
@@ -31,8 +28,8 @@ AppLayouts.WorkspaceFrame {
     property alias activePanel: state.activePanel
 
     title:    root.workspaceController
-        ? (root.workspaceController.overview.title || root.workspaceModel.title)
-        : root.workspaceModel.title
+        ? (root.workspaceController.overview.title || "Control")
+        : "Control"
     subtitle: root.workspaceController ? root.workspaceController.overview.subtitle : ""
 
     readonly property bool   _busy: root.workspaceController ? root.workspaceController.isBusy       : false
@@ -106,9 +103,7 @@ AppLayouts.WorkspaceFrame {
                         Repeater {
                             model: [
                                 { id: "approvals",     label: "Approvals",     count: state.queueCount },
-                                { id: "audit",         label: "Audit",         count: state.feedCount  },
-                                { id: "escalations",   label: "Escalations",   count: 0                },
-                                { id: "system_events", label: "System Events", count: 0                }
+                                { id: "audit",         label: "Audit",         count: state.feedCount  }
                             ]
 
                             delegate: Item {
@@ -248,66 +243,6 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
-                // ── Escalations panel ─────────────────────────────
-                ColumnLayout {
-                    Layout.fillWidth:  true
-                    Layout.fillHeight: true
-                    visible: state.activePanel === "escalations"
-                    spacing: 0
-
-                    AppWidgets.TableToolbar {
-                        Layout.fillWidth:  true
-                        searchPlaceholder: "Search escalations..."
-                        showRefresh:       true
-                        isBusy:            root._busy
-                        onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
-                    }
-
-                    AppWidgets.DataTable {
-                        Layout.fillWidth:  true
-                        Layout.fillHeight: true
-                        rows:      []
-                        columns: [
-                            { key: "title",       label: "Reference", flex: 3, minWidth: 200, sortable: true,  visible: true },
-                            { key: "subtitle",    label: "Type",      flex: 2, minWidth: 140, sortable: false, visible: true },
-                            { key: "statusLabel", label: "Severity",  flex: 0, minWidth: 100, sortable: false, visible: true, type: "status" },
-                            { key: "metaText",    label: "SLA / Age", flex: 2, minWidth: 140, sortable: false, visible: true }
-                        ]
-                        emptyText: "No active escalations — all requests are within SLA"
-                        loading:   root._load
-                    }
-                }
-
-                // ── System Events panel ────────────────────────────
-                ColumnLayout {
-                    Layout.fillWidth:  true
-                    Layout.fillHeight: true
-                    visible: state.activePanel === "system_events"
-                    spacing: 0
-
-                    AppWidgets.TableToolbar {
-                        Layout.fillWidth:  true
-                        searchPlaceholder: "Search system events..."
-                        showFilter:        true
-                        showRefresh:       true
-                        isBusy:            root._busy
-                        onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
-                    }
-
-                    AppWidgets.DataTable {
-                        Layout.fillWidth:  true
-                        Layout.fillHeight: true
-                        rows:    []
-                        columns: [
-                            { key: "title",       label: "Event",     flex: 4, minWidth: 240, sortable: true,  visible: true },
-                            { key: "subtitle",    label: "Source",    flex: 2, minWidth: 140, sortable: false, visible: true },
-                            { key: "statusLabel", label: "Severity",  flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
-                            { key: "metaText",    label: "Timestamp", flex: 2, minWidth: 160, sortable: false, visible: true }
-                        ]
-                        emptyText: "No system events recorded in this session"
-                        loading:   root._load
-                    }
-                }
             }
 
             // ── Approval detail overlay ───────────────────────────

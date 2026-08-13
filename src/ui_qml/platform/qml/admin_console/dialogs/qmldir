@@ -1,2 +1,0 @@
-module admin_console.dialogs
-AdminDialogHost 1.0 AdminDialogHost.qml
