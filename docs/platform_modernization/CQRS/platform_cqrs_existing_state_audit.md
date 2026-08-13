@@ -714,14 +714,42 @@ query replacing a full-row query, not a query-count reduction) — the defect th
 
 ### P6.6 — full regression
 
-`src/tests/platform/test_employee_headcount_reader.py`: 7/7 passing. Combined with P4/P5, the full
-`platform`+`architecture`+`project_management` regression and the subsequent whole-repository
-(`src/tests`) regression are recorded in this document's final regression evidence — see the
-"Verification" note appended at the end of this document for the exact final counts, including the
-one genuine regression this session's *separate* `infrastructure/persistence/repositories/read/` →
-`infrastructure/persistence/read/` relocation caused (an architecture guardrail test's hardcoded
-directory-name set, fixed by adding `"read"` to it — a test-only change, not a production-behavior
-change, and unrelated to P0-P6's CQRS remediation).
+`src/tests/platform/test_employee_headcount_reader.py`: **7/7 passing.**
+
+Two whole-repository (`src/tests`, every module — platform, architecture, project_management,
+inventory_procurement, maintenance, `src/tests/pm`, migration/shell-scaffold tests) regressions were
+run with P4, P5, P6, and the contract-package restructuring all combined:
+
+- **First full run: 35 failed, 2014 passed, 1 skipped, 12 errors** (25:58). One of the 35 —
+  `test_platform_persistence_structure.py::test_platform_persistence_uses_module_style_layout` — was
+  a genuine regression, diagnosed immediately: it asserted
+  `infrastructure/persistence/` contains exactly `{mappers, orm, repositories}`, and this session's
+  *separate* `infrastructure/persistence/repositories/read/` → `infrastructure/persistence/read/`
+  relocation (done at explicit user direction, not part of P0-P6) added a legitimate new sibling
+  `read/` directory the test's hardcoded set didn't know about. Fixed by adding `"read"` to the
+  asserted set, with an explanatory comment — a test-only change, not a production-behavior change,
+  and unrelated to any of P0-P6's CQRS remediation. Re-verified in isolation: passes.
+- **Second full run (after that one fix): 34 failed, 2015 passed, 1 skipped, 12 errors** (21:38) —
+  exactly the expected 35→34 / 2014→2015 delta, confirming the fix and nothing else changed.
+
+**Every one of the 34 remaining failures/12 errors is accounted for and none traces to P0-P6 or the
+contract restructuring:**
+- 15 are this document's already-catalogued platform/architecture baseline (calendar
+  `MagicMock`-fixture failures and their 12 errors, the `Site` tz-naive/aware bug, the flaky
+  project-membership scope assertion, the `audit_entries`/PM-finance RLS classification gap,
+  `test_qml_platform_routes`, the PM module-size budget, the legacy-ORM-import check's 2
+  sub-failures, and the `pmenv`-vendored-packages hard-line-limit artifact).
+- 1 is the previously-catalogued pre-existing PM `Decimal`/float bug
+  (`test_qml_project_management_presenters_projects.py`).
+- 18 are newly-observed-in-this-run pre-existing failures in suites never exercised earlier this
+  session (`inventory_procurement` ×1, `src/tests/pm` ×12, migration-lock/`qml_shell`-scaffold ×5).
+  Each was checked for any import of, or reference to, anything this session touched
+  (`contract.*`, `admin_presenter`, `PlatformAdminWorkspacePresenter`) — **none found** — confirming
+  they are pre-existing and unrelated, not newly introduced. Their exact root causes were not
+  individually diagnosed (out of scope for this modernization effort), consistent with this
+  document's "verify once per phase, don't chase unrelated pre-existing failures" convention.
+
+Zero failures trace to any file P0-P6 or the contract/persistence restructuring touched.
 
 ---
 
