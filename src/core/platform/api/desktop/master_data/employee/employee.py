@@ -5,6 +5,7 @@ from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.master_data.employee.models.employee import (
     EmployeeCreateCommand,
     EmployeeDto,
+    EmployeeHeadcountSummaryDto,
     EmployeeUpdateCommand,
 )
 from src.core.platform.application.master_data.employee.employee_service import EmployeeService
@@ -25,6 +26,13 @@ class PlatformEmployeeDesktopApi:
             lambda: tuple(
                 self._serialize_employee(employee)
                 for employee in self._employee_service.list_employees(active_only=active_only)
+            )
+        )
+
+    def get_headcount_summary(self) -> DesktopApiResult[EmployeeHeadcountSummaryDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_headcount_summary(
+                self._employee_service.get_headcount_summary()
             )
         )
 
@@ -69,6 +77,10 @@ class PlatformEmployeeDesktopApi:
                 )
             )
         )
+
+    @staticmethod
+    def _serialize_headcount_summary(summary) -> EmployeeHeadcountSummaryDto:
+        return EmployeeHeadcountSummaryDto(total=summary.total, active=summary.active)
 
     @staticmethod
     def _serialize_employee(employee) -> EmployeeDto:

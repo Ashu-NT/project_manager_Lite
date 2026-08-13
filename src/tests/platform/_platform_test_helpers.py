@@ -20,7 +20,10 @@ from src.core.platform.api.desktop.master_data.documents.models.document import 
     DocumentLinkDto,
     DocumentStructureDto,
 )
-from src.core.platform.api.desktop.master_data.employee.models.employee import EmployeeDto
+from src.core.platform.api.desktop.master_data.employee.models.employee import (
+    EmployeeDto,
+    EmployeeHeadcountSummaryDto,
+)
 from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationDto
 from src.core.platform.api.desktop.master_data.party.models.party import PartyDto
 from src.core.platform.api.desktop.master_data.site.models.site import SiteDto
@@ -417,6 +420,15 @@ class FakePlatformEmployeeApi:
         if active_only is not None:
             rows = [row for row in rows if row.is_active == active_only]
         return DesktopApiResult(ok=True, data=tuple(rows))
+
+    def get_headcount_summary(self) -> DesktopApiResult[EmployeeHeadcountSummaryDto]:
+        return DesktopApiResult(
+            ok=True,
+            data=EmployeeHeadcountSummaryDto(
+                total=len(self._rows),
+                active=sum(1 for row in self._rows if row.is_active),
+            ),
+        )
 
     def create_employee(self, command) -> DesktopApiResult[EmployeeDto]:
         employee = EmployeeDto(

@@ -16,6 +16,14 @@ from src.ui_qml.platform.view_models import (
 )
 
 
+class _HeadcountSummary:
+    __slots__ = ("total", "active")
+
+    def __init__(self, *, total: int, active: int) -> None:
+        self.total = total
+        self.active = active
+
+
 class PlatformAdminWorkspacePresenter:
     def __init__(
         self,
@@ -54,7 +62,9 @@ class PlatformAdminWorkspacePresenter:
         departments = self._tuple_data(
             self._department_api.list_departments(active_only=None) if self._department_api is not None else None
         )
-        employees = self._tuple_data(self._employee_api.list_employees(active_only=None) if self._employee_api is not None else None)
+        headcount = self._headcount_summary(
+            self._employee_api.get_headcount_summary() if self._employee_api is not None else None
+        )
         users = self._tuple_data(self._user_api.list_users() if self._user_api is not None else None)
         documents = self._tuple_data(
             self._document_api.list_documents(active_only=None) if self._document_api is not None else None
@@ -76,7 +86,7 @@ class PlatformAdminWorkspacePresenter:
 
         active_user_count = sum(1 for user in users if user.is_active)
         locked_user_count = sum(1 for user in users if user.locked_until is not None)
-        active_employee_count = sum(1 for employee in employees if employee.is_active)
+        active_employee_count = headcount.active
         active_site_count = sum(1 for site in sites if site.is_active)
         active_department_count = sum(1 for department in departments if department.is_active)
         active_party_count = sum(1 for party in parties if party.is_active)
@@ -130,7 +140,7 @@ class PlatformAdminWorkspacePresenter:
                         ),
                         PlatformWorkspaceRowViewModel(
                             "Employees",
-                            str(len(employees)),
+                            str(headcount.total),
                             f"{active_employee_count} active employee records",
                         ),
                         PlatformWorkspaceRowViewModel(
@@ -168,6 +178,13 @@ class PlatformAdminWorkspacePresenter:
         if result is None or not getattr(result, "ok", False) or getattr(result, "data", None) is None:
             return ()
         return tuple(result.data)
+
+    @staticmethod
+    def _headcount_summary(result: object | None) -> _HeadcountSummary:
+        if result is None or not getattr(result, "ok", False) or getattr(result, "data", None) is None:
+            return _HeadcountSummary(total=0, active=0)
+        data = result.data
+        return _HeadcountSummary(total=data.total, active=data.active)
 
 
 __all__ = ["PlatformAdminWorkspacePresenter"]

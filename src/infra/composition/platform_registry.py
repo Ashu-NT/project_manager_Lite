@@ -30,6 +30,9 @@ from src.core.platform.application.master_data.documents import DocumentIntegrat
 from src.core.platform.application.master_data.data_exchange import MasterDataExchangeService
 from src.core.platform.application.master_data.department.department_service import DepartmentService
 from src.core.platform.application.master_data.employee.employee_service import EmployeeService
+from src.core.platform.infrastructure.persistence.read.master_data.employee.employee_headcount_reader import (
+    SqlAlchemyEmployeeHeadcountReader,
+)
 from src.core.platform.application.master_data.org.organization_service import OrganizationService
 from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
@@ -62,7 +65,7 @@ from src.core.platform.application.time_management.calendar.capacity.enterprise_
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import WorkingTimeCalculator
 from src.core.platform.application.time_management.calendar.capacity.global_calendar_shim import GlobalCalendarShim
 from src.core.platform.infrastructure.persistence.repositories.tenant.modules.modules import SqlAlchemyModuleEntitlementRepository
-from src.core.platform.infrastructure.persistence.repositories.read.tenant.modules.module_entitlement_reader import SqlAlchemyModuleEntitlementReader
+from src.core.platform.infrastructure.persistence.read.tenant.modules.module_entitlement_reader import SqlAlchemyModuleEntitlementReader
 from src.core.platform.infrastructure.persistence.repositories.data_operations.runtime_tracking.runtime_tracking import SqlAlchemyRuntimeExecutionRepository
 from src.infra.composition.repositories import RepositoryBundle
 from src.infra.platform.operational_support import current_trace_id
@@ -542,6 +545,7 @@ def build_platform_service_bundle(
         user_session=user_session,
         tenant_context_service=tenant_context_service,
     )
+    employee_headcount_reader = SqlAlchemyEmployeeHeadcountReader(session)
     employee_service = EmployeeService(
         session=session,
         employee_repo=repositories.employee_repo,
@@ -552,6 +556,7 @@ def build_platform_service_bundle(
         tenant_context_service=tenant_context_service,
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
+        headcount_reader=employee_headcount_reader,
     )
     master_data_exchange_service = MasterDataExchangeService(
         site_service=site_service,

@@ -38,6 +38,12 @@ class EmployeeCreateCommand:
 
 
 @dataclass(frozen=True)
+class EmployeeHeadcountSummaryDto:
+    total: int
+    active: int
+
+
+@dataclass(frozen=True)
 class EmployeeUpdateCommand:
     employee_id: str
     employee_code: str | None = None

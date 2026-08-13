@@ -19,6 +19,10 @@ from src.core.platform.contract.master_data.employee.contracts import (
     EmployeeRepository,
     LinkedEmployeeResourceRepository,
 )
+from src.core.platform.contract.master_data.employee.read.employee_headcount_reader import (
+    EmployeeHeadcountReader,
+    EmployeeHeadcountSummary,
+)
 from src.core.platform.domain.master_data.employee import Employee, EmploymentType
 from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
 from src.core.platform.contract.master_data.site.contracts import SiteRepository
@@ -44,6 +48,7 @@ class EmployeeService:
         tenant_context_service: TenantContextService | None = None,
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
+        headcount_reader: EmployeeHeadcountReader | None = None,
     ):
         self._session = session
         self._employee_repo = employee_repo
@@ -51,6 +56,7 @@ class EmployeeService:
         self._site_repo = site_repo
         self._department_repo = department_repo
         self._organization_repo = organization_repo
+        self._headcount_reader = headcount_reader
         self._tenant_context_service = tenant_context_service or (
             TenantContextService(
                 organization_repo=organization_repo,
@@ -247,6 +253,27 @@ class EmployeeService:
         require_permission(self._user_session, "employee.read", operation_label="list employees")
         organization_id = self._active_organization_id(operation_label="list employees")
         return self._employee_repo.list_for_organization(organization_id, active_only=active_only)
+
+    def get_headcount_summary(self) -> EmployeeHeadcountSummary:
+        require_permission(
+            self._user_session, "employee.read", operation_label="view employee headcount summary"
+        )
+        if self._tenant_context_service is None:
+            raise ValidationError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        if self._headcount_reader is None:
+            raise RuntimeError("Employee headcount reader is not configured.")
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="view employee headcount summary",
+        )
+        organization_id = self._active_organization_id(
+            operation_label="view employee headcount summary"
+        )
+        return self._headcount_reader.get_summary(
+            tenant_id=tenant_id, organization_id=organization_id
+        )
 
     def get_employee(self, employee_id: str) -> Employee:
         require_permission(self._user_session, "employee.read", operation_label="view employee")

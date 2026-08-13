@@ -508,12 +508,34 @@ exactly 1 for 1, 10, and 50 assignments sharing one calendar (the confirmed N+1 
 full 5-entity-type semantic equivalence; and the single-assignment write-path serialization shape.
 
 **P5.6 — full regression.** `platform`+`architecture`+`project_management` suites run together with
-both P4 and P5's changes in place: zero new failures beyond this document's established baseline —
-see the full-suite result recorded at the point this section was written for the complete pass/fail
-breakdown, including the one environment-only addition explained there (a freshly-populated local
-`pmenv/` virtualenv sitting inside the repository root trips the hard-line-limit architecture
-guardrail on its own vendored third-party packages — unrelated to any code this session touched, and
-not a regression in the reviewed sense).
+both P4 and P5's changes in place: **16 failed, 1519 passed, 12 errors.** Every one of the 16
+failures is accounted for and none is a P4/P5 regression:
+- 11 are this document's already-catalogued pre-existing platform baseline (calendar
+  `MagicMock`-fixture issues across `test_enterprise_calendar_desktop_api_working_days.py`/
+  `test_enterprise_calendar_exceptions_events_shifts.py`/`test_enterprise_calendar_shift_pattern_resolution.py`,
+  the `Site` tz-naive/aware bug in `test_platform_org_desktop_api.py`/`test_site_platform_foundation.py`,
+  the flaky `test_platform_access_scopes.py` project-membership scope assertion, the
+  `audit_entries`-adjacent PM-finance RLS classification gap in `test_postgresql_rls_context.py`, and
+  `test_qml_platform_routes.py`), plus the same 12 pre-existing calendar-fixture errors.
+- 3 are pre-existing architecture-guardrail failures already documented elsewhere in this audit (PM
+  module-size budget for `scheduling_engine.py`, and the legacy-ORM-import check's 2 sub-failures).
+- 1 is an **environment-only artifact, confirmed and not a code regression**: a freshly-populated
+  local `pmenv/` virtualenv sitting inside the repository root (created for this session's test runs)
+  trips `test_no_python_module_exceeds_hard_line_limit` on its own vendored third-party packages
+  (matplotlib, numpy, sqlalchemy, etc., all far exceeding the 1200-line guardrail) — this test's file
+  scan does not exclude venv directories. Unrelated to any code this session touched.
+- 1 is a **newly-observed but confirmed pre-existing, unrelated PM failure**:
+  `test_qml_project_management_presenters_projects.py::test_project_management_workspace_catalog_exposes_typed_projects_controller`,
+  reproduced in isolation with no P4/P5 code in the call path at all — a `Decimal`/binary-float
+  validation error (`approved_budget=250000.0`, a Python float literal, passed where the Money/Decimal
+  value object requires a canonical Decimal) inside a Project Management QML presenter test, nowhere
+  near Platform's auth or calendar code. Not previously catalogued in this document because this is
+  the first time this document's own regression runs included the full `project_management` suite
+  alongside `platform`+`architecture`.
+
+Zero failures trace to `PlatformUserDesktopApi`, `AuthService`, `role_assignment_service.py`,
+`password_service.py`, `EnterpriseCalendarDesktopApi`, `EnterpriseCalendarService`, or
+`PlatformCalendarRepository` — the files P4 and P5 actually changed.
 
 ---
 
@@ -1967,8 +1989,12 @@ defect (§6 W9) in the same pass — that is a separate, write-side fix with its
 - **P1.1-P1.2 (contract + reader).** `ModuleEntitlementReader` (Protocol) and its immutable
   `ModuleEntitlementSnapshot` fact (`@dataclass(frozen=True, slots=True)`, one `record_for(code)`
   accessor) live in `contract/tenant/modules/read/module_entitlement_reader.py`; the concrete
-  `SqlAlchemyModuleEntitlementReader` lives in `infrastructure/persistence/repositories/read/
-  tenant/modules/module_entitlement_reader.py` — a `read/` split mirroring PM's own established
+  `SqlAlchemyModuleEntitlementReader` lives in `infrastructure/persistence/read/
+  tenant/modules/module_entitlement_reader.py` (moved 2026-08-13 from
+  `infrastructure/persistence/repositories/read/...` to sit directly under `persistence/`,
+  a sibling of `repositories/` rather than nested inside it — cleaner separation between the
+  write-side repository tree and the read-side tree; P6's `EmployeeHeadcountReader` below follows
+  the same corrected location) — a `read/` split mirroring PM's own established
   `contracts/reads/<domain>/`, `infrastructure/persistence/reads/<domain>/` CQRS convention, not
   the older single-file `RateResolutionReader` shape this audit originally pointed to as the only
   precedent available at write-time. The reader takes `tenant_id`/`organization_id` explicitly
@@ -2049,9 +2075,19 @@ defect (§6 W9) in the same pass — that is a separate, write-side fix with its
    with `commit=False, fail_closed=True` inside the same transaction as the business write, matching
    approval/finance/auth's existing pattern. See "P0 correctness/security remediation status" at the
    top of this document.
-6. **Is the `is_active=True` branch of `provision_organization` genuinely unreachable/broken, or is
+6. ~~**Is the `is_active=True` branch of `provision_organization` genuinely unreachable/broken, or is
    there a caller this audit didn't find?** Requires dynamic confirmation (running the actual code
-   path), not resolvable from static reading alone.
+   path), not resolvable from static reading alone.~~ **Resolved (2026-08-13).** New
+   `test_provision_organization_with_is_active_true_activates_in_one_transaction`
+   (`test_platform_runtime_application_service.py`) actually calls `provision_organization` with
+   `is_active=True` end-to-end — no existing test had, before this: every prior provisioning test in
+   this file and `test_platform_runtime_desktop_api.py` used `is_active=False` only. Confirms the
+   branch is reachable and correct post-P0.1: the new organization persists `is_active=True` (re-read
+   from the repository, not the in-memory return value), its requested module entitlements are
+   licensed and enabled, the tenant context service and the application-service facade both report
+   it as the active organization with no manual follow-up `set_active_organization` call needed
+   (unlike the `is_active=False` case), and the previously-active default organization is correctly
+   deactivated rather than lost.
 7. **Should Platform expose a notifications inbox read path at all**, given the backend already
    exists and is fully SQL-paginated? This is a product decision, not purely a CQRS one, but is a
    near-zero-cost addition if a Reader-style pattern is being established anyway.

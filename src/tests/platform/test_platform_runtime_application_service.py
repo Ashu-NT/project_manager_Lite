@@ -95,6 +95,59 @@ def test_platform_runtime_application_service_provisions_organization_with_initi
     assert app_service.is_enabled("project_management") is False
 
 
+def test_provision_organization_with_is_active_true_activates_in_one_transaction(services):
+    """§18 item 6 -- dynamic confirmation that provision_organization's
+    is_active=True branch is reachable and correct, not just statically
+    plausible. Prior to P0.1 this branch always raised
+    ORGANIZATION_INACTIVE; no existing test exercised is_active=True end
+    to end through this method (every provisioning test in this file and
+    test_platform_runtime_desktop_api.py used is_active=False)."""
+    app_service = services["platform_runtime_application_service"]
+    organization_service = services["organization_service"]
+    tenant_context_service = services["tenant_context_service"]
+
+    default_organization = app_service.get_active_organization()
+    assert default_organization is not None
+
+    provisioned = app_service.provision_organization(
+        organization_code="EAST",
+        display_name="East Division",
+        timezone_name="Asia/Dubai",
+        base_currency="AED",
+        is_active=True,
+        initial_module_codes=["project_management"],
+    )
+
+    # Organization persisted active -- re-read the full list from the
+    # repository, not the in-memory return value, so this actually confirms
+    # the commit landed.
+    all_orgs_by_id = {o.id: o for o in organization_service.list_organizations(active_only=None)}
+    persisted = all_orgs_by_id[provisioned.id]
+    assert persisted.is_active is True
+    assert persisted.organization_code == "EAST"
+
+    # Entitlements provisioned for the new organization.
+    entitlements_by_code = {
+        e.code: e for e in app_service.module_catalog_service.list_entitlements()
+    }
+    assert entitlements_by_code["project_management"].licensed is True
+    assert entitlements_by_code["project_management"].enabled is True
+
+    # Active runtime context updated -- both the tenant context service and
+    # the application-service facade must agree the new organization is
+    # active, with no manual set_active_organization follow-up call (unlike
+    # the is_active=False provisioning test above, which requires one).
+    assert tenant_context_service.get_active_organization_id() == provisioned.id
+    assert app_service.get_active_organization().id == provisioned.id
+    assert app_service.current_context_label() == "East Division"
+
+    # Transaction succeeded as a whole -- the previously-active default
+    # organization is still present and merely no longer active, not lost.
+    all_orgs_by_id = {o.id: o for o in organization_service.list_organizations(active_only=None)}
+    still_there = all_orgs_by_id[default_organization.id]
+    assert still_there.is_active is False
+
+
 def test_platform_runtime_application_service_requires_settings_manage_to_switch_context(
     services,
 ):
