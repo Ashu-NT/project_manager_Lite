@@ -1,4 +1,4 @@
-"""Phase 3D measurements for Collaboration cross-project reads."""
+"""Measurements for purpose-specific Collaboration cross-project reads."""
 
 from __future__ import annotations
 
@@ -6,10 +6,7 @@ import time
 
 import pytest
 
-from src.tests.project_management._sql_measurement_helpers import (
-    count_calls,
-    measure_sql,
-)
+from src.tests.project_management._sql_measurement_helpers import count_calls, measure_sql
 
 
 _SIZES = {"small": 1, "medium": 5, "large": 12}
@@ -36,32 +33,48 @@ def test_phase3d_measure_collaboration_reads(services, size_name, capsys) -> Non
     collaboration = services["collaboration_service"]
     targets = [
         (
-            collaboration,
-            "_read_cross_project_collaboration_facts",
-            "collaboration.read_fact_graph",
+            collaboration._workspace_reader,
+            "read_comment_page",
+            "collaboration_reader.read_comment_page",
         ),
-        (collaboration._workspace_reader, "read_facts", "collaboration_reader.read_facts"),
+        (
+            collaboration._workspace_reader,
+            "read_active_presence",
+            "collaboration_reader.read_active_presence",
+        ),
         (collaboration._project_repo, "list", "project_repo.list"),
         (collaboration._project_repo, "get", "project_repo.get"),
         (collaboration._task_repo, "list_by_project", "task_repo.list_by_project"),
-        (collaboration._comment_repo, "list_recent_for_tasks", "comment_repo.list_recent_for_tasks"),
-        (collaboration._presence_repo, "list_recent_for_tasks", "presence_repo.list_recent_for_tasks"),
-        (collaboration._audit_repo, "list_recent_for_organization", "audit_repo.list_recent_for_organization"),
-        (collaboration._user_session, "has_project_permission", "session.has_project_permission"),
+        (
+            collaboration._comment_repo,
+            "list_recent_for_tasks",
+            "comment_repo.list_recent_for_tasks",
+        ),
+        (
+            collaboration._presence_repo,
+            "list_recent_for_tasks",
+            "presence_repo.list_recent_for_tasks",
+        ),
+        (
+            collaboration._user_session,
+            "has_project_permission",
+            "session.has_project_permission",
+        ),
     ]
     operations = (
-        ("inbox", collaboration.list_inbox),
-        ("workspace", collaboration.list_workspace_snapshot),
+        ("inbox", lambda: collaboration.query_inbox_page(page=1, page_size=200)),
+        ("activity", lambda: collaboration.list_recent_activity(limit=100)),
+        ("presence", collaboration.list_active_presence),
     )
 
     for operation_name, operation in operations:
         with measure_sql(services["session"]) as sql_stats, count_calls(targets) as calls:
             started = time.perf_counter()
-            result = operation(limit=200)
+            result = operation()
             wall_time = time.perf_counter() - started
         report = "\n".join(
             (
-                f"\n=== Phase 3D post-cutover [{size_name}:{operation_name}] ===",
+                f"\n=== Collaboration purpose query [{size_name}:{operation_name}] ===",
                 f"projects={project_count}",
                 f"wall_time_s={wall_time:.6f}",
                 f"db_time_s={sql_stats.total_db_time_s:.6f}",
@@ -75,16 +88,16 @@ def test_phase3d_measure_collaboration_reads(services, size_name, capsys) -> Non
             print(report)
 
         assert result is not None
-        expected_sql = 3 if operation_name == "inbox" else 6
-        assert sql_stats.total_statements == expected_sql
-        assert calls["collaboration.read_fact_graph"] == 1
-        assert calls["collaboration_reader.read_facts"] == 1
+        assert sql_stats.total_statements <= 6
         assert calls["project_repo.list"] == 1
         assert calls["project_repo.get"] == 0
         assert calls["task_repo.list_by_project"] == 0
         assert calls["comment_repo.list_recent_for_tasks"] == 0
         assert calls["presence_repo.list_recent_for_tasks"] == 0
         assert calls["session.has_project_permission"] == 0
-        assert calls["audit_repo.list_recent_for_organization"] == (
-            1 if operation_name == "workspace" else 0
+        assert calls["collaboration_reader.read_comment_page"] == (
+            0 if operation_name == "presence" else 1
+        )
+        assert calls["collaboration_reader.read_active_presence"] == (
+            1 if operation_name == "presence" else 0
         )

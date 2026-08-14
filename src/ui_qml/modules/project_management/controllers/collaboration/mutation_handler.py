@@ -3,7 +3,6 @@ from __future__ import annotations
 from src.ui_qml.modules.project_management.controllers.common import run_mutation
 
 from .panel_index_service import item_for_panel
-from .labels import panel_label
 
 
 def mark_task_read(controller, task_id: str) -> dict[str, object]:
@@ -56,20 +55,8 @@ def reject_request(controller, request_id: str) -> dict[str, object]:
     )
 
 
-def export_panel(controller, panel_id: str) -> dict[str, object]:
-    label = panel_label(str(panel_id or ""))
-    message = (
-        f"Export is not available here. Open the Reports section to generate "
-        f"{label.lower()} summaries and collaboration exports."
-    )
-    controller._set_error_message("")
-    controller._set_feedback_message(message)
-    return {"ok": True, "message": message}
-
-
 __all__ = [
     "approve_request",
-    "export_panel",
     "mark_item_read",
     "mark_task_read",
     "reject_request",

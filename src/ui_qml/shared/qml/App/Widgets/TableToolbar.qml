@@ -9,6 +9,7 @@ Rectangle {
 
     property string searchText: ""
     property string searchPlaceholder: "Search..."
+    property bool showSearch: true
     property bool showRefresh: true
     property bool showImport: false
     property bool showExport: false
@@ -46,6 +47,7 @@ Rectangle {
 
         AppControls.SearchField {
             id: searchInput
+            visible: root.showSearch
             Layout.preferredWidth: 260
             placeholderText: root.searchPlaceholder
             enabled: !root.isBusy

@@ -48,9 +48,6 @@ class _FakeCollaborationService:
         self._comments: list[SimpleNamespace] = []
         self._comment_documents: dict[str, list[SimpleNamespace]] = {}
 
-    def list_workspace_snapshot(self, *, limit: int = 200) -> SimpleNamespace:
-        return SimpleNamespace(notifications=[], inbox=[], recent_activity=[], active_presence=[])
-
     def mark_task_mentions_read(self, task_id: str) -> None:
         self.marked_task_ids.append(task_id)
 

@@ -54,65 +54,22 @@ class _FakeCollaborationService:
             ]
         }
 
-    def list_workspace_snapshot(self, *, limit: int = 200) -> SimpleNamespace:
-        assert limit == 200
-        return SimpleNamespace(
-            notifications=[
-                SimpleNamespace(
-                    notification_type="approval",
-                    entity_type="approval_request",
-                    entity_id="approval-1",
-                    headline="Approval requested for Weekly Freeze",
-                    body_preview="Baseline comparison needs governance review.",
-                    actor_username="alex",
-                    created_at=datetime(2026, 5, 1, 9, 30),
-                    project_id="proj-1",
-                    project_name="Plant Upgrade",
-                    attention=True,
-                )
-            ],
-            inbox=[
-                SimpleNamespace(
-                    comment_id="comment-1",
-                    task_id="task-1",
-                    task_name="Cable Pull",
-                    project_id="proj-1",
-                    project_name="Plant Upgrade",
-                    author_username="jamie",
-                    body_preview="Please review the updated execution window.",
-                    mentions=["planner"],
-                    created_at=datetime(2026, 5, 1, 8, 45),
-                    unread=True,
-                )
-            ],
-            recent_activity=[
-                SimpleNamespace(
-                    comment_id="comment-2",
-                    task_id="task-2",
-                    task_name="Commissioning Pack",
-                    project_id="proj-1",
-                    project_name="Plant Upgrade",
-                    author_username="morgan",
-                    body_preview="Draft punchlist is now linked for review.",
-                    mentions=[],
-                    created_at=datetime(2026, 5, 1, 8, 15),
-                    unread=False,
-                )
-            ],
-            active_presence=[
-                SimpleNamespace(
-                    task_id="task-1",
-                    task_name="Cable Pull",
-                    project_id="proj-1",
-                    project_name="Plant Upgrade",
-                    username="planner",
-                    display_name="Alex Taylor",
-                    activity="reviewing",
-                    last_seen_at=datetime(2026, 5, 1, 9, 35),
-                    is_self=True,
-                )
-            ],
-        )
+    @staticmethod
+    def _inbox_rows() -> list[SimpleNamespace]:
+        return [
+            SimpleNamespace(
+                comment_id="comment-1",
+                task_id="task-1",
+                task_name="Cable Pull",
+                project_id="proj-1",
+                project_name="Plant Upgrade",
+                author_username="jamie",
+                body_preview="Please review the updated execution window.",
+                mentions=["planner"],
+                created_at=datetime(2026, 5, 1, 8, 45),
+                unread=True,
+            )
+        ]
 
     def query_mentions_page(
         self,
@@ -125,7 +82,7 @@ class _FakeCollaborationService:
         page=1,
         page_size=25,
     ) -> SimpleNamespace:
-        rows = list(self.list_workspace_snapshot().inbox)
+        rows = self._inbox_rows()
         rows = [
             row
             for row in rows
@@ -147,6 +104,46 @@ class _FakeCollaborationService:
             total=len(rows),
             page=page,
             page_size=page_size,
+        )
+
+    def query_inbox_page(self, **kwargs) -> SimpleNamespace:
+        return self.query_mentions_page(**kwargs)
+
+    def list_recent_activity(self, **kwargs) -> list[SimpleNamespace]:
+        return [
+            SimpleNamespace(
+                comment_id="comment-2",
+                task_id="task-2",
+                task_name="Commissioning Pack",
+                project_id="proj-1",
+                project_name="Plant Upgrade",
+                author_username="morgan",
+                body_preview="Draft punchlist is now linked for review.",
+                mentions=[],
+                created_at=datetime(2026, 5, 1, 8, 15),
+                unread=False,
+            )
+        ]
+
+    def list_active_presence(self) -> list[SimpleNamespace]:
+        return [
+            SimpleNamespace(
+                task_id="task-1",
+                task_name="Cable Pull",
+                project_id="proj-1",
+                project_name="Plant Upgrade",
+                username="planner",
+                display_name="Alex Taylor",
+                activity="reviewing",
+                last_seen_at=datetime(2026, 5, 1, 9, 35),
+                is_self=True,
+            )
+        ]
+
+    def list_workspace_context(self) -> SimpleNamespace:
+        return SimpleNamespace(
+            projects=(("proj-1", "Plant Upgrade"),),
+            people=("jamie", "morgan"),
         )
 
     def mark_task_mentions_read(self, task_id: str) -> None:
@@ -250,10 +247,9 @@ def test_project_management_workspace_catalog_exposes_typed_collaboration_contro
 
     assert controller.workspace["routeId"] == "project_management.collaboration"
     assert controller.overview["title"] == "Collaboration"
-    assert controller.notifications["items"][0]["title"] == "Approval requested for Weekly Freeze"
     assert controller.inbox["items"][0]["title"] == "Cable Pull"
     assert controller.mentions["totalCount"] == 1
-    assert controller.activePresence["items"][0]["title"] == "Cable Pull"
+    assert controller.overview["metrics"][3]["value"] == "1"
 
     result = controller.markTaskRead("task-1")
 
@@ -272,7 +268,7 @@ def test_project_management_workspace_catalog_exposes_typed_collaboration_contro
 
 def test_collaboration_presenter_skips_null_approval_rows() -> None:
     class _FakeApprovalApi:
-        def list_requests(self, *, status=None, limit: int = 200) -> DesktopApiResult[tuple[ApprovalRequestDto | None, ...]]:
+        def list_requests(self, *, status=None, project_id=None, limit: int = 200) -> DesktopApiResult[tuple[ApprovalRequestDto | None, ...]]:
             return DesktopApiResult(
                 ok=True,
                 data=(

@@ -11,7 +11,6 @@ import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "panels" as Panels
 import "sections" as Sections
-import "components" as Components
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -59,13 +58,15 @@ AppLayouts.WorkspaceFrame {
             selectedTeamId: state.selectedTeamId
             selectedPeriodKey: state.selectedPeriodKey
             selectedUnreadKey: state.selectedUnreadKey
+            showPeople: state.activePanelId !== "approvals"
+            showPeriod: state.activePanelId !== "approvals"
+            showUnread: state.activePanelId === "inbox" || state.activePanelId === "mentions"
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
             onProjectChanged: function(value) { if (root.workspaceController) root.workspaceController.setSelectedProjectId(value) }
             onTeamChanged: function(value) { if (root.workspaceController) root.workspaceController.setSelectedTeamId(value) }
             onPeriodChanged: function(value) { if (root.workspaceController) root.workspaceController.setSelectedPeriodKey(value) }
             onUnreadChanged: function(value) { if (root.workspaceController) root.workspaceController.setSelectedUnreadKey(value) }
             onRefreshRequested: { if (root.workspaceController !== null) root.workspaceController.refresh() }
-            onSettingsRequested: settingsPopup.open()
         }
 
         AppWidgets.KpiStrip {
@@ -210,34 +211,23 @@ AppLayouts.WorkspaceFrame {
                         id: panelToolbar
                         Layout.fillWidth: true
                         searchText: state._panelSearchText(state.activePanelId)
+                        showSearch: state.activePanelId === "inbox" || state.activePanelId === "mentions"
                         searchPlaceholder: {
                             if (state.activePanelId === "mentions") return "Search mentions..."
-                            if (state.activePanelId === "approvals") return "Search approvals..."
-                            if (state.activePanelId === "team_updates") return "Search team updates..."
-                            if (state.activePanelId === "activity") return "Search activity..."
                             return "Search inbox..."
                         }
-                        showFilter: true
-                        showViews: true
+                        showFilter: false
+                        showViews: false
                         showCustomize: state.activePanelId !== "activity"
-                        showExport: true
+                        showExport: false
                         showRefresh: true
                         isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                         onSearchChanged: function(text) { state._setPanelSearchText(state.activePanelId, text) }
-                        onFilterClicked: {
-                            panelFilterPopup.anchorItem = panelToolbar.filterButtonItem
-                            panelFilterPopup.open()
-                        }
-                        onViewsClicked: {
-                            panelViewsPopup.anchorItem = panelToolbar.viewsButtonItem
-                            panelViewsPopup.open()
-                        }
                         onCustomizeClicked: {
                             if (state.activePanelId !== "activity")
                                 panelTable.openColumnCustomizer(panelToolbar.customizeButtonItem)
                         }
                         onRefreshRequested: { if (root.workspaceController !== null) root.workspaceController.refresh() }
-                        onExportRequested: { if (root.workspaceController !== null) root.workspaceController.exportPanel(state.activePanelId) }
                     }
 
                     Item {
@@ -249,16 +239,15 @@ AppLayouts.WorkspaceFrame {
                             anchors.top: parent.top
                             anchors.left: parent.left
                             anchors.right: parent.right
-                            anchors.bottom: paginationBar.top
+                            anchors.bottom: paginationBar.visible ? paginationBar.top : parent.bottom
                             visible: state.activePanelId !== "activity"
                             columns: state._currentTableColumns
                             sourceModel: root.workspaceController
                                 ? (state.activePanelId === "mentions"      ? root.workspaceController.mentionsTableModel
                                    : state.activePanelId === "approvals"   ? root.workspaceController.approvalsTableModel
-                                   : state.activePanelId === "team_updates" ? root.workspaceController.teamUpdatesTableModel
                                    : root.workspaceController.inboxTableModel)
                                 : null
-                            sortingMode: state.activePanelId === "mentions" ? "none" : "client"
+                            sortingMode: "none"
                             selectedRowId: state._selectedRowId
                             emptyText: state._currentPanelModel.emptyState || "No collaboration items are available."
                             loading: root.workspaceController ? root.workspaceController.isLoading : false
@@ -271,7 +260,7 @@ AppLayouts.WorkspaceFrame {
                             anchors.left: parent.left
                             anchors.right: parent.right
                             anchors.bottom: parent.bottom
-                            visible: state.activePanelId !== "activity"
+                            visible: state.activePanelId === "inbox" || state.activePanelId === "mentions"
                             currentPage: state._effectiveTablePage
                             pageSize: state._currentTablePageSize
                             totalItems: state._currentTableTotalItems
@@ -375,21 +364,4 @@ AppLayouts.WorkspaceFrame {
     }
 
     // ── Popups ────────────────────────────────────────────────────────────
-    Components.CollaborationFilterPopup {
-        id: panelFilterPopup
-        onClearFiltersRequested: state._clearFilters()
-    }
-
-    Components.CollaborationViewsPopup {
-        id: panelViewsPopup
-        onViewSelected: function(panelId, unreadKey) {
-            state.activePanelId = panelId
-            if (root.workspaceController) root.workspaceController.setSelectedUnreadKey(unreadKey)
-        }
-    }
-
-    Components.CollaborationSettingsPopup {
-        id: settingsPopup
-        anchorItem: contextToolbar.settingsButtonItem
-    }
 }

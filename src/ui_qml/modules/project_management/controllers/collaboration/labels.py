@@ -7,7 +7,6 @@ def panel_label(panel_id: str) -> str:
         "mentions": "Mentions",
         "approvals": "Approvals",
         "activity": "Activity",
-        "team_updates": "Team Updates",
         "audit": "Audit",
     }
     return labels.get(panel_id, "Collaboration")
