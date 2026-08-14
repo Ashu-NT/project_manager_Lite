@@ -5,6 +5,8 @@ from typing import Any
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.core.shared.events.domain_events import DomainChangeEvent, domain_events
+
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
 
@@ -30,6 +32,14 @@ class PMProjectContextController(QObject):
         self._project_options: list[dict[str, str]] = []
         self._validation_status = "unavailable" if projects_api is None else "ready"
         self._error_message = ""
+   
+        domain_events.domain_changed.connect(self._on_domain_changed)
+        if projects_api is not None:
+            self.refreshProjects()
+
+    def _on_domain_changed(self, event: DomainChangeEvent) -> None:
+        if event.scope_code == "project_management" and event.entity_type == "project":
+            self.refreshProjects()
 
     @Property(str, notify=activeProjectChanged)
     def activeProjectId(self) -> str:
