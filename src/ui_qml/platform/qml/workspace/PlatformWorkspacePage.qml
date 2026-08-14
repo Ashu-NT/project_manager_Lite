@@ -7,6 +7,7 @@ import App.Layouts 1.0 as AppLayouts
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
 import Platform.Components 1.0 as PlatformComponents
+import Shell.Context 1.0 as ShellContexts
 import control 1.0 as Control
 import settings 1.0 as Settings
 import tenants 1.0 as Tenants
@@ -26,6 +27,7 @@ Item {
     id: root
 
     property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
+    property ShellContexts.ShellContext shellModel
 
     // -- Canonical destination state --------------------------------
     property string activeDestination: "overview"
@@ -407,6 +409,7 @@ Item {
                     anchors.fill: parent
                     visible: root._activeSurface === "settings"
                     platformCatalog: root.platformCatalog
+                    shellModel: root.shellModel
                 }
 
                 Tenants.TenantManagementWorkspacePage {
