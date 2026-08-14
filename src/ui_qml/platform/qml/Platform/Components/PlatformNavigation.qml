@@ -63,6 +63,7 @@ Item {
         items: root._destinations
         activeIndex: root._selectedIndex
         collapsed: root.collapsed
+        autoCollapseAtNarrowWidth: true
         groupsCollapsedByDefault: false
         showRailToggle: true
         railTitle: "Platform"

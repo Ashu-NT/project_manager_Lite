@@ -1,6 +1,8 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Window
+import App.Theme 1.0 as Theme
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import Platform.Controllers 1.0 as PlatformControllers
@@ -38,7 +40,7 @@ AppLayouts.WorkspaceFrame {
         { key: "title",       label: "Calendar",     flex: 2.2, minWidth: 180, sortable: true,  visible: true },
         { key: "subtitle",    label: "Working Days", flex: 3.0, minWidth: 220, sortable: false, visible: true },
         { key: "statusLabel", label: "Status",       flex: 0,   minWidth: 90,  sortable: false, visible: true, type: "status" },
-        { key: "metaText",    label: "Ownership",    flex: 2.4, minWidth: 180, sortable: false, visible: true }
+        { key: "metaText",    label: "Ownership",    flex: 2.4, minWidth: 180, sortable: false, visible: true, hideBelow: Theme.AppTheme.compactContentBreakpoint }
     ]
 
     property string selectedRowId: ""
@@ -134,7 +136,7 @@ AppLayouts.WorkspaceFrame {
 
             AppWidgets.InspectorPanel {
                 Layout.fillHeight: true
-                visible: root.selectedRowId.length > 0
+                visible: root.selectedRowId.length > 0 && Window.width >= Theme.AppTheme.compactContentBreakpoint
                 title: root._selectedItem ? String(root._selectedItem.title || "") : ""
                 statusLabel: root._selectedItem ? String(root._selectedItem.statusLabel || "") : ""
                 sections: root._inspectorSections

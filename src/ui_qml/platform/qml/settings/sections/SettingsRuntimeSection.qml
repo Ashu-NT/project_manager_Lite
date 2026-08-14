@@ -87,13 +87,53 @@ Item {
                     RowLayout {
                         anchors.fill: parent; anchors.leftMargin: Theme.AppTheme.marginMd; anchors.rightMargin: Theme.AppTheme.marginMd; spacing: Theme.AppTheme.spacingMd
                         AppControls.Label { Layout.preferredWidth: 120; text: "Theme Mode"; color: Theme.AppTheme.textMuted; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.smallSize; font.bold: true }
-                        AppControls.Label { Layout.fillWidth: true; text: root.shellModel ? root.shellModel.themeMode : "—"; color: Theme.AppTheme.textPrimary; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.smallSize; elide: Text.ElideRight }
+                        AppControls.ComboBox {
+                            Layout.preferredWidth: 160
+                            model: ["Light", "Dark"]
+                            currentIndex: root.shellModel && root.shellModel.themeMode === "dark" ? 1 : 0
+                            onActivated: {
+                                if (root.shellModel) root.shellModel.setThemeMode(currentIndex === 1 ? "dark" : "light")
+                            }
+                        }
+                        Item { Layout.fillWidth: true }
                     }
                 }
 
                 Rectangle {
                     Layout.fillWidth: true; Layout.preferredHeight: 38
                     color: Theme.AppTheme.surfaceOverlay
+                    Rectangle {
+                        anchors.bottom: parent.bottom
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        height: 1
+                        color: Theme.AppTheme.divider
+                    }
+                    RowLayout {
+                        anchors.fill: parent; anchors.leftMargin: Theme.AppTheme.marginMd; anchors.rightMargin: Theme.AppTheme.marginMd; spacing: Theme.AppTheme.spacingMd
+                        AppControls.Label { Layout.preferredWidth: 120; text: "Density"; color: Theme.AppTheme.textMuted; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.smallSize; font.bold: true }
+                        AppControls.ComboBox {
+                            Layout.preferredWidth: 160
+                            model: ["Compact", "Comfortable", "Spacious"]
+                            currentIndex: {
+                                const mode = root.shellModel ? root.shellModel.densityMode : "compact"
+                                if (mode === "spacious") return 2
+                                if (mode === "comfortable") return 1
+                                return 0
+                            }
+                            onActivated: {
+                                if (!root.shellModel) return
+                                const values = ["compact", "comfortable", "spacious"]
+                                root.shellModel.setDensityMode(values[currentIndex] || "compact")
+                            }
+                        }
+                        Item { Layout.fillWidth: true }
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true; Layout.preferredHeight: 38
+                    color: "transparent"
                     Rectangle {
                         anchors.bottom: parent.bottom
                         anchors.left: parent.left
@@ -110,7 +150,7 @@ Item {
 
                 Rectangle {
                     Layout.fillWidth: true; Layout.preferredHeight: 38
-                    color: "transparent"
+                    color: Theme.AppTheme.surfaceOverlay
                     Rectangle {
                         anchors.bottom: parent.bottom
                         anchors.left: parent.left

@@ -1,6 +1,8 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Window
+import App.Theme 1.0 as Theme
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import Platform.Controllers 1.0 as PlatformControllers
@@ -40,7 +42,7 @@ AppLayouts.WorkspaceFrame {
         { key: "title",       label: "Display Name", flex: 3, minWidth: 160, sortable: true,  visible: true },
         { key: "subtitle",    label: "Username",     flex: 3, minWidth: 180, sortable: false, visible: true },
         { key: "statusLabel", label: "Status",       flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
-        { key: "metaText",    label: "Security",     flex: 3, minWidth: 180, sortable: false, visible: true }
+        { key: "metaText",    label: "Security",     flex: 3, minWidth: 180, sortable: false, visible: true, hideBelow: Theme.AppTheme.compactContentBreakpoint }
     ]
     readonly property var _moduleColumns: [
         { key: "title",       label: "Module",          flex: 2, minWidth: 140, sortable: true,  visible: true },
@@ -152,7 +154,7 @@ AppLayouts.WorkspaceFrame {
 
             AppWidgets.InspectorPanel {
                 Layout.fillHeight: true
-                visible: root.selectedRowId.length > 0
+                visible: root.selectedRowId.length > 0 && Window.width >= Theme.AppTheme.compactContentBreakpoint
                 title: root._selectedItem ? String(root._selectedItem.title || "") : ""
                 statusLabel: root._selectedItem ? String(root._selectedItem.statusLabel || "") : ""
                 sections: root._inspectorSections

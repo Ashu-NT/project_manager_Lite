@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Window
 import App.Theme 1.0 as Theme
 import App.Icons 1.0 as AppIcons
 import App.Controls 1.0 as AppControls
@@ -20,6 +21,13 @@ Rectangle {
 
     // -- Rail collapse (icon-only strip) -------------------------------
     property bool collapsed: false
+    // Opt-in: when true, the rail also collapses itself below a shared
+    // window-width breakpoint (R7.3), independent of the manual toggle.
+    property bool autoCollapseAtNarrowWidth: false
+    readonly property bool _effectiveCollapsed: root.collapsed
+        || (root.autoCollapseAtNarrowWidth
+            && Window.width > 0
+            && Window.width < Theme.AppTheme.narrowLayoutBreakpoint)
     property bool showRailToggle: false
     property string railTitle: ""
     property int expandedWidth: Theme.AppTheme.navRailExpandedWidth
@@ -28,7 +36,7 @@ Rectangle {
     signal itemActivated(int index)
 
     color: Theme.AppTheme.surfaceRaised
-    implicitWidth: root.collapsed ? root.collapsedWidth : root.expandedWidth
+    implicitWidth: root._effectiveCollapsed ? root.collapsedWidth : root.expandedWidth
 
     Behavior on implicitWidth {
         NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
@@ -175,7 +183,7 @@ Rectangle {
         height: root.showRailToggle ? 40 : 0
 
         AppControls.Label {
-            visible: !root.collapsed
+            visible: !root._effectiveCollapsed
             anchors.left: parent.left
             anchors.leftMargin: 14
             anchors.verticalCenter: parent.verticalCenter
@@ -199,7 +207,7 @@ Rectangle {
 
             AppIcons.AppIcon {
                 anchors.centerIn: parent
-                name: root.collapsed ? "chevron_right" : "chevron_left"
+                name: root._effectiveCollapsed ? "chevron_right" : "chevron_left"
                 size: Theme.AppTheme.iconXs
                 iconColor: Theme.AppTheme.textMuted
             }
@@ -228,7 +236,7 @@ Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        anchors.margins: root.collapsed ? Theme.AppTheme.spacingXs : Theme.AppTheme.pagePadding
+        anchors.margins: root._effectiveCollapsed ? Theme.AppTheme.spacingXs : Theme.AppTheme.pagePadding
         contentWidth: width
         contentHeight: navColumn.implicitHeight
         boundsBehavior: Flickable.StopAtBounds
@@ -251,7 +259,7 @@ Rectangle {
                     width: navColumn.width
                     spacing: Theme.AppTheme.spacingXs
 
-                    readonly property bool hasHeader: !root.collapsed && String(navGroup.modelData.label || "").length > 0
+                    readonly property bool hasHeader: !root._effectiveCollapsed && String(navGroup.modelData.label || "").length > 0
                     readonly property bool expanded: root._isExpanded(String(navGroup.modelData.key || ""))
 
                     Item {
@@ -332,8 +340,8 @@ Rectangle {
 
                                 Rectangle {
                                     anchors.fill: parent
-                                    anchors.leftMargin: root.collapsed ? 0 : 4
-                                    anchors.rightMargin: root.collapsed ? 0 : 4
+                                    anchors.leftMargin: root._effectiveCollapsed ? 0 : 4
+                                    anchors.rightMargin: root._effectiveCollapsed ? 0 : 4
                                     radius: Theme.AppTheme.radiusSm
                                     color: navItem.isActive
                                         ? Theme.AppTheme.navSelectedBackground
@@ -356,7 +364,7 @@ Rectangle {
                                     id: _itemIco
                                     visible: navItem.itemIcon.length > 0
                                     anchors.left: parent.left
-                                    anchors.leftMargin: root.collapsed ? 13 : 11
+                                    anchors.leftMargin: root._effectiveCollapsed ? 13 : 11
                                     anchors.verticalCenter: parent.verticalCenter
                                     name: navItem.itemIcon.length > 0 ? navItem.itemIcon : "default"
                                     size: Theme.AppTheme.navIconSize
@@ -364,7 +372,7 @@ Rectangle {
                                 }
 
                                 AppControls.Label {
-                                    visible: !root.collapsed
+                                    visible: !root._effectiveCollapsed
                                     anchors.verticalCenter: parent.verticalCenter
                                     anchors.left: _itemIco.visible ? _itemIco.right : parent.left
                                     anchors.leftMargin: _itemIco.visible ? 9 : (navGroup.hasHeader ? 18 : 14)
@@ -385,7 +393,7 @@ Rectangle {
                                     anchors.right: parent.right
                                     anchors.rightMargin: Theme.AppTheme.spacingSm
                                     anchors.verticalCenter: parent.verticalCenter
-                                    visible: !root.collapsed && navItem.itemCount > 0
+                                    visible: !root._effectiveCollapsed && navItem.itemCount > 0
                                     width: countLabel.implicitWidth + 8
                                     height: 16
                                     radius: 8
@@ -406,7 +414,7 @@ Rectangle {
                                     }
                                 }
 
-                                ToolTip.visible: root.collapsed && navHover.containsMouse
+                                ToolTip.visible: root._effectiveCollapsed && navHover.containsMouse
                                 ToolTip.text: navItem.itemLabel
                                 ToolTip.delay: 700
 

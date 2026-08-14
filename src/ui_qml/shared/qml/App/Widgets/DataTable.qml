@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Window
 import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
 import App.Models 1.0 as AppModels
@@ -199,10 +200,17 @@ Item {
 
     readonly property int _cbColW: 32
 
+    // R7.4: an optional per-column `hideBelow` (pixel) key auto-hides that
+    // column once the enclosing window narrows past it, on top of the
+    // existing manual `visible` flag -- additive, columns without
+    // `hideBelow` behave exactly as before.
     readonly property var _visCols: {
         const r = []
         for (let i = 0; i < root.columns.length; i++) {
-            if (root.columns[i].visible !== false) r.push(root.columns[i])
+            const col = root.columns[i]
+            if (col.visible === false) continue
+            if (col.hideBelow && Window.width > 0 && Window.width < col.hideBelow) continue
+            r.push(col)
         }
         return r
     }

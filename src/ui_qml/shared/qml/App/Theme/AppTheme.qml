@@ -151,6 +151,16 @@ QtObject {
     readonly property int navRailExpandedWidth: detailRailWidth
     readonly property int navRailCollapsedWidth: 48
 
+    // R7.3/R7.4: responsive breakpoints, both keyed off the top-level window
+    // width (via the Window attached property, not a page's own post-nav-
+    // chrome width, which would double-subtract chrome and misfire).
+    // narrowLayoutBreakpoint: below this, nav rails auto-collapse to
+    // icon-only, reclaiming chrome before anything else degrades.
+    // compactContentBreakpoint: the hard minimum (D8) -- below this, the
+    // inspector collapses and lower-priority table columns hide.
+    readonly property int narrowLayoutBreakpoint: 1280
+    readonly property int compactContentBreakpoint: 1024
+
     // Inspector panel (list -> inspector -> detail pattern). Matches the
     // width AdminEntityDetailPanel.qml is already given today
     // (AdminConsolePage.qml's Layout.preferredWidth: 288).

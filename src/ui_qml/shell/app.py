@@ -127,7 +127,8 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
         app,
         settings_store=settings_store,
     )
-    logger.info("Runtime environment configured theme=%s", startup_theme)
+    startup_density = settings_store.load_density_mode()
+    logger.info("Runtime environment configured theme=%s density=%s", startup_theme, startup_density)
     services: dict[str, object] | None = None
     if desktop_api_registry is None:
         services = build_services()
@@ -161,6 +162,7 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
         update_shell_runtime_state(
             shell_context,
             theme_mode=startup_theme,
+            density_mode=startup_density,
             user_display_name=principal.display_name or principal.username if principal else "",
         )
         logger.info(
@@ -169,7 +171,7 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
             principal is not None,
         )
     else:
-        update_shell_runtime_state(shell_context, theme_mode=startup_theme)
+        update_shell_runtime_state(shell_context, theme_mode=startup_theme, density_mode=startup_density)
     logger.debug("Creating workspace catalogs.")
     if hasattr(app, "setProperty"):
         app.setProperty(

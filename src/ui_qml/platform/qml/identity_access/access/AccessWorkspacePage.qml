@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Window
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Controls 1.0 as AppControls
@@ -51,7 +52,7 @@ AppLayouts.WorkspaceFrame {
         { key: "title",       label: "Principal", flex: 2, minWidth: 140, sortable: true,  visible: true },
         { key: "subtitle",    label: "Username",  flex: 2, minWidth: 110, sortable: false, visible: true },
         { key: "statusLabel", label: "Role",      flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
-        { key: "metaText",    label: "Assigned",  flex: 2, minWidth: 130, sortable: false, visible: true }
+        { key: "metaText",    label: "Assigned",  flex: 2, minWidth: 130, sortable: false, visible: true, hideBelow: Theme.AppTheme.compactContentBreakpoint }
     ]
     readonly property var _sessionColumns: [
         { key: "title",          label: "User",     flex: 2, minWidth: 120, sortable: true,  visible: true },
@@ -218,7 +219,7 @@ AppLayouts.WorkspaceFrame {
 
             AppWidgets.InspectorPanel {
                 Layout.fillHeight: true
-                visible: root.selectedGrantId.length > 0
+                visible: root.selectedGrantId.length > 0 && Window.width >= Theme.AppTheme.compactContentBreakpoint
                 title: root._selectedGrantItem ? String(root._selectedGrantItem.title || "") : ""
                 statusLabel: root._selectedGrantItem ? String(root._selectedGrantItem.statusLabel || "") : ""
                 sections: root._grantInspectorSections

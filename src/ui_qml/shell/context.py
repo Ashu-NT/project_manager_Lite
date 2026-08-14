@@ -5,6 +5,7 @@ import logging
 from PySide6.QtCore import Property, QObject, QTimer, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.infra.platform.app_settings import AppSettingsStore
 from src.ui_qml.shell.navigation import NavigationItemViewModel
 
 QML_IMPORT_NAME = "Shell.Context"
@@ -20,6 +21,7 @@ class ShellContext(QObject):
     currentRouteIdChanged = Signal()
     currentRouteSourceChanged = Signal()
     navigationItemsChanged = Signal()
+    densityModeChanged = Signal()
     themeModeChanged = Signal()
     userDisplayNameChanged = Signal()
 
@@ -30,6 +32,7 @@ class ShellContext(QObject):
         navigation_items: list[NavigationItemViewModel],
         current_route_id: str = "",
         theme_mode: str = "light",
+        density_mode: str = "compact",
         user_display_name: str = "",
         parent: QObject | None = None,
     ) -> None:
@@ -38,6 +41,7 @@ class ShellContext(QObject):
         self._navigation_items = navigation_items
         self._current_route_id = current_route_id
         self._theme_mode = theme_mode
+        self._density_mode = density_mode
         self._user_display_name = user_display_name
         self._navigation_item_by_route_id = {
             item.route_id: item
@@ -82,9 +86,33 @@ class ShellContext(QObject):
     def themeMode(self) -> str:
         return self._theme_mode
 
+    @Property(str, notify=densityModeChanged)
+    def densityMode(self) -> str:
+        return self._density_mode
+
     @Property(str, notify=userDisplayNameChanged)
     def userDisplayName(self) -> str:
         return self._user_display_name
+
+    @Slot(str)
+    def setThemeMode(self, mode: str) -> None:
+        normalized = "dark" if str(mode or "").strip().lower() == "dark" else "light"
+        if normalized == self._theme_mode:
+            return
+        self._theme_mode = normalized
+        self.themeModeChanged.emit()
+        AppSettingsStore().save_theme_mode(normalized)
+
+    @Slot(str)
+    def setDensityMode(self, mode: str) -> None:
+        normalized = str(mode or "").strip().lower()
+        if normalized not in {"compact", "comfortable", "spacious"}:
+            normalized = "compact"
+        if normalized == self._density_mode:
+            return
+        self._density_mode = normalized
+        self.densityModeChanged.emit()
+        AppSettingsStore().save_density_mode(normalized)
 
     @Slot(str)
     def selectRoute(self, route_id: str) -> None:
@@ -147,6 +175,7 @@ def update_shell_runtime_state(
     shell_context: ShellContext,
     *,
     theme_mode: str | None = None,
+    density_mode: str | None = None,
     user_display_name: str | None = None,
 ) -> None:
     if theme_mode is not None:
@@ -155,6 +184,13 @@ def update_shell_runtime_state(
         if normalized_theme != shell_context._theme_mode:  # noqa: SLF001
             shell_context._theme_mode = normalized_theme  # noqa: SLF001
             shell_context.themeModeChanged.emit()
+    if density_mode is not None:
+        normalized_density = (density_mode or "compact").strip().lower()
+        if normalized_density not in {"compact", "comfortable", "spacious"}:
+            normalized_density = "compact"
+        if normalized_density != shell_context._density_mode:  # noqa: SLF001
+            shell_context._density_mode = normalized_density  # noqa: SLF001
+            shell_context.densityModeChanged.emit()
     if user_display_name is not None:
         normalized_name = (user_display_name or "").strip()
         if normalized_name != shell_context._user_display_name:  # noqa: SLF001

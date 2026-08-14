@@ -15,6 +15,7 @@ class AppSettingsStore:
     _UNSCOPED_TENANT_SEGMENT = "__no_organization__"
 
     _KEY_THEME_MODE = "ui/theme_mode"
+    _KEY_DENSITY_MODE = "ui/density_mode"
     _KEY_TAB_INDEX = "ui/current_tab_index"
     _KEY_GEOMETRY = "ui/platform/shell/main_window_geometry"
     _KEY_GOVERNANCE_MODE = "governance/mode"
@@ -45,6 +46,20 @@ class AppSettingsStore:
     def save_theme_mode(self, mode: str) -> None:
         normalized = (mode or "light").strip().lower()
         self._settings.setValue(self._KEY_THEME_MODE, "dark" if normalized == "dark" else "light")
+        self._settings.sync()
+
+    def load_density_mode(self, default_mode: str = "compact") -> str:
+        default = (default_mode or "compact").strip().lower()
+        if default not in {"compact", "comfortable", "spacious"}:
+            default = "compact"
+        raw = str(self._settings.value(self._KEY_DENSITY_MODE, default)).strip().lower()
+        return raw if raw in {"compact", "comfortable", "spacious"} else default
+
+    def save_density_mode(self, mode: str) -> None:
+        normalized = (mode or "compact").strip().lower()
+        if normalized not in {"compact", "comfortable", "spacious"}:
+            normalized = "compact"
+        self._settings.setValue(self._KEY_DENSITY_MODE, normalized)
         self._settings.sync()
 
     def load_governance_mode(self, default_mode: str = "off") -> str:
