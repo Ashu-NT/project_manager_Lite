@@ -92,6 +92,13 @@ Item {
         return root._selectedLookup[String(rowId)] === true
     }
 
+    function _canSortColumn(column) {
+        return root._effectiveSortingMode !== "none"
+            && column
+            && column.sortable !== false
+            && String(column.key || "").length > 0
+    }
+
     function openColumnCustomizer(anchorItem) {
         if (anchorItem) {
             root.columnCustomizerAnchorItem = anchorItem
@@ -479,8 +486,7 @@ Item {
 
                             MouseArea {
                                 anchors.fill: parent
-                                enabled:      root._effectiveSortingMode !== "none"
-                                    && _hCell.modelData.sortable !== false
+                                enabled:      root._canSortColumn(_hCell.modelData)
                                 cursorShape:  enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                                 onClicked: {
                                     root._toggleSort(_hCell.modelData.key)
