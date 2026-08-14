@@ -963,7 +963,7 @@ and cross-module tests).
 
 ### 23.4 R1 core collection sorting implementation
 
-The first authoritative sorting slice is complete:
+R1.3 and R1.4 are closed. The authoritative sorting slice is complete:
 
 - Projects, Tasks, Resources, and Register carry normalized semantic sort state
   from QML through controller, presenter, desktop API, application query, read
@@ -977,6 +977,16 @@ The first authoritative sorting slice is complete:
   their calculation order. Generated Activity ID and constant Calendar columns
   are explicitly non-sortable.
 - Unsafe or unknown keys never become SQL. They normalize to the product default.
+
+Capability reconciliation:
+
+| Capability | Query and controller state | Allowed sort keys | Authoritative order and tie-breaker | QML/page behavior | Scope | Classification |
+|---|---|---|---|---|---|---|
+| Projects | `sort_key`/`sort_direction` cross presenter, desktop API, `ProjectQuery`, `ReadSort`, page DTO, and controller `projectSortKey`/`projectSortDirection` | `title`, `projectCode`, `statusLabel`, `clientName`, `siteLabel`, `clientContact`, `startDateLabel`, `endDateLabel`, `approvedBudgetLabel`; default `title asc` | Allowlisted SQL expressions before offset/limit; `ProjectORM.id asc` tie-breaker | `sortingMode: server`; `sortRequested -> setProjectSort`; sort resets page 1 and is round-tripped by every refresh/page query | Active tenant + organization, then optional authorized project IDs | **COMPLETE** |
+| Tasks | Same chain through `TaskQuery`, `TaskWorkspaceReader`, task workspace page DTO, and controller task sort state | `wbsCode`, `title`, `statusLabel`, `projectName`, `priorityLabel`, `startDateLabel`, `endDateLabel`, `progressValue`; default `wbsCode asc` | Effective WBS/rollup SQL rows sorted before pagination; task ID tie-breaker | Server mode and `setTaskSort`; page 1 reset; refresh/export/page changes retain normalized sort | Active tenant + organization through scoped projects, plus optional task-readable project IDs | **COMPLETE** |
+| Scheduling | Presenter query parameters and controller `activitySortKey`/`activitySortDirection`; selected-project calculated graph is the complete local collection | `wbs`, `taskName`, `start`, `finish`, `duration`, `remainingDuration`, `float`, `critical`, `constraint`, `progress`, `status`; default engine `schedule` order | Stable full-graph sort before slicing; activity ID tie-breaker for explicit sorts; missing dates remain last | Server intent routes to `setActivitySort`; page 1 reset and presenter rehydration preserve state | Selected project is loaded through permission-enforcing task/scheduling services in the active scope | **COMPLETE** |
+| Resources | Same chain through `ResourceQuery`, reader page DTO, and controller resource sort state | `title`, `resourceCode`, `statusLabel`, `department`, `site`, `role`, `utilizationValue`; default active-first `catalog` | Allowlisted SQL before offset/limit; resource ID tie-breaker; catalog default is active/name/ID | Server mode and `setResourceSort`; page 1 reset; refresh/export/page changes retain sort | Active tenant + organization on resource and joined employee/department/site rows | **COMPLETE** |
+| Register | Same chain through `RegisterQuery`, reader page DTO, and controller entry sort state | `title`, `entryCode`, `typeLabel`, `projectTitle`, `ownerName`, `severityLabel`, `statusLabel`, `dueDateLabel`; default `triage` | Allowlisted SQL before pagination; entry ID tie-breaker; triage default includes severity/overdue/due/title/ID | Server mode and `setEntrySort`; page 1 reset; refresh/page changes retain sort | Active tenant + organization, optional authorized project IDs, and selected-project permission | **COMPLETE** |
 
 Cross-page database, presenter/controller, shared primitive, and offscreen QML
 coverage is green in the combined R1 gate. The focused Projects, Tasks,
@@ -995,6 +1005,24 @@ range state; toolbar search and table sort are controller/query-owned. Column
 labels now match the rendered values, and the multi-project label is explicitly
 non-sortable. Database tests prove filter semantics and ordering across pages.
 
-Focused R1 core and Timesheet verification: 45 passed. Collaboration, Portfolio,
-Dashboard, Finance collection truthfulness, no-op removal, and deny-safe
-capability presentation remain pending in R1.
+R1.5 is closed. Bidirectional cross-page database ordering and controller
+sort/page round-trip coverage are green together with the typed filter tests.
+
+### 23.6 R1.6 Collaboration authoritative queries
+
+Status: **in progress**. The first purpose-specific slice is complete:
+
+- Mentions now uses `CollaborationCommentCriteria` and an SQL-backed page reader
+  with authoritative total/page metadata, principal identity/alias matching,
+  project, author/team, period, unread, and search predicates.
+- The reader enforces active tenant and organization predicates plus the
+  caller's authorized project IDs, orders by created-at descending with comment
+  ID as a deterministic tie-breaker, and paginates in SQL.
+- Controller/QML Mentions pagination now sends page/page-size/query changes back
+  to the reader. Header sorting is disabled rather than sorting one loaded page.
+
+Remaining R1.6 work is Inbox workflow events, Activity, Platform-owned Approvals,
+and the explicitly bounded Presence/Team Updates projection. The legacy
+`build_snapshot(limit=200)` call is marked `R1.6 TEMPORARY` in both desktop API
+and presenter and must be deleted when those consumers migrate. It is not an
+approved source of authoritative totals.
