@@ -208,11 +208,13 @@ Item {
             onTenantSelected: function(tenantId) {
                 if (root.platformCatalog) {
                     root.platformCatalog.tenantSwitcher.switchToTenant(tenantId)
+                    root.platformCatalog.refreshCurrentPermissions()
                 }
             }
             onOrganizationSelected: function(organizationId) {
                 if (root.platformCatalog) {
                     root.platformCatalog.adminWorkspace.setActiveOrganization(organizationId)
+                    root.platformCatalog.refreshCurrentPermissions()
                 }
             }
             onManageTenantsRequested: root.activeDestination = "tenants"
@@ -226,6 +228,7 @@ Item {
 
             PlatformComponents.PlatformNavigation {
                 Layout.fillHeight: true
+                platformCatalog: root.platformCatalog
                 selectedDestination: root.activeDestination
                 onDestinationSelected: function(destinationId) {
                     root.activeDestination = destinationId

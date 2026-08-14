@@ -52,6 +52,9 @@ class PlatformWorkspaceCatalog(QObject):
         runtime_api = desktop_api
         if desktop_api_registry is not None:
             runtime_api = getattr(desktop_api_registry, "platform_runtime", None) or desktop_api
+        self._runtime_api = runtime_api
+        self._current_permissions: frozenset[str] = frozenset()
+        self._reload_current_permissions()
         self._integration_api: IntegrationCapabilityDesktopApi | None = (
             getattr(desktop_api_registry, "integration_capability", None)
             if desktop_api_registry is not None
@@ -271,6 +274,36 @@ class PlatformWorkspaceCatalog(QObject):
     def changeModuleLifecycleStatus(self, module_code: str, lifecycle_status: str) -> dict[str, object]:
         self._settings_workspace.changeModuleLifecycleStatus(module_code, lifecycle_status)
         return dict(self._settings_workspace.operationResult)
+
+    # ------------------------------------------------------------------
+    # RBAC visibility slots — used by the shell nav and workspace pages to
+    # hide destinations/actions the current user has no backend permission
+    # for, instead of showing them and letting the desktop-API call fail.
+    # ------------------------------------------------------------------
+
+    def _reload_current_permissions(self) -> None:
+        if self._runtime_api is None:
+            self._current_permissions = frozenset()
+            return
+        result = self._runtime_api.get_current_permissions()
+        if not getattr(result, "ok", False) or getattr(result, "data", None) is None:
+            self._current_permissions = frozenset()
+            return
+        self._current_permissions = frozenset(result.data)
+
+    @Slot()
+    def refreshCurrentPermissions(self) -> None:
+        """Call after a tenant/organization switch or re-authentication so
+        nav/action visibility reflects the new session's actual authority."""
+        self._reload_current_permissions()
+
+    @Slot(str, result=bool)
+    def hasPermission(self, permission_code: str) -> bool:
+        return permission_code in self._current_permissions
+
+    @Slot("QVariantList", result=bool)
+    def hasAnyPermission(self, permission_codes: list) -> bool:
+        return any(code in self._current_permissions for code in permission_codes)
 
     # ------------------------------------------------------------------
     # Module capability slots — used by all QML workspaces to gate

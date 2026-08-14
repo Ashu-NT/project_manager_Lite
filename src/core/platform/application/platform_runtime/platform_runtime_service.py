@@ -61,6 +61,19 @@ class PlatformRuntimeApplicationService:
     def user_session(self) -> UserSessionContext | None:
         return self._user_session
 
+    def get_current_permissions(self) -> frozenset[str]:
+        """The current session principal's effective permission codes.
+
+        Used by the QML shell to hide navigation destinations/actions the
+        current user has no backend permission for, rather than showing
+        them and letting the resulting desktop-API call fail server-side.
+        Returns an empty set (nothing visible) if there is no authenticated
+        principal, matching the fail-closed posture used everywhere else.
+        """
+        if self._user_session is None or self._user_session.principal is None:
+            return frozenset()
+        return frozenset(self._user_session.principal.permissions)
+
     def list_modules(self):
         return self._module_catalog_service.list_modules()
 
