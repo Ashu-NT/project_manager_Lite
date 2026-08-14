@@ -36,15 +36,17 @@ Item {
     readonly property string _departmentId: String(root._state.departmentId || root._state.id || root.department.id || "")
     readonly property bool _hasCalendarAssignment: String(root.deptCalendarAssignment && root.deptCalendarAssignment.assignmentId ? root.deptCalendarAssignment.assignmentId : "").length > 0
     readonly property var _employeeRows: {
-        const rows = root.employeeCatalog.items || []
+        // Depend on employeeCatalog so this re-fetches whenever the shared
+        // employee catalog changes (create/update/toggle-active elsewhere),
+        // but query only this department's rows via SQL rather than
+        // filtering the full organization's employee list client-side.
+        const _refreshToken = root.employeeCatalog
         const departmentId = root._departmentId
-        if (departmentId.length === 0) {
+        if (departmentId.length === 0 || !root.platformCatalog || !root.platformCatalog.adminWorkspace) {
             return []
         }
-        return rows.filter(function(row) {
-            const state = row && row.state ? row.state : {}
-            return String(state.departmentId || "") === departmentId
-        })
+        const result = root.platformCatalog.adminWorkspace.employeesForDepartment(departmentId)
+        return (result && result.items) || []
     }
     readonly property var _sections: {
         const sections = [

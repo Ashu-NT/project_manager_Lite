@@ -21,11 +21,17 @@ class PlatformEmployeeDesktopApi:
         self,
         *,
         active_only: bool | None = None,
+        department_id: str | None = None,
+        site_id: str | None = None,
     ) -> DesktopApiResult[tuple[EmployeeDto, ...]]:
         return execute_desktop_operation(
             lambda: tuple(
                 self._serialize_employee(employee)
-                for employee in self._employee_service.list_employees(active_only=active_only)
+                for employee in self._employee_service.list_employees(
+                    active_only=active_only,
+                    department_id=department_id,
+                    site_id=site_id,
+                )
             )
         )
 

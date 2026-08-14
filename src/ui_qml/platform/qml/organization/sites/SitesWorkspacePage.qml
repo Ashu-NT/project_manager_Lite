@@ -43,6 +43,9 @@ AppLayouts.WorkspaceFrame {
     property var departmentCatalog: root.workspaceController
         ? root.workspaceController.departments
         : ({ "title": "Departments", "subtitle": "", "emptyState": "", "items": [] })
+    property var employeeCatalog: root.workspaceController
+        ? root.workspaceController.employees
+        : ({ "title": "Employees", "subtitle": "", "emptyState": "", "items": [] })
 
     readonly property var _columns: [
         { key: "title",       label: "Name",            flex: 3, minWidth: 160, sortable: true,  visible: true },
@@ -57,6 +60,14 @@ AppLayouts.WorkspaceFrame {
         { key: "siteName",    label: "Site",        flex: 2.4, minWidth: 180, sortable: true, visible: true },
         { key: "statusLabel", label: "Status",      flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
         { key: "metaText",    label: "Cost Center", flex: 2, minWidth: 120, sortable: false, visible: true }
+    ]
+    readonly property var _employeeColumns: [
+        { key: "title",       label: "Name",             flex: 3, minWidth: 160, sortable: true,  visible: true },
+        { key: "subtitle",    label: "Code / Job Title", flex: 3, minWidth: 180, sortable: false, visible: true },
+        { key: "departmentName", label: "Department",    flex: 2.4, minWidth: 180, sortable: true, visible: true },
+        { key: "siteName",    label: "Site",             flex: 2.2, minWidth: 160, sortable: true, visible: true },
+        { key: "statusLabel", label: "Status",           flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" },
+        { key: "metaText",    label: "Employment",       flex: 3, minWidth: 160, sortable: false, visible: true }
     ]
 
     property string selectedRowId: ""
@@ -175,6 +186,8 @@ AppLayouts.WorkspaceFrame {
         if (actionId === "open_calendar_mgmt") { root.navigateToDestination("calendars"); return }
         if (actionId === "create_department") { dialogHostLoader.invoke("openDepartmentCreate"); return }
         if (actionId === "show_departments") { root.navigateToDestination("departments"); return }
+        if (actionId === "create_employee") { dialogHostLoader.invoke("openEmployeeCreate"); return }
+        if (actionId === "show_employees") { root.navigateToDestination("employees"); return }
         if (actionId === "refresh") { if (root.workspaceController) root.workspaceController.refresh(); return }
         if (actionId === "show_audit") { root.navigateToDestination("control_audit"); return }
         if (actionId === "edit") { root.openEdit(id); return }
@@ -242,6 +255,8 @@ AppLayouts.WorkspaceFrame {
                     site: root._selectedItem || ({})
                     departmentCatalog: root.departmentCatalog
                     departmentColumns: root._departmentColumns
+                    employeeCatalog: root.employeeCatalog
+                    employeeColumns: root._employeeColumns
                     siteCalendarAssignment: root._calendarContext.assignedCalendar || ({})
                     calendarSourceChain: root._calendarContext.sourceChain || []
                     busy: root.busy

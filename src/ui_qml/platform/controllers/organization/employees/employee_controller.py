@@ -113,6 +113,14 @@ class PlatformEmployeeController(QObject):
     def refresh(self) -> None:
         self._refresh_employees()
 
+    @Slot(str, result="QVariantMap")
+    def employeesForDepartment(self, department_id: str) -> dict[str, object]:
+        return serialize_action_list(self._presenter.build_catalog_for_department(department_id))
+
+    @Slot(str, result="QVariantMap")
+    def employeesForSite(self, site_id: str) -> dict[str, object]:
+        return serialize_action_list(self._presenter.build_catalog_for_site(site_id))
+
     @Slot("QVariantMap", result=str)
     def generateCode(self, payload: dict[str, object]) -> str:
         try:
