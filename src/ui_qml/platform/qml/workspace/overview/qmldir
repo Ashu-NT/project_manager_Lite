@@ -1,0 +1,4 @@
+module workspace.overview
+OverviewMetricTile 1.0 OverviewMetricTile.qml
+OverviewCard 1.0 OverviewCard.qml
+PlatformOverviewPage 1.0 PlatformOverviewPage.qml

@@ -19,6 +19,7 @@ import calendars 1.0 as CalendarsOrg
 import identity_access.users 1.0 as UsersOrg
 import identity_access.access 1.0 as AccessOrg
 import documents 1.0 as DocumentsOrg
+import workspace.overview 1.0 as Overview
 
 
 Item {
@@ -188,14 +189,46 @@ Item {
         ? (root.platformCatalog.controlWorkspace.approvalQueue.items || []).length
         : 0
 
-    readonly property var _overviewHighlightCards: [
-        {
-            "title": "Pending Approvals",
-            "rows": [
-                { "label": "Open", "value": String(root._pendingApprovalsCount), "supportingText": "Awaiting review" }
-            ]
+    // Sections were already computed by admin_overview_presenter.py (real
+    // SQL-backed totals) but had no QML consumer before this redesign --
+    // surfaced here as extra highlight cards rather than left unused.
+    function _overviewSectionByTitle(title) {
+        const sections = root._overview.sections || []
+        for (let i = 0; i < sections.length; i += 1) {
+            if (sections[i].title === title) {
+                return sections[i]
+            }
         }
-    ]
+        return null
+    }
+
+    readonly property var _overviewHighlightCards: {
+        const cards = [
+            {
+                "title": "Pending Approvals",
+                "rows": [
+                    { "label": "Open", "value": String(root._pendingApprovalsCount), "supportingText": "Awaiting review" }
+                ]
+            }
+        ]
+        const identitySection = root._overviewSectionByTitle("Identity And Workforce")
+        if (identitySection) {
+            cards.push({
+                "title": identitySection.title,
+                "rows": identitySection.rows,
+                "emptyState": identitySection.emptyState
+            })
+        }
+        const masterDataSection = root._overviewSectionByTitle("Master Data Coverage")
+        if (masterDataSection) {
+            cards.push({
+                "title": masterDataSection.title,
+                "rows": masterDataSection.rows,
+                "emptyState": masterDataSection.emptyState
+            })
+        }
+        return cards
+    }
 
     // Employees by Department/Site: real SQL-backed breakdown cards from
     // admin_overview_presenter.py (EmployeeHeadcountReader.get_department_
@@ -266,10 +299,9 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
-                AppLayouts.WorkspaceOverviewPage {
+                Overview.PlatformOverviewPage {
                     anchors.fill: parent
                     visible: root._activeSurface === "overview"
-                    title: "Platform Overview"
                     subtitle: String(root._overview.subtitle || "")
                     metrics: root._overviewMetrics
                     metricsClickable: true
