@@ -19,7 +19,7 @@ Item {
         "overloadedDays": 0, "availableDays": 0, "isAvailable": true,
         "fromDateLabel": "", "toDateLabel": "", "days": []
     })
-    property bool canManageSkills: true
+    property bool canManageSkills: false
     property var resourceAssignmentsTableModel: null
     property string selectedSkillId: ""
     property string selectedCertificationId: ""

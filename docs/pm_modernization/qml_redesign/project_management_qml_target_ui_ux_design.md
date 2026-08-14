@@ -560,13 +560,26 @@ complete and bounded datasets expose truthful controls; Finance Actuals and
 Commitments use authoritative SQL pages/totals/sorting; financial calculation
 remains Decimal-exact; and Rebalance remains absent. R1.7 performance evidence
 records Dashboard at 89 SQL statements and Portfolio at 68 statements in the
-single-project fixture. R1.8 deny-safe capability presentation remains open.
+single-project fixture. R1.8 is closed: the existing six PM capability facts
+are wired to the authoritative session engine with canonical permission codes;
+missing engine/session/principal/tenant/organization and evaluation failures
+all map to false; QML and row-action fallbacks are deny-safe; and assignment
+policy failures are blocking. Backend enforcement and entity lifecycle facts
+remain authoritative. R1.9 and R2 have not started.
 
 R1.7 does not implement any target visual architecture in this document. It
 only establishes trustworthy query/control foundations for later Overview,
 Portfolio, and Finance work. Accounting ownership remains unchanged: PM owns
 managerial project-finance projections, never statutory ledger, payment,
 invoice, tax, journal, or reconciliation truth.
+
+R1.8 introduces no visual redesign or broad RBAC framework. Its structured
+presentation state is limited to `unknown`, `unavailable`, `ready`, and `error`
+on the existing PM capability controller. Permission booleans remain compatible,
+but only a known allowed decision can expose `true`. Tenant/organization and
+runtime-session refresh paths recompute the facts. Page-level generic failures
+remain errors because PM does not yet expose a structured page-denial contract;
+the UI does not infer denial from message text.
 
 ### R2 - PM navigation and project context
 

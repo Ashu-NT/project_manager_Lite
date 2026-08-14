@@ -9,6 +9,7 @@ from PySide6.QtCore import QEventLoop
 from PySide6.QtGui import QFont, QGuiApplication, QIcon
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.platform.application.security.authorization import get_authorization_engine
 from src.infra.platform.env_loader import load_env_file
 from src.infra.composition.app_container import build_service_dict
 from src.infra.persistence.db.engine import get_db_url
@@ -186,6 +187,12 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
     logger.debug("Platform workspace catalog created.")
     pm_workspace_catalog = ProjectManagementWorkspaceCatalog(
         desktop_api_registry=desktop_api_registry,
+        auth_engine=get_authorization_engine() if services is not None else None,
+        user_session_provider=(
+            (lambda: services["user_session"])
+            if services is not None
+            else None
+        ),
     )
     logger.debug("Project Management workspace catalog created.")
     inventory_workspace_catalog = InventoryProcurementWorkspaceCatalog(
@@ -196,6 +203,12 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
         desktop_api_registry=desktop_api_registry,
     )
     logger.debug("Maintenance workspace catalog created.")
+    platform_workspace_catalog.tenantSwitcher.tenantSwitched.connect(
+        pm_workspace_catalog.refreshCapabilities
+    )
+    platform_workspace_catalog.adminWorkspace.organizationsChanged.connect(
+        pm_workspace_catalog.refreshCapabilities
+    )
     runtime_session_controller = None
     if services is not None:
         try:

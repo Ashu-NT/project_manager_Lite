@@ -73,7 +73,7 @@ Item {
                     Layout.fillWidth: true
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     actions: {
-                        const canApprove = root.pmCatalog ? root.pmCatalog.pmCapabilityController.canApproveBaseline : true
+                        const canApprove = root.pmCatalog ? root.pmCatalog.pmCapabilityController.canApproveBaseline : false
                         return [
                             { "id": "save",    "label": "Save Baseline", "icon": "register", "enabled": String(root.workspaceController ? root.workspaceController.selectedProjectId : "").length > 0 },
                             { "id": "submit",  "label": "Submit",  "icon": "approve", "enabled": root.selectedBaselineRegisterStatus === "draft" && root.selectedBaselineRegisterId.length > 0 },

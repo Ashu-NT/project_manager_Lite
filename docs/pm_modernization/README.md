@@ -2356,7 +2356,7 @@ Required controller properties (extend each workspace controller):
 
 | Controller | Property | Permission check |
 |---|---|---|
-| `SchedulingWorkspaceController` | `canApproveBaseline` | `pm.baseline.approve` |
+| `SchedulingWorkspaceController` | `canApproveBaseline` | `baseline.approve` |
 | `SchedulingWorkspaceController` | `canApplyLeveling` | `pm.schedule.level` |
 | `ResourcesWorkspaceController` | `canManageSkills` | `pm.resource.skills.write` |
 | `TasksWorkspaceController` | `canRequestAssignmentOverride` | `pm.assignment.override.request` |

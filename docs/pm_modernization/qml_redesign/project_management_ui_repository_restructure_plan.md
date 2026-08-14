@@ -619,5 +619,34 @@ Verification includes 22 focused query truthfulness tests, 18 affected
 Dashboard/Portfolio/performance tests, and 24 architecture/QML guardrail tests.
 The final broad PM run passes all 674 tests with no failures. Dashboard measures
 89 SQL statements and Portfolio 68 in the single-project fixture. R1.8 and R2
-remain outside this closure, and no commit was created by this implementation
-pass.
+remain outside this closure. The user/team committed the implementation and
+closure documents during verification; Codex did not issue a commit.
+
+## 20. Post-R0.5 R1.8 closure record
+
+R1.8 is closed without reopening repository restructuring or beginning visual
+redesign. The existing `PMCapabilityController` remains the QML-facing facade,
+but it is now injected with the canonical authorization engine and current
+session by the shell composition root. No new authorization service, role,
+route, compatibility wrapper, or temporary transition source was introduced.
+
+The former presentation-only codes were replaced by canonical service codes:
+`baseline.approve`, `task.manage`, `resource.manage`, `approval.request`,
+`import.manage`, and `approval.decide`. The controller starts with all flags
+false, requires principal plus active tenant/organization context, reports a
+small structured evaluation state, and denies a capability when lookup fails.
+Tenant/organization switches and runtime re-authentication refresh capability
+facts through existing signals/callbacks.
+
+QML null-catalog/default inputs for import, baseline approval, and skill
+management now resolve false. Missing shared row-action facts resolve false,
+while explicit lifecycle facts are preserved. Assignment validation and preview
+exceptions are blocking. Backend permission and project-scope checks remain the
+security boundary. No message parsing or fabricated `PermissionState` was added.
+
+Focused verification records 13 capability tests, 12 catalog/offscreen/runtime
+tests, 28 affected PM/shared/auth/import tests, and 59 passes in the final
+route/architecture/context/Finance batch. That final batch also reports two
+unrelated pre-existing failures in untouched scheduling-layer and Platform-admin
+cleanup guardrails. Per user direction, no full test suite was run. R1.9 and R2
+were not started, and no commit was created.

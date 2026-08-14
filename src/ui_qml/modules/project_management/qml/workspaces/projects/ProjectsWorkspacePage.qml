@@ -142,7 +142,7 @@ AppLayouts.WorkspaceFrame {
                     if (root.workspaceController !== null) root.workspaceController.refresh()
                 }
                 onImportRequested: {
-                    if (root.pmCatalog ? root.pmCatalog.pmCapabilityController.canImport : true)
+                    if (root.pmCatalog ? root.pmCatalog.pmCapabilityController.canImport : false)
                         dialogHostLoader.invoke("openImportDialog")
                 }
                 onExportRequested: _exportDialog.open()
