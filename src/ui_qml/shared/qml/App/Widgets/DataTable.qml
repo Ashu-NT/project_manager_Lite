@@ -56,8 +56,17 @@ Item {
     signal columnsStateChanged(var columns)
 
     // ── Private helpers ───────────────────────────────────────────────
-    property int  _hoveredRow:        -1
-    property int  _currentRow:        -1
+    property int    _hoveredRow:        -1
+    property int    _currentRow:        -1
+    // Manual same-row double-click tracking: TableView's `reuseItems: true`
+    // recycles delegate Items across different rows, so each delegate's own
+    // built-in onDoubleClicked fires whenever the SAME visual Item receives
+    // two quick clicks -- even if the model row underneath changed in
+    // between (i.e. clicking row A then quickly clicking row B). Tracking
+    // the last-clicked row id/time at the table level instead makes double-
+    // click detection correctly require the SAME logical row twice.
+    property string _lastClickRowId:    ""
+    property double _lastClickTimeMs:   0
     //property bool _layoutPending:     false   // debounce guard for forceLayout
 
     function _rebuildSelectedLookup() {
@@ -805,9 +814,19 @@ Item {
                 onClicked: {
                     root._currentRow = _cell.row
                     _mainView.forceActiveFocus()
-                    root.rowSelected(_cell.rowId)
+                    const now = Date.now()
+                    const isSameRowDoubleClick = root._lastClickRowId === _cell.rowId
+                        && root._lastClickRowId.length > 0
+                        && (now - root._lastClickTimeMs) <= Qt.styleHints.mouseDoubleClickInterval
+                    root._lastClickRowId = _cell.rowId
+                    root._lastClickTimeMs = now
+                    if (isSameRowDoubleClick) {
+                        root._lastClickRowId = ""
+                        root.rowActivated(_cell.rowId)
+                    } else {
+                        root.rowSelected(_cell.rowId)
+                    }
                 }
-                onDoubleClicked: root.rowActivated(_cell.rowId)
             }
 
             // ── Hover tracking ────────────────────────────────────────
@@ -817,6 +836,25 @@ Item {
                     else if (root._hoveredRow === _cell.row) root._hoveredRow = -1
                 }
             }
+        }
+
+        // ── Empty-space click: clears selection, closing the inspector ──
+        // Sits on top (z above the row delegates) but declines the press
+        // whenever it lands over actual row content, letting it fall
+        // through to that row's own MouseArea unchanged. Only clicks below
+        // the last row (or anywhere, when the table is empty) are handled
+        // here.
+        MouseArea {
+            id: _emptySpaceCatcher
+            anchors.fill: parent
+            z: 10
+            onPressed: function(mouse) {
+                const contentBottom = _mainView.contentHeight - _mainView.contentY
+                if (mouse.y < contentBottom) {
+                    mouse.accepted = false
+                }
+            }
+            onClicked: root.rowSelected("")
         }
     }
 

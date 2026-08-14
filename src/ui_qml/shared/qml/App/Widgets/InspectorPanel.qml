@@ -104,14 +104,18 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             contentWidth: width
-            contentHeight: _panelContent.implicitHeight
+            contentHeight: _panelContent.implicitHeight + Theme.AppTheme.marginMd * 2
             clip: true
             boundsBehavior: Flickable.StopAtBounds
 
             ColumnLayout {
                 id: _panelContent
-                width: parent.width
-                Layout.margins: Theme.AppTheme.marginMd
+                // `Layout.margins` is a no-op here since this ColumnLayout is
+                // a direct child of a Flickable, not of another Layout --
+                // real x/y/width insets are needed for the padding to apply.
+                x: Theme.AppTheme.marginMd
+                y: Theme.AppTheme.marginMd
+                width: parent.width - Theme.AppTheme.marginMd * 2
                 spacing: Theme.AppTheme.spacingSm
 
                 StatusChip {
