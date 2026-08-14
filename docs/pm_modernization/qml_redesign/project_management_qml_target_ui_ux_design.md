@@ -542,14 +542,14 @@ Objective: execute only 18 dialog moves, four capability widget moves, eight pre
 Dependencies: clean PM tests and QML load baseline.  
 Excludes: QML-facing facade restructuring, visual redesign, canonical-route implementation, or any route behavior change.  
 Gate: behavior and screenshots unchanged; all current routes/dialogs load; exactly two empty Python and up to 15 net empty `qmldir` baseline artifacts are removed; dead QML is removed only after its separate proof gate.
-Status: complete on 2026-08-14. All 23 guarded candidates were proven dead and removed; the ten route IDs and all target product decisions remain unchanged. Automated route/dialog/offscreen, task-time, shared primitive, adapter/pagination/event, architecture, and performance gates show no attributable regression. R1 is now in progress; R1.2 shared sorting ownership is complete.
+Status: complete on 2026-08-14. All 23 guarded candidates were proven dead and removed; the ten route IDs and all target product decisions remain unchanged. Automated route/dialog/offscreen, task-time, shared primitive, adapter/pagination/event, architecture, and performance gates show no attributable regression. At the R0.5 closure point, R1 had started and R1.2 was complete.
 
 ### R1 - Query integrity, truthful controls, and deny-safe capability presentation
 
 Objective: remove no-ops, add explicit table sorting modes, implement server sort contracts, replace Collaboration/Timesheet partial queries, and replace fail-open capability presentation with deny-safe, capability-complete UI state.  
 Affected: shared DataTable, Projects, Tasks, Scheduling, Resources, Register, Timesheets, Collaboration, Portfolio, Dashboard, Finance collection readers.  
 Gate: no PM control implies unsupported behavior; query tests prove totals and stable ordering; permission lookup absence/failure never advertises an unauthorized action.
-Status: in progress. R1.2 sorting ownership, R1.3 server-sort infrastructure,
+Status: complete on 2026-08-14. R1.2 sorting ownership, R1.3 server-sort infrastructure,
 R1.4 Projects/Tasks/Scheduling/Resources/Register sorting, and R1.5 Timesheet
 Review are closed. R1.6 is closed: Inbox and Mentions are authoritative pages;
 Activity is explicitly bounded recent collaboration; Approvals reuse the Platform
@@ -565,7 +565,7 @@ are wired to the authoritative session engine with canonical permission codes;
 missing engine/session/principal/tenant/organization and evaluation failures
 all map to false; QML and row-action fallbacks are deny-safe; and assignment
 policy failures are blocking. Backend enforcement and entity lifecycle facts
-remain authoritative. R1.10 is now closed; R1.11 and R2 have not started.
+remain authoritative. R1.11 is closed and R1 is complete; R2 has not started.
 
 R1.7 does not implement any target visual architecture in this document. It
 only establishes trustworthy query/control foundations for later Overview,
@@ -686,4 +686,38 @@ visible lists.
 Focused R1.10 and affected architecture verification is green. No full PM suite
 was run per user direction. This stage introduces no `PMWorkspace`, route,
 context bar, navigation, inspector, My Time, Finance IA, or visual redesign.
-R1.11 and R2 were not started, and Codex did not create a commit.
+At the R1.10 closure point, R1.11 and R2 had not started, and Codex did not
+create a commit.
+
+## 19. R1.11 and final R1 closure
+
+R1.11 closes R1 on 2026-08-14 without implementing any target visual design.
+R1.1-R1.10 were reconciled against source and prior evidence: none is incomplete.
+Future desired filters, My Time, notification delivery, Finance expansion,
+canonical navigation/context, inspectors, and all responsive visual work remain
+documented R2-R8 product scope rather than partial R1 behavior.
+
+The focused closure matrix proves DataTable client/server/none behavior and
+non-PM compatibility; authoritative Projects, Tasks, Scheduling, Resources,
+Register, Timesheet, Collaboration, Portfolio, Dashboard, and Finance query
+semantics; deny-safe capability presentation; truthful actions/exports; tenant
+and organization isolation; PM QML loading; and unchanged compatibility routes.
+It records 358 passing invocations across staged batches and reruns. The full
+repository suite was intentionally **NOT RUN** under the approved 30-minute test
+constraint, and a separate full PM suite was replaced by the union of focused
+R1 risk groups.
+
+One R1-attributable architecture regression was found and corrected: the
+Scheduling presentation sorter no longer imports a core read contract. Its
+allowlist, invalid-key fallback, missing-date ordering, complete-collection sort,
+and stable activity-ID tie-break are unchanged. The remaining stale Platform
+admin-directory assertion is unrelated/pre-existing and remains outside PM.
+
+Dashboard/Portfolio performance gates pass at the reference 89/68 SQL statement
+observations. Collaboration purpose-query measurement gates also pass. Static
+closure searches are clean, all ten existing PM route IDs load, and
+`project_management.workspace` was not introduced. `QMLLINT - UNAVAILABLE` in
+`pmenv`. Zero R1-attributable regression remains, R2 has not started, and Codex
+did not commit.
+
+**R1 - QUERY INTEGRITY & TRUTHFUL CONTROLS: COMPLETE.**

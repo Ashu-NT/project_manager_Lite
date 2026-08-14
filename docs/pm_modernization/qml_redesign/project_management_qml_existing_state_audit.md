@@ -1337,3 +1337,89 @@ PM and R1.10. No QML visual source changed in R1.10, and no full PM suite was ru
 per user direction. R1.11, R2, canonical navigation, and visual redesign were
 not started. Codex issued no commit; the user/team committed implementation
 increments during verification.
+
+### 23.11 R1.11 final regression and R1 closure
+
+R1.11 is closed on 2026-08-14. Current baseline HEAD was `1bb8ae3b`; the
+working tree was clean when the closure brief was reconciled. Concurrent
+user/team commits were accepted as the baseline and no history was rewritten.
+
+#### R1.1-R1.10 reconciliation
+
+| Stage | Classification | Closure evidence / deliberate deferral |
+|---|---|---|
+| R1.1 query/control map | **CLOSED** | Current pipelines, dataset completeness, controls, filters, caps, and export semantics are recorded in this audit. |
+| R1.2 DataTable contract | **CLOSED** | Explicit client/server/none ownership, binding-preserving server intent, deny-safe invalid mode, sortable columns, and legacy compatibility remain proven. |
+| R1.3 server-query infrastructure | **CLOSED** | Typed sort requests, semantic allowlists, normalized state, stable tie-breakers, and SQL-before-page ordering remain intact. |
+| R1.4 core PM sorting | **CLOSED** | Projects, Tasks, Scheduling, Resources, and Register are authoritative. R1.11 removed Scheduling presenter's direct read-contract import without changing behavior. |
+| R1.5 Timesheet Review | **CLOSED WITH DOCUMENTED DEFERRED ITEM** | Review search/filters/sort/page/total are authoritative; future My Time UX remains R5. |
+| R1.6 Collaboration | **CLOSED WITH DOCUMENTED DEFERRED ITEM** | Inbox/Mentions are authoritative, Activity is bounded, Presence is complete TTL state, and Approvals remain Platform-owned; app-wide notification delivery remains separate future work. |
+| R1.7 Portfolio/Dashboard/Finance | **CLOSED WITH DOCUMENTED DEFERRED ITEM** | Aggregates and bounded collections are truthful; Finance Actuals/Commitments are paged reads. Visual IA and new commands remain R3/R6. |
+| R1.8 capability presentation | **CLOSED WITH DOCUMENTED DEFERRED ITEM** | Presentation is deny-safe and canonical permissions remain authoritative; a broader page-level denial UX is future platform/product work. |
+| R1.9 action truthfulness | **CLOSED WITH DOCUMENTED DEFERRED ITEM** | Active no-ops/placeholders are removed. Deferred actions may return only with approved product/backend contracts in R3-R7. |
+| R1.10 export/query state | **CLOSED** | All-result and bounded exports are truthful; page reset, refresh persistence, normalized state, scope, and duplicate-fetch behavior are coherent. |
+
+Supported catalog filters remain exactly those implemented by the readers:
+Projects search/status; Tasks project/search/status/priority/schedule and parsed
+query predicates; Resources search/active/category; Register project/type/
+status/severity/search; Timesheet Review its supported search/project/period/
+status/assignee dimensions; and purpose-specific Collaboration criteria. Desired
+Projects site/owner/organization, Tasks assignee, and Resources department/site/
+project filters remain deferred rather than simulated over loaded pages.
+
+#### Targeted regression matrix
+
+- Query/readers, pagination, R1.10 state/export, Timesheet, Collaboration,
+  Finance/Portfolio truth, capability denial, presenters, and PM isolation:
+  **69 passed**.
+- Shared DataTable/model/primitives, PM offscreen/routes, and protected Platform,
+  Inventory, and Maintenance consumers: **30 passed**.
+- Task-time, Collaboration lifecycle/former-cap, Finance immutable/canonical
+  facts, and action truthfulness: **52 passed** with eight known warnings.
+- Initial architecture matrix: **70 passed, 2 failed**. Scheduling presenter
+  layering was R1-attributable and fixed; stale Platform `controllers/admin` was
+  unrelated/pre-existing and was not modified.
+- Scheduling behavior/layer correction rerun: **16 passed**.
+- Dashboard/Portfolio, Collaboration, and Timesheet measurement gates:
+  **8 passed**.
+- Reconciled architecture plus PM dialogs/catalog: **83 passed, 1 deselected**;
+  the deselected assertion is the separately executed and attributed Platform
+  admin cleanup debt.
+- Final Tasks presenter and task-time characterization: **14 passed**.
+- Final post-document/source Scheduling and architecture rerun: **16 passed**.
+
+This is 358 passing test invocations across staged focused batches, including
+intentional reruns after the Scheduling correction. It is not represented as
+358 unique tests. The full repository suite was intentionally **NOT RUN** because
+its approximately 30-minute unrelated scope was explicitly excluded by the R1.11
+brief. A separate full PM suite was also not run; the union of focused R1 risk
+groups was selected instead.
+
+Dashboard measured 89 SQL statements and Portfolio 68 in the reference fixture.
+Collaboration Inbox/Activity held at four statements and Presence at three for
+small, medium, and large measurements. Existing test thresholds passed; no new
+optimization work began.
+
+The stale-artifact sweep found no Collaboration snapshot/`R1.6 TEMPORARY`
+surface, fake Collaboration action, Portfolio Rebalance, Finance Purchase Orders
+placeholder, stale unsupported-export adapter, temporary permission identifier,
+server-paginated PM table configured for client sorting, or R1 migration TODO.
+Remaining `pm.*` matches are legitimate event categories/table IDs, and the sole
+purchase-order capability is a real Procurement route link. No R1 compatibility
+code remains to retire.
+
+QML offscreen, shared primitives, PM dialog/catalog, and all route tests pass.
+The ten unchanged compatibility route IDs are `project_management.projects`,
+`project_management.tasks`, `project_management.scheduling`,
+`project_management.resources`, `project_management.financials`,
+`project_management.portfolio`, `project_management.register`,
+`project_management.collaboration`, `project_management.timesheets`, and
+`project_management.dashboard`. `project_management.workspace` does not exist.
+`QMLLINT - UNAVAILABLE` in `pmenv`; unavailable tooling is not counted as a pass.
+
+Zero R1-attributable regression remains. The sole known closure failure is the
+unrelated Platform-admin stale-directory assertion. R2 navigation/context,
+R3-R8 visual/product work, My Time, desired unsupported filters, notification
+delivery, and Finance expansion remain deferred. Codex did not commit.
+
+**R1 - QUERY INTEGRITY & TRUTHFUL CONTROLS: COMPLETE.**
