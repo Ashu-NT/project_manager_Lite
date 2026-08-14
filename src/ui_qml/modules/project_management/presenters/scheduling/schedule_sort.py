@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
+from enum import Enum
 from typing import Any
-
-from src.core.modules.project_management.contracts.reads import ReadSort
 
 from .formatters import constraint_label_for_activity
 
@@ -23,16 +23,33 @@ _SORT_ACCESSORS: dict[str, Callable[[Any], object]] = {
 }
 
 
-def normalize_schedule_sort(*, key: object, direction: object) -> ReadSort:
-    return ReadSort.normalize(
-        key=key,
-        direction=direction,
-        allowed_keys=_SORT_ACCESSORS.keys(),
-        default_key="schedule",
+class ScheduleSortDirection(str, Enum):
+    ASCENDING = "asc"
+    DESCENDING = "desc"
+
+
+@dataclass(frozen=True, slots=True)
+class ScheduleSort:
+    key: str
+    direction: ScheduleSortDirection = ScheduleSortDirection.ASCENDING
+
+
+def normalize_schedule_sort(*, key: object, direction: object) -> ScheduleSort:
+    normalized_key = str(key or "").strip()
+    if normalized_key not in _SORT_ACCESSORS:
+        return ScheduleSort(key="schedule")
+    normalized_direction = str(
+        getattr(direction, "value", direction) or ""
+    ).strip().lower()
+    resolved_direction = (
+        ScheduleSortDirection.DESCENDING
+        if normalized_direction in {"desc", "descending", "1"}
+        else ScheduleSortDirection.ASCENDING
     )
+    return ScheduleSort(key=normalized_key, direction=resolved_direction)
 
 
-def sort_schedule_items(items: Iterable[Any], *, sort: ReadSort) -> tuple[Any, ...]:
+def sort_schedule_items(items: Iterable[Any], *, sort: ScheduleSort) -> tuple[Any, ...]:
     rows = tuple(items)
     if sort.key == "schedule":
         return rows
@@ -49,4 +66,4 @@ def sort_schedule_items(items: Iterable[Any], *, sort: ReadSort) -> tuple[Any, .
     return (*populated, *missing)
 
 
-__all__ = ["normalize_schedule_sort", "sort_schedule_items"]
+__all__ = ["ScheduleSort", "normalize_schedule_sort", "sort_schedule_items"]

@@ -700,5 +700,43 @@ Focused verification records 17 R1.10 behavior tests and 66 affected Finance,
 Collaboration, desktop-adapter, and CQRS architecture tests passing. The PM
 desktop application-construction and Collaboration purpose-reader guards pass;
 `git diff --check` is clean apart from line-ending notices. No full suite was
-run per user direction. R1.11 and R2 were not started. Codex did not issue a
-commit; user/team commits occurred while verification was in progress.
+run per user direction. At the R1.10 closure point, R1.11 and R2 had not
+started. Codex did not issue a commit; user/team commits occurred while
+verification was in progress.
+
+## 23. Post-R0.5 R1.11 and final R1 closure record
+
+R1.11 closes R1 without reopening R0.5, moving repository ownership, changing
+routes, restructuring a QML-facing facade, or starting visual redesign. Current
+baseline HEAD was `1bb8ae3b`; concurrent user/team commits were accepted without
+history rewriting.
+
+The only production correction is an R1-attributable layering cleanup in
+`presenters/scheduling/schedule_sort.py`: a presenter-local immutable sort value
+replaces the forbidden dependency on `contracts.reads`. Existing sort keys,
+direction coercion, default schedule order, missing-date-last rule, and stable ID
+tie-break remain unchanged. No compatibility wrapper or transition file was
+created, so no new cleanup debt exists.
+
+The focused closure matrix executed 358 passing test invocations across query,
+pagination, export, controller/presenter, capability, tenant isolation,
+DataTable/non-PM shared consumers, lifecycle, Finance, Collaboration, QML route/
+dialog loading, architecture, and performance batches. This count includes
+reruns after the Scheduling fix. Initial architecture execution had two failures:
+the R1 Scheduling defect was fixed, while the stale Platform
+`controllers/admin` directory was classified unrelated/pre-existing and left
+untouched. Reconciled R1 architecture passes 83 tests with that one separately
+proven assertion deselected.
+
+The full repository suite was intentionally **NOT RUN** because the approved
+R1.11 strategy excludes its approximately 30-minute unrelated scope. A full PM
+suite was likewise replaced by the union of focused R1 risk groups. Dashboard
+and Portfolio retain passing 89/68-statement reference measurements. Static
+R1-artifact searches are clean; PM offscreen, dialogs, catalog, and all ten
+compatibility routes pass. `QMLLINT - UNAVAILABLE` in `pmenv`.
+
+R1.1-R1.10 are complete, zero R1-attributable regression remains, and no active
+R1 temporary/compatibility source remains. R2-R8 product work and the unrelated
+Platform-admin cleanup are deferred. R2 has not started. Codex did not commit.
+
+**R1 - QUERY INTEGRITY & TRUTHFUL CONTROLS: COMPLETE.**
