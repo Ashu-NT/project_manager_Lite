@@ -22,6 +22,11 @@ Item {
 
     property PlatformControllers.PlatformAdminAccessWorkspaceController controller: null
     property string grantId: ""
+    // RBAC: gates the "Revoke" toolbar action -- a client-side UX
+    // optimization; the backend enforces access.manage independently
+    // regardless of what this binding shows. Defaults to true so this
+    // component is unaffected when a caller doesn't wire it in.
+    property bool canManageAccess: true
     property bool busy: false
     property string errorMessage: ""
     property string feedbackMessage: ""
@@ -67,7 +72,7 @@ Item {
     readonly property var _toolbarActions: {
         if (root._activeSectionLabel === "Overview") {
             return [
-                { "id": "revoke",  "label": "Revoke",  "icon": "delete",  "danger": true },
+                { "id": "revoke",  "label": "Revoke",  "icon": "delete",  "danger": true, "enabled": root.canManageAccess },
                 { "id": "refresh", "label": "Refresh", "icon": "refresh" }
             ]
         }

@@ -12,6 +12,7 @@ Item {
 
     property PlatformControllers.PlatformAdminWorkspaceController workspaceController
     property var calendar: ({})
+    property bool canWrite: true
     property bool busy: false
     property string errorMessage: ""
     property string feedbackMessage: ""
@@ -77,21 +78,21 @@ Item {
     readonly property var _toolbarActions: {
         if (root._activeSectionLabel === "Overview") {
             return [
-                { "id": "edit", "label": "Edit Calendar", "icon": "edit" },
+                { "id": "edit", "label": "Edit Calendar", "icon": "edit", "enabled": root.canWrite },
                 { "id": "refresh", "label": "Refresh", "icon": "refresh" }
             ]
         }
         if (root._activeSectionLabel === "Exceptions") {
             return [
-                { "id": "add_exception", "label": "Add Exception", "icon": "add" },
-                { "id": "delete_exception", "label": "Delete", "icon": "delete", "danger": true, "enabled": root.selectedExceptionId.length > 0 },
+                { "id": "add_exception", "label": "Add Exception", "icon": "add", "enabled": root.canWrite },
+                { "id": "delete_exception", "label": "Delete", "icon": "delete", "danger": true, "enabled": root.selectedExceptionId.length > 0 && root.canWrite },
                 { "id": "refresh", "label": "Refresh", "icon": "refresh" }
             ]
         }
         if (root._activeSectionLabel === "Recurring Events") {
             return [
-                { "id": "add_recurring", "label": "Add Recurring Event", "icon": "add" },
-                { "id": "delete_recurring", "label": "Delete", "icon": "delete", "danger": true, "enabled": root.selectedRecurringEventId.length > 0 },
+                { "id": "add_recurring", "label": "Add Recurring Event", "icon": "add", "enabled": root.canWrite },
+                { "id": "delete_recurring", "label": "Delete", "icon": "delete", "danger": true, "enabled": root.selectedRecurringEventId.length > 0 && root.canWrite },
                 { "id": "refresh", "label": "Refresh", "icon": "refresh" }
             ]
         }

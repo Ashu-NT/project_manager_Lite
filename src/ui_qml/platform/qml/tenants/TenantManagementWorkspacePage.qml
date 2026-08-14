@@ -22,6 +22,9 @@ AppLayouts.WorkspaceFrame {
     readonly property bool   _busy:    root.controller ? root.controller.isBusy : false
     readonly property string _err:     root.controller ? root.controller.errorMessage : ""
     readonly property string _ok:      root.controller ? root.controller.feedbackMessage : ""
+    readonly property bool   _canCreate: root.platformCatalog
+        ? root.platformCatalog.hasPermission("platform.admin")
+        : true
 
     title: "Tenant Management"
     subtitle: root._tenants.length > 0
@@ -64,7 +67,7 @@ AppLayouts.WorkspaceFrame {
             AppControls.PrimaryButton {
                 text: "New Tenant"
                 iconName: "add"
-                enabled: !root._loading && !root._busy
+                enabled: !root._loading && !root._busy && root._canCreate
                 onClicked: createDialog.openForCreate()
             }
 

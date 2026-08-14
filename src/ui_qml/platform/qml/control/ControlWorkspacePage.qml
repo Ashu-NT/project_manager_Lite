@@ -32,6 +32,14 @@ AppLayouts.WorkspaceFrame {
         : "Control"
     subtitle: root.workspaceController ? root.workspaceController.overview.subtitle : ""
 
+    // RBAC: gates Approve/Reject specifically -- the workspace's own
+    // entry gate (in PlatformControlWorkspaceController._is_accessible)
+    // also admits "approval.request"-only submitters, who should see the
+    // request but not working-looking decision buttons that would 403.
+    readonly property bool _canDecide: root.platformCatalog
+        ? root.platformCatalog.hasPermission("approval.decide")
+        : true
+
     readonly property bool   _busy: root.workspaceController ? root.workspaceController.isBusy       : false
     readonly property bool   _load: root.workspaceController ? root.workspaceController.isLoading    : false
     readonly property string _err:  root.workspaceController ? root.workspaceController.errorMessage : ""
@@ -274,6 +282,7 @@ AppLayouts.WorkspaceFrame {
                     sourceComponent: Component {
                         Detail.ControlApprovalDetailPage {
                             approval:        state.queueItem || ({})
+                            canDecide:       root._canDecide
                             busy:            root._busy
                             errorMessage:    root._err
                             feedbackMessage: root._ok

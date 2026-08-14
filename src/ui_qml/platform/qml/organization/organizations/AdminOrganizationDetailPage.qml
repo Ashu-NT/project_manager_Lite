@@ -9,6 +9,7 @@ Item {
     id: detailRoot
 
     property var organization: ({})
+    property bool canWrite: true
     property bool busy: false
     property string errorMessage: ""
     property string feedbackMessage: ""
@@ -54,9 +55,9 @@ Item {
     readonly property var _toolbarActions: {
         const actions = []
         if (detailRoot._activeSectionLabel === "Overview") {
-            actions.push({ "id": "edit", "label": "Edit", "icon": "edit" })
+            actions.push({ "id": "edit", "label": "Edit", "icon": "edit", "enabled": detailRoot.canWrite })
             if (!detailRoot._isActiveOrganization) {
-                actions.push({ "id": "set_active", "label": "Set Active", "icon": "approve" })
+                actions.push({ "id": "set_active", "label": "Set Active", "icon": "approve", "enabled": detailRoot.canWrite })
             }
             actions.push({ "id": "refresh", "label": "Refresh", "icon": "refresh" })
             return actions
@@ -64,7 +65,7 @@ Item {
         if (detailRoot._activeSectionLabel === "Runtime Scope") {
             actions.push({ "id": "refresh", "label": "Refresh", "icon": "refresh" })
             if (!detailRoot._isActiveOrganization) {
-                actions.push({ "id": "set_active", "label": "Set Active", "icon": "approve" })
+                actions.push({ "id": "set_active", "label": "Set Active", "icon": "approve", "enabled": detailRoot.canWrite })
             }
             return actions
         }

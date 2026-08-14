@@ -92,6 +92,22 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
+    // RBAC: gates create/edit/set-active buttons for the site's own
+    // mutations, plus the related-record "New Employee" and calendar
+    // assignment actions surfaced from the site detail page -- a
+    // client-side UX optimization mirroring PlatformNavigation's own
+    // destination gate; the backend enforces these permissions
+    // independently regardless.
+    readonly property bool _canWrite: root.platformCatalog
+        ? root.platformCatalog.hasPermission("settings.manage")
+        : true
+    readonly property bool _canManageEmployees: root.platformCatalog
+        ? root.platformCatalog.hasPermission("employee.manage")
+        : true
+    readonly property bool _canManageCalendar: root.platformCatalog
+        ? root.platformCatalog.hasPermission("task.manage")
+        : true
+
     readonly property bool   busy: root.workspaceController ? root.workspaceController.isBusy          : false
     readonly property bool   load: root.workspaceController ? root.workspaceController.isLoading       : false
     readonly property string err:  root.workspaceController ? root.workspaceController.errorMessage    : ""
@@ -213,6 +229,7 @@ AppLayouts.WorkspaceFrame {
                 catalog: root.siteCatalog
                 catalogModel: root.workspaceController ? root.workspaceController.sitesTableModel : null
                 columns: root._columns
+                canCreate: root._canWrite
                 isBusy: root.busy
                 isLoading: root.load
                 errorMessage: root.err
@@ -233,9 +250,9 @@ AppLayouts.WorkspaceFrame {
                 sections: root._inspectorSections
                 busy: root.busy
                 editActionLabel: "Edit"
-                showEditAction: true
+                showEditAction: root._canWrite
                 secondaryActionLabel: root._selectedItem && root._selectedItem.isActive ? "Deactivate" : "Activate"
-                showSecondaryAction: true
+                showSecondaryAction: root._canWrite
 
                 onCloseRequested: root.selectedRowId = ""
                 onEditRequested: root.openEdit(root.selectedRowId)
@@ -253,6 +270,9 @@ AppLayouts.WorkspaceFrame {
                 AdminSiteDetailPage {
                     platformCatalog: root.platformCatalog
                     site: root._selectedItem || ({})
+                    canWrite: root._canWrite
+                    canManageEmployees: root._canManageEmployees
+                    canManageCalendar: root._canManageCalendar
                     departmentCatalog: root.departmentCatalog
                     departmentColumns: root._departmentColumns
                     employeeCatalog: root.employeeCatalog

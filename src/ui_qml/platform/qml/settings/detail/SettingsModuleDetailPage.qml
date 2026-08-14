@@ -21,6 +21,13 @@ Item {
     property string feedbackMessage: ""
     property int activeSectionIndex: 0
 
+    // RBAC: gates the Lifecycle/Licensed/Enabled actions from the parent
+    // workspace page's "settings.manage" permission check -- a client-side
+    // UX optimization; the backend enforces the permission independently
+    // regardless. Defaults true so this page is usable standalone (e.g.
+    // QML preview) when no gate is threaded in.
+    property bool canManageModules: true
+
     signal backRequested()
     signal lifecycleChangeRequested(string moduleCode, string lifecycleStatus)
     signal toggleLicensedRequested(string moduleCode)
@@ -34,9 +41,9 @@ Item {
         (root.module.state && root.module.state.moduleCode) ? root.module.state.moduleCode
         : (root.module.id || "")
     )
-    readonly property bool _canLifecycle: !!(root.module.canTertiaryAction)
-    readonly property bool _canLicensed:  !!(root.module.canPrimaryAction)
-    readonly property bool _canEnabled:   !!(root.module.canSecondaryAction)
+    readonly property bool _canLifecycle: !!(root.module.canTertiaryAction) && root.canManageModules
+    readonly property bool _canLicensed:  !!(root.module.canPrimaryAction) && root.canManageModules
+    readonly property bool _canEnabled:   !!(root.module.canSecondaryAction) && root.canManageModules
 
     readonly property var _sections: [
         { "label": "Overview" },

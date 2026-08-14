@@ -6,6 +6,7 @@ AdminEntityDetailPage {
     id: root
 
     property var structure: ({})
+    property bool canWrite: true
 
     readonly property var _state: (root.structure && root.structure.state) ? root.structure.state : ({})
     readonly property bool _isActive: root._state.isActive === true
@@ -18,8 +19,8 @@ AdminEntityDetailPage {
     notesTitle: "Structure Notes"
     notesMessage: String(root._state.description || root._state.notes || root.structure.supportingText || "")
     overviewActions: [
-        { "id": "edit", "label": "Edit", "icon": "edit" },
-        { "id": "toggle_active", "label": root._isActive ? "Set Inactive" : "Set Active", "icon": "approve" },
+        { "id": "edit", "label": "Edit", "icon": "edit", "enabled": root.canWrite },
+        { "id": "toggle_active", "label": root._isActive ? "Set Inactive" : "Set Active", "icon": "approve", "enabled": root.canWrite },
         { "id": "refresh", "label": "Refresh", "icon": "refresh" }
     ]
     contextActions: [

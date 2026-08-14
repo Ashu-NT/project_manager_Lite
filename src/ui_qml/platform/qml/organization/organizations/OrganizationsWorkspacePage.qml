@@ -9,13 +9,7 @@ import Platform.Controllers 1.0 as PlatformControllers
 import Platform.Components 1.0 as PlatformComponents
 import Platform.Dialogs 1.0 as AdminDialogs
 
-// R4: Organizations as a standalone Platform destination -- list
-// (AdminEntityWorkspace, already generic) + inspector (InspectorPanel,
-// built in R1, wired here for the first time) + the existing, unchanged
-// AdminOrganizationDetailPage for the full detail view. Dialogs reused via
-// the existing AdminDialogHost (shared with the Admin Console facade,
-// which still owns Users/Documents/Document Structures/Access/Support/
-// Audit -- unaffected by this extraction).
+
 AppLayouts.WorkspaceFrame {
     id: root
 
@@ -42,6 +36,13 @@ AppLayouts.WorkspaceFrame {
 
     property string selectedRowId: ""
     property bool detailOpen: false
+
+    // RBAC: gates create/edit/set-active buttons -- a client-side UX
+    // optimization mirroring PlatformNavigation's own destination gate;
+    // the backend enforces "settings.manage" independently regardless.
+    readonly property bool _canWrite: root.platformCatalog
+        ? root.platformCatalog.hasPermission("settings.manage")
+        : true
 
     readonly property bool   busy: root.workspaceController ? root.workspaceController.isBusy          : false
     readonly property bool   load: root.workspaceController ? root.workspaceController.isLoading       : false
@@ -108,6 +109,7 @@ AppLayouts.WorkspaceFrame {
                 catalog: root.organizationCatalog
                 catalogModel: root.workspaceController ? root.workspaceController.organizationsTableModel : null
                 columns: root._columns
+                canCreate: root._canWrite
                 isBusy: root.busy
                 isLoading: root.load
                 errorMessage: root.err
@@ -128,9 +130,9 @@ AppLayouts.WorkspaceFrame {
                 sections: root._inspectorSections
                 busy: root.busy
                 editActionLabel: "Edit"
-                showEditAction: true
+                showEditAction: root._canWrite
                 secondaryActionLabel: "Set Active"
-                showSecondaryAction: true
+                showSecondaryAction: root._canWrite
 
                 onCloseRequested: root.selectedRowId = ""
                 onEditRequested: root.openEdit(root.selectedRowId)
@@ -150,6 +152,7 @@ AppLayouts.WorkspaceFrame {
             sourceComponent: Component {
                 AdminOrganizationDetailPage {
                     organization: root._selectedItem || ({})
+                    canWrite: root._canWrite
                     busy: root.busy
                     errorMessage: root.err
                     feedbackMessage: root.ok

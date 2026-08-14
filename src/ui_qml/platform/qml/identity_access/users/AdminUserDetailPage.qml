@@ -10,6 +10,7 @@ Item {
     id: root
 
     property var user: ({})
+    property bool canWrite: true
     property var moduleEntitlementCatalog: ({ "items": [], "emptyState": "No module entitlements are available yet." })
     property var moduleEntitlementColumns: []
     property bool busy: false
@@ -58,8 +59,8 @@ Item {
     readonly property var _toolbarActions: {
         if (root._activeSectionLabel === "Overview") {
             return [
-                { "id": "edit", "label": "Edit", "icon": "edit" },
-                { "id": "toggle_active", "label": root._isActive ? "Set Inactive" : "Set Active", "icon": "approve" },
+                { "id": "edit", "label": "Edit", "icon": "edit", "enabled": root.canWrite },
+                { "id": "toggle_active", "label": root._isActive ? "Set Inactive" : "Set Active", "icon": "approve", "enabled": root.canWrite },
                 { "id": "refresh", "label": "Refresh", "icon": "refresh" }
             ]
         }
