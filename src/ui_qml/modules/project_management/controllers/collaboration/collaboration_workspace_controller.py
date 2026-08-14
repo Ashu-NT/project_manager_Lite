@@ -85,7 +85,7 @@ class ProjectManagementCollaborationWorkspaceController(
         bind_collaboration_domain_events(self)
         self.refresh()
 
-    # ── Overview / notifications ──────────────────────────────────────
+    # Overview
 
     @Property("QVariantMap", notify=overviewChanged)
     def overview(self) -> dict[str, object]:

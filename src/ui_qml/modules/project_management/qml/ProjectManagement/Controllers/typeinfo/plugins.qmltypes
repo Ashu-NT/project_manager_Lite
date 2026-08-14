@@ -30,24 +30,38 @@ Component {
     prototype: "ProjectManagementWorkspaceControllerBase"
     exports: ["ProjectManagement.Controllers/ProjectManagementCollaborationWorkspaceController 1.0"]
     Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "notifications"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "inboxTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "mentionsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "approvalsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "relatedItemsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedTeamId"; type: "QString"; isReadonly: true }
+    Property { name: "selectedPeriodKey"; type: "QString"; isReadonly: true }
+    Property { name: "selectedUnreadKey"; type: "QString"; isReadonly: true }
+    Property { name: "inboxSearchText"; type: "QString"; isReadonly: true }
+    Property { name: "mentionsSearchText"; type: "QString"; isReadonly: true }
     Property { name: "inbox"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "recentActivity"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "activePresence"; type: "QVariantMap"; isReadonly: true }
     Property { name: "context"; type: "QVariantMap"; isReadonly: true }
     Property { name: "panelTabs"; type: "QVariantList"; isReadonly: true }
     Property { name: "mentions"; type: "QVariantMap"; isReadonly: true }
     Property { name: "approvals"; type: "QVariantMap"; isReadonly: true }
     Property { name: "activityFeed"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "teamUpdates"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "auditFeed"; type: "QVariantMap"; isReadonly: true }
     Property { name: "selectedItemDetail"; type: "QVariantMap"; isReadonly: true }
     Method { name: "refresh" }
+    Method { name: "setSelectedProjectId"; Parameter { name: "value"; type: "QString" } }
+    Method { name: "setSelectedTeamId"; Parameter { name: "value"; type: "QString" } }
+    Method { name: "setSelectedPeriodKey"; Parameter { name: "value"; type: "QString" } }
+    Method { name: "setSelectedUnreadKey"; Parameter { name: "value"; type: "QString" } }
+    Method { name: "setInboxSearchText"; Parameter { name: "text"; type: "QString" } }
+    Method { name: "setInboxPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setInboxPageSize"; Parameter { name: "pageSize"; type: "int" } }
+    Method { name: "setMentionsSearchText"; Parameter { name: "text"; type: "QString" } }
+    Method { name: "setMentionsPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setMentionsPageSize"; Parameter { name: "pageSize"; type: "int" } }
     Method { name: "markTaskRead"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } }
     Method { name: "markItemRead"; type: "QVariantMap"; Parameter { name: "panelId"; type: "QString" } Parameter { name: "itemId"; type: "QString" } }
     Method { name: "approveRequest"; type: "QVariantMap"; Parameter { name: "requestId"; type: "QString" } }
     Method { name: "rejectRequest"; type: "QVariantMap"; Parameter { name: "requestId"; type: "QString" } }
-    Method { name: "exportPanel"; type: "QVariantMap"; Parameter { name: "panelId"; type: "QString" } }
     Method { name: "selectItem"; Parameter { name: "panelId"; type: "QString" } Parameter { name: "itemId"; type: "QString" } }
     Method { name: "clearSelection" }
     Method { name: "routeForItem"; type: "QString"; Parameter { name: "panelId"; type: "QString" } Parameter { name: "itemId"; type: "QString" } }
