@@ -6,46 +6,47 @@ from src.ui_qml.modules.project_management.view_models.collaboration import (
 )
 
 from .formatting import iso_datetime
-from .routing import notification_route_id
 
 
-def build_inbox_collection(notifications) -> CollaborationCollectionViewModel:
+def build_inbox_collection(
+    items,
+    *,
+    total_count: int,
+    page: int,
+    page_size: int,
+) -> CollaborationCollectionViewModel:
     return CollaborationCollectionViewModel(
         title="Inbox",
-        subtitle="Operational workflow inbox for mentions, approvals, timesheets, and PM alerts.",
-        empty_state="No workflow inbox items are visible right now.",
+        subtitle="Principal-scoped collaboration items requiring your awareness.",
+        empty_state="No collaboration inbox items match the current scope.",
+        total_count=total_count,
+        page=page,
+        page_size=page_size,
         items=tuple(
             CollaborationRecordViewModel(
-                id=f"inbox:{n.entity_type}:{n.entity_id}",
-                title=n.headline,
-                status_label=(
-                    "Needs Attention" if n.attention else n.notification_type_label
-                ),
-                subtitle=" | ".join(
-                    value
-                    for value in (
-                        n.notification_type_label,
-                        n.project_name or "Cross-project",
-                    )
-                    if value
-                ),
-                supporting_text=n.body_preview or "No preview available.",
-                meta_text=f"From @{n.actor_username} | {n.created_at_label}",
-                can_primary_action=n.attention,
+                id=f"inbox:{item.comment_id}",
+                title=item.task_name,
+                status_label="Unread" if item.unread else "Read",
+                subtitle=item.project_name,
+                supporting_text=item.body_preview or item.mentions_label,
+                meta_text=f"{item.created_at_label} | @{item.author_username}",
+                can_primary_action=item.unread,
                 state={
                     "panelId": "inbox",
-                    "routeId": notification_route_id(n),
-                    "projectId": n.project_id or "",
-                    "projectName": n.project_name or "",
-                    "taskId": getattr(n, "task_id", "") or "",
-                    "entityId": n.entity_id,
-                    "entityType": n.entity_type,
-                    "notificationType": n.notification_type,
-                    "actorUsername": n.actor_username,
-                    "attention": n.attention,
-                    "createdAt": iso_datetime(n.created_at),
+                    "routeId": "project_management.tasks",
+                    "projectId": item.project_id,
+                    "projectName": item.project_name,
+                    "taskId": item.task_id,
+                    "commentId": item.comment_id,
+                    "actorUsername": item.author_username,
+                    "unread": item.unread,
+                    "attention": item.unread,
+                    "createdAt": iso_datetime(item.created_at),
                 },
             )
-            for n in notifications
+            for item in items
         ),
     )
+
+
+__all__ = ["build_inbox_collection"]

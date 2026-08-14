@@ -13,10 +13,10 @@ from src.core.modules.project_management.api.desktop.collaboration.factories.col
     build_project_management_collaboration_desktop_api,
 )
 from src.core.modules.project_management.api.desktop.collaboration.models.collaboration_models import (
+    CollaborationCommentPageDto,
+    CollaborationContextOptionsDto,
     CollaborationInboxDesktopDto,
-    CollaborationNotificationDesktopDto,
     CollaborationPresenceDesktopDto,
-    CollaborationWorkspaceSnapshotDto,
     TaskCollaborationCommentDesktopDto,
     TaskCollaborationDocumentOptionDescriptor,
     TaskCollaborationMentionOptionDescriptor,
@@ -25,10 +25,10 @@ from src.core.modules.project_management.api.desktop.collaboration.models.collab
 )
 
 __all__ = [
+    "CollaborationCommentPageDto",
+    "CollaborationContextOptionsDto",
     "CollaborationInboxDesktopDto",
-    "CollaborationNotificationDesktopDto",
     "CollaborationPresenceDesktopDto",
-    "CollaborationWorkspaceSnapshotDto",
     "ProjectManagementCollaborationDesktopApi",
     "TaskCollaborationCommentDesktopDto",
     "TaskCollaborationDeleteCommand",

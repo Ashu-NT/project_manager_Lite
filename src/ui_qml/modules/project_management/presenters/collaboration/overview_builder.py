@@ -12,21 +12,19 @@ def build_overview(
     inbox: CollaborationCollectionViewModel,
     mentions: CollaborationCollectionViewModel,
     approvals: CollaborationCollectionViewModel,
-    unread_count: int,
-    attention_count: int,
     active_users_count: int,
 ) -> CollaborationOverviewViewModel:
     return CollaborationOverviewViewModel(
         title="Collaboration",
         subtitle=(
-            "Workflow inbox, operational communication, mentions, approvals, and activity feed "
+            "Principal inbox, task communication, Platform approvals, and recent activity "
             "across the accessible project scope."
         ),
         metrics=(
             CollaborationMetricViewModel(
-                label="Unread",
-                value=str(unread_count),
-                supporting_text="Direct mentions and task follow-ups awaiting review.",
+                label="Inbox",
+                value=str(inbox.total_count),
+                supporting_text="Principal-scoped collaboration items in the current query.",
             ),
             CollaborationMetricViewModel(
                 label="Approvals",
@@ -39,19 +37,9 @@ def build_overview(
                 supporting_text="Mention threads across active project work.",
             ),
             CollaborationMetricViewModel(
-                label="Reviews",
-                value=str(attention_count),
-                supporting_text="Workflow items currently flagged as needing attention.",
-            ),
-            CollaborationMetricViewModel(
                 label="Active Users",
                 value=str(active_users_count),
                 supporting_text="People currently active in task collaboration or review flows.",
-            ),
-            CollaborationMetricViewModel(
-                label="Workflow Alerts",
-                value=str(inbox.total_count or len(inbox.items)),
-                supporting_text="Operational workflow items in the inbox stream.",
             ),
         ),
     )

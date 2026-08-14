@@ -7,22 +7,6 @@ from datetime import datetime
 
 
 @dataclass(frozen=True)
-class CollaborationNotificationDesktopDto:
-    entity_id: str
-    notification_type: str
-    notification_type_label: str
-    entity_type: str
-    headline: str
-    body_preview: str
-    actor_username: str
-    created_at: datetime
-    created_at_label: str
-    project_id: str | None
-    project_name: str
-    attention: bool
-
-
-@dataclass(frozen=True)
 class CollaborationInboxDesktopDto:
     comment_id: str
     task_id: str
@@ -117,27 +101,24 @@ class TaskCollaborationSnapshotDto:
 
 
 @dataclass(frozen=True)
-class CollaborationWorkspaceSnapshotDto:
-    notifications: tuple[CollaborationNotificationDesktopDto, ...]
-    inbox: tuple[CollaborationInboxDesktopDto, ...]
-    recent_activity: tuple[CollaborationInboxDesktopDto, ...]
-    active_presence: tuple[CollaborationPresenceDesktopDto, ...]
-
-
-@dataclass(frozen=True)
-class CollaborationMentionsPageDto:
+class CollaborationCommentPageDto:
     items: tuple[CollaborationInboxDesktopDto, ...]
     total: int
     page: int
     page_size: int
 
 
+@dataclass(frozen=True)
+class CollaborationContextOptionsDto:
+    projects: tuple[tuple[str, str], ...]
+    people: tuple[str, ...]
+
+
 __all__ = [
+    "CollaborationCommentPageDto",
+    "CollaborationContextOptionsDto",
     "CollaborationInboxDesktopDto",
-    "CollaborationMentionsPageDto",
-    "CollaborationNotificationDesktopDto",
     "CollaborationPresenceDesktopDto",
-    "CollaborationWorkspaceSnapshotDto",
     "TaskCollaborationCommentDesktopDto",
     "TaskCollaborationDocumentOptionDescriptor",
     "TaskCollaborationMentionOptionDescriptor",

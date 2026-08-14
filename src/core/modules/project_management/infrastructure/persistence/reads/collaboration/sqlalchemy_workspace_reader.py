@@ -11,7 +11,6 @@ from src.core.modules.project_management.contracts.reads.collaboration.models.wo
     CollaborationCommentCriteria,
     CollaborationCommentReadPage,
     CollaborationPresenceFact,
-    CollaborationWorkspaceFacts,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.collaboration import (
     TaskCommentORM,
@@ -62,6 +61,32 @@ class SqlAlchemyCollaborationWorkspaceReader:
             created_at=_utc(row.created_at),
         )
 
+    def read_comment_authors(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        accessible_project_ids: tuple[str, ...],
+    ) -> tuple[str, ...]:
+        project_ids = tuple(dict.fromkeys(accessible_project_ids))
+        if not project_ids:
+            return ()
+        rows = self._session.scalars(
+            select(TaskCommentORM.author_username)
+            .join(TaskORM, TaskORM.id == TaskCommentORM.task_id)
+            .join(ProjectORM, ProjectORM.id == TaskORM.project_id)
+            .where(
+                ProjectORM.tenant_id == tenant_id,
+                ProjectORM.organization_id == organization_id,
+                ProjectORM.id.in_(project_ids),
+                TaskCommentORM.author_username.is_not(None),
+                TaskCommentORM.author_username != "",
+            )
+            .distinct()
+            .order_by(TaskCommentORM.author_username.asc())
+        ).all()
+        return tuple(str(row).strip() for row in rows if str(row).strip())
+
     def read_comment_page(
         self,
         *,
@@ -110,10 +135,10 @@ class SqlAlchemyCollaborationWorkspaceReader:
                     json.dumps(criteria.principal_user_id)
                 )
             )
-        if mention_conditions:
+        if criteria.principal_mentions_only:
+            if not mention_conditions:
+                return CollaborationCommentReadPage(page=page, page_size=page_size)
             filters.append(or_(*mention_conditions))
-        else:
-            return CollaborationCommentReadPage(page=page, page_size=page_size)
 
         if criteria.unread_only:
             read_conditions = [
@@ -173,63 +198,42 @@ class SqlAlchemyCollaborationWorkspaceReader:
             page_size=page_size,
         )
 
-    def read_facts(
+    def read_active_presence(
         self,
         *,
         tenant_id: str,
         organization_id: str,
         accessible_project_ids: tuple[str, ...],
-        comment_limit: int,
-        presence_since: datetime | None = None,
-        presence_limit: int = 0,
-    ) -> CollaborationWorkspaceFacts:
+        active_since: datetime,
+    ) -> tuple[CollaborationPresenceFact, ...]:
         project_ids = tuple(dict.fromkeys(accessible_project_ids))
         if not project_ids:
-            return CollaborationWorkspaceFacts(tenant_id, organization_id, (), ())
+            return ()
         project_scope = (
             ProjectORM.tenant_id == tenant_id,
             ProjectORM.organization_id == organization_id,
             ProjectORM.id.in_(project_ids),
         )
-        comments = self._session.execute(
-            select(TaskCommentORM, TaskORM.name, TaskORM.project_id, ProjectORM.name)
-            .join(TaskORM, TaskORM.id == TaskCommentORM.task_id)
+        rows = self._session.execute(
+            select(TaskPresenceORM, TaskORM.name, TaskORM.project_id, ProjectORM.name)
+            .join(TaskORM, TaskORM.id == TaskPresenceORM.task_id)
             .join(ProjectORM, ProjectORM.id == TaskORM.project_id)
-            .where(*project_scope)
-            .order_by(TaskCommentORM.created_at.desc())
-            .limit(max(0, int(comment_limit)))
-        ).all() if comment_limit > 0 else ()
-        presence = ()
-        if presence_since is not None and presence_limit > 0:
-            presence = self._session.execute(
-                select(TaskPresenceORM, TaskORM.name, TaskORM.project_id, ProjectORM.name)
-                .join(TaskORM, TaskORM.id == TaskPresenceORM.task_id)
-                .join(ProjectORM, ProjectORM.id == TaskORM.project_id)
-                .where(*project_scope, TaskPresenceORM.last_seen_at >= presence_since)
-                .order_by(TaskPresenceORM.last_seen_at.desc())
-                .limit(max(0, int(presence_limit)))
-            ).all()
-        return CollaborationWorkspaceFacts(
-            tenant_id=tenant_id,
-            organization_id=organization_id,
-            comments=tuple(
-                self._comment_fact(row, task_name, project_id, project_name)
-                for row, task_name, project_id, project_name in comments
-            ),
-            active_presence=tuple(
-                CollaborationPresenceFact(
-                    task_id=str(row.task_id),
-                    task_name=str(task_name or ""),
-                    project_id=str(project_id),
-                    project_name=str(project_name or ""),
-                    user_id=(None if row.user_id is None else str(row.user_id)),
-                    username=str(row.username or ""),
-                    display_name=row.display_name,
-                    activity=str(row.activity or "reviewing"),
-                    last_seen_at=_utc(row.last_seen_at),
-                )
-                for row, task_name, project_id, project_name in presence
-            ),
+            .where(*project_scope, TaskPresenceORM.last_seen_at >= active_since)
+            .order_by(TaskPresenceORM.last_seen_at.desc(), TaskPresenceORM.id.asc())
+        ).all()
+        return tuple(
+            CollaborationPresenceFact(
+                task_id=str(row.task_id),
+                task_name=str(task_name or ""),
+                project_id=str(project_id),
+                project_name=str(project_name or ""),
+                user_id=(None if row.user_id is None else str(row.user_id)),
+                username=str(row.username or ""),
+                display_name=row.display_name,
+                activity=str(row.activity or "reviewing"),
+                last_seen_at=_utc(row.last_seen_at),
+            )
+            for row, task_name, project_id, project_name in rows
         )
 
 

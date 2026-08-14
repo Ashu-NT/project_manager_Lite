@@ -2,9 +2,9 @@
 
 from src.core.modules.project_management.api.desktop.collaboration import (
     CollaborationInboxDesktopDto,
-    CollaborationNotificationDesktopDto,
+    CollaborationCommentPageDto,
+    CollaborationContextOptionsDto,
     CollaborationPresenceDesktopDto,
-    CollaborationWorkspaceSnapshotDto,
     ProjectManagementCollaborationDesktopApi,
     TaskCollaborationCommentDesktopDto,
     TaskCollaborationDeleteCommand,
@@ -218,9 +218,9 @@ from src.core.modules.project_management.api.desktop.workspaces import (
 
 __all__ = [
     "CollaborationInboxDesktopDto",
-    "CollaborationNotificationDesktopDto",
+    "CollaborationCommentPageDto",
+    "CollaborationContextOptionsDto",
     "CollaborationPresenceDesktopDto",
-    "CollaborationWorkspaceSnapshotDto",
     "ProjectManagementCollaborationDesktopApi",
     "TaskCollaborationCommentDesktopDto",
     "TaskCollaborationDeleteCommand",

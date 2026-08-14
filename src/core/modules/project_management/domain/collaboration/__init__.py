@@ -12,12 +12,9 @@ from src.core.modules.project_management.domain.collaboration.mentions.mention i
     resolve_mentions,
 )
 from src.core.modules.project_management.domain.collaboration.models.workspace import (
+    CollaborationContextOptions,
     CollaborationInboxItem,
     CollaborationInboxPage,
-    CollaborationWorkspaceSnapshot,
-)
-from src.core.modules.project_management.domain.collaboration.notifications.notification import (
-    CollaborationNotificationItem,
 )
 from src.core.modules.project_management.domain.collaboration.presence.presence import (
     TaskPresence,
@@ -25,11 +22,10 @@ from src.core.modules.project_management.domain.collaboration.presence.presence 
 )
 
 __all__ = [
+    "CollaborationContextOptions",
     "CollaborationInboxItem",
     "CollaborationInboxPage",
     "CollaborationMentionCandidate",
-    "CollaborationNotificationItem",
-    "CollaborationWorkspaceSnapshot",
     "MENTION_RE",
     "TaskComment",
     "TaskPresence",

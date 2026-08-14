@@ -42,6 +42,7 @@ class CollaborationCommentCriteria:
     created_since: datetime | None = None
     mention_aliases: tuple[str, ...] = ()
     principal_user_id: str | None = None
+    principal_mentions_only: bool = False
     unread_only: bool = False
 
 
@@ -51,14 +52,6 @@ class CollaborationCommentReadPage:
     total: int = 0
     page: int = 1
     page_size: int = 25
-
-
-@dataclass(frozen=True, slots=True)
-class CollaborationWorkspaceFacts:
-    tenant_id: str
-    organization_id: str
-    comments: tuple[CollaborationCommentFact, ...]
-    active_presence: tuple[CollaborationPresenceFact, ...]
 
 
 __all__ = [name for name in globals() if name.startswith("Collaboration")]

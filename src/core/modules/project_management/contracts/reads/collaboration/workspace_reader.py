@@ -6,11 +6,19 @@ from typing import Protocol
 from .models.workspace_facts import (
     CollaborationCommentCriteria,
     CollaborationCommentReadPage,
-    CollaborationWorkspaceFacts,
+    CollaborationPresenceFact,
 )
 
 
 class CollaborationWorkspaceReader(Protocol):
+    def read_comment_authors(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        accessible_project_ids: tuple[str, ...],
+    ) -> tuple[str, ...]: ...
+
     def read_comment_page(
         self,
         *,
@@ -22,16 +30,14 @@ class CollaborationWorkspaceReader(Protocol):
         page_size: int,
     ) -> CollaborationCommentReadPage: ...
 
-    def read_facts(
+    def read_active_presence(
         self,
         *,
         tenant_id: str,
         organization_id: str,
         accessible_project_ids: tuple[str, ...],
-        comment_limit: int,
-        presence_since: datetime | None = None,
-        presence_limit: int = 0,
-    ) -> CollaborationWorkspaceFacts: ...
+        active_since: datetime,
+    ) -> tuple[CollaborationPresenceFact, ...]: ...
 
 
 __all__ = ["CollaborationWorkspaceReader"]

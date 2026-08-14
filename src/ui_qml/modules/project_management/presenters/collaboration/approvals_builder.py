@@ -31,6 +31,7 @@ def build_approvals_collection(
     approval_api: PlatformApprovalDesktopApi | None,
     *,
     limit: int,
+    project_id: str | None = None,
 ) -> CollaborationCollectionViewModel:
     if approval_api is None:
         return CollaborationCollectionViewModel(
@@ -38,7 +39,11 @@ def build_approvals_collection(
             subtitle="Platform approval API is not connected in this QML preview.",
             empty_state="No approval requests are available yet.",
         )
-    result = approval_api.list_requests(status=None, limit=limit)
+    result = approval_api.list_requests(
+        status=None,
+        project_id=project_id,
+        limit=limit,
+    )
     if not result.ok or result.data is None:
         message = (
             result.error.message if result.error is not None else "Unable to load approvals."
@@ -51,7 +56,7 @@ def build_approvals_collection(
     rows = valid_approval_rows(result.data)
     return CollaborationCollectionViewModel(
         title="Approvals",
-        subtitle="Governed workflow approvals linked to project execution and operational delivery.",
+        subtitle="Platform-owned governance requests for the selected project scope.",
         empty_state="No approval requests are available right now.",
         items=tuple(
             CollaborationRecordViewModel(

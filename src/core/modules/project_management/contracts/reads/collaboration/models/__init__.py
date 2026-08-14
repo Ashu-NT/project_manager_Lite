@@ -3,7 +3,6 @@ from .workspace_facts import (
     CollaborationCommentFact,
     CollaborationCommentReadPage,
     CollaborationPresenceFact,
-    CollaborationWorkspaceFacts,
 )
 
 __all__ = [
@@ -11,5 +10,4 @@ __all__ = [
     "CollaborationCommentFact",
     "CollaborationCommentReadPage",
     "CollaborationPresenceFact",
-    "CollaborationWorkspaceFacts",
 ]

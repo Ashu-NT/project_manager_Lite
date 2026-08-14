@@ -186,7 +186,6 @@ def _make_service(
         task_repo=_FakeTaskRepo(),
         project_repo=object(),
         user_repo=_FakeUserRepo(),
-        audit_repo=object(),
         workspace_reader=object(),
         document_integration_service=None,
         user_session=_FakeUserSession(
