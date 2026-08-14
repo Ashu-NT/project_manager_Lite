@@ -55,6 +55,13 @@ AppLayouts.WorkspaceFrame {
     property bool detailOpen: false
     property var _pendingConfirm: null
 
+    // RBAC: gates create/edit/activate-toggle buttons -- a client-side UX
+    // optimization mirroring PlatformNavigation's own destination gate;
+    // the backend enforces "auth.manage" independently regardless.
+    readonly property bool _canWrite: root.platformCatalog
+        ? root.platformCatalog.hasPermission("auth.manage")
+        : true
+
     function requestToggleActive() {
         const item = root._selectedItem
         if (!item || !root.workspaceController) return
@@ -140,6 +147,7 @@ AppLayouts.WorkspaceFrame {
                 catalog: root.userCatalog
                 catalogModel: root.workspaceController ? root.workspaceController.usersTableModel : null
                 columns: root._columns
+                canCreate: root._canWrite
                 isBusy: root.busy
                 isLoading: root.load
                 errorMessage: root.err
@@ -160,9 +168,9 @@ AppLayouts.WorkspaceFrame {
                 sections: root._inspectorSections
                 busy: root.busy
                 editActionLabel: "Edit"
-                showEditAction: true
+                showEditAction: root._canWrite
                 secondaryActionLabel: root._selectedItem && root._selectedItem.isActive ? "Deactivate" : "Activate"
-                showSecondaryAction: true
+                showSecondaryAction: root._canWrite
 
                 onCloseRequested: root.selectedRowId = ""
                 onEditRequested: root.openEdit(root.selectedRowId)
@@ -179,6 +187,7 @@ AppLayouts.WorkspaceFrame {
             sourceComponent: Component {
                 AdminUserDetailPage {
                     user: root._selectedItem || ({})
+                    canWrite: root._canWrite
                     moduleEntitlementCatalog: root.moduleEntitlementCatalog
                     moduleEntitlementColumns: root._moduleColumns
                     busy: root.busy

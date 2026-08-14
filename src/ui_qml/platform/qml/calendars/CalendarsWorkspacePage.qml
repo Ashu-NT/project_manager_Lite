@@ -46,6 +46,13 @@ AppLayouts.WorkspaceFrame {
     property string selectedRowId: ""
     property bool detailOpen: false
 
+    // RBAC: gates create/edit buttons -- a client-side UX optimization
+    // mirroring PlatformNavigation's own destination gate; the backend
+    // enforces "task.manage" independently regardless.
+    readonly property bool _canWrite: root.platformCatalog
+        ? root.platformCatalog.hasPermission("task.manage")
+        : true
+
     readonly property bool   busy: root.workspaceController ? root.workspaceController.isBusy          : false
     readonly property bool   load: root.workspaceController ? root.workspaceController.isLoading       : false
     readonly property string err:  root.workspaceController ? root.workspaceController.errorMessage    : ""
@@ -122,6 +129,7 @@ AppLayouts.WorkspaceFrame {
                 catalog: root.calendarCatalog
                 catalogModel: root.workspaceController ? root.workspaceController.calendarsTableModel : null
                 columns: root._columns
+                canCreate: root._canWrite
                 isBusy: root.busy
                 isLoading: root.load
                 errorMessage: root.err
@@ -142,7 +150,7 @@ AppLayouts.WorkspaceFrame {
                 sections: root._inspectorSections
                 busy: root.busy
                 editActionLabel: "Edit"
-                showEditAction: true
+                showEditAction: root._canWrite
                 showSecondaryAction: false
 
                 onCloseRequested: root.selectedRowId = ""
@@ -160,6 +168,7 @@ AppLayouts.WorkspaceFrame {
                 AdminCalendarDetailPage {
                     workspaceController: root.workspaceController
                     calendar: root._selectedItem || ({})
+                    canWrite: root._canWrite
                     workingRules: root._detailContext.workingRules || []
                     enterpriseExceptions: root._detailContext.exceptions || []
                     recurringEvents: root._detailContext.recurringEvents || []

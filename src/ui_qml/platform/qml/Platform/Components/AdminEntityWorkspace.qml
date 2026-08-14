@@ -13,6 +13,9 @@ ColumnLayout {
 
     property string sectionTitle:    ""
     property string entityLabel:     ""
+    // RBAC: whether the current session may create a new record here.
+    // Defaults true so callers that don't opt in keep today's behavior.
+    property bool   canCreate:       true
     property var    catalog:         ({ items: [], emptyState: "No records" })
     property var    columns:         []
     property bool   isBusy:          false
@@ -76,7 +79,7 @@ ColumnLayout {
     AppWidgets.TableToolbar {
         id: _tableToolbar
         Layout.fillWidth: true
-        showCreate: root.entityLabel.length > 0
+        showCreate: root.entityLabel.length > 0 && root.canCreate
         createLabel: "New " + root.entityLabel
         showRefresh: true
         showCustomize: root.columns.length > 0

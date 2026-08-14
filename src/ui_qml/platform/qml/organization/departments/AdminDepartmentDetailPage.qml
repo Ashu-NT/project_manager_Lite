@@ -17,6 +17,9 @@ Item {
     property var employeeColumns: []
     property var deptCalendarAssignment: ({})
     property var calendarSourceChain: []
+    property bool canWrite: true
+    property bool canManageEmployees: true
+    property bool canManageCalendar: true
     property bool busy: false
     property string errorMessage: ""
     property string feedbackMessage: ""
@@ -94,21 +97,21 @@ Item {
     readonly property var _toolbarActions: {
         if (root._activeSectionLabel === "Overview") {
             return [
-                { "id": "edit", "label": "Edit", "icon": "edit" },
-                { "id": "toggle_active", "label": root._isActive ? "Set Inactive" : "Set Active", "icon": "approve" },
+                { "id": "edit", "label": "Edit", "icon": "edit", "enabled": root.canWrite },
+                { "id": "toggle_active", "label": root._isActive ? "Set Inactive" : "Set Active", "icon": "approve", "enabled": root.canWrite },
                 { "id": "refresh", "label": "Refresh", "icon": "refresh" }
             ]
         }
         if (root._activeSectionLabel === "Employees") {
             return [
-                { "id": "create_employee", "label": "New Employee", "icon": "add" },
+                { "id": "create_employee", "label": "New Employee", "icon": "add", "enabled": root.canManageEmployees },
                 { "id": "show_employees", "label": "Open Employees", "icon": "chevron_right" }
             ]
         }
         if (root._activeSectionLabel === "Calendar") {
             return [
-                { "id": "assign_calendar", "label": root._hasCalendarAssignment ? "Change Calendar" : "Assign Calendar", "icon": "calendar" },
-                { "id": "clear_calendar_assignment", "label": "Clear Assignment", "icon": "delete", "danger": true, "enabled": root._hasCalendarAssignment },
+                { "id": "assign_calendar", "label": root._hasCalendarAssignment ? "Change Calendar" : "Assign Calendar", "icon": "calendar", "enabled": root.canManageCalendar },
+                { "id": "clear_calendar_assignment", "label": "Clear Assignment", "icon": "delete", "danger": true, "enabled": root._hasCalendarAssignment && root.canManageCalendar },
                 { "id": "open_calendar_mgmt", "label": "Calendar Management", "icon": "chevron_right" },
                 { "id": "refresh", "label": "Refresh", "icon": "refresh" }
             ]

@@ -13,6 +13,10 @@ Item {
     id: root
 
     property var approval: ({})
+    // RBAC: distinct from the workspace's own entry gate, which also
+    // admits "approval.request"-only submitters -- approve/reject
+    // specifically require "approval.decide".
+    property bool canDecide: true
     property bool busy: false
     property string errorMessage: ""
     property string feedbackMessage: ""
@@ -55,8 +59,8 @@ Item {
     readonly property var _toolbarActions: {
         if (root._activeSectionLabel === "Overview" && root._isPending) {
             return [
-                { "id": "approve", "label": "Approve", "icon": "approve", "enabled": true, "danger": false },
-                { "id": "reject",  "label": "Reject",  "icon": "reject",  "enabled": true, "danger": true  }
+                { "id": "approve", "label": "Approve", "icon": "approve", "enabled": root.canDecide, "danger": false },
+                { "id": "reject",  "label": "Reject",  "icon": "reject",  "enabled": root.canDecide, "danger": true  }
             ]
         }
         if (root._activeSectionLabel === "Audit") {

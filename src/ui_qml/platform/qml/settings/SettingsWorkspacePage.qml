@@ -78,13 +78,21 @@ AppLayouts.WorkspaceFrame {
     readonly property int _capCount: root.workspaceController
         ? (root.workspaceController.integrationCapabilities.items || []).length : 0
 
+    // RBAC: gates the Lifecycle/Licensed/Enabled module actions -- a
+    // client-side UX optimization mirroring PlatformNavigation's own
+    // destination gate; the backend enforces "settings.manage"
+    // independently regardless.
+    readonly property bool _canManageModules: root.platformCatalog
+        ? root.platformCatalog.hasPermission("settings.manage")
+        : true
+
     readonly property var _moduleContextActions: {
         const item = root._selectedItem
         if (root._activeSection !== "modules" || !item) return []
         return [
-            { id: "lifecycle", label: "Lifecycle", icon: "settings", enabled: !!(item.canTertiaryAction), danger: false },
-            { id: "licensed",  label: "Licensed",  icon: "approve",  enabled: !!(item.canPrimaryAction),  danger: false },
-            { id: "enabled",   label: "Enabled",   icon: "approve",  enabled: !!(item.canSecondaryAction), danger: false }
+            { id: "lifecycle", label: "Lifecycle", icon: "settings", enabled: !!(item.canTertiaryAction) && root._canManageModules, danger: false },
+            { id: "licensed",  label: "Licensed",  icon: "approve",  enabled: !!(item.canPrimaryAction) && root._canManageModules,  danger: false },
+            { id: "enabled",   label: "Enabled",   icon: "approve",  enabled: !!(item.canSecondaryAction) && root._canManageModules, danger: false }
         ]
     }
 
@@ -231,6 +239,7 @@ AppLayouts.WorkspaceFrame {
             Detail.SettingsModuleDetailPage {
                 module: root._selectedItem || ({})
                 lifecycleOptions: root.workspaceController ? (root.workspaceController.lifecycleOptions || []) : []
+                canManageModules: root._canManageModules
                 busy: root._busy
                 errorMessage: root._err
                 feedbackMessage: root._ok

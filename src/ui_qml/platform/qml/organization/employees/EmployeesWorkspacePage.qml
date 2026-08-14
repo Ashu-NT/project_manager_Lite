@@ -46,6 +46,19 @@ AppLayouts.WorkspaceFrame {
     property bool detailOpen: false
     property var _pendingConfirm: null
 
+    // RBAC: gates create/edit/toggle-active and calendar-assignment buttons --
+    // a client-side UX optimization mirroring PlatformNavigation's own
+    // destination gate; the backend enforces "employee.manage"/"task.manage"
+    // independently regardless. These are narrower than the page's own
+    // "employee.read" nav gate, so a read-only viewer who reaches this page
+    // still sees disabled write actions.
+    readonly property bool _canWrite: root.platformCatalog
+        ? root.platformCatalog.hasPermission("employee.manage")
+        : true
+    readonly property bool _canManageCalendar: root.platformCatalog
+        ? root.platformCatalog.hasPermission("task.manage")
+        : true
+
     function requestToggleActive() {
         const item = root._selectedItem
         if (!item || !root.workspaceController) return
@@ -175,6 +188,7 @@ AppLayouts.WorkspaceFrame {
                 catalog: root.employeeCatalog
                 catalogModel: root.workspaceController ? root.workspaceController.employeesTableModel : null
                 columns: root._columns
+                canCreate: root._canWrite
                 isBusy: root.busy
                 isLoading: root.load
                 errorMessage: root.err
@@ -195,9 +209,9 @@ AppLayouts.WorkspaceFrame {
                 sections: root._inspectorSections
                 busy: root.busy
                 editActionLabel: "Edit"
-                showEditAction: true
+                showEditAction: root._canWrite
                 secondaryActionLabel: root._selectedItem && root._selectedItem.isActive ? "Deactivate" : "Activate"
-                showSecondaryAction: true
+                showSecondaryAction: root._canWrite
 
                 onCloseRequested: root.selectedRowId = ""
                 onEditRequested: root.openEdit(root.selectedRowId)
@@ -217,6 +231,8 @@ AppLayouts.WorkspaceFrame {
                     pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false
                     empCalendarAssignment: root._calendarContext.assignedCalendar || ({})
                     calendarSourceChain: root._calendarContext.sourceChain || []
+                    canWrite: root._canWrite
+                    canManageCalendar: root._canManageCalendar
                     busy: root.busy
                     errorMessage: root.err
                     feedbackMessage: root.ok

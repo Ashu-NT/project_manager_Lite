@@ -71,6 +71,13 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
+    // RBAC: gates create/edit/set-active/add-link buttons -- a client-side
+    // UX optimization mirroring PlatformNavigation's own destination gate;
+    // the backend enforces "settings.manage" independently regardless.
+    readonly property bool _canWrite: root.platformCatalog
+        ? root.platformCatalog.hasPermission("settings.manage")
+        : true
+
     readonly property bool   busy: root.workspaceController ? root.workspaceController.isBusy          : false
     readonly property bool   load: root.workspaceController ? root.workspaceController.isLoading       : false
     readonly property string err:  root.workspaceController ? root.workspaceController.errorMessage    : ""
@@ -154,6 +161,7 @@ AppLayouts.WorkspaceFrame {
                 catalog: root.documentCatalog
                 catalogModel: root.workspaceController ? root.workspaceController.documentsTableModel : null
                 columns: root._columns
+                canCreate: root._canWrite
                 isBusy: root.busy
                 isLoading: root.load
                 errorMessage: root.err
@@ -174,9 +182,9 @@ AppLayouts.WorkspaceFrame {
                 sections: root._inspectorSections
                 busy: root.busy
                 editActionLabel: "Edit"
-                showEditAction: true
+                showEditAction: root._canWrite
                 secondaryActionLabel: root._selectedItem && root._selectedItem.isActive ? "Deactivate" : "Activate"
-                showSecondaryAction: true
+                showSecondaryAction: root._canWrite
 
                 onCloseRequested: root.selectedRowId = ""
                 onEditRequested: root.openEdit(root.selectedRowId)
@@ -193,6 +201,7 @@ AppLayouts.WorkspaceFrame {
             sourceComponent: Component {
                 AdminDocumentsDetailPage {
                     document: root._selectedItem || ({})
+                    canWrite: root._canWrite
                     selectedDocument: root.selectedDocument
                     documentPreviewState: root.documentPreviewState
                     documentLinkCatalog: root.documentLinkCatalog

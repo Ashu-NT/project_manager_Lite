@@ -74,6 +74,24 @@ AppLayouts.WorkspaceFrame {
     readonly property string err:  root.controller ? root.controller.errorMessage    : ""
     readonly property string ok:   root.controller ? root.controller.feedbackMessage : ""
 
+    // RBAC: three independent write permissions gate different buttons on
+    // this page -- a client-side UX optimization mirroring PlatformNavigation's
+    // own destination gate; the backend enforces each independently regardless
+    // of what these bindings show.
+    //   - access.manage: Assign Access ("New") / Revoke Access.
+    //   - auth.manage OR security.manage: Unlock Account / Revoke Sessions.
+    //   - auth.manage only (narrower): Force Password Reset -- the backend
+    //     password-reset check does not accept security.manage.
+    readonly property bool _canManageAccess: root.platformCatalog
+        ? root.platformCatalog.hasPermission("access.manage")
+        : true
+    readonly property bool _canManageSecurity: root.platformCatalog
+        ? root.platformCatalog.hasAnyPermission(["auth.manage", "security.manage"])
+        : true
+    readonly property bool _canResetPassword: root.platformCatalog
+        ? root.platformCatalog.hasPermission("auth.manage")
+        : true
+
     readonly property var _selectedGrantItem: {
         const id = root.selectedGrantId
         if (!id) return null
@@ -108,11 +126,17 @@ AppLayouts.WorkspaceFrame {
         const item = root._selectedSessionItem
         if (!item) return []
         const acts = []
-        if (item.canPrimaryAction)
+        // canPrimaryAction/canSecondaryAction are backend data-state flags
+        // (not permission checks) -- combine with the auth.manage OR
+        // security.manage RBAC gate rather than replacing them.
+        if (item.canPrimaryAction && root._canManageSecurity)
             acts.push({ id: "unlock", label: "Unlock Account", icon: "approve", enabled: true, danger: false })
-        if (item.canSecondaryAction)
+        if (item.canSecondaryAction && root._canManageSecurity)
             acts.push({ id: "revoke", label: "Revoke Sessions", icon: "delete", enabled: true, danger: true })
-        acts.push({ id: "force_reset", label: "Force Password Reset", icon: "edit", enabled: true, danger: false })
+        // Force Password Reset requires auth.manage specifically -- narrower
+        // than the auth.manage OR security.manage gate above. Kept visible
+        // but disabled (rather than hidden) when only security.manage is held.
+        acts.push({ id: "force_reset", label: "Force Password Reset", icon: "edit", enabled: root._canResetPassword, danger: false })
         return acts
     }
 
@@ -284,6 +308,7 @@ AppLayouts.WorkspaceFrame {
                 catalog: root.grantsCatalog
                 catalogModel: root.controller ? root.controller.scopeGrantsTableModel : null
                 columns: root._grantColumns
+                canCreate: root._canManageAccess
                 isBusy: root.busy
                 isLoading: root.load
                 errorMessage: root.err
@@ -306,7 +331,7 @@ AppLayouts.WorkspaceFrame {
                 editActionLabel: "Open"
                 showEditAction: true
                 secondaryActionLabel: "Revoke Access"
-                showSecondaryAction: true
+                showSecondaryAction: root._canManageAccess
 
                 onCloseRequested: root.selectedGrantId = ""
                 onEditRequested: root.detailOpen = true
@@ -371,6 +396,7 @@ AppLayouts.WorkspaceFrame {
             AdminAccessDetailPage {
                 controller: root.controller
                 grantId: root.selectedGrantId
+                canManageAccess: root._canManageAccess
                 busy: root.busy
                 errorMessage: root.err
                 feedbackMessage: root.ok
