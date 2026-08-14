@@ -7,7 +7,6 @@ from src.core.platform.api.desktop.master_data.party.party import PlatformPartyD
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
-from src.core.platform.api.desktop.history.audit.audit_enterprise import PlatformEnterpriseAuditDesktopApi
 from src.ui_qml.platform.view_models import (
     PlatformMetricViewModel,
     PlatformWorkspaceOverviewViewModel,
@@ -68,7 +67,6 @@ class PlatformAdminWorkspacePresenter:
         user_api: PlatformUserDesktopApi | None = None,
         document_api: PlatformDocumentDesktopApi | None = None,
         party_api: PlatformPartyDesktopApi | None = None,
-        audit_api: PlatformEnterpriseAuditDesktopApi | None = None,
     ) -> None:
         self._runtime_api = runtime_api
         self._site_api = site_api
@@ -77,7 +75,6 @@ class PlatformAdminWorkspacePresenter:
         self._user_api = user_api
         self._document_api = document_api
         self._party_api = party_api
-        self._audit_api = audit_api
 
     def build_overview(self) -> PlatformWorkspaceOverviewViewModel:
         runtime_result = self._runtime_api.get_runtime_context() if self._runtime_api is not None else None
@@ -109,6 +106,12 @@ class PlatformAdminWorkspacePresenter:
         party_summary = self._party_summary(
             self._party_api.get_party_rollup_summary() if self._party_api is not None else None
         )
+        department_breakdown = self._breakdown_rows(
+            self._employee_api.get_department_breakdown() if self._employee_api is not None else None
+        )
+        site_breakdown = self._breakdown_rows(
+            self._employee_api.get_site_breakdown() if self._employee_api is not None else None
+        )
 
         if runtime_context is None:
             return PlatformWorkspaceOverviewViewModel(
@@ -131,15 +134,38 @@ class PlatformAdminWorkspacePresenter:
         active_party_count = party_summary.active
         current_document_count = document_summary.current
 
-        activity_feed_items: tuple[dict, ...] = ()
-        if self._audit_api is not None:
-            activity_feed_items = tuple(self._audit_api.list_for_overview(limit=50))
+        breakdown_cards = (
+            {
+                "title": "Employees by Department",
+                "rows": tuple(
+                    {
+                        "label": row.department_name,
+                        "value": str(row.total),
+                        "supportingText": f"{row.active} active",
+                    }
+                    for row in department_breakdown
+                ),
+                "emptyState": "No departments to show yet.",
+            },
+            {
+                "title": "Employees by Site",
+                "rows": tuple(
+                    {
+                        "label": row.site_name,
+                        "value": str(row.total),
+                        "supportingText": f"{row.active} active",
+                    }
+                    for row in site_breakdown
+                ),
+                "emptyState": "No sites to show yet.",
+            },
+        )
 
         return PlatformWorkspaceOverviewViewModel(
             title="Admin Console",
             subtitle=f"{runtime_context.context_label} | grouped platform administration in QML",
             status_label="Connected",
-            activityFeed=activity_feed_items,
+            breakdown_cards=breakdown_cards,
             metrics=(
                 PlatformMetricViewModel("Organizations", str(organization_count), "Install profiles"),
                 PlatformMetricViewModel("Sites", str(active_site_count), "Active operating sites"),
@@ -251,6 +277,12 @@ class PlatformAdminWorkspacePresenter:
             return _PartySummary(total=0, active=0)
         data = result.data
         return _PartySummary(total=data.total, active=data.active)
+
+    @staticmethod
+    def _breakdown_rows(result: object | None) -> tuple:
+        if result is None or not getattr(result, "ok", False) or getattr(result, "data", None) is None:
+            return ()
+        return tuple(result.data)
 
     @staticmethod
     def _document_summary(result: object | None) -> _DocumentSummary:

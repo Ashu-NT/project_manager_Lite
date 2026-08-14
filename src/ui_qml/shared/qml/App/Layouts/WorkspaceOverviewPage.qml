@@ -6,7 +6,7 @@ import App.Widgets 1.0 as AppWidgets
 import App.Controls 1.0 as AppControls
 
 // Reusable Overview-page shell: generalizes the KPI-strip + highlight-card +
-// activity-feed pattern already proven by Admin Console's own overview data
+// breakdown-card pattern already proven by Admin Console's own overview data
 // and by Control/Settings' own KPI strips (design doc §6/§16). Business
 // pages provide the data; this shell only lays it out.
 WorkspaceFrame {
@@ -23,19 +23,13 @@ WorkspaceFrame {
     property string highlightsHeading: "Access & Governance"
     property var highlightCards: []
 
-    // -- Activity feed --------------------------------------------------
-    property string activityTitle: "Recent Activity"
-    property var activityItems: []
-    property string activityEmptyText: "No recent activity"
-    signal activityItemActivated(var item)
-
     // -- Optional banner (e.g. "breakdowns not yet available") --------
     property string warningText: ""
 
-    // -- Not-yet-backed breakdowns (shown as labeled placeholder cards,
-    // not silently omitted) -- each entry: { title, message }
-    property string breakdownsHeading: "Coverage"
-    property var unavailableBreakdowns: []
+    // -- Breakdown cards (same shape as highlightCards) ----------------
+    // Each entry: { title, rows: [{ label, value, supportingText }], emptyState }
+    property string breakdownsHeading: "Workforce Breakdown"
+    property var breakdownCards: []
 
     ColumnLayout {
         anchors.fill: parent
@@ -60,8 +54,7 @@ WorkspaceFrame {
 
         AppControls.Label {
             Layout.fillWidth: true
-            visible: root.highlightsHeading.length > 0
-                && (root.highlightCards.length > 0 || root.activityItems.length >= 0)
+            visible: root.highlightsHeading.length > 0 && root.highlightCards.length > 0
             text: root.highlightsHeading
             color: Theme.AppTheme.textPrimary
             font.family: Theme.AppTheme.fontFamily
@@ -72,67 +65,28 @@ WorkspaceFrame {
         RowLayout {
             Layout.fillWidth: true
             spacing: Theme.AppTheme.sectionGap
+            visible: root.highlightCards.length > 0
 
-            ColumnLayout {
-                Layout.preferredWidth: 260
-                Layout.fillWidth: false
-                Layout.alignment: Qt.AlignTop
-                spacing: Theme.AppTheme.spacingMd
-                visible: root.highlightCards.length > 0
+            Repeater {
+                model: root.highlightCards
 
-                Repeater {
-                    model: root.highlightCards
+                delegate: Rectangle {
+                    id: _cardRow
+                    required property var modelData
 
-                    delegate: Rectangle {
-                        id: _cardRow
-                        required property var modelData
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignTop
+                    implicitHeight: _card.implicitHeight + Theme.AppTheme.marginMd * 2
+                    radius: Theme.AppTheme.radiusMd
+                    color: Theme.AppTheme.surfaceRaised
 
-                        Layout.fillWidth: true
-                        implicitHeight: _card.implicitHeight + Theme.AppTheme.marginMd * 2
-                        radius: Theme.AppTheme.radiusMd
-                        color: Theme.AppTheme.surfaceRaised
-
-                        AppWidgets.OverviewSectionCard {
-                            id: _card
-                            anchors.fill: parent
-                            anchors.margins: Theme.AppTheme.marginMd
-                            title: String(_cardRow.modelData.title || "")
-                            rows: _cardRow.modelData.rows || []
-                            emptyState: String(_cardRow.modelData.emptyState || "")
-                        }
-                    }
-                }
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.alignment: Qt.AlignTop
-                implicitHeight: Math.max(_activityCol.implicitHeight + Theme.AppTheme.marginMd * 2, 120)
-                radius: Theme.AppTheme.radiusMd
-                color: Theme.AppTheme.surfaceRaised
-
-                ColumnLayout {
-                    id: _activityCol
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: Theme.AppTheme.marginMd
-                    spacing: Theme.AppTheme.spacingSm
-
-                    AppControls.Label {
-                        Layout.fillWidth: true
-                        text: root.activityTitle
-                        color: Theme.AppTheme.textPrimary
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.bodySize
-                        font.bold: true
-                    }
-
-                    AppWidgets.ActivityFeed {
-                        Layout.fillWidth: true
-                        items: root.activityItems
-                        emptyText: root.activityEmptyText
-                        onItemActivated: function(item) { root.activityItemActivated(item) }
+                    AppWidgets.OverviewSectionCard {
+                        id: _card
+                        anchors.fill: parent
+                        anchors.margins: Theme.AppTheme.marginMd
+                        title: String(_cardRow.modelData.title || "")
+                        rows: _cardRow.modelData.rows || []
+                        emptyState: String(_cardRow.modelData.emptyState || "")
                     }
                 }
             }
@@ -140,7 +94,7 @@ WorkspaceFrame {
 
         AppControls.Label {
             Layout.fillWidth: true
-            visible: root.breakdownsHeading.length > 0 && root.unavailableBreakdowns.length > 0
+            visible: root.breakdownsHeading.length > 0 && root.breakdownCards.length > 0
             text: root.breakdownsHeading
             color: Theme.AppTheme.textPrimary
             font.family: Theme.AppTheme.fontFamily
@@ -151,26 +105,28 @@ WorkspaceFrame {
         RowLayout {
             Layout.fillWidth: true
             spacing: Theme.AppTheme.sectionGap
-            visible: root.unavailableBreakdowns.length > 0
+            visible: root.breakdownCards.length > 0
 
             Repeater {
-                model: root.unavailableBreakdowns
+                model: root.breakdownCards
 
                 delegate: Rectangle {
                     id: _breakdownCard
                     required property var modelData
 
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 96
+                    Layout.alignment: Qt.AlignTop
+                    implicitHeight: _breakdownCardContent.implicitHeight + Theme.AppTheme.marginMd * 2
                     radius: Theme.AppTheme.radiusMd
                     color: Theme.AppTheme.surfaceRaised
-                    border.color: Theme.AppTheme.divider
-                    border.width: Theme.AppTheme.borderWidthThin
 
-                    AppWidgets.EmptyState {
+                    AppWidgets.OverviewSectionCard {
+                        id: _breakdownCardContent
                         anchors.fill: parent
+                        anchors.margins: Theme.AppTheme.marginMd
                         title: String(_breakdownCard.modelData.title || "")
-                        message: String(_breakdownCard.modelData.message || "Not yet available")
+                        rows: _breakdownCard.modelData.rows || []
+                        emptyState: String(_breakdownCard.modelData.emptyState || "Not yet available")
                     }
                 }
             }

@@ -20,8 +20,10 @@ from src.core.platform.contract.repositories.master_data.employee.contracts impo
     LinkedEmployeeResourceRepository,
 )
 from src.core.platform.contract.read.master_data.employee.employee_headcount_reader import (
+    EmployeeDepartmentBreakdownRow,
     EmployeeHeadcountReader,
     EmployeeHeadcountSummary,
+    EmployeeSiteBreakdownRow,
 )
 from src.core.platform.domain.master_data.employee import Employee, EmploymentType
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
@@ -283,6 +285,48 @@ class EmployeeService:
             operation_label="view employee headcount summary"
         )
         return self._headcount_reader.get_summary(
+            tenant_id=tenant_id, organization_id=organization_id
+        )
+
+    def get_department_breakdown(self) -> tuple[EmployeeDepartmentBreakdownRow, ...]:
+        require_permission(
+            self._user_session, "employee.read", operation_label="view employee department breakdown"
+        )
+        if self._tenant_context_service is None:
+            raise ValidationError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        if self._headcount_reader is None:
+            raise RuntimeError("Employee headcount reader is not configured.")
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="view employee department breakdown",
+        )
+        organization_id = self._active_organization_id(
+            operation_label="view employee department breakdown"
+        )
+        return self._headcount_reader.get_department_breakdown(
+            tenant_id=tenant_id, organization_id=organization_id
+        )
+
+    def get_site_breakdown(self) -> tuple[EmployeeSiteBreakdownRow, ...]:
+        require_permission(
+            self._user_session, "employee.read", operation_label="view employee site breakdown"
+        )
+        if self._tenant_context_service is None:
+            raise ValidationError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        if self._headcount_reader is None:
+            raise RuntimeError("Employee headcount reader is not configured.")
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="view employee site breakdown",
+        )
+        organization_id = self._active_organization_id(
+            operation_label="view employee site breakdown"
+        )
+        return self._headcount_reader.get_site_breakdown(
             tenant_id=tenant_id, organization_id=organization_id
         )
 

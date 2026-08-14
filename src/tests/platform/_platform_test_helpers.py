@@ -23,8 +23,10 @@ from src.core.platform.api.desktop.master_data.documents.models.document import 
     DocumentStructureDto,
 )
 from src.core.platform.api.desktop.master_data.employee.models.employee import (
+    EmployeeDepartmentBreakdownRowDto,
     EmployeeDto,
     EmployeeHeadcountSummaryDto,
+    EmployeeSiteBreakdownRowDto,
 )
 from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationDto
 from src.core.platform.api.desktop.master_data.party.models.party import PartyDto, PartyRollupSummaryDto
@@ -464,6 +466,40 @@ class FakePlatformEmployeeApi:
                 active=sum(1 for row in self._rows if row.is_active),
             ),
         )
+
+    def get_department_breakdown(self) -> DesktopApiResult[tuple[EmployeeDepartmentBreakdownRowDto, ...]]:
+        buckets: dict[str | None, list] = {}
+        for row in self._rows:
+            buckets.setdefault(row.department_id, []).append(row)
+        rows = tuple(
+            EmployeeDepartmentBreakdownRowDto(
+                department_id=department_id,
+                department_name=bucket[0].department or "Unassigned",
+                total=len(bucket),
+                active=sum(1 for row in bucket if row.is_active),
+            )
+            for department_id, bucket in sorted(
+                buckets.items(), key=lambda item: item[1][0].department or "Unassigned"
+            )
+        )
+        return DesktopApiResult(ok=True, data=rows)
+
+    def get_site_breakdown(self) -> DesktopApiResult[tuple[EmployeeSiteBreakdownRowDto, ...]]:
+        buckets: dict[str | None, list] = {}
+        for row in self._rows:
+            buckets.setdefault(row.site_id, []).append(row)
+        rows = tuple(
+            EmployeeSiteBreakdownRowDto(
+                site_id=site_id,
+                site_name=bucket[0].site_name or "Unassigned",
+                total=len(bucket),
+                active=sum(1 for row in bucket if row.is_active),
+            )
+            for site_id, bucket in sorted(
+                buckets.items(), key=lambda item: item[1][0].site_name or "Unassigned"
+            )
+        )
+        return DesktopApiResult(ok=True, data=rows)
 
     def create_employee(self, command) -> DesktopApiResult[EmployeeDto]:
         employee = EmployeeDto(

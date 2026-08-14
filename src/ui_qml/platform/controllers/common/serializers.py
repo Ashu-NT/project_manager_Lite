@@ -35,7 +35,7 @@ def serialize_workspace_overview(overview) -> dict[str, object]:
             }
             for section in overview.sections
         ],
-        "activityFeed": list(getattr(overview, "activityFeed", ())),
+        "breakdownCards": list(getattr(overview, "breakdown_cards", ())),
     }
 
 def serialize_action_list(list_view_model) -> dict[str, object]:

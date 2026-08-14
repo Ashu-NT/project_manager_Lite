@@ -44,6 +44,22 @@ class EmployeeHeadcountSummaryDto:
 
 
 @dataclass(frozen=True)
+class EmployeeDepartmentBreakdownRowDto:
+    department_id: str | None
+    department_name: str
+    total: int
+    active: int
+
+
+@dataclass(frozen=True)
+class EmployeeSiteBreakdownRowDto:
+    site_id: str | None
+    site_name: str
+    total: int
+    active: int
+
+
+@dataclass(frozen=True)
 class EmployeeUpdateCommand:
     employee_id: str
     employee_code: str | None = None

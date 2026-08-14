@@ -4,8 +4,10 @@ from src.core.platform.api.desktop.support._support import execute_desktop_opera
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.master_data.employee.models.employee import (
     EmployeeCreateCommand,
+    EmployeeDepartmentBreakdownRowDto,
     EmployeeDto,
     EmployeeHeadcountSummaryDto,
+    EmployeeSiteBreakdownRowDto,
     EmployeeUpdateCommand,
 )
 from src.core.platform.application.master_data.employee.employee_service import EmployeeService
@@ -39,6 +41,22 @@ class PlatformEmployeeDesktopApi:
         return execute_desktop_operation(
             lambda: self._serialize_headcount_summary(
                 self._employee_service.get_headcount_summary()
+            )
+        )
+
+    def get_department_breakdown(self) -> DesktopApiResult[tuple[EmployeeDepartmentBreakdownRowDto, ...]]:
+        return execute_desktop_operation(
+            lambda: tuple(
+                self._serialize_department_breakdown_row(row)
+                for row in self._employee_service.get_department_breakdown()
+            )
+        )
+
+    def get_site_breakdown(self) -> DesktopApiResult[tuple[EmployeeSiteBreakdownRowDto, ...]]:
+        return execute_desktop_operation(
+            lambda: tuple(
+                self._serialize_site_breakdown_row(row)
+                for row in self._employee_service.get_site_breakdown()
             )
         )
 
@@ -87,6 +105,24 @@ class PlatformEmployeeDesktopApi:
     @staticmethod
     def _serialize_headcount_summary(summary) -> EmployeeHeadcountSummaryDto:
         return EmployeeHeadcountSummaryDto(total=summary.total, active=summary.active)
+
+    @staticmethod
+    def _serialize_department_breakdown_row(row) -> EmployeeDepartmentBreakdownRowDto:
+        return EmployeeDepartmentBreakdownRowDto(
+            department_id=row.department_id,
+            department_name=row.department_name,
+            total=row.total,
+            active=row.active,
+        )
+
+    @staticmethod
+    def _serialize_site_breakdown_row(row) -> EmployeeSiteBreakdownRowDto:
+        return EmployeeSiteBreakdownRowDto(
+            site_id=row.site_id,
+            site_name=row.site_name,
+            total=row.total,
+            active=row.active,
+        )
 
     @staticmethod
     def _serialize_employee(employee) -> EmployeeDto:

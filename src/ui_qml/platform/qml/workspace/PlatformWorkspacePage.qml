@@ -147,8 +147,6 @@ Item {
     // All figures below are read directly from already-backed, already-
     // refreshed controller state (admin_presenter.build_overview() and
     // Control's approval queue) -- no new backend, no invented metrics.
-    // Department/Site breakdowns are explicitly out of scope (design doc
-    // §6/§25 -- not backed today, tracked as separate backlog).
     readonly property var _overview: root.platformCatalog
         ? (root.platformCatalog.adminWorkspace.overview || {})
         : {}
@@ -178,19 +176,10 @@ Item {
         }
     ]
 
-    // Doc §6: "Overview would show a trimmed, most-recent slice of the same
-    // feed, not a new data source" -- the raw feed can return up to 50
-    // entries; Overview shows only the most recent handful.
-    readonly property var _overviewActivityItems: (root._overview.activityFeed || []).slice(0, 6)
-
-    // Employees/Sites-by-department/site breakdowns are explicitly not
-    // backed today (design doc §6/§25 -- backlog, not part of this
-    // redesign). Shown as labeled placeholder cards rather than silently
-    // omitted or faked.
-    readonly property var _overviewUnavailableBreakdowns: [
-        { "title": "Employees by Department", "message": "Not yet available — requires new backend rollup work, tracked as backlog." },
-        { "title": "Employees by Site", "message": "Not yet available — requires new backend rollup work, tracked as backlog." }
-    ]
+    // Employees by Department/Site: real SQL-backed breakdown cards from
+    // admin_overview_presenter.py (EmployeeHeadcountReader.get_department_
+    // breakdown/get_site_breakdown), no longer a hardcoded placeholder.
+    readonly property var _overviewBreakdownCards: root._overview.breakdownCards || []
 
     function _onOverviewMetricActivated(index) {
         const metrics = root._overviewMetrics
@@ -262,9 +251,7 @@ Item {
                     metricsClickable: true
                     onMetricActivated: function(index) { root._onOverviewMetricActivated(index) }
                     highlightCards: root._overviewHighlightCards
-                    activityItems: root._overviewActivityItems
-                    activityEmptyText: "No recent activity"
-                    unavailableBreakdowns: root._overviewUnavailableBreakdowns
+                    breakdownCards: root._overviewBreakdownCards
                 }
 
                 UsersOrg.UsersWorkspacePage {
