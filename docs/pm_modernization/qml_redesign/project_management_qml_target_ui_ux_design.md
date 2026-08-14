@@ -565,7 +565,7 @@ are wired to the authoritative session engine with canonical permission codes;
 missing engine/session/principal/tenant/organization and evaluation failures
 all map to false; QML and row-action fallbacks are deny-safe; and assignment
 policy failures are blocking. Backend enforcement and entity lifecycle facts
-remain authoritative. R1.9 is now closed; R2 has not started.
+remain authoritative. R1.10 is now closed; R1.11 and R2 have not started.
 
 R1.7 does not implement any target visual architecture in this document. It
 only establishes trustworthy query/control foundations for later Overview,
@@ -653,7 +653,37 @@ refresh-only Compare action.
 The removed export and integration surfaces remain product work for R3-R7 and
 must return only with real query/export/integration contracts. Existing real
 file/report exports remain. Ten compatibility routes and R1.8 deny-safe action
-presentation remain intact. R1.10 and R2 have not started.
+presentation remain intact. At the R1.9 closure point, R1.10 and R2 had not
+started.
 
 The user committed the R1.9 source and focused test during verification; Codex
 did not issue a commit. The closure-document update remains separate.
+
+## 18. R1.10 closure note
+
+R1.10 is closed on 2026-08-14 without implementing any target visual
+architecture. Existing controllers remain the UI query-state owners and typed
+queries/readers remain the execution authority. Search, supported filters,
+scope, and sort reset page 1; page navigation and refresh preserve the remaining
+query state; accepted server page, page size, filter, and sort state is reflected
+back to presentation.
+
+Projects, Tasks, and Resources exports are all-matching-results operations that
+batch through their current authorized query and preserve its filters and sort.
+Finance Excel/PDF is an explicitly bounded report with complete canonical
+control totals and a disclosed 500-row source-detail bound. Scheduling,
+Register, Timesheet Review, Collaboration, Portfolio, and Dashboard expose no
+export after R1.9. No generic current-page export or selected-row export exists.
+
+Final-page normalization now covers the scalable PM readers and Finance pages,
+including refresh after result-count reduction. One interaction dispatches one
+normal refresh; the only conditional second read corrects a page proven invalid
+by the authoritative total. Query execution is synchronous, so no stale-response
+mechanism is warranted. Tenant, organization, principal, project, and entity
+visibility enforcement remains in the same service/reader paths used by the
+visible lists.
+
+Focused R1.10 and affected architecture verification is green. No full PM suite
+was run per user direction. This stage introduces no `PMWorkspace`, route,
+context bar, navigation, inspector, My Time, Finance IA, or visual redesign.
+R1.11 and R2 were not started, and Codex did not create a commit.
