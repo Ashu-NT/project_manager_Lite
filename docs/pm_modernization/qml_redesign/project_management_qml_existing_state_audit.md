@@ -1,6 +1,6 @@
 # Project Management QML Existing-State Audit
 
-Status: audit complete; R0.1 and behavior-preserving R0.5 complete; R1.1 query-integrity mapping in progress  
+Status: audit complete; R0.1, behavior-preserving R0.5, R1 (query integrity and truthful controls), and R2 (PM navigation and project context) all complete; R3 not started  
 Audit date: 2026-08-14  
 Primary scope: `src/ui_qml/modules/project_management/`
 
@@ -660,6 +660,8 @@ Loading and mutation feedback are generally consistent because controllers inher
 - Dashboard has several selectors between 150 and 220 pixels in one action area.
 
 The shell can collapse its drawer, but PM does not coordinate that state or change its detail navigation into a compact/dropdown form. Horizontal action loss and dense table degradation are likely at 1024.
+
+Note: this R0 audit measured against the original "1024x768 minimum" target. That target was later revised (`project_management_qml_target_ui_ux_design.md` section 11): the application must remain operational at 1024x640, with primary acceptance at 1280x720+ and navigation/chrome collapsing before business content becomes unusable. The pixel budgets above are left as the historical R0 measurement, not restated against the new floor.
 
 ### 14.2 Larger desktop
 
@@ -1478,6 +1480,28 @@ mapping now would mean fabricating a product decision with no backing
 contract, which this modernization effort has consistently avoided
 elsewhere. All ten destinations remain visible, matching pre-R2 behavior.
 
+1024x768 result: **FUNCTIONALLY VERIFIED / PIXEL-LEVEL VISUAL VERIFICATION
+DEFERRED.** Responsive behavior at that width (the PM secondary nav's
+shared-rail auto-collapse; the project-context bar's row scrolling instead
+of clipping) was verified structurally and is exercised by tests. Rendered
+pixel/screenshot verification was not performed because this environment
+has no screenshot/render-capture tooling -- a scoped deferral, not an R2
+regression.
+
 R3-R8 visual/product work, My Time, desired unsupported filters,
 notification delivery, and Finance expansion remain deferred, unchanged from
 the R1.11 closure above.
+
+**R2 - PM NAVIGATION AND PROJECT CONTEXT: COMPLETE.**
+
+## 25. R3.1 characterization and R3.3 scalable query classification
+
+R3.1 confirmed a Dashboard portfolio-scope N+1 (fixed in R3.7) and found no
+R1 correctness gap in Portfolio's five list APIs (each returns the full
+accessible-scoped set, no hidden cap). Full characterization, the five-
+collection BOUNDED_COMPLETE/SCALABLE classification with product-invariant
+reasoning, and the resulting server-pagination architecture for Intake/
+Heatmap/Dependencies (plus the bounded `list_top_at_risk_projects()` Top-N
+projection) are recorded in `project_management_qml_target_ui_ux_design.md`
+section 21 -- not duplicated here. **R3.3 - PORTFOLIO SCALABLE COLLECTION
+QUERIES: COMPLETE.**

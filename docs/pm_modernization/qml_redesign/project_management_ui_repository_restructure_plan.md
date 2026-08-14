@@ -1,6 +1,6 @@
 # Project Management UI Repository Restructure Plan
 
-Status: R0.1 approved; R0.5A-R0.5G complete; R1 not started  
+Status: R0.1 approved; R0.5A-R0.5G complete; R1 (query integrity and truthful controls) complete; R2 (PM navigation and project context) complete; R3 not started  
 Depends on: existing-state audit and target UI/UX design  
 Behavior-change policy: none during restructuring
 
@@ -808,11 +808,39 @@ description and closure record) and characterized/verified by
   read-visibility), so R2 does not filter the six navigation groups by
   capability; all ten destinations remain visible, matching pre-R2 behavior.
   This is a reported gap, not a silent omission.
-- Pixel-level 1024x768/1280x800 verification was not performed -- this
-  environment has no screenshot/rendering-capture tooling. Structural
-  responsive behavior (auto-collapsing rail, horizontally-scrollable
-  context-bar row) was verified instead.
+- 1024x768 result: **FUNCTIONALLY VERIFIED / PIXEL-LEVEL VISUAL
+  VERIFICATION DEFERRED.** Responsive behavior at that width (auto-collapsing
+  rail, horizontally-scrollable context-bar row) was verified structurally
+  and is exercised by tests; rendered pixel/screenshot verification was not
+  performed because this environment has no screenshot/render-capture
+  tooling, not because the behavior is unverified. This is a scoped
+  deferral, not an R2 regression, consistent with R0.5's own closure
+  standard (no screenshot pixel-comparison gate was available there either).
+
+R2 is closed: **R2 - PM NAVIGATION AND PROJECT CONTEXT: COMPLETE.**
 
 R3-R8 product/visual work has not started. No commit was made as part of
 this phase beyond what R2 required; commit authorization for this phase's
 changes was requested separately from documentation.
+
+## 25. R3.1 characterization and R3.3 scalable query closure record
+
+R3.1 (Overview/Dashboard + Portfolio characterization) and R3.2 (confirmed-
+dead Portfolio file removal) are complete. R3.3 inserted a scalability gate
+before the Portfolio visual redesign: the five Portfolio collections
+(templates, intake, scenarios, heatmap, dependencies) were classified
+BOUNDED_COMPLETE or SCALABLE by product/domain semantics, and authoritative
+server-side pagination (SQL scope/filter/sort/`LIMIT`-`OFFSET`, stable `id`
+tie-breakers, authoritative `total_count`) was added for the three SCALABLE
+collections, plus a separate bounded `list_top_at_risk_projects()` Top-N
+ranking for Heatmap's global pressure view. Full detail, classification
+table, and the "authoritative paginated browse != bounded analytical
+ranking" architecture rule live in
+`project_management_qml_target_ui_ux_design.md` section 21. No commit was
+made as part of this phase; commit authorization was requested separately.
+
+**R3.3 - PORTFOLIO SCALABLE COLLECTION QUERIES: COMPLETE.**
+
+R3.4-R3.8 (Portfolio IA tabs, interaction redesign, responsive pass,
+targeted performance work beyond the R3.7 Dashboard N+1 fix already done,
+and closure) remain not started.

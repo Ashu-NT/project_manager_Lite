@@ -1,19 +1,26 @@
 from __future__ import annotations
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
+from src.core.modules.project_management.application.common.pagination import PaginatedResult
+from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 from src.core.modules.project_management.contracts.repositories.portfolio.portfolio import (
     PortfolioIntakeRepository,
+    PortfolioProjectDependencyPageItem,
     PortfolioProjectDependencyRepository,
     PortfolioScoringTemplateRepository,
     PortfolioScenarioRepository,
 )
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioIntakeItem,
+    PortfolioIntakeStatus,
     PortfolioProjectDependency,
     PortfolioScoringTemplate,
     PortfolioScenario,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
+    stable_order_by,
 )
 from src.core.modules.project_management.infrastructure.persistence.mappers.portfolio import (
     portfolio_intake_from_orm,
@@ -38,6 +45,11 @@ from src.core.modules.project_management.infrastructure.persistence.repositories
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.infra.persistence.db.optimistic import update_with_version_check
+
+
+def _contains_pattern(value: str) -> str:
+    escaped = value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped.lower()}%"
 
 
 class SqlAlchemyPortfolioIntakeRepository(
@@ -119,6 +131,67 @@ class SqlAlchemyPortfolioIntakeRepository(
         )
         rows = self.session.execute(stmt).scalars().all()
         return [portfolio_intake_from_orm(row) for row in rows]
+
+    def list_page(
+        self,
+        *,
+        status: PortfolioIntakeStatus | None,
+        search_text: str,
+        page: int,
+        page_size: int,
+        sort: ReadSort,
+    ) -> PaginatedResult[PortfolioIntakeItem]:
+        ctx = self._context(operation_label="access portfolio intake")
+        scope_filters = [PortfolioIntakeItemORM.organization_id == ctx.organization_id]
+        active_tenant_id = getattr(ctx, "tenant_id", None)
+        if active_tenant_id is not None:
+            scope_filters.append(PortfolioIntakeItemORM.tenant_id == active_tenant_id)
+        if status is not None:
+            scope_filters.append(PortfolioIntakeItemORM.status == status.value)
+        normalized_search = str(search_text or "").strip()
+        if normalized_search:
+            pattern = _contains_pattern(normalized_search)
+            scope_filters.append(
+                or_(
+                    func.lower(PortfolioIntakeItemORM.title).like(pattern, escape="\\"),
+                    func.lower(func.coalesce(PortfolioIntakeItemORM.sponsor_name, "")).like(
+                        pattern, escape="\\"
+                    ),
+                )
+            )
+        filtered_total = int(
+            self.session.scalar(
+                select(func.count(PortfolioIntakeItemORM.id)).where(*scope_filters)
+            )
+            or 0
+        )
+        sort_expressions = {
+            "title": (func.lower(PortfolioIntakeItemORM.title),),
+            "sponsorName": (func.lower(func.coalesce(PortfolioIntakeItemORM.sponsor_name, "")),),
+            "statusLabel": (PortfolioIntakeItemORM.status,),
+            "targetStartDate": (PortfolioIntakeItemORM.target_start_date,),
+            "updatedAt": (PortfolioIntakeItemORM.updated_at,),
+        }
+        rows = self.session.execute(
+            select(PortfolioIntakeItemORM)
+            .where(*scope_filters)
+            .order_by(
+                *stable_order_by(
+                    sort=sort,
+                    expressions=sort_expressions,
+                    default_key="updatedAt",
+                    tie_breakers=(PortfolioIntakeItemORM.id,),
+                )
+            )
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        ).scalars().all()
+        return PaginatedResult(
+            items=[portfolio_intake_from_orm(row) for row in rows],
+            page=page,
+            page_size=page_size,
+            total=filtered_total,
+        )
 
     def delete(self, item_id: str) -> None:
         scoped_ids = (
@@ -273,6 +346,91 @@ class SqlAlchemyPortfolioProjectDependencyRepository(
         )
         rows = self.session.execute(stmt).scalars().all()
         return [portfolio_project_dependency_from_orm(row) for row in rows]
+
+    def list_page(
+        self,
+        *,
+        search_text: str,
+        page: int,
+        page_size: int,
+        sort: ReadSort,
+    ) -> PaginatedResult[PortfolioProjectDependencyPageItem]:
+        ctx = self._context(operation_label="access portfolio project dependencies")
+        predecessor = aliased(ProjectORM)
+        successor = aliased(ProjectORM)
+        scope_filters = [
+            predecessor.organization_id == ctx.organization_id,
+            successor.organization_id == ctx.organization_id,
+        ]
+        active_tenant_id = getattr(ctx, "tenant_id", None)
+        if active_tenant_id is not None:
+            scope_filters.extend(
+                (predecessor.tenant_id == active_tenant_id, successor.tenant_id == active_tenant_id)
+            )
+        base = (
+            select(
+                PortfolioProjectDependencyORM,
+                predecessor.name,
+                predecessor.status,
+                successor.name,
+                successor.status,
+            )
+            .join(predecessor, predecessor.id == PortfolioProjectDependencyORM.predecessor_project_id)
+            .join(successor, successor.id == PortfolioProjectDependencyORM.successor_project_id)
+            .where(*scope_filters)
+        )
+        normalized_search = str(search_text or "").strip()
+        if normalized_search:
+            pattern = _contains_pattern(normalized_search)
+            base = base.where(
+                or_(
+                    func.lower(predecessor.name).like(pattern, escape="\\"),
+                    func.lower(successor.name).like(pattern, escape="\\"),
+                    func.lower(func.coalesce(PortfolioProjectDependencyORM.summary, "")).like(
+                        pattern, escape="\\"
+                    ),
+                )
+            )
+        filtered_total = int(
+            self.session.scalar(
+                select(func.count()).select_from(base.with_only_columns(PortfolioProjectDependencyORM.id).subquery())
+            )
+            or 0
+        )
+        sort_expressions = {
+            "predecessorProjectName": (func.lower(predecessor.name),),
+            "successorProjectName": (func.lower(successor.name),),
+            "dependencyType": (PortfolioProjectDependencyORM.dependency_type,),
+            "createdAt": (PortfolioProjectDependencyORM.created_at,),
+            "updatedAt": (PortfolioProjectDependencyORM.updated_at,),
+        }
+        rows = self.session.execute(
+            base.order_by(
+                *stable_order_by(
+                    sort=sort,
+                    expressions=sort_expressions,
+                    default_key="updatedAt",
+                    tie_breakers=(PortfolioProjectDependencyORM.id,),
+                )
+            )
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        ).all()
+        return PaginatedResult(
+            items=[
+                PortfolioProjectDependencyPageItem(
+                    dependency=portfolio_project_dependency_from_orm(row[0]),
+                    predecessor_project_name=str(row[1] or ""),
+                    predecessor_project_status=getattr(row[2], "value", str(row[2])),
+                    successor_project_name=str(row[3] or ""),
+                    successor_project_status=getattr(row[4], "value", str(row[4])),
+                )
+                for row in rows
+            ],
+            page=page,
+            page_size=page_size,
+            total=filtered_total,
+        )
 
     def delete(self, dependency_id: str) -> None:
         scoped_ids = (

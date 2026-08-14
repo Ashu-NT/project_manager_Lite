@@ -1,8 +1,8 @@
 # Project Management Target UI/UX Design
 
-Status: R0.1 approved; behavior-preserving R0.5 complete; target redesign not started  
+Status: R0.1 approved; behavior-preserving R0.5 complete; R1 (query integrity and truthful controls) complete; R2 (PM navigation and project context) complete; visual/product redesign (R3-R8) not started  
 Depends on: `project_management_qml_existing_state_audit.md`  
-Target: maintainable enterprise desktop PM at 1024x768 and larger
+Target: maintainable enterprise desktop PM, designed responsively for available logical window width/height rather than any fixed resolution (revised from the original flat "1024x768 minimum" -- see section 11). Operational floor: 1024x640. Primary acceptance sizes: 1280x720, 1366x768, 1440x900, 1920x1080. Navigation/chrome collapses before business content becomes unusable.
 
 ## 1. Design outcome
 
@@ -482,7 +482,66 @@ PM-specific primitives consume shared controls but stay in the PM module.
 
 ## 11. Responsive behavior
 
-Use available content width after the shell drawer, not window width.
+**Governing rule (applies to every PM page, not only new R3+ work): do not
+design for a fixed desktop resolution. Design responsively for available
+logical window width and height.** No PM page may assume a specific pixel
+size for the application window or for its own content area. Treat every
+dimension below as whole-application *logical* pixels (post-DPI-scaling),
+not physical display resolution -- a 1024-logical-pixel-wide window is the
+target regardless of the physical monitor's pixel density.
+
+Use available content width and height after global application chrome
+*and* PM-local navigation are deducted -- never window width, and never an
+assumed constant. Do not assume the PM content area itself is 1024px wide
+(or any other fixed number): the shell drawer and PM secondary nav both
+consume real space first, and that space itself changes as chrome
+collapses at narrower sizes.
+
+### Required acceptance sizes (whole-application logical pixels)
+
+| Size | Role |
+|---|---|
+| 1024 x 640 | Minimum supported compact window |
+| 1280 x 720 | Primary small-laptop target |
+| 1366 x 768 | Standard laptop |
+| 1440 x 900 | Normal desktop/laptop |
+| 1920 x 1080 | Large desktop |
+
+1024x640 is a floor, not a design target: the application must remain
+*operational* there (usable for primary workflows, not merely
+non-crashing), while 1280x720 through 1920x1080 are where full layout
+fidelity is expected with no compromises. This supersedes the original flat
+"1024x768 minimum."
+
+At constrained widths, in priority order:
+
+1. collapse/hide navigation chrome first (shell drawer, then PM secondary
+   nav) -- both to icon-only or fully hidden before any business content is
+   touched;
+2. preserve the business workspace (tables, forms, KPIs, charts) -- it
+   degrades only after chrome has nothing left to give back;
+3. move actions into toolbar overflow where appropriate rather than
+   clipping or hiding them outright;
+4. avoid fixed-width layouts anywhere in PM QML -- prefer
+   `Layout.fillWidth`/anchors/flow layouts over literal pixel widths that
+   can't shrink;
+5. dialogs must fit the available window (clamp to available width/height,
+   never exceed it, never assume a fixed dialog size fits);
+6. vertical scrolling is acceptable when content genuinely exceeds
+   available height -- this is a legitimate degradation, not a defect;
+7. primary actions must always remain reachable, even if that means via
+   overflow rather than a direct button.
+
+If chrome is already fully collapsed and content still cannot fit at
+1024x640, that is a page-level defect to fix on that page, not a reason to
+lower the floor or to design that page around a fixed size.
+
+### Content-width tiers
+
+These tiers describe layout behavior as a function of *actual measured
+content width* (after chrome deduction) -- they are not a substitute for
+testing at the acceptance sizes above, since the same acceptance size can
+land in different tiers depending on how much chrome is currently expanded.
 
 | Content width | Target behavior |
 |---:|---|
@@ -491,14 +550,23 @@ Use available content width after the shell drawer, not window width.
 | 1180-1519 | optional 320-pixel inspector; fixed section rail; two-column dashboards |
 | 1520+ | 360-pixel inspector and wider analytics grids; never stretch form text excessively |
 
-1024x768 acceptance criteria:
+### Acceptance criteria
+
+At 1024x640 (chrome may be fully collapsed to satisfy these):
 
 - no horizontal clipping of required actions;
 - no dialog exceeds available width/height;
 - table always retains identity and status columns;
-- project and section context remain visible;
+- project and section context remain visible (a collapsed/icon-only
+  representation counts as visible; content hidden entirely does not);
 - all actions are reachable through overflow;
-- scroll ownership is unambiguous, with no nested full-page flickables.
+- scroll ownership is unambiguous, with no nested full-page flickables;
+- vertical scrolling within a page is acceptable where content exceeds
+  available height.
+
+At 1280x720 and every larger acceptance size, additionally: the fixed
+section rail, inspector, and two-column layouts described above are
+available uncompromised (not merely reachable via overflow/collapse).
 
 ## 12. Theme, density, and accessibility
 
@@ -623,7 +691,7 @@ Gate: saved views store queries, all filters are real, approval actions handle c
 ### R8 - Accessibility, density, cleanup, and regression
 
 Objective: complete keyboard semantics, focus, compact layouts, dark mode, density, remove migration compatibility, and perform final dead-code cleanup.  
-Gate: the canonical route, remaining compatibility routes, QML engine, dialogs, controllers, architecture, PM workflows, and visual acceptance checks pass.
+Gate: the canonical route, remaining compatibility routes, QML engine, dialogs, controllers, architecture, PM workflows, and visual acceptance checks pass, including the revised responsive floor (section 11): operational at 1024x640 with chrome collapsed as needed, full layout fidelity at 1280x720+.
 
 ## 15. Non-goals and prohibited shortcuts
 
@@ -640,7 +708,7 @@ Gate: the canonical route, remaining compatibility routes, QML engine, dialogs, 
 
 ## 16. Target acceptance summary
 
-The target is complete when one canonical PM module route provides the six approved PM-local destinations, compatibility routes are retired after dependency migration, users move from portfolio to project to task without implicit context changes, every visible control is real, scalable lists use authoritative queries, permission presentation is deny-safe, Timesheets defaults by capability while supporting capture and review, Finance exposes approved PM-owned commands without crossing Accounting boundaries, and the workspace remains keyboard-accessible and usable at 1024x768.
+The target is complete when one canonical PM module route provides the six approved PM-local destinations, compatibility routes are retired after dependency migration, users move from portfolio to project to task without implicit context changes, every visible control is real, scalable lists use authoritative queries, permission presentation is deny-safe, Timesheets defaults by capability while supporting capture and review, Finance exposes approved PM-owned commands without crossing Accounting boundaries, and the workspace remains keyboard-accessible and operational at 1024x640 (chrome collapsed as needed) with full layout fidelity at 1280x720 and larger (see section 11).
 
 ## 17. R1.9 closure note
 
@@ -814,11 +882,162 @@ R2 is closed. Completed:
   the shared widget as a side effect of R2.
 
 Deliberately not done, matching the approved R2 scope: no visual redesign
-of any of the ten capability pages, no `PMCapabilityController` capability
-expansion, and no pixel-level 1024x768/1280x800 verification (this
-environment has no screenshot/rendering-capture tooling; structural
-responsive behavior -- auto-collapsing rail, horizontally-scrollable
-context bar row -- was verified, not the rendered pixel result). R3-R8
-visual/product work, My Time, desired unsupported filters, notification
-delivery, and Finance expansion remain deferred, unchanged from the R1.11
-closure above.
+of any of the ten capability pages and no `PMCapabilityController`
+capability expansion.
+
+1024x768 result: **FUNCTIONALLY VERIFIED / PIXEL-LEVEL VISUAL VERIFICATION
+DEFERRED.** The shell's responsive behavior at that width -- the PM
+secondary nav auto-collapsing via the shared `GroupedNavigationRail`'s
+`autoCollapseAtNarrowWidth`, and the project-context bar's row becoming
+horizontally scrollable rather than clipping -- was verified structurally
+(the bindings and thresholds are in place and exercised by tests). Rendered
+pixel/screenshot verification was not performed because this environment
+has no screenshot/render-capture tooling, not because the behavior is
+unverified or broken. This is a scoped deferral, not an R2 regression --
+R2's own gate did not require pixel evidence, matching the same standard
+R0.5's closure already used ("no screenshot pixel-comparison gate was
+available, so closure does not claim pixel-diff evidence").
+
+R3-R8 visual/product work, My Time, desired unsupported filters,
+notification delivery, and Finance expansion remain deferred, unchanged
+from the R1.11 closure above.
+
+## 21. R3.1 characterization and R3.3 Portfolio scalable query architecture
+
+R3.1 characterized current Overview/Dashboard and Portfolio behavior before
+any redesign work started. Findings, classified per the mandated framework
+(UX REDESIGN DEBT / PERFORMANCE DEFECT / R1 CORRECTNESS GAP / FUTURE
+FEATURE):
+
+- **PERFORMANCE DEFECT, fixed in R3.7**:
+  `DashboardPortfolioMixin.get_portfolio_data()` looped over every accessible
+  project and, per project, called `get_project_kpis()` (which re-ran CPM
+  scheduling internally), `get_resource_load_summary()`, and
+  `_build_upcoming_tasks()` -- the last of which re-fetched the *entire*
+  resource table and issued one `list_assignments_for_task()` call per task
+  (an N+1 inside the N+1). Fixed by replicating the batching
+  `DashboardService.get_dashboard_data()` already used for a single
+  project: fetch each project's tasks/CPM schedule/assignments once, fetch
+  the resource table once for the whole portfolio, and pass all of it into
+  `get_project_kpis(schedule=...)` / `_build_upcoming_tasks(tasks=...,
+  assignments_by_task=..., resources_by_id=...)` via their existing
+  optional overrides. No new abstractions; no change to either helper's
+  default (no-override) behavior, so every other call site is unaffected.
+  Regression-proven by asserting fixed call counts independent of project
+  count (`test_dashboard_portfolio_workspace_performance_measurement.py`).
+- **Not an R1 correctness gap**: Portfolio's `list_templates()`,
+  `list_intake_items()`, `list_scenarios()`, `list_heatmap()`, and
+  `list_dependencies()` were traced into their underlying
+  `PortfolioService` query mixins and confirmed to return the full
+  accessible-scoped result set with no hidden cap -- the totals shown are
+  the true totals, so today's client-side pagination over them is a
+  scalability characteristic, not a truthfulness violation (matches R1.7's
+  "Portfolio aggregate truth is independent of UI paging").
+- **6 of 7 candidate-dead Portfolio section files confirmed dead** with
+  fresh evidence (zero references anywhere in `src/ui_qml`, not
+  instantiated by the live `PortfolioWorkspacePage.qml` or
+  `PortfolioBottomPanel.qml`) and deleted in R3.2:
+  `PortfolioIntakeSection.qml`, `PortfolioScenariosSection.qml`,
+  `PortfolioDependenciesSection.qml`, `PortfolioTemplatesSection.qml`,
+  `PortfolioToolbarSection.qml`, `PortfolioExecutiveSection.qml`.
+  `PortfolioSummaryCard.qml` was found to still be live (used by
+  `PortfolioGovernanceToolbar.qml`) and was kept -- a correction to the
+  earlier recon's claim.
+
+### Scalability gate inserted before the Portfolio visual redesign
+
+Before building the new Portfolio tabs/workspaces (R3.4+), the product
+requirement that Portfolio collections may grow to ~10,000+ rows required
+settling the query architecture first, so the new UI is built on the real
+contract from day one rather than retrofitted later.
+
+**Classification of the five Portfolio collections** (by product/domain
+semantics, not current row count):
+
+| Collection | Classification | Product invariant |
+|---|---|---|
+| Scoring templates | BOUNDED_COMPLETE | A scoring-rubric configuration catalog an organization defines rarely (governance artifact, not a per-event record) -- the same character as rate cards elsewhere in this codebase. The complete authorized set is intentionally loaded. |
+| Scenarios | BOUNDED_COMPLETE | Manually-authored what-if planning constructs created deliberately per planning cycle by PMO staff, not generated per business transaction. The complete authorized set is intentionally loaded. |
+| Intake | SCALABLE | Every candidate/proposed project idea across the organization's lifetime, including rejected/historical ones -- no natural ceiling. |
+| Heatmap | SCALABLE | One row per accessible project -- directly 1:1 with the project count the product must support at 10,000+. |
+| Dependencies | SCALABLE | Cross-project dependency edges; grows at least as fast as project count. |
+
+**Authoritative server-side pagination** was added for the three SCALABLE
+collections, following this codebase's existing `ReadSort` /
+`stable_order_by` / offset-`PaginatedResult` pattern (the same one
+`TaskService.query_workspace_page()` and the Projects/Register catalog
+readers already use):
+
+- `PortfolioService.list_intake_items_page(...)` --
+  `SqlAlchemyPortfolioIntakeRepository.list_page()` does the SQL
+  scope/search/status filter, `ORDER BY` on an allowlisted column with an
+  `id` tie-breaker, and `LIMIT`/`OFFSET`.
+- `PortfolioService.list_portfolio_heatmap_page(...)` -- project
+  selection (scope/search/status/sort/page) happens in SQL via the shared
+  `ProjectCatalogReader` (the same reader the Projects workspace already
+  uses) *before* any per-project pressure computation runs; heatmap facts
+  (`_heatmap_reader.read_facts()`) are then fetched, and pressure computed,
+  only for the page's projects -- never the full accessible scope.
+- `PortfolioService.list_project_dependencies_page(...)` --
+  `SqlAlchemyPortfolioProjectDependencyRepository.list_page()` paginates
+  and searches dependency edges in SQL (joined to predecessor/successor
+  project name for search and display, so no second unbounded project
+  fetch is needed); pressure is then computed only for the small set of
+  projects actually referenced on that page.
+
+**Computed pressure is never a paginated sort key.** `pressure_score` /
+`pressure_label` are derived per project from CPM scheduling, cost
+variance, and resource utilization -- there is no way to `ORDER BY` them
+in SQL without computing them for every accessible project first, which
+would defeat the purpose of paginating at all. The rule applied
+throughout: *authoritative paginated browse != bounded analytical
+ranking*.
+
+- On the paginated Heatmap/Dependencies browse, only genuinely
+  SQL-authoritative columns (project name, status, dependency type,
+  created/updated timestamps) are sortable. Requesting an unsupported key
+  (e.g. `pressureScore`) falls back to the default via `ReadSort.normalize`'s
+  existing allowlist behavior -- it does not error and does not silently
+  re-sort the returned page in Python.
+- A separate, explicitly bounded analytical projection,
+  `PortfolioService.list_top_at_risk_projects()` (`collection_semantics =
+  bounded/top_n`), ranks pressure across the *complete* authorized project
+  scope and truncates to `TOP_AT_RISK_PROJECTS_LIMIT` (8 -- matching this
+  codebase's existing watchlist convention used by the Dashboard's own
+  `critical_watchlist`/`milestone_health` top_n tables, not an invented
+  number). It is never derived from a paginated page, and changing the
+  paginated browse's `page_size` cannot change its result
+  (test-proven in `test_pm_r3_portfolio_scalable_queries.py`).
+- No Dependencies Top-N was added -- product semantics do not currently
+  call for a global dependency-pressure ranking distinct from the Heatmap
+  one, and R3.3's instruction was explicit not to add one merely for
+  symmetry.
+- **No materialized pressure infrastructure was added in R3**: no
+  `pressure_score` column, cache, scheduled recomputation, materialized
+  view, or event-driven invalidation. If pressure becomes a first-class
+  sortable/filterable/alertable/reportable metric, persisting/caching it is
+  the future option to revisit then -- not before.
+
+Desktop-API/presenter/controller wiring for these three query methods is
+deferred to R3.4 (the Portfolio IA tabs phase) rather than retrofitted into
+the current `PortfolioBottomPanel.qml`/`HeatmapTableController` (which
+already does client-side pagination over a fully materialized list and
+will be replaced, not extended, by R3.4) -- wiring the old UI to the new
+contract now would itself be the "temporary client-pagination logic that
+will be deleted a few stages later" the gate explicitly warned against.
+
+R3.3 exit gate: all five collections classified; every SCALABLE collection
+uses server pagination; no scalable page downloads the full collection for
+client pagination; filtering/sorting happen before pagination; total_count
+is authoritative; stable `id` tie-breakers are used throughout; aggregates
+(Dashboard/Portfolio KPIs) remain computed from their own existing,
+untouched authoritative paths, independent of any page size; tenant/org/
+project scope is enforced identically to every other Portfolio query; a
+focused ~10,000-row scale test exists (against Intake, the simplest
+single-table SCALABLE collection to seed at scale -- it exercises the same
+`stable_order_by`/`LIMIT`/`OFFSET` mechanism Heatmap's project-selection
+layer reuses via the shared `ProjectCatalogReader`); the full
+Portfolio+Dashboard regression batch (105 tests) plus the 12 new R3.3
+tests pass. **R3.3 -- PORTFOLIO SCALABLE COLLECTION QUERIES: COMPLETE.**
+
+**R2 - PM NAVIGATION AND PROJECT CONTEXT: COMPLETE.**

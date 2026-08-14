@@ -26,6 +26,9 @@ from src.core.modules.project_management.contracts.reads.portfolio.scenario_read
 from src.core.modules.project_management.contracts.reads.portfolio.heatmap_reader import (
     PortfolioHeatmapReader,
 )
+from src.core.modules.project_management.contracts.reads.projects.catalog_reader import (
+    ProjectCatalogReader,
+)
 from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
     LaborRateResolver,
 )
@@ -71,6 +74,7 @@ class PortfolioService(
         user_session=None,
         module_catalog_service=None,
         tenant_context_service=None,
+        project_catalog_reader: ProjectCatalogReader | None = None,
     ) -> None:
         self._session = session
         self._intake_repo = intake_repo
@@ -81,6 +85,7 @@ class PortfolioService(
         self._project_repo = project_repo
         self._heatmap_reader = heatmap_reader
         self._scenario_reader = scenario_reader
+        self._project_catalog_reader = project_catalog_reader
         self._calendar = calendar
         self._project_calendar_adapter = project_calendar_adapter
         self._rate_resolver = rate_resolver

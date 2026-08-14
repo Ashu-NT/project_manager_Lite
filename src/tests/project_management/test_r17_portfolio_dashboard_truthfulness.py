@@ -119,7 +119,7 @@ def test_portfolio_financial_aggregate_is_complete_and_decimal_exact(
 
     class Reporting:
         @staticmethod
-        def get_project_kpis(project_id: str) -> SimpleNamespace:
+        def get_project_kpis(project_id: str, *, schedule: object | None = None) -> SimpleNamespace:
             return SimpleNamespace(
                 project_id=project_id,
                 name=project_id,
@@ -150,9 +150,17 @@ def test_portfolio_financial_aggregate_is_complete_and_decimal_exact(
             self._reporting = Reporting()
             self._calendar = SimpleNamespace(working_days_between=lambda _start, _end: 0)
             self._user_session = object()
+            self._resources = SimpleNamespace(list_resources=lambda: [])
+            self._tasks = SimpleNamespace(
+                list_tasks_for_project=lambda _project_id: [],
+                list_assignments_for_tasks=lambda _task_ids: [],
+            )
+            self._sched = SimpleNamespace(
+                recalculate_project_schedule=lambda _project_id, persist=False: {}
+            )
 
         @staticmethod
-        def _build_upcoming_tasks(_project_id: str) -> list[object]:
+        def _build_upcoming_tasks(_project_id: str, **_kwargs: object) -> list[object]:
             return []
 
     monkeypatch.setattr(

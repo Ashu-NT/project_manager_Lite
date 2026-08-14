@@ -4,6 +4,7 @@ import logging
 from datetime import date, timedelta
 from decimal import Decimal
 
+from src.core.modules.project_management.application.common.pagination import PaginatedResult
 from src.core.modules.project_management.application.resources.resource_load_engine import (
     ResourceLoadEngine,
 )
@@ -17,7 +18,8 @@ from src.core.modules.project_management.contracts.reads.portfolio.models.heatma
     HeatmapProjectFacts,
     PortfolioHeatmapFacts,
 )
-from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
+from src.core.modules.project_management.contracts.reads.sorting import ReadSort
+from src.core.modules.project_management.domain.enums import DependencyType, ProjectStatus, TaskStatus
 from src.core.modules.project_management.domain.portfolio import (
     PortfolioExecutiveRow,
     PortfolioRecentAction,
@@ -28,13 +30,29 @@ from src.core.modules.project_management.domain.tasks.hierarchy import (
 )
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.common.exceptions import BusinessRuleError
 
 
 logger = logging.getLogger(__name__)
 
+# Matches the existing watchlist convention used by the Dashboard's own
+# top_n tables (critical_watchlist / milestone_health) — see
+# api/desktop/dashboard/builders/operational_table_builder.py.
+TOP_AT_RISK_PROJECTS_LIMIT = 8
+
+_HEATMAP_BROWSE_SORT_KEYS = {"projectName", "statusLabel"}
+
 
 class PortfolioExecutiveQueryMixin:
-    def list_portfolio_heatmap(self) -> list[PortfolioExecutiveRow]:
+    def list_portfolio_heatmap(self, *, limit: int | None = None) -> list[PortfolioExecutiveRow]:
+        """Authoritative heatmap ranking over the COMPLETE accessible project
+        scope. With limit=None (default) this returns every accessible
+        project and is what list_project_dependencies() enriches against —
+        do not change that default. Pass limit= to use this as the bounded
+        "Top At-Risk Projects" projection (collection_semantics=top_n);
+        that ranking is always computed from the full scope, never from a
+        paginated page, so page_size can never change which projects appear.
+        """
         require_permission(self._user_session, "portfolio.read", operation_label="view portfolio executive heatmap")
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="view portfolio executive heatmap"
@@ -46,6 +64,89 @@ class PortfolioExecutiveQueryMixin:
             project_ids=accessible_project_ids,
             as_of=date.today(),
         )
+        rows = sorted(
+            self._compute_heatmap_rows(facts),
+            key=lambda row: (-row.pressure_score, -row.late_tasks, row.project_name.lower()),
+        )
+        if limit is not None:
+            rows = rows[: max(0, int(limit))]
+        return rows
+
+    def list_top_at_risk_projects(
+        self, *, limit: int = TOP_AT_RISK_PROJECTS_LIMIT
+    ) -> list[PortfolioExecutiveRow]:
+        """Bounded/top_n analytical projection: ranks pressure across the
+        complete authorized project scope, then truncates. Never derive this
+        from a paginated Heatmap page."""
+        return self.list_portfolio_heatmap(limit=limit)
+
+    def list_portfolio_heatmap_page(
+        self,
+        *,
+        search_text: str = "",
+        status: ProjectStatus | None = None,
+        page: int = 1,
+        page_size: int = 25,
+        sort_key: str = "projectName",
+        sort_direction: str = "asc",
+    ) -> PaginatedResult[PortfolioExecutiveRow]:
+        """Authoritative server-paginated Heatmap browse. Project selection
+        (scope/search/status/sort/page) happens in SQL via the shared
+        project catalog reader BEFORE any per-project pressure computation
+        runs — pressure is computed only for the rows on the returned page,
+        never for the full accessible scope. Sorting is restricted to
+        genuinely SQL-authoritative columns (project name/status); pressure
+        is display-only here and is never a sortable key for this method —
+        use list_top_at_risk_projects() for a global pressure ranking.
+        """
+        require_permission(self._user_session, "portfolio.read", operation_label="view portfolio executive heatmap")
+        if self._project_catalog_reader is None:
+            raise BusinessRuleError(
+                "Portfolio heatmap pagination requires a project catalog reader.",
+                code="PORTFOLIO_HEATMAP_PAGE_READER_REQUIRED",
+            )
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view portfolio executive heatmap"
+        )
+        allowed_project_ids: tuple[str, ...] | None = None
+        if self._user_session is not None and self._user_session.is_project_restricted():
+            allowed_project_ids = tuple(sorted(self._user_session.project_ids_for("project.read")))
+        sort = ReadSort.normalize(
+            key=sort_key,
+            direction=sort_direction,
+            allowed_keys=_HEATMAP_BROWSE_SORT_KEYS,
+            default_key="projectName",
+        )
+        project_page = self._project_catalog_reader.read_page(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            allowed_project_ids=allowed_project_ids,
+            search_text=search_text,
+            status=status,
+            page=page,
+            page_size=page_size,
+            sort=sort,
+        )
+        page_project_ids = tuple(item.project.id for item in project_page.items)
+        if not page_project_ids:
+            return PaginatedResult(items=[], page=page, page_size=page_size, total=project_page.filtered_total)
+        facts = self._heatmap_reader.read_facts(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_ids=page_project_ids,
+            as_of=date.today(),
+        )
+        rows_by_id = {row.project_id: row for row in self._compute_heatmap_rows(facts)}
+        # Preserve the SQL-determined order — never re-sort by pressure here.
+        ordered_rows = [rows_by_id[project_id] for project_id in page_project_ids if project_id in rows_by_id]
+        return PaginatedResult(
+            items=ordered_rows,
+            page=page,
+            page_size=page_size,
+            total=project_page.filtered_total,
+        )
+
+    def _compute_heatmap_rows(self, facts: PortfolioHeatmapFacts) -> list[PortfolioExecutiveRow]:
         rows: list[PortfolioExecutiveRow] = []
         for project in facts.projects:
             try:
@@ -103,10 +204,7 @@ class PortfolioExecutiveQueryMixin:
                         pressure_label="Stable",
                     )
                 )
-        return sorted(
-            rows,
-            key=lambda row: (-row.pressure_score, -row.late_tasks, row.project_name.lower()),
-        )
+        return rows
 
     def _heatmap_schedule_counts(
         self,

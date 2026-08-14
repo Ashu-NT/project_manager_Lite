@@ -566,6 +566,7 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
+        project_catalog_reader=SqlAlchemyProjectCatalogReader(session=session),
     )
     baseline_service = BaselineService(
         session=session,

@@ -4,6 +4,7 @@ from datetime import date
 from decimal import Decimal
 
 from src.core.modules.project_management.domain.enums import ProjectStatus
+from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.modules.project_management.access.scope_permissions import filter_project_rows
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.modules.project_management.application.dashboard.models.dashboard_models import DashboardData
@@ -21,6 +22,12 @@ from src.core.modules.project_management.infrastructure.reporting import (
 
 class DashboardPortfolioMixin:
     def get_portfolio_data(self) -> DashboardData:
+        # Mirrors the batching DashboardService.get_dashboard_data() already
+        # does for a single project: fetch tasks/schedule/assignments/resources
+        # once per project (and resources once for the whole portfolio) and
+        # hand them to get_project_kpis()/_build_upcoming_tasks() via their
+        # existing optional overrides, instead of letting each helper re-fetch
+        # the same rows and re-run CPM redundantly for every project.
         require_permission(self._user_session, "report.view", operation_label="view portfolio dashboard")
         projects = filter_project_rows(
             self._projects.list_projects(),
@@ -75,9 +82,17 @@ class DashboardPortfolioMixin:
         ranking_rows: list[PortfolioProjectRow] = []
         upcoming_rows = []
         resource_load_by_id: dict[str, ResourceLoadRow] = {}
+        resources_by_id = {resource.id: resource for resource in self._resources.list_resources()}
 
         for project in projects:
-            kpi = self._reporting.get_project_kpis(project.id)
+            tasks = select_leaf_tasks(self._tasks.list_tasks_for_project(project.id))
+            schedule = self._sched.recalculate_project_schedule(project.id, persist=False)
+            assignments = self._tasks.list_assignments_for_tasks([task.id for task in tasks])
+            assignments_by_task: dict[str, list[object]] = {}
+            for assignment in assignments:
+                assignments_by_task.setdefault(assignment.task_id, []).append(assignment)
+
+            kpi = self._reporting.get_project_kpis(project.id, schedule=schedule)
             financial_detail_included = financial_detail_included and bool(
                 getattr(kpi, "financial_detail_included", True)
             )
@@ -121,7 +136,12 @@ class DashboardPortfolioMixin:
                 )
             )
 
-            for upcoming in self._build_upcoming_tasks(project.id):
+            for upcoming in self._build_upcoming_tasks(
+                project.id,
+                tasks=tasks,
+                assignments_by_task=assignments_by_task,
+                resources_by_id=resources_by_id,
+            ):
                 upcoming.name = f"{project.name} | {upcoming.name}"
                 upcoming_rows.append(upcoming)
 
