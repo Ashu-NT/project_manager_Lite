@@ -184,11 +184,13 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
         document_presenter: PlatformDocumentCatalogPresenter,
         document_management_presenter: PlatformDocumentManagementPresenter,
         enterprise_calendar_api=None,
+        runtime_api=None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self._overview_presenter = overview_presenter
         self._enterprise_calendar_api = enterprise_calendar_api
+        self._runtime_api = runtime_api
         self._organization_controller = PlatformOrganizationController(organization_presenter, self)
         self._calendar_controller = PlatformCalendarController(calendar_presenter, self)
         self._site_controller = PlatformSiteController(site_presenter, self)

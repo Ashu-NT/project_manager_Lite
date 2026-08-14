@@ -163,6 +163,31 @@ class FakePlatformRuntimeApi:
     def get_organization_count(self) -> DesktopApiResult[int]:
         return DesktopApiResult(ok=True, data=len(self._organizations))
 
+    def get_current_permissions(self) -> DesktopApiResult[tuple[str, ...]]:
+        # This fake represents a fully-connected, admin-like caller in
+        # existing tests that don't exercise RBAC nav visibility -- return
+        # every permission code the Platform nav's requiredPermissions map
+        # references so nothing is incidentally hidden for those tests.
+        return DesktopApiResult(
+            ok=True,
+            data=(
+                "access.manage",
+                "approval.decide",
+                "approval.request",
+                "audit.read",
+                "auth.manage",
+                "auth.read",
+                "department.read",
+                "employee.read",
+                "party.read",
+                "platform.admin",
+                "security.manage",
+                "settings.manage",
+                "site.read",
+                "task.read",
+            ),
+        )
+
     def list_modules(self) -> DesktopApiResult[tuple[ModuleDto, ...]]:
         return DesktopApiResult(ok=True, data=self._modules)
 

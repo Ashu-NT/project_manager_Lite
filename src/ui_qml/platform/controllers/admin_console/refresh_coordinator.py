@@ -20,20 +20,62 @@ from __future__ import annotations
 
 from src.ui_qml.platform.controllers.common import serialize_workspace_overview
 
+_ENTITY_PERMISSIONS: dict[str, tuple[str, ...]] = {
+    "organization": ("settings.manage",),
+    "calendar": ("task.read",),
+    "site": ("settings.manage", "site.read"),
+    "department": ("settings.manage", "department.read"),
+    "employee": ("employee.read",),
+    "user": ("auth.manage", "auth.read", "access.manage", "security.manage"),
+    "party": ("settings.manage", "party.read"),
+    "document": ("settings.manage",),
+    "document_structure": ("settings.manage",),
+}
+
+
+def _accessible_entities(controller) -> frozenset[str]:
+    runtime_api = getattr(controller, "_runtime_api", None)
+    if runtime_api is None:
+        # No runtime API wired (QML preview, or a test constructing this
+        # controller directly without one) -- fail open, matching the
+        # unconditional-refresh behavior this replaces.
+        return frozenset(_ENTITY_PERMISSIONS)
+    result = runtime_api.get_current_permissions()
+    if not getattr(result, "ok", False) or getattr(result, "data", None) is None:
+        # Fail open on a transient API error rather than going blank --
+        # this is a perf pre-filter, not the actual authorization boundary.
+        return frozenset(_ENTITY_PERMISSIONS)
+    permissions = frozenset(result.data)
+    return frozenset(
+        entity
+        for entity, codes in _ENTITY_PERMISSIONS.items()
+        if any(code in permissions for code in codes)
+    )
+
 
 def do_refresh(controller) -> None:
     controller._set_is_loading(True)
     controller._set_error_message("")
     refresh_overview(controller)
-    controller._organization_controller.refresh()
-    controller._calendar_controller.refresh()
-    controller._site_controller.refresh()
-    controller._department_controller.refresh()
-    controller._employee_controller.refresh()
-    controller._user_controller.refresh()
-    controller._party_controller.refresh()
-    controller._document_controller.refresh()
-    controller._document_structure_controller.refresh()
+    accessible = _accessible_entities(controller)
+    if "organization" in accessible:
+        controller._organization_controller.refresh()
+    if "calendar" in accessible:
+        controller._calendar_controller.refresh()
+    if "site" in accessible:
+        controller._site_controller.refresh()
+    if "department" in accessible:
+        controller._department_controller.refresh()
+    if "employee" in accessible:
+        controller._employee_controller.refresh()
+    if "user" in accessible:
+        controller._user_controller.refresh()
+    if "party" in accessible:
+        controller._party_controller.refresh()
+    if "document" in accessible:
+        controller._document_controller.refresh()
+    if "document_structure" in accessible:
+        controller._document_structure_controller.refresh()
     refresh_empty_state(controller)
     controller._set_is_loading(False)
 
