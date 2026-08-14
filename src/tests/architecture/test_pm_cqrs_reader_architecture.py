@@ -595,18 +595,44 @@ def test_collaboration_r16_has_no_snapshot_or_duplicate_approval_authority() -> 
         for root in (
             PM_ROOT / "application/collaboration",
             PM_ROOT / "api/desktop/collaboration",
+            PM_ROOT / "contracts/reads/collaboration",
+            PM_ROOT / "infrastructure/persistence/reads/collaboration",
+            REPO_ROOT / "src/ui_qml/modules/project_management/controllers/collaboration",
             REPO_ROOT / "src/ui_qml/modules/project_management/presenters/collaboration",
         )
         for path in root.rglob("*.py")
+    )
+    workspace_qml_root = (
+        REPO_ROOT / "src/ui_qml/modules/project_management/qml/workspaces/collaboration"
+    )
+    controller_typeinfo_root = (
+        REPO_ROOT
+        / "src/ui_qml/modules/project_management/qml/ProjectManagement/Controllers/typeinfo"
+    )
+    collaboration_qml_source = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (
+            *workspace_qml_root.rglob("*.qml"),
+            controller_typeinfo_root / "collaboration.fragment",
+            controller_typeinfo_root / "plugins.qmltypes",
+        )
     )
     approvals_builder = (
         REPO_ROOT
         / "src/ui_qml/modules/project_management/presenters/collaboration/approvals_builder.py"
     ).read_text(encoding="utf-8")
 
-    assert "list_workspace_snapshot" not in collaboration_source
-    assert "CollaborationWorkspaceSnapshot" not in collaboration_source
-    assert "R1.6 TEMPORARY" not in collaboration_source
+    retired_source = collaboration_source + "\n" + collaboration_qml_source
+    for forbidden in (
+        "list_workspace_snapshot",
+        "CollaborationWorkspaceSnapshot",
+        "CollaborationWorkspaceFacts",
+        "R1.6 TEMPORARY",
+        "teamUpdates",
+        "Team Updates",
+        "exportPanel",
+    ):
+        assert forbidden not in retired_source
     assert "approval_api.list_requests(" in approvals_builder
     for forbidden in (
         "ApprovalRequestORM",
