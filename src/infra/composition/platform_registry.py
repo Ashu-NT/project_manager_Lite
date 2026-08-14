@@ -271,6 +271,7 @@ def build_platform_service_bundle(
         permission_repo=repositories.permission_repo,
         role_binding_repo=repositories.role_binding_repo,
     )
+    overview_rollup_reader = SqlAlchemyPlatformOverviewRollupReader(session)
     auth_service = AuthService(
         session=session,
         user_repo=repositories.user_repo,
@@ -285,6 +286,7 @@ def build_platform_service_bundle(
         tenant_context_service=tenant_context_service,
         request_id_provider=current_trace_id,
         role_binding_repo=repositories.role_binding_repo,
+        overview_rollup_reader=overview_rollup_reader,
         canonical_scope_tenant_resolvers={
             "organization": lambda tenant_id, organization_id: (
                 repositories.organization_repo.get_for_tenant(
@@ -323,8 +325,6 @@ def build_platform_service_bundle(
         "Platform auth policy catalog bootstrapped duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
-
-    overview_rollup_reader = SqlAlchemyPlatformOverviewRollupReader(session)
 
     organization_service = OrganizationService(
         session=session,

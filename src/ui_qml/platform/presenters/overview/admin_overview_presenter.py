@@ -56,6 +56,15 @@ class _DocumentSummary:
         self.current = current
 
 
+class _UserSummary:
+    __slots__ = ("total", "active", "locked")
+
+    def __init__(self, *, total: int, active: int, locked: int) -> None:
+        self.total = total
+        self.active = active
+        self.locked = locked
+
+
 class PlatformAdminWorkspacePresenter:
     def __init__(
         self,
@@ -99,7 +108,9 @@ class PlatformAdminWorkspacePresenter:
         headcount = self._headcount_summary(
             self._employee_api.get_headcount_summary() if self._employee_api is not None else None
         )
-        users = self._tuple_data(self._user_api.list_users() if self._user_api is not None else None)
+        user_summary = self._user_summary(
+            self._user_api.get_user_rollup_summary() if self._user_api is not None else None
+        )
         document_summary = self._document_summary(
             self._document_api.get_document_rollup_summary() if self._document_api is not None else None
         )
@@ -126,8 +137,8 @@ class PlatformAdminWorkspacePresenter:
                 ),
             )
 
-        active_user_count = sum(1 for user in users if user.is_active)
-        locked_user_count = sum(1 for user in users if user.locked_until is not None)
+        active_user_count = user_summary.active
+        locked_user_count = user_summary.locked
         active_employee_count = headcount.active
         active_site_count = site_summary.active
         active_department_count = department_summary.active
@@ -200,7 +211,7 @@ class PlatformAdminWorkspacePresenter:
                     rows=(
                         PlatformWorkspaceRowViewModel(
                             "Users",
-                            str(len(users)),
+                            str(user_summary.total),
                             f"{locked_user_count} locked, {active_user_count} active",
                         ),
                         PlatformWorkspaceRowViewModel(
@@ -237,12 +248,6 @@ class PlatformAdminWorkspacePresenter:
                 ),
             ),
         )
-
-    @staticmethod
-    def _tuple_data(result: object | None) -> tuple[object, ...]:
-        if result is None or not getattr(result, "ok", False) or getattr(result, "data", None) is None:
-            return ()
-        return tuple(result.data)
 
     @staticmethod
     def _headcount_summary(result: object | None) -> _HeadcountSummary:
@@ -290,6 +295,13 @@ class PlatformAdminWorkspacePresenter:
             return _DocumentSummary(total=0, current=0)
         data = result.data
         return _DocumentSummary(total=data.total, current=data.current)
+
+    @staticmethod
+    def _user_summary(result: object | None) -> _UserSummary:
+        if result is None or not getattr(result, "ok", False) or getattr(result, "data", None) is None:
+            return _UserSummary(total=0, active=0, locked=0)
+        data = result.data
+        return _UserSummary(total=data.total, active=data.active, locked=data.locked)
 
 
 __all__ = ["PlatformAdminWorkspacePresenter"]

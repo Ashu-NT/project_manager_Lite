@@ -7,6 +7,7 @@ from src.core.platform.api.desktop.security.auth.models.user import (
     UserCreateCommand,
     UserDto,
     UserPasswordResetCommand,
+    UserRollupSummaryDto,
     UserUpdateCommand,
 )
 from src.core.platform.application.security.auth import AuthService
@@ -27,6 +28,13 @@ class PlatformUserDesktopApi:
             lambda: tuple(
                 self._serialize_user(user)
                 for user in self._auth_service.list_users()
+            )
+        )
+
+    def get_user_rollup_summary(self) -> DesktopApiResult[UserRollupSummaryDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_user_rollup_summary(
+                self._auth_service.get_user_rollup_summary()
             )
         )
 
@@ -108,6 +116,10 @@ class PlatformUserDesktopApi:
                 self._auth_service.revoke_user_sessions(user_id, note=note)
             )
         )
+
+    @staticmethod
+    def _serialize_user_rollup_summary(summary) -> UserRollupSummaryDto:
+        return UserRollupSummaryDto(total=summary.total, active=summary.active, locked=summary.locked)
 
     @staticmethod
     def _serialize_role(role: Role) -> RoleDto:

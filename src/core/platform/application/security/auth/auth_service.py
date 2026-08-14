@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.application.security.auth.auth_query import AuthQueryMixin
 from src.core.platform.application.security.auth.auth_validation import AuthValidationMixin
+from src.core.platform.contract.read.overview.platform_overview_rollup_reader import PlatformOverviewRollupReader
 from src.core.platform.contract.repositories.security.auth import (
     AuthSessionRepository,
     PermissionRepository,
@@ -65,6 +66,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
             ScopeTenantResolver,
         ] | None = None,
         allow_platform_customer_context: bool = False,
+        overview_rollup_reader: PlatformOverviewRollupReader | None = None,
     ):
         self._session: Session = session
         self._user_repo: UserRepository = user_repo
@@ -85,6 +87,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         self._allow_platform_customer_context = bool(
             allow_platform_customer_context
         )
+        self._overview_rollup_reader = overview_rollup_reader
         self._canonical_role_resolver = (
             CanonicalRoleResolver(
                 role_binding_repo=role_binding_repo,
@@ -259,6 +262,9 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
 
     def list_users(self) -> list[UserAccount]:
         return _users.list_users(self)
+
+    def get_user_rollup_summary(self):
+        return _users.get_user_rollup_summary(self)
 
     def list_roles(self) -> list[Role]:
         return _users.list_roles(self)

@@ -38,7 +38,7 @@ from src.core.platform.api.desktop.platform_runtime.models.runtime import (
     PlatformCapabilityDto,
     PlatformRuntimeContextDto,
 )
-from src.core.platform.api.desktop.security.auth.models.user import RoleDto, UserDto
+from src.core.platform.api.desktop.security.auth.models.user import RoleDto, UserDto, UserRollupSummaryDto
 from src.core.platform.api.desktop.support.models.support import (
     SupportBundleDto,
     SupportEventDto,
@@ -554,6 +554,16 @@ class FakePlatformUserApi:
 
     def list_users(self) -> DesktopApiResult[tuple[UserDto, ...]]:
         return DesktopApiResult(ok=True, data=tuple(self._rows))
+
+    def get_user_rollup_summary(self) -> DesktopApiResult[UserRollupSummaryDto]:
+        return DesktopApiResult(
+            ok=True,
+            data=UserRollupSummaryDto(
+                total=len(self._rows),
+                active=sum(1 for row in self._rows if row.is_active),
+                locked=sum(1 for row in self._rows if row.locked_until is not None),
+            ),
+        )
 
     def list_roles(self) -> DesktopApiResult[tuple[RoleDto, ...]]:
         blocked_roles = {"admin", "support_admin", "org_admin"}

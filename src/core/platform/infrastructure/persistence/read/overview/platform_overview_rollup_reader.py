@@ -1,19 +1,9 @@
-"""Concrete, tenant/organization-scoped single-query reads backing Platform
-Overview's cross-entity counts.
-
-One dedicated read-side adapter per entity's aggregate, not the write
-repositories' ``list_for_organization`` fully hydrating every row just to
-compute a handful of integers (and, for Sites, three sampled names).
-``OrganizationService``/``SiteService``/``DepartmentService``/
-``PartyService``/``DocumentService`` each depend on
-``PlatformOverviewRollupReader`` (``contract/read/overview/
-platform_overview_rollup_reader.py``), never on this concrete class
-directly, matching the ``SqlAlchemyEmployeeHeadcountReader`` precedent.
-"""
 
 from __future__ import annotations
 
-from sqlalchemy import case, func, select
+from datetime import datetime, timezone
+
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
 from src.core.platform.contract.read.overview.platform_overview_rollup_reader import (
@@ -21,12 +11,23 @@ from src.core.platform.contract.read.overview.platform_overview_rollup_reader im
     DocumentRollupSummary,
     PartyRollupSummary,
     SiteRollupSummary,
+    UserRollupSummary,
 )
+from src.core.platform.domain.security.authorization.roles import ROLE_SCOPE_PLATFORM
+from src.core.platform.domain.tenant.tenancy.user_tenant_membership import MEMBERSHIP_STATUS_ACTIVE
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import DepartmentORM
 from src.core.platform.infrastructure.persistence.orm.master_data.documents.documents import DocumentORM
 from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
 from src.core.platform.infrastructure.persistence.orm.master_data.party.party import PartyORM
 from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
+from src.core.platform.infrastructure.persistence.orm.security.auth.auth import RoleBindingORM, RoleORM, UserORM
+from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import UserTenantORM
+
+# Must stay in sync with PLATFORM_ROLE_NAMES in
+# application/security/authorization/roles/role_scope_policy.py -- not
+# imported directly since this infrastructure/read module must not depend
+# on the application layer.
+_PLATFORM_ROLE_NAMES = ("admin", "support_admin")
 
 
 class SqlAlchemyPlatformOverviewRollupReader:
@@ -114,6 +115,53 @@ class SqlAlchemyPlatformOverviewRollupReader:
             )
         ).one()
         return DocumentRollupSummary(total=int(total or 0), current=int(current or 0))
+
+    def get_user_summary(self, *, tenant_id: str | None) -> UserRollupSummary:
+        if tenant_id is None:
+            # Platform-operator caller: SqlAlchemyUserRepository.list_all()'s
+            # exact population -- every user, no tenant filter, no exclusion.
+            total, active, locked = self._session.execute(
+                select(
+                    func.count(UserORM.id),
+                    func.sum(case((UserORM.is_active.is_(True), 1), else_=0)),
+                    func.sum(case((UserORM.locked_until.is_not(None), 1), else_=0)),
+                )
+            ).one()
+            return UserRollupSummary(total=int(total or 0), active=int(active or 0), locked=int(locked or 0))
+
+        now = datetime.now(timezone.utc)
+        has_platform_authority = (
+            select(1)
+            .select_from(RoleBindingORM)
+            .join(RoleORM, RoleORM.id == RoleBindingORM.role_id)
+            .where(
+                RoleBindingORM.principal_type == "user",
+                RoleBindingORM.principal_id == UserORM.id,
+                RoleBindingORM.actual_scope_type == ROLE_SCOPE_PLATFORM,
+                RoleORM.allowed_scope_type == ROLE_SCOPE_PLATFORM,
+                RoleBindingORM.revoked_at.is_(None),
+                or_(RoleBindingORM.expires_at.is_(None), RoleBindingORM.expires_at > now),
+                RoleORM.status == "active",
+                func.lower(RoleORM.name).in_(_PLATFORM_ROLE_NAMES),
+            )
+            .exists()
+        )
+
+        total, active, locked = self._session.execute(
+            select(
+                func.count(UserORM.id),
+                func.sum(case((UserORM.is_active.is_(True), 1), else_=0)),
+                func.sum(case((UserORM.locked_until.is_not(None), 1), else_=0)),
+            )
+            .select_from(UserORM)
+            .join(UserTenantORM, UserTenantORM.user_id == UserORM.id)
+            .where(
+                UserTenantORM.tenant_id == tenant_id,
+                UserTenantORM.status == MEMBERSHIP_STATUS_ACTIVE,
+                ~has_platform_authority,
+            )
+        ).one()
+        return UserRollupSummary(total=int(total or 0), active=int(active or 0), locked=int(locked or 0))
 
 
 __all__ = ["SqlAlchemyPlatformOverviewRollupReader"]
