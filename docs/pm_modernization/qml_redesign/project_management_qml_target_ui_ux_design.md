@@ -23,11 +23,13 @@ The target does not require a new backend source of truth. QML consumes disposab
 | Overview | Dashboard | global or active project |
 | Portfolio | Portfolio | global/organization |
 | Work | Projects, Tasks, Scheduling | global catalog plus project execution |
-| People & Time | Resources, Timesheets | organization/global plus active project |
+| Workload Management | Resources, Timesheets | organization/global plus active project |
 | Finance | Financials | active project required |
 | Governance | Register, Collaboration | global or active project |
 
-The route target is one canonical Project Management module/workspace route. Inside that route, PM-local navigation presents the six approved destinations, with secondary navigation inside Work, People & Time, and Governance. The six destinations must not become six unrelated global application-drawer entries unless implementation proves the shell cannot host a unified PM module route.
+The route target is one canonical Project Management module/workspace route. Inside that route, PM-local navigation presents the six approved destinations, with secondary navigation inside Work, Workload Management, and Governance. The six destinations must not become six unrelated global application-drawer entries unless implementation proves the shell cannot host a unified PM module route.
+
+Note (R2): the group formerly named "People & Time" is "Workload Management" (internal destination id `workload`). It covers project resource allocation/utilization and Timesheets; "People & Time" read as too HR-specific given PM resources can include equipment, not only staff. Resources' and Timesheets' own capability packages, controllers, and legacy route IDs are unchanged by this rename.
 
 The ten existing route IDs remain only as migration and deep-link compatibility routes. While they exist, each resolves into the canonical PM workspace with the corresponding PM-local destination selected. They are removed only after callers, saved links, tests, and shell dependencies migrate. R0.5 preserves their current behavior; canonical-route implementation belongs to R2.
 
@@ -39,7 +41,7 @@ Project Management
 |   |-- Projects
 |   |-- Tasks
 |   `-- Planning
-|-- People & Time
+|-- Workload Management
 |   |-- Resources
 |   |-- My Time
 |   `-- Review Queue
@@ -284,11 +286,11 @@ No board is promised by this design because no authoritative board ordering/quer
 
 The detail view opens as a right inspector at wide width for quick activity review and as full detail for dependency/calendar/baseline edits.
 
-### 6.7 People & Time
+### 6.7 Workload Management
 
 ```text
 +--------------------------------------------------------------------------+
-| People & Time: Resources | My Time | Review Queue                        |
+| Workload Management: Resources | My Time | Review Queue                  |
 +--------------------------------------------------------------------------+
 | My Time: Period [05-11 Aug v] Project [All v]      [Add Time Entry]      |
 | assignment/week grid or entry table backed by complete period query      |
@@ -586,6 +588,7 @@ the UI does not infer denial from message text.
 Objective: introduce the canonical Project Management module/workspace route, six PM-local destinations, compatibility-route translation, and the authoritative explicitly pinned PM project-context contract.  
 Dependencies: tenant/org reset semantics and route/deep-link contract.  
 Gate: context switches are explicit, authorized, persistent, reset correctly, and do not lose dirty forms; the ten old IDs resolve as compatibility deep links rather than unrelated drawer workspaces.
+Status: complete. See section 20 for the R2.0 scaffolding-discovery and integration record.
 
 ### R3 - Overview and Portfolio
 
@@ -599,7 +602,7 @@ Objective: add the responsive catalog/inspector pattern to Projects and Tasks an
 Dependencies: inspector and action-overflow primitives.  
 Gate: list state survives full detail/back; 1024 and keyboard paths pass.
 
-### R5 - People & Time
+### R5 - Workload Management
 
 Objective: update Resources and split Timesheets into My Time and Review Queue.  
 Dependencies: review query filters and a dedicated current-user period projection.  
@@ -721,3 +724,101 @@ closure searches are clean, all ten existing PM route IDs load, and
 did not commit.
 
 **R1 - QUERY INTEGRITY & TRUTHFUL CONTROLS: COMPLETE.**
+
+Correction (section 20): "R2 has not started" and "`project_management.workspace`
+was not introduced" were accurate at this R1.11 closure point and are left
+as-written above as the historical record. Uncommitted R2 scaffolding was
+added in a later commit before this closure document was next revisited; see
+section 20 for the corrected R2.0/R2 status.
+
+## 20. R2.0 scaffolding discovery and R2 closure
+
+Commit `04717f3a` ("update all") added `navigation.py`
+(`PM_CANONICAL_ROUTE_ID`, the ten-workspace intent map,
+`compatibility_route_intent()`) and two controllers,
+`PMProjectContextController` and `PMWorkspaceNavigationController`, before
+any of the R2 work recorded below began. At discovery that scaffolding was
+committed but inert: not exported from `controllers/common/__init__.py`,
+not constructed by `ProjectManagementWorkspaceCatalog`, not referenced by
+any QML, and not covered by any test -- so `@QmlElement`'s import-time
+registration meant neither controller was even live in the QML type system.
+Classification: **R2.0 scaffolding -- pre-existing, complete as authored.
+R2 integration -- implemented in this phase, reusing rather than
+duplicating it.**
+
+R2 is closed. Completed:
+
+- `PMProjectContextController` and `PMWorkspaceNavigationController` are
+  catalog-owned (`ProjectManagementWorkspaceCatalog.pmProjectContext` /
+  `.pmNavigation`), exported from `controllers/common/__init__.py`, and
+  proven live through the normal QML bootstrap path (not an incidental
+  import).
+- `PMProjectContextController` is wired to the real Projects desktop API.
+  `ProjectManagementProjectsDesktopApi.get_project(project_id)` did not
+  exist before this phase even though the scaffolding's `_read_project()`
+  already assumed it did; it was added as a thin wrapper over the existing
+  `ProjectService.get_project()` used elsewhere in the same file.
+- A `ProjectContextPolicy` enum (`required`/`optional`/`not_applicable`)
+  was added to `navigation.py`'s `PMWorkspaceIntent` -- destination
+  metadata, not `PMProjectContextController` -- per the approved table in
+  section 2.1's "Workload Management" group (renamed from "People & Time"
+  during R2; see below) and section 9. `PMWorkspaceNavigationController`
+  exposes the current destination's policy; the catalog composes it with
+  `hasActiveProject` into one `projectContextRequirementSatisfied` boolean
+  so QML never re-derives the REQUIRED/OPTIONAL/NOT_APPLICABLE logic
+  itself.
+- The canonical shell (`qml/workspace/ProjectManagementWorkspacePage.qml`)
+  hosts all ten existing R1-correct capability pages unchanged, loaded
+  dynamically by `Loader.source` URL rather than a static QML `import`:
+  this codebase's architecture guardrails forbid parent-relative QML
+  imports, and each capability's own `qmldir` `module` name does not match
+  its physical folder path, so neither a relative import nor the declared
+  dotted-module import resolves cross-folder. A dynamic `Loader.source`
+  needs neither.
+- The ten existing route ids resolve into that shell via
+  `compatibility_route_intent()`/`applyRoute()` through small per-route
+  bridge components under `qml/workspace/compatibility/` -- "compatibility
+  route" is this document's own established term; there is no installed
+  client base, so the bridges exist for internal deep-link continuity
+  while callers/tests migrate, not an external back-compat contract.
+- Explicit pinning (`selectProject()`), non-pinning navigation/browsing
+  (`openProject()`, route selection), lazy per-destination loading (a
+  destination's controller is constructed only once it is first both
+  selected and context-satisfied, then stays mounted rather than being
+  torn down and reconstructed on revisit -- see below), and
+  tenant/organization/reauthentication context revalidation
+  (`refreshProjects()` on the catalog's existing `refreshCapabilities()`/
+  `refreshAllWorkspaces()` hooks) are implemented and characterized with
+  tests at both the controller and QML level.
+- The PM secondary nav reuses the shared `App.Widgets.GroupedNavigationRail`
+  (the same component `PlatformNavigation.qml` uses) with
+  `autoCollapseAtNarrowWidth: true` and `showRailToggle: true`, rather than
+  a bespoke rail, so responsive collapse and manual collapse both come from
+  an already-proven shared primitive.
+- The "Workload Management" IA rename: the group formerly named "People &
+  Time" (Resources, Timesheets) is "Workload Management" (internal
+  destination id `workload`) because PM resources can include equipment,
+  not only staff, making "People & Time" read as too HR-specific. Resources
+  and Timesheets keep their own capability packages, controllers, and
+  route ids unchanged.
+- No per-destination visibility capability contract exists in
+  `PMCapabilityController` (its six facts are fine-grained command
+  permissions, not workspace-level read visibility), so R2 does not filter
+  the six navigation groups by capability -- inventing that mapping now
+  would fabricate a product decision with no backing contract. All ten
+  destinations remain visible, matching pre-R2 behavior.
+- A teardown/recreate hazard in the shared `SectionDetailPage` (a pending
+  `Qt.callLater()` reparent firing after its context is destroyed) was
+  discovered by the canonical shell's destination-switching and avoided by
+  never tearing a visited destination back down, rather than by patching
+  the shared widget as a side effect of R2.
+
+Deliberately not done, matching the approved R2 scope: no visual redesign
+of any of the ten capability pages, no `PMCapabilityController` capability
+expansion, and no pixel-level 1024x768/1280x800 verification (this
+environment has no screenshot/rendering-capture tooling; structural
+responsive behavior -- auto-collapsing rail, horizontally-scrollable
+context bar row -- was verified, not the rendered pixel result). R3-R8
+visual/product work, My Time, desired unsupported filters, notification
+delivery, and Finance expansion remain deferred, unchanged from the R1.11
+closure above.

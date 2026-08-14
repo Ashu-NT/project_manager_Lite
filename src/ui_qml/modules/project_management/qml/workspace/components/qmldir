@@ -1,0 +1,4 @@
+module ProjectManagement.Workspace.Components
+PmWorkspaceNavigation 1.0 PmWorkspaceNavigation.qml
+ProjectContextBar 1.0 ProjectContextBar.qml
+ProjectContextRequiredState 1.0 ProjectContextRequiredState.qml

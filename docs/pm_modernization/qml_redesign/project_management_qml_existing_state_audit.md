@@ -1423,3 +1423,61 @@ R3-R8 visual/product work, My Time, desired unsupported filters, notification
 delivery, and Finance expansion remain deferred. Codex did not commit.
 
 **R1 - QUERY INTEGRITY & TRUTHFUL CONTROLS: COMPLETE.**
+
+## 24. R2.0 scaffolding discovery and R2 integration status
+
+A prior statement in this document's own R1.11 closure ("R2 navigation/context
+... remain deferred") and in the sibling restructure-plan/target-design
+documents ("R2 has not started") is corrected here with evidence rather than
+silently restated. Commit `04717f3a` ("update all"), landed before this
+correction, already added three R2-shaped files: `navigation.py`
+(`PM_CANONICAL_ROUTE_ID`, the ten-workspace-key-to-destination intent map,
+`compatibility_route_intent()`), `controllers/common/
+pm_project_context_controller.py` (`PMProjectContextController`), and
+`controllers/common/pm_workspace_navigation_controller.py`
+(`PMWorkspaceNavigationController`). At discovery, none of the three was
+exported from `controllers/common/__init__.py`, constructed by
+`ProjectManagementWorkspaceCatalog`, referenced by any QML file, or covered
+by any test -- inert scaffolding, not integrated functionality, and (per
+PySide6's `@QmlElement` import-time registration) not even live in the QML
+type system yet.
+
+The correct status is therefore two-part, not a single "not started" flag:
+
+- **R2.0 scaffolding: pre-existing, complete as authored.** `navigation.py`'s
+  intent map and compatibility-route translation, and both controllers'
+  public APIs, needed no redesign; they matched the target design's own
+  destination groups and context contract closely enough to build on
+  directly.
+- **R2 integration: implemented in this phase.** The existing scaffolding was
+  wired into production rather than duplicated: `PMProjectContextController`
+  and `PMWorkspaceNavigationController` are now catalog-owned and exported;
+  `PMProjectContextController` is wired to the real Projects desktop API
+  (a previously-missing `get_project(project_id)` method was added to
+  `ProjectManagementProjectsDesktopApi`, since the scaffolding already
+  assumed it existed); a canonical `project_management.workspace` route and
+  QML shell were built (`qml/workspace/ProjectManagementWorkspacePage.qml`
+  plus `components/`); the ten existing route ids now resolve into that
+  shell via `compatibility_route_intent()`/`applyRoute()` through small
+  per-route bridge components (`qml/workspace/compatibility/`, named to
+  match this document's own "compatibility route" term rather than
+  "legacy," since there is no installed client base); a
+  `ProjectContextPolicy` enum (`required`/`optional`/`not_applicable`) was
+  added to `navigation.py`'s destination metadata, deliberately not to
+  `PMProjectContextController`, so the state owner stays free of
+  navigation-layer semantics; and explicit-pinning, lazy-per-destination
+  loading, and tenant/organization/reauthentication context revalidation
+  were implemented and characterized with tests.
+
+No per-destination visibility capability contract was found in
+`PMCapabilityController` (its six facts are fine-grained command
+permissions -- baseline approval, leveling, skills, assignment override,
+import, PM-request approval -- not workspace-level read visibility), so R2
+does not filter the six navigation groups by capability; inventing that
+mapping now would mean fabricating a product decision with no backing
+contract, which this modernization effort has consistently avoided
+elsewhere. All ten destinations remain visible, matching pre-R2 behavior.
+
+R3-R8 visual/product work, My Time, desired unsupported filters,
+notification delivery, and Finance expansion remain deferred, unchanged from
+the R1.11 closure above.

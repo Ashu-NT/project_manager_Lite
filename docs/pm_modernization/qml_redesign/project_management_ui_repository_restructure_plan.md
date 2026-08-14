@@ -740,3 +740,79 @@ R1 temporary/compatibility source remains. R2-R8 product work and the unrelated
 Platform-admin cleanup are deferred. R2 has not started. Codex did not commit.
 
 **R1 - QUERY INTEGRITY & TRUTHFUL CONTROLS: COMPLETE.**
+
+Correction (section 24): "R2 has not started" was accurate at this R1.11
+closure point and is left as-written above as the historical record.
+Uncommitted R2 scaffolding was added in a later commit before this closure
+document was next revisited; see section 24 for the corrected R2.0/R2
+status and the full R2 closure record.
+
+## 24. R2.0 scaffolding discovery and R2 closure record
+
+Commit `04717f3a` ("update all") added `navigation.py`
+(`PM_CANONICAL_ROUTE_ID`, the ten-workspace intent map,
+`compatibility_route_intent()`), `PMProjectContextController`, and
+`PMWorkspaceNavigationController` before any R2 integration work began. At
+discovery, none of the three was exported from `controllers/common/
+__init__.py`, constructed by `ProjectManagementWorkspaceCatalog`,
+referenced by any QML, or covered by any test -- committed but inert, and
+(per PySide6's `@QmlElement` import-time registration) not live in the QML
+type system either. Classification: **R2.0 scaffolding -- pre-existing,
+complete as authored. R2 integration -- implemented in this phase, reusing
+rather than duplicating the scaffolding.**
+
+R2 is closed. Full implementation detail is recorded in
+`project_management_qml_target_ui_ux_design.md` section 20 (the R2 phase
+description and closure record) and characterized/verified by
+`src/tests/project_management/test_pm_r2_navigation_context_scaffolding.py`,
+`test_pm_r2_canonical_shell_and_compatibility_routes.py`, and updates to
+`test_qml_project_management_routes.py` and
+`test_qml_project_management_presenters_workspace_catalog.py`. Summary:
+
+- Both controllers are now catalog-owned, exported, and proven live through
+  the normal QML bootstrap path.
+- `PMProjectContextController` is wired to the real Projects desktop API; a
+  previously-missing `get_project(project_id)` method was added to
+  `ProjectManagementProjectsDesktopApi` (the scaffolding's `_read_project()`
+  already assumed it existed).
+- A `ProjectContextPolicy` enum was added to `navigation.py`'s destination
+  metadata (not to `PMProjectContextController`), and the catalog composes
+  it with active-project state into one `projectContextRequirementSatisfied`
+  boolean for QML.
+- A canonical `project_management.workspace` route and QML shell
+  (`qml/workspace/`) were built, hosting the ten existing R1-correct
+  capability pages unchanged, loaded by `Loader.source` URL rather than a
+  static `import` (this codebase's architecture guardrails forbid
+  parent-relative QML imports, and no capability's declared `qmldir`
+  module name matches its physical folder path for a dotted-module
+  cross-import either).
+- The ten existing route ids now resolve into that shell via
+  `compatibility_route_intent()`/`applyRoute()` through per-route bridge
+  components under `qml/workspace/compatibility/` -- named for this
+  document's own "compatibility route" term, not "legacy," since no
+  installed client base exists to keep an external contract for.
+- Explicit pinning, non-pinning browsing, lazy per-destination loading
+  (mount-once, never torn down on revisit -- discovered and worked around a
+  shared `SectionDetailPage` teardown/`Qt.callLater()` hazard in the
+  process, without patching that shared widget), and tenant/organization/
+  reauthentication context revalidation are implemented and tested.
+- The PM secondary nav reuses `App.Widgets.GroupedNavigationRail` (the same
+  component `PlatformNavigation.qml` uses), gaining auto-collapse and
+  manual-collapse for free rather than via a bespoke rail.
+- The "People & Time" group was renamed "Workload Management" (internal id
+  `workload`) during R2, since PM resources can include equipment, not only
+  staff. Resources/Timesheets capability packages, controllers, and route
+  ids are unchanged.
+- No per-destination capability-visibility contract exists yet in
+  `PMCapabilityController` (its facts are command-level, not workspace
+  read-visibility), so R2 does not filter the six navigation groups by
+  capability; all ten destinations remain visible, matching pre-R2 behavior.
+  This is a reported gap, not a silent omission.
+- Pixel-level 1024x768/1280x800 verification was not performed -- this
+  environment has no screenshot/rendering-capture tooling. Structural
+  responsive behavior (auto-collapsing rail, horizontally-scrollable
+  context-bar row) was verified instead.
+
+R3-R8 product/visual work has not started. No commit was made as part of
+this phase beyond what R2 required; commit authorization for this phase's
+changes was requested separately from documentation.

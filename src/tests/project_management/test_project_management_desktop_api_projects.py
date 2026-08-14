@@ -82,6 +82,46 @@ def test_project_management_projects_desktop_api_mutates_project_records() -> No
     assert api.list_projects() == ()
 
 
+def test_project_management_projects_desktop_api_get_project_by_id() -> None:
+    """R2.3: PMProjectContextController resolves a single project by id
+    through this method -- added because it didn't previously exist on the
+    desktop API even though the underlying service already supported it."""
+    service = _FakeProjectService()
+    api = build_project_management_projects_desktop_api(project_service=service)
+    created = api.create_project(
+        ProjectCreateCommand(
+            name="Harbor Expansion",
+            description="Dredge and extend berth 4.",
+            status="ACTIVE",
+            client_name="",
+            client_contact="",
+            financial_currency_code="eur",
+            start_date=None,
+            end_date=None,
+        )
+    )
+
+    found = api.get_project(created.id)
+
+    assert found is not None
+    assert found.id == created.id
+    assert found.name == "Harbor Expansion"
+    assert found.status_label == "Active"
+
+
+def test_project_management_projects_desktop_api_get_project_missing_returns_none() -> None:
+    service = _FakeProjectService()
+    api = build_project_management_projects_desktop_api(project_service=service)
+
+    assert api.get_project("does-not-exist") is None
+
+
+def test_project_management_projects_desktop_api_get_project_without_service_returns_none() -> None:
+    api = build_project_management_projects_desktop_api()
+
+    assert api.get_project("anything") is None
+
+
 class _FakeProjectService:
     def __init__(self) -> None:
         self._projects: dict[str, Project] = {}

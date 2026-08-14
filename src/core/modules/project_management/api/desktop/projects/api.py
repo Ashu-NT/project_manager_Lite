@@ -121,6 +121,15 @@ class ProjectManagementProjectsDesktopApi:
             sort_direction=result.sort.direction.value,
         )
 
+    def get_project(self, project_id: str) -> ProjectDesktopDto | None:
+        normalized_id = str(project_id or "").strip()
+        if not normalized_id or self._project_service is None:
+            return None
+        project = self._project_service.get_project(normalized_id)
+        if project is None:
+            return None
+        return serialize_project(project, site_lookup=self._site_lookup())
+
     def list_projects_by_status(self, status: str) -> tuple[ProjectDesktopDto, ...]:
         if self._project_service is None:
             return ()

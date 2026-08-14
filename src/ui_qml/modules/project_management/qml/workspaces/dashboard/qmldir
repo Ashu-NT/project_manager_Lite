@@ -1,0 +1,3 @@
+module ProjectManagement.Dashboard
+DashboardWorkspace 1.0 DashboardWorkspace.qml
+DashboardWorkspacePage 1.0 DashboardWorkspacePage.qml

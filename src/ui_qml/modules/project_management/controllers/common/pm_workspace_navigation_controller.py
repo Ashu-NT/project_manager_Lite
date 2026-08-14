@@ -6,6 +6,7 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 from src.ui_qml.modules.project_management.navigation import (
     PM_CANONICAL_ROUTE_ID,
     PM_WORKSPACE_KEYS,
+    ProjectContextPolicy,
     compatibility_route_intent,
     workspace_intent,
 )
@@ -40,6 +41,14 @@ class PMWorkspaceNavigationController(QObject):
         intent = workspace_intent(self._workspace_key)
         return intent.secondary_id if intent is not None else ""
 
+    @Property(str, notify=selectionChanged)
+    def projectContextPolicy(self) -> str:
+        """The current destination's project-context requirement
+        (required/optional/not_applicable) -- owned here as destination
+        metadata, not by PMProjectContextController. See R2.2/R2.9."""
+        intent = workspace_intent(self._workspace_key)
+        return intent.project_context_policy.value if intent is not None else ProjectContextPolicy.OPTIONAL.value
+
     @Property("QVariantMap", notify=routeStateChanged)
     def routeState(self) -> dict[str, str]:
         return {
@@ -59,8 +68,8 @@ class PMWorkspaceNavigationController(QObject):
             {"id": "projects", "label": "Projects", "group": "Work", "icon": "project"},
             {"id": "tasks", "label": "Tasks", "group": "Work", "icon": "task"},
             {"id": "scheduling", "label": "Planning", "group": "Work", "icon": "calendar"},
-            {"id": "resources", "label": "Resources", "group": "People & Time", "icon": "resource"},
-            {"id": "timesheets", "label": "Review Queue", "group": "People & Time", "icon": "time"},
+            {"id": "resources", "label": "Resources", "group": "Workload Management", "icon": "resource"},
+            {"id": "timesheets", "label": "Review Queue", "group": "Workload Management", "icon": "time"},
             {"id": "financials", "label": "Finance", "group": "Finance", "icon": "finance"},
             {"id": "register", "label": "Register", "group": "Governance", "icon": "register"},
             {"id": "collaboration", "label": "Collaboration", "group": "Governance", "icon": "collaboration"},

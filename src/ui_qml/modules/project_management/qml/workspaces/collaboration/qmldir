@@ -1,0 +1,4 @@
+module ProjectManagement.Collaboration
+CollaborationWorkspace 1.0 CollaborationWorkspace.qml
+CollaborationWorkspacePage 1.0 CollaborationWorkspacePage.qml
+CollaborationWorkspaceState 1.0 CollaborationWorkspaceState.qml

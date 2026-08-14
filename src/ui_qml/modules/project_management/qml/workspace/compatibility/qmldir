@@ -1,0 +1,11 @@
+module ProjectManagement.Workspace.Compatibility
+ProjectsRoute 1.0 ProjectsRoute.qml
+TasksRoute 1.0 TasksRoute.qml
+SchedulingRoute 1.0 SchedulingRoute.qml
+ResourcesRoute 1.0 ResourcesRoute.qml
+FinancialsRoute 1.0 FinancialsRoute.qml
+PortfolioRoute 1.0 PortfolioRoute.qml
+RegisterRoute 1.0 RegisterRoute.qml
+CollaborationRoute 1.0 CollaborationRoute.qml
+TimesheetsRoute 1.0 TimesheetsRoute.qml
+DashboardRoute 1.0 DashboardRoute.qml
