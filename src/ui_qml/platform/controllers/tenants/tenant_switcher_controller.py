@@ -64,6 +64,18 @@ class TenantSwitcherController(PlatformWorkspaceControllerBase):
         self._load_active_tenant_id()
         self._set_is_loading(False)
 
+    @Slot("QVariantMap", result="QVariantMap")
+    def createTenant(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._presenter.create_tenant(dict(payload)),
+            success_message="Tenant created.",
+            on_success=self.refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_operation_result=self._set_operation_result,
+            set_feedback_message=self._set_feedback_message,
+        )
+
     @Slot(str, result="QVariantMap")
     def switchToTenant(self, tenant_id: str) -> dict[str, object]:
         normalized = (tenant_id or "").strip()

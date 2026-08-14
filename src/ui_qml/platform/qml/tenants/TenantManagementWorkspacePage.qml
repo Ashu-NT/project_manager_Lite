@@ -8,6 +8,7 @@ import App.Controls 1.0 as AppControls
 import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
 import Platform.Controllers 1.0 as PlatformControllers
+import tenants.dialogs 1.0 as TenantDialogs
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -59,6 +60,13 @@ AppLayouts.WorkspaceFrame {
             spacing: Theme.AppTheme.spacingSm
 
             Item { Layout.fillWidth: true }
+
+            AppControls.PrimaryButton {
+                text: "New Tenant"
+                iconName: "add"
+                enabled: !root._loading && !root._busy
+                onClicked: createDialog.openForCreate()
+            }
 
             AppControls.SecondaryButton {
                 text: "Refresh"
@@ -243,6 +251,23 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    TenantDialogs.TenantCreateDialog {
+        id: createDialog
+        parent: Overlay.overlay
+        busy: root._busy
+
+        onSaveRequested: function(payload) {
+            if (!root.controller) return
+            const result = root.controller.createTenant(payload)
+            if (!result || result.ok === false) {
+                createDialog.errorMessage = String((result && result.message) || "Operation failed. Please try again.")
+            } else {
+                createDialog.errorMessage = ""
+                createDialog.close()
             }
         }
     }

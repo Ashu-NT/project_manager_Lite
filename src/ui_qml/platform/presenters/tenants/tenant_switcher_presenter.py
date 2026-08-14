@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from src.core.platform.api.desktop.models.common import DesktopApiResult
-from src.core.platform.api.desktop.tenant.tenancy.models.tenant import TenantDto
+from src.core.platform.api.desktop.tenant.tenancy.models.tenant import TenantCreateCommand, TenantDto
 from src.core.platform.api.desktop.tenant.tenancy.tenant import PlatformTenantDesktopApi
-from src.ui_qml.platform.presenters.common.presenter_support_helpers import preview_error_result
+from src.ui_qml.platform.presenters.common.presenter_support_helpers import (
+    preview_error_result,
+    string_value,
+)
 from src.ui_qml.platform.view_models.tenants.tenant import TenantSwitcherItemViewModel
 
 
@@ -33,6 +36,16 @@ class TenantSwitcherPresenter:
         if self._tenant_api is None:
             return preview_error_result("Tenant API is not connected.")
         return self._tenant_api.switch_to_tenant(tenant_id)
+
+    def create_tenant(self, payload: dict) -> DesktopApiResult[TenantDto]:
+        if self._tenant_api is None:
+            return preview_error_result("Tenant API is not connected.")
+        return self._tenant_api.create_tenant(
+            TenantCreateCommand(
+                tenant_code=string_value(payload, "tenantCode"),
+                display_name=string_value(payload, "displayName"),
+            )
+        )
 
     @staticmethod
     def _serialize_item(t: TenantDto) -> TenantSwitcherItemViewModel:

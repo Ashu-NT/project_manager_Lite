@@ -1,0 +1,2 @@
+module tenants.dialogs
+TenantCreateDialog 1.0 TenantCreateDialog.qml
