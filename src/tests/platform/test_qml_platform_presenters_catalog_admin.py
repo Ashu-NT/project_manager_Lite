@@ -6,6 +6,8 @@ from src.tests.platform._platform_test_helpers import build_connected_platform_r
 
 def test_platform_workspace_catalog_exposes_admin_action_lists() -> None:
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=build_connected_platform_registry())
+    # Access is lazy-loaded now -- construction alone no longer fetches it.
+    catalog.adminAccessWorkspace.refresh()
 
     organizations = catalog.adminWorkspace.organizations
     sites = catalog.adminWorkspace.sites

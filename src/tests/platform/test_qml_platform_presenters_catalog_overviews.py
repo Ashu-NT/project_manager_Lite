@@ -15,6 +15,10 @@ from src.tests.platform._platform_test_helpers import (
 
 def test_platform_workspace_catalog_exposes_grouped_platform_overviews() -> None:
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=build_connected_platform_registry())
+    # Control and Settings are lazy-loaded now -- construction alone no
+    # longer fetches them.
+    catalog.controlWorkspace.refresh()
+    catalog.settingsWorkspace.refresh()
 
     admin = catalog.adminOverview()
     control = catalog.controlOverview()
@@ -98,6 +102,8 @@ def test_platform_control_presenters_skip_null_approval_rows() -> None:
 
 def test_platform_workspace_catalog_exposes_control_and_settings_action_lists() -> None:
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=build_connected_platform_registry())
+    catalog.controlWorkspace.refresh()
+    catalog.settingsWorkspace.refresh()
 
     approval_queue = catalog.approvalQueue()
     audit_feed = catalog.auditFeed()
@@ -127,6 +133,9 @@ def test_platform_workspace_catalog_exposes_control_and_settings_action_lists() 
 
 def test_platform_workspace_controllers_hold_common_state_fields() -> None:
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=build_connected_platform_registry())
+    catalog.adminAccessWorkspace.refresh()
+    catalog.controlWorkspace.refresh()
+    catalog.settingsWorkspace.refresh()
 
     assert catalog.adminWorkspace.isLoading is False
     assert catalog.adminWorkspace.isBusy is False
@@ -145,6 +154,7 @@ def test_platform_workspace_catalog_exposes_support_workspace() -> None:
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=build_connected_platform_registry())
 
     support_workspace = catalog.adminSupportWorkspace
+    support_workspace.refresh()
 
     assert support_workspace.incidentId == "inc-support-1"
     assert support_workspace.supportSettings["updateChannel"] == "stable"

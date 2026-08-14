@@ -39,6 +39,7 @@ def test_platform_workspace_catalog_runs_support_actions() -> None:
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=build_connected_platform_registry())
 
     support_workspace = catalog.adminSupportWorkspace
+    support_workspace.refresh()
     save_result = support_workspace.saveSettings(
         {
             "updateChannel": "beta",
@@ -94,6 +95,7 @@ def test_platform_workspace_controllers_store_validation_errors() -> None:
 
 def test_platform_workspace_catalog_runs_access_security_actions() -> None:
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=build_connected_platform_registry())
+    catalog.adminAccessWorkspace.refresh()
 
     catalog.adminAccessWorkspace.setScopeType("site")
     assign_result = catalog.adminAccessWorkspace.assignMembership()
