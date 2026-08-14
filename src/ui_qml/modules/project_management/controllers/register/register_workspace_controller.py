@@ -50,7 +50,6 @@ from .register_mutation_handler import (
     generate_entity_code,
     update_entry,
 )
-from .register_export_handler import export_register
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -346,10 +345,6 @@ class ProjectManagementRegisterWorkspaceController(
         return apply_bulk_entry_status(self, payload)
 
     # ── Export ───────────────────────────────────────────────────────────
-
-    @Slot()
-    def exportRegister(self) -> None:
-        export_register(self)
 
     # ── CRUD ─────────────────────────────────────────────────────────────
 

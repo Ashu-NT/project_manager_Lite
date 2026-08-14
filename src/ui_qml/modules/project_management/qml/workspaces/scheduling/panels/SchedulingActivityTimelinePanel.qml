@@ -54,7 +54,7 @@ Item {
                 searchPlaceholder: "Search activities..."
                 showFilter: true
                 showCustomize: true
-                showExport: true
+                showExport: false
                 showRefresh: false
                 showViews: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
@@ -64,9 +64,6 @@ Item {
                 }
                 onFilterClicked: activityFilterPopup.open()
                 onCustomizeClicked: activityTable.openColumnCustomizer(activityToolbar.customizeButtonItem)
-                onExportRequested: {
-                    if (root.workspaceController !== null) root.workspaceController.exportSchedule()
-                }
             }
 
             SplitView {

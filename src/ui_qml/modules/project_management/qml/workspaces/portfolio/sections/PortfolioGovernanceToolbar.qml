@@ -5,6 +5,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import App.Widgets 1.0 as AppWidgets
 
 Rectangle {
     id: root
@@ -13,14 +14,14 @@ Rectangle {
     property string selectedScenarioId:          ""
     property string selectedBaseScenarioId:      ""
     property string selectedCompareScenarioId:   ""
+    property var    evaluationModel:              ({ "fields": [] })
+    property var    comparisonModel:              ({ "fields": [] })
     property bool   isBusy:                      false
 
     signal scenarioSelected(string scenarioId)
     signal compareBaseSelected(string scenarioId)
     signal compareScenarioSelected(string scenarioId)
     signal refreshRequested()
-    signal compareRequested()
-    signal exportRequested()
 
     function _indexForValue(options, value) {
         const opts = options || []
@@ -118,18 +119,52 @@ Rectangle {
         Item { Layout.fillWidth: true }
 
         AppControls.SecondaryButton {
+            id: compareButton
             text: "Compare"
             iconName: "register"
             enabled: !root.isBusy && root.scenarioOptions.length > 1
-            onClicked: root.compareRequested()
+            onClicked: analysisPopup.open()
         }
 
-        AppControls.SecondaryButton {
-            text: "Export"
-            iconName: "export"
-            enabled: !root.isBusy
-            onClicked: root.exportRequested()
+    }
+
+    AppWidgets.AnchoredPopup {
+        id: analysisPopup
+        anchorItem: compareButton
+        width: Math.min(560, root.width)
+        height: Math.min(480, analysisContent.implicitHeight + Theme.AppTheme.marginMd * 2)
+        padding: Theme.AppTheme.marginMd
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        background: Rectangle {
+            radius: Theme.AppTheme.radiusLg
+            color: Theme.AppTheme.surfaceRaised
+            border.color: Theme.AppTheme.divider
+            border.width: 1
         }
 
+        contentItem: Flickable {
+            clip: true
+            contentWidth: width
+            contentHeight: analysisContent.implicitHeight
+            boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: ScrollBar { }
+
+            ColumnLayout {
+                id: analysisContent
+                width: parent.width
+                spacing: Theme.AppTheme.spacingLg
+
+                PortfolioSummaryCard {
+                    Layout.fillWidth: true
+                    summaryModel: root.evaluationModel
+                }
+
+                PortfolioSummaryCard {
+                    Layout.fillWidth: true
+                    summaryModel: root.comparisonModel
+                }
+            }
+        }
     }
 }

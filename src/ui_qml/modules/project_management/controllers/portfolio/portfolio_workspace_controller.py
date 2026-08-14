@@ -374,13 +374,6 @@ class ProjectManagementPortfolioWorkspaceController(
         self.heatmapPageChanged.emit()
         self._rebuild_heatmap_table_model()
 
-    @Slot()
-    def exportPortfolio(self) -> None:
-        self._set_error_message("")
-        self._set_feedback_message(
-            "Export is not available here. Open the Reports section to generate portfolio summaries and scenario exports."
-        )
-
     @Slot("QVariantMap", result="QVariantMap")
     def createTemplate(self, payload: dict[str, object]) -> dict[str, object]:
         return self._mutations.create_template(payload)

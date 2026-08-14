@@ -155,14 +155,6 @@ def calculate_working_days(
         f"(skipped {calculation.skipped_non_working_days} non-working days)."
     )
 
-def export_schedule(project_id: str) -> str:
-    if not str(project_id or "").strip():
-        raise ValueError("Select a project before exporting the schedule.")
-    return (
-        "Export is not available here. Open the Reports section to generate schedule reports, "
-        "Gantt exports, and baseline comparisons."
-    )
-
 __all__ = [
     "create_baseline",
     "delete_baseline",
@@ -174,5 +166,4 @@ __all__ = [
     "update_dependency",
     "delete_dependency",
     "calculate_working_days",
-    "export_schedule",
 ]

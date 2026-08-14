@@ -30,27 +30,6 @@ def calculate_working_days(controller, payload: dict) -> dict:
     return {"ok": True, "message": result}
 
 
-def export_schedule(controller) -> dict:
-    try:
-        message = controller._scheduling_workspace_presenter.export_schedule(
-            controller._selected_project_id
-        )
-    except Exception as exc:
-        controller._set_error_message(str(exc))
-        controller._set_feedback_message("")
-        return {"ok": False, "message": str(exc)}
-    controller._set_error_message("")
-    controller._set_feedback_message(message)
-    controller._activity_log_svc.record(
-        title="Schedule export requested",
-        status_label="Info",
-        subtitle="Export adapter pending",
-        meta_text=controller._selected_project_id or "Current project",
-    )
-    controller.refresh()
-    return {"ok": True, "message": message}
-
-
 def load_variance_records_for_baseline(controller, baseline_id: str) -> None:
     normalized_id = (baseline_id or "").strip()
     controller._set_is_loading(True)
@@ -88,7 +67,6 @@ def run_compute_schedule_impact(controller, payload: dict) -> dict:
 
 __all__ = [
     "calculate_working_days",
-    "export_schedule",
     "load_variance_records_for_baseline",
     "run_compute_schedule_impact",
 ]

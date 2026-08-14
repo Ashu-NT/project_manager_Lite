@@ -19,7 +19,6 @@ from .command_handler import (
     create_dependency,
     delete_baseline,
     delete_dependency,
-    export_schedule,
     recalculate_schedule,
     reject_baseline,
     submit_baseline,
@@ -110,9 +109,5 @@ class ProjectSchedulingWorkspacePresenter:
 
     def calculate_working_days(self, payload: dict[str, Any]) -> str:
         return calculate_working_days(self._desktop_api, payload)
-
-    @staticmethod
-    def export_schedule(project_id: str) -> str:
-        return export_schedule(project_id)
 
 __all__ = ["ProjectSchedulingWorkspacePresenter"]

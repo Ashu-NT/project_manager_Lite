@@ -94,8 +94,7 @@ Item {
             { "id": "lock",    "label": "Lock Period",   "icon": "lock",
               "enabled": hasPeriod && (!hasStatus || status === "APPROVED"), "danger": false },
             { "id": "unlock",  "label": "Unlock Period", "icon": "edit",
-              "enabled": hasPeriod && (!hasStatus || status === "LOCKED"), "danger": false },
-            { "id": "export",  "label": "Export",        "icon": "export", "enabled": true, "danger": false }
+              "enabled": hasPeriod && (!hasStatus || status === "LOCKED"), "danger": false }
         ]
     }
 

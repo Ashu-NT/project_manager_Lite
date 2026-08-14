@@ -28,7 +28,6 @@ Item {
     signal filterClicked()
     signal viewsClicked()
     signal refreshRequested()
-    signal exportRequested()
     signal bulkCancelRequested()
     signal bulkActionRequested(string actionId)
 
@@ -88,7 +87,7 @@ Item {
             showCustomize: true
             showViews: true
             showRefresh: true
-            showExport: true
+            showExport: false
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
             onSearchChanged: function(text) {
@@ -99,7 +98,6 @@ Item {
             onCustomizeClicked: reviewTable.openColumnCustomizer(tableToolbar.customizeButtonItem)
             onViewsClicked: root.viewsClicked()
             onRefreshRequested: root.refreshRequested()
-            onExportRequested: root.exportRequested()
         }
 
         Item {

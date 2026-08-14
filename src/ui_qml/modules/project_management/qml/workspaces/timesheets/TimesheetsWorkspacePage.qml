@@ -98,9 +98,6 @@ AppLayouts.WorkspaceFrame {
                 onRefreshRequested: {
                     if (root.workspaceController !== null) root.workspaceController.refresh()
                 }
-                onExportRequested: {
-                    if (root.workspaceController !== null) root.workspaceController.exportTimesheets()
-                }
                 onBulkCancelRequested: {
                     if (root.workspaceController !== null)
                         root.workspaceController.clearQueueBulkSelection()

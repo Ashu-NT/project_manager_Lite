@@ -91,7 +91,6 @@ Item {
         if (name === "Change Control")  return _changeControl.implicitHeight
         if (name === "Commitments")     return _commitments.implicitHeight
         if (name === "Billing Preparation") return _invoices.implicitHeight
-        if (name === "Purchase Orders") return _purchaseOrders.implicitHeight
         if (name === "Activity")        return _activity.implicitHeight
         if (name === "Variance")        return _variance.implicitHeight
         if (name === "Reports")         return _reports.implicitHeight
@@ -282,17 +281,6 @@ Item {
                     root.configurationPageRequested("billing_preparations", page)
                 }
             }
-        }
-    }
-
-    AppWidgets.LazySectionLoader {
-        id: _purchaseOrders
-        anchors.left: parent.left
-        anchors.right: parent.right
-        active: root._idx === root._secIdx("Purchase Orders")
-        loadingMessage: "Loading financials..."
-        sourceComponent: Component {
-            FinancialsPurchaseOrdersSection { width: parent ? parent.width : 0 }
         }
     }
 

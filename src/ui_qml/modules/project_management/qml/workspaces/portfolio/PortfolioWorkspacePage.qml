@@ -33,13 +33,6 @@ AppLayouts.WorkspaceFrame {
     }
 
     // ── Detail-page context actions ────────────────────────────────────
-    property int _activeDetailSectionIndex: 0
-    readonly property var _detailActions: {
-        if (root._activeDetailSectionIndex === 0)
-            return [{ "id": "evaluate", "label": "Evaluate", "icon": "approve", "enabled": true, "danger": false }]
-        return []
-    }
-
     // ══════════════════════════════════════════════════════════════════
     //  Stacked layout: list page / detail page
     // ══════════════════════════════════════════════════════════════════
@@ -90,14 +83,14 @@ AppLayouts.WorkspaceFrame {
                     selectedScenarioId:       root.workspaceController ? root.workspaceController.selectedScenarioId : ""
                     selectedBaseScenarioId:   root.workspaceController ? root.workspaceController.selectedBaseScenarioId : ""
                     selectedCompareScenarioId: root.workspaceController ? root.workspaceController.selectedCompareScenarioId : ""
+                    evaluationModel:          root.workspaceController ? root.workspaceController.evaluation : ({ "fields": [] })
+                    comparisonModel:          root.workspaceController ? root.workspaceController.comparison : ({ "fields": [] })
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
                     onScenarioSelected:       function(id) { if (root.workspaceController !== null) root.workspaceController.selectScenario(id) }
                     onCompareBaseSelected:    function(id) { if (root.workspaceController !== null) root.workspaceController.selectCompareBase(id) }
                     onCompareScenarioSelected: function(id) { if (root.workspaceController !== null) root.workspaceController.selectCompareScenario(id) }
                     onRefreshRequested:       { if (root.workspaceController !== null) root.workspaceController.refresh() }
-                    onCompareRequested:       { state.bottomTab = 2 }
-                    onExportRequested:        { if (root.workspaceController !== null) root.workspaceController.exportPortfolio() }
                 }
 
                 AppWidgets.KpiStrip {
@@ -111,7 +104,7 @@ AppLayouts.WorkspaceFrame {
                     searchText:        root.workspaceController ? root.workspaceController.heatmapSearchText : ""
                     searchPlaceholder: "Search portfolio projects..."
                     showRefresh: true
-                    showExport:  true
+                    showExport:  false
                     showFilter:  true
                     showCreate:  false
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
@@ -119,11 +112,9 @@ AppLayouts.WorkspaceFrame {
                     onSearchChanged: function(text) {
                         if (root.workspaceController !== null)
                             root.workspaceController.setHeatmapSearchText(text)
-                        state.selectedRowIds = []
                     }
                     onFilterClicked:   filterPopup.open()
                     onRefreshRequested: { if (root.workspaceController !== null) root.workspaceController.refresh() }
-                    onExportRequested:  { if (root.workspaceController !== null) root.workspaceController.exportPortfolio() }
                 }
 
                 Item {
@@ -137,32 +128,19 @@ AppLayouts.WorkspaceFrame {
                         anchors.left:   parent.left
                         anchors.right:  parent.right
                         anchors.bottom: _paginationBar.top
-                        multiSelect:    true
+                        multiSelect:    false
                         columns:        state.heatmapColumns
                         sourceModel:    root.workspaceController ? root.workspaceController.heatmapTableModel : null
                         sortingMode:    "none"
                         loading:        root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText:      state.heatmapModel.emptyState || "No portfolio projects available."
                         selectedRowId:  state.selectedRowId
-                        selectedRowIds: state.selectedRowIds
 
                         onRowSelected: function(rowId) { state.selectedRowId = rowId }
                         onRowActivated: function(rowId) {
                             state.selectedRowId = rowId
                             state.pendingDetailSection = 0
                             state.detailOpen = true
-                        }
-                        onRowSelectionToggled: function(rowId, selected) {
-                            const ids = state.selectedRowIds.slice()
-                            const idx = ids.indexOf(rowId)
-                            if (selected && idx < 0)         ids.push(rowId)
-                            else if (!selected && idx >= 0)  ids.splice(idx, 1)
-                            state.selectedRowIds = ids
-                        }
-                        onSelectAllToggled: function(allSelected) {
-                            state.selectedRowIds = allSelected
-                                ? (root.workspaceController ? (root.workspaceController.heatmapVisibleRowIds || []) : [])
-                                : []
                         }
                     }
 
@@ -183,19 +161,6 @@ AppLayouts.WorkspaceFrame {
                             if (root.workspaceController !== null)
                                 root.workspaceController.setHeatmapPageSize(ps)
                         }
-                    }
-
-                    AppWidgets.BulkActionBar {
-                        id: _bulkBar
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        anchors.bottom:       _paginationBar.top
-                        anchors.bottomMargin: Theme.AppTheme.spacingMd
-                        z: 10
-                        selectedCount: state.selectedRowIds.length
-                        busy: root.workspaceController ? root.workspaceController.isBusy : false
-                        actions: [{ "id": "evaluate", "label": "Evaluate Scenario", "icon": "approve", "danger": false, "enabled": true }]
-                        onCancelRequested:   { state.selectedRowIds = [] }
-                        onActionTriggered:   function(actionId) { if (actionId === "evaluate") state.bottomTab = 2 }
                     }
 
                     // ── Intake status filter popup ─────────────────────
@@ -308,10 +273,8 @@ AppLayouts.WorkspaceFrame {
                 sections:    ["Overview", "Scenarios", "Dependencies", "Funding", "Activity"]
                 z:           20
                 Component.onCompleted: {
-                    root._activeDetailSectionIndex = 0
                     scrollToSection(state.pendingDetailSection)
                 }
-                onSectionChanged: function(index) { root._activeDetailSectionIndex = index }
 
                 AppWidgets.ContextualActionToolbar {
                     detailPagePinned: true
@@ -324,14 +287,7 @@ AppLayouts.WorkspaceFrame {
                         ? String(state.selectedHeatmapItem.subtitle || "")
                         : ""
                     busy:     root.workspaceController ? root.workspaceController.isBusy : false
-                    actions:  root._detailActions
                     onBackRequested: state.detailOpen = false
-                    onActionTriggered: function(actionId) {
-                        if (actionId === "evaluate") {
-                            state.detailOpen = false
-                            state.bottomTab = 2
-                        }
-                    }
                 }
 
                 AppWidgets.SectionScopedInlineMessage {

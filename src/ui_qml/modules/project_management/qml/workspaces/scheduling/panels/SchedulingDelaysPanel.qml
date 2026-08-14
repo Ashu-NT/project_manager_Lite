@@ -44,14 +44,12 @@ Item {
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     actions: [
                         { "id": "refresh", "label": "Refresh", "icon": "refresh", "enabled": true },
-                        { "id": "run_cpm", "label": "Run CPM", "icon": "approve",  "enabled": true },
-                        { "id": "export",  "label": "Export",  "icon": "export",   "enabled": true }
+                        { "id": "run_cpm", "label": "Run CPM", "icon": "approve",  "enabled": true }
                     ]
                     onActionTriggered: function(actionId) {
                         if (root.workspaceController === null) return
                         if (actionId === "refresh") root.workspaceController.refresh()
                         else if (actionId === "run_cpm") root.workspaceController.recalculateSchedule()
-                        else if (actionId === "export") root.workspaceController.exportSchedule()
                     }
                 }
 
@@ -61,12 +59,11 @@ Item {
                     searchText: root.workspaceController ? root.workspaceController.delaysSearchText : ""
                     searchPlaceholder: "Search delayed activities..."
                     showCustomize: true
-                    showExport: true
+                    showExport: false
                     showRefresh: false
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     onSearchChanged: function(text) { if (root.workspaceController) root.workspaceController.setDelaysSearchText(text) }
                     onCustomizeClicked: delaysTable.openColumnCustomizer(delaysToolbar.customizeButtonItem)
-                    onExportRequested: { if (root.workspaceController !== null) root.workspaceController.exportSchedule() }
                 }
 
                 AppWidgets.DataTable {
