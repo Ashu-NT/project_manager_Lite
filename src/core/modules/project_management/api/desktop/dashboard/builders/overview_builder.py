@@ -75,7 +75,7 @@ def overloaded_resource_count(rows: tuple[Any, ...]) -> int:
 
 def build_empty_overview() -> ProjectDashboardOverviewDescriptor:
     return ProjectDashboardOverviewDescriptor(
-        title="Dashboard",
+        title="Overview",
         subtitle="Select a project to see schedule and cost health.",
         metrics=(
             ProjectDashboardMetricDescriptor("Tasks", "0 / 0", "Done / Total"),
@@ -99,7 +99,7 @@ def build_overview_from_dashboard_data(
     tasks_total = int(getattr(kpi, "tasks_total", 0) or 0)
     tasks_completed = int(getattr(kpi, "tasks_completed", 0) or 0)
     progress = 100.0 * tasks_completed / tasks_total if tasks_total else 0.0
-    title = project_name or getattr(kpi, "name", "") or "Dashboard"
+    title = project_name or getattr(kpi, "name", "") or "Overview"
     return ProjectDashboardOverviewDescriptor(
         title=title,
         subtitle="Project execution health",
@@ -128,7 +128,7 @@ def build_contextual_overview(
     portfolio_mode: bool,
 ) -> ProjectDashboardOverviewDescriptor:
     kpi = getattr(dashboard_data, "kpi", None)
-    title = project_name or getattr(kpi, "name", "") or "Dashboard"
+    title = project_name or getattr(kpi, "name", "") or "Overview"
 
     if portfolio_mode:
         return _build_portfolio_overview(title=title, dashboard_data=dashboard_data, kpi=kpi, selected_view_key=selected_view_key)

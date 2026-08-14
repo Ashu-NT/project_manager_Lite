@@ -13,7 +13,7 @@ DashboardOptionList: TypeAlias = list[dict[str, str]]
 
 def default_dashboard_overview(title: str) -> DashboardMap:
     return {
-        "title": title or "Dashboard",
+        "title": title or "Overview",
         "subtitle": "Select a project to see schedule and cost health.",
         "metrics": [],
     }

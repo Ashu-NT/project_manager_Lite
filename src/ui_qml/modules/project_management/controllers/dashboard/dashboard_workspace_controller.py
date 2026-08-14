@@ -92,7 +92,7 @@ class ProjectManagementDashboardWorkspaceController(
         )
         self._workspace = workspace_view_model
         self._overview = default_dashboard_overview(
-            str(workspace_view_model.get("title", "") or "Dashboard")
+            str(workspace_view_model.get("title", "") or "Overview")
         )
         self._has_loaded = False
         self._is_refreshing = False

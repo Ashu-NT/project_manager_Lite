@@ -23,7 +23,7 @@ AppLayouts.WorkspaceFrame {
         ? root.workspaceController.workspace
         : ({
             "routeId": "project_management.dashboard",
-            "title": "Dashboard",
+            "title": "Overview",
             "summary": "Project KPIs, health summaries, and executive delivery views."
         })
     readonly property var overviewModel: root.workspaceController

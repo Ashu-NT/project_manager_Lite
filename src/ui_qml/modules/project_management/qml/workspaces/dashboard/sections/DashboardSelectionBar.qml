@@ -2,10 +2,16 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
+import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
 Item {
     id: root
+
+    // Section 3.3 / section 11: below the compact-content floor, collapse
+    // Baseline/Period/View into an overflow menu and keep only the single
+    // project (scope) selector plus Refresh always reachable.
+    readonly property bool _compact: root.width < Theme.AppTheme.compactContentBreakpoint
 
     property var projectOptions: []
     property string selectedProjectId: ""
@@ -62,14 +68,17 @@ Item {
 
     function syncBaselineCombo() {
         root.syncComboSelection(baselineCombo, root.baselineOptions, root.selectedBaselineId)
+        root.syncComboSelection(overflowBaselineCombo, root.baselineOptions, root.selectedBaselineId)
     }
 
     function syncPeriodCombo() {
         root.syncComboSelection(periodCombo, root.periodOptions, root.selectedPeriodKey)
+        root.syncComboSelection(overflowPeriodCombo, root.periodOptions, root.selectedPeriodKey)
     }
 
     function syncViewCombo() {
         root.syncComboSelection(viewCombo, root.viewOptions, root.selectedViewKey)
+        root.syncComboSelection(overflowViewCombo, root.viewOptions, root.selectedViewKey)
     }
 
     readonly property bool baselineSelectionLocked: (root.baselineOptions || []).length === 1
@@ -147,6 +156,7 @@ Item {
 
                 AppControls.Label {
                     text: "Baseline"
+                    visible: !root._compact
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.captionSize
@@ -158,6 +168,7 @@ Item {
 
                     property bool syncingSelection: false
 
+                    visible: !root._compact
                     Layout.preferredWidth: 210
                     enabled: !root.isLoading && !root.baselineSelectionLocked
                     model: root.baselineOptions || []
@@ -176,6 +187,7 @@ Item {
 
                 AppControls.Label {
                     text: "Period"
+                    visible: !root._compact
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.captionSize
@@ -187,6 +199,7 @@ Item {
 
                     property bool syncingSelection: false
 
+                    visible: !root._compact
                     Layout.preferredWidth: 150
                     enabled: !root.isLoading
                     model: root.periodOptions || []
@@ -205,6 +218,7 @@ Item {
 
                 AppControls.Label {
                     text: "View"
+                    visible: !root._compact
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.captionSize
@@ -216,6 +230,7 @@ Item {
 
                     property bool syncingSelection: false
 
+                    visible: !root._compact
                     Layout.preferredWidth: 190
                     enabled: !root.isLoading
                     model: root.viewOptions || []
@@ -237,12 +252,115 @@ Item {
                 }
 
                 AppControls.SecondaryButton {
+                    id: overflowButton
+                    visible: root._compact
+                    enabled: !root.isLoading
+                    text: "More"
+                    iconName: "menu"
+                    onClicked: overflowPopup.open()
+                }
+
+                AppControls.SecondaryButton {
                     enabled: !root.isLoading
                     text: "Refresh"
                     iconName: "refresh"
                     onClicked: root.refreshRequested()
                 }
 
+            }
+        }
+
+        AppWidgets.AnchoredPopup {
+            id: overflowPopup
+            anchorItem: overflowButton
+            width: 260
+            padding: Theme.AppTheme.marginMd
+            closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+            background: Rectangle {
+                radius: Theme.AppTheme.radiusLg
+                color: Theme.AppTheme.surfaceRaised
+                border.color: Theme.AppTheme.divider
+                border.width: 1
+            }
+
+            contentItem: ColumnLayout {
+                spacing: Theme.AppTheme.spacingSm
+
+                AppControls.Label {
+                    text: "Baseline"
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.bold: true
+                }
+                AppControls.ComboBox {
+                    id: overflowBaselineCombo
+
+                    property bool syncingSelection: false
+
+                    Layout.fillWidth: true
+                    enabled: !root.isLoading && !root.baselineSelectionLocked
+                    model: root.baselineOptions || []
+                    textRole: "label"
+                    onActivated: function(index) {
+                        if (overflowBaselineCombo.syncingSelection) {
+                            return
+                        }
+                        const nextValue = root.optionValue(root.baselineOptions, index)
+                        if (nextValue !== String(root.selectedBaselineId || "")) root.baselineSelected(nextValue)
+                    }
+                }
+
+                AppControls.Label {
+                    text: "Period"
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.bold: true
+                }
+                AppControls.ComboBox {
+                    id: overflowPeriodCombo
+
+                    property bool syncingSelection: false
+
+                    Layout.fillWidth: true
+                    enabled: !root.isLoading
+                    model: root.periodOptions || []
+                    textRole: "label"
+                    onActivated: function(index) {
+                        if (overflowPeriodCombo.syncingSelection) {
+                            return
+                        }
+                        const nextValue = root.optionValue(root.periodOptions, index)
+                        if (nextValue !== String(root.selectedPeriodKey || "")) root.periodSelected(nextValue)
+                    }
+                }
+
+                AppControls.Label {
+                    text: "View"
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.bold: true
+                }
+                AppControls.ComboBox {
+                    id: overflowViewCombo
+
+                    property bool syncingSelection: false
+
+                    Layout.fillWidth: true
+                    enabled: !root.isLoading
+                    model: root.viewOptions || []
+                    textRole: "label"
+                    onActivated: function(index) {
+                        if (overflowViewCombo.syncingSelection) {
+                            return
+                        }
+                        const nextValue = root.optionValue(root.viewOptions, index)
+                        if (nextValue !== String(root.selectedViewKey || "")) root.viewSelected(nextValue)
+                    }
+                }
             }
         }
 

@@ -1191,10 +1191,48 @@ are also test-proven (`test_pm_r3_overview_scalable_queries.py`, 6 tests).
 Targeted Dashboard/Portfolio regression (29 tests) and the operational
 table builder's existing tests (16 tests) remain green.
 
-**R3 -- OVERVIEW SCALABLE QUERIES: COMPLETE.** The Overview visual
-redesign (simplified context/scope controls, responsive KPI strip,
-delivery trend + Attention Required pairing, coherent operational tabs --
-including wiring the now-real Delayed Tasks query into the "Delays" tab in
-place of today's curated Critical-Task-Watchlist/Upcoming-Tasks content,
-compact-laptop behavior, and a freshness indicator only if a real timestamp
-contract is added) has not started.
+**R3 -- OVERVIEW SCALABLE QUERIES: COMPLETE.**
+
+**Delayed Tasks wired live into the existing "Delays" tab** (the one
+concrete piece of UI work this phase justified doing immediately, since
+the query capability now exists and end-to-end proof requires exercising
+it through the real controller, not just the desktop API):
+`DashboardOperationalTableMixin` now routes search/page/pageSize/tab-select
+for `delayed_tasks` to `ProjectDashboardWorkspacePresenter.
+list_delayed_tasks_page()` (a live backend call) instead of the shared
+"re-slice an already-fetched list" path every other operational tab still
+correctly uses. The tab still appears inside today's `DashboardOperational
+Panel.qml`/`operationalTable*` QML properties unchanged -- no QML files
+were touched, only the controller/presenter/desktop-API layers -- so this
+is wiring, not the visual redesign itself. One known, accepted, minor gap:
+the tab bar's row-count badge still reflects the eager snapshot's old
+curated-watchlist count until the tab is actually opened (cosmetic only;
+the tab's own total once viewed is always the live, authoritative count).
+Verified through a real QML load of the Dashboard route exercising
+search/page/pageSize on the live controller
+(`test_pm_r3_overview_delayed_tasks_live_tab.py`).
+
+**Context bar responsive fix + "Dashboard" -> "Overview" rename** (both
+concrete, evidence-backed, low-risk): `DashboardSelectionBar.qml` now
+collapses Baseline/Period/View into an overflow popup below
+`Theme.AppTheme.compactContentBreakpoint` (1024, the existing shared
+token), keeping only the single Project selector and Refresh always
+visible -- matching section 3.3's compact-width contract. The overflow
+combos reuse the same `syncingSelection`-guarded sync pattern the inline
+combos already use (a real architecture guardrail test caught the first,
+naive `currentIndex:` binding attempt and was the right call). The
+user-visible "Dashboard" label is now "Overview" everywhere it was
+authoritative (`workspaces.py`'s `ProjectManagementWorkspaceDescriptor`,
+the PM nav item label, and every UI-layer fallback default) -- `route_id`/
+class/file names intentionally remain `dashboard`/`Dashboard*` internally,
+matching how this rename was scoped (user-visible label only, not an
+internal identifier migration). Also fixed, while in this file: the
+"Finance" nav item referenced an unregistered `icon: "finance"` --
+corrected to the already-registered `"financials"` icon key.
+
+The remaining Overview visual redesign (responsive KPI strip, delivery
+trend + Attention Required pairing reusing already-real bounded data
+instead of today's two-charts-side-by-side layout, replacing the other
+operational tabs' still-curated content only if a real classification
+calls for it, and a freshness indicator only if a real timestamp contract
+is added) has not started.

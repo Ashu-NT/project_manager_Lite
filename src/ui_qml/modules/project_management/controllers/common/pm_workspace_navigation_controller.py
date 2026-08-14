@@ -63,14 +63,14 @@ class PMWorkspaceNavigationController(QObject):
     @Property("QVariantList", constant=True)
     def navigationItems(self) -> list[dict[str, str]]:
         return [
-            {"id": "dashboard", "label": "Dashboard", "group": "Overview", "icon": "dashboard"},
+            {"id": "dashboard", "label": "Overview", "group": "Overview", "icon": "dashboard"},
             {"id": "portfolio", "label": "Portfolio", "group": "Portfolio", "icon": "portfolio"},
             {"id": "projects", "label": "Projects", "group": "Work", "icon": "project"},
             {"id": "tasks", "label": "Tasks", "group": "Work", "icon": "task"},
             {"id": "scheduling", "label": "Planning", "group": "Work", "icon": "calendar"},
             {"id": "resources", "label": "Resources", "group": "Workload Management", "icon": "resource"},
             {"id": "timesheets", "label": "Review Queue", "group": "Workload Management", "icon": "time"},
-            {"id": "financials", "label": "Finance", "group": "Finance", "icon": "finance"},
+            {"id": "financials", "label": "Finance", "group": "Finance", "icon": "financials"},
             {"id": "register", "label": "Register", "group": "Governance", "icon": "register"},
             {"id": "collaboration", "label": "Collaboration", "group": "Governance", "icon": "collaboration"},
         ]

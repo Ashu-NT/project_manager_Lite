@@ -58,7 +58,7 @@ _WORKSPACE_DESCRIPTORS: tuple[ProjectManagementWorkspaceDescriptor, ...] = (
     ),
     ProjectManagementWorkspaceDescriptor(
         key="dashboard",
-        title="Dashboard",
+        title="Overview",
         summary="Project KPIs, health summaries, and executive delivery views.",
     ),
 )

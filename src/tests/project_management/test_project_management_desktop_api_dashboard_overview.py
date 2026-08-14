@@ -16,7 +16,7 @@ def test_project_management_dashboard_desktop_api_builds_empty_overview() -> Non
 
     overview = api.build_empty_overview()
 
-    assert overview.title == "Dashboard"
+    assert overview.title == "Overview"
     assert overview.subtitle == "Select a project to see schedule and cost health."
     assert [metric.label for metric in overview.metrics] == [
         "Tasks",

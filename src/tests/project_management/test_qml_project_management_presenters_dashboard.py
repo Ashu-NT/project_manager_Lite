@@ -25,7 +25,7 @@ def test_project_management_workspace_catalog_exposes_typed_dashboard_controller
 
     assert workspace["routeId"] == "project_management.dashboard"
     assert workspace["migrationStatus"] == "QML landing zone ready"
-    assert overview["title"] == "Dashboard"
+    assert overview["title"] == "Overview"
     assert overview["metrics"][0]["label"] == "Tasks"
     assert controller.periodOptions[0]["value"] == "all"
     assert controller.selectedPeriodKey == "90d"
@@ -202,7 +202,7 @@ def test_project_dashboard_presenter_exposes_empty_overview_view_model() -> None
 
     overview = presenter.build_empty_overview()
 
-    assert overview.title == "Dashboard"
+    assert overview.title == "Overview"
     assert overview.metrics[0].label == "Tasks"
     assert overview.metrics[0].value == "0 / 0"
     assert len(overview.metrics) == 8
@@ -214,7 +214,7 @@ def test_project_management_workspace_catalog_exposes_dashboard_overview() -> No
 
     overview = catalog.dashboardOverview()
 
-    assert overview["title"] == "Dashboard"
+    assert overview["title"] == "Overview"
     assert len(overview["metrics"]) == 8
     assert overview["metrics"][0] == {
         "label": "Tasks",

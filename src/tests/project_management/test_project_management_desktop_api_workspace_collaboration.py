@@ -40,7 +40,7 @@ def test_project_management_desktop_api_gets_workspace_by_route_id() -> None:
 
     assert descriptor is not None
     assert descriptor.key == "dashboard"
-    assert descriptor.title == "Dashboard"
+    assert descriptor.title == "Overview"
     assert api.get_workspace("project_management.unknown") is None
 
 
