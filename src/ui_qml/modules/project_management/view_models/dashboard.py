@@ -119,6 +119,14 @@ class ProjectDashboardOperationalTableViewModel:
         default_factory=tuple
     )
     rows: tuple[ProjectDashboardTableRowViewModel, ...] = field(default_factory=tuple)
+    # Populated only for genuinely SCALABLE tables (server-paginated) --
+    # see ProjectDashboardWorkspacePresenter.list_delayed_tasks_page().
+    page: int = 1
+    page_size: int = 25
+    total_count: int = 0
+    sort_key: str = ""
+    sort_direction: str = "asc"
+    search_text: str = ""
 
 @dataclass(frozen=True)
 class ProjectDashboardActivityItemViewModel:

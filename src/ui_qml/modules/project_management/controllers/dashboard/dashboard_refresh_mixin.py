@@ -129,7 +129,7 @@ class DashboardRefreshMixin:
                 serialize_dashboard_section_view_models(workspace_state.sections)
             )
             self._set_empty_state(workspace_state.empty_state)
-            self._apply_operational_table_state()
+            self._apply_current_operational_tab_state()
             loaded_successfully = True
         except Exception as exc:  # pragma: no cover - defensive fallback
             logger.exception(

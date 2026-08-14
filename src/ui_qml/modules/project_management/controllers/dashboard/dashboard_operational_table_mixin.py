@@ -2,41 +2,89 @@ from __future__ import annotations
 
 from math import ceil
 
+from src.ui_qml.modules.project_management.controllers.common import (
+    serialize_dashboard_operational_table_view_models,
+)
 from src.ui_qml.modules.project_management.controllers.dashboard.dashboard_types import (
     DashboardMap,
     DashboardObjectList,
 )
 
+# Tab ids whose collection is genuinely SCALABLE (R3 -- Overview Scalable
+# Queries) and therefore always server-paginated -- never sliced from a
+# locally materialized list like the other, bounded operational tabs.
+_SCALABLE_OPERATIONAL_TAB_IDS = frozenset({"delayed_tasks"})
+
 
 class DashboardOperationalTableMixin:
+    def _current_tab_supports(self, capability: str) -> bool:
+        # SCALABLE tabs are always live-server-driven regardless of what the
+        # (about-to-be-superseded) eager snapshot placeholder claims -- see
+        # _apply_live_operational_table_state().
+        if self._selected_operational_tab_id in _SCALABLE_OPERATIONAL_TAB_IDS:
+            return True
+        return bool(self._current_operational_table_source().get(capability, True))
+
     def _set_operational_search_text_from_qml(self, search_text: str) -> None:
-        if not bool(self._current_operational_table_source().get("supportsSearch", True)):
+        if not self._current_tab_supports("supportsSearch"):
             return
         normalized_text = (search_text or "").strip()
         if normalized_text == self._operational_search_text:
             return
         self._set_operational_search_text(normalized_text)
         self._set_operational_page(1)
-        self._apply_operational_table_state()
+        self._apply_current_operational_tab_state()
 
     def _set_operational_page_from_qml(self, page: int) -> None:
-        if not bool(self._current_operational_table_source().get("supportsPagination", True)):
+        if not self._current_tab_supports("supportsPagination"):
             return
         requested_page = max(1, int(page))
         if requested_page == self._operational_page:
             return
         self._set_operational_page(requested_page)
-        self._apply_operational_table_state()
+        self._apply_current_operational_tab_state()
 
     def _set_operational_page_size_from_qml(self, page_size: int) -> None:
-        if not bool(self._current_operational_table_source().get("supportsPagination", True)):
+        if not self._current_tab_supports("supportsPagination"):
             return
         requested_page_size = max(1, int(page_size))
         if requested_page_size == self._operational_page_size:
             return
         self._set_operational_page_size(requested_page_size)
         self._set_operational_page(1)
-        self._apply_operational_table_state()
+        self._apply_current_operational_tab_state()
+
+    def _apply_current_operational_tab_state(self) -> None:
+        """Route to a live, authoritative backend page for SCALABLE tabs;
+        everything else keeps re-slicing the already-fetched, bounded
+        snapshot (cheap and correct for genuinely small/complete/top_n
+        collections -- see the R3 Overview Scalable Queries classification)."""
+        if self._selected_operational_tab_id in _SCALABLE_OPERATIONAL_TAB_IDS:
+            self._apply_live_operational_table_state()
+        else:
+            self._apply_operational_table_state()
+
+    def _apply_live_operational_table_state(self) -> None:
+        tab_id = self._selected_operational_tab_id
+        if tab_id == "delayed_tasks":
+            view_model = self._dashboard_workspace_presenter.list_delayed_tasks_page(
+                project_id=self._selected_project_id or None,
+                search_text=self._operational_search_text,
+                page=self._operational_page,
+                page_size=self._operational_page_size,
+            )
+        else:  # pragma: no cover - defensive, no other scalable tab exists yet
+            return
+        serialized = serialize_dashboard_operational_table_view_models([view_model])[0]
+        if (
+            self._selected_operational_row_id
+            and self._selected_operational_row_id
+            not in {str(row.get("id", "") or "") for row in serialized.get("rows", [])}
+        ):
+            self._set_selected_operational_row_id("")
+        self._set_operational_total_count(int(serialized.get("totalCount", 0)))
+        self._set_operational_page(int(serialized.get("page", 1)))
+        self._set_operational_table(serialized)
 
     def _select_operational_row_from_qml(self, row_id: str) -> None:
         self._set_selected_operational_row_id((row_id or "").strip())
