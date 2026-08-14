@@ -1271,6 +1271,69 @@ lifecycle restrictions remain unchanged.
 Focused verification, per user direction, records 22 R1.9/route/capability
 tests, 10 affected presenter/catalog/type-metadata tests, and one offscreen test
 that loaded every registered route. Python compilation and targeted Portfolio
-`qmllint` pass; no full suite was run. R1.10, R2, visual redesign, My Time, and
-Finance command expansion were not started. The user committed the source and
-focused test during verification; Codex did not issue a commit.
+`qmllint` pass; no full suite was run. At the R1.9 closure point, R1.10, R2,
+visual redesign, My Time, and Finance command expansion had not started. The
+user committed the source and focused test during verification; Codex did not
+issue a commit.
+
+### 23.10 R1.10 export and query-state consistency closure
+
+R1.10 is closed on 2026-08-14. The post-R1.9 collection paths were traced from
+QML through controller, presenter/desktop API, application query, read contract,
+and SQL reader. No new query-state abstraction was introduced: each existing
+controller remains the mutable UI query owner and each typed application/read
+request remains the authoritative execution contract.
+
+| Capability | Authoritative query state and execution | Export classification |
+|---|---|---|
+| Projects | Controller owns search, status, sort, page, and page size; the scoped project catalog query/reader returns normalized sort, page, total, and stable SQL order | **A - all matching results**; batched through the same search/status/sort query |
+| Tasks | Controller owns project scope, search, status, priority, schedule, sort, page, and page size; task query/reader owns SQL filtering, total, and stable order | **A - all matching results**; batched through the same project/filter/sort query |
+| Scheduling | Controller owns explicit project/calendar/baseline, search, status, critical/delayed filters, sort, page, and page size; the selected-project schedule is a complete scoped result before local paging | **E - no export** after truthful-control cleanup |
+| Resources | Controller owns search, active/category filters, sort, page, and page size; resource query/reader returns normalized authoritative state | **A - all matching results**; batched through the same filter/sort query |
+| Register | Controller owns project/type/status/severity/search, triage sort, page, and page size; register query/reader supplies scoped total and normalized state | **E - no export** after the R1.9 no-op removal |
+| Timesheet Review | Controller owns review filters, search, sort, page, and page size; the review application service and scoped reader own filtering and total | **E - no export**; the former not-available action remains retired |
+| Collaboration Inbox/Mentions | Controller owns the supported purpose-query filters, search, sort, page, and page size; purpose-specific scoped readers own total and rows | **E - no export**; bounded Activity and complete TTL Presence are not misrepresented as scalable exports |
+| Finance Actuals/Commitments | Financials controller owns explicit project, status where supported, sort, offset/page size, and total; canonical services/repositories own permission, project scope, SQL order, and total | **D - bounded Finance report export**; complete control totals/snapshot with source-detail pages explicitly bounded to 500 rows |
+| Portfolio/Dashboard | Controller state selects complete or explicitly bounded read-model collections; no collection advertises paging/filtering beyond its contract | **E - no export** after R1.9; bounded top/recent projections stay simple and truthful |
+
+There is no generic current-page export and no selected-row export in the
+audited PM surfaces. Projects, Tasks, and Resources retain their existing local
+file exporters, but those exporters walk all authorized matching pages using
+the current search, supported filters, and authoritative sort. They do not pass
+the visible page as an export limit. Finance Excel/PDF remains a bounded report,
+not a list-page export; its report basis discloses the 500-row source-detail
+bound while canonical financial control totals remain complete.
+
+Search, filter, scope, and sort changes reset the applicable page through its
+notifying controller setter. Page changes preserve all other state. Refresh and
+domain-event refresh rerun the current state rather than clearing it. Page-size
+and post-mutation/filter refreshes now clamp requests beyond the final page and
+copy the accepted page/page-size back to the controller. Projects, Tasks,
+Resources, Register, Timesheet Review, Collaboration, Finance configuration,
+Actuals, Commitments, and Billing all have final-page normalization evidence.
+Invalid Finance sort input continues through semantic allowlists and the
+accepted sort is returned to presentation state.
+
+The normalization arithmetic is single-sourced in the PM read contracts and is
+re-exported by the existing application pagination module for compatibility.
+Finance sort allowlists also live in read contracts, so the desktop adapter does
+not invoke application-layer helper objects. Corrective last-page reads reuse
+the same tenant/organization/principal/project-scoped reader or service call;
+no QML-provided ID bypasses authorization.
+
+No significant duplicate dispatch was found. A controller interaction performs
+one refresh; a second database read occurs only when the first authoritative
+count proves the requested page is invalid. Current PM controller query paths
+are synchronous on the main thread, so an older asynchronous response cannot
+overwrite newer state; no speculative cancellation/generation framework was
+added.
+
+Focused verification records 17 R1.10 export/pagination tests, 66 affected
+Finance/collaboration/desktop/CQRS architecture tests, and the earlier focused
+controller, route, scope, and normalization batches. The attributable desktop
+application-construction and Collaboration single-reader-call guards are green.
+The known untouched Platform `controllers/admin` cleanup guard remains outside
+PM and R1.10. No QML visual source changed in R1.10, and no full PM suite was run
+per user direction. R1.11, R2, canonical navigation, and visual redesign were
+not started. Codex issued no commit; the user/team committed implementation
+increments during verification.

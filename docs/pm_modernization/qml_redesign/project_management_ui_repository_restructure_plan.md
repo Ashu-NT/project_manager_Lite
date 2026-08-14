@@ -670,6 +670,35 @@ handler were removed. No backend was invented to preserve UI chrome.
 Focused verification records 22 R1.9/route/capability passes, 10 affected
 presenter/catalog/type-metadata passes, and one successful all-route offscreen
 load. Python compilation and targeted Portfolio `qmllint` pass. Per user
-direction, no full suite was run. R1.10 and R2 were not started, and no commit
-was issued by Codex; the user committed the source and focused test during
-verification.
+direction, no full suite was run. At the R1.9 closure point, R1.10 and R2 had
+not started, and no commit was issued by Codex; the user committed the source
+and focused test during verification.
+
+## 22. Post-R0.5 R1.10 closure record
+
+R1.10 is closed without reopening the R0.5 repository restructure or starting
+visual redesign. No QML file, route, QML-facing facade, navigation structure,
+or capability ownership was moved.
+
+The only repository-boundary refinement is query-contract ownership: generic
+last-page normalization now lives under `contracts/reads/pagination.py`, while
+the existing application pagination module re-exports it; Finance Actual and
+Commitment sort allowlists/normalizers now live under
+`contracts/reads/financials/sorting.py`. Application services and the desktop
+adapter consume those shared read contracts. This removes desktop invocation of
+application helper functions and leaves no compatibility file or temporary
+transition implementation to retire.
+
+Projects, Tasks, Resources, Register, Timesheet Review, Collaboration, and
+Finance pages normalize a request beyond the final result page and return that
+accepted state to their controllers. Finance configuration pages do the same.
+Controller setters consistently notify page resets for query changes, while
+refresh preserves state. Existing Projects/Tasks/Resources all-result exports
+and bounded Finance reports remain; no unsupported export was restored.
+
+Focused verification records 17 R1.10 behavior tests and 66 affected Finance,
+Collaboration, desktop-adapter, and CQRS architecture tests passing. The PM
+desktop application-construction and Collaboration purpose-reader guards pass;
+`git diff --check` is clean apart from line-ending notices. No full suite was
+run per user direction. R1.11 and R2 were not started. Codex did not issue a
+commit; user/team commits occurred while verification was in progress.
