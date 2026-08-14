@@ -650,3 +650,26 @@ route/architecture/context/Finance batch. That final batch also reports two
 unrelated pre-existing failures in untouched scheduling-layer and Platform-admin
 cleanup guardrails. Per user direction, no full test suite was run. R1.9 and R2
 were not started, and no commit was created.
+
+## 21. Post-R0.5 R1.9 closure record
+
+R1.9 is closed without reopening repository restructuring, moving files beyond
+two proven-dead artifacts, changing routes, or starting visual redesign. The
+deleted artifacts were the standalone Register not-available export handler and
+the Finance Purchase Orders future-placeholder section. Their imports, QML
+registrations, loaders, controller methods, and generated/manual type metadata
+were removed in the same change; no compatibility wrapper remains.
+
+Unsupported exports were removed from Dashboard, Portfolio, Scheduling,
+Timesheets, and Register. Existing Projects, Tasks, Resources, and Finance
+exports remain. Portfolio's real scenario summaries are now shown through an
+anchored surface using the existing controller bindings. Refresh-backed or
+selection-ignoring Portfolio/Scheduling actions and the sole empty active QML
+handler were removed. No backend was invented to preserve UI chrome.
+
+Focused verification records 22 R1.9/route/capability passes, 10 affected
+presenter/catalog/type-metadata passes, and one successful all-route offscreen
+load. Python compilation and targeted Portfolio `qmllint` pass. Per user
+direction, no full suite was run. R1.10 and R2 were not started, and no commit
+was issued by Codex; the user committed the source and focused test during
+verification.
