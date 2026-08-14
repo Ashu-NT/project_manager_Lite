@@ -249,10 +249,21 @@ class EmployeeService:
         domain_events.employees_changed.emit(candidate.id)
         return candidate
 
-    def list_employees(self, *, active_only: bool | None = None) -> list[Employee]:
+    def list_employees(
+        self,
+        *,
+        active_only: bool | None = None,
+        department_id: str | None = None,
+        site_id: str | None = None,
+    ) -> list[Employee]:
         require_permission(self._user_session, "employee.read", operation_label="list employees")
         organization_id = self._active_organization_id(operation_label="list employees")
-        return self._employee_repo.list_for_organization(organization_id, active_only=active_only)
+        return self._employee_repo.list_for_organization(
+            organization_id,
+            active_only=active_only,
+            department_id=department_id,
+            site_id=site_id,
+        )
 
     def get_headcount_summary(self) -> EmployeeHeadcountSummary:
         require_permission(

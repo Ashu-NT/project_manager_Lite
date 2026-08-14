@@ -440,10 +440,20 @@ class FakePlatformEmployeeApi:
     def __init__(self, rows: tuple[EmployeeDto, ...]) -> None:
         self._rows = list(rows)
 
-    def list_employees(self, *, active_only: bool | None = None) -> DesktopApiResult[tuple[EmployeeDto, ...]]:
+    def list_employees(
+        self,
+        *,
+        active_only: bool | None = None,
+        department_id: str | None = None,
+        site_id: str | None = None,
+    ) -> DesktopApiResult[tuple[EmployeeDto, ...]]:
         rows = self._rows
         if active_only is not None:
             rows = [row for row in rows if row.is_active == active_only]
+        if department_id is not None:
+            rows = [row for row in rows if row.department_id == department_id]
+        if site_id is not None:
+            rows = [row for row in rows if row.site_id == site_id]
         return DesktopApiResult(ok=True, data=tuple(rows))
 
     def get_headcount_summary(self) -> DesktopApiResult[EmployeeHeadcountSummaryDto]:

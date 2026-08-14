@@ -60,6 +60,54 @@ class PlatformEmployeeCatalogPresenter:
             items=tuple(self._serialize_employee(row) for row in result.data),
         )
 
+    def build_catalog_for_department(self, department_id: str) -> PlatformWorkspaceActionListViewModel:
+        if self._employee_api is None:
+            return PlatformWorkspaceActionListViewModel(
+                title="Employees",
+                subtitle="Workforce records appear here once the platform employee API is connected.",
+                empty_state="Platform employee API is not connected in this QML preview.",
+            )
+
+        result = self._employee_api.list_employees(department_id=department_id)
+        if not result.ok or result.data is None:
+            message = result.error.message if result.error is not None else "Unable to load employees."
+            return PlatformWorkspaceActionListViewModel(
+                title="Employees",
+                subtitle=message,
+                empty_state=message,
+            )
+
+        return PlatformWorkspaceActionListViewModel(
+            title="Employees",
+            subtitle="Employees aligned to this department through the shared employee master.",
+            empty_state="This department does not currently have employees assigned.",
+            items=tuple(self._serialize_employee(row) for row in result.data),
+        )
+
+    def build_catalog_for_site(self, site_id: str) -> PlatformWorkspaceActionListViewModel:
+        if self._employee_api is None:
+            return PlatformWorkspaceActionListViewModel(
+                title="Employees",
+                subtitle="Workforce records appear here once the platform employee API is connected.",
+                empty_state="Platform employee API is not connected in this QML preview.",
+            )
+
+        result = self._employee_api.list_employees(site_id=site_id)
+        if not result.ok or result.data is None:
+            message = result.error.message if result.error is not None else "Unable to load employees."
+            return PlatformWorkspaceActionListViewModel(
+                title="Employees",
+                subtitle=message,
+                empty_state=message,
+            )
+
+        return PlatformWorkspaceActionListViewModel(
+            title="Employees",
+            subtitle="Employees aligned to this site through the shared employee master.",
+            empty_state="This site does not currently have employees assigned.",
+            items=tuple(self._serialize_employee(row) for row in result.data),
+        )
+
     def build_site_options(self) -> tuple[dict[str, str], ...]:
         if self._site_api is None:
             return ()

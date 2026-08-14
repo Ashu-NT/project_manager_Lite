@@ -445,6 +445,14 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     def toggleEmployeeActive(self, employee_id: str) -> dict[str, object]:
         return toggle_employee_active(self, employee_id)
 
+    @Slot(str, result="QVariantMap")
+    def employeesForDepartment(self, department_id: str) -> dict[str, object]:
+        return self._employee_controller.employeesForDepartment(department_id)
+
+    @Slot(str, result="QVariantMap")
+    def employeesForSite(self, site_id: str) -> dict[str, object]:
+        return self._employee_controller.employeesForSite(site_id)
+
     # ── User slots ────────────────────────────────────────────────────────
 
     @Slot("QVariantMap", result="QVariantMap")

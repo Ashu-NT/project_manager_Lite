@@ -15,6 +15,8 @@ Item {
     property var site: ({})
     property var departmentCatalog: ({ "items": [], "emptyState": "No departments are available yet." })
     property var departmentColumns: []
+    property var employeeCatalog: ({ "items": [], "emptyState": "No employees are available yet." })
+    property var employeeColumns: []
     property var siteCalendarAssignment: ({})
     property var calendarSourceChain: []
     property bool busy: false
@@ -49,10 +51,24 @@ Item {
             return String(state.siteId || "") === siteId
         })
     }
+    readonly property var _employeeRows: {
+        // Depend on employeeCatalog so this re-fetches whenever the shared
+        // employee catalog changes (create/update/toggle-active elsewhere),
+        // but query only this site's rows via SQL rather than a full-org
+        // client-side filter.
+        const _refreshToken = root.employeeCatalog
+        const siteId = root._siteId
+        if (siteId.length === 0 || !root.platformCatalog || !root.platformCatalog.adminWorkspace) {
+            return []
+        }
+        const result = root.platformCatalog.adminWorkspace.employeesForSite(siteId)
+        return (result && result.items) || []
+    }
     readonly property var _sections: {
         const sections = [
             { "label": "Overview" },
-            { "label": "Departments", "count": root._departmentRows.length }
+            { "label": "Departments", "count": root._departmentRows.length },
+            { "label": "Employees", "count": root._employeeRows.length }
         ]
         if (root._maintenanceEnabled) {
             sections.push({ "label": "Structures" })
@@ -81,6 +97,8 @@ Item {
             return root._subtitle
         case "Departments":
             return "Shared departments mapped to this site through the platform department master."
+        case "Employees":
+            return "Employees aligned to this site through the shared employee master."
         case "Structures":
             return "Maintenance-owned location and structure hierarchy delegated from the shared site master."
         case "Warehouses":
@@ -111,6 +129,12 @@ Item {
             return [
                 { "id": "create_department", "label": "New Department", "icon": "add" },
                 { "id": "show_departments", "label": "Open Departments", "icon": "chevron_right" }
+            ]
+        }
+        if (root._activeSectionLabel === "Employees") {
+            return [
+                { "id": "create_employee", "label": "New Employee", "icon": "add" },
+                { "id": "show_employees", "label": "Open Employees", "icon": "chevron_right" }
             ]
         }
         if (root._activeSectionLabel === "Calendar") {
@@ -357,6 +381,38 @@ Item {
                         loading: root.busy
                         onRowActivated: function(rowId) {
                             root.relatedRowActivated("departments", rowId)
+                        }
+                    }
+                }
+            }
+        }
+
+        Item {
+            width: parent ? parent.width : root.width
+            implicitHeight: root._activeSectionLabel === "Employees" ? employeesLoader.implicitHeight : 0
+            height: implicitHeight
+            visible: implicitHeight > 0
+
+            AppWidgets.LazySectionLoader {
+                id: employeesLoader
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                active: root._activeSectionLabel === "Employees"
+                keepLoaded: true
+                loadingMessage: "Loading site employees..."
+                sourceComponent: Component {
+                    AdminDetailTableSection {
+                        sectionLabel: "Employees"
+                        infoMessage: "Employee assignment remains sourced from the shared employee master."
+                        emptyTitle: "No employees mapped"
+                        emptyMessage: "This site does not currently have employees assigned."
+                        rows: root._employeeRows
+                        columns: root.employeeColumns
+                        loading: root.busy
+                        tableHeight: root._tableHeightForCount(root._employeeRows.length)
+                        onRowActivated: function(rowId) {
+                            root.relatedRowActivated("employees", rowId)
                         }
                     }
                 }

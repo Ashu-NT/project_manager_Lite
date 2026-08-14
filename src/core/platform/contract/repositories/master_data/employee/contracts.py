@@ -32,6 +32,8 @@ class EmployeeRepository(ABC):
         organization_id: str,
         *,
         active_only: bool | None = None,
+        department_id: str | None = None,
+        site_id: str | None = None,
     ) -> list[Employee]: ...
 
 
