@@ -81,6 +81,10 @@ AppLayouts.WorkspaceFrame {
             ColumnLayout {
                 Layout.fillWidth:  true
                 Layout.fillHeight: true
+                // Excluded from the RowLayout while a detail is open, so the
+                // detail overlay (the other RowLayout child) gets the full
+                // width instead of the row splitting space between both.
+                visible: !state.detailOpen
                 spacing: 0
 
                 // ── Panel tab bar ─────────────────────────────────

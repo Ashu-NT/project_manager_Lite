@@ -65,6 +65,9 @@ AppLayouts.WorkspaceFrame {
     property string selectedGrantId: ""
     property bool detailOpen: false
     property string selectedSessionId: ""
+    // Top-level split: "Scope Access" (grants) vs "Account Security"
+    // (sessions) -- previously both were always shown stacked on one page.
+    property string activePanel: "scope"
 
     readonly property bool   busy: root.controller ? root.controller.isBusy          : false
     readonly property bool   load: root.controller ? root.controller.isLoading       : false
@@ -192,9 +195,85 @@ AppLayouts.WorkspaceFrame {
             message: root.ok
         }
 
+        // ── Panel tab bar: Scope Access vs Account Security ───────────
+        Rectangle {
+            Layout.fillWidth: true
+            height: Theme.AppTheme.toolbarHeight - 4
+            color:  Theme.AppTheme.surfaceRaised
+            z:      1
+
+            Rectangle {
+                anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
+                height: 1; color: Theme.AppTheme.divider
+            }
+
+            RowLayout {
+                anchors.fill:       parent
+                anchors.leftMargin: Theme.AppTheme.marginMd
+                spacing: 0
+
+                Repeater {
+                    model: [
+                        { id: "scope",    label: "Scope Access",     count: (root.grantsCatalog.items || []).length },
+                        { id: "security", label: "Account Security", count: (root.sessionsCatalog.items || []).length }
+                    ]
+
+                    delegate: Item {
+                        id: _tab
+                        required property var modelData
+                        readonly property bool _active: root.activePanel === _tab.modelData.id
+
+                        implicitWidth:  _tabRow.implicitWidth + 16
+                        Layout.fillHeight: true
+
+                        RowLayout {
+                            id: _tabRow
+                            anchors.centerIn: parent
+                            spacing: 4
+
+                            AppControls.Label {
+                                text:           _tab.modelData.label
+                                color:          _tab._active ? Theme.AppTheme.accent : Theme.AppTheme.textSecondary
+                                font.family:    Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.smallSize
+                                font.bold:      _tab._active
+                            }
+                            AppControls.Label {
+                                visible:        _tab.modelData.count > 0
+                                text:           String(_tab.modelData.count)
+                                color:          _tab._active ? Theme.AppTheme.accent : Theme.AppTheme.textMuted
+                                font.family:    Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.captionSize
+                            }
+                        }
+
+                        Rectangle {
+                            visible: _tab._active
+                            anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
+                            height: 2
+                            color:  Theme.AppTheme.accent
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape:  Qt.PointingHandCursor
+                            onClicked: {
+                                root.activePanel = _tab.modelData.id
+                                root.selectedGrantId = ""
+                                root.selectedSessionId = ""
+                            }
+                        }
+                    }
+                }
+
+                Item { Layout.fillWidth: true }
+            }
+        }
+
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
+            visible: root.activePanel === "scope"
             spacing: 0
 
             PlatformComponents.AdminEntityWorkspace {
@@ -235,33 +314,38 @@ AppLayouts.WorkspaceFrame {
             }
         }
 
-        AppWidgets.SectionHeading { Layout.fillWidth: true; label: "Account Security & Sessions" }
-
-        AppWidgets.ContextualActionToolbar {
+        ColumnLayout {
             Layout.fillWidth: true
-            visible: root._selectedSessionItem !== null
-            title: root._selectedSessionItem ? String(root._selectedSessionItem.title || "") : ""
-            subtitle: root._selectedSessionItem ? String(root._selectedSessionItem.supportingText || "") : ""
-            busy: root.busy
-            actions: root._sessionActions
-            onActionTriggered: function(actionId) {
-                const item = root._selectedSessionItem
-                if (!root.controller || !item) return
-                if (actionId === "unlock") root.controller.unlockUser(item.id || "")
-                else if (actionId === "revoke") root.requestRevokeSessions(item)
-                else if (actionId === "force_reset") root.requestForcePasswordReset(item)
+            Layout.fillHeight: true
+            visible: root.activePanel === "security"
+            spacing: Theme.AppTheme.sectionGap
+
+            AppWidgets.ContextualActionToolbar {
+                Layout.fillWidth: true
+                visible: root._selectedSessionItem !== null
+                title: root._selectedSessionItem ? String(root._selectedSessionItem.title || "") : ""
+                subtitle: root._selectedSessionItem ? String(root._selectedSessionItem.supportingText || "") : ""
+                busy: root.busy
+                actions: root._sessionActions
+                onActionTriggered: function(actionId) {
+                    const item = root._selectedSessionItem
+                    if (!root.controller || !item) return
+                    if (actionId === "unlock") root.controller.unlockUser(item.id || "")
+                    else if (actionId === "revoke") root.requestRevokeSessions(item)
+                    else if (actionId === "force_reset") root.requestForcePasswordReset(item)
+                }
             }
-        }
 
-        AppWidgets.DataTable {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 200
-            sourceModel: root.controller ? root.controller.securityUsersTableModel : null
-            columns: root._sessionColumns
-            emptyText: root.controller ? (root.sessionsCatalog.emptyState || "No security records") : "No security records"
-            selectedRowId: root.selectedSessionId
-            onRowSelected: function(rowId) { root.selectedSessionId = rowId }
-            onRowActivated: function(rowId) { root.selectedSessionId = rowId }
+            AppWidgets.DataTable {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                sourceModel: root.controller ? root.controller.securityUsersTableModel : null
+                columns: root._sessionColumns
+                emptyText: root.controller ? (root.sessionsCatalog.emptyState || "No security records") : "No security records"
+                selectedRowId: root.selectedSessionId
+                onRowSelected: function(rowId) { root.selectedSessionId = rowId }
+                onRowActivated: function(rowId) { root.selectedSessionId = rowId }
+            }
         }
     }
 
