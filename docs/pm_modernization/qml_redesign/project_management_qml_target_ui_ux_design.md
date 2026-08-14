@@ -565,7 +565,7 @@ are wired to the authoritative session engine with canonical permission codes;
 missing engine/session/principal/tenant/organization and evaluation failures
 all map to false; QML and row-action fallbacks are deny-safe; and assignment
 policy failures are blocking. Backend enforcement and entity lifecycle facts
-remain authoritative. R1.9 and R2 have not started.
+remain authoritative. R1.9 is now closed; R2 has not started.
 
 R1.7 does not implement any target visual architecture in this document. It
 only establishes trustworthy query/control foundations for later Overview,
@@ -638,3 +638,22 @@ Gate: the canonical route, remaining compatibility routes, QML engine, dialogs, 
 ## 16. Target acceptance summary
 
 The target is complete when one canonical PM module route provides the six approved PM-local destinations, compatibility routes are retired after dependency migration, users move from portfolio to project to task without implicit context changes, every visible control is real, scalable lists use authoritative queries, permission presentation is deny-safe, Timesheets defaults by capability while supporting capture and review, Finance exposes approved PM-owned commands without crossing Accounting boundaries, and the workspace remains keyboard-accessible and usable at 1024x768.
+
+## 17. R1.9 closure note
+
+R1.9 is closed on 2026-08-14 without beginning the target visual redesign.
+Unsupported Dashboard, Portfolio, Scheduling, Timesheet, and Register export
+controls and their presentation-only adapters were retired. The Finance
+Purchase Orders future placeholder was removed from the active rail. Portfolio
+Compare now presents the existing authoritative evaluation/comparison models;
+selected-project Evaluate controls that ignored their selection were removed.
+Scheduling comparison remains selector-driven and no longer advertises a
+refresh-only Compare action.
+
+The removed export and integration surfaces remain product work for R3-R7 and
+must return only with real query/export/integration contracts. Existing real
+file/report exports remain. Ten compatibility routes and R1.8 deny-safe action
+presentation remain intact. R1.10 and R2 have not started.
+
+The user committed the R1.9 source and focused test during verification; Codex
+did not issue a commit. The closure-document update remains separate.

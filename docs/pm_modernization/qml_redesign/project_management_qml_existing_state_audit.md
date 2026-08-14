@@ -1223,3 +1223,54 @@ with 59 passes. Two final-batch guardrails fail for pre-existing untouched debt:
 stale Platform `controllers/admin` directory exists. No full PM suite was run.
 R1.9, R2, route behavior, visual design, RBAC roles, and backend security
 responsibility were not changed.
+
+### 23.9 R1.9 action truthfulness closure
+
+R1.9 is closed on 2026-08-14. All ten reachable PM workspaces were audited from
+QML through controller and desktop/application contracts. Existing real
+operations remain in place: Projects and Tasks CRUD/bulk/import/export flows;
+resource CRUD, skill, certification, and export flows; Scheduling CPM,
+calendar, baseline, dependency, and calculator flows; Timesheet review
+lifecycle commands; Finance actual lifecycle and report exports; Register CRUD
+and bulk status; Collaboration read/decision/navigation; and all truthful
+refresh, filter, saved-view, paging, and column controls.
+
+Portfolio scenario evaluation and comparison already had authoritative desktop
+APIs, presenter builders, and controller models. The active Compare control now
+opens an anchored analysis surface bound to those models instead of navigating
+to the unrelated Capacity tab. The heatmap's selected-row and detail-page
+Evaluate controls were removed because they ignored the selected project rows
+and did not execute an evaluation. The empty dependency row handler was also
+removed. Rebalance remains absent.
+
+Scheduling baseline comparison remains authoritative and selector-driven:
+changing either baseline rebuilds the comparison reader/model. The redundant
+Compare action, which only called refresh, was removed. No comparison backend
+was added or duplicated.
+
+#### Removed and deferred controls
+
+| Previous UI location | Advertised behavior | Backend reality | R1.9 disposition | Future owner |
+|---|---|---|---|---|
+| Dashboard selection bar | Export dashboard | Returned local `ok` with a not-available message | Control and dead adapter removed | R3/reporting product contract |
+| Portfolio toolbar and heatmap toolbar | Export portfolio/scenarios | Set a not-available message only | Controls and dead adapter removed | R3 Portfolio/reporting |
+| Portfolio heatmap bulk/detail actions | Evaluate selected project rows | Switched to Capacity; selected IDs were unused | Actions and unnecessary multiselect removed | R3 Portfolio interaction design |
+| Scheduling activity, baseline, delay, diagnostic, and resource panels | Export schedule/report | Logged an adapter-pending activity, refreshed, and returned success | Controls and dead controller/presenter chain removed | R4/reporting/export adapter |
+| Scheduling baseline action bar | Compare baselines | Called refresh although selectors already ran comparison | Redundant action removed; authoritative selectors retained | None |
+| Timesheet list/detail | Export timesheets | Set a not-available message; detail action had no consumer | Controls and dead adapter removed | R5/reporting product contract |
+| Register list | Export register | Set a not-available message only | Control and dead adapter file removed | R7 Governance/reporting |
+| Finance Commercial rail | Purchase Orders | Future-release empty placeholder; no PM purchase-order read projection | Section, loader, registration, and file removed | R6 only after an approved Procurement integration contract |
+
+The local Projects, Tasks, and Resources file exporters and Finance Excel/PDF
+report actions were verified and retained. Task links to Inventory Reservations
+and Procurement resolve to registered shell routes; Collaboration source links
+resolve to the existing Projects/Tasks routes. All ten PM compatibility route
+IDs remain registered and load successfully. R1.8 capability and entity
+lifecycle restrictions remain unchanged.
+
+Focused verification, per user direction, records 22 R1.9/route/capability
+tests, 10 affected presenter/catalog/type-metadata tests, and one offscreen test
+that loaded every registered route. Python compilation and targeted Portfolio
+`qmllint` pass; no full suite was run. R1.10, R2, visual redesign, My Time, and
+Finance command expansion were not started. The user committed the source and
+focused test during verification; Codex did not issue a commit.
