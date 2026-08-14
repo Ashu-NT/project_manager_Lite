@@ -16,6 +16,9 @@ def to_operational_tables(
             title=table.title,
             subtitle=table.subtitle,
             empty_state=table.empty_state,
+            collection_semantics=table.collection_semantics,
+            supports_search=table.supports_search,
+            supports_pagination=table.supports_pagination,
             columns=tuple(
                 ProjectDashboardTableColumnViewModel(
                     key=column.key,

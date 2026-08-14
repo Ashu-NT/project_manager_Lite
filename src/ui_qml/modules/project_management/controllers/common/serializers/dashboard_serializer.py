@@ -91,6 +91,9 @@ def serialize_dashboard_operational_table_view_models(
             "title": view_model.title,
             "subtitle": view_model.subtitle,
             "emptyState": view_model.empty_state,
+            "collectionSemantics": view_model.collection_semantics,
+            "supportsSearch": view_model.supports_search,
+            "supportsPagination": view_model.supports_pagination,
             "columns": [
                 {
                     "key": column.key,

@@ -6,6 +6,10 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.contracts.repositories.finance.commitments.commitment import (
     ProjectCommitmentRepository,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort, ReadSortDirection
+from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
+    stable_order_by,
+)
 from src.core.modules.project_management.domain.financials.commitment import (
     ProjectCommitment,
     ProjectCommitmentLine,
@@ -118,7 +122,12 @@ class SqlAlchemyProjectCommitmentRepository(ProjectCommitmentRepository):
         return commitment_line_from_orm(row) if row else None
 
     def list_lines_for_project(
-        self, project_id: str, *, offset: int = 0, limit: int = 50
+        self,
+        project_id: str,
+        *,
+        offset: int = 0,
+        limit: int = 50,
+        sort: ReadSort | None = None,
     ) -> tuple[list[ProjectCommitmentLine], int]:
         context = self._context(operation_label="list project commitment lines")
         filters = (
@@ -129,12 +138,29 @@ class SqlAlchemyProjectCommitmentRepository(ProjectCommitmentRepository):
         total = self.session.execute(
             select(func.count(ProjectCommitmentLineORM.id)).where(*filters)
         ).scalar_one()
+        normalized_sort = sort or ReadSort(
+            key="metaText",
+            direction=ReadSortDirection.DESCENDING,
+        )
         rows = self.session.execute(
             select(ProjectCommitmentLineORM)
             .where(*filters)
             .order_by(
-                ProjectCommitmentLineORM.order_date.desc(),
-                ProjectCommitmentLineORM.id.asc(),
+                *stable_order_by(
+                    sort=normalized_sort,
+                    expressions={
+                        "title": (ProjectCommitmentLineORM.purchase_order_line_id,),
+                        "statusLabel": (ProjectCommitmentLineORM.amount,),
+                        "metaText": (
+                            func.coalesce(
+                                ProjectCommitmentLineORM.expected_delivery_date,
+                                ProjectCommitmentLineORM.order_date,
+                            ),
+                        ),
+                    },
+                    default_key="metaText",
+                    tie_breakers=(ProjectCommitmentLineORM.id,),
+                )
             )
             .offset(max(0, offset))
             .limit(max(1, min(limit, 200)))

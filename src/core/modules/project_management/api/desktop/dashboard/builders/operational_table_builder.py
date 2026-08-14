@@ -82,12 +82,15 @@ def build_operational_tables(
 
 
 def _build_delayed_tasks_table(dashboard_data: Any) -> ProjectDashboardOperationalTableDescriptor:
-    rows = tuple(getattr(dashboard_data, "critical_watchlist", []) or [])
+    rows = tuple(getattr(dashboard_data, "critical_watchlist", []) or [])[:8]
     project_id = str(getattr(getattr(dashboard_data, "kpi", None), "project_id", "") or "")
     return ProjectDashboardOperationalTableDescriptor(
-        id="delayed_tasks", title="Delayed Tasks",
-        subtitle="Critical-path and low-float tasks that need scheduling intervention.",
+        id="delayed_tasks", title="Critical Task Watchlist (Top 8)",
+        subtitle="Bounded watchlist of up to 8 critical-path and low-float tasks needing intervention.",
         empty_state="No delayed or critical-path tasks are active right now.",
+        collection_semantics="top_n",
+        supports_search=False,
+        supports_pagination=False,
         columns=(_COL("taskName", "Activity", 3, 220, True), _COL("owner", "Owner", 2, 140), _COL("finish", "Finish", 1, 108, True), _COL("float", "Float", 1, 90), _COL("late", "Late", 1, 90), _COL("statusLabel", "Status", 0, 96, False, True, "status")),
         rows=tuple(
             ProjectDashboardTableRowDescriptor(id=r.task_id, route_id="project_management.tasks", state={"taskId": r.task_id, "projectId": project_id}, values={"taskName": r.task_name, "owner": r.owner_name or "Unassigned", "finish": fmt_date(r.finish_date), "float": f"{fmt_int(r.total_float_days or 0)} d", "late": f"{fmt_int(r.late_by_days or 0)} d", "statusLabel": r.status_label})
@@ -101,10 +104,14 @@ def _build_portfolio_delayed_table(dashboard_data: Any, *, selected_period_key: 
     cutoff = period_cutoff_date(selected_period_key)
     if cutoff is not None:
         rows = [r for r in rows if r.start_date is None or r.start_date >= cutoff]
+    rows = rows[:20]
     return ProjectDashboardOperationalTableDescriptor(
-        id="delayed_tasks", title="Delayed Tasks",
-        subtitle="Cross-project upcoming and delayed work in the selected horizon.",
+        id="delayed_tasks", title="Upcoming Tasks (Next 20)",
+        subtitle="Bounded preview of up to 20 cross-project tasks in the selected horizon.",
         empty_state="No cross-project delayed tasks are visible right now.",
+        collection_semantics="top_n",
+        supports_search=False,
+        supports_pagination=False,
         columns=(_COL("taskName", "Task", 3, 220, True), _COL("start", "Start", 1, 108, True), _COL("finish", "Finish", 1, 108, True), _COL("owner", "Owner", 2, 140), _COL("statusLabel", "Status", 0, 96, False, True, "status")),
         rows=tuple(
             ProjectDashboardTableRowDescriptor(id=r.task_id, route_id="project_management.tasks", state={"taskId": r.task_id, "projectId": getattr(r, "project_id", "")}, values={"taskName": r.name, "start": fmt_date(r.start_date), "finish": fmt_date(r.end_date), "owner": r.main_resource or "Unassigned", "statusLabel": "Late" if r.is_late else "Tracked"})
@@ -196,24 +203,30 @@ def _build_pending_approvals_table(pending_approvals: tuple[Any, ...]) -> Projec
         approval_module_label,
     )
     return ProjectDashboardOperationalTableDescriptor(
-        id="pending_approvals", title="Pending Approvals",
-        subtitle="Governed changes waiting for decision or application.",
+        id="pending_approvals", title="Recent Pending Approvals (Up to 120)",
+        subtitle="Bounded queue returned by the approval service; this is not a global pending count.",
         empty_state="No pending approvals are active right now.",
+        collection_semantics="bounded",
+        supports_search=False,
+        supports_pagination=False,
         columns=(_COL("request", "Request", 3, 240, True), _COL("module", "Module", 1, 120), _COL("context", "Context", 2, 180), _COL("requestedBy", "Requested By", 1, 120), _COL("requestedAt", "Requested At", 1, 132, True), _COL("statusLabel", "Status", 0, 96, False, True, "status")),
         rows=tuple(
             ProjectDashboardTableRowDescriptor(id=req.id, route_id="platform.control", state={"requestId": req.id, "projectId": req.project_id or ""}, values={"request": approval_display_label(req), "module": approval_module_label(req), "context": approval_context_label(req), "requestedBy": req.requested_by_username or "Unknown", "requestedAt": fmt_utc_datetime(coerce_utc_datetime(getattr(req, "requested_at", None))), "statusLabel": str(getattr(getattr(req, "status", ApprovalStatus.PENDING), "value", getattr(req, "status", ApprovalStatus.PENDING))).replace("_", " ").title()})
-            for req in pending_approvals
+            for req in pending_approvals[:120]
         ),
     )
 
 
 def _build_milestones_table(dashboard_data: Any) -> ProjectDashboardOperationalTableDescriptor:
-    rows = tuple(getattr(dashboard_data, "milestone_health", []) or [])
+    rows = tuple(getattr(dashboard_data, "milestone_health", []) or [])[:8]
     project_id = str(getattr(getattr(dashboard_data, "kpi", None), "project_id", "") or "")
     return ProjectDashboardOperationalTableDescriptor(
-        id="milestones", title="Milestone Health",
-        subtitle="Delivery checkpoints and schedule slips that require planning attention.",
+        id="milestones", title="Milestone Watchlist (Next 8)",
+        subtitle="Bounded view of up to 8 delivery checkpoints and schedule slips needing attention.",
         empty_state="No milestone health rows are available yet.",
+        collection_semantics="top_n",
+        supports_search=False,
+        supports_pagination=False,
         columns=(_COL("milestone", "Milestone", 3, 220, True), _COL("owner", "Owner", 2, 140), _COL("target", "Target", 1, 108, True), _COL("slip", "Slip", 1, 90, True), _COL("statusLabel", "Status", 0, 96, False, True, "status")),
         rows=tuple(
             ProjectDashboardTableRowDescriptor(id=r.task_id, route_id="project_management.scheduling", state={"taskId": r.task_id, "projectId": project_id}, values={"milestone": r.task_name, "owner": r.owner_name or "Unassigned", "target": fmt_date(r.target_date), "slip": f"{fmt_int(r.slip_days or 0)} d", "statusLabel": r.status_label})

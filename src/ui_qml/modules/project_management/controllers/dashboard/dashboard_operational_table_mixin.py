@@ -10,6 +10,8 @@ from src.ui_qml.modules.project_management.controllers.dashboard.dashboard_types
 
 class DashboardOperationalTableMixin:
     def _set_operational_search_text_from_qml(self, search_text: str) -> None:
+        if not bool(self._current_operational_table_source().get("supportsSearch", True)):
+            return
         normalized_text = (search_text or "").strip()
         if normalized_text == self._operational_search_text:
             return
@@ -18,6 +20,8 @@ class DashboardOperationalTableMixin:
         self._apply_operational_table_state()
 
     def _set_operational_page_from_qml(self, page: int) -> None:
+        if not bool(self._current_operational_table_source().get("supportsPagination", True)):
+            return
         requested_page = max(1, int(page))
         if requested_page == self._operational_page:
             return
@@ -25,6 +29,8 @@ class DashboardOperationalTableMixin:
         self._apply_operational_table_state()
 
     def _set_operational_page_size_from_qml(self, page_size: int) -> None:
+        if not bool(self._current_operational_table_source().get("supportsPagination", True)):
+            return
         requested_page_size = max(1, int(page_size))
         if requested_page_size == self._operational_page_size:
             return
@@ -38,19 +44,25 @@ class DashboardOperationalTableMixin:
     def _apply_operational_table_state(self) -> None:
         table = self._current_operational_table_source()
         all_rows = list(table.get("rows", []) or [])
+        supports_search = bool(table.get("supportsSearch", True))
+        supports_pagination = bool(table.get("supportsPagination", True))
         filtered_rows = self._filter_operational_rows(
             rows=all_rows,
-            search_text=self._operational_search_text,
+            search_text=self._operational_search_text if supports_search else "",
         )
         total_count = len(filtered_rows)
         self._set_operational_total_count(total_count)
-        page_size = max(1, self._operational_page_size)
-        total_pages = max(1, ceil(total_count / page_size)) if total_count else 1
-        if self._operational_page > total_pages:
-            self._set_operational_page(total_pages)
-        page = max(1, self._operational_page)
-        start_index = (page - 1) * page_size
-        page_rows = filtered_rows[start_index : start_index + page_size]
+        if supports_pagination:
+            page_size = max(1, self._operational_page_size)
+            total_pages = max(1, ceil(total_count / page_size)) if total_count else 1
+            if self._operational_page > total_pages:
+                self._set_operational_page(total_pages)
+            page = max(1, self._operational_page)
+            start_index = (page - 1) * page_size
+            page_rows = filtered_rows[start_index : start_index + page_size]
+        else:
+            self._set_operational_page(1)
+            page_rows = filtered_rows
         visible_row_ids = {str(row.get("id", "") or "") for row in page_rows}
         if (
             self._selected_operational_row_id
@@ -63,6 +75,9 @@ class DashboardOperationalTableMixin:
                 "title": table.get("title", ""),
                 "subtitle": table.get("subtitle", ""),
                 "emptyState": table.get("emptyState", ""),
+                "collectionSemantics": table.get("collectionSemantics", "complete"),
+                "supportsSearch": supports_search,
+                "supportsPagination": supports_pagination,
                 "columns": list(table.get("columns", []) or []),
                 "rows": page_rows,
             }
@@ -126,6 +141,9 @@ class DashboardOperationalTableMixin:
             "title": "",
             "subtitle": "",
             "emptyState": "No dashboard rows are available yet.",
+            "collectionSemantics": "complete",
+            "supportsSearch": False,
+            "supportsPagination": False,
             "columns": [],
             "rows": [],
         }

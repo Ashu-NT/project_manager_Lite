@@ -33,6 +33,7 @@ from src.core.modules.project_management.contracts.repositories.finance.cost_ent
 from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
     ProjectCostEntryRepository,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort, ReadSortDirection
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectCostCodeRepository,
     ProjectFinancialProfileRepository,
@@ -68,6 +69,19 @@ from src.core.platform.domain.approval.policy import is_governance_required
 from src.core.platform.finance import EXCHANGE_RATE_STORAGE, Money, MoneyPayload
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
+
+
+COST_ENTRY_SORT_KEYS = frozenset({"title", "statusLabel", "metaText"})
+
+
+def normalize_cost_entry_sort(*, key: object, direction: object) -> ReadSort:
+    return ReadSort.normalize(
+        key=key,
+        direction=direction,
+        allowed_keys=COST_ENTRY_SORT_KEYS,
+        default_key="metaText",
+        default_direction=ReadSortDirection.DESCENDING,
+    )
 
 
 class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
@@ -365,6 +379,8 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
         status: ProjectCostEntryStatus | str | None = None,
         offset: int = 0,
         limit: int = 50,
+        sort_key: str = "metaText",
+        sort_direction: str = "desc",
     ) -> tuple[list[ProjectCostEntry], int]:
         require_permission(self._user_session, "finance.read", operation_label="list project cost entries")
         require_project_permission(
@@ -385,6 +401,10 @@ class ProjectCostEntryService(ProjectManagementModuleGuardMixin):
             status=resolved_status,
             offset=offset,
             limit=limit,
+            sort=normalize_cost_entry_sort(
+                key=sort_key,
+                direction=sort_direction,
+            ),
         )
 
     def create_manual_entry(

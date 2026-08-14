@@ -23,6 +23,7 @@ from src.core.modules.project_management.contracts.financial_sources.reference i
 from src.core.modules.project_management.contracts.repositories.finance.commitments.commitment import (
     ProjectCommitmentRepository,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort, ReadSortDirection
 from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
     ProjectCostEntryRepository,
 )
@@ -66,6 +67,19 @@ from src.core.platform.finance import (
 from src.core.platform.integration.canonical_json import canonical_json_sha256
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
+
+
+COMMITMENT_SORT_KEYS = frozenset({"title", "statusLabel", "metaText"})
+
+
+def normalize_commitment_sort(*, key: object, direction: object) -> ReadSort:
+    return ReadSort.normalize(
+        key=key,
+        direction=direction,
+        allowed_keys=COMMITMENT_SORT_KEYS,
+        default_key="metaText",
+        default_direction=ReadSortDirection.DESCENDING,
+    )
 
 
 _SOURCE_STATE_MAP = {
@@ -122,14 +136,26 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
         return line
 
     def list_for_project(
-        self, project_id: str, *, offset: int = 0, limit: int = 50
+        self,
+        project_id: str,
+        *,
+        offset: int = 0,
+        limit: int = 50,
+        sort_key: str = "metaText",
+        sort_direction: str = "desc",
     ) -> tuple[list[ProjectCommitmentLine], int]:
         require_permission(self._user_session, "finance.read", operation_label="list commitments")
         require_project_permission(
             self._user_session, project_id, "finance.read", operation_label="list commitments"
         )
         return self._commitment_repo.list_lines_for_project(
-            project_id, offset=offset, limit=limit
+            project_id,
+            offset=offset,
+            limit=limit,
+            sort=normalize_commitment_sort(
+                key=sort_key,
+                direction=sort_direction,
+            ),
         )
 
     def ingest_procurement_source(

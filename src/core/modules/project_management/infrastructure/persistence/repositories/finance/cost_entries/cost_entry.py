@@ -6,6 +6,10 @@ from sqlalchemy.orm import Session
 from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
     ProjectCostEntryRepository,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort, ReadSortDirection
+from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
+    stable_order_by,
+)
 from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntry,
     ProjectCostEntryStatus,
@@ -70,6 +74,7 @@ class SqlAlchemyProjectCostEntryRepository(ProjectCostEntryRepository):
         status: ProjectCostEntryStatus | None = None,
         offset: int = 0,
         limit: int = 50,
+        sort: ReadSort | None = None,
     ) -> tuple[list[ProjectCostEntry], int]:
         context = self._context(operation_label="list project cost entries")
         filters = (
@@ -83,11 +88,28 @@ class SqlAlchemyProjectCostEntryRepository(ProjectCostEntryRepository):
             stmt = stmt.where(ProjectCostEntryORM.status == status.value)
             count_stmt = count_stmt.where(ProjectCostEntryORM.status == status.value)
         total = int(self.session.execute(count_stmt).scalar_one())
+        normalized_sort = sort or ReadSort(
+            key="metaText",
+            direction=ReadSortDirection.DESCENDING,
+        )
         rows = self.session.execute(
             stmt.order_by(
-                ProjectCostEntryORM.transaction_date.desc(),
-                ProjectCostEntryORM.created_at.desc(),
-                ProjectCostEntryORM.id.asc(),
+                *stable_order_by(
+                    sort=normalized_sort,
+                    expressions={
+                        "title": (ProjectCostEntryORM.description,),
+                        "statusLabel": (ProjectCostEntryORM.amount,),
+                        "metaText": (
+                            func.coalesce(
+                                ProjectCostEntryORM.posting_date,
+                                ProjectCostEntryORM.transaction_date,
+                            ),
+                            ProjectCostEntryORM.created_at,
+                        ),
+                    },
+                    default_key="metaText",
+                    tie_breakers=(ProjectCostEntryORM.id,),
+                )
             )
             .offset(max(0, int(offset)))
             .limit(min(500, max(1, int(limit))))

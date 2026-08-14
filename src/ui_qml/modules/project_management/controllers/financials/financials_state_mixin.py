@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from PySide6.QtCore import Qt
+
 from src.ui_qml.modules.project_management.controllers.financials.financials_types import (
     FinancialsMap,
     FinancialsObjectList,
@@ -49,6 +51,17 @@ class FinancialsStateMixin:
         self._ledger = ledger
         self._ledger_table_model.set_rows(ledger.get("items", []))
         self.ledgerChanged.emit()
+
+    def _set_actual_sort_state(self, key: str, direction: str) -> None:
+        normalized_direction = (
+            Qt.DescendingOrder.value if direction == "desc" else Qt.AscendingOrder.value
+        )
+        if key != self._actual_sort_key:
+            self._actual_sort_key = key
+            self.actualSortKeyChanged.emit()
+        if normalized_direction != self._actual_sort_direction:
+            self._actual_sort_direction = normalized_direction
+            self.actualSortDirectionChanged.emit()
 
     def _set_source_analytics(self, source_analytics: FinancialsMap) -> None:
         if source_analytics == self._source_analytics:
@@ -116,6 +129,17 @@ class FinancialsStateMixin:
         self._commitments = commitments
         self._commitments_table_model.set_rows(commitments.get("items", []))
         self.commitmentsChanged.emit()
+
+    def _set_commitment_sort_state(self, key: str, direction: str) -> None:
+        normalized_direction = (
+            Qt.DescendingOrder.value if direction == "desc" else Qt.AscendingOrder.value
+        )
+        if key != self._commitment_sort_key:
+            self._commitment_sort_key = key
+            self.commitmentSortKeyChanged.emit()
+        if normalized_direction != self._commitment_sort_direction:
+            self._commitment_sort_direction = normalized_direction
+            self.commitmentSortDirectionChanged.emit()
 
     def _set_baseline_variance(self, rows: FinancialsObjectList) -> None:
         if rows == self._baseline_variance:

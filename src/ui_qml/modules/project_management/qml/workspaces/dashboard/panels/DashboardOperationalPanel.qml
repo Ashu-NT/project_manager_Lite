@@ -122,6 +122,7 @@ Item {
             searchText: root.workspaceController ? root.workspaceController.operationalSearchText : ""
             searchPlaceholder: "Search " + String(root.operationalTableModel.title || "rows").toLowerCase() + "..."
             showRefresh: false
+            showSearch: Boolean(root.operationalTableModel.supportsSearch)
             showExport: false
             showCreate: false
             showFilter: false
@@ -156,6 +157,7 @@ Item {
                 emptyText: root.operationalTableModel.emptyState || "No operational records are available."
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedOperationalRowId : ""
                 multiSelect: false
+                sortingMode: "none"
 
                 onRowSelected: function(rowId) {
                     if (root.workspaceController !== null) {
@@ -181,6 +183,7 @@ Item {
                 busy: root.workspaceController
                     ? (root.workspaceController.isBusy || root.workspaceController.isLoading)
                     : false
+                visible: Boolean(root.operationalTableModel.supportsPagination)
 
                 onPageRequested: function(page) {
                     if (root.workspaceController !== null) {

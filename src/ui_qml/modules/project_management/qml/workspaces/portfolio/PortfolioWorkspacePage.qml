@@ -97,7 +97,6 @@ AppLayouts.WorkspaceFrame {
                     onCompareScenarioSelected: function(id) { if (root.workspaceController !== null) root.workspaceController.selectCompareScenario(id) }
                     onRefreshRequested:       { if (root.workspaceController !== null) root.workspaceController.refresh() }
                     onCompareRequested:       { state.bottomTab = 2 }
-                    onRebalanceRequested:     { if (root.workspaceController !== null) root.workspaceController.refresh() }
                     onExportRequested:        { if (root.workspaceController !== null) root.workspaceController.exportPortfolio() }
                 }
 
@@ -141,6 +140,7 @@ AppLayouts.WorkspaceFrame {
                         multiSelect:    true
                         columns:        state.heatmapColumns
                         sourceModel:    root.workspaceController ? root.workspaceController.heatmapTableModel : null
+                        sortingMode:    "none"
                         loading:        root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText:      state.heatmapModel.emptyState || "No portfolio projects available."
                         selectedRowId:  state.selectedRowId

@@ -36,6 +36,9 @@ class ProjectDashboardOperationalTableDescriptor:
     title: str
     subtitle: str = ""
     empty_state: str = ""
+    collection_semantics: str = "complete"
+    supports_search: bool = True
+    supports_pagination: bool = True
     columns: tuple[ProjectDashboardTableColumnDescriptor, ...] = field(default_factory=tuple)
     rows: tuple[ProjectDashboardTableRowDescriptor, ...] = field(default_factory=tuple)
 

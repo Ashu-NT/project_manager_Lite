@@ -8,6 +8,7 @@ from src.core.modules.project_management.domain.financials.commitment import (
     ProjectCommitmentMatch,
     ProjectCommitmentSourceRevision,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort
 
 
 class ProjectCommitmentRepository(ABC):
@@ -35,7 +36,12 @@ class ProjectCommitmentRepository(ABC):
 
     @abstractmethod
     def list_lines_for_project(
-        self, project_id: str, *, offset: int = 0, limit: int = 50
+        self,
+        project_id: str,
+        *,
+        offset: int = 0,
+        limit: int = 50,
+        sort: ReadSort | None = None,
     ) -> tuple[list[ProjectCommitmentLine], int]: ...
 
     @abstractmethod

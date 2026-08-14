@@ -112,6 +112,9 @@ class ProjectDashboardOperationalTableViewModel:
     title: str
     subtitle: str = ""
     empty_state: str = ""
+    collection_semantics: str = "complete"
+    supports_search: bool = True
+    supports_pagination: bool = True
     columns: tuple[ProjectDashboardTableColumnViewModel, ...] = field(
         default_factory=tuple
     )

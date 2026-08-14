@@ -8,6 +8,9 @@ import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
 
+from src.core.modules.project_management.api.desktop.financials.api import (
+    ProjectManagementFinancialsDesktopApi,
+)
 from src.core.modules.project_management.contracts.financial_sources.procurement import (
     ProcurementCommitmentFinancialSource,
     ProcurementCommitmentState,
@@ -61,24 +64,30 @@ def _commitment_source(
     state: ProcurementCommitmentState = ProcurementCommitmentState.SENT,
     quantity: str = "10",
     content_hash: str | None = None,
+    source_index: int | None = None,
 ) -> ProcurementCommitmentFinancialSource:
+    suffix = "commit-1" if source_index is None else f"commit-{source_index:03d}"
     reference = FinancialSourceReference(
         tenant_id=organization.tenant_id,
         organization_id=organization.id,
         project_id=project.id,
         source_module=FinancialSourceModule.INVENTORY_PROCUREMENT,
         source_type=FinancialSourceType.PURCHASE_ORDER_LINE,
-        source_id="po-commit-1",
-        source_line_id="po-line-commit-1",
+        source_id=f"po-{suffix}",
+        source_line_id=f"po-line-{suffix}",
         source_revision=str(revision),
-        content_hash=content_hash or f"{revision:x}" * 64,
+        content_hash=content_hash or (
+            f"{revision:x}" * 64
+            if source_index is None
+            else f"{source_index:064x}"[-64:]
+        ),
         posting_purpose=FinancialPostingPurpose.PURCHASE_COMMITMENT,
     )
     return ProcurementCommitmentFinancialSource(
         reference=reference,
-        purchase_order_id="po-commit-1",
-        purchase_order_line_id="po-line-commit-1",
-        purchase_order_number="PO-COMMIT-1",
+        purchase_order_id=f"po-{suffix}",
+        purchase_order_line_id=f"po-line-{suffix}",
+        purchase_order_number=f"PO-{suffix.upper()}",
         supplier_party_id=supplier.id,
         site_id=site.id,
         state=state,
@@ -219,6 +228,72 @@ def test_source_ingestion_is_versioned_idempotent_and_lifecycle_aware(services) 
         cost_code_id=cost_code.id,
     )
     assert cancelled.remaining_money.amount == Decimal("0")
+
+
+def test_commitment_query_pages_and_sorts_before_the_former_fifty_row_cap(
+    services,
+) -> None:
+    organization, project, cost_code, site, supplier, _period = _setup(services)
+    service = services["commitment_service"]
+    for index in range(1, 56):
+        service.ingest_procurement_source(
+            _commitment_source(
+                organization=organization,
+                project=project,
+                site=site,
+                supplier=supplier,
+                revision=1,
+                source_index=index,
+            ),
+            cost_code_id=cost_code.id,
+        )
+
+    first_page, first_total = service.list_for_project(
+        project.id,
+        offset=0,
+        limit=20,
+        sort_key="title",
+        sort_direction="asc",
+    )
+    third_page, third_total = service.list_for_project(
+        project.id,
+        offset=40,
+        limit=20,
+        sort_key="title",
+        sort_direction="asc",
+    )
+    descending_page, _ = service.list_for_project(
+        project.id,
+        offset=0,
+        limit=5,
+        sort_key="title",
+        sort_direction="desc",
+    )
+    desktop_page = ProjectManagementFinancialsDesktopApi(
+        commitment_service=service
+    ).list_commitments(
+        project.id,
+        offset=50,
+        limit=10,
+        sort_key="title",
+        sort_direction="asc",
+    )
+
+    assert first_total == third_total == 55
+    assert [row.purchase_order_line_id for row in first_page[:2]] == [
+        "po-line-commit-001",
+        "po-line-commit-002",
+    ]
+    assert [row.purchase_order_line_id for row in third_page] == [
+        f"po-line-commit-{index:03d}" for index in range(41, 56)
+    ]
+    assert [row.purchase_order_line_id for row in descending_page] == [
+        f"po-line-commit-{index:03d}" for index in range(55, 50, -1)
+    ]
+    assert desktop_page.total == 55
+    assert [row.purchase_order_line_id for row in desktop_page.items] == [
+        f"po-line-commit-{index:03d}" for index in range(51, 56)
+    ]
 
 
 def test_posted_receipt_actual_matches_once_and_reduces_remaining(services) -> None:
