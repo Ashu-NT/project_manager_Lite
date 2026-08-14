@@ -101,10 +101,9 @@ def test_project_management_qml_uses_named_modules_and_typed_catalog_properties(
     )
 
     assert "import ProjectManagement.Controllers 1.0" in qml_text
-    assert "import ProjectManagement.Dialogs 1.0" in qml_text
+    assert 'import "dialogs" as TaskDialogs' in qml_text
     assert "import ProjectManagement.Widgets 1.0" in qml_text
     assert "property var pmCatalog" not in qml_text
-    assert "QML landing zone ready" in qml_text
     assert "Risks, issues, and changes — unified project governance register." in qml_text
     assert "Task planning, progress, dependencies, assignments, and execution state." in qml_text
     assert "Enterprise planning and schedule control workspace." in qml_text

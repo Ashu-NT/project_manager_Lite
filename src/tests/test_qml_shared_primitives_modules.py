@@ -9,9 +9,6 @@ QML_PLATFORM_WIDGETS = Path("src/ui_qml/platform/qml/Platform/Widgets")
 QML_PM_CONTROLLERS = Path(
     "src/ui_qml/modules/project_management/qml/ProjectManagement/Controllers"
 )
-QML_PM_DIALOGS = Path(
-    "src/ui_qml/modules/project_management/qml/ProjectManagement/Dialogs"
-)
 QML_PM_WIDGETS = Path(
     "src/ui_qml/modules/project_management/qml/ProjectManagement/Widgets"
 )
@@ -72,36 +69,43 @@ def test_qml_project_management_modules_exist() -> None:
         QML_PM_CONTROLLERS / "typeinfo" / "timesheets.fragment",
         QML_PM_CONTROLLERS / "typeinfo" / "dashboard.fragment",
         QML_PM_CONTROLLERS / "typeinfo" / "catalog.fragment",
-        QML_PM_DIALOGS / "qmldir",
-        QML_PM_DIALOGS / "ManualActualEditorDialog.qml",
-        QML_PM_DIALOGS / "ProjectEditorDialog.qml",
-        QML_PM_DIALOGS / "ProjectStatusDialog.qml",
-        QML_PM_DIALOGS / "RegisterEntryEditorDialog.qml",
-        QML_PM_DIALOGS / "ResourceEditorDialog.qml",
-        QML_PM_DIALOGS / "TaskAssignmentEditorDialog.qml",
-        QML_PM_DIALOGS / "TaskAssignmentHoursDialog.qml",
-        QML_PM_DIALOGS / "TaskAssignmentResponseDialog.qml",
-        QML_PM_DIALOGS / "TaskCollaborationComposerDialog.qml",
-        QML_PM_DIALOGS / "TaskCommentDeleteDialog.qml",
-        QML_PM_DIALOGS / "TaskDependencyEditorDialog.qml",
-        QML_PM_DIALOGS / "TaskEditorDialog.qml",
-        QML_PM_DIALOGS / "TaskProgressDialog.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/financials/dialogs"
+        / "ManualActualEditorDialog.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/projects/dialogs"
+        / "ProjectEditorDialog.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/projects/dialogs"
+        / "ProjectStatusDialog.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/register/dialogs"
+        / "RegisterEntryEditorDialog.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/resources/dialogs"
+        / "ResourceEditorDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskAssignmentEditorDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskAssignmentHoursDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskAssignmentResponseDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskCollaborationComposerDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskCommentDeleteDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskDependencyEditorDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskEditorDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskProgressDialog.qml",
         QML_PM_WIDGETS / "qmldir",
-        QML_PM_WIDGETS / "DashboardChartCard.qml",
-        QML_PM_WIDGETS / "DashboardPanelCard.qml",
-        QML_PM_WIDGETS / "DashboardSectionCard.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/dashboard/components"
+        / "DashboardChartCard.qml",
         QML_PM_WIDGETS / "RecordListCard.qml",
-        QML_PM_WIDGETS / "RegisterCatalogSection.qml",
-        QML_PM_WIDGETS / "RegisterDetailSection.qml",
-        QML_PM_WIDGETS / "RegisterDialogHost.qml",
-        QML_PM_WIDGETS / "RegisterFiltersSection.qml",
-        QML_PM_WIDGETS / "RegisterMetricsSection.qml",
-        QML_PM_WIDGETS / "RegisterUrgentSection.qml",
-        QML_PM_WIDGETS / "TimesheetEntriesCard.qml",
-        QML_PM_WIDGETS / "WorkspaceStateBanner.qml",
-        QML_PM_WIDGETS / "WorkspacePlaceholderPage.qml",
-        QML_PM_WIDGETS / "WorkspaceStatusSection.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "tasks" / "components" / "TasksBulkActions.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/register/sections"
+        / "RegisterDetailSection.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/register/dialogs"
+        / "RegisterDialogHost.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/register/sections"
+        / "RegisterUrgentSection.qml",
     ]
 
     assert all(path.exists() for path in expected_files)

@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from .task_utils import index_for_option_value, normalize_task_view_state, option_value_for_index
+from .task_view_state import (
+    index_for_option_value,
+    normalize_task_view_state,
+    option_value_for_index,
+)
 
 
 def select_task_view(controller, view_name: str) -> None:

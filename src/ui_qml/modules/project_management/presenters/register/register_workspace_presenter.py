@@ -11,7 +11,7 @@ from src.ui_qml.modules.project_management.view_models.register import (
 )
 
 from .command_handler import create_entry, delete_entry, suggest_code, update_entry
-from .utils import WorkspaceMode
+from .workspace_mode import WorkspaceMode
 from .workspace_builder import build_workspace_state
 
 class ProjectRegisterWorkspacePresenter:

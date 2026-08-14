@@ -20,7 +20,7 @@ from .filtering import (
 from .overview_builder import build_overview
 from .selection import resolve_selected_entry_id
 from .urgent_queue_builder import build_urgent_collection
-from .utils import WorkspaceMode
+from .workspace_mode import WorkspaceMode
 
 
 def _build_type_options(

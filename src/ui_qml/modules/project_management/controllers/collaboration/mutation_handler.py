@@ -3,7 +3,7 @@ from __future__ import annotations
 from src.ui_qml.modules.project_management.controllers.common import run_mutation
 
 from .panel_index_service import item_for_panel
-from .utils import panel_label
+from .labels import panel_label
 
 
 def mark_task_read(controller, task_id: str) -> dict[str, object]:

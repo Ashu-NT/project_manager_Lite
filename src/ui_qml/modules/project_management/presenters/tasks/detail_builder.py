@@ -10,7 +10,7 @@ from src.ui_qml.modules.project_management.view_models.tasks import (
 
 from .overview_builder import build_empty_overview
 from .task_mapper import build_task_state
-from .utils import resolve_selected_task
+from .task_lookup import resolve_selected_task
 
 def build_material_demand_state(desktop_api: Any, task_id: str) -> dict[str, object]:
     normalized_task_id = str(task_id or "").strip()

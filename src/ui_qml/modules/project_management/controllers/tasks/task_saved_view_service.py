@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .task_utils import normalize_task_view_state
+from .task_view_state import normalize_task_view_state
 
 
 class TaskSavedViewService:

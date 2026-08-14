@@ -11,7 +11,7 @@ from .dependency_mapper import (
     to_dependency_record_view_model,
 )
 from .overview_builder import build_empty_overview
-from .utils import load_tasks_for_project, resolve_selected_task
+from .task_lookup import load_tasks_for_project, resolve_selected_task
 
 
 def build_dependencies_collection(

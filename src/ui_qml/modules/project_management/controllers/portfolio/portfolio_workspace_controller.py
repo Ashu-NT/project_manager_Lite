@@ -25,7 +25,7 @@ from .heatmap_table_controller import HeatmapTableController
 from .mutation_handler import PortfolioMutationHandler
 from .state import default_collection, default_overview, default_summary
 from .table_models import create_portfolio_table_models
-from .utils import normalize_intake_status
+from .filter_normalization import normalize_intake_status
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1

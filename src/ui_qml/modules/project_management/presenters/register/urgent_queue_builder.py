@@ -4,7 +4,7 @@ from typing import Any
 from src.ui_qml.modules.project_management.view_models.register import RegisterCollectionViewModel
 
 from .entry_mapper import to_record_view_model
-from .utils import WorkspaceMode
+from .workspace_mode import WorkspaceMode
 
 def build_urgent_collection(
     filtered_entries: Any,

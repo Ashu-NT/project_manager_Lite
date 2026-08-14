@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import App.Controls 1.0 as AppControls
-import ProjectManagement.Dialogs 1.0 as ProjectManagementDialogs
 
 Item {
     id: root
@@ -63,7 +62,7 @@ Item {
         certEditorDialog.open()
     }
 
-    ProjectManagementDialogs.ResourceSkillEditorDialog {
+    ResourceSkillEditorDialog {
         id: skillEditorDialog
         busy: root.workspaceController ? root.workspaceController.isBusy : false
         onSubmitted: function(payload) {
@@ -73,7 +72,7 @@ Item {
         }
     }
 
-    ProjectManagementDialogs.ResourceCertificationEditorDialog {
+    ResourceCertificationEditorDialog {
         id: certEditorDialog
         busy: root.workspaceController ? root.workspaceController.isBusy : false
         onSubmitted: function(payload) {
@@ -83,7 +82,7 @@ Item {
         }
     }
 
-    ProjectManagementDialogs.ResourceEditorDialog {
+    ResourceEditorDialog {
         id: editorDialog
 
         workspaceController: root.workspaceController

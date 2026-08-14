@@ -17,9 +17,6 @@ QML_PLATFORM_WIDGETS = Path("src/ui_qml/platform/qml/Platform/Widgets")
 QML_PM_CONTROLLERS = Path(
     "src/ui_qml/modules/project_management/qml/ProjectManagement/Controllers"
 )
-QML_PM_DIALOGS = Path(
-    "src/ui_qml/modules/project_management/qml/ProjectManagement/Dialogs"
-)
 QML_PM_WIDGETS = Path(
     "src/ui_qml/modules/project_management/qml/ProjectManagement/Widgets"
 )
@@ -87,7 +84,6 @@ def test_qml_modules_declare_stable_namespaces() -> None:
         QML_PLATFORM_DIALOGS / "qmldir": "module Platform.Dialogs",
         QML_PLATFORM_WIDGETS / "qmldir": "module Platform.Widgets",
         QML_PM_CONTROLLERS / "qmldir": "module ProjectManagement.Controllers",
-        QML_PM_DIALOGS / "qmldir": "module ProjectManagement.Dialogs",
         QML_PM_WIDGETS / "qmldir": "module ProjectManagement.Widgets",
         QML_INV_CONTROLLERS / "qmldir": "module InventoryProcurement.Controllers",
         QML_INV_DIALOGS / "qmldir": "module InventoryProcurement.Dialogs",

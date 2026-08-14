@@ -8,7 +8,7 @@ from src.ui_qml.modules.project_management.view_models.tasks import (
 
 from .assignment_mapper import build_assignment_options, to_assignment_record_view_model
 from .overview_builder import build_empty_overview
-from .utils import resolve_selected_task
+from .task_lookup import resolve_selected_task
 
 
 def build_assignments_collection(

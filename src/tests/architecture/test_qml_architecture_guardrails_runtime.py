@@ -35,17 +35,26 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "platform" / "qml" / "documents" / "dialogs" / "DocumentLinkEditorDialog.qml",
         UI_QML_ROOT / "platform" / "qml" / "documents" / "dialogs" / "DocumentStructureEditorDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "projects" / "ProjectsWorkspacePage.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "ProjectEditorDialog.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "ProjectStatusDialog.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/projects/dialogs"
+        / "ProjectEditorDialog.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/projects/dialogs"
+        / "ProjectStatusDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "financials" / "FinancialsWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "financials" / "panels" / "FinancialsDetailPanel.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "financials" / "sections" / "FinancialsActualsSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "financials" / "dialogs" / "FinancialsDialogHost.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "ManualActualEditorDialog.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "ActualLifecycleDialog.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/financials/dialogs"
+        / "ManualActualEditorDialog.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/financials/dialogs"
+        / "ActualLifecycleDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "resources" / "ResourcesWorkspacePage.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "ResourceEditorDialog.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "risk" / "RiskWorkspacePage.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/resources/dialogs"
+        / "ResourceEditorDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "register" / "RegisterWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "collaboration" / "CollaborationWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "PortfolioWorkspacePage.qml",
@@ -56,7 +65,9 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "PortfolioDependenciesSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "PortfolioExecutiveSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "PortfolioSummaryCard.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "RegisterEntryEditorDialog.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/register/dialogs"
+        / "RegisterEntryEditorDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "scheduling" / "SchedulingWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "scheduling" / "SchedulingCalendarSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "scheduling" / "SchedulingBaselineSection.qml",
@@ -66,16 +77,15 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "tasks" / "TasksCollaborationSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "tasks" / "TasksDependenciesSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "tasks" / "TasksDialogHost.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "tasks" / "TasksTimeEntriesSection.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "TaskAssignmentEditorDialog.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "TaskAssignmentHoursDialog.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "TaskAssignmentResponseDialog.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "TaskCollaborationComposerDialog.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "TaskCommentDeleteDialog.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "TaskDependencyEditorDialog.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "TaskEditorDialog.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Dialogs" / "TaskProgressDialog.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Widgets" / "TimesheetEntriesCard.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/sections/TasksTimeEntriesSection.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskAssignmentEditorDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskAssignmentHoursDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskAssignmentResponseDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskCollaborationComposerDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskCommentDeleteDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskDependencyEditorDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskEditorDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskProgressDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "timesheets" / "TimesheetsWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "timesheets" / "TimesheetsToolbarSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "timesheets" / "TimesheetsEntriesSection.qml",
@@ -126,7 +136,6 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "PreventivePlanTaskEditorDialog.qml",
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "TaskTemplateEditorDialog.qml",
         UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "TaskStepTemplateEditorDialog.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "ProjectManagement" / "Widgets" / "WorkspacePlaceholderPage.qml",
     ]
 
     command = [qmllint_path]

@@ -23,7 +23,7 @@ from .overview_builder import build_overview
 from .scenario_mapper import to_scenario_record
 from .selection import resolve_compare_id, resolve_selected_id
 from .template_mapper import to_template_record
-from .utils import log_build_complete
+from .performance_logging import log_build_complete
 
 
 def build_workspace_state(

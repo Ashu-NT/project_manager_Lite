@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .utils import normalize_project_id, normalize_queue_status
+from .filter_normalization import normalize_project_id, normalize_queue_status
 
 
 def select_project(controller, project_id: str) -> None:

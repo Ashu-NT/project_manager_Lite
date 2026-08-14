@@ -3,7 +3,6 @@ import QtQuick
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
-import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 import workspaces.dashboard.components 1.0
 
 Item {
@@ -59,7 +58,7 @@ Item {
                 title: root.scheduleChart ? root.scheduleChart.title || "Portfolio Status" : ""
                 subtitle: root.scheduleChart ? root.scheduleChart.subtitle || "" : ""
 
-                ProjectManagementWidgets.DashboardChartCard {
+                DashboardChartCard {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     title: ""
@@ -77,7 +76,7 @@ Item {
                 title: root.costChart ? root.costChart.title || "Cost Pressure" : ""
                 subtitle: root.costChart ? root.costChart.subtitle || "" : ""
 
-                ProjectManagementWidgets.DashboardChartCard {
+                DashboardChartCard {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     title: ""
@@ -104,7 +103,7 @@ Item {
                 title: root.scheduleChart ? root.scheduleChart.title || "Schedule Trend" : ""
                 subtitle: root.scheduleChart ? root.scheduleChart.subtitle || "" : ""
 
-                ProjectManagementWidgets.DashboardChartCard {
+                DashboardChartCard {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     title: ""
@@ -123,7 +122,7 @@ Item {
                 title: root.costChart ? root.costChart.title || "Cost Trend" : ""
                 subtitle: root.costChart ? root.costChart.subtitle || "" : ""
 
-                ProjectManagementWidgets.DashboardChartCard {
+                DashboardChartCard {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     title: ""

@@ -7,7 +7,7 @@ from src.ui_qml.modules.project_management.view_models.collaboration import (
 
 from .formatting import iso_datetime
 from .routing import notification_route_id
-from .utils import sort_records_by_created_desc
+from .record_sorting import sort_records_by_created_desc
 
 
 def build_activity_collection(

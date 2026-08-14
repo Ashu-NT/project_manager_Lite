@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .panel_filter_service import CollaborationPanelFilterService
-from .utils import title_case
+from .labels import title_case
 
 
 def build_inbox_rows(

@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import App.Controls 1.0 as AppControls
-import ProjectManagement.Dialogs 1.0 as ProjectManagementDialogs
 
 Item {
     id: root
@@ -54,7 +53,7 @@ Item {
         deleteDialog.open()
     }
 
-    ProjectManagementDialogs.RegisterEntryEditorDialog {
+    RegisterEntryEditorDialog {
         id: editorDialog
 
         workspaceController: root.workspaceController

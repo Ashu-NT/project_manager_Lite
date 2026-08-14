@@ -8,7 +8,7 @@ import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
-import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
+import "dialogs" as Dialogs
 import "sections" as Sections
 import "panels" as Panels
 import "components" as Components
@@ -80,7 +80,7 @@ AppLayouts.WorkspaceFrame {
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader
         sourceComponent: Component {
-            ProjectManagementWidgets.RegisterDialogHost {
+            Dialogs.RegisterDialogHost {
                 projectOptions:   root.workspaceController ? (root.workspaceController.projectOptions   || []) : []
                 typeOptions:      root.workspaceController ? (root.workspaceController.typeOptions      || []) : []
                 statusOptions:    root.workspaceController ? (root.workspaceController.statusOptions    || []) : []

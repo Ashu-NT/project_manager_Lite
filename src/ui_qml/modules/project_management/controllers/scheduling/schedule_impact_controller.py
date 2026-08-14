@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .utils import parse_iso_date
+from .date_parsing import parse_iso_date
 
 
 def format_impact_tasks(tasks: list) -> list:

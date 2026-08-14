@@ -1,31 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any
 
-from src.ui_qml.modules.project_management.view_models.tasks import (
-    TaskSelectorOptionViewModel,
-)
 
-
-@dataclass(frozen=True)
-class TaskFilterOptions:
-    project_options: tuple[TaskSelectorOptionViewModel, ...]
-    status_options: tuple[TaskSelectorOptionViewModel, ...]
-    bulk_status_options: tuple[TaskSelectorOptionViewModel, ...]
-    priority_options: tuple[TaskSelectorOptionViewModel, ...]
-    schedule_options: tuple[TaskSelectorOptionViewModel, ...]
-
-
-@dataclass(frozen=True)
-class NormalizedTaskFilters:
-    search_text: str
-    status_filter: str
-    priority_filter: str
-    schedule_filter: str
-
-
-def load_tasks_for_project(desktop_api: Any, project_id: str | None) -> tuple[Any, ...]:
+def load_tasks_for_project(
+    desktop_api: Any, project_id: str | None
+) -> tuple[Any, ...]:
     normalized_project_id = (project_id or "").strip()
     if not normalized_project_id:
         return ()
@@ -63,3 +43,6 @@ def resolve_selected_task(
         if selected_task is not None:
             return selected_task
     return desktop_api.get_task(normalized_task_id)
+
+
+__all__ = ["find_task", "load_tasks_for_project", "resolve_selected_task"]

@@ -10,7 +10,7 @@ from src.ui_qml.modules.project_management.view_models.collaboration import (
     CollaborationRecordViewModel,
 )
 
-from .utils import panel_label
+from .labels import panel_label
 
 
 def to_record_view_model(item: dict[str, object]) -> CollaborationRecordViewModel:

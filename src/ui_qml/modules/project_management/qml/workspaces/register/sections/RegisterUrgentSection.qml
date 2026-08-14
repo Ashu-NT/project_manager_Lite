@@ -1,7 +1,8 @@
 import QtQuick
 import App.Mock 1.0 as AppMock
+import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 
-RecordListCard {
+ProjectManagementWidgets.RecordListCard {
     id: root
 
     property var urgentModel: AppMock.MockFactory.catalog()
