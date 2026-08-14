@@ -285,7 +285,9 @@ def test_project_management_dashboard_load_is_qml_driven_and_selector_sync_is_gu
     assert "self._has_loaded = False" in controller_text
     assert "self._is_refreshing = False" in controller_text
     assert "def _request_domain_refresh(self) -> None:" in refresh_mixin_text
-    assert "Component.onCompleted: root.ensureLoaded()" in page_text
+    assert "Component.onCompleted: {" in page_text
+    assert "root.ensureLoaded()" in page_text
+    assert "Qt.callLater(root.ensureLoaded)" in page_text
     assert "root.workspaceController.load()" in page_text
     assert "property bool syncingSelection: false" in selection_bar_text
     assert "currentIndex: root.indexForValue" not in selection_bar_text

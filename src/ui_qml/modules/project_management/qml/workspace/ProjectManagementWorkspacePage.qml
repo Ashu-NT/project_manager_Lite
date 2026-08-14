@@ -160,7 +160,9 @@ Item {
 
                         onLoaded: {
                             if (_capabilityLoader.item) {
-                                _capabilityLoader.item.pmCatalog = root.pmCatalog
+                                _capabilityLoader.item.pmCatalog = Qt.binding(function() {
+                                    return root.pmCatalog
+                                })
                             }
                         }
                     }

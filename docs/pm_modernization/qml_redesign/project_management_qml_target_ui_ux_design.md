@@ -1236,3 +1236,81 @@ instead of today's two-charts-side-by-side layout, replacing the other
 operational tabs' still-curated content only if a real classification
 calls for it, and a freshness indicator only if a real timestamp contract
 is added) has not started.
+
+**Update:** the KPI strip (shared `App.Widgets.KpiStrip`, used well beyond
+Overview) and the delivery-trend/Attention-Required pairing were completed
+in a later pass -- see section 26. The freshness indicator remains
+deferred; no real timestamp contract exists yet.
+
+## 25. R3.6 closure: Responsive Overview + Portfolio
+
+Audited both surfaces against section 11's content-width tiers and
+priority-collapse order (real-file evidence via a dedicated read-only
+sweep, not assumed). Overview already had substantial width-keyed logic
+(`DashboardSelectionBar`/`DashboardChartsSection`/etc.); Portfolio had
+**none** -- a grep for any width-based breakpoint anywhere under
+`qml/workspaces/portfolio/` returned zero hits before this pass.
+
+Fixed, in priority order:
+
+- **`PortfolioGovernanceToolbar.qml`** (Executive tab): the Base/vs
+  comparison combos (320px of unyielding fixed width) collapse into a
+  "Compare setup" overflow popup below `compactContentBreakpoint`, keeping
+  Scenario + the primary Compare action always visible and reachable --
+  this was the one gap classified as `blocks-1024x640-floor` (no headroom
+  left before the primary action would clip).
+- **`DetailTabBar.qml`** (shared; Portfolio's 6-tab bar and any other tab
+  strip using it): wrapped in a `Flickable` so tabs scroll horizontally
+  instead of silently overflowing past the container below the width they
+  need -- there's no narrower "selector" fallback for a fixed tab count, so
+  scroll is the correct degradation per rule 6.
+- **`AnchoredPopup.qml`** (shared, 24+ consumers app-wide): `reposition()`
+  already clamped X/Y so a popup stays on-screen, but never clamped the
+  popup's own width/height -- a popup wider than the viewport (e.g. a fixed
+  `width: 280` filter popup in a narrow window) still overflowed regardless
+  of position. Added `clampSize()`, called alongside `reposition()`, that
+  shrinks width/height down to what actually fits, once -- a pure
+  correction, not a loop. Fixes rule 5 for every consumer at once.
+- **Portfolio `DataTable` columns** (`PortfolioWorkspaceState.qml`):
+  `DataTable.qml` already supports a per-column `hideBelow` (pixel) key
+  (R7.4) but Portfolio's own column definitions never set it. Added
+  `hideBelow: 760` to every non-identity, non-status column across
+  heatmap/funding/risk tables, matching the acceptance criteria that a
+  table must always retain its identity and status columns below 760.
+- **`DashboardOverviewSections.qml`**: the "Recent Activity" inspector
+  panel split at an unrelated `width >= 1360` threshold and used a fixed
+  360px regardless. Realigned to section 11's actual tiers: two-column
+  split from 1180+, 320px panel through 1519, 360px at 1520+.
+
+**Also fixed, discovered while diagnosing a live user report during this
+pass (not itself a responsive-design item, but directly blocked
+verification of the above):** Overview could get stuck permanently
+pre-load -- blank KPI strip, blank Scope/Baseline/Period/View selectors,
+the raw pre-load placeholder subtitle, no error banionner, and zero
+`_refresh_dashboard()` log lines ever, confirmed against the real app's own
+log file across two separate live launches. Root cause: Overview is the
+default landing tab inside the PM canonical shell, so its capability
+`Loader` activates earlier than any other capability's -- often before the
+shell has finished assigning `pmCatalog` onto the outer shell page. The
+shell's `Loader.onLoaded` handler did a plain `item.pmCatalog =
+root.pmCatalog` snapshot assignment, which captures whatever `root.
+pmCatalog` happens to be at that instant and never updates again; if that
+instant was before `pmCatalog` landed, the Dashboard page's own `pmCatalog`
+stayed null forever, and its `ensureLoaded()` never found a non-null
+`workspaceController`. Fixed by replacing the snapshot with a live `Qt.
+binding()` in `ProjectManagementWorkspacePage.qml`'s Loader, plus a
+defensive `Qt.callLater(root.ensureLoaded)` retry in
+`DashboardWorkspacePage.qml` itself. Regression test
+`test_pm_workspace_dashboard_late_catalog_binding.py` reproduces the exact
+race (loads the shell page with `pmCatalog` deliberately unset, then
+assigns it only after the page completes) and fails without the fix,
+passes with it.
+
+Verified via the full targeted Portfolio/Dashboard/Overview PM test batch
+(127 tests) plus the QML architecture guardrails -- all green. One
+pre-existing, unrelated failure
+(`test_platform_control_workspace_refreshes_on_control_events`) was
+confirmed via `git stash` to fail identically with none of this phase's
+changes applied -- not touched by this work.
+
+**R3.6 -- RESPONSIVE OVERVIEW + PORTFOLIO: COMPLETE.**

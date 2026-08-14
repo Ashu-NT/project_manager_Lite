@@ -25,7 +25,10 @@ Item {
     readonly property var activityFeedModel: root.workspaceController
         ? (root.workspaceController.activityFeed || {})
         : ({ "title": "Recent Activity", "subtitle": "", "emptyState": "No recent activity is available yet.", "items": [] })
-    readonly property bool splitLayout: width >= 1360
+    // Section 11 content-width tiers: two-column dashboards from 1180+,
+    // with a 320px secondary panel through 1519 and 360px at 1520+.
+    readonly property bool splitLayout: width >= 1180
+    readonly property int inspectorWidth: width >= 1520 ? 360 : 320
 
     function tabsForBar() {
         const tabs = root.operationalTabsModel || []
@@ -112,7 +115,7 @@ Item {
             }
 
             DashboardPanelFrame {
-                Layout.preferredWidth: 360
+                Layout.preferredWidth: root.inspectorWidth
                 Layout.fillHeight: true
                 title: root.activityFeedModel.title || "Recent Activity"
                 subtitle: root.activityFeedModel.subtitle || "Workflow updates, approvals, and project events."

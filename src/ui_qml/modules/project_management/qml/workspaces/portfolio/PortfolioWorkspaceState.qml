@@ -49,27 +49,28 @@ Item {
     property int    pendingDetailSection: 0
 
     // ── Column definitions ────────────────────────────────────────────────
+
     readonly property var heatmapColumns: [
         { "key": "title",          "label": "Project",       "flex": 3, "minWidth": 180, "sortable": true },
-        { "key": "subtitle",       "label": "Status",        "flex": 1, "minWidth": 90                    },
+        { "key": "subtitle",       "label": "Status",        "flex": 1, "minWidth": 90,  "hideBelow": 760  },
         { "key": "statusLabel",    "label": "Pressure",      "flex": 1, "minWidth": 80, "type": "status"  },
-        { "key": "supportingText", "label": "Delivery",      "flex": 2, "minWidth": 160                   },
-        { "key": "metaText",       "label": "Cost Variance", "flex": 1, "minWidth": 100                   }
+        { "key": "supportingText", "label": "Delivery",      "flex": 2, "minWidth": 160, "hideBelow": 760  },
+        { "key": "metaText",       "label": "Cost Variance", "flex": 1, "minWidth": 100, "hideBelow": 760  }
     ]
 
     readonly property var fundingColumns: [
         { "key": "title",          "label": "Intake Item",       "flex": 3, "minWidth": 160, "sortable": true },
         { "key": "statusLabel",    "label": "Status",            "flex": 1, "minWidth": 90,  "type": "status" },
-        { "key": "subtitle",       "label": "Sponsor",           "flex": 2, "minWidth": 120                   },
-        { "key": "supportingText", "label": "Budget / Capacity", "flex": 2, "minWidth": 160                   },
-        { "key": "metaText",       "label": "Score",             "flex": 1, "minWidth": 60                    }
+        { "key": "subtitle",       "label": "Sponsor",           "flex": 2, "minWidth": 120, "hideBelow": 760 },
+        { "key": "supportingText", "label": "Budget / Capacity", "flex": 2, "minWidth": 160, "hideBelow": 760 },
+        { "key": "metaText",       "label": "Score",             "flex": 1, "minWidth": 60,  "hideBelow": 760 }
     ]
 
     readonly property var riskColumns: [
         { "key": "title",          "label": "Dependency", "flex": 3, "minWidth": 200                  },
-        { "key": "subtitle",       "label": "Type",       "flex": 1, "minWidth": 100                  },
+        { "key": "subtitle",       "label": "Type",       "flex": 1, "minWidth": 100, "hideBelow": 760 },
         { "key": "statusLabel",    "label": "Pressure",   "flex": 1, "minWidth": 80, "type": "status" },
-        { "key": "supportingText", "label": "Status",     "flex": 2, "minWidth": 160                  }
+        { "key": "supportingText", "label": "Status",     "flex": 2, "minWidth": 160, "hideBelow": 760 }
     ]
 
     // ── Computed rows ─────────────────────────────────────────────────────

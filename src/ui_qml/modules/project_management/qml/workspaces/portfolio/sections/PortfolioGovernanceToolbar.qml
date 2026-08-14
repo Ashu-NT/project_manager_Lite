@@ -23,6 +23,9 @@ Rectangle {
     signal compareScenarioSelected(string scenarioId)
     signal refreshRequested()
 
+
+    readonly property bool _compact: root.width < Theme.AppTheme.compactContentBreakpoint
+
     function _indexForValue(options, value) {
         const opts = options || []
         for (let i = 0; i < opts.length; i += 1) {
@@ -70,16 +73,20 @@ Rectangle {
             height: Theme.AppTheme.toolbarHeight - 16
             color: Theme.AppTheme.divider
             opacity: 0.6
+            visible: !root._compact
         }
 
         AppControls.Label {
             text: "Base"
+            visible: !root._compact
             color: Theme.AppTheme.textMuted
             font.family: Theme.AppTheme.fontFamily
             font.pixelSize: Theme.AppTheme.captionSize
         }
 
         AppControls.ComboBox {
+            id: baseCombo
+            visible: !root._compact
             Layout.preferredWidth: 160
             model: root.scenarioOptions
             textRole: "label"
@@ -96,12 +103,15 @@ Rectangle {
 
         AppControls.Label {
             text: "vs"
+            visible: !root._compact
             color: Theme.AppTheme.textMuted
             font.family: Theme.AppTheme.fontFamily
             font.pixelSize: Theme.AppTheme.captionSize
         }
 
         AppControls.ComboBox {
+            id: compareCombo
+            visible: !root._compact
             Layout.preferredWidth: 160
             model: root.scenarioOptions
             textRole: "label"
@@ -119,6 +129,14 @@ Rectangle {
         Item { Layout.fillWidth: true }
 
         AppControls.SecondaryButton {
+            visible: root._compact
+            text: "Compare setup"
+            iconName: "menu"
+            enabled: !root.isBusy && root.scenarioOptions.length > 1
+            onClicked: compareSetupPopup.open()
+        }
+
+        AppControls.SecondaryButton {
             id: compareButton
             text: "Compare"
             iconName: "register"
@@ -126,6 +144,63 @@ Rectangle {
             onClicked: analysisPopup.open()
         }
 
+    }
+
+    AppWidgets.AnchoredPopup {
+        id: compareSetupPopup
+        anchorItem: compareButton
+        width: 260
+        padding: Theme.AppTheme.marginMd
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        background: Rectangle {
+            radius: Theme.AppTheme.radiusLg
+            color: Theme.AppTheme.surfaceRaised
+            border.color: Theme.AppTheme.divider
+            border.width: 1
+        }
+
+        contentItem: ColumnLayout {
+            spacing: Theme.AppTheme.spacingSm
+
+            AppControls.Label {
+                text: "Base"
+                color: Theme.AppTheme.textMuted
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.captionSize
+                font.bold: true
+            }
+            AppControls.ComboBox {
+                Layout.fillWidth: true
+                model: root.scenarioOptions
+                textRole: "label"
+                enabled: !root.isBusy && root.scenarioOptions.length > 1
+                currentIndex: root._indexForValue(root.scenarioOptions, root.selectedBaseScenarioId)
+                onActivated: function(idx) {
+                    const opt = root.scenarioOptions[idx]
+                    if (opt) root.compareBaseSelected(String(opt.value || ""))
+                }
+            }
+
+            AppControls.Label {
+                text: "vs"
+                color: Theme.AppTheme.textMuted
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.captionSize
+                font.bold: true
+            }
+            AppControls.ComboBox {
+                Layout.fillWidth: true
+                model: root.scenarioOptions
+                textRole: "label"
+                enabled: !root.isBusy && root.scenarioOptions.length > 1
+                currentIndex: root._indexForValue(root.scenarioOptions, root.selectedCompareScenarioId)
+                onActivated: function(idx) {
+                    const opt = root.scenarioOptions[idx]
+                    if (opt) root.compareScenarioSelected(String(opt.value || ""))
+                }
+            }
+        }
     }
 
     AppWidgets.AnchoredPopup {
