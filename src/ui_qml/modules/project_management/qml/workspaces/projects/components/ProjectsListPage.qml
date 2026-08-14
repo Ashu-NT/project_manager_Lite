@@ -118,6 +118,11 @@ Item {
                 tableId: root.state ? root.state.tableId : ""
                 columns: root.state ? root.state.columns : []
                 sourceModel: root.workspaceController ? root.workspaceController.projectsTableModel : null
+                sortingMode: "server"
+                sortKey: root.workspaceController ? root.workspaceController.projectSortKey : "title"
+                sortDirection: root.workspaceController
+                    ? root.workspaceController.projectSortDirection
+                    : Qt.AscendingOrder
                 loading: root.workspaceController ? root.workspaceController.isLoading : false
                 emptyText: root.projectsModel.emptyState || "No projects available."
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedProjectId : ""
@@ -129,6 +134,10 @@ Item {
                 onRowSelectionToggled: function(rowId, selected) { root.rowSelectionToggled(rowId, selected) }
                 onSelectAllToggled: function(allSelected) { root.selectAllToggled(allSelected) }
                 onColumnsStateChanged: function(columns) { root.columnsStateChanged(columns) }
+                onSortRequested: function(key, direction) {
+                    if (root.workspaceController !== null)
+                        root.workspaceController.setProjectSort(key, direction)
+                }
             }
 
             AppWidgets.TablePaginationBar {

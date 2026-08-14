@@ -18,4 +18,19 @@ def set_task_page_size(controller, page_size: int) -> None:
     controller.refresh()
 
 
-__all__ = ["set_task_page", "set_task_page_size"]
+def set_task_sort(controller, sort_key: str, sort_direction: int) -> None:
+    normalized_key = (sort_key or "").strip()
+    if not normalized_key:
+        return
+    if (
+        normalized_key == controller._task_sort_key
+        and sort_direction == controller._task_sort_direction
+    ):
+        return
+    controller._set_task_sort_key(normalized_key)
+    controller._set_task_sort_direction(sort_direction)
+    controller._set_task_page(1)
+    controller.refresh()
+
+
+__all__ = ["set_task_page", "set_task_page_size", "set_task_sort"]

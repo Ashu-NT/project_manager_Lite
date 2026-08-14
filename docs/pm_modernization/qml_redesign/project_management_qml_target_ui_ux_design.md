@@ -457,7 +457,8 @@ Command implementation order follows risk: configuration, budget/planning, cost 
 
 ### 10.2 Extend shared primitives
 
-- `DataTable`: explicit `sortingMode: client|server|none`, sort direction signal, and server state binding.
+- `DataTable`: explicit `sortingMode: client|server|none`, emit-only server sort
+  intent, authoritative controller state binding, and fail-closed invalid modes.
 - `ContextualActionToolbar`: overflow action menu, compact icon/text rules, keyboard semantics.
 - `SectionDetailPage`: compact section selector below a content-width threshold.
 - `InspectorPanel`: responsive optional inspector with focus return and close behavior.
@@ -541,7 +542,7 @@ Objective: execute only 18 dialog moves, four capability widget moves, eight pre
 Dependencies: clean PM tests and QML load baseline.  
 Excludes: QML-facing facade restructuring, visual redesign, canonical-route implementation, or any route behavior change.  
 Gate: behavior and screenshots unchanged; all current routes/dialogs load; exactly two empty Python and up to 15 net empty `qmldir` baseline artifacts are removed; dead QML is removed only after its separate proof gate.
-Status: complete on 2026-08-14. All 23 guarded candidates were proven dead and removed; the ten route IDs and all target product decisions remain unchanged. Automated route/dialog/offscreen, task-time, shared primitive, adapter/pagination/event, architecture, and performance gates show no attributable regression. R1 has not started.
+Status: complete on 2026-08-14. All 23 guarded candidates were proven dead and removed; the ten route IDs and all target product decisions remain unchanged. Automated route/dialog/offscreen, task-time, shared primitive, adapter/pagination/event, architecture, and performance gates show no attributable regression. R1 is now in progress; R1.2 shared sorting ownership is complete.
 
 ### R1 - Query integrity, truthful controls, and deny-safe capability presentation
 

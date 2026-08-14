@@ -5,6 +5,7 @@ from typing import Protocol
 from src.core.modules.project_management.domain.enums import CostType
 
 from .models import ResourceCatalogReadPage
+from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 
 
 class ResourceCatalogReader(Protocol):
@@ -18,6 +19,7 @@ class ResourceCatalogReader(Protocol):
         category: CostType | None,
         page: int,
         page_size: int,
+        sort: ReadSort,
     ) -> ResourceCatalogReadPage: ...
 
 

@@ -30,6 +30,8 @@ def build_workspace_state(
     selected_resource_id: str | None = None,
     page: int = 1,
     page_size: int = 25,
+    sort_key: str = "catalog",
+    sort_direction: str = "asc",
 ) -> ResourceCatalogWorkspaceViewModel:
     worker_type_options = tuple(
         ResourceSelectorOptionViewModel(value=option.value, label=option.label)
@@ -65,6 +67,8 @@ def build_workspace_state(
         category=normalized_category_filter,
         page=page,
         page_size=page_size,
+        sort_key=sort_key,
+        sort_direction=sort_direction,
     )
     resolved_selected_resource_id = resolve_selected_resource_id(
         selected_resource_id, resource_page.items
@@ -104,4 +108,6 @@ def build_workspace_state(
         total_count=resource_page.filtered_total,
         page=resource_page.page,
         page_size=resource_page.page_size,
+        sort_key=resource_page.sort_key,
+        sort_direction=resource_page.sort_direction,
     )

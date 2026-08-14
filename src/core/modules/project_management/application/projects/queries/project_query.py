@@ -12,6 +12,7 @@ from src.core.modules.project_management.contracts.reads.projects import (
     ProjectCatalogReadPage,
     ProjectCatalogReader,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.modules.project_management.domain.projects.project import Project
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
@@ -41,6 +42,8 @@ class ProjectQueryMixin:
         status: ProjectStatus | None = None,
         page: int = 1,
         page_size: int = 25,
+        sort_key: str = "title",
+        sort_direction: str = "asc",
     ) -> ProjectCatalogReadPage:
         require_permission(
             self._user_session,
@@ -50,6 +53,22 @@ class ProjectQueryMixin:
         if self._project_catalog_reader is None or self._tenant_context_service is None:
             raise RuntimeError("Project catalog reader is not configured.")
         page_request = PageRequest(page=page, page_size=page_size)
+        sort = ReadSort.normalize(
+            key=sort_key,
+            direction=sort_direction,
+            allowed_keys={
+                "title",
+                "projectCode",
+                "statusLabel",
+                "clientName",
+                "siteLabel",
+                "clientContact",
+                "startDateLabel",
+                "endDateLabel",
+                "approvedBudgetLabel",
+            },
+            default_key="title",
+        )
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="list project catalog"
         )
@@ -66,6 +85,7 @@ class ProjectQueryMixin:
             status=status,
             page=page_request.page,
             page_size=page_request.page_size,
+            sort=sort,
         )
 
     def list_for_task_workspace(self) -> list[Project]:

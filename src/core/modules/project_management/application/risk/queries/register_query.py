@@ -11,6 +11,7 @@ from src.core.modules.project_management.contracts.reads.register import (
     RegisterCatalogReadPage,
     RegisterCatalogReader,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.access.scope_permissions import filter_project_rows, require_project_permission
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.modules.project_management.application.risk.dto.register_summary import (
@@ -40,6 +41,8 @@ class RegisterQueryMixin:
         as_of: date | None = None,
         page: int = 1,
         page_size: int = 25,
+        sort_key: str = "triage",
+        sort_direction: str = "asc",
     ) -> RegisterCatalogReadPage:
         require_permission(
             self._user_session,
@@ -56,6 +59,21 @@ class RegisterQueryMixin:
         if self._register_catalog_reader is None or self._tenant_context_service is None:
             raise RuntimeError("Register catalog reader is not configured.")
         page_request = PageRequest(page=page, page_size=page_size)
+        sort = ReadSort.normalize(
+            key=sort_key,
+            direction=sort_direction,
+            allowed_keys={
+                "title",
+                "entryCode",
+                "typeLabel",
+                "projectTitle",
+                "ownerName",
+                "severityLabel",
+                "statusLabel",
+                "dueDateLabel",
+            },
+            default_key="triage",
+        )
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="view register catalog"
         )
@@ -76,6 +94,7 @@ class RegisterQueryMixin:
             as_of=as_of or date.today(),
             page=page_request.page,
             page_size=page_request.page_size,
+            sort=sort,
         )
 
     def get_entry(self, entry_id: str) -> RegisterEntry:

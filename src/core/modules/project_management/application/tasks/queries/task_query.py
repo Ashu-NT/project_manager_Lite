@@ -21,6 +21,7 @@ from src.core.modules.project_management.contracts.reads.tasks import (
     TaskWorkspaceReadPage,
     TaskWorkspaceReader,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort
 
 
 class TaskQueryMixin:
@@ -62,6 +63,8 @@ class TaskQueryMixin:
         page: int = 1,
         page_size: int = 25,
         as_of: date | None = None,
+        sort_key: str = "wbsCode",
+        sort_direction: str = "asc",
     ) -> TaskWorkspaceReadPage:
         require_permission(self._user_session, "task.read", operation_label="list task workspace")
         normalized_project_id = str(project_id or "").strip() or None
@@ -76,6 +79,21 @@ class TaskQueryMixin:
             raise RuntimeError("Task workspace reader is not configured.")
 
         page_request = PageRequest(page=page, page_size=page_size)
+        sort = ReadSort.normalize(
+            key=sort_key,
+            direction=sort_direction,
+            allowed_keys={
+                "wbsCode",
+                "title",
+                "statusLabel",
+                "projectName",
+                "priorityLabel",
+                "startDateLabel",
+                "endDateLabel",
+                "progressValue",
+            },
+            default_key="wbsCode",
+        )
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="list task workspace"
         )
@@ -97,6 +115,7 @@ class TaskQueryMixin:
             criteria=criteria,
             page=page_request.page,
             page_size=page_request.page_size,
+            sort=sort,
         )
         items = tuple(
             replace(

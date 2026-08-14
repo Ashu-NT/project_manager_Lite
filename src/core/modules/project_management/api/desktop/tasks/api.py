@@ -240,6 +240,8 @@ class ProjectManagementTasksDesktopApi:
         schedule: str = "all",
         page: int = 1,
         page_size: int = 25,
+        sort_key: str = "wbsCode",
+        sort_direction: str = "asc",
     ) -> TaskWorkspacePageDesktopDto:
         service = self._require_task_service()
         result = service.query_workspace_page(
@@ -250,6 +252,8 @@ class ProjectManagementTasksDesktopApi:
             schedule=schedule,
             page=page,
             page_size=page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
         )
         return TaskWorkspacePageDesktopDto(
             items=tuple(
@@ -288,6 +292,8 @@ class ProjectManagementTasksDesktopApi:
             overdue=result.summary.overdue,
             page=result.page,
             page_size=result.page_size,
+            sort_key=result.sort.key,
+            sort_direction=result.sort.direction.value,
         )
 
     def create_task(self, command: TaskCreateCommand) -> TaskDesktopDto:

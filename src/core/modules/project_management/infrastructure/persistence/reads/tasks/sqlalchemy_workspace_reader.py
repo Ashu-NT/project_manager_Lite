@@ -4,6 +4,8 @@ from datetime import date, timedelta
 
 from sqlalchemy import String, case, cast, false, func, or_, select
 from sqlalchemy.orm import Session, aliased
+from src.core.modules.project_management.contracts.reads.sorting import ReadSort
+from src.core.modules.project_management.infrastructure.persistence.reads.sorting import stable_order_by
 
 from src.core.modules.project_management.contracts.reads.tasks import (
     TaskWorkspaceCriteria,
@@ -273,6 +275,7 @@ class SqlAlchemyTaskWorkspaceReader:
         criteria: TaskWorkspaceCriteria,
         page: int,
         page_size: int,
+        sort: ReadSort,
     ) -> TaskWorkspaceReadPage:
         if allowed_project_ids == ():
             return TaskWorkspaceReadPage(page=page, page_size=page_size)
@@ -319,16 +322,30 @@ class SqlAlchemyTaskWorkspaceReader:
         filtered_total = int(
             self._session.scalar(select(func.count(rows.c.id)).where(*filtered_conditions)) or 0
         )
-        page_rows = self._session.execute(
-            select(rows)
-            .where(*filtered_conditions)
-            .order_by(
+        sort_expressions = {
+            "wbsCode": (
                 func.lower(rows.c.project_name),
                 rows.c.project_id,
                 rows.c.wbs_code,
                 rows.c.sort_order,
-                rows.c.id,
-            )
+            ),
+            "title": (func.lower(rows.c.name),),
+            "statusLabel": (rows.c.status,),
+            "projectName": (func.lower(rows.c.project_name), rows.c.project_id),
+            "priorityLabel": (rows.c.priority,),
+            "startDateLabel": (rows.c.start_date,),
+            "endDateLabel": (rows.c.end_date,),
+            "progressValue": (rows.c.percent_complete,),
+        }
+        page_rows = self._session.execute(
+            select(rows)
+            .where(*filtered_conditions)
+            .order_by(*stable_order_by(
+                sort=sort,
+                expressions=sort_expressions,
+                default_key="wbsCode",
+                tie_breakers=(rows.c.id,),
+            ))
             .offset((page - 1) * page_size)
             .limit(page_size)
         ).mappings().all()
@@ -368,6 +385,7 @@ class SqlAlchemyTaskWorkspaceReader:
             page=page,
             page_size=page_size,
             summary=summary,
+            sort=sort,
         )
 
 

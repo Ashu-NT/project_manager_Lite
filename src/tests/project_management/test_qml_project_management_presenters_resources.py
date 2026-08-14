@@ -11,6 +11,7 @@ from src.core.modules.project_management.contracts.reads.resources import (
     ResourceCatalogReadPage,
     ResourceCatalogSummary,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort
 
 
 class _FakeResourceService:
@@ -28,7 +29,15 @@ class _FakeResourceService:
         category=None,
         page=1,
         page_size=25,
+        sort_key="catalog",
+        sort_direction="asc",
     ) -> ResourceCatalogReadPage:
+        sort = ReadSort.normalize(
+            key=sort_key,
+            direction=sort_direction,
+            allowed_keys={"title"},
+            default_key="catalog",
+        )
         all_resources = list(self._resources.values())
         filtered = [
             resource
@@ -41,6 +50,15 @@ class _FakeResourceService:
                 or search_text.casefold() in resource.role.casefold()
             )
         ]
+        if sort.key == "catalog":
+            filtered.sort(key=lambda resource: resource.id)
+            filtered.sort(key=lambda resource: resource.name.casefold())
+            filtered.sort(key=lambda resource: resource.is_active, reverse=True)
+        else:
+            filtered.sort(
+                key=lambda resource: (resource.name.casefold(), resource.id),
+                reverse=sort.direction.value == "desc",
+            )
         offset = (page - 1) * page_size
         return ResourceCatalogReadPage(
             items=tuple(
@@ -67,6 +85,7 @@ class _FakeResourceService:
                     if all_resources else 0.0
                 ),
             ),
+            sort=sort,
         )
 
 

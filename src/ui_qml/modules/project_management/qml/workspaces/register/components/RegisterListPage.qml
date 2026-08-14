@@ -156,12 +156,21 @@ Item {
                 tableId:        "pm.register.table"
                 columns:        root.columns
                 sourceModel:    root.workspaceController ? root.workspaceController.entriesTableModel : null
+                sortingMode:    "server"
+                sortKey:        root.workspaceController ? root.workspaceController.entrySortKey : "triage"
+                sortDirection:  root.workspaceController
+                    ? root.workspaceController.entrySortDirection
+                    : Qt.AscendingOrder
                 loading:        root.workspaceController ? root.workspaceController.isLoading : false
                 emptyText:      root.entriesModel.emptyState || "No register entries available."
                 selectedRowId:  root.workspaceController ? root.workspaceController.selectedEntryId : ""
                 selectedRowIds: root.workspaceController ? (root.workspaceController.selectedEntryIds || []) : []
 
                 onColumnsStateChanged: function(cols) { root.columnsStateChanged(cols) }
+                onSortRequested: function(key, direction) {
+                    if (root.workspaceController !== null)
+                        root.workspaceController.setEntrySort(key, direction)
+                }
                 onRowSelected: function(rowId) { if (root.workspaceController !== null) root.workspaceController.selectEntry(rowId) }
                 onRowActivated: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectEntry(rowId)

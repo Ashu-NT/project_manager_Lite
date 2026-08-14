@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtCore import Property, QObject, Qt, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
@@ -32,6 +32,7 @@ from .project_selection_handler import (
     select_project,
     set_project_page,
     set_project_page_size,
+    set_project_sort,
     set_search_text,
     set_status_filter,
 )
@@ -80,6 +81,8 @@ class ProjectManagementProjectsWorkspaceController(
     projectPageChanged = Signal()
     projectPageSizeChanged = Signal()
     projectTotalCountChanged = Signal()
+    projectSortKeyChanged = Signal()
+    projectSortDirectionChanged = Signal()
     selectedProjectIdsChanged = Signal()
     selectedProjectCountChanged = Signal()
 
@@ -130,6 +133,8 @@ class ProjectManagementProjectsWorkspaceController(
         self._project_page = 1
         self._project_page_size = 25
         self._project_total_count = 0
+        self._project_sort_key = "title"
+        self._project_sort_direction = Qt.AscendingOrder.value
         self._selected_project_ids: list[str] = []
         self._selected_project_count = 0
 
@@ -210,6 +215,14 @@ class ProjectManagementProjectsWorkspaceController(
     def projectTotalCount(self) -> int:
         return self._project_total_count
 
+    @Property(str, notify=projectSortKeyChanged)
+    def projectSortKey(self) -> str:
+        return self._project_sort_key
+
+    @Property(int, notify=projectSortDirectionChanged)
+    def projectSortDirection(self) -> int:
+        return self._project_sort_direction
+
     @Property("QVariantList", notify=selectedProjectIdsChanged)
     def selectedProjectIds(self) -> list[str]:
         return list(self._selected_project_ids)
@@ -289,6 +302,12 @@ class ProjectManagementProjectsWorkspaceController(
                 selected_project_id=self._selected_project_id or None,
                 page=self._project_page,
                 page_size=self._project_page_size,
+                sort_key=self._project_sort_key,
+                sort_direction=(
+                    "desc"
+                    if self._project_sort_direction == Qt.DescendingOrder.value
+                    else "asc"
+                ),
             )
             self._set_overview(
                 serialize_project_catalog_overview_view_model(workspace_state.overview)
@@ -321,6 +340,12 @@ class ProjectManagementProjectsWorkspaceController(
             self._set_project_total_count(workspace_state.total_count)
             self._set_project_page(workspace_state.page)
             self._set_project_page_size(workspace_state.page_size)
+            self._set_project_sort_key(workspace_state.sort_key)
+            self._set_project_sort_direction(
+                Qt.DescendingOrder.value
+                if workspace_state.sort_direction == "desc"
+                else Qt.AscendingOrder.value
+            )
         except Exception as exc:  # pragma: no cover - defensive fallback
             self._set_error_message(str(exc))
         finally:
@@ -351,6 +376,10 @@ class ProjectManagementProjectsWorkspaceController(
     @Slot(int)
     def setProjectPageSize(self, page_size: int) -> None:
         set_project_page_size(self, page_size)
+
+    @Slot(str, int)
+    def setProjectSort(self, sort_key: str, sort_direction: int) -> None:
+        set_project_sort(self, sort_key, sort_direction)
 
     # ── Bulk ─────────────────────────────────────────────────────────────
 

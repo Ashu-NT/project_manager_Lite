@@ -35,6 +35,8 @@ class ProjectRegisterWorkspacePresenter:
         selected_entry_id: str | None = None,
         page: int = 1,
         page_size: int = 25,
+        sort_key: str = "triage",
+        sort_direction: str = "asc",
     ) -> RegisterWorkspaceViewModel:
         return build_workspace_state(
             self._desktop_api,
@@ -46,6 +48,8 @@ class ProjectRegisterWorkspacePresenter:
             selected_entry_id=selected_entry_id,
             page=page,
             page_size=page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
             workspace_mode=self._workspace_mode,
         )
 

@@ -16,6 +16,8 @@ def export_tasks(controller, columns: list, file_path: str) -> dict[str, object]
             status_filter=controller._selected_status_filter,
             priority_filter=controller._selected_priority_filter,
             schedule_filter=controller._selected_schedule_filter,
+            sort_key=controller._task_sort_key,
+            sort_direction="desc" if controller._task_sort_direction else "asc",
         )
         rows = serialize_task_record_view_models(records)
         result = export_to_file(rows, list(columns), (file_path or "").strip())

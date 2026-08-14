@@ -24,6 +24,8 @@ def build_workspace_state(
     selected_project_id: str | None = None,
     page: int = 1,
     page_size: int = 25,
+    sort_key: str = "title",
+    sort_direction: str = "asc",
 ) -> ProjectCatalogWorkspaceViewModel:
     status_options = (
         ProjectStatusOptionViewModel(value="all", label="All statuses"),
@@ -39,6 +41,8 @@ def build_workspace_state(
         status=normalized_status_filter,
         page=page,
         page_size=page_size,
+        sort_key=sort_key,
+        sort_direction=sort_direction,
     )
     paged_projects = project_page.items
     resolved_selected_project_id = resolve_selected_project_id(
@@ -72,6 +76,8 @@ def build_workspace_state(
         total_count=project_page.filtered_total,
         page=project_page.page,
         page_size=project_page.page_size,
+        sort_key=project_page.sort_key,
+        sort_direction=project_page.sort_direction,
     )
 
 

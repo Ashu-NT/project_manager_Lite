@@ -100,6 +100,18 @@ class RegisterStateSettersMixin:
         self._entry_total_count = v
         self.entryTotalCountChanged.emit()
 
+    def _set_entry_sort_key(self, value: str) -> None:
+        if value == self._entry_sort_key:
+            return
+        self._entry_sort_key = value
+        self.entrySortKeyChanged.emit()
+
+    def _set_entry_sort_direction(self, value: int) -> None:
+        if value == self._entry_sort_direction:
+            return
+        self._entry_sort_direction = value
+        self.entrySortDirectionChanged.emit()
+
     def _set_selected_entry_ids(self, ids: list[str]) -> None:
         if ids == self._selected_entry_ids:
             return

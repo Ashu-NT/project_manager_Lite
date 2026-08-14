@@ -81,6 +81,8 @@ class ProjectManagementProjectsDesktopApi:
         status: str = "all",
         page: int = 1,
         page_size: int = 25,
+        sort_key: str = "title",
+        sort_direction: str = "asc",
     ) -> ProjectCatalogPageDesktopDto:
         service = self._require_project_service()
         normalized_status = str(status or "all").strip().lower()
@@ -94,6 +96,8 @@ class ProjectManagementProjectsDesktopApi:
             status=status_value,
             page=page,
             page_size=page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
         )
         return ProjectCatalogPageDesktopDto(
             items=tuple(
@@ -113,6 +117,8 @@ class ProjectManagementProjectsDesktopApi:
             completed=result.summary.completed,
             page=result.page,
             page_size=result.page_size,
+            sort_key=result.sort.key,
+            sort_direction=result.sort.direction.value,
         )
 
     def list_projects_by_status(self, status: str) -> tuple[ProjectDesktopDto, ...]:

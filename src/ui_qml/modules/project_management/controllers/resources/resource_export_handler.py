@@ -14,6 +14,8 @@ def export_resources(controller, columns: list, file_path: str) -> dict[str, obj
             search_text=controller._search_text,
             active_filter=controller._selected_active_filter,
             category_filter=controller._selected_category_filter,
+            sort_key=controller._resource_sort_key,
+            sort_direction="desc" if controller._resource_sort_direction else "asc",
         )
         rows = serialize_resource_record_view_models(records)
         result = export_to_file(rows, list(columns), (file_path or "").strip())

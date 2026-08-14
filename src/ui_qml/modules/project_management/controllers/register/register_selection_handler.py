@@ -6,6 +6,7 @@ def select_project(controller, project_id: str) -> None:
     if normalized == controller._selected_project_id:
         return
     controller._set_selected_project_id(normalized)
+    controller._set_entry_page(1)
     controller.refresh()
 
 
@@ -14,6 +15,7 @@ def set_type_filter(controller, type_filter: str) -> None:
     if normalized == controller._selected_type_filter:
         return
     controller._set_selected_type_filter(normalized)
+    controller._set_entry_page(1)
     controller.refresh()
 
 
@@ -22,6 +24,7 @@ def set_status_filter(controller, status_filter: str) -> None:
     if normalized == controller._selected_status_filter:
         return
     controller._set_selected_status_filter(normalized)
+    controller._set_entry_page(1)
     controller.refresh()
 
 
@@ -30,6 +33,7 @@ def set_severity_filter(controller, severity_filter: str) -> None:
     if normalized == controller._selected_severity_filter:
         return
     controller._set_selected_severity_filter(normalized)
+    controller._set_entry_page(1)
     controller.refresh()
 
 
@@ -38,6 +42,7 @@ def set_search_text(controller, search_text: str) -> None:
     if normalized == controller._search_text:
         return
     controller._set_search_text(normalized)
+    controller._set_entry_page(1)
     controller.refresh()
 
 
@@ -66,11 +71,28 @@ def set_entry_page_size(controller, page_size: int) -> None:
     controller.refresh()
 
 
+def set_entry_sort(controller, sort_key: str, sort_direction: int) -> None:
+    normalized_key = (sort_key or "").strip()
+    normalized_direction = 1 if sort_direction == 1 else 0
+    if not normalized_key:
+        return
+    if (
+        normalized_key == controller._entry_sort_key
+        and normalized_direction == controller._entry_sort_direction
+    ):
+        return
+    controller._set_entry_sort_key(normalized_key)
+    controller._set_entry_sort_direction(normalized_direction)
+    controller._set_entry_page(1)
+    controller.refresh()
+
+
 __all__ = [
     "select_entry",
     "select_project",
     "set_entry_page",
     "set_entry_page_size",
+    "set_entry_sort",
     "set_search_text",
     "set_severity_filter",
     "set_status_filter",

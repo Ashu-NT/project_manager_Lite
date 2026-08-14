@@ -16,6 +16,7 @@ from src.core.modules.project_management.contracts.reads.register import (
     RegisterCatalogReadPage,
     RegisterCatalogSummary,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort
 
 
 class _FakeRegisterService:
@@ -50,8 +51,16 @@ class _FakeRegisterService:
         search_text="",
         page=1,
         page_size=25,
+        sort_key="triage",
+        sort_direction="asc",
         **_kwargs,
     ) -> RegisterCatalogReadPage:
+        sort = ReadSort.normalize(
+            key=sort_key,
+            direction=sort_direction,
+            allowed_keys={"title"},
+            default_key="triage",
+        )
         scope = [
             entry for entry in self._entries.values()
             if project_id is None or entry.project_id == project_id
@@ -67,13 +76,20 @@ class _FakeRegisterService:
                 or search_text.casefold() in entry.description.casefold()
             )
         ]
-        filtered.sort(key=lambda entry: entry.triage_key(date.today()))
+        if sort.key == "triage":
+            filtered.sort(key=lambda entry: entry.triage_key(date.today()))
+        else:
+            filtered.sort(
+                key=lambda entry: (entry.title.casefold(), entry.id),
+                reverse=sort.direction.value == "desc",
+            )
         active_statuses = {
             RegisterEntryStatus.OPEN,
             RegisterEntryStatus.IN_PROGRESS,
             RegisterEntryStatus.MITIGATED,
         }
         active = [entry for entry in filtered if entry.status in active_statuses]
+        urgent = sorted(active, key=lambda entry: entry.triage_key(date.today()))
         offset = (page - 1) * page_size
         to_item = lambda entry: RegisterCatalogReadItem(
             entry=entry,
@@ -81,7 +97,7 @@ class _FakeRegisterService:
         )
         return RegisterCatalogReadPage(
             items=tuple(to_item(entry) for entry in filtered[offset:offset + page_size]),
-            urgent_items=tuple(to_item(entry) for entry in active[:5]),
+            urgent_items=tuple(to_item(entry) for entry in urgent[:5]),
             filtered_total=len(filtered),
             page=page,
             page_size=page_size,
@@ -108,6 +124,7 @@ class _FakeRegisterService:
                 ),
                 overdue=sum(1 for entry in active if entry.is_overdue_on(date.today())),
             ),
+            sort=sort,
         )
 
 
@@ -220,4 +237,15 @@ def test_project_management_workspace_catalog_exposes_typed_register_controller(
 
     assert [item["title"] for item in register_controller.entries["items"]] == [
         "Additional cable tray scope"
+    ]
+
+    register_controller.setTypeFilter("all")
+    register_controller.setEntrySort("title", 1)
+
+    assert register_controller.entrySortKey == "title"
+    assert register_controller.entrySortDirection == 1
+    assert [item["title"] for item in register_controller.entries["items"]] == [
+        "Permit handoff blocked",
+        "Critical supplier dependency",
+        "Additional cable tray scope",
     ]

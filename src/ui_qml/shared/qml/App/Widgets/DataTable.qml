@@ -30,7 +30,11 @@ Item {
     property string selectedRowId:  ""
     property string sortKey:        ""
     property int    sortDirection:  Qt.AscendingOrder
+    // "client" sorts a complete local collection, "server" emits query
+    // intent without mutating the loaded page, and "none" disables sorting.
+    // The default binding retains compatibility with the legacy flag.
     property bool   clientSideSorting: true
+    property string sortingMode: clientSideSorting ? "client" : "none"
     property bool   showFilter:     false
     property bool   loading:        false
     property string emptyText:      "No records"
@@ -48,7 +52,7 @@ Item {
 
     signal rowSelected(string rowId)
     signal rowActivated(string rowId)
-    signal sortRequested(string key)
+    signal sortRequested(string key, int direction)
     signal rowSelectionToggled(string rowId, bool selected)
     signal selectAllToggled(bool allSelected)
     signal filterClicked()
@@ -67,6 +71,12 @@ Item {
     // click detection correctly require the SAME logical row twice.
     property string _lastClickRowId:    ""
     property double _lastClickTimeMs:   0
+    readonly property string _effectiveSortingMode: {
+        const mode = String(root.sortingMode || "").trim().toLowerCase()
+        return mode === "client" || mode === "server" || mode === "none"
+            ? mode
+            : "none"
+    }
     //property bool _layoutPending:     false   // debounce guard for forceLayout
 
     function _rebuildSelectedLookup() {
@@ -104,23 +114,27 @@ Item {
 
     function _toggleSort(key) {
         const normalizedKey = String(key || "")
-        if (!normalizedKey.length) {
+        if (!normalizedKey.length || root._effectiveSortingMode === "none") {
             return
         }
-        // Update visual indicator — applies whether sourceModel is set or not.
-        if (root.sortKey === normalizedKey) {
-            root.sortDirection = root.sortDirection === Qt.AscendingOrder
-                ? Qt.DescendingOrder
-                : Qt.AscendingOrder
-        } else {
-            root.sortKey = normalizedKey
-            root.sortDirection = Qt.AscendingOrder
+        const requestedDirection = root.sortKey === normalizedKey
+            && root.sortDirection === Qt.AscendingOrder
+            ? Qt.DescendingOrder
+            : Qt.AscendingOrder
+
+        // Server mode is intent-only. The controller/query remains authoritative
+        // for both the active key and direction, including the visual indicator.
+        if (root._effectiveSortingMode === "server") {
+            root.sortRequested(normalizedKey, requestedDirection)
+            return
         }
-        // Delegate actual sort: Python model when sourceModel is set,
-        // otherwise _displayRows recomputes via clientSideSorting.
+
+        root.sortKey = normalizedKey
+        root.sortDirection = requestedDirection
         if (root.sourceModel) {
             root.sourceModel.toggleSort(normalizedKey)
         }
+        root.sortRequested(normalizedKey, requestedDirection)
     }
 
     function _sortValue(rawValue) {
@@ -185,7 +199,8 @@ Item {
     readonly property var _displayRows: {
         const sourceRows = root.rows || []
         const rowsCopy = sourceRows.slice()
-        if (!root.clientSideSorting || String(root.sortKey || "").length === 0) {
+        if (root._effectiveSortingMode !== "client"
+                || String(root.sortKey || "").length === 0) {
             return rowsCopy
         }
         const key = String(root.sortKey || "")
@@ -423,7 +438,8 @@ Item {
                             required property var modelData
                             required property int index
 
-                            readonly property bool _sorted: root.sortKey === _hCell.modelData.key
+                            readonly property bool _sorted: root._effectiveSortingMode !== "none"
+                                && root.sortKey === _hCell.modelData.key
 
                             width:  root._colWidth(_hCell.modelData)
                             height: Theme.AppTheme.normalRowHeight
@@ -463,11 +479,11 @@ Item {
 
                             MouseArea {
                                 anchors.fill: parent
-                                enabled:      _hCell.modelData.sortable !== false
+                                enabled:      root._effectiveSortingMode !== "none"
+                                    && _hCell.modelData.sortable !== false
                                 cursorShape:  enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                                 onClicked: {
                                     root._toggleSort(_hCell.modelData.key)
-                                    root.sortRequested(_hCell.modelData.key)
                                 }
                             }
                         }

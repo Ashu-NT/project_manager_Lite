@@ -70,6 +70,8 @@ class ProjectManagementTasksWorkspaceController(
     taskPageChanged = Signal()
     taskPageSizeChanged = Signal()
     taskTotalCountChanged = Signal()
+    taskSortKeyChanged = Signal()
+    taskSortDirectionChanged = Signal()
     tasksTableModelChanged = Signal()
     overviewChanged = Signal()
     projectOptionsChanged = Signal()
@@ -135,6 +137,8 @@ class ProjectManagementTasksWorkspaceController(
         self._task_page = 1
         self._task_page_size = 25
         self._task_total_count = 0
+        self._task_sort_key = "wbsCode"
+        self._task_sort_direction = 0
         self._selected_project_id = ""
         self._selected_status_filter = "all"
         self._selected_priority_filter = "all"
@@ -420,6 +424,14 @@ class ProjectManagementTasksWorkspaceController(
     def taskTotalCount(self) -> int:
         return self._task_total_count
 
+    @Property(str, notify=taskSortKeyChanged)
+    def taskSortKey(self) -> str:
+        return self._task_sort_key
+
+    @Property(int, notify=taskSortDirectionChanged)
+    def taskSortDirection(self) -> int:
+        return self._task_sort_direction
+
     # ── Refresh ───────────────────────────────────────────────────────
 
     @Slot()
@@ -463,6 +475,10 @@ class ProjectManagementTasksWorkspaceController(
     @Slot(int)
     def setTaskPageSize(self, page_size: int) -> None:
         _pag.set_task_page_size(self, page_size)
+
+    @Slot(str, int)
+    def setTaskSort(self, sort_key: str, sort_direction: int) -> None:
+        _pag.set_task_sort(self, sort_key, sort_direction)
 
     @Slot(str)
     def activateTask(self, task_id: str) -> None:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 from src.core.modules.project_management.domain.risk.register import RegisterEntry
 
 
@@ -32,6 +33,7 @@ class RegisterCatalogReadPage:
     page: int = 1
     page_size: int = 25
     summary: RegisterCatalogSummary = RegisterCatalogSummary()
+    sort: ReadSort = ReadSort("triage")
 
 
 __all__ = [

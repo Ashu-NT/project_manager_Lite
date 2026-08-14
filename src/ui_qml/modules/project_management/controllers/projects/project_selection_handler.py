@@ -69,6 +69,22 @@ def set_project_page_size(controller, page_size: int) -> None:
     controller.refresh()
 
 
+def set_project_sort(controller, sort_key: str, sort_direction: int) -> None:
+    normalized_key = (sort_key or "").strip()
+    if not normalized_key:
+        return
+    changed = (
+        normalized_key != controller._project_sort_key
+        or sort_direction != controller._project_sort_direction
+    )
+    if not changed:
+        return
+    controller._set_project_sort_key(normalized_key)
+    controller._set_project_sort_direction(sort_direction)
+    controller._set_project_page(1)
+    controller.refresh()
+
+
 def reset_project_lazy_sections(controller) -> None:
     controller._project_tasks_loaded_for_project_id = ""
     controller._project_resources_loaded_for_project_id = ""
@@ -84,6 +100,7 @@ __all__ = [
     "select_project",
     "set_project_page",
     "set_project_page_size",
+    "set_project_sort",
     "set_search_text",
     "set_status_filter",
 ]

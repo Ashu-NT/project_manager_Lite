@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 from src.core.modules.project_management.contracts.reads.register import (
     RegisterCatalogReadItem,
     RegisterCatalogReadPage,
@@ -20,6 +21,7 @@ from src.core.modules.project_management.infrastructure.persistence.mappers.regi
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
 from src.core.modules.project_management.infrastructure.persistence.orm.register import RegisterEntryORM
+from src.core.modules.project_management.infrastructure.persistence.reads.sorting import stable_order_by
 
 
 _ACTIVE_STATUSES = (
@@ -52,9 +54,10 @@ class SqlAlchemyRegisterCatalogReader:
         as_of: date,
         page: int,
         page_size: int,
+        sort: ReadSort,
     ) -> RegisterCatalogReadPage:
         if allowed_project_ids == ():
-            return RegisterCatalogReadPage(page=page, page_size=page_size)
+            return RegisterCatalogReadPage(page=page, page_size=page_size, sort=sort)
         scope_filters = [
             ProjectORM.tenant_id == tenant_id,
             ProjectORM.organization_id == organization_id,
@@ -151,8 +154,28 @@ class SqlAlchemyRegisterCatalogReader:
             func.lower(RegisterEntryORM.title),
             RegisterEntryORM.id,
         )
+        sort_expressions = {
+            "title": (func.lower(RegisterEntryORM.title),),
+            "entryCode": (func.lower(func.coalesce(RegisterEntryORM.entry_code, "")),),
+            "typeLabel": (RegisterEntryORM.entry_type,),
+            "projectTitle": (func.lower(ProjectORM.name),),
+            "ownerName": (func.lower(func.coalesce(RegisterEntryORM.owner_name, "")),),
+            "severityLabel": (RegisterEntryORM.severity,),
+            "statusLabel": (RegisterEntryORM.status,),
+            "dueDateLabel": (RegisterEntryORM.due_date,),
+        }
+        page_order = (
+            triage_order
+            if sort.key == "triage"
+            else stable_order_by(
+                sort=sort,
+                expressions=sort_expressions,
+                default_key="title",
+                tie_breakers=(RegisterEntryORM.id,),
+            )
+        )
         page_rows = self._session.execute(
-            base_rows.order_by(*triage_order)
+            base_rows.order_by(*page_order)
             .offset((page - 1) * page_size)
             .limit(page_size)
         ).all()
@@ -173,6 +196,7 @@ class SqlAlchemyRegisterCatalogReader:
             page=page,
             page_size=page_size,
             summary=summary,
+            sort=sort,
         )
 
 

@@ -64,6 +64,8 @@ class ProjectProjectsWorkspacePresenter:
         selected_project_id: str | None = None,
         page: int = 1,
         page_size: int = 25,
+        sort_key: str = "title",
+        sort_direction: str = "asc",
     ) -> ProjectCatalogWorkspaceViewModel:
         return build_workspace_state(
             self._desktop_api,
@@ -72,6 +74,8 @@ class ProjectProjectsWorkspacePresenter:
             selected_project_id=selected_project_id,
             page=page,
             page_size=page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
         )
 
     def list_export_records(
@@ -79,6 +83,8 @@ class ProjectProjectsWorkspacePresenter:
         *,
         search_text: str = "",
         status_filter: str = "all",
+        sort_key: str = "title",
+        sort_direction: str = "asc",
         batch_size: int = 500,
     ):
         page = 1
@@ -90,6 +96,8 @@ class ProjectProjectsWorkspacePresenter:
                 selected_project_id=None,
                 page=page,
                 page_size=batch_size,
+                sort_key=sort_key,
+                sort_direction=sort_direction,
             )
             rows.extend(state.projects)
             if page * state.page_size >= state.total_count:

@@ -72,6 +72,8 @@ class ProjectCatalogWorkspaceViewModel:
     total_count: int = 0
     page: int = 1
     page_size: int = 25
+    sort_key: str = "title"
+    sort_direction: str = "asc"
     
     project_tasks: ProjectSectionCollectionViewModel = field(
     default_factory=lambda: ProjectSectionCollectionViewModel(

@@ -60,6 +60,21 @@ def set_resource_page_size(controller, page_size: int) -> None:
     controller.refresh()
 
 
+def set_resource_sort(controller, sort_key: str, sort_direction: int) -> None:
+    normalized_key = (sort_key or "").strip()
+    if not normalized_key:
+        return
+    if (
+        normalized_key == controller._resource_sort_key
+        and sort_direction == controller._resource_sort_direction
+    ):
+        return
+    controller._set_resource_sort_key(normalized_key)
+    controller._set_resource_sort_direction(sort_direction)
+    controller._set_resource_page(1)
+    controller.refresh()
+
+
 __all__ = [
     "activate_resource",
     "select_resource",
@@ -67,5 +82,6 @@ __all__ = [
     "set_category_filter",
     "set_resource_page",
     "set_resource_page_size",
+    "set_resource_sort",
     "set_search_text",
 ]

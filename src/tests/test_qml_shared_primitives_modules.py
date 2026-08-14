@@ -268,3 +268,49 @@ def test_qml_workspace_frame_exposes_default_content_slot() -> None:
     )
 
     assert "default property alias content: contentSlot.data" in frame_qml
+
+
+def test_data_table_declares_explicit_backward_compatible_sorting_modes() -> None:
+    table_qml = (QML_SHARED_ROOT / "Widgets" / "DataTable.qml").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'property string sortingMode: clientSideSorting ? "client" : "none"' in table_qml
+    assert 'mode === "client" || mode === "server" || mode === "none"' in table_qml
+    mode_block = table_qml.split(
+        "readonly property string _effectiveSortingMode:", maxsplit=1
+    )[1].split("}", maxsplit=1)[0]
+    assert ': "none"' in mode_block
+    assert 'signal sortRequested(string key, int direction)' in table_qml
+
+
+def test_data_table_server_sort_is_emit_only() -> None:
+    table_qml = (QML_SHARED_ROOT / "Widgets" / "DataTable.qml").read_text(
+        encoding="utf-8"
+    )
+
+    server_branch = table_qml.split(
+        'if (root._effectiveSortingMode === "server") {', maxsplit=1
+    )[1].split("return", maxsplit=1)[0]
+    assert 'root.sortRequested(normalizedKey, requestedDirection)' in server_branch
+    assert "root.sortKey =" not in server_branch
+    assert "root.sortDirection =" not in server_branch
+    assert "toggleSort" not in server_branch
+    assert "const requestedDirection" in table_qml
+    assert 'root._effectiveSortingMode !== "client"' in table_qml
+    assert 'root._effectiveSortingMode !== "none"' in table_qml
+
+
+def test_non_pm_data_tables_keep_legacy_client_sorting_default() -> None:
+    consumers = [
+        path
+        for path in UI_QML_ROOT.rglob("*.qml")
+        if "AppWidgets.DataTable {" in path.read_text(encoding="utf-8")
+        and "project_management" not in path.parts
+    ]
+
+    assert consumers
+    for path in consumers:
+        content = path.read_text(encoding="utf-8")
+        assert "sortingMode:" not in content, path
+        assert "clientSideSorting:" not in content, path

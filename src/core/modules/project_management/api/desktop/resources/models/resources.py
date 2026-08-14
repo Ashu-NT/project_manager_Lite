@@ -40,6 +40,8 @@ class ResourceCatalogPageDesktopDto:
     average_capacity: float = 0.0
     page: int = 1
     page_size: int = 25
+    sort_key: str = "catalog"
+    sort_direction: str = "asc"
 
 
 __all__ = ["ResourceCatalogPageDesktopDto", "ResourceDesktopDto"]

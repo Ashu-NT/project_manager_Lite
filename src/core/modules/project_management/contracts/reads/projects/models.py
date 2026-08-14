@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from src.core.modules.project_management.domain.projects.project import Project
+from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +31,7 @@ class ProjectCatalogReadPage:
     page: int = 1
     page_size: int = 25
     summary: ProjectCatalogSummary = ProjectCatalogSummary()
+    sort: ReadSort = ReadSort("title")
 
 
 __all__ = [

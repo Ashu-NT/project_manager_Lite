@@ -27,6 +27,8 @@ def build_workspace_state(
     selected_task_id: str | None = None,
     page: int = 1,
     page_size: int = 25,
+    sort_key: str = "wbsCode",
+    sort_direction: str = "asc",
 ) -> TaskCatalogWorkspaceViewModel:
     options = build_task_filter_options(desktop_api)
     resolved_project_id = resolve_project_id(project_id, options.project_options)
@@ -47,6 +49,8 @@ def build_workspace_state(
         schedule=filters.schedule_filter,
         page=page,
         page_size=page_size,
+        sort_key=sort_key,
+        sort_direction=sort_direction,
     )
     resolved_task_id = resolve_task_id(selected_task_id, task_page.items)
     selected_task = next(
@@ -94,6 +98,8 @@ def build_workspace_state(
         total_count=task_page.filtered_total,
         page=task_page.page,
         page_size=task_page.page_size,
+        sort_key=task_page.sort_key,
+        sort_direction=task_page.sort_direction,
         selected_task_id=resolved_task_id,
         selected_task_detail=build_detail_view_model(
             desktop_api,

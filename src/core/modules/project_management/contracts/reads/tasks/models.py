@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,6 +65,7 @@ class TaskWorkspaceReadPage:
     page: int = 1
     page_size: int = 25
     summary: TaskWorkspaceSummary = TaskWorkspaceSummary()
+    sort: ReadSort = ReadSort("wbsCode")
 
 
 __all__ = [

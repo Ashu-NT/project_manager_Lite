@@ -127,6 +127,11 @@ Item {
                 tableId: root.state ? root.state.tableId : ""
                 columns: root.state ? root.state.columns : []
                 sourceModel: root.tasksTableModel
+                sortingMode: "server"
+                sortKey: root.workspaceController ? root.workspaceController.taskSortKey : "wbsCode"
+                sortDirection: root.workspaceController
+                    ? root.workspaceController.taskSortDirection
+                    : Qt.AscendingOrder
                 loading: root.workspaceController ? root.workspaceController.isLoading : false
                 emptyText: root.tasksModel.emptyState || "No tasks available."
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedTaskId : ""
@@ -146,6 +151,10 @@ Item {
                 }
                 onColumnsStateChanged: function(columns) {
                     root.columnsStateChanged(columns)
+                }
+                onSortRequested: function(key, direction) {
+                    if (root.workspaceController !== null)
+                        root.workspaceController.setTaskSort(key, direction)
                 }
             }
 

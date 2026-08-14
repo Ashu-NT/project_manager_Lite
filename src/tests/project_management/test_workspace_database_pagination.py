@@ -41,6 +41,31 @@ def test_project_catalog_filters_counts_and_pages_in_database(services) -> None:
     assert search_page.items[0].project.id == alpha.id
 
 
+def test_project_catalog_sort_is_authoritative_across_pages(services) -> None:
+    project_service = services["project_service"]
+    alpha = project_service.create_project("Alpha Sort")
+    beta = project_service.create_project("Beta Sort")
+    gamma = project_service.create_project("Gamma Sort")
+
+    descending_first = project_service.query_catalog_page(
+        sort_key="title", sort_direction="desc", page=1, page_size=2
+    )
+    descending_second = project_service.query_catalog_page(
+        sort_key="title", sort_direction="desc", page=2, page_size=2
+    )
+    unsupported = project_service.query_catalog_page(
+        sort_key="arbitrary_sql", sort_direction="desc", page=1, page_size=3
+    )
+
+    assert [row.project.id for row in descending_first.items] == [gamma.id, beta.id]
+    assert [row.project.id for row in descending_second.items] == [alpha.id]
+    assert descending_first.sort.key == "title"
+    assert descending_first.sort.direction.value == "desc"
+    assert [row.project.id for row in unsupported.items] == [alpha.id, beta.id, gamma.id]
+    assert unsupported.sort.key == "title"
+    assert unsupported.sort.direction.value == "asc"
+
+
 def test_task_workspace_pages_effective_wbs_rollups_before_filtering(services) -> None:
     project_service = services["project_service"]
     task_service = services["task_service"]
@@ -96,6 +121,43 @@ def test_task_workspace_pages_effective_wbs_rollups_before_filtering(services) -
     assert [item.id for item in priority_page.items] == [child.id]
 
 
+def test_task_workspace_sort_is_authoritative_across_pages(services) -> None:
+    project = services["project_service"].create_project("Task Sort Project")
+    task_service = services["task_service"]
+    alpha = task_service.create_task(project.id, "Alpha Task", wbs_code="1")
+    beta = task_service.create_task(project.id, "Beta Task", wbs_code="2")
+    gamma = task_service.create_task(project.id, "Gamma Task", wbs_code="3")
+
+    first = task_service.query_workspace_page(
+        project_id=project.id,
+        sort_key="title",
+        sort_direction="desc",
+        page=1,
+        page_size=2,
+    )
+    second = task_service.query_workspace_page(
+        project_id=project.id,
+        sort_key="title",
+        sort_direction="desc",
+        page=2,
+        page_size=2,
+    )
+    unsupported = task_service.query_workspace_page(
+        project_id=project.id,
+        sort_key="unsafe_sql",
+        sort_direction="desc",
+        page=1,
+        page_size=3,
+    )
+
+    assert [row.id for row in first.items] == [gamma.id, beta.id]
+    assert [row.id for row in second.items] == [alpha.id]
+    assert first.sort.direction.value == "desc"
+    assert [row.id for row in unsupported.items] == [alpha.id, beta.id, gamma.id]
+    assert unsupported.sort.key == "wbsCode"
+    assert unsupported.sort.direction.value == "asc"
+
+
 def test_resource_catalog_filters_aggregates_and_pages_in_database(services) -> None:
     resource_service = services["resource_service"]
     employee = services["employee_service"].create_employee(
@@ -147,6 +209,30 @@ def test_resource_catalog_filters_aggregates_and_pages_in_database(services) -> 
     assert employee_search.items[0].department_label == "Delivery"
     assert inactive_equipment.filtered_total == 1
     assert inactive_equipment.items[0].resource.id == vendor_resource.id
+
+
+def test_resource_catalog_sort_is_authoritative_across_pages(services) -> None:
+    resource_service = services["resource_service"]
+    alpha = resource_service.create_resource(name="Alpha Resource", role="Planner")
+    beta = resource_service.create_resource(name="Beta Resource", role="Planner")
+    gamma = resource_service.create_resource(name="Gamma Resource", role="Planner")
+
+    first = resource_service.query_catalog_page(
+        sort_key="title", sort_direction="desc", page=1, page_size=2
+    )
+    second = resource_service.query_catalog_page(
+        sort_key="title", sort_direction="desc", page=2, page_size=2
+    )
+    unsupported = resource_service.query_catalog_page(
+        sort_key="unsafe_sql", sort_direction="desc", page=1, page_size=3
+    )
+
+    assert [row.resource.id for row in first.items] == [gamma.id, beta.id]
+    assert [row.resource.id for row in second.items] == [alpha.id]
+    assert first.sort.direction.value == "desc"
+    assert [row.resource.id for row in unsupported.items] == [alpha.id, beta.id, gamma.id]
+    assert unsupported.sort.key == "catalog"
+    assert unsupported.sort.direction.value == "asc"
 
 
 def test_register_catalog_filters_urgent_queue_and_pages_in_database(services) -> None:
@@ -212,6 +298,57 @@ def test_register_catalog_filters_urgent_queue_and_pages_in_database(services) -
     ]
     assert [item.entry.id for item in risks.items] == [critical_risk.id]
     assert change.id not in {item.entry.id for item in first_page.urgent_items}
+
+
+def test_register_catalog_sort_is_authoritative_across_pages(services) -> None:
+    project = services["project_service"].create_project("Register Sort Project")
+    register_service = services["register_service"]
+    alpha = register_service.create_entry(
+        project.id,
+        entry_type=RegisterEntryType.RISK,
+        title="Alpha Register Entry",
+        severity=RegisterEntrySeverity.LOW,
+    )
+    beta = register_service.create_entry(
+        project.id,
+        entry_type=RegisterEntryType.ISSUE,
+        title="Beta Register Entry",
+        severity=RegisterEntrySeverity.MEDIUM,
+    )
+    gamma = register_service.create_entry(
+        project.id,
+        entry_type=RegisterEntryType.CHANGE,
+        title="Gamma Register Entry",
+        severity=RegisterEntrySeverity.HIGH,
+    )
+
+    first = register_service.query_catalog_page(
+        project_id=project.id,
+        sort_key="title",
+        sort_direction="desc",
+        page=1,
+        page_size=2,
+    )
+    second = register_service.query_catalog_page(
+        project_id=project.id,
+        sort_key="title",
+        sort_direction="desc",
+        page=2,
+        page_size=2,
+    )
+    unsupported = register_service.query_catalog_page(
+        project_id=project.id,
+        sort_key="unsafe_sql",
+        sort_direction="desc",
+        page=1,
+        page_size=3,
+    )
+
+    assert [row.entry.id for row in first.items] == [gamma.id, beta.id]
+    assert [row.entry.id for row in second.items] == [alpha.id]
+    assert first.sort.direction.value == "desc"
+    assert unsupported.sort.key == "triage"
+    assert unsupported.sort.direction.value == "asc"
 
 
 def test_timesheet_review_queue_aggregates_and_pages_in_database(services) -> None:

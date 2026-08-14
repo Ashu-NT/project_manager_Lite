@@ -11,6 +11,7 @@ from src.core.modules.project_management.contracts.reads.resources import (
     ResourceCatalogReadPage,
     ResourceCatalogReader,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
@@ -36,6 +37,8 @@ class ResourceQueryMixin:
         category: CostType | None = None,
         page: int = 1,
         page_size: int = 25,
+        sort_key: str = "catalog",
+        sort_direction: str = "asc",
     ) -> ResourceCatalogReadPage:
         require_permission(
             self._user_session,
@@ -45,6 +48,20 @@ class ResourceQueryMixin:
         if self._resource_catalog_reader is None or self._tenant_context_service is None:
             raise RuntimeError("Resource catalog reader is not configured.")
         page_request = PageRequest(page=page, page_size=page_size)
+        sort = ReadSort.normalize(
+            key=sort_key,
+            direction=sort_direction,
+            allowed_keys={
+                "title",
+                "resourceCode",
+                "statusLabel",
+                "department",
+                "site",
+                "role",
+                "utilizationValue",
+            },
+            default_key="catalog",
+        )
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="list resource catalog"
         )
@@ -56,6 +73,7 @@ class ResourceQueryMixin:
             category=category,
             page=page_request.page,
             page_size=page_request.page_size,
+            sort=sort,
         )
 
     def list_for_project_workspace(

@@ -1,6 +1,6 @@
 # Project Management QML Existing-State Audit
 
-Status: audit complete; R0.1 and behavior-preserving R0.5 complete; R1 not started  
+Status: audit complete; R0.1 and behavior-preserving R0.5 complete; R1.1 query-integrity mapping in progress  
 Audit date: 2026-08-14  
 Primary scope: `src/ui_qml/modules/project_management/`
 
@@ -857,4 +857,99 @@ R0.5 changed private names, file ownership, internal QML decomposition, registra
 - `TasksTimeEntriesSection` remains the consumed root type and now delegates to five private same-directory children behind characterization coverage.
 - All 23 guarded QML candidates passed deregistration, static-reference, route, dialog, shared primitive, and architecture gates before deletion; none were retained.
 - The broad PM comparison is 188 passed and the same 13 pre-existing failures recorded before R0.5. No R0.5 regression remains.
-- R1 findings and priorities in this audit remain open and unchanged.
+- R1 findings and priorities in this audit remain open. The fresh baseline and
+  post-R0.5 query map are recorded below before implementation begins.
+
+## 22. R1.1 query-integrity baseline
+
+The R1 baseline was rerun against the post-R0.5 working tree on 2026-08-14.
+No R1 production change had been made when these results were captured.
+
+| Gate | Result | Classification |
+|---|---:|---|
+| Broad focused PM comparison | 188 passed, 13 failed | Same known pre-R1 failures |
+| PM route/QML offscreen smoke | 44 passed | Pass |
+| Adapter, pagination, and event tests | 75 passed | Pass |
+| Dashboard/Portfolio performance tests | 4 passed | Pass |
+| Dashboard performance sample | 0.132 s, 91 SQL statements | Within existing gate |
+| Portfolio performance sample | 0.092 s, 68 SQL statements | Within existing gate |
+| `qmllint` | Unavailable in `pmenv` | Tooling limitation, unchanged |
+| Full repository suite | Not run | Focused baseline is the comparison gate |
+
+The 13 known failures remain outside R1 changes: one Projects test fixture uses
+a forbidden binary float for budget, seven Scheduling baseline lifecycle tests
+expect the former `ValueError`/clamping behavior rather than current Pydantic
+validation, and five Scheduling constraint-validator tests expect violations
+that the current validator does not produce. They are baseline failures, not an
+acceptable reason to weaken R1 tests.
+
+## 23. R1.1 current query/control map
+
+Classification vocabulary:
+
+- **ASQ**: authoritative server query; scope, filtering/count, and paging occur
+  before the result page is materialized.
+- **VCC**: valid client complete-data operation; the client owns a deliberately
+  complete selected-entity or bounded analytical set.
+- **PCC**: partial/capped client operation presented as a larger collection.
+- **PLACEHOLDER**: visible affordance without the stated backend behavior.
+- **UNSUPPORTED**: no current contract exists and no control should claim it.
+
+All new or changed R1 readers must retain explicit tenant and organization
+scope plus existing project-level authorization. QML-selected IDs remain query
+state, not authorization evidence.
+
+| Capability | Post-R0.5 pipeline | Search / filters | Sort | Page / total | Export / completeness | R1 classification and action |
+|---|---|---|---|---|---|---|
+| Projects catalog | `ProjectsListPage` -> `ProjectsWorkspaceController` -> projects presenter/desktop API -> `ProjectQuery.query_catalog_page` -> `ProjectCatalogReader` -> `SqlAlchemyProjectCatalogReader` -> page DTO/model -> `DataTable` | Search and status are SQL-side and authorization-scoped | Reader has fixed name/ID order; table header reorders only loaded page | SQL offset/limit and filtered total | Export walks all matching pages; complete for the same search/status query | Search/filter/page/total/export **ASQ**; visible sort **PCC**. Add allowlisted server sort and controller query state. Site/owner/organization filters remain **UNSUPPORTED**. |
+| Tasks catalog | `TasksListPage` -> tasks controller -> tasks presenter/desktop API -> `TaskQuery.query_workspace_page` -> `TaskWorkspaceReader` -> `SqlAlchemyTaskWorkspaceReader` -> page DTO/model -> `DataTable` | Search, status, project, priority band, schedule, and parsed status/priority/progress/start/end/deadline conditions are SQL-side | Reader has fixed project/WBS/order/ID ordering; header reorders one page | SQL offset/limit and filtered total; summary is scoped but intentionally independent of row filters | Export walks all matching pages using the same query definition | Search/filter/page/total/export **ASQ**; visible sort **PCC**. Add allowlisted server sort. Assignee is **UNSUPPORTED**; date predicates already exist through the parsed query contract, not a separate fake filter. |
+| Scheduling activity | `SchedulingActivityTimelinePanel` -> scheduling controller/state loader -> scheduling presenter `workspace_builder` -> scheduling engine/desktop API full selected-project schedule -> presenter filter/page -> model -> `DataTable` | Search, status, critical, and delayed are applied to the complete selected-project calculated schedule | Current header reorders only the presenter-produced page | Presenter filters complete schedule, computes total, then slices page | No scalable list export; CPM/baseline/calendar calculations require the complete project graph | Filters/page/total are **VCC**, not DB catalog pagination. Visible sort is **PCC** because it occurs after page slicing. Add authoritative sort state before slicing without changing CPM behavior or the QML-facing facade. |
+| Resources catalog | `ResourcesListPage` -> resources controller -> presenter/desktop API -> resource query -> `ResourceCatalogReader` -> `SqlAlchemyResourceCatalogReader` -> page DTO/model -> `DataTable` | Search plus active/category are SQL-side | Fixed active/name/ID order; header reorders one page | SQL offset/limit and filtered total | Export walks all matching pages | Search/filter/page/total/export **ASQ**; visible sort **PCC**. Add allowlisted server sort. Department/site/project filters remain **UNSUPPORTED** until reader support exists. |
+| Register catalog | `RegisterListPage` -> register controller -> presenter/desktop API -> `RegisterQuery.query_catalog_page` -> `RegisterCatalogReader` -> `SqlAlchemyRegisterCatalogReader` -> page DTO/model -> `DataTable` | Project, type, status, severity, and search are SQL-side | Fixed severity/overdue/due/title/ID triage order; header reorders one page | SQL offset/limit and filtered total; urgent list is deliberately top five | Export uses the authorized query rather than the visible page | Main catalog controls are **ASQ**; visible sort **PCC**. Add allowlisted server sort while preserving the explicit triage default. Urgent list is a valid bounded **VCC** projection. |
+| Timesheet Review Queue | `TimesheetsListPage` -> timesheets controller -> presenter -> desktop API -> `TimesheetService.query_review_queue_page` -> `TimesheetReviewReader` -> `SqlAlchemyTimesheetReviewReader` -> page DTO/model -> `DataTable` | Only status reaches SQL. Workspace project/assignment/period controls belong to the assignment snapshot and do not constrain Review Queue; toolbar search is not a reader parameter | Fixed submitted-at/period/ID order; header reorders one page | SQL offset/limit and total for status/project-authorization scope | No truthful all-results queue export proven | Status/page/total **ASQ**; search, visible project/period/assignee expectations and sort are **UNSUPPORTED/PCC**. Add a typed review query with real resource/employee, project, period/date, search, sort, page, and total semantics derived from the schema. |
+| Collaboration | `CollaborationWorkspacePage` -> collaboration controller/presenter -> desktop API `build_snapshot(limit=200)` -> collaboration service/workspace reader plus Platform approvals -> Python builders -> controller-local filter/table models -> QML | Project/team/period/unread and per-panel searches run after the capped snapshot; period is not consistently applied | Table-model sort is local | No authoritative panel paging/count; panel counts are lengths of capped data | Export serializes the currently filtered panel; comments and approvals are capped at 200 | Inbox, Mentions, Activity, Approvals and Team Updates have materially different semantics. Current scalable presentation is **PCC**. Replace the generic snapshot with purpose-specific authorized page readers; presence may remain a deliberately bounded live-status projection. Remove placeholder Settings and fake Apply Filter rather than inventing contracts. |
+| Portfolio heatmap and collections | portfolio page -> portfolio controller/presenter -> portfolio desktop API/application readers -> complete authorized heatmap/scenario/intake/dependency facts -> controller heatmap filter/page -> model -> `DataTable` | Heatmap search and intake status are client-side over the returned authorized facts | Header sort is local; no explicit authoritative sort state | Heatmap page/total are controller-computed from the complete facts | Collections are rebuilt snapshots; no arbitrary reader cap was found | Current heatmap search/page/total are **VCC** while the authorized portfolio facts remain complete, but sort must occur before slicing or be disabled. Rebalance is a **PLACEHOLDER** and must be removed. Global KPI totals come from complete reader facts, not the visible page. |
+| Dashboard operational tables | dashboard page -> dashboard controller/presenter -> desktop dashboard snapshot -> dashboard application services/builders -> complete or deliberately selected rows -> controller-local search/page -> model -> `DataTable` | Search is local across each materialized operational table | Header sort is local on the visible page | Controller pages materialized rows; counts are row lengths | Selected-project tasks/resources are loaded as complete sets, but critical watchlist and milestones are capped at 8, portfolio upcoming at 20, activity at 24, and approvals at 120 | Some tables are **VCC**; capped watchlist/approval tables become **PCC** when generic search/paging implies completeness. R1 must either provide authoritative collection queries or remove generic paging/search/sort affordances from deliberately bounded summaries. KPI totals must remain independent of table pages. |
+| Finance Actuals | Finance page -> financials controller/presenter -> desktop API `list_cost_entries(offset=0, limit=50)` -> cost-entry service/repository -> page DTO -> ledger model -> `DataTable` | Service supports status, but workspace does not expose authoritative collection query state | Header sorts only first 50 | Backend returns offset/limit/total, but workspace always requests offset 0 and renders no pagination | First 50 silently presented as collection | **PCC**. Wire controller-owned page/page-size/total and explicit sorting/filter support appropriate to the repository; do not change Accounting ownership. |
+| Finance Commitments | Finance page -> financials controller/presenter -> desktop API `list_commitments(offset=0, limit=50)` -> commitment service/repository -> page DTO -> model -> `DataTable` | No workspace query controls | Header sorts only first 50 | Backend returns offset/limit/total, but workspace always requests first 50 and renders no pagination | First 50 silently presented as collection | **PCC**. Wire authoritative pagination and truthful sort semantics; keep PM as the managerial commitment projection, not procurement/accounting truth owner. |
+| Finance configuration/billing pages | Finance controller/presenter -> finance workspace query/billing API -> page metadata -> section-local tables/cards | Existing selected-project query contracts | Repository/application paging exists for configuration lines and billing preparations | Page/page-size/total metadata exists and is controller-driven for supported sections | Selected project scope | Generally **ASQ** where pagination is visible; verify each visible section and mark bounded selector/reference lists **VCC**. Do not broaden command surface in R1. |
+
+### 23.1 Shared `DataTable` evidence
+
+`DataTable.qml` currently defaults `clientSideSorting: true`, owns `sortKey` and
+`sortDirection`, and calls `sourceModel.toggleSort()` on every sortable header.
+`DynamicTableModel.toggleSort()` then mutates its currently loaded rows. This is
+valid only when that model contains the complete collection.
+
+The current repository has 29 PM and 20 non-PM `DataTable` consumer files.
+None of the 20 non-PM consumers explicitly declares sorting ownership. R1 must
+therefore preserve the current client behavior as the backward-compatible
+default and make `server`/`none` opt-in. PM scalable tables will opt in
+explicitly; bounded child tables may retain client mode.
+
+### 23.2 R1.1 implementation boundary
+
+The map does not authorize R2 navigation, PM-local destinations,
+`ProjectContextBar`, My Time UI, inspectors, visual redesign, facade splitting,
+or route migration. All ten current PM route IDs remain compatibility routes.
+R1.2 begins only with explicit shared sorting semantics and focused primitive
+tests; server-query migrations follow after that contract is stable.
+
+### 23.3 R1.2 closure - explicit sorting ownership
+
+R1.2 is complete. `DataTable.sortingMode` now has three explicit behaviors:
+
+- `client` preserves the legacy complete-collection behavior, including local
+  `sortKey`/`sortDirection` mutation and optional `sourceModel.toggleSort()`.
+- `server` is intent-only. A header click computes the requested next direction
+  and emits `sortRequested(key, direction)` without mutating `sortKey`,
+  `sortDirection`, the loaded rows, or the source model. Controller/query state
+  remains authoritative and drives the sort indicator through bindings.
+- `none` disables sort interaction and indicators. Any invalid explicit
+  `sortingMode` also resolves to `none`; a typo can never re-enable page-local
+  sorting on a paginated collection.
+
+The default remains bound to the legacy `clientSideSorting` flag, so the 20
+existing non-PM consumer files retain client behavior without source changes.
+Focused shared-primitive and offscreen workspace verification passes (10 tests),
+including a repository-wide compatibility assertion for those non-PM consumers.

@@ -66,6 +66,8 @@ def build_workspace_state(
     workspace_mode: WorkspaceMode = "register",
     page: int = 1,
     page_size: int = 25,
+    sort_key: str = "triage",
+    sort_direction: str = "asc",
 ) -> RegisterWorkspaceViewModel:
     project_options = (
         RegisterSelectorOptionViewModel(value="all", label="All projects"),
@@ -106,6 +108,8 @@ def build_workspace_state(
         search_text=normalized_search,
         page=page,
         page_size=page_size,
+        sort_key=sort_key,
+        sort_direction=sort_direction,
     )
     resolved_selected_entry_id = resolve_selected_entry_id(selected_entry_id, entry_page.items)
     selected_entry = next(
@@ -156,4 +160,6 @@ def build_workspace_state(
         total_count=entry_page.filtered_total,
         page=entry_page.page,
         page_size=entry_page.page_size,
+        sort_key=entry_page.sort_key,
+        sort_direction=entry_page.sort_direction,
     )
