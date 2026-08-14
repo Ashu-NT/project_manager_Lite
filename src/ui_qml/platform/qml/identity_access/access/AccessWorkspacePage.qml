@@ -320,6 +320,17 @@ AppLayouts.WorkspaceFrame {
             visible: root.activePanel === "security"
             spacing: Theme.AppTheme.sectionGap
 
+            AppWidgets.TableToolbar {
+                id: _securityToolbar
+                Layout.fillWidth: true
+                searchPlaceholder: "Search security records..."
+                showCustomize: true
+                showRefresh: true
+                isBusy: root.busy
+                onRefreshRequested: { if (root.controller) root.controller.refresh() }
+                onCustomizeClicked: _securityTable.openColumnCustomizer(_securityToolbar.customizeButtonItem)
+            }
+
             AppWidgets.ContextualActionToolbar {
                 Layout.fillWidth: true
                 visible: root._selectedSessionItem !== null
@@ -337,6 +348,7 @@ AppLayouts.WorkspaceFrame {
             }
 
             AppWidgets.DataTable {
+                id: _securityTable
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 sourceModel: root.controller ? root.controller.securityUsersTableModel : null
