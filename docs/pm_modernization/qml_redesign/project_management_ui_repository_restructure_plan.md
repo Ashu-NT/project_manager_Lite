@@ -577,3 +577,15 @@ Stop R0.5 before introducing the new PM navigation, project context, inspectors,
 23. Phase boundary: R1 navigation, query, permission-presentation, context, and visual redesign work was not started.
 24. Intentional later debt: QML-facing facade decomposition, canonical PM navigation/context, truthful scalable query contracts, deny-safe capabilities, Portfolio/Finance/People & Time/Governance redesign, and final compatibility-route retirement remain R1+.
 25. Git state: the working tree contains the uncommitted authorized R0.5 source, test, and documentation changes; no commit was created.
+
+## 18. Post-R0.5 R1.6 closure record
+
+R1.6 is closed without reopening R0.5 or starting visual redesign. Collaboration
+now uses authoritative Inbox/Mentions pages, an intentionally bounded recent
+Activity query, Platform-owned Approvals, and a complete TTL-scoped Presence
+query. The duplicate Team Updates presentation and unsupported settings/filter/
+export actions were removed because no product contracts existed for them.
+
+The former `R1.6 TEMPORARY` snapshot family and its notification/audit-derived
+presentation types have been deleted with zero production consumers. No
+compatibility wrapper remains. R1.7 and R2 are outside this closure.

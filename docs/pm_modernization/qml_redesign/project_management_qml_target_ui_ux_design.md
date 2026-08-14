@@ -365,7 +365,7 @@ Every button maps to an existing finance command. "Create invoice", "mark paid",
 | Project [All v] | query-specific filters                                |
 +--------------------------------------------------------------------------+
 | Register: server list + inspector + full detail                          |
-| Collaboration: Inbox | Mentions | Approvals | Updates | Activity          |
+| Collaboration: Inbox | Mentions | Approvals | Activity                   |
 |                server list + context actions + detail                    |
 +--------------------------------------------------------------------------+
 ```
@@ -416,7 +416,7 @@ It returns items, page, page size, total count, normalized query state, and a st
 | Resources | yes | active/category | yes | server sort; department/site/project filters |
 | Register | yes | project/type/status/severity | yes | server sort |
 | Timesheet Review | no | status | yes | search, project, period, assignee, server sort |
-| Collaboration | no scalable query | local snapshot context | no true page | dedicated inbox/mention/approval/activity readers |
+| Collaboration | authoritative Inbox/Mentions pages | explicit query context | SQL page/total | Platform-owned Approvals; bounded recent Activity and current Presence |
 | Portfolio heatmap | partial | scenario/intake status | page state | formalize server search/sort and totals |
 | Dashboard operational | search/page controller path | tab/view dependent | controller path | prove query-global totals and server sort |
 | Finance collections | selected readers | project/lifecycle dependent | mixed | remove fixed 50 caps; page actuals/commitments |
@@ -551,9 +551,11 @@ Affected: shared DataTable, Projects, Tasks, Scheduling, Resources, Register, Ti
 Gate: no PM control implies unsupported behavior; query tests prove totals and stable ordering; permission lookup absence/failure never advertises an unauthorized action.
 Status: in progress. R1.2 sorting ownership, R1.3 server-sort infrastructure,
 R1.4 Projects/Tasks/Scheduling/Resources/Register sorting, and R1.5 Timesheet
-Review are closed. R1.6 is in progress: authoritative Mentions paging is wired;
-Inbox, Activity, Platform-owned Approvals, and bounded Presence/Team Updates
-still need their final purpose-specific contracts. Portfolio, Dashboard, Finance
+Review are closed. R1.6 is closed: Inbox and Mentions are authoritative pages;
+Activity is explicitly bounded recent collaboration; Approvals reuse the Platform
+owner without PM paging/search claims; Presence is a complete TTL-scoped current
+set; duplicate Team Updates and all snapshot/placeholder paths are removed.
+Portfolio, Dashboard, Finance
 pagination, no-op removal, and deny-safe capability presentation remain open.
 
 ### R2 - PM navigation and project context

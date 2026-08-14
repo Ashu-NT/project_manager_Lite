@@ -1010,7 +1010,18 @@ sort/page round-trip coverage are green together with the typed filter tests.
 
 ### 23.6 R1.6 Collaboration authoritative queries
 
-Status: **in progress**. The first purpose-specific slice is complete:
+Status: **closed**. All Collaboration collections were classified before their
+final implementation:
+
+| Collection | Classification | Final implementation |
+|---|---|---|
+| Inbox | **A - scalable authoritative query required** | Principal-aware SQL comment page with project, author/person, period, unread, search, page/page-size, total count, tenant/org and authorized-project predicates |
+| Activity | **B - complete bounded collection/client operations allowed** | Explicitly the 100 most recent task comments in the selected project/person/period scope; no history pagination or search claim |
+| Approvals | **C - external/Platform-owned** | PM calls `PlatformApprovalDesktopApi`; project scope is forwarded to the Platform owner; PM does not create approval rows, transitions, tables, or a parallel reader |
+| Presence | **B - complete bounded collection/client operations allowed** | Complete active TTL-scoped current-state query with no arbitrary row cap, tenant/org and authorized-project predicates, and deterministic last-seen/ID order |
+| Team Updates | **D - remove/defer/no real product contract** | Removed because it was only a second rendering of Presence; a future historical update feed requires its own approved event/query contract |
+
+Implemented query integrity:
 
 - Mentions now uses `CollaborationCommentCriteria` and an SQL-backed page reader
   with authoritative total/page metadata, principal identity/alias matching,
@@ -1020,9 +1031,47 @@ Status: **in progress**. The first purpose-specific slice is complete:
   ID as a deterministic tie-breaker, and paginates in SQL.
 - Controller/QML Mentions pagination now sends page/page-size/query changes back
   to the reader. Header sorting is disabled rather than sorting one loaded page.
+- Inbox uses the same authorized principal-mention fact source through its own
+  page contract. Its search, filter, page, page-size, and refresh state round-trip
+  through controller/query state; records beyond the former 200-row boundary are
+  discoverable and included in authoritative totals.
+- Activity is a deliberately bounded recent projection, not a history archive.
+  The toolbar no longer exposes Activity search/pagination/sort controls.
+- Presence is selected by active TTL predicate and returns the complete scoped
+  current set; the old `presence_limit` truncation is gone.
+- Approvals remain Platform-owned. The owner currently has no authoritative
+  total/page/search/requestor/date contract for this view, so PM does not display
+  those controls or pretend that its owner-returned collection is pageable.
+- Project and person options are loaded independently of the current page. The
+  person selector represents comment authors, not a nonexistent PM Team entity.
+- Placeholder Collaboration Settings, fake Apply View/filter popups, fake export,
+  and disabled assign/archive/delegate actions were removed.
 
-Remaining R1.6 work is Inbox workflow events, Activity, Platform-owned Approvals,
-and the explicitly bounded Presence/Team Updates projection. The legacy
-`build_snapshot(limit=200)` call is marked `R1.6 TEMPORARY` in both desktop API
-and presenter and must be deleted when those consumers migrate. It is not an
-approved source of authoritative totals.
+Snapshot and temporary-code retirement:
+
+- `CollaborationWorkspaceSnapshot`, `CollaborationWorkspaceFacts`, notification
+  DTO/domain types, `build_snapshot`, `list_workspace_snapshot`, `read_facts`, and
+  `R1.6 TEMPORARY` paths were deleted.
+- Dashboard now consumes the bounded `list_recent_activity` contract directly.
+- Audit evidence is no longer transformed into PM notifications. The application
+  still has no notification product contract, and audit remains audit truth.
+- Production importer/caller searches find no Collaboration snapshot consumer or
+  compatibility wrapper.
+
+Closure evidence:
+
+- A 205-row Inbox test proves authoritative total, page nine, and search for the
+  oldest record beyond the former cap, including combined project/author/unread
+  filters.
+- Scope tests prove principal, project, tenant, and organization isolation.
+- A 205-row Presence test proves the current-state query is complete beyond the
+  former cap.
+- Presenter instrumentation proves exactly one call to each purpose query and the
+  Platform approval owner per workspace build.
+- Purpose-query performance remains constant across 1, 5, and 12 projects: Inbox
+  and Activity use four measured SQL statements; Presence uses three.
+- Focused Collaboration/architecture evidence passes 44 tests. The full PM run
+  reached 667 passes with one stale dashboard test-double failure; that test file
+  passes 2/2 after migration to `list_recent_activity`.
+
+R1.6 is closed. R1.7 and all R2/visual redesign work remain unstarted.
