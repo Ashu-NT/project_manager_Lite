@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any
+
 from PySide6.QtCore import Property, QObject, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
@@ -51,6 +54,8 @@ class ProjectManagementWorkspaceCatalog(QObject):
         self,
         desktop_api_registry: object | None = None,
         task_view_store: ProjectManagementTaskViewStore | None = None,
+        auth_engine: Any | None = None,
+        user_session_provider: Callable[[], Any | None] | None = None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
@@ -124,7 +129,11 @@ class ProjectManagementWorkspaceCatalog(QObject):
             getattr(desktop_api_registry, "integration_capability", None)
             if desktop_api_registry is not None else None
         )
-        self._pm_capability = PMCapabilityController(parent=self)
+        self._pm_capability = PMCapabilityController(
+            auth_engine=auth_engine,
+            user_session_provider=user_session_provider,
+            parent=self,
+        )
         self._projects_workspace: ProjectManagementProjectsWorkspaceController | None = None
         self._financials_workspace: ProjectManagementFinancialsWorkspaceController | None = None
         self._portfolio_workspace: ProjectManagementPortfolioWorkspaceController | None = None
@@ -318,9 +327,7 @@ class ProjectManagementWorkspaceCatalog(QObject):
 
     @Slot()
     def refreshAllWorkspaces(self) -> None:
-        refresh = getattr(self._pm_capability, "refresh", None)
-        if callable(refresh):
-            refresh()
+        self.refreshCapabilities()
         for controller in (
             self._projects_workspace,
             self._financials_workspace,
@@ -338,6 +345,10 @@ class ProjectManagementWorkspaceCatalog(QObject):
             controller_refresh = getattr(controller, "refresh", None)
             if callable(controller_refresh):
                 controller_refresh()
+
+    @Slot()
+    def refreshCapabilities(self) -> None:
+        self._pm_capability.refresh()
 
     @Slot(str, result=bool)
     def isModuleEnabled(self, module_code: str) -> bool:

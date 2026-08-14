@@ -182,7 +182,7 @@ Item {
 
                             AppControls.PrimaryButton {
                                 visible: root.primaryActionLabel.length > 0
-                                    && (rowDelegate.modelData.canPrimaryAction ?? true)
+                                    && (rowDelegate.modelData.canPrimaryAction ?? false)
                                 enabled: root.actionsEnabled
                                 text: root.primaryActionLabel
                                 iconName: root.primaryActionIcon
@@ -192,7 +192,7 @@ Item {
 
                             AppControls.SecondaryButton {
                                 visible: root.secondaryActionLabel.length > 0
-                                    && (rowDelegate.modelData.canSecondaryAction ?? true)
+                                    && (rowDelegate.modelData.canSecondaryAction ?? false)
                                 enabled: root.actionsEnabled
                                 text: root.secondaryActionLabel
                                 iconName: root.secondaryActionIcon
@@ -202,7 +202,7 @@ Item {
 
                             AppControls.SecondaryButton {
                                 visible: root.tertiaryActionLabel.length > 0
-                                    && (rowDelegate.modelData.canTertiaryAction ?? true)
+                                    && (rowDelegate.modelData.canTertiaryAction ?? false)
                                 enabled: root.actionsEnabled
                                 text: root.tertiaryActionLabel
                                 iconName: root.tertiaryActionIcon

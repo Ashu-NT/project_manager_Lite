@@ -174,12 +174,12 @@ class PMAssignmentController(QObject):
         except Exception as exc:
             return {
                 "ok": False,
-                "isValid": True,
-                "canAssign": True,
+                "isValid": False,
+                "canAssign": False,
                 "requiresApproval": False,
-                "isBlocked": False,
+                "isBlocked": True,
                 "hasWarnings": False,
-                "violationMessages": [],
+                "violationMessages": [str(exc)],
                 "warningMessages": [],
                 "summary": str(exc),
             }
@@ -193,11 +193,11 @@ class PMAssignmentController(QObject):
                 "ok": False,
                 "overallocationPct": 0.0,
                 "conflictProjects": [],
-                "skillsMatched": True,
-                "certsValid": True,
+                "skillsMatched": False,
+                "certsValid": False,
                 "hasWarnings": False,
                 "warningMessages": [],
-                "isBlocked": False,
+                "isBlocked": True,
                 "blockMessages": [str(exc)],
             }
         self._set_assignment_preview(result)

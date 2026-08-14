@@ -640,7 +640,7 @@ Theme usage is strong: no authored PM hard-coded named/hex colors were found, an
 
 ## 13. Permissions, loading, errors, and refresh
 
-`PMCapabilityController` exposes six flags: baseline approval, leveling, skill management, assignment override, import, and PM request approval. The controller is fully permissive when no authorization engine is injected, and `_check()` returns `true` on exceptions. This is inappropriate as a presentation policy for an enterprise UI, although services remain authoritative and prevent QML from becoming a security boundary.
+Before R1.8, `PMCapabilityController` exposed six flags: baseline approval, leveling, skill management, assignment override, import, and PM request approval. It was fully permissive when no authorization engine was injected, and `_check()` returned `true` on exceptions. R1.8 retires that fail-open behavior while keeping services authoritative and preventing QML from becoming a security boundary.
 
 Most row-level state permissions are carried in view-model `state` fields, especially finance lifecycle actions. Many general CRUD buttons are not proactively hidden/disabled by a complete capability model; denied commands therefore depend on backend errors reaching the shared inline-message path.
 
@@ -1170,4 +1170,56 @@ rounding, PM ownership, and the Accounting handoff boundary are unchanged.
   pre-existing Commitments layout warnings remain outside query truthfulness.
 
 R1.7 changes no PM route, navigation model, visual architecture, Accounting
-boundary, or R2 design. R1.8 remains unstarted.
+boundary, or R2 design.
+
+### 23.8 R1.8 deny-safe capability presentation closure
+
+R1.8 is closed on 2026-08-14. The discovered presentation flow is QML action
+to `ProjectManagementWorkspaceCatalog.pmCapabilityController`, then the existing
+session authorization engine and current `UserSessionContext`. The shell
+composition root now injects both dependencies; the catalog no longer creates a
+permanently disconnected capability controller.
+
+The six existing PM presentation capabilities now use the same canonical codes
+as their authoritative command paths:
+
+| Presentation fact | Canonical permission |
+|---|---|
+| Approve/reject baseline | `baseline.approve` |
+| Apply resource leveling | `task.manage` |
+| Manage resource skills/certifications | `resource.manage` |
+| Request governed assignment override | `approval.request` |
+| Execute PM import | `import.manage` |
+| Decide governed PM request | `approval.decide` |
+
+Startup state is `unknown` and every QML-facing boolean starts `false`. Missing
+engine, session, principal, active tenant, or active organization produces
+`unavailable` and all flags remain false. A provider or authorization evaluation
+exception produces structured controller state `error`; the affected capability
+is false and no exception can become permission. Known decisions produce
+`ready`, preserving true for allowed and false for denied.
+
+Tenant and organization refresh signals recompute the PM facts, and runtime
+re-authentication continues through the existing workspace refresh callback.
+The controller clears stale permission facts before incomplete context can be
+presented. The Projects import, Scheduling baseline, and Resources skill QML
+fallbacks are now false. Resource child inputs also default false. Missing
+`canPrimaryAction`/`canSecondaryAction`/`canTertiaryAction` row facts no longer
+show actions, while explicit row lifecycle facts remain authoritative. Task
+assignment validation/preview exceptions now return blocked, non-assignable
+state rather than permissive policy evidence.
+
+No generic error is translated into `PermissionState`, and no human-readable
+error text is parsed. PM currently has no page-level structured-denial surface,
+so structured backend denials and generic runtime/query failures retain the
+existing error/inline-message presentation. Backend `require_permission` and
+project-scope enforcement are unchanged and remain independently tested.
+
+Focused verification only was run at the user's request: 13 R1.8 controller/QML
+contract tests, 12 catalog/offscreen/runtime-architecture tests, 28 affected PM,
+shared primitive, authorization, and import-runtime tests, plus a final batch
+with 59 passes. Two final-batch guardrails fail for pre-existing untouched debt:
+`presenters/scheduling/schedule_sort.py` imports a PM read contract, and the
+stale Platform `controllers/admin` directory exists. No full PM suite was run.
+R1.9, R2, route behavior, visual design, RBAC roles, and backend security
+responsibility were not changed.

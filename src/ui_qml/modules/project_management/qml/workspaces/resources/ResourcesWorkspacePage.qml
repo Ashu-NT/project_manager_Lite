@@ -274,7 +274,7 @@ AppLayouts.WorkspaceFrame {
                     workspaceController: root.workspaceController
                     resourceAssignmentsTableModel: root.workspaceController
                         ? root.workspaceController.resourceAssignmentsTableModel : null
-                    canManageSkills: root.pmCatalog ? root.pmCatalog.pmCapabilityController.canManageSkills : true
+                    canManageSkills: root.pmCatalog ? root.pmCatalog.pmCapabilityController.canManageSkills : false
                     onSkillSelectionChanged: function(skillId) {
                         root._selectedSkillId = String(skillId || "")
                     }
