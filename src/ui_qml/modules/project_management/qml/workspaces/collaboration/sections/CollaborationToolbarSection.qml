@@ -19,14 +19,15 @@ Rectangle {
     property string selectedPeriodKey: "all"
     property string selectedUnreadKey: "all"
     property bool isBusy: false
-    property alias settingsButtonItem: settingsButton
+    property bool showPeople: true
+    property bool showPeriod: true
+    property bool showUnread: true
 
     signal projectChanged(string projectId)
     signal teamChanged(string teamId)
     signal periodChanged(string periodKey)
     signal unreadChanged(string unreadKey)
     signal refreshRequested()
-    signal settingsRequested()
 
     function _indexForValue(options, targetValue) {
         const list = options || []
@@ -68,6 +69,7 @@ Rectangle {
         }
 
         AppControls.ComboBox {
+            visible: root.showPeople
             Layout.preferredWidth: 150
             model: root.contextModel.teamOptions || []
             textRole: "label"
@@ -85,6 +87,7 @@ Rectangle {
         }
 
         AppControls.ComboBox {
+            visible: root.showPeriod
             Layout.preferredWidth: 148
             model: root.contextModel.periodOptions || []
             textRole: "label"
@@ -102,6 +105,7 @@ Rectangle {
         }
 
         AppControls.ComboBox {
+            visible: root.showUnread
             Layout.preferredWidth: 150
             model: root.contextModel.unreadOptions || []
             textRole: "label"
@@ -127,12 +131,5 @@ Rectangle {
             onClicked: root.refreshRequested()
         }
 
-        AppControls.SecondaryButton {
-            id: settingsButton
-            text: "Settings"
-            iconName: "settings"
-            enabled: !root.isBusy
-            onClicked: root.settingsRequested()
-        }
     }
 }

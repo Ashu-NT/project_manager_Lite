@@ -44,20 +44,23 @@ def test_project_management_desktop_api_gets_workspace_by_route_id() -> None:
     assert api.get_workspace("project_management.unknown") is None
 
 
-def test_project_management_collaboration_desktop_api_builds_snapshot_and_marks_mentions_read() -> None:
+def test_project_management_collaboration_desktop_api_exposes_purpose_queries() -> None:
     service = _FakeCollaborationService()
     api = build_project_management_collaboration_desktop_api(
         collaboration_service=service
     )
 
-    snapshot = api.build_snapshot(limit=50)
+    inbox = api.query_inbox_page(page=1, page_size=25)
+    activity = api.list_recent_activity(limit=50)
+    presence = api.list_active_presence()
+    context = api.list_context_options()
 
-    assert snapshot.notifications[0].notification_type_label == "Approval"
-    assert snapshot.notifications[0].created_at_label == "2026-05-01 09:30"
-    assert snapshot.inbox[0].mentions_label == "@planner"
-    assert snapshot.recent_activity[0].unread is False
-    assert snapshot.active_presence[0].who_label == "Alex Taylor (@planner)"
-    assert snapshot.active_presence[0].activity_label == "Reviewing"
+    assert inbox.total == 1
+    assert inbox.items[0].mentions_label == "@planner"
+    assert activity[0].unread is False
+    assert presence[0].who_label == "Alex Taylor (@planner)"
+    assert presence[0].activity_label == "Reviewing"
+    assert context.projects == (("proj-1", "Plant Upgrade"),)
 
     api.mark_task_mentions_read("task-1")
 
@@ -159,64 +162,59 @@ class _FakeCollaborationService:
             ]
         }
 
-    def list_workspace_snapshot(self, *, limit: int = 200) -> SimpleNamespace:
-        assert limit == 50
+    def query_inbox_page(self, **kwargs) -> SimpleNamespace:
+        item = SimpleNamespace(
+            comment_id="comment-1",
+            task_id="task-1",
+            task_name="Cable Pull",
+            project_id="proj-1",
+            project_name="Plant Upgrade",
+            author_username="jamie",
+            body_preview="Please review the updated execution window.",
+            mentions=["planner"],
+            created_at=datetime(2026, 5, 1, 8, 45),
+            unread=True,
+        )
+        return SimpleNamespace(items=(item,), total=1, page=1, page_size=25)
+
+    def query_mentions_page(self, **kwargs) -> SimpleNamespace:
+        return self.query_inbox_page(**kwargs)
+
+    def list_recent_activity(self, **kwargs) -> list[SimpleNamespace]:
+        return [
+            SimpleNamespace(
+                comment_id="comment-2",
+                task_id="task-2",
+                task_name="Commissioning Pack",
+                project_id="proj-1",
+                project_name="Plant Upgrade",
+                author_username="morgan",
+                body_preview="Draft punchlist is now linked for review.",
+                mentions=[],
+                created_at=datetime(2026, 5, 1, 8, 15),
+                unread=False,
+            )
+        ]
+
+    def list_active_presence(self) -> list[SimpleNamespace]:
+        return [
+            SimpleNamespace(
+                task_id="task-1",
+                task_name="Cable Pull",
+                project_id="proj-1",
+                project_name="Plant Upgrade",
+                username="planner",
+                display_name="Alex Taylor",
+                activity="reviewing",
+                last_seen_at=datetime(2026, 5, 1, 9, 35),
+                is_self=True,
+            )
+        ]
+
+    def list_workspace_context(self) -> SimpleNamespace:
         return SimpleNamespace(
-            notifications=[
-                SimpleNamespace(
-                    notification_type="approval",
-                    entity_type="approval_request",
-                    entity_id="approval-1",
-                    headline="Approval requested for Weekly Freeze",
-                    body_preview="Baseline comparison needs governance review.",
-                    actor_username="alex",
-                    created_at=datetime(2026, 5, 1, 9, 30),
-                    project_id="proj-1",
-                    project_name="Plant Upgrade",
-                    attention=True,
-                )
-            ],
-            inbox=[
-                SimpleNamespace(
-                    comment_id="comment-1",
-                    task_id="task-1",
-                    task_name="Cable Pull",
-                    project_id="proj-1",
-                    project_name="Plant Upgrade",
-                    author_username="jamie",
-                    body_preview="Please review the updated execution window.",
-                    mentions=["planner"],
-                    created_at=datetime(2026, 5, 1, 8, 45),
-                    unread=True,
-                )
-            ],
-            recent_activity=[
-                SimpleNamespace(
-                    comment_id="comment-2",
-                    task_id="task-2",
-                    task_name="Commissioning Pack",
-                    project_id="proj-1",
-                    project_name="Plant Upgrade",
-                    author_username="morgan",
-                    body_preview="Draft punchlist is now linked for review.",
-                    mentions=[],
-                    created_at=datetime(2026, 5, 1, 8, 15),
-                    unread=False,
-                )
-            ],
-            active_presence=[
-                SimpleNamespace(
-                    task_id="task-1",
-                    task_name="Cable Pull",
-                    project_id="proj-1",
-                    project_name="Plant Upgrade",
-                    username="planner",
-                    display_name="Alex Taylor",
-                    activity="reviewing",
-                    last_seen_at=datetime(2026, 5, 1, 9, 35),
-                    is_self=True,
-                )
-            ],
+            projects=(("proj-1", "Plant Upgrade"),),
+            people=("jamie", "planner"),
         )
 
     def mark_task_mentions_read(self, task_id: str) -> None:

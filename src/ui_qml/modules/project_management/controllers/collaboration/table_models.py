@@ -12,7 +12,6 @@ class CollaborationTableModels:
     inbox: DynamicTableModel
     mentions: DynamicTableModel
     approvals: DynamicTableModel
-    team_updates: DynamicTableModel
     related_items: DynamicTableModel
 
 
@@ -21,7 +20,6 @@ def create_collaboration_table_models(parent: QObject) -> CollaborationTableMode
         inbox=DynamicTableModel(parent),
         mentions=DynamicTableModel(parent),
         approvals=DynamicTableModel(parent),
-        team_updates=DynamicTableModel(parent),
         related_items=DynamicTableModel(parent),
     )
 

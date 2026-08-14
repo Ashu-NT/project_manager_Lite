@@ -105,7 +105,7 @@ def build_detail_payload(
 
     activity_items = matching_items_for_task_or_project(
         panel_item_index=panel_item_index,
-        source_panels=("activity", "team_updates"),
+        source_panels=("activity",),
         task_id=task_id,
         project_id=project_id,
         exclude_item_id=item_id,
