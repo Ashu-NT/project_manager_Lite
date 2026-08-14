@@ -55,6 +55,9 @@ def build_operational_tabs(
     )
 
 
+_PORTFOLIO_TABLE_TOP_N = 20
+
+
 def build_operational_tables(
     *,
     dashboard_data: Any,
@@ -67,7 +70,7 @@ def build_operational_tables(
             _build_portfolio_health_table(dashboard_data),
             _build_portfolio_delayed_table(dashboard_data, selected_period_key=selected_period_key),
             _build_portfolio_budget_table(dashboard_data),
-            _build_resource_overloads_table(dashboard_data),
+            _build_portfolio_resource_overloads_table(dashboard_data),
             _build_pending_approvals_table(pending_approvals),
             _build_milestones_table(dashboard_data),
         )
@@ -136,11 +139,21 @@ def _build_high_risks_table(dashboard_data: Any) -> ProjectDashboardOperationalT
 
 
 def _build_portfolio_health_table(dashboard_data: Any) -> ProjectDashboardOperationalTableDescriptor:
-    rankings = tuple(getattr(getattr(dashboard_data, "portfolio", None), "project_rankings", []) or [])
+    # PERFORMANCE DEFECT fix: project_rankings is one row per accessible
+    # project across the whole organization (unbounded at scale). This
+    # table's purpose -- a risk ranking -- is inherently a top_n concept
+    # (like Portfolio's own list_top_at_risk_projects()), not a generic
+    # browse, so it is bounded/labeled honestly rather than paginated.
+    rankings = tuple(getattr(getattr(dashboard_data, "portfolio", None), "project_rankings", []) or [])[
+        :_PORTFOLIO_TABLE_TOP_N
+    ]
     return ProjectDashboardOperationalTableDescriptor(
-        id="project_health", title="Projects at Risk",
-        subtitle="Portfolio ranking by delivery pressure, late tasks, and cost variance.",
+        id="project_health", title=f"Projects at Risk (Top {_PORTFOLIO_TABLE_TOP_N})",
+        subtitle="Bounded ranking by delivery pressure, late tasks, and cost variance across the accessible portfolio.",
         empty_state="No project ranking data is available yet.",
+        collection_semantics="top_n",
+        supports_search=False,
+        supports_pagination=False,
         columns=(_COL("projectName", "Project", 3, 220, True), _COL("projectStatus", "Status", 0, 96, False, True, "status"), _COL("progress", "Progress", 1, 100), _COL("late", "Late", 1, 90), _COL("critical", "Critical", 1, 90), _COL("riskScore", "Risk Score", 1, 100, True), _COL("costVariance", "Cost Var.", 1, 110, True)),
         rows=tuple(
             ProjectDashboardTableRowDescriptor(id=r.project_id, route_id="project_management.projects", state={"projectId": r.project_id}, values={"projectName": r.project_name, "projectStatus": r.project_status, "progress": fmt_percent(r.progress_percent, 0), "late": fmt_int(r.late_tasks), "critical": fmt_int(r.critical_tasks), "riskScore": fmt_float(r.risk_score, 1), "costVariance": fmt_float(r.cost_variance, 0)})
@@ -165,11 +178,22 @@ def _build_budget_variances_table(dashboard_data: Any) -> ProjectDashboardOperat
 
 
 def _build_portfolio_budget_table(dashboard_data: Any) -> ProjectDashboardOperationalTableDescriptor:
-    rankings = tuple(getattr(getattr(dashboard_data, "portfolio", None), "project_rankings", []) or [])
+    # PERFORMANCE DEFECT fix: see _build_portfolio_health_table -- same
+    # unbounded org-wide project_rankings source, same top_n treatment.
+    # Re-sorted by cost variance descending since that is this table's own
+    # purpose (project_rankings itself is ordered by risk score).
+    rankings = sorted(
+        getattr(getattr(dashboard_data, "portfolio", None), "project_rankings", []) or [],
+        key=lambda r: r.cost_variance,
+        reverse=True,
+    )[:_PORTFOLIO_TABLE_TOP_N]
     return ProjectDashboardOperationalTableDescriptor(
-        id="budget_variances", title="Budget Variances",
-        subtitle="Projects with the highest portfolio cost-variance exposure.",
+        id="budget_variances", title=f"Budget Variances (Top {_PORTFOLIO_TABLE_TOP_N})",
+        subtitle="Bounded view of the projects with the highest portfolio cost-variance exposure.",
         empty_state="No portfolio budget-variance rows are available yet.",
+        collection_semantics="top_n",
+        supports_search=False,
+        supports_pagination=False,
         columns=(_COL("projectName", "Project", 3, 220, True), _COL("projectStatus", "Status", 0, 96, False, True, "status"), _COL("costVariance", "Cost Var.", 1, 110, True), _COL("late", "Late", 1, 90, True), _COL("critical", "Critical", 1, 90, True)),
         rows=tuple(
             ProjectDashboardTableRowDescriptor(id=r.project_id, route_id="project_management.financials", state={"projectId": r.project_id}, values={"projectName": r.project_name, "projectStatus": r.project_status, "costVariance": fmt_float(r.cost_variance, 0), "late": fmt_int(r.late_tasks), "critical": fmt_int(r.critical_tasks)})
@@ -178,21 +202,57 @@ def _build_portfolio_budget_table(dashboard_data: Any) -> ProjectDashboardOperat
     )
 
 
+def _resource_utilization(r) -> float:
+    return float(getattr(r, "utilization_percent", getattr(r, "total_allocation_percent", 0.0)) or 0.0)
+
+
+def _resource_overload_row(r) -> ProjectDashboardTableRowDescriptor:
+    utilization = _resource_utilization(r)
+    return ProjectDashboardTableRowDescriptor(
+        id=r.resource_id, route_id="project_management.resources", state={"resourceId": r.resource_id},
+        values={"resourceName": r.resource_name, "utilization": {"value": min(max(utilization / 100.0, 0.0), 2.0), "label": fmt_percent(utilization, 0)}, "allocation": fmt_percent(r.total_allocation_percent, 0), "capacity": fmt_percent(r.capacity_percent, 0), "tasks": fmt_int(r.tasks_count), "statusLabel": "Overloaded" if bool(getattr(r, "is_overloaded", False)) else "Balanced"},
+    )
+
+
+_RESOURCE_OVERLOAD_COLUMNS = (
+    _COL("resourceName", "Resource", 3, 180, True), _COL("utilization", "Utilization", 2, 180, False, True, "progress"),
+    _COL("allocation", "Allocation", 1, 100), _COL("capacity", "Capacity", 1, 100), _COL("tasks", "Tasks", 1, 80, True),
+    _COL("statusLabel", "Status", 0, 96, False, True, "status"),
+)
+
+
 def _build_resource_overloads_table(dashboard_data: Any) -> ProjectDashboardOperationalTableDescriptor:
+    # Project-scoped: bounded to one project's assigned resources -- a
+    # genuinely small, complete set (section 8.3's single-entity exception).
     rows = tuple(getattr(dashboard_data, "resource_load", []) or [])
-
-    def _util(r):
-        return float(getattr(r, "utilization_percent", getattr(r, "total_allocation_percent", 0.0)) or 0.0)
-
     return ProjectDashboardOperationalTableDescriptor(
         id="resource_overloads", title="Resource Overloads",
         subtitle="Utilization and overload hotspots across assigned delivery resources.",
         empty_state="No resource loading data is available yet.",
-        columns=(_COL("resourceName", "Resource", 3, 180, True), _COL("utilization", "Utilization", 2, 180, False, True, "progress"), _COL("allocation", "Allocation", 1, 100), _COL("capacity", "Capacity", 1, 100), _COL("tasks", "Tasks", 1, 80, True), _COL("statusLabel", "Status", 0, 96, False, True, "status")),
-        rows=tuple(
-            ProjectDashboardTableRowDescriptor(id=r.resource_id, route_id="project_management.resources", state={"resourceId": r.resource_id}, values={"resourceName": r.resource_name, "utilization": {"value": min(max(_util(r) / 100.0, 0.0), 2.0), "label": fmt_percent(_util(r), 0)}, "allocation": fmt_percent(r.total_allocation_percent, 0), "capacity": fmt_percent(r.capacity_percent, 0), "tasks": fmt_int(r.tasks_count), "statusLabel": "Overloaded" if bool(getattr(r, "is_overloaded", False)) else "Balanced"})
-            for r in rows
-        ),
+        columns=_RESOURCE_OVERLOAD_COLUMNS,
+        rows=tuple(_resource_overload_row(r) for r in rows),
+    )
+
+
+def _build_portfolio_resource_overloads_table(dashboard_data: Any) -> ProjectDashboardOperationalTableDescriptor:
+    # PERFORMANCE DEFECT fix: at portfolio scope this is one row per
+    # distinct resource across every accessible project's assignments --
+    # unbounded at scale, same shape as the two project_rankings tables
+    # above. Bounded to the most-utilized resources, honestly labeled.
+    rows = sorted(
+        getattr(dashboard_data, "resource_load", []) or [],
+        key=_resource_utilization,
+        reverse=True,
+    )[:_PORTFOLIO_TABLE_TOP_N]
+    return ProjectDashboardOperationalTableDescriptor(
+        id="resource_overloads", title=f"Resource Overloads (Top {_PORTFOLIO_TABLE_TOP_N})",
+        subtitle="Bounded view of the most-utilized resources across the accessible portfolio.",
+        empty_state="No resource loading data is available yet.",
+        collection_semantics="top_n",
+        supports_search=False,
+        supports_pagination=False,
+        columns=_RESOURCE_OVERLOAD_COLUMNS,
+        rows=tuple(_resource_overload_row(r) for r in rows),
     )
 
 

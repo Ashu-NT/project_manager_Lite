@@ -57,6 +57,7 @@ def build_project_management_desktop_runtime_apis(
             reporting_service=resolved.reporting_service,
             collaboration_service=resolved.collaboration_service,
             approval_service=platform_dependencies.approval_service,
+            task_service=resolved.task_service,
         ),
         project_management_collaboration=build_project_management_collaboration_desktop_api(
             collaboration_service=resolved.collaboration_service,

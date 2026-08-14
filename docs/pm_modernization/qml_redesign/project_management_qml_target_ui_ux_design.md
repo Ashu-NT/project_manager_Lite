@@ -1116,3 +1116,85 @@ is already the pinned one. This is a deliberate, explicit action taken
 after viewing a project's detail -- never automatic on row-select/open.
 
 **R3.5 -- PORTFOLIO INTERACTION REDESIGN: COMPLETE.**
+
+## 24. R3 -- Overview Scalable Queries
+
+Inserted, matching Portfolio's own R3.3 gate, before the Overview visual
+redesign (still not started -- see section 6.1's wireframe). A
+characterization pass (real-file evidence, no code changes) found today's
+seven Dashboard operational collections are fetched once per load/refresh
+into `_raw_operational_tables`, then every search keystroke, page turn, and
+tab switch re-slices that materialized list in pure Python
+(`dashboard_operational_table_mixin.py`) with no sort at all
+(`DashboardOperationalPanel.qml` uses `sortingMode: "none"`). Totals are not
+lied about (this is a scalability/query-ownership gap, not a false-results
+defect), but it fails the server-side standard section 8.1 requires, and
+three of the seven collections materialize an **unbounded, org-wide** list
+every refresh in portfolio (all-projects) mode.
+
+**Classification of the seven operational collections**, by domain/product
+semantics rather than current implementation or row count:
+
+| Collection | Scope | Classification | Reason |
+|---|---|---|---|
+| Delayed Tasks | Project + portfolio | **SCALABLE** | Overdue-task volume scales with task count, not inherently bounded -- a program with poor schedule health could have hundreds/thousands of late tasks. |
+| High Risks | Project only | **COMPLETE_SMALL** | Bounded to one project's own risk register (small by nature); no portfolio-wide equivalent exists today -- Register capability owns full cross-project risk browsing. |
+| Projects at Risk | Portfolio | **BOUNDED_TOP_N** | An attention/triage list for a landing page, not "browse all projects" (Projects capability owns that). Requires full-scope computation for a correct ranking, but the *output* is explicitly bounded. |
+| Budget Variances | Project | **COMPLETE_SMALL** | Bounded to one project's own cost-source categories (a small, fixed set). |
+| Budget Variances | Portfolio | **BOUNDED_TOP_N** | Same reasoning as Projects at Risk -- an attention list, not a Financials-style full browse. |
+| Resource Overloads | Project | **COMPLETE_SMALL** | Bounded to one project's assigned resources. |
+| Resource Overloads | Portfolio | **BOUNDED_TOP_N** | Attention list of the most-overloaded resources, not a full resource browse (Resources capability owns that). |
+| Pending Approvals | Both | **EXTERNAL_AUTHORITATIVE / BOUNDED_RECENT** | Platform-owned (`ApprovalService.list_pending(project_id=, limit=)` is already limit-bounded); PM must never build a duplicate approval reader. |
+| Milestones | Both | **BOUNDED_TOP_N** | An upcoming-checkpoint watchlist; milestones are computed per-project via CPM and are inherently sparse (a handful per project), not a bulk-data concept. |
+
+Only **Delayed Tasks** is genuinely SCALABLE. The other six were already
+either correctly bounded/labeled (High Risks, project-scope Budget
+Variances/Resource Overloads, Pending Approvals, Milestones) or fixed in
+this phase (Projects at Risk, portfolio-scope Budget Variances/Resource
+Overloads -- capped to a top-20 attention list with
+`collection_semantics="top_n"`, `supports_search/pagination=False`, and an
+honest "(Top 20)" title, in `operational_table_builder.py`). No SQL/query
+changes were needed for those six -- capping a Python list is sufficient
+once a collection is correctly classified as bounded-by-product-definition
+rather than complete.
+
+**Delayed Tasks fix -- reuse, not duplicate.** Tasks' own workspace query
+already has an authoritative `schedule="overdue"` SQL filter
+(`TaskWorkspaceReader.read_page()`, used by the Tasks capability's own
+page) and already treats `project_id=None` as "all accessible projects."
+`ProjectManagementDashboardDesktopApi.list_delayed_tasks_page()` calls
+straight through to `TaskService.query_workspace_page(schedule="overdue",
+...)` -- no new reader, no new SQL, no duplicate PM-Dashboard-owned query
+authority. `ProjectDashboardOperationalTableDescriptor` gained optional
+`page`/`page_size`/`total_count`/`sort_key`/`sort_direction`/`search_text`
+fields (defaulted so the other six tables are unaffected).
+
+**Derived-metric rule preserved**: none of the top_n tables' derived
+values (risk score, cost variance, utilization) are exposed as sortable
+columns on a paginated browse -- they don't need to be, since none of the
+six became a paginated browse; they are bounded lists, not paginated ones.
+
+**KPI/N+1 independence verified**: `DashboardPortfolioMixin.get_portfolio_data()`
+(the object R3.7 already fixed) was not touched by this phase, and a test
+directly proves calling `list_delayed_tasks_page()` at any page/page_size
+does not change `get_portfolio_data()`'s KPI or project-total output.
+
+**No materialized/persisted metrics were added.** Risk score, cost
+variance, and utilization remain computed in Python from existing
+authoritative reads, exactly as before.
+
+Verified: a focused ~10,000-row scale test for Delayed Tasks (the one
+SCALABLE collection) proves page 400 costs the same query count as page 1
+and only the requested page is ever materialized; page reachability,
+search-before-pagination, non-overdue exclusion, and all-projects scope
+are also test-proven (`test_pm_r3_overview_scalable_queries.py`, 6 tests).
+Targeted Dashboard/Portfolio regression (29 tests) and the operational
+table builder's existing tests (16 tests) remain green.
+
+**R3 -- OVERVIEW SCALABLE QUERIES: COMPLETE.** The Overview visual
+redesign (simplified context/scope controls, responsive KPI strip,
+delivery trend + Attention Required pairing, coherent operational tabs --
+including wiring the now-real Delayed Tasks query into the "Delays" tab in
+place of today's curated Critical-Task-Watchlist/Upcoming-Tasks content,
+compact-laptop behavior, and a freshness indicator only if a real timestamp
+contract is added) has not started.

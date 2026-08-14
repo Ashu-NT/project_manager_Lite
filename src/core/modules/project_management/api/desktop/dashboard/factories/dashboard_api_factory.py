@@ -15,6 +15,7 @@ def build_project_management_dashboard_desktop_api(
     reporting_service=None,
     collaboration_service=None,
     approval_service=None,
+    task_service=None,
 ) -> ProjectManagementDashboardDesktopApi:
     return ProjectManagementDashboardDesktopApi(
         project_service=project_service,
@@ -23,6 +24,7 @@ def build_project_management_dashboard_desktop_api(
         reporting_service=reporting_service,
         collaboration_service=collaboration_service,
         approval_service=approval_service,
+        task_service=task_service,
     )
 
 
