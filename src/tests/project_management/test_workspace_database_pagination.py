@@ -392,6 +392,66 @@ def test_timesheet_review_queue_aggregates_and_pages_in_database(services) -> No
     assert page.items[0].project_ids == (project.id,)
 
 
+def test_timesheet_review_query_filters_and_sorts_across_pages(services) -> None:
+    project_service = services["project_service"]
+    task_service = services["task_service"]
+    resource_service = services["resource_service"]
+    timesheets = services["timesheet_service"]
+    alpha_project = project_service.create_project("Alpha Review Project")
+    beta_project = project_service.create_project("Beta Review Project")
+
+    created = []
+    for name, project, month in (
+        ("Aaron Reviewer", alpha_project, 6),
+        ("Maya Reviewer", alpha_project, 7),
+        ("Zoe Reviewer", beta_project, 8),
+    ):
+        task = task_service.create_task(project.id, f"{name} Task")
+        resource = resource_service.create_resource(name=name, role="Engineer")
+        assignment = task_service.assign_resource(task.id, resource.id)
+        period_start = date(2026, month, 1)
+        timesheets.add_time_entry(
+            assignment.id,
+            entry_date=date(2026, month, 2),
+            hours=8,
+            note=f"{name} database review",
+        )
+        period = timesheets.submit_timesheet_period(
+            resource.id,
+            period_start=period_start,
+        )
+        created.append((resource, period))
+
+    first = timesheets.query_review_queue_page(
+        sort_key="title", sort_direction="desc", page=1, page_size=2
+    )
+    second = timesheets.query_review_queue_page(
+        sort_key="title", sort_direction="desc", page=2, page_size=2
+    )
+    project_page = timesheets.query_review_queue_page(project_id=alpha_project.id)
+    resource_page = timesheets.query_review_queue_page(resource_id=created[1][0].id)
+    date_page = timesheets.query_review_queue_page(
+        period_start_from=date(2026, 7, 1),
+        period_start_to=date(2026, 7, 31),
+    )
+    search_page = timesheets.query_review_queue_page(search_text="Zoe Reviewer")
+    unsupported = timesheets.query_review_queue_page(
+        sort_key="unsafe_sql", sort_direction="asc"
+    )
+
+    assert [row.resource_name for row in first.items] == ["Zoe Reviewer", "Maya Reviewer"]
+    assert [row.resource_name for row in second.items] == ["Aaron Reviewer"]
+    assert {row.resource_name for row in project_page.items} == {
+        "Aaron Reviewer",
+        "Maya Reviewer",
+    }
+    assert [row.resource_name for row in resource_page.items] == ["Maya Reviewer"]
+    assert [row.resource_name for row in date_page.items] == ["Maya Reviewer"]
+    assert [row.resource_name for row in search_page.items] == ["Zoe Reviewer"]
+    assert unsupported.sort.key == "submittedAt"
+    assert unsupported.sort.direction.value == "desc"
+
+
 def test_workspace_page_query_budgets_are_constant(services) -> None:
     session = services["project_service"]._session
     engine = session.get_bind()

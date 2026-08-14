@@ -953,3 +953,40 @@ The default remains bound to the legacy `clientSideSorting` flag, so the 20
 existing non-PM consumer files retain client behavior without source changes.
 Focused shared-primitive and offscreen workspace verification passes (10 tests),
 including a repository-wide compatibility assertion for those non-PM consumers.
+
+### 23.4 R1 core collection sorting implementation
+
+The first authoritative sorting slice is complete:
+
+- Projects, Tasks, Resources, and Register carry normalized semantic sort state
+  from QML through controller, presenter, desktop API, application query, read
+  contract, and allowlisted SQL expressions. Stable IDs break ties and exports
+  retain the same query order.
+- Historical defaults remain deliberate: Projects `title asc`, Tasks `WBS asc`,
+  Resources active-first catalog order, and Register severity/overdue triage.
+  Hidden product defaults do not claim a visible column sort.
+- Scheduling sorts the complete filtered calculated project graph before page
+  slicing. CPM, diagnostics, critical-path, and other derived projections keep
+  their calculation order. Generated Activity ID and constant Calendar columns
+  are explicitly non-sortable.
+- Unsafe or unknown keys never become SQL. They normalize to the product default.
+
+Cross-page database, presenter/controller, shared primitive, and offscreen QML
+coverage is green in the combined R1 gate.
+
+### 23.5 R1 Timesheet Review authoritative query
+
+Timesheet Review now owns a typed criteria contract containing status, search,
+project, resource, period-start range, sort, page, and page size. Candidate
+periods are matched in SQL, aggregate totals remain period-level, sorting occurs
+before offset/limit, and unsafe keys fall back to `submittedAt desc`.
+
+The list-page filter popup no longer presents the unrelated assignment snapshot
+controls as queue filters. It exposes explicit review project, resource, and date
+range state; toolbar search and table sort are controller/query-owned. Column
+labels now match the rendered values, and the multi-project label is explicitly
+non-sortable. Database tests prove filter semantics and ordering across pages.
+
+Focused R1 core and Timesheet verification: 45 passed. Collaboration, Portfolio,
+Dashboard, Finance collection truthfulness, no-op removal, and deny-safe
+capability presentation remain pending in R1.

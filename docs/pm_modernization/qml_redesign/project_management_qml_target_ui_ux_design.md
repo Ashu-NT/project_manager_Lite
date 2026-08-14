@@ -549,6 +549,10 @@ Status: complete on 2026-08-14. All 23 guarded candidates were proven dead and r
 Objective: remove no-ops, add explicit table sorting modes, implement server sort contracts, replace Collaboration/Timesheet partial queries, and replace fail-open capability presentation with deny-safe, capability-complete UI state.  
 Affected: shared DataTable, Projects, Tasks, Scheduling, Resources, Register, Timesheets, Collaboration, Portfolio, Dashboard, Finance collection readers.  
 Gate: no PM control implies unsupported behavior; query tests prove totals and stable ordering; permission lookup absence/failure never advertises an unauthorized action.
+Status: in progress. Explicit sorting ownership, core collection sorting, and the
+typed Timesheet Review query are complete. Collaboration, bounded Portfolio and
+Dashboard collections, Finance pagination, no-op removal, and deny-safe
+capability presentation remain open.
 
 ### R2 - PM navigation and project context
 

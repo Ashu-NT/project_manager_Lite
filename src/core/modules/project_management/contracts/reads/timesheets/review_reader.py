@@ -4,7 +4,10 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Protocol
 
-from src.core.modules.project_management.contracts.reads.sorting import ReadSort
+from src.core.modules.project_management.contracts.reads.sorting import (
+    ReadSort,
+    ReadSortDirection,
+)
 from src.core.platform.application.time_management.time import TimesheetReviewQueueItem
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 
@@ -17,7 +20,7 @@ class TimesheetReviewCriteria:
     resource_id: str | None = None
     period_start_from: date | None = None
     period_start_to: date | None = None
-    sort: ReadSort = ReadSort("submittedAt")
+    sort: ReadSort = ReadSort("submittedAt", ReadSortDirection.DESCENDING)
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,7 +29,7 @@ class TimesheetReviewReadPage:
     total: int = 0
     page: int = 1
     page_size: int = 25
-    sort: ReadSort = ReadSort("submittedAt")
+    sort: ReadSort = ReadSort("submittedAt", ReadSortDirection.DESCENDING)
 
 
 class TimesheetReviewReader(Protocol):

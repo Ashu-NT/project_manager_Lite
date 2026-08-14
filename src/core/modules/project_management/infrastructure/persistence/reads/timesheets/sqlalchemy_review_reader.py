@@ -17,7 +17,6 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
     TaskORM,
 )
 from src.core.platform.application.time_management.time import TimesheetReviewQueueItem
-from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 from src.core.platform.infrastructure.persistence.orm.time_management.time.time import (
     TimeEntryORM,
     TimesheetPeriodORM,
