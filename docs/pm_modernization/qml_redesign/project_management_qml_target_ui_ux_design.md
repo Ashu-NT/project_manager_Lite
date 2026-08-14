@@ -1040,7 +1040,7 @@ layer reuses via the shared `ProjectCatalogReader`); the full
 Portfolio+Dashboard regression batch (105 tests) plus the 12 new R3.3
 tests pass. **R3.3 -- PORTFOLIO SCALABLE COLLECTION QUERIES: COMPLETE.**
 
-## 22. R3.4 closure: Portfolio IA tabs
+## 22. R3.5 closure: Portfolio six-area IA tabs
 
 The fixed 268px `PortfolioBottomPanel.qml` (five inline tabs: Funding/
 Risks/Capacity/Governance/Activity) and the always-visible
@@ -1095,7 +1095,7 @@ Scheduling (shown).
 
 **R3.4 -- PORTFOLIO IA TABS: COMPLETE.**
 
-## 23. R3.5 closure: Portfolio interaction redesign
+## 23. R3.6 closure: Portfolio interaction redesign
 
 Compare already used R1's authoritative `compare_scenarios()`/
 `evaluate_scenario()` unchanged -- no gap there. Browsing/selection safety
@@ -1117,7 +1117,7 @@ after viewing a project's detail -- never automatic on row-select/open.
 
 **R3.5 -- PORTFOLIO INTERACTION REDESIGN: COMPLETE.**
 
-## 24. R3 -- Overview Scalable Queries
+## 24. R3.3B -- Overview Scalable Queries
 
 Inserted, matching Portfolio's own R3.3 gate, before the Overview visual
 redesign (still not started -- see section 6.1's wireframe). A
@@ -1242,7 +1242,7 @@ Overview) and the delivery-trend/Attention-Required pairing were completed
 in a later pass -- see section 26. The freshness indicator remains
 deferred; no real timestamp contract exists yet.
 
-## 25. R3.6 closure: Responsive Overview + Portfolio
+## 25. R3.7 closure: Responsive Overview + Portfolio
 
 Audited both surfaces against section 11's content-width tiers and
 priority-collapse order (real-file evidence via a dedicated read-only
@@ -1286,7 +1286,7 @@ Fixed, in priority order:
 pass (not itself a responsive-design item, but directly blocked
 verification of the above):** Overview could get stuck permanently
 pre-load -- blank KPI strip, blank Scope/Baseline/Period/View selectors,
-the raw pre-load placeholder subtitle, no error banionner, and zero
+the raw pre-load placeholder subtitle, no error banner, and zero
 `_refresh_dashboard()` log lines ever, confirmed against the real app's own
 log file across two separate live launches. Root cause: Overview is the
 default landing tab inside the PM canonical shell, so its capability
@@ -1314,3 +1314,93 @@ confirmed via `git stash` to fail identically with none of this phase's
 changes applied -- not touched by this work.
 
 **R3.6 -- RESPONSIVE OVERVIEW + PORTFOLIO: COMPLETE.**
+
+## 26. R3.4 closure: Overview visual redesign
+
+Closes the two substantive items left open at the end of section 24 (the
+freshness indicator stays deferred -- no real timestamp contract exists).
+
+**Delivery-trend + Attention Required pairing:** replaced the second chart
+in both the bar-mode and line-mode chart layouts (previously a "Cost
+Pressure"/"Cost Trend" `DashboardChartCard`) with a new
+`DashboardAttentionPanel.qml`, fed by the top 2 rows each from the
+already-real, already-bounded `delayed_tasks`/`high_risks`/
+`pending_approvals` operational tables -- no new backend query, no
+fabricated content. `DashboardOperationalTableMixin._build_attention_items()`
+normalizes each table's differently-shaped rows into one common
+`{category, title, subtitle, statusLabel, routeId, state}` shape via a
+small per-category field-mapping table, exposed as the controller's new
+`attentionItems` property.
+
+**KPI strip responsive wrap:** `App.Widgets.KpiStrip` is shared well beyond
+Overview (30+ consumers across PM, Maintenance, Inventory, and Platform).
+Its `RowLayout` divided available width equally across all metric cells
+with no floor, so a strip with many metrics could squeeze into illegible
+cells at the compact end of the acceptance range. Added a per-cell minimum
+width (108px); once the strip's metric count would need less than that per
+cell, it switches from equal-division to a horizontal-scroll `Flickable`
+instead of continuing to shrink -- matching this doc's general preference
+for scroll over illegible/clipped content. Behavior above that threshold
+is unchanged (same equal-width cells, no scroll), so existing consumers are
+unaffected.
+
+Verified via 3 new attention-panel tests (incl. a real QML-engine load) and
+the full targeted Dashboard/Portfolio batch plus architecture guardrails.
+
+**Concise operational-tab labels**: the design doc's own R3.4 example
+("Use concise labels such as: Delays / Risks / Cost / Workload / Approvals
+/ Milestones") had not actually been applied -- the tab strip was reusing
+each table's full descriptive `title` verbatim (`"Recent Pending Approvals
+(Up to 120)"`, `"Milestone Watchlist (Next 8)"` as literal tab-button
+text). Fixed with a small `id -> concise label` lookup in
+`build_operational_tabs()`, leaving each table's own descriptive `title`
+untouched for the panel header once a tab is open -- the tab button and
+the panel header are different UI elements with different jobs, so they
+now carry different text instead of the same overlong string.
+
+**OVERVIEW VISUAL REDESIGN: COMPLETE** (freshness indicator explicitly
+excluded, pending a real timestamp contract).
+
+## 27. R3.8 verification and R3.9 closure
+
+**R3.8 -- performance/scalability verification.** Re-checked every R3.8
+bullet against what R3.4-R3.7 actually added:
+
+- Dashboard N+1 fix (R3.3's `DashboardPortfolioMixin.get_portfolio_data()`
+  batching): untouched by any R3.4-R3.7 change; its regression test
+  (`test_dashboard_portfolio_workspace_performance_measurement.py`) still
+  passes with the same bounded call-count assertions.
+- Portfolio/Overview scalable collections: no new query paths were added
+  by the visual/interaction/responsive work -- R3.4-R3.7 only changed QML
+  layout, controller-side tab labeling, and popup/column presentation, not
+  any reader/query code.
+- **New in R3.4 -- the Attention Required panel and KPI strip**: both are
+  pure transformations of data the controller already fetched.
+  `_build_attention_items()` reads only `self._raw_operational_tables` (a
+  plain list of already-serialized dicts) -- no repository, service, or
+  presenter call anywhere in its body. `KpiStrip.qml`'s responsive wrap is
+  a pure QML layout change with no data-layer involvement at all. Neither
+  introduces a new query, let alone an N+1.
+- KPI/N+1 independence (R3.3B's own gate) re-confirmed: nothing in
+  R3.4-R3.7 touches `list_delayed_tasks_page()` or the KPI/health-card
+  computation path.
+
+No R3.8 gap found. **R3.8 -- PERFORMANCE/SCALABILITY VERIFICATION:
+COMPLETE.**
+
+**R3.9 -- targeted regression + closure.** Targeted batches run across
+this work (never the ~30-minute full suite): the full Dashboard/Portfolio/
+Overview PM test directory (127+ tests), the QML architecture guardrails,
+and a stash-verified check that one unrelated pre-existing failure
+(`test_platform_control_workspace_refreshes_on_control_events`) is not
+attributable to any R3 change. All three modernization docs
+(`project_management_qml_target_ui_ux_design.md`,
+`project_management_qml_existing_state_audit.md`,
+`project_management_ui_repository_restructure_plan.md`) are now updated
+and in sync -- the latter two had been left saying "R3.4-R3.8 remain not
+started" since R3.3 closed, which was stale.
+
+**R3.9 -- TARGETED REGRESSION + CLOSURE: COMPLETE.**
+
+**R3 -- OVERVIEW + PORTFOLIO: COMPLETE.** R4 (Work: Projects/Tasks/
+Planning) has not started.

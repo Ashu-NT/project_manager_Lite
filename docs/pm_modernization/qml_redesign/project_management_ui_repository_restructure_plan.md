@@ -841,6 +841,20 @@ made as part of this phase; commit authorization was requested separately.
 
 **R3.3 - PORTFOLIO SCALABLE COLLECTION QUERIES: COMPLETE.**
 
-R3.4-R3.8 (Portfolio IA tabs, interaction redesign, responsive pass,
-targeted performance work beyond the R3.7 Dashboard N+1 fix already done,
-and closure) remain not started.
+## 26. R3.4-R3.9 closure record
+
+R3.4 (Overview visual redesign: KPI strip, Delivery Trend + Attention
+Required pairing, concise operational-tab labels, responsive context
+controls), R3.5 (Portfolio six-area IA: Executive/Heatmap/Intake/
+Scenarios/Capacity/Dependencies), R3.6 (Portfolio interactions: explicit
+Set/Clear Active Project, no page-local project context), R3.7 (responsive
+Overview + Portfolio: toolbar overflow, tab-strip scroll, popup size
+clamping, compact-tier column hiding), R3.8 (performance/scalability
+verification -- no new N+1 from the Attention panel or KPI strip; both are
+pure transformations of already-fetched data), and R3.9 (targeted
+regression across the affected surfaces plus this three-document update)
+are all complete. No repository restructure was required by any of this
+work -- it stayed entirely within existing file boundaries. Full detail
+lives in `project_management_qml_target_ui_ux_design.md` sections 21-26.
+
+**R3 - OVERVIEW + PORTFOLIO: COMPLETE.**

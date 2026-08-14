@@ -43,12 +43,24 @@ def build_preview_operational_tables() -> tuple[ProjectDashboardOperationalTable
     )
 
 
+_CONCISE_TAB_LABELS = {
+    "delayed_tasks": "Delays",
+    "high_risks": "Risks",
+    "budget_variances": "Cost",
+    "resource_overloads": "Workload",
+    "pending_approvals": "Approvals",
+    "milestones": "Milestones",
+}
+
+
 def build_operational_tabs(
     tables: tuple[ProjectDashboardOperationalTableDescriptor, ...],
 ) -> tuple[ProjectDashboardOperationalTabDescriptor, ...]:
     return tuple(
         ProjectDashboardOperationalTabDescriptor(
-            id=t.id, label=t.title, count=len(t.rows),
+            id=t.id,
+            label=_CONCISE_TAB_LABELS.get(t.id, t.title),
+            count=len(t.rows),
             route_id=(t.rows[0].route_id if t.rows else ""),
         )
         for t in tables

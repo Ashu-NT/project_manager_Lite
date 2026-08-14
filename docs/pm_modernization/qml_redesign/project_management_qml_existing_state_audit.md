@@ -1505,3 +1505,19 @@ Heatmap/Dependencies (plus the bounded `list_top_at_risk_projects()` Top-N
 projection) are recorded in `project_management_qml_target_ui_ux_design.md`
 section 21 -- not duplicated here. **R3.3 - PORTFOLIO SCALABLE COLLECTION
 QUERIES: COMPLETE.**
+
+## 26. R3.4-R3.9 closure record
+
+R3.4 (Overview visual redesign), R3.5 (Portfolio six-area redesign:
+Executive/Heatmap/Intake/Scenarios/Capacity/Dependencies), R3.6 (Portfolio
+interactions: explicit Set/Clear Active Project, no page-local context),
+R3.7 (responsive Overview + Portfolio), and R3.9 (targeted regression +
+closure) are complete. R3.8 (performance/scalability verification) found
+no new gap: the Attention Required panel added in R3.4 is a pure
+transformation over already-fetched, already-serialized operational-table
+data (no new query, no new service call), and KPI-strip/N+1 independence
+from R3.3B was re-confirmed unchanged. Full detail for every sub-phase
+lives in `project_management_qml_target_ui_ux_design.md` sections 21-26 --
+not duplicated here.
+
+**R3 - OVERVIEW + PORTFOLIO: COMPLETE.**
