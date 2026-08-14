@@ -19,7 +19,6 @@ Rectangle {
     signal compareBaseSelected(string scenarioId)
     signal compareScenarioSelected(string scenarioId)
     signal refreshRequested()
-    signal rebalanceRequested()
     signal compareRequested()
     signal exportRequested()
 
@@ -132,11 +131,5 @@ Rectangle {
             onClicked: root.exportRequested()
         }
 
-        AppControls.PrimaryButton {
-            text: "Rebalance"
-            iconName: "approve"
-            enabled: !root.isBusy && String(root.selectedScenarioId || "").length > 0
-            onClicked: root.rebalanceRequested()
-        }
     }
 }

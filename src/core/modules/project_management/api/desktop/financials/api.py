@@ -15,6 +15,12 @@ from src.core.modules.project_management.application.financials import (
     ProjectFinanceWorkspaceQuery,
 )
 from src.core.modules.project_management.application.projects import ProjectService
+from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
+    normalize_cost_entry_sort,
+)
+from src.core.modules.project_management.application.financials.commitments.commitment_service import (
+    normalize_commitment_sort,
+)
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import BaselineService
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
@@ -186,17 +192,32 @@ class ProjectManagementFinancialsDesktopApi:
         status: str | None = None,
         offset: int = 0,
         limit: int = 50,
+        sort_key: str = "metaText",
+        sort_direction: str = "desc",
     ) -> FinancialCostEntryPageDto:
+        sort = normalize_cost_entry_sort(key=sort_key, direction=sort_direction)
         if not project_id or self._cost_entry_service is None:
-            return FinancialCostEntryPageDto(offset=offset, limit=limit)
+            return FinancialCostEntryPageDto(
+                offset=offset,
+                limit=limit,
+                sort_key=sort.key,
+                sort_direction=sort.direction.value,
+            )
         entries, total = self._cost_entry_service.list_for_project(
-            project_id, status=status, offset=offset, limit=limit
+            project_id,
+            status=status,
+            offset=offset,
+            limit=limit,
+            sort_key=sort.key,
+            sort_direction=sort.direction.value,
         )
         return FinancialCostEntryPageDto(
             items=tuple(serialize_cost_entry(entry) for entry in entries),
             total=total,
             offset=offset,
             limit=limit,
+            sort_key=sort.key,
+            sort_direction=sort.direction.value,
         )
 
     def create_manual_actual(
@@ -330,18 +351,36 @@ class ProjectManagementFinancialsDesktopApi:
         )
 
     def list_commitments(
-        self, project_id: str, *, offset: int = 0, limit: int = 50
+        self,
+        project_id: str,
+        *,
+        offset: int = 0,
+        limit: int = 50,
+        sort_key: str = "metaText",
+        sort_direction: str = "desc",
     ) -> FinancialCommitmentLinePageDto:
+        sort = normalize_commitment_sort(key=sort_key, direction=sort_direction)
         if not project_id or self._commitment_service is None:
-            return FinancialCommitmentLinePageDto(offset=offset, limit=limit)
+            return FinancialCommitmentLinePageDto(
+                offset=offset,
+                limit=limit,
+                sort_key=sort.key,
+                sort_direction=sort.direction.value,
+            )
         lines, total = self._commitment_service.list_for_project(
-            project_id, offset=offset, limit=limit
+            project_id,
+            offset=offset,
+            limit=limit,
+            sort_key=sort.key,
+            sort_direction=sort.direction.value,
         )
         return FinancialCommitmentLinePageDto(
             items=tuple(build_commitment_line_dto(line) for line in lines),
             total=total,
             offset=offset,
             limit=limit,
+            sort_key=sort.key,
+            sort_direction=sort.direction.value,
         )
 
     def list_forecast_versions(

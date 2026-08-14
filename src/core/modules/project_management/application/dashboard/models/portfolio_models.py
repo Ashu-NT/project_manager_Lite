@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 
 
 PORTFOLIO_SCOPE_ID = "__portfolio__"
@@ -14,7 +15,7 @@ class PortfolioProjectRow:
     progress_percent: float
     late_tasks: int
     critical_tasks: int
-    cost_variance: float
+    cost_variance: Decimal
     risk_score: float
 
 

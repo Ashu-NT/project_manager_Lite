@@ -75,6 +75,7 @@ class DashboardSelectionMixin:
         if normalized_id == self._selected_operational_tab_id:
             return
         self._set_selected_operational_tab_id(normalized_id)
+        self._set_operational_search_text("")
         self._set_operational_page(1)
         self._set_selected_operational_row_id("")
         self._apply_operational_table_state()

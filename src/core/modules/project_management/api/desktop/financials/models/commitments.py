@@ -37,6 +37,8 @@ class FinancialCommitmentLinePageDto:
     total: int = 0
     offset: int = 0
     limit: int = 50
+    sort_key: str = "metaText"
+    sort_direction: str = "desc"
 
 
 __all__ = [

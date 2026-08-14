@@ -8,6 +8,7 @@ so that all cost-policy calculations use a single authoritative implementation.
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 
 from src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
@@ -161,11 +162,11 @@ class ReportingCostPolicyMixin:
 
     def _add_bucket(
         self,
-        target: dict[CostBucketKey, float],
+        target: dict[CostBucketKey, Decimal],
         *,
         cost_type: CostType,
         currency: str,
-        amount: float,
+        amount: Decimal,
     ) -> None:
         self._make_cost_policy_engine()._add_bucket(
             target, cost_type=cost_type, currency=currency, amount=amount
@@ -173,29 +174,29 @@ class ReportingCostPolicyMixin:
 
     def _sum_bucket_map(
         self,
-        values: dict[CostBucketKey, float],
+        values: dict[CostBucketKey, Decimal],
         project_currency: str | None,
-    ) -> float:
+    ) -> Decimal:
         return self._make_cost_policy_engine()._sum_bucket_map(values, project_currency)
 
     def _sum_bucket_for_type(
         self,
-        values: dict[CostBucketKey, float],
+        values: dict[CostBucketKey, Decimal],
         *,
         cost_type: CostType,
         project_currency: str | None,
-    ) -> float:
+    ) -> Decimal:
         return self._make_cost_policy_engine()._sum_bucket_for_type(
             values, cost_type=cost_type, project_currency=project_currency
         )
 
     def _sum_bucket_excluding_type(
         self,
-        values: dict[CostBucketKey, float],
+        values: dict[CostBucketKey, Decimal],
         *,
         excluded_type: CostType,
         project_currency: str | None,
-    ) -> float:
+    ) -> Decimal:
         return self._make_cost_policy_engine()._sum_bucket_excluding_type(
             values, excluded_type=excluded_type, project_currency=project_currency
         )

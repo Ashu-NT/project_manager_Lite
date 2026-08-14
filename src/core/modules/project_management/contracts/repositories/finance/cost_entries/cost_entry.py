@@ -6,6 +6,7 @@ from src.core.modules.project_management.domain.financials.cost_entry import (
     ProjectCostEntry,
     ProjectCostEntryStatus,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort
 
 
 class ProjectCostEntryRepository(ABC):
@@ -26,6 +27,7 @@ class ProjectCostEntryRepository(ABC):
         status: ProjectCostEntryStatus | None = None,
         offset: int = 0,
         limit: int = 50,
+        sort: ReadSort | None = None,
     ) -> tuple[list[ProjectCostEntry], int]:
         """Return a stable database page plus the filtered total."""
         ...

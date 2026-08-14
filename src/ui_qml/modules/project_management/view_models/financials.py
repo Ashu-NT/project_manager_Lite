@@ -117,6 +117,8 @@ class FinancialsWorkspaceViewModel:
     selected_project_id: str = ""
     cashflow: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     ledger: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    actual_sort_key: str = "metaText"
+    actual_sort_direction: str = "desc"
     source_analytics: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     cost_type_analytics: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     forecast: FinancialsForecastViewModel = field(default_factory=FinancialsForecastViewModel)
@@ -128,6 +130,8 @@ class FinancialsWorkspaceViewModel:
     financial_change_impacts: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
     commitment_summary: FinancialsCommitmentSummaryViewModel = field(default_factory=FinancialsCommitmentSummaryViewModel)
     commitments: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))
+    commitment_sort_key: str = "metaText"
+    commitment_sort_direction: str = "desc"
     baseline_variance: tuple[BaselineVarianceRowViewModel, ...] = field(default_factory=tuple)
     selected_baseline_id: str = ""
     baseline_versions: FinancialsCollectionViewModel = field(default_factory=lambda: FinancialsCollectionViewModel(title="", subtitle=""))

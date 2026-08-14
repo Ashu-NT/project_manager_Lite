@@ -79,9 +79,9 @@ def build_activity_feed(
     return ProjectDashboardActivityFeedDescriptor(
         title="Recent Activity",
         subtitle=(
-            "Recent task collaboration across the accessible portfolio."
+            "Latest 24 task-collaboration events across the accessible portfolio."
             if portfolio_mode
-            else "Recent task collaboration for the selected project."
+            else "Latest 24 task-collaboration events for the selected project."
         ),
         empty_state="No recent dashboard activity is available in the selected period.",
         items=tuple(item for _, item in items[:24]),

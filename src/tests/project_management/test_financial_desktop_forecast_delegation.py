@@ -34,9 +34,18 @@ class _FinanceService:
 
 
 class _CommitmentService:
-    def list_for_project(self, project_id, *, offset, limit):
+    def list_for_project(
+        self,
+        project_id,
+        *,
+        offset,
+        limit,
+        sort_key,
+        sort_direction,
+    ):
         assert project_id == "project-1"
         assert (offset, limit) == (10, 20)
+        assert (sort_key, sort_direction) == ("metaText", "desc")
         return [
             SimpleNamespace(
                 id="commitment-line-1",
@@ -96,6 +105,8 @@ def test_financial_desktop_maps_paged_canonical_commitment_lines() -> None:
     assert page.total == 1
     assert page.offset == 10
     assert page.limit == 20
+    assert page.sort_key == "metaText"
+    assert page.sort_direction == "desc"
     assert page.items[0].state == "partially_received"
     assert page.items[0].amount_label == "EUR 1,000.00"
     assert page.items[0].matched_amount_label == "EUR 400.00"

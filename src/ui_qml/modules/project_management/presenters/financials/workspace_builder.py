@@ -32,6 +32,13 @@ def build_workspace_state(
     planned_cost_line_page: int = 1,
     billing_preparation_page: int = 1,
     configuration_page_size: int = 50,
+    actual_page: int = 1,
+    commitment_page: int = 1,
+    transaction_page_size: int = 50,
+    actual_sort_key: str = "metaText",
+    actual_sort_direction: str = "desc",
+    commitment_sort_key: str = "metaText",
+    commitment_sort_direction: str = "desc",
     selected_forecast_id: str | None = None,
     selected_change_id: str | None = None,
     selected_baseline_id: str | None = None,
@@ -49,8 +56,23 @@ def build_workspace_state(
         ),
     )
     snapshot = desktop_api.get_finance_snapshot(resolved_project_id)
-    actual_page = desktop_api.list_cost_entries(resolved_project_id, limit=50)
-    commitment_page = desktop_api.list_commitments(resolved_project_id, limit=50)
+    normalized_actual_page = max(1, int(actual_page))
+    normalized_commitment_page = max(1, int(commitment_page))
+    normalized_transaction_page_size = max(1, min(int(transaction_page_size), 200))
+    actual_page_result = desktop_api.list_cost_entries(
+        resolved_project_id,
+        offset=(normalized_actual_page - 1) * normalized_transaction_page_size,
+        limit=normalized_transaction_page_size,
+        sort_key=actual_sort_key,
+        sort_direction=actual_sort_direction,
+    )
+    commitment_page_result = desktop_api.list_commitments(
+        resolved_project_id,
+        offset=(normalized_commitment_page - 1) * normalized_transaction_page_size,
+        limit=normalized_transaction_page_size,
+        sort_key=commitment_sort_key,
+        sort_direction=commitment_sort_direction,
+    )
     actual_options = desktop_api.get_manual_actual_options(resolved_project_id)
     empty_state = "" if resolved_project_id else "Select a project to review financials."
     forecast_dto = desktop_api.get_cost_forecast(resolved_project_id)
@@ -98,7 +120,9 @@ def build_workspace_state(
         ),
         selected_project_id=resolved_project_id,
         cashflow=build_cashflow_collection(snapshot),
-        ledger=build_ledger_collection(actual_page),
+        ledger=build_ledger_collection(actual_page_result),
+        actual_sort_key=actual_page_result.sort_key,
+        actual_sort_direction=actual_page_result.sort_direction,
         source_analytics=build_analytics_collection(
             title="Source Breakdown",
             subtitle="Expense exposure grouped by source.",
@@ -119,7 +143,9 @@ def build_workspace_state(
         commitment_summary=build_commitment_summary(
             desktop_api.get_commitment_summary(resolved_project_id)
         ),
-        commitments=build_commitment_collection(commitment_page),
+        commitments=build_commitment_collection(commitment_page_result),
+        commitment_sort_key=commitment_page_result.sort_key,
+        commitment_sort_direction=commitment_page_result.sort_direction,
         baseline_variance=lifecycle_views["baseline_variance"],
         selected_baseline_id=lifecycle_views["selected_baseline_id"],
         baseline_versions=lifecycle_views["baseline_versions"],

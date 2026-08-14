@@ -11,6 +11,8 @@ class FinancialsSelectionMixin:
         self._rate_line_page = 1
         self._planned_cost_line_page = 1
         self._billing_preparation_page = 1
+        self._actual_page = 1
+        self._commitment_page = 1
         self._set_selected_forecast_id("")
         self._set_selected_change_id("")
         self._set_selected_baseline_id("")
@@ -46,5 +48,51 @@ class FinancialsSelectionMixin:
             return
         setattr(self, attribute, normalized_page)
         self.refresh()
+
+    def _set_actual_page(self, page: int) -> None:
+        normalized_page = max(1, int(page))
+        if normalized_page != self._actual_page:
+            self._actual_page = normalized_page
+            self.refresh()
+
+    def _set_commitment_page(self, page: int) -> None:
+        normalized_page = max(1, int(page))
+        if normalized_page != self._commitment_page:
+            self._commitment_page = normalized_page
+            self.refresh()
+
+    def _set_transaction_page_size(self, page_size: int) -> None:
+        normalized_size = max(1, min(int(page_size), 200))
+        if normalized_size != self._transaction_page_size:
+            self._transaction_page_size = normalized_size
+            self._actual_page = 1
+            self._commitment_page = 1
+            self.refresh()
+
+    def _set_actual_sort(self, sort_key: str, sort_direction: int) -> None:
+        normalized_key = str(sort_key or "").strip()
+        if (
+            normalized_key != self._actual_sort_key
+            or int(sort_direction) != self._actual_sort_direction
+        ):
+            self._actual_sort_key = normalized_key
+            self._actual_sort_direction = int(sort_direction)
+            self._actual_page = 1
+            self.actualSortKeyChanged.emit()
+            self.actualSortDirectionChanged.emit()
+            self.refresh()
+
+    def _set_commitment_sort(self, sort_key: str, sort_direction: int) -> None:
+        normalized_key = str(sort_key or "").strip()
+        if (
+            normalized_key != self._commitment_sort_key
+            or int(sort_direction) != self._commitment_sort_direction
+        ):
+            self._commitment_sort_key = normalized_key
+            self._commitment_sort_direction = int(sort_direction)
+            self._commitment_page = 1
+            self.commitmentSortKeyChanged.emit()
+            self.commitmentSortDirectionChanged.emit()
+            self.refresh()
 
 __all__ = ["FinancialsSelectionMixin"]

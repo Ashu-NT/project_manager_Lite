@@ -3,6 +3,7 @@ from __future__ import annotations
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 
 from datetime import date, timedelta
+from decimal import Decimal
 
 from src.core.platform.common.exceptions import NotFoundError
 from src.core.modules.project_management.contracts.repositories.projects.project import (
@@ -128,11 +129,11 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
             duration_working_days = self._calendar.working_days_between(start_date, end_date)
 
         financial_detail_included = self._has_finance_view(project_id)
-        total_planned: float | None = None
-        total_committed: float | None = None
-        total_actual: float | None = None
-        cost_variance: float | None = None
-        committed_variance: float | None = None
+        total_planned: Decimal | None = None
+        total_committed: Decimal | None = None
+        total_actual: Decimal | None = None
+        cost_variance: Decimal | None = None
+        committed_variance: Decimal | None = None
         if financial_detail_included:
             cost_snapshot = self._build_cost_policy_snapshot(project_id=project_id)
             total_planned = self._sum_bucket_map(
@@ -147,8 +148,8 @@ class ReportingKpiMixin(ReportingCostPolicyMixin):
                 cost_snapshot.actual_map,
                 cost_snapshot.project_currency,
             )
-            cost_variance = float(total_actual - total_planned)
-            committed_variance = float(total_committed - total_planned)
+            cost_variance = total_actual - total_planned
+            committed_variance = total_committed - total_planned
 
         return ProjectKPI(
             project_id=project.id,

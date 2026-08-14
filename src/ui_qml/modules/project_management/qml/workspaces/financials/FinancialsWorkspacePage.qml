@@ -352,6 +352,8 @@ AppLayouts.WorkspaceFrame {
                     ledgerModel: root.ledgerModel
                     ledgerTableModel: root.workspaceController ? root.workspaceController.ledgerTableModel : null
                     selectedActualEntryId: root._selectedActualEntryId
+                    actualSortKey: root.workspaceController ? root.workspaceController.actualSortKey : "metaText"
+                    actualSortDirection: root.workspaceController ? root.workspaceController.actualSortDirection : Qt.DescendingOrder
                     onActualEntrySelected: function(entryId) { root._selectedActualEntryId = entryId }
                     sourceAnalyticsModel: root.sourceAnalyticsModel
                     overviewModel: root.overviewModel
@@ -365,6 +367,8 @@ AppLayouts.WorkspaceFrame {
                     commitmentSummaryModel: root.workspaceController ? root.workspaceController.commitmentSummary : ({})
                     commitmentsModel: root.workspaceController ? root.workspaceController.commitments : ({})
                     commitmentsTableModel: root.workspaceController ? root.workspaceController.commitmentsTableModel : null
+                    commitmentSortKey: root.workspaceController ? root.workspaceController.commitmentSortKey : "metaText"
+                    commitmentSortDirection: root.workspaceController ? root.workspaceController.commitmentSortDirection : Qt.DescendingOrder
                     baselineVarianceModel: root.baselineVarianceModel
                     baselineVersionsModel: root.workspaceController ? root.workspaceController.baselineVersions : ({ "items": [] })
                     varianceBasisModel: root.workspaceController ? root.workspaceController.varianceBasis : ({ "fields": [] })
@@ -385,6 +389,24 @@ AppLayouts.WorkspaceFrame {
                         if (root.workspaceController !== null) {
                             root.workspaceController.setConfigurationPage(collection, page)
                         }
+                    }
+                    onActualPageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setActualPage(page)
+                    }
+                    onActualPageSizeRequested: function(pageSize) {
+                        if (root.workspaceController !== null) root.workspaceController.setActualPageSize(pageSize)
+                    }
+                    onActualSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setActualSort(key, direction)
+                    }
+                    onCommitmentPageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setCommitmentPage(page)
+                    }
+                    onCommitmentPageSizeRequested: function(pageSize) {
+                        if (root.workspaceController !== null) root.workspaceController.setCommitmentPageSize(pageSize)
+                    }
+                    onCommitmentSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setCommitmentSort(key, direction)
                     }
                     onForecastSelected: function(forecastId) {
                         if (root.workspaceController !== null)

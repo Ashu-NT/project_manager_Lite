@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import Decimal
 
 from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.modules.project_management.access.scope_permissions import filter_project_rows
@@ -57,11 +58,11 @@ class DashboardPortfolioMixin:
             "late_tasks": 0,
         }
         cost_totals = {
-            "total_planned_cost": 0.0,
-            "total_actual_cost": 0.0,
-            "total_committed_cost": 0.0,
-            "cost_variance": 0.0,
-            "committment_variance": 0.0,
+            "total_planned_cost": Decimal("0"),
+            "total_actual_cost": Decimal("0"),
+            "total_committed_cost": Decimal("0"),
+            "cost_variance": Decimal("0"),
+            "committment_variance": Decimal("0"),
         }
         earliest_start: date | None = None
         latest_end: date | None = None
@@ -83,7 +84,7 @@ class DashboardPortfolioMixin:
             for key in task_totals:
                 task_totals[key] += int(getattr(kpi, key, 0) or 0)
             for key in cost_totals:
-                cost_totals[key] += float(getattr(kpi, key, 0.0) or 0.0)
+                cost_totals[key] += Decimal(str(getattr(kpi, key, 0) or 0))
 
             if kpi.start_date is not None:
                 earliest_start = kpi.start_date if earliest_start is None else min(earliest_start, kpi.start_date)
@@ -115,7 +116,7 @@ class DashboardPortfolioMixin:
                     progress_percent=progress_percent,
                     late_tasks=int(kpi.late_tasks or 0),
                     critical_tasks=int(kpi.critical_tasks or 0),
-                    cost_variance=float(kpi.cost_variance or 0.0),
+                    cost_variance=Decimal(str(kpi.cost_variance or 0)),
                     risk_score=risk_score,
                 )
             )
@@ -199,11 +200,12 @@ class DashboardPortfolioMixin:
         tasks_not_started: int = 0,
         critical_tasks: int = 0,
         late_tasks: int = 0,
-        total_planned_cost: float = 0.0,
-        total_actual_cost: float = 0.0,
-        total_committed_cost: float = 0.0,
-        cost_variance: float = 0.0,
-        committment_variance: float = 0.0,
+        financial_detail_included: bool = True,
+        total_planned_cost: Decimal = Decimal("0"),
+        total_actual_cost: Decimal = Decimal("0"),
+        total_committed_cost: Decimal = Decimal("0"),
+        cost_variance: Decimal = Decimal("0"),
+        committment_variance: Decimal = Decimal("0"),
     ) -> ProjectKPI:
         duration_working_days = None
         if start_date is not None and end_date is not None:
@@ -226,6 +228,7 @@ class DashboardPortfolioMixin:
             cost_variance=cost_variance,
             total_committed_cost=total_committed_cost,
             committment_variance=committment_variance,
+            financial_detail_included=financial_detail_included,
         )
 
     @staticmethod
@@ -235,9 +238,11 @@ class DashboardPortfolioMixin:
             score += 25.0
         score += float(kpi.late_tasks or 0) * 12.0
         score += float(kpi.critical_tasks or 0) * 4.0
-        if float(kpi.total_planned_cost or 0.0) > 0.0 and float(kpi.cost_variance or 0.0) > 0.0:
-            score += (float(kpi.cost_variance or 0.0) / float(kpi.total_planned_cost or 1.0)) * 20.0
-        elif float(kpi.cost_variance or 0.0) > 0.0:
+        planned_cost = Decimal(str(kpi.total_planned_cost or 0))
+        cost_variance = Decimal(str(kpi.cost_variance or 0))
+        if planned_cost > 0 and cost_variance > 0:
+            score += float(cost_variance / planned_cost) * 20.0
+        elif cost_variance > 0:
             score += 8.0
         return score
 
@@ -247,7 +252,7 @@ class DashboardPortfolioMixin:
             status_value == ProjectStatus.ON_HOLD.value
             or int(kpi.late_tasks or 0) > 0
             or int(kpi.critical_tasks or 0) > 0
-            or float(kpi.cost_variance or 0.0) > 0.0
+            or Decimal(str(kpi.cost_variance or 0)) > 0
         )
 
     @staticmethod
@@ -270,7 +275,7 @@ class DashboardPortfolioMixin:
         *,
         portfolio: DashboardPortfolio,
         resource_load: list[ResourceLoadRow],
-        cost_variance: float,
+        cost_variance: Decimal,
     ) -> list[str]:
         alerts: list[str] = []
         if portfolio.projects_total == 0:
@@ -286,8 +291,8 @@ class DashboardPortfolioMixin:
         ]
         if overloaded:
             alerts.append(f"{len(overloaded)} resource(s) exceed capacity across the portfolio.")
-        if float(cost_variance or 0.0) > 0.0:
-            alerts.append(f"Portfolio actual cost exceeds plan by {float(cost_variance):.2f}.")
+        if cost_variance > 0:
+            alerts.append(f"Portfolio actual cost exceeds plan by {cost_variance:.2f}.")
         if portfolio.project_rankings and portfolio.project_rankings[0].risk_score > 0.0:
             top = portfolio.project_rankings[0]
             alerts.append(
