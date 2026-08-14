@@ -140,66 +140,6 @@ class _FakeCollaborationService:
             ]
         }
 
-    def list_workspace_snapshot(self, *, limit: int = 200) -> SimpleNamespace:
-        assert limit == 200
-        return SimpleNamespace(
-            notifications=[
-                SimpleNamespace(
-                    notification_type="approval",
-                    entity_type="approval_request",
-                    entity_id="approval-1",
-                    headline="Approval requested for Weekly Freeze",
-                    body_preview="Baseline comparison needs governance review.",
-                    actor_username="alex",
-                    created_at=datetime(2026, 5, 1, 9, 30),
-                    project_id="proj-1",
-                    project_name="Plant Upgrade",
-                    attention=True,
-                )
-            ],
-            inbox=[
-                SimpleNamespace(
-                    comment_id="comment-1",
-                    task_id="task-1",
-                    task_name="Cable Pull",
-                    project_id="proj-1",
-                    project_name="Plant Upgrade",
-                    author_username="jamie",
-                    body_preview="Please review the updated execution window.",
-                    mentions=["planner"],
-                    created_at=datetime(2026, 5, 1, 8, 45),
-                    unread=True,
-                )
-            ],
-            recent_activity=[
-                SimpleNamespace(
-                    comment_id="comment-2",
-                    task_id="task-2",
-                    task_name="Commissioning Pack",
-                    project_id="proj-1",
-                    project_name="Plant Upgrade",
-                    author_username="morgan",
-                    body_preview="Draft punchlist is now linked for review.",
-                    mentions=[],
-                    created_at=datetime(2026, 5, 1, 8, 15),
-                    unread=False,
-                )
-            ],
-            active_presence=[
-                SimpleNamespace(
-                    task_id="task-1",
-                    task_name="Cable Pull",
-                    project_id="proj-1",
-                    project_name="Plant Upgrade",
-                    username="planner",
-                    display_name="Alex Taylor",
-                    activity="reviewing",
-                    last_seen_at=datetime(2026, 5, 1, 9, 35),
-                    is_self=True,
-                )
-            ],
-        )
-
     def mark_task_mentions_read(self, task_id: str) -> None:
         self.marked_task_ids.append(task_id)
 

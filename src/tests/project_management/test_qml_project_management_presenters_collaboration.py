@@ -265,6 +265,11 @@ def test_project_management_workspace_catalog_exposes_typed_collaboration_contro
     assert controller.mentions["pageSize"] == 1
     assert controller.mentions["totalCount"] == 1
 
+    controller.setInboxPage(2)
+    assert controller.inbox["page"] == 2
+    controller.setInboxSearchText("Cable")
+    assert controller.inbox["page"] == 1
+
 
 def test_collaboration_presenter_skips_null_approval_rows() -> None:
     class _FakeApprovalApi:
@@ -300,3 +305,65 @@ def test_collaboration_presenter_skips_null_approval_rows() -> None:
 
     assert len(workspace.approvals.items) == 1
     assert workspace.approvals.items[0].id == "approval-1"
+
+
+def test_collaboration_presenter_fetches_each_authoritative_owner_once() -> None:
+    class _CountingDesktopApi:
+        def __init__(self) -> None:
+            self.calls = {
+                "inbox": 0,
+                "mentions": 0,
+                "activity": 0,
+                "presence": 0,
+                "context": 0,
+            }
+
+        @staticmethod
+        def _page(page: int, page_size: int) -> SimpleNamespace:
+            return SimpleNamespace(items=(), total=0, page=page, page_size=page_size)
+
+        def query_inbox_page(self, **kwargs) -> SimpleNamespace:
+            self.calls["inbox"] += 1
+            return self._page(kwargs["page"], kwargs["page_size"])
+
+        def query_mentions_page(self, **kwargs) -> SimpleNamespace:
+            self.calls["mentions"] += 1
+            return self._page(kwargs["page"], kwargs["page_size"])
+
+        def list_recent_activity(self, **kwargs) -> tuple:
+            self.calls["activity"] += 1
+            return ()
+
+        def list_active_presence(self) -> tuple:
+            self.calls["presence"] += 1
+            return ()
+
+        def list_context_options(self) -> SimpleNamespace:
+            self.calls["context"] += 1
+            return SimpleNamespace(projects=(), people=())
+
+    class _CountingApprovalApi:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def list_requests(self, **kwargs) -> DesktopApiResult[tuple]:
+            self.calls += 1
+            return DesktopApiResult(ok=True, data=())
+
+    desktop_api = _CountingDesktopApi()
+    approval_api = _CountingApprovalApi()
+    presenter = ProjectCollaborationWorkspacePresenter(
+        desktop_api=desktop_api,
+        approval_api=approval_api,
+    )
+
+    presenter.build_workspace_state()
+
+    assert desktop_api.calls == {
+        "inbox": 1,
+        "mentions": 1,
+        "activity": 1,
+        "presence": 1,
+        "context": 1,
+    }
+    assert approval_api.calls == 1

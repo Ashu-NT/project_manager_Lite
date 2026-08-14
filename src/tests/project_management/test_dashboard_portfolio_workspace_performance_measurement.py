@@ -172,7 +172,7 @@ def test_measure_single_project_dashboard_and_portfolio_workspaces(
         (registers, "get_dashboard_snapshot", "register.get_dashboard_snapshot"),
         (baselines, "list_baselines", "baseline.list_baselines"),
         (baselines, "get_approved_baseline", "baseline.get_approved"),
-        (collaboration, "list_workspace_snapshot", "collaboration.workspace_snapshot"),
+        (collaboration, "list_recent_activity", "collaboration.recent_activity"),
         (approvals, "list_pending", "approval.list_pending"),
         (calendar_resolver, "resolve_range", "calendar.resolve_range"),
         (

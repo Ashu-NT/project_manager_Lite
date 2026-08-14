@@ -589,6 +589,34 @@ def test_collaboration_cross_project_reads_use_purpose_specific_scoped_readers()
     assert ".limit(max(0, int(presence_limit)))" not in reader_source
 
 
+def test_collaboration_r16_has_no_snapshot_or_duplicate_approval_authority() -> None:
+    collaboration_source = "\n".join(
+        path.read_text(encoding="utf-8")
+        for root in (
+            PM_ROOT / "application/collaboration",
+            PM_ROOT / "api/desktop/collaboration",
+            REPO_ROOT / "src/ui_qml/modules/project_management/presenters/collaboration",
+        )
+        for path in root.rglob("*.py")
+    )
+    approvals_builder = (
+        REPO_ROOT
+        / "src/ui_qml/modules/project_management/presenters/collaboration/approvals_builder.py"
+    ).read_text(encoding="utf-8")
+
+    assert "list_workspace_snapshot" not in collaboration_source
+    assert "CollaborationWorkspaceSnapshot" not in collaboration_source
+    assert "R1.6 TEMPORARY" not in collaboration_source
+    assert "approval_api.list_requests(" in approvals_builder
+    for forbidden in (
+        "ApprovalRequestORM",
+        "approval_requests",
+        "approve_and_apply",
+        "def approve_request",
+    ):
+        assert forbidden not in approvals_builder
+
+
 def test_budget_approval_uses_one_immutable_command_result_for_both_outcomes() -> None:
     assert is_dataclass(BudgetApprovalResult)
     assert BudgetApprovalResult.__dataclass_params__.frozen
