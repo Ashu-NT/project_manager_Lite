@@ -240,7 +240,7 @@ Item {
                 actions.splice(2, 0, {
                     "id": "reserve_material",
                     "label": "Reserve Material",
-                    "icon": "storage",
+                    "icon": "inventory",
                     "enabled": root.selectedTaskModel && root.selectedTaskModel.id && !isSummary ? true : false,
                     "danger": false
                 })

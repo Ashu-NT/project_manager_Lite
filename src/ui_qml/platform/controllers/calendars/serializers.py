@@ -19,7 +19,7 @@ def serialize_calendar_assignment(assignment) -> dict[str, object]:
 
 
 def serialize_assignment_groups(assignments: object) -> dict[str, object]:
-    from .admin_helpers import empty_calendar_detail_context
+    from .context import empty_calendar_detail_context
     if not isinstance(assignments, dict):
         return empty_calendar_detail_context()["assignments"]
     return {

@@ -31,7 +31,7 @@ Item {
                     : "Inventory reservation capabilities are not enabled.")
             busy: root.isBusy
             actions: [
-                { "id": "open", "label": "Open Reservations", "icon": "storage", "enabled": root.canOpenReservations, "danger": false }
+                { "id": "open", "label": "Open Reservations", "icon": "inventory", "enabled": root.canOpenReservations, "danger": false }
             ]
             onActionTriggered: function(actionId) {
                 if (actionId === "open") root.openReservationsRequested()

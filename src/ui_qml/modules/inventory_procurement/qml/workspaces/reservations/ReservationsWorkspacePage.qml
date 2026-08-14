@@ -47,7 +47,7 @@ AppLayouts.WorkspaceFrame {
         if (idx !== 0) return []
         const st = root.selectedReservationModel.state || {}
         const actions = []
-        if (st.canIssue)   actions.push({ "id": "issue",   "label": "Issue",   "icon": "arrow_down", "enabled": true, "danger": false })
+        if (st.canIssue)   actions.push({ "id": "issue",   "label": "Issue",   "icon": "chevron_down", "enabled": true, "danger": false })
         if (st.canRelease) actions.push({ "id": "release", "label": "Release", "icon": "approve",    "enabled": true, "danger": false })
         if (st.canCancel)  actions.push({ "id": "cancel",  "label": "Cancel",  "icon": "reject",     "enabled": true, "danger": true  })
         return actions

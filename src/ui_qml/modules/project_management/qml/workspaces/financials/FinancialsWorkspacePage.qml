@@ -104,7 +104,7 @@ AppLayouts.WorkspaceFrame {
                 Boolean(state.canApprove) ? {
                     "id": "approve_actual",
                     "label": "Approve",
-                    "icon": "success",
+                    "icon": "approve",
                     "enabled": !busy,
                     "danger": false
                 } : null,
@@ -135,7 +135,7 @@ AppLayouts.WorkspaceFrame {
             {
                 "id": "export_excel",
                 "label": "Export Excel",
-                "icon": "download",
+                "icon": "export",
                 "enabled": root.workspaceController
                     ? root.workspaceController.selectedProjectId.length > 0 : false,
                 "danger": false
@@ -143,7 +143,7 @@ AppLayouts.WorkspaceFrame {
             {
                 "id": "export_pdf",
                 "label": "Export PDF",
-                "icon": "download",
+                "icon": "export",
                 "enabled": root.workspaceController
                     ? root.workspaceController.selectedProjectId.length > 0 : false,
                 "danger": false

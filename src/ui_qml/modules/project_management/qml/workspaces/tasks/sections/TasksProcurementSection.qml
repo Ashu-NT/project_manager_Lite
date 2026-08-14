@@ -28,7 +28,7 @@ Item {
                 : "Procurement requisition capabilities are not enabled."
             busy: root.isBusy
             actions: [
-                { "id": "open", "label": "Open Procurement", "icon": "document", "enabled": root.canOpenProcurement, "danger": false }
+                { "id": "open", "label": "Open Procurement", "icon": "documents", "enabled": root.canOpenProcurement, "danger": false }
             ]
             onActionTriggered: function(actionId) {
                 if (actionId === "open") root.openProcurementRequested()

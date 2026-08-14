@@ -913,10 +913,14 @@ class FakePlatformApprovalApi:
     def __init__(self, rows: tuple[ApprovalRequestDto, ...]) -> None:
         self._rows = list(rows)
 
-    def list_requests(self, *, status=None, limit: int = 50) -> DesktopApiResult[tuple[ApprovalRequestDto, ...]]:
+    def list_requests(
+        self, *, status=None, entity_type=None, limit: int = 50
+    ) -> DesktopApiResult[tuple[ApprovalRequestDto, ...]]:
         rows = self._rows
         if status is not None:
             rows = [row for row in rows if row.status == status]
+        if entity_type is not None:
+            rows = [row for row in rows if row.entity_type == entity_type]
         return DesktopApiResult(ok=True, data=tuple(rows[:limit]))
 
     def approve_and_apply(self, command) -> DesktopApiResult[ApprovalRequestDto]:

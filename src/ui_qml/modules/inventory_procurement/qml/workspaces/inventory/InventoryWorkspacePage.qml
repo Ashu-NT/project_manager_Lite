@@ -62,7 +62,7 @@ AppLayouts.WorkspaceFrame {
         if (idx !== 0) return []
         if (root._isBalancesView)
             return [
-                { "id": "issue",    "label": "Issue",    "icon": "arrow_down", "enabled": true, "danger": false },
+                { "id": "issue",    "label": "Issue",    "icon": "chevron_down", "enabled": true, "danger": false },
                 { "id": "adjust",   "label": "Adjust",   "icon": "edit",       "enabled": true, "danger": false },
                 { "id": "transfer", "label": "Transfer", "icon": "transfer",   "enabled": true, "danger": false }
             ]

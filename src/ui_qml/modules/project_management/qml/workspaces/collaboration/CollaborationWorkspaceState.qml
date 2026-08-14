@@ -130,15 +130,15 @@ Item {
                 { "id": "approve",     "label": "Approve",  "icon": "approve",   "enabled": false },
                 { "id": "reject",      "label": "Reject",   "icon": "close",     "enabled": false, "danger": true },
                 { "id": "delegate",    "label": "Delegate", "icon": "workflow",  "enabled": false },
-                { "id": "open_source", "label": "Open Item","icon": "open",      "enabled": false }
+                { "id": "open_source", "label": "Open Item","icon": "view",      "enabled": false }
             ]
             if (panel === "mentions" || panel === "inbox") return [
                 { "id": "mark_read",   "label": "Mark Read",                        "icon": "approve",  "enabled": false },
                 { "id": "assign",      "label": "Assign",                           "icon": "workflow", "enabled": false },
                 { "id": "archive",     "label": "Archive",                          "icon": "close",    "enabled": false },
-                { "id": "open_source", "label": panel === "mentions" ? "Open Source" : "Open Task", "icon": "open", "enabled": false }
+                { "id": "open_source", "label": panel === "mentions" ? "Open Source" : "Open Task", "icon": "view", "enabled": false }
             ]
-            return [{ "id": "open_source", "label": "Open Source", "icon": "open", "enabled": false }]
+            return [{ "id": "open_source", "label": "Open Source", "icon": "view", "enabled": false }]
         }
         if (panel === "approvals") {
             const isPending = String(item.statusLabel || "").toLowerCase().indexOf("pending") >= 0
@@ -146,16 +146,16 @@ Item {
                 { "id": "approve",     "label": "Approve",  "icon": "approve",  "enabled": isPending },
                 { "id": "reject",      "label": "Reject",   "icon": "close",    "enabled": isPending, "danger": true },
                 { "id": "delegate",    "label": "Delegate", "icon": "workflow", "enabled": false },
-                { "id": "open_source", "label": "Open Item","icon": "open",     "enabled": true }
+                { "id": "open_source", "label": "Open Item","icon": "view",     "enabled": true }
             ]
         }
         if (panel === "mentions" || panel === "inbox") return [
             { "id": "mark_read",   "label": "Mark Read",  "icon": "approve",  "enabled": !!(item.state && item.state.taskId) },
             { "id": "assign",      "label": "Assign",     "icon": "workflow", "enabled": false },
             { "id": "archive",     "label": "Archive",    "icon": "close",    "enabled": false },
-            { "id": "open_source", "label": panel === "mentions" ? "Open Source" : "Open Task", "icon": "open", "enabled": true }
+            { "id": "open_source", "label": panel === "mentions" ? "Open Source" : "Open Task", "icon": "view", "enabled": true }
         ]
-        return [{ "id": "open_source", "label": "Open Source", "icon": "open", "enabled": true }]
+        return [{ "id": "open_source", "label": "Open Source", "icon": "view", "enabled": true }]
     }
 
     // ── Filtered/built rows ───────────────────────────────────────────────
@@ -405,12 +405,12 @@ Item {
             return [
                 { "id": "approve",     "label": "Approve",      "icon": "approve", "enabled": pending },
                 { "id": "reject",      "label": "Reject",       "icon": "close",   "enabled": pending, "danger": true },
-                { "id": "open_source", "label": "Open Source",  "icon": "open",    "enabled": true }
+                { "id": "open_source", "label": "Open Source",  "icon": "view",    "enabled": true }
             ]
         }
         return [
             { "id": "mark_read",   "label": "Mark Read",   "icon": "approve", "enabled": !!(st.taskId) },
-            { "id": "open_source", "label": "Open Source", "icon": "open",    "enabled": true }
+            { "id": "open_source", "label": "Open Source", "icon": "view",    "enabled": true }
         ]
     }
 }

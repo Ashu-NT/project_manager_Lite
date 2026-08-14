@@ -33,8 +33,8 @@ Item {
                     : "Task-linked material demand follows Inventory module availability.")
             busy: root.isBusy
             actions: [
-                { "id": "reservations", "label": "Open Reservations", "icon": "storage", "enabled": root.canOpenReservations, "danger": false },
-                { "id": "procurement", "label": "Open Procurement", "icon": "document", "enabled": root.canOpenProcurement, "danger": false }
+                { "id": "reservations", "label": "Open Reservations", "icon": "inventory", "enabled": root.canOpenReservations, "danger": false },
+                { "id": "procurement", "label": "Open Procurement", "icon": "documents", "enabled": root.canOpenProcurement, "danger": false }
             ]
             onActionTriggered: function(actionId) {
                 if (actionId === "reservations") root.openReservationsRequested()
