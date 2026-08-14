@@ -30,11 +30,21 @@ Item {
     readonly property var capacityPoolModel: root.workspaceController
         ? root.workspaceController.capacityPool
         : ({ "title": "Capacity Pool", "subtitle": "", "emptyState": "No capacity data available.", "items": [] })
+    readonly property var topAtRiskModel: root.workspaceController
+        ? root.workspaceController.topAtRiskProjects
+        : ({ "title": "Top At-Risk Projects", "subtitle": "", "emptyState": "", "items": [] })
+
+    // ── Primary tab bar (R3.4 six-tab IA) ──────────────────────────────────
+    readonly property var tabKeys: ["executive", "heatmap", "intake", "scenarios", "capacity", "dependencies"]
+    readonly property var tabLabels: ["Executive", "Heatmap", "Intake", "Scenarios", "Capacity", "Dependencies"]
+    readonly property int activeTabIndex: {
+        const key = root.workspaceController ? root.workspaceController.activeTab : "executive"
+        const idx = root.tabKeys.indexOf(key)
+        return idx >= 0 ? idx : 0
+    }
 
     // ── Mutable UI state ──────────────────────────────────────────────────
     property string selectedRowId:        ""
-    property int    bottomTab:            0
-    property string selectedFundingId:    ""
     property bool   detailOpen:           false
     property int    pendingDetailSection: 0
 
@@ -73,22 +83,4 @@ Item {
         return null
     }
 
-    readonly property var activityItems: {
-        return (root.recentActionsModel.items || []).map(function(item) {
-            return {
-                "title":       String(item.title       || ""),
-                "metaText":    String(item.metaText    || item.subtitle || ""),
-                "statusLabel": String(item.statusLabel || "")
-            }
-        })
-    }
-
-    // ── Helpers ───────────────────────────────────────────────────────────
-    function optionIndexForValue(options, value) {
-        const opts = options || []
-        for (let i = 0; i < opts.length; i += 1) {
-            if (String(opts[i].value || "") === String(value || "")) return i
-        }
-        return 0
-    }
 }

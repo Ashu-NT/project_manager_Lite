@@ -3,6 +3,18 @@ from types import SimpleNamespace
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 
 
+def _page(items, *, page, page_size, sort_key, sort_direction, search_text):
+    return SimpleNamespace(
+        items=tuple(items),
+        total=len(items),
+        page=page,
+        page_size=page_size,
+        sort_key=sort_key,
+        sort_direction=sort_direction,
+        search_text=search_text,
+    )
+
+
 class _FakePortfolioDesktopApi:
     def list_projects(self):
         return (
@@ -30,8 +42,8 @@ class _FakePortfolioDesktopApi:
             ),
         )
 
-    def list_intake_items(self, *, status=None):
-        rows = (
+    def _all_intake_items(self):
+        return (
             SimpleNamespace(
                 id="intake-1",
                 title="Packaging Line Expansion",
@@ -61,9 +73,18 @@ class _FakePortfolioDesktopApi:
                 version=1,
             ),
         )
+
+    def list_intake_items_page(
+        self, *, status=None, search_text="", page=1, page_size=25,
+        sort_key="updatedAt", sort_direction="desc",
+    ):
+        rows = self._all_intake_items()
         if status:
-            return tuple(row for row in rows if row.status == status)
-        return rows
+            rows = tuple(row for row in rows if row.status == status)
+        return _page(
+            rows, page=page, page_size=page_size,
+            sort_key=sort_key, sort_direction=sort_direction, search_text=search_text,
+        )
 
     def list_scenarios(self):
         return (
@@ -121,7 +142,7 @@ class _FakePortfolioDesktopApi:
             removed_intake_titles=(),
         )
 
-    def list_heatmap(self):
+    def _all_heatmap_rows(self):
         return (
             SimpleNamespace(
                 project_id="proj-1",
@@ -145,7 +166,25 @@ class _FakePortfolioDesktopApi:
             ),
         )
 
-    def list_dependencies(self):
+    def list_heatmap_page(
+        self, *, search_text="", status=None, page=1, page_size=25,
+        sort_key="projectName", sort_direction="asc",
+    ):
+        rows = self._all_heatmap_rows()
+        if search_text:
+            needle = search_text.casefold()
+            rows = tuple(row for row in rows if needle in row.project_name.casefold())
+        start = (page - 1) * page_size
+        page_rows = rows[start: start + page_size]
+        return _page(
+            page_rows, page=page, page_size=page_size,
+            sort_key=sort_key, sort_direction=sort_direction, search_text=search_text,
+        )
+
+    def list_top_at_risk_projects(self):
+        return self._all_heatmap_rows()
+
+    def _all_dependencies(self):
         return (
             SimpleNamespace(
                 dependency_id="dep-1",
@@ -162,10 +201,24 @@ class _FakePortfolioDesktopApi:
             ),
         )
 
+    def list_dependencies_page(
+        self, *, search_text="", page=1, page_size=25,
+        sort_key="updatedAt", sort_direction="desc",
+    ):
+        return _page(
+            self._all_dependencies(), page=page, page_size=page_size,
+            sort_key=sort_key, sort_direction=sort_direction, search_text=search_text,
+        )
+
     def get_executive_snapshot(self):
+        heatmap_rows = self._all_heatmap_rows()
+        dependency_rows = self._all_dependencies()
         return SimpleNamespace(
-            heatmap=self.list_heatmap(),
-            dependencies=self.list_dependencies(),
+            heatmap=heatmap_rows,
+            dependencies=dependency_rows,
+            top_at_risk_projects=heatmap_rows,
+            hot_project_count=sum(1 for row in heatmap_rows if row.pressure_label == "Hot"),
+            dependency_count=len(dependency_rows),
         )
 
     def list_recent_actions(self, *, limit=12):
@@ -206,23 +259,23 @@ def test_project_management_workspace_catalog_exposes_typed_portfolio_controller
     assert [item["title"] for item in controller.intakeItems["items"]] == [
         "Warehouse HVAC Refresh"
     ]
+    # Heatmap browse is server-paginated: total reflects the authoritative
+    # server-side count, not a client-materialized list length.
     assert controller.heatmapTotalCount == 2
-    assert controller.heatmapVisibleRowIds == ["proj-1", "proj-2"]
+    assert [row["title"] for row in controller.heatmap["items"]] == [
+        "Plant Upgrade", "Warehouse Retrofit",
+    ]
 
     controller.setHeatmapSearchText("Warehouse")
 
     assert controller.heatmapSearchText == "Warehouse"
     assert controller.heatmapTotalCount == 1
-    assert controller.heatmapVisibleRowIds == ["proj-2"]
+    assert [row["title"] for row in controller.heatmap["items"]] == ["Warehouse Retrofit"]
 
-    controller.setHeatmapSearchText("")
-    controller.setHeatmapPageSize(1)
+    # Executive aggregates (hot count, Top At-Risk) are independent of the
+    # Heatmap browse's current search/page state.
+    assert controller.hotProjectCount == 1
+    assert len(controller.topAtRiskProjects["items"]) == 2
 
-    assert controller.heatmapPageSize == 1
-    assert controller.heatmapPage == 1
-    assert controller.heatmapVisibleRowIds == ["proj-1"]
-
-    controller.setHeatmapPage(2)
-
-    assert controller.heatmapPage == 2
-    assert controller.heatmapVisibleRowIds == ["proj-2"]
+    controller.setActiveTab("intake")
+    assert controller.activeTab == "intake"

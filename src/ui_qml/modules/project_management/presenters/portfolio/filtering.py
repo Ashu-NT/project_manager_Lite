@@ -12,18 +12,15 @@ def normalize_filter(value: str, options, *, default_value: str) -> str:
 
 def build_empty_state(
     *,
-    filtered_intake_items,
-    all_intake_items,
+    intake_total: int,
     intake_status_filter: str,
     templates,
     scenarios,
 ) -> str:
-    if filtered_intake_items:
+    if intake_total > 0:
         return ""
-    if all_intake_items:
-        if intake_status_filter != "all":
-            return "No intake items match the current status filter."
-        return ""
+    if intake_status_filter != "all":
+        return "No intake items match the current status filter."
     if not templates:
         return "No scoring templates or intake items are available yet. Start by creating the first scoring template."
     if not scenarios:

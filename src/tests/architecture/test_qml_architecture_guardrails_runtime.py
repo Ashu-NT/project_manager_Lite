@@ -58,13 +58,14 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "register" / "RegisterWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "collaboration" / "CollaborationWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "PortfolioWorkspacePage.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "PortfolioToolbarSection.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "PortfolioIntakeSection.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "PortfolioTemplatesSection.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "PortfolioScenariosSection.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "PortfolioDependenciesSection.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "PortfolioExecutiveSection.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "PortfolioSummaryCard.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "sections" / "PortfolioGovernanceToolbar.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "sections" / "PortfolioSummaryCard.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "tabs" / "ExecutiveTab.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "tabs" / "HeatmapTab.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "tabs" / "IntakeTab.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "tabs" / "ScenariosTab.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "tabs" / "CapacityTab.qml",
+        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "portfolio" / "tabs" / "DependenciesTab.qml",
         UI_QML_ROOT
         / "modules/project_management/qml/workspaces/register/dialogs"
         / "RegisterEntryEditorDialog.qml",
@@ -158,14 +159,18 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
 
 
 def test_project_management_portfolio_heatmap_search_and_paging_are_controller_owned() -> None:
-    page_path = (
+    # R3.4: the Heatmap browse (search/page/pageSize) is now server-paginated
+    # (see PortfolioService.list_portfolio_heatmap_page) and lives in its own
+    # tab component rather than inline on the workspace page.
+    heatmap_tab_path = (
         UI_QML_ROOT
         / "modules"
         / "project_management"
         / "qml"
         / "workspaces"
         / "portfolio"
-        / "PortfolioWorkspacePage.qml"
+        / "tabs"
+        / "HeatmapTab.qml"
     )
     state_path = (
         UI_QML_ROOT
@@ -177,13 +182,13 @@ def test_project_management_portfolio_heatmap_search_and_paging_are_controller_o
         / "PortfolioWorkspaceState.qml"
     )
 
-    page_text = page_path.read_text(encoding="utf-8", errors="ignore")
+    heatmap_tab_text = heatmap_tab_path.read_text(encoding="utf-8", errors="ignore")
     state_text = state_path.read_text(encoding="utf-8", errors="ignore")
 
-    assert "setHeatmapSearchText" in page_text
-    assert "setHeatmapPage(" in page_text
-    assert "setHeatmapPageSize(" in page_text
-    assert "pagedHeatmapRows" not in page_text
+    assert "setHeatmapSearchText" in heatmap_tab_text
+    assert "setHeatmapPage(" in heatmap_tab_text
+    assert "setHeatmapPageSize(" in heatmap_tab_text
+    assert "pagedHeatmapRows" not in heatmap_tab_text
     assert "heatmapAllRows" not in state_text
     assert "pagedHeatmapRows" not in state_text
 

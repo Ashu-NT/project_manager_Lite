@@ -17,4 +17,15 @@ class PortfolioDependencyDesktopDto:
     created_at_label: str
 
 
-__all__ = ["PortfolioDependencyDesktopDto"]
+@dataclass(frozen=True)
+class PortfolioDependencyPageDto:
+    items: tuple[PortfolioDependencyDesktopDto, ...] = ()
+    total: int = 0
+    page: int = 1
+    page_size: int = 25
+    sort_key: str = "updatedAt"
+    sort_direction: str = "desc"
+    search_text: str = ""
+
+
+__all__ = ["PortfolioDependencyDesktopDto", "PortfolioDependencyPageDto"]

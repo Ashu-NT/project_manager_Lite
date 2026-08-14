@@ -356,3 +356,60 @@ def test_dependencies_page_rejects_pressure_as_a_sortable_key(services) -> None:
     # Falls back to the default (updatedAt) rather than raising or silently
     # local-sorting by the unsupported computed field.
     assert page.total == 2
+
+
+# ── R3.4 groundwork: desktop API pagination pass-through ────────────────
+
+
+def test_desktop_api_intake_page_passes_through_and_serializes(services) -> None:
+    from src.core.modules.project_management.api.desktop import (
+        build_project_management_portfolio_desktop_api,
+    )
+
+    _seed_intake_rows(services, 15)
+    api = build_project_management_portfolio_desktop_api(portfolio_service=services["portfolio_service"])
+
+    page1 = api.list_intake_items_page(page=1, page_size=10, sort_key="title", sort_direction="asc")
+    page2 = api.list_intake_items_page(page=2, page_size=10, sort_key="title", sort_direction="asc")
+
+    assert page1.total == 15
+    assert len(page1.items) == 10
+    assert len(page2.items) == 5
+    assert all(item.title.startswith("Intake") for item in page1.items)
+
+
+def test_desktop_api_heatmap_page_and_top_at_risk_are_distinct(services) -> None:
+    from src.core.modules.project_management.api.desktop import (
+        build_project_management_portfolio_desktop_api,
+    )
+
+    projects = _seed_projects_with_financial_profile(services, 3)
+    api = build_project_management_portfolio_desktop_api(portfolio_service=services["portfolio_service"])
+
+    page = api.list_heatmap_page(page=1, page_size=25, sort_key="projectName", sort_direction="asc")
+    top_at_risk = api.list_top_at_risk_projects()
+
+    assert page.total == len(projects)
+    assert {row.project_id for row in page.items} == {p.id for p in projects}
+    assert len(top_at_risk) == len(projects)  # fewer projects than the top_n bound
+
+
+def test_desktop_api_dependencies_page_serializes_project_labels(services) -> None:
+    from src.core.modules.project_management.api.desktop import (
+        build_project_management_portfolio_desktop_api,
+    )
+
+    projects = _seed_projects_with_financial_profile(services, 2)
+    portfolio = services["portfolio_service"]
+    portfolio.create_project_dependency(
+        predecessor_project_id=projects[0].id,
+        successor_project_id=projects[1].id,
+        summary="api-level check",
+    )
+    api = build_project_management_portfolio_desktop_api(portfolio_service=services["portfolio_service"])
+
+    page = api.list_dependencies_page(page=1, page_size=10)
+
+    assert page.total == 1
+    assert page.items[0].predecessor_project_name == projects[0].name
+    assert page.items[0].successor_project_name == projects[1].name

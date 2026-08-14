@@ -1,0 +1,7 @@
+module ProjectManagement.PortfolioTabs
+ExecutiveTab 1.0 ExecutiveTab.qml
+HeatmapTab 1.0 HeatmapTab.qml
+IntakeTab 1.0 IntakeTab.qml
+ScenariosTab 1.0 ScenariosTab.qml
+CapacityTab 1.0 CapacityTab.qml
+DependenciesTab 1.0 DependenciesTab.qml

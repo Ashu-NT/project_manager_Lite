@@ -72,19 +72,24 @@ def test_real_file_export_surfaces_remain_available() -> None:
 
 
 def test_portfolio_compare_presents_authoritative_analysis() -> None:
+    # R3.4: the scenario selector/evaluate/compare toolbar and the heatmap
+    # DataTable both moved off the shared workspace page into their own tabs
+    # (Scenarios / Heatmap) as part of the six-tab Portfolio IA.
     page = _read(WORKSPACES / "portfolio/PortfolioWorkspacePage.qml")
+    scenarios_tab = _read(WORKSPACES / "portfolio/tabs/ScenariosTab.qml")
+    heatmap_tab = _read(WORKSPACES / "portfolio/tabs/HeatmapTab.qml")
     toolbar = _read(
         WORKSPACES / "portfolio/sections/PortfolioGovernanceToolbar.qml"
     )
 
-    assert "evaluationModel:          root.workspaceController" in page
-    assert "comparisonModel:          root.workspaceController" in page
+    assert "evaluationModel: root.workspaceController" in scenarios_tab
+    assert "comparisonModel: root.workspaceController" in scenarios_tab
     assert "onClicked: analysisPopup.open()" in toolbar
     assert toolbar.count("PortfolioSummaryCard {") == 2
-    assert "state.bottomTab = 2" not in page
+    assert "bottomTab" not in page
     assert "Evaluate Scenario" not in page
     assert '"id": "evaluate"' not in page
-    assert "multiSelect:    false" in page
+    assert "multiSelect: false" in heatmap_tab
 
 
 def test_scheduling_comparison_is_selector_driven_not_refresh_backed() -> None:

@@ -8,11 +8,10 @@ from src.ui_qml.modules.project_management.view_models.portfolio import (
 
 def build_overview(
     *,
-    filtered_intake_items,
-    intake_items,
-    scenarios,
+    intake_total: int,
+    scenario_count: int,
     hot_projects: int,
-    dependencies,
+    dependency_count: int,
     active_template,
 ) -> PortfolioOverviewViewModel:
     return PortfolioOverviewViewModel(
@@ -21,22 +20,22 @@ def build_overview(
         metrics=(
             PortfolioMetricViewModel(
                 label="Intake",
-                value=str(len(filtered_intake_items)),
-                supporting_text=f"{len(intake_items)} total ideas in the current PM portfolio.",
+                value=str(intake_total),
+                supporting_text="Total ideas in the current PM portfolio.",
             ),
             PortfolioMetricViewModel(
                 label="Scenarios",
-                value=str(len(scenarios)),
+                value=str(scenario_count),
                 supporting_text="Saved what-if portfolios ready for evaluation.",
             ),
             PortfolioMetricViewModel(
                 label="Hot projects",
                 value=str(hot_projects),
-                supporting_text="Projects currently marked with delivery pressure.",
+                supporting_text="Projects currently marked with delivery pressure, across the full accessible portfolio.",
             ),
             PortfolioMetricViewModel(
                 label="Dependencies",
-                value=str(len(dependencies)),
+                value=str(dependency_count),
                 supporting_text="Cross-project sequencing links tracked at portfolio level.",
             ),
             PortfolioMetricViewModel(
