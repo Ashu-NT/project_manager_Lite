@@ -265,6 +265,7 @@ class ProjectManagementRegisterWorkspaceController(
             )
             self._set_entry_total_count(workspace_state.total_count)
             self._set_entry_page(workspace_state.page)
+            self._set_entry_page_size(workspace_state.page_size)
             self._set_entry_sort_key(workspace_state.sort_key)
             self._set_entry_sort_direction(
                 1 if workspace_state.sort_direction == "desc" else 0

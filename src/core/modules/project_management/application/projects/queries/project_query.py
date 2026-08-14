@@ -7,7 +7,10 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectRepository,
 )
-from src.core.modules.project_management.application.common.pagination import PageRequest
+from src.core.modules.project_management.application.common.pagination import (
+    PageRequest,
+    normalize_page_for_total,
+)
 from src.core.modules.project_management.contracts.reads.projects import (
     ProjectCatalogReadPage,
     ProjectCatalogReader,
@@ -77,7 +80,7 @@ class ProjectQueryMixin:
             allowed_project_ids = tuple(
                 sorted(self._user_session.project_ids_for("project.read"))
             )
-        return self._project_catalog_reader.read_page(
+        read_kwargs = dict(
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,
             allowed_project_ids=allowed_project_ids,
@@ -87,6 +90,16 @@ class ProjectQueryMixin:
             page_size=page_request.page_size,
             sort=sort,
         )
+        result = self._project_catalog_reader.read_page(**read_kwargs)
+        normalized_page = normalize_page_for_total(
+            page=result.page,
+            page_size=result.page_size,
+            total=result.filtered_total,
+        )
+        if normalized_page != result.page:
+            read_kwargs["page"] = normalized_page
+            result = self._project_catalog_reader.read_page(**read_kwargs)
+        return result
 
     def list_for_task_workspace(self) -> list[Project]:
         permission_codes = ("project.read", "task.read", "task.manage")

@@ -12,8 +12,7 @@ def set_task_page(controller, page: int) -> None:
 def set_task_page_size(controller, page_size: int) -> None:
     if page_size <= 0 or page_size == controller._task_page_size:
         return
-    controller._task_page_size = page_size
-    controller.taskPageSizeChanged.emit()
+    controller._set_task_page_size(page_size)
     controller._set_task_page(1)
     controller.refresh()
 

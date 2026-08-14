@@ -6,7 +6,10 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.contracts.repositories.resources.resource import (
     ResourceRepository,
 )
-from src.core.modules.project_management.application.common.pagination import PageRequest
+from src.core.modules.project_management.application.common.pagination import (
+    PageRequest,
+    normalize_page_for_total,
+)
 from src.core.modules.project_management.contracts.reads.resources import (
     ResourceCatalogReadPage,
     ResourceCatalogReader,
@@ -65,7 +68,7 @@ class ResourceQueryMixin:
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="list resource catalog"
         )
-        return self._resource_catalog_reader.read_page(
+        read_kwargs = dict(
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,
             search_text=str(search_text or "").strip(),
@@ -75,6 +78,16 @@ class ResourceQueryMixin:
             page_size=page_request.page_size,
             sort=sort,
         )
+        result = self._resource_catalog_reader.read_page(**read_kwargs)
+        normalized_page = normalize_page_for_total(
+            page=result.page,
+            page_size=result.page_size,
+            total=result.filtered_total,
+        )
+        if normalized_page != result.page:
+            read_kwargs["page"] = normalized_page
+            result = self._resource_catalog_reader.read_page(**read_kwargs)
+        return result
 
     def list_for_project_workspace(
         self,

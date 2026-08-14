@@ -7,7 +7,7 @@ def set_search_text(controller, search_text: str) -> None:
         return
     controller._set_search_text(normalized)
     controller._set_selected_task_view_name("")
-    controller._task_page = 1
+    controller._set_task_page(1)
     controller.refresh()
 
 
@@ -17,7 +17,7 @@ def set_status_filter(controller, status_filter: str) -> None:
         return
     controller._set_selected_status_filter(normalized)
     controller._set_selected_task_view_name("")
-    controller._task_page = 1
+    controller._set_task_page(1)
     controller.refresh()
 
 
@@ -27,7 +27,7 @@ def set_priority_filter(controller, priority_filter: str) -> None:
         return
     controller._set_selected_priority_filter(normalized)
     controller._set_selected_task_view_name("")
-    controller._task_page = 1
+    controller._set_task_page(1)
     controller.refresh()
 
 
@@ -37,7 +37,7 @@ def set_schedule_filter(controller, schedule_filter: str) -> None:
         return
     controller._set_selected_schedule_filter(normalized)
     controller._set_selected_task_view_name("")
-    controller._task_page = 1
+    controller._set_task_page(1)
     controller.refresh()
 
 
@@ -55,7 +55,7 @@ def clear_filters(controller) -> None:
     controller._set_selected_priority_filter("all")
     controller._set_selected_schedule_filter("all")
     controller._set_selected_task_view_name("")
-    controller._task_page = 1
+    controller._set_task_page(1)
     controller.refresh()
 
 

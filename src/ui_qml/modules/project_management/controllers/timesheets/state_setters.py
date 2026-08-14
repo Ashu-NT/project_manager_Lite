@@ -129,6 +129,13 @@ def set_queue_page(controller, v: int) -> None:
     controller.queuePageChanged.emit()
 
 
+def set_queue_page_size(controller, v: int) -> None:
+    if v == controller._queue_page_size:
+        return
+    controller._queue_page_size = v
+    controller.queuePageSizeChanged.emit()
+
+
 def set_queue_total_count(controller, v: int) -> None:
     if v == controller._queue_total_count:
         return
@@ -187,6 +194,7 @@ __all__ = [
     "set_period_options",
     "set_project_options",
     "set_queue_page",
+    "set_queue_page_size",
     "set_queue_status_options",
     "set_queue_resource_options",
     "set_queue_search_text",

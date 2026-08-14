@@ -166,12 +166,17 @@ def test_collaboration_inbox_filters_by_project_scope_and_marks_mentions_read(se
 
     first_page = collaboration.query_mentions_page(page=1, page_size=2)
     second_page = collaboration.query_mentions_page(page=2, page_size=2)
+    beyond_last_page = collaboration.query_mentions_page(page=99, page_size=2)
     search_page = collaboration.query_mentions_page(search_text="Second note")
 
     assert first_page.total == 3
     assert second_page.total == 3
     assert len(first_page.items) == 2
     assert len(second_page.items) == 1
+    assert beyond_last_page.page == 2
+    assert [item.comment_id for item in beyond_last_page.items] == [
+        item.comment_id for item in second_page.items
+    ]
     assert {item.comment_id for item in first_page.items}.isdisjoint(
         {item.comment_id for item in second_page.items}
     )

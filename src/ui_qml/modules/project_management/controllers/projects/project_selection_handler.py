@@ -39,7 +39,7 @@ def set_search_text(controller, text: str) -> None:
     if normalized == controller._search_text:
         return
     controller._set_search_text(normalized)
-    controller._project_page = 1
+    controller._set_project_page(1)
     controller.refresh()
 
 
@@ -48,7 +48,7 @@ def set_status_filter(controller, status_filter: str) -> None:
     if normalized == controller._selected_status_filter.lower():
         return
     controller._set_selected_status_filter(normalized)
-    controller._project_page = 1
+    controller._set_project_page(1)
     controller.refresh()
 
 
@@ -63,8 +63,7 @@ def set_project_page(controller, page: int) -> None:
 def set_project_page_size(controller, page_size: int) -> None:
     if page_size <= 0 or page_size == controller._project_page_size:
         return
-    controller._project_page_size = page_size
-    controller.projectPageSizeChanged.emit()
+    controller._set_project_page_size(page_size)
     controller._set_project_page(1)
     controller.refresh()
 

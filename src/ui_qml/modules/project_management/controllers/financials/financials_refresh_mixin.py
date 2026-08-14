@@ -78,6 +78,8 @@ class FinancialsRefreshMixin:
             self._set_ledger(
                 serialize_financials_collection_view_model(workspace_state.ledger)
             )
+            self._actual_page = workspace_state.ledger.page
+            self._transaction_page_size = workspace_state.ledger.page_size
             self._set_actual_sort_state(
                 workspace_state.actual_sort_key,
                 workspace_state.actual_sort_direction,
@@ -121,6 +123,8 @@ class FinancialsRefreshMixin:
             self._set_commitments(
                 serialize_financials_collection_view_model(workspace_state.commitments)
             )
+            self._commitment_page = workspace_state.commitments.page
+            self._transaction_page_size = workspace_state.commitments.page_size
             self._set_commitment_sort_state(
                 workspace_state.commitment_sort_key,
                 workspace_state.commitment_sort_direction,
@@ -149,12 +153,15 @@ class FinancialsRefreshMixin:
             self._set_budget_lines(
                 serialize_financials_collection_view_model(workspace_state.budget_lines)
             )
+            self._budget_line_page = workspace_state.budget_lines.page
+            self._configuration_page_size = workspace_state.budget_lines.page_size
             self._set_rate_cards(
                 serialize_financials_collection_view_model(workspace_state.rate_cards)
             )
             self._set_rate_lines(
                 serialize_financials_collection_view_model(workspace_state.rate_lines)
             )
+            self._rate_line_page = workspace_state.rate_lines.page
             self._set_planned_cost_versions(
                 serialize_financials_collection_view_model(
                     workspace_state.planned_cost_versions
@@ -163,6 +170,7 @@ class FinancialsRefreshMixin:
             self._set_planned_cost_lines(
                 serialize_financials_collection_view_model(workspace_state.planned_cost_lines)
             )
+            self._planned_cost_line_page = workspace_state.planned_cost_lines.page
             self._set_billing_profile(
                 serialize_financials_detail_view_model(workspace_state.billing_profile)
             )
@@ -174,6 +182,7 @@ class FinancialsRefreshMixin:
                     workspace_state.billing_preparations
                 )
             )
+            self._billing_preparation_page = workspace_state.billing_preparations.page
         except Exception as exc:  # pragma: no cover - defensive fallback
             self._set_error_message(str(exc))
         finally:

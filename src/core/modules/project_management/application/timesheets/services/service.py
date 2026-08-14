@@ -6,7 +6,10 @@ from src.core.modules.project_management.application.common.module_guard import 
     ProjectManagementModuleGuardMixin,
 )
 from src.core.platform.application.time_management.time import TimeService
-from src.core.modules.project_management.application.common.pagination import PageRequest
+from src.core.modules.project_management.application.common.pagination import (
+    PageRequest,
+    normalize_page_for_total,
+)
 from src.core.modules.project_management.contracts.reads.timesheets import (
     TimesheetReviewCriteria,
     TimesheetReviewReadPage,
@@ -74,7 +77,7 @@ class TimesheetService(
                     | self._user_session.project_ids_for("timesheet.lock")
                 )
             )
-        return self._timesheet_review_reader.read_page(
+        read_kwargs = dict(
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,
             allowed_project_ids=allowed_project_ids,
@@ -90,6 +93,16 @@ class TimesheetService(
             page=page_request.page,
             page_size=page_request.page_size,
         )
+        result = self._timesheet_review_reader.read_page(**read_kwargs)
+        normalized_page = normalize_page_for_total(
+            page=result.page,
+            page_size=result.page_size,
+            total=result.total,
+        )
+        if normalized_page != result.page:
+            read_kwargs["page"] = normalized_page
+            result = self._timesheet_review_reader.read_page(**read_kwargs)
+        return result
 
 
 __all__ = ["TimesheetService"]

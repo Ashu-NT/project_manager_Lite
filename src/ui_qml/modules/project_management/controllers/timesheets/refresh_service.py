@@ -85,6 +85,7 @@ def refresh_timesheets_workspace(controller) -> None:
         )
         controller._set_queue_total_count(workspace_state.queue_total_count)
         controller._set_queue_page(workspace_state.queue_page)
+        controller._set_queue_page_size(workspace_state.queue_page_size)
         controller._set_review_detail(
             serialize_timesheet_detail_view_model(workspace_state.review_detail)
         )

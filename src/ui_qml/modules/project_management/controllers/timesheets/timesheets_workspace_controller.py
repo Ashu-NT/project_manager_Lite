@@ -444,6 +444,9 @@ class ProjectManagementTimesheetsWorkspaceController(
     def _set_queue_page(self, v: int) -> None:
         _setters.set_queue_page(self, v)
 
+    def _set_queue_page_size(self, v: int) -> None:
+        _setters.set_queue_page_size(self, v)
+
     def _set_queue_total_count(self, v: int) -> None:
         _setters.set_queue_total_count(self, v)
 

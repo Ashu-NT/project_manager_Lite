@@ -165,6 +165,21 @@ def test_workspace_query_paginates_lines_without_corrupting_version_totals(servi
     assert len(result.rate_lines) == 1
     assert result.rate_line_total >= 2
 
+    beyond_last = services["finance_workspace_query"].get(
+        project.id,
+        budget_line_page=99,
+        rate_line_page=99,
+        planned_cost_line_page=99,
+        page_size=1,
+    )
+
+    assert beyond_last.budget_line_page == 2
+    assert len(beyond_last.budget_lines) == 1
+    assert beyond_last.rate_line_page == beyond_last.rate_line_total
+    assert len(beyond_last.rate_lines) == 1
+    assert beyond_last.planned_cost_line_page == 1
+    assert len(beyond_last.planned_cost_lines) == 1
+
 
 def test_desktop_projection_formats_canonical_workspace_without_recalculation(services) -> None:
     project = _seed_workspace(services)

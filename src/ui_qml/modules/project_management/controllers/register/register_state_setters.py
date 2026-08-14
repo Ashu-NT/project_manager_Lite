@@ -94,6 +94,12 @@ class RegisterStateSettersMixin:
         self._entry_page = v
         self.entryPageChanged.emit()
 
+    def _set_entry_page_size(self, v: int) -> None:
+        if v == self._entry_page_size:
+            return
+        self._entry_page_size = v
+        self.entryPageSizeChanged.emit()
+
     def _set_entry_total_count(self, v: int) -> None:
         if v == self._entry_total_count:
             return

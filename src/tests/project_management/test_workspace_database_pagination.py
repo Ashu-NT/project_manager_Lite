@@ -62,6 +62,9 @@ def test_project_catalog_sort_is_authoritative_across_pages(services) -> None:
     unsupported = project_service.query_catalog_page(
         sort_key="arbitrary_sql", sort_direction="desc", page=1, page_size=3
     )
+    beyond_last = project_service.query_catalog_page(
+        sort_key="title", sort_direction="asc", page=99, page_size=2
+    )
 
     assert [row.project.id for row in ascending_first.items] == [alpha.id, beta.id]
     assert [row.project.id for row in ascending_second.items] == [gamma.id]
@@ -72,6 +75,8 @@ def test_project_catalog_sort_is_authoritative_across_pages(services) -> None:
     assert [row.project.id for row in unsupported.items] == [alpha.id, beta.id, gamma.id]
     assert unsupported.sort.key == "title"
     assert unsupported.sort.direction.value == "asc"
+    assert beyond_last.page == 2
+    assert [row.project.id for row in beyond_last.items] == [gamma.id]
 
 
 def test_task_workspace_pages_effective_wbs_rollups_before_filtering(services) -> None:
@@ -171,6 +176,13 @@ def test_task_workspace_sort_is_authoritative_across_pages(services) -> None:
         page=1,
         page_size=3,
     )
+    beyond_last = task_service.query_workspace_page(
+        project_id=project.id,
+        sort_key="title",
+        sort_direction="asc",
+        page=99,
+        page_size=2,
+    )
 
     assert [row.id for row in ascending_first.items] == [alpha.id, beta.id]
     assert [row.id for row in ascending_second.items] == [gamma.id]
@@ -180,6 +192,8 @@ def test_task_workspace_sort_is_authoritative_across_pages(services) -> None:
     assert [row.id for row in unsupported.items] == [alpha.id, beta.id, gamma.id]
     assert unsupported.sort.key == "wbsCode"
     assert unsupported.sort.direction.value == "asc"
+    assert beyond_last.page == 2
+    assert [row.id for row in beyond_last.items] == [gamma.id]
 
 
 def test_resource_catalog_filters_aggregates_and_pages_in_database(services) -> None:
@@ -256,6 +270,9 @@ def test_resource_catalog_sort_is_authoritative_across_pages(services) -> None:
     unsupported = resource_service.query_catalog_page(
         sort_key="unsafe_sql", sort_direction="desc", page=1, page_size=3
     )
+    beyond_last = resource_service.query_catalog_page(
+        sort_key="title", sort_direction="asc", page=99, page_size=2
+    )
 
     assert [row.resource.id for row in ascending_first.items] == [alpha.id, beta.id]
     assert [row.resource.id for row in ascending_second.items] == [gamma.id]
@@ -265,6 +282,8 @@ def test_resource_catalog_sort_is_authoritative_across_pages(services) -> None:
     assert [row.resource.id for row in unsupported.items] == [alpha.id, beta.id, gamma.id]
     assert unsupported.sort.key == "catalog"
     assert unsupported.sort.direction.value == "asc"
+    assert beyond_last.page == 2
+    assert [row.resource.id for row in beyond_last.items] == [gamma.id]
 
 
 def test_register_catalog_filters_urgent_queue_and_pages_in_database(services) -> None:
@@ -389,6 +408,13 @@ def test_register_catalog_sort_is_authoritative_across_pages(services) -> None:
         page=1,
         page_size=3,
     )
+    beyond_last = register_service.query_catalog_page(
+        project_id=project.id,
+        sort_key="title",
+        sort_direction="asc",
+        page=99,
+        page_size=2,
+    )
 
     assert [row.entry.id for row in ascending_first.items] == [alpha.id, beta.id]
     assert [row.entry.id for row in ascending_second.items] == [gamma.id]
@@ -397,6 +423,8 @@ def test_register_catalog_sort_is_authoritative_across_pages(services) -> None:
     assert first.sort.direction.value == "desc"
     assert unsupported.sort.key == "triage"
     assert unsupported.sort.direction.value == "asc"
+    assert beyond_last.page == 2
+    assert [row.entry.id for row in beyond_last.items] == [gamma.id]
 
 
 def test_timesheet_review_queue_aggregates_and_pages_in_database(services) -> None:
@@ -492,6 +520,9 @@ def test_timesheet_review_query_filters_and_sorts_across_pages(services) -> None
     unsupported = timesheets.query_review_queue_page(
         sort_key="unsafe_sql", sort_direction="asc"
     )
+    beyond_last = timesheets.query_review_queue_page(
+        sort_key="title", sort_direction="asc", page=99, page_size=2
+    )
 
     assert [row.resource_name for row in ascending_first.items] == [
         "Aaron Reviewer",
@@ -509,6 +540,8 @@ def test_timesheet_review_query_filters_and_sorts_across_pages(services) -> None
     assert [row.resource_name for row in search_page.items] == ["Zoe Reviewer"]
     assert unsupported.sort.key == "submittedAt"
     assert unsupported.sort.direction.value == "desc"
+    assert beyond_last.page == 2
+    assert [row.resource_name for row in beyond_last.items] == ["Zoe Reviewer"]
 
 
 def test_workspace_page_query_budgets_are_constant(services) -> None:
