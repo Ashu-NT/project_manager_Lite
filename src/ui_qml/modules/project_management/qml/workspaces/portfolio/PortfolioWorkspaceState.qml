@@ -33,7 +33,6 @@ Item {
 
     // ── Mutable UI state ──────────────────────────────────────────────────
     property string selectedRowId:        ""
-    property var    selectedRowIds:       []
     property int    bottomTab:            0
     property string selectedFundingId:    ""
     property bool   detailOpen:           false

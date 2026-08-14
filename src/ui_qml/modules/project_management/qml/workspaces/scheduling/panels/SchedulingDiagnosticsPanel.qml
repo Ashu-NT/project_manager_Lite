@@ -49,14 +49,12 @@ Item {
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     actions: [
                         { "id": "refresh", "label": "Refresh Diagnostics", "icon": "refresh", "enabled": true },
-                        { "id": "run_cpm", "label": "Run CPM",             "icon": "approve",  "enabled": true },
-                        { "id": "export",  "label": "Export Report",       "icon": "export",   "enabled": true }
+                        { "id": "run_cpm", "label": "Run CPM",             "icon": "approve",  "enabled": true }
                     ]
                     onActionTriggered: function(actionId) {
                         if (root.workspaceController === null) return
                         if (actionId === "refresh") root.workspaceController.refresh()
                         else if (actionId === "run_cpm") root.workspaceController.recalculateSchedule()
-                        else if (actionId === "export") root.workspaceController.exportSchedule()
                     }
                 }
 
@@ -66,12 +64,11 @@ Item {
                     searchText: root.workspaceController ? root.workspaceController.diagnosticsSearchText : ""
                     searchPlaceholder: "Search diagnostics..."
                     showCustomize: true
-                    showExport: true
+                    showExport: false
                     showRefresh: false
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     onSearchChanged: function(text) { if (root.workspaceController) root.workspaceController.setDiagnosticsSearchText(text) }
                     onCustomizeClicked: diagnosticsTable.openColumnCustomizer(diagnosticsToolbar.customizeButtonItem)
-                    onExportRequested: { if (root.workspaceController !== null) root.workspaceController.exportSchedule() }
                 }
 
                 AppWidgets.DataTable {

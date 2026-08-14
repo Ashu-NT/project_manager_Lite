@@ -28,7 +28,6 @@ Component {
     Property { name: "heatmapTotalCount"; type: "int"; isReadonly: true }
     Property { name: "heatmapVisibleRowIds"; type: "QVariantList"; isReadonly: true }
     Method { name: "refresh" }
-    Method { name: "exportPortfolio" }
     Method { name: "setIntakeStatusFilter"; Parameter { name: "intakeStatusFilter"; type: "QString" } }
     Method { name: "selectScenario"; Parameter { name: "scenarioId"; type: "QString" } }
     Method { name: "selectCompareBase"; Parameter { name: "scenarioId"; type: "QString" } }

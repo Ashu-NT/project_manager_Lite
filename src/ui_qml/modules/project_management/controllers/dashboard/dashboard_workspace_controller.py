@@ -229,12 +229,5 @@ class ProjectManagementDashboardWorkspaceController(
     @Slot(str)
     def selectOperationalRow(self, row_id: str) -> None: self._select_operational_row_from_qml(row_id)
 
-    @Slot(result="QVariantMap")
-    def exportDashboard(self) -> DashboardMap:
-        message = "Export is not available here. Open the Reports section to generate dashboard summaries and project health exports."
-        self._set_error_message("")
-        self._set_feedback_message(message)
-        return {"ok": True, "message": message}
-
 
 __all__ = ["ProjectManagementDashboardWorkspaceController"]

@@ -214,7 +214,6 @@ Rectangle {
                     columns: root._riskColumns
                     sourceModel: root.workspaceController ? root.workspaceController.portfolioDependenciesTableModel : null
                     emptyText: root.dependenciesModel.emptyState || "No cross-project dependencies recorded."
-                    onRowSelected: function(rowId) {}
                 }
             }
 

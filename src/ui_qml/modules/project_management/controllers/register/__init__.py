@@ -40,9 +40,6 @@ from src.ui_qml.modules.project_management.controllers.register.register_mutatio
     generate_entity_code,
     update_entry,
 )
-from src.ui_qml.modules.project_management.controllers.register.register_export_handler import (
-    export_register,
-)
 
 __all__ = [
     "ProjectManagementRegisterWorkspaceController",
@@ -59,7 +56,6 @@ __all__ = [
     "default_selected_entry",
     "default_urgent_entries",
     "delete_entry",
-    "export_register",
     "generate_entity_code",
     "select_entry",
     "select_project",

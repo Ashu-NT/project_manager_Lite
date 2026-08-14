@@ -93,11 +93,6 @@ AppLayouts.WorkspaceFrame {
                 }
             }
 
-            onExportRequested: function() {
-                if (root.workspaceController !== null) {
-                    root.workspaceController.exportDashboard()
-                }
-            }
         }
 
         AppWidgets.InlineMessage {

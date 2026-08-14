@@ -22,7 +22,6 @@ Item {
     signal periodSelected(string periodKey)
     signal viewSelected(string viewKey)
     signal refreshRequested()
-    signal exportRequested()
 
     function optionValue(options, index) {
         const rows = options || []
@@ -244,12 +243,6 @@ Item {
                     onClicked: root.refreshRequested()
                 }
 
-                AppControls.SecondaryButton {
-                    enabled: !root.isLoading
-                    text: "Export"
-                    iconName: "export"
-                    onClicked: root.exportRequested()
-                }
             }
         }
 

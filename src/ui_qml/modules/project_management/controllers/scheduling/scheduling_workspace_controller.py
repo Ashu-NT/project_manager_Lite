@@ -18,7 +18,6 @@ from .filter_service import filter_rows
 from .mutation_handler import SchedulingMutationHandler
 from .scheduling_calculation_actions import (
     calculate_working_days,
-    export_schedule,
     load_variance_records_for_baseline,
     run_compute_schedule_impact,
 )
@@ -716,10 +715,6 @@ class ProjectManagementSchedulingWorkspaceController(
     @Slot("QVariantMap", result="QVariantMap")
     def calculateWorkingDays(self, payload: dict[str, object]) -> dict[str, object]:
         return calculate_working_days(self, payload)
-
-    @Slot(result="QVariantMap")
-    def exportSchedule(self) -> dict[str, object]:
-        return export_schedule(self)
 
     @Slot(str)
     def loadVarianceRecordsForBaseline(self, baseline_id: str) -> None:

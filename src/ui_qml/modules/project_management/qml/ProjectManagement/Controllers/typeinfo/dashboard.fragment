@@ -37,5 +37,4 @@ Component {
     Method { name: "setOperationalPage"; Parameter { name: "page"; type: "int" } }
     Method { name: "setOperationalPageSize"; Parameter { name: "pageSize"; type: "int" } }
     Method { name: "selectOperationalRow"; Parameter { name: "rowId"; type: "QString" } }
-    Method { name: "exportDashboard"; type: "QVariantMap" }
 }

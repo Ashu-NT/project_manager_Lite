@@ -114,7 +114,6 @@ AppLayouts.WorkspaceFrame {
                 detailOpen:            root._detailOpen
 
                 onRowActivated:        root._openDetail(0)
-                onExportRequested:     { if (root.workspaceController !== null) root.workspaceController.exportRegister() }
                 onCreateRequested:     dialogHostLoader.invoke("openCreateDialog")
                 onColumnsStateChanged: function(cols) { state.saveColumnState(cols) }
             }

@@ -140,7 +140,6 @@ Component {
     Method { name: "setOperationalPage"; Parameter { name: "page"; type: "int" } }
     Method { name: "setOperationalPageSize"; Parameter { name: "pageSize"; type: "int" } }
     Method { name: "selectOperationalRow"; Parameter { name: "rowId"; type: "QString" } }
-    Method { name: "exportDashboard"; type: "QVariantMap" }
 }
 
 
@@ -243,7 +242,6 @@ Component {
     Property { name: "heatmapVisibleRowIds"; type: "QVariantList"; isReadonly: true }
     Method { name: "load" }
     Method { name: "refresh" }
-    Method { name: "exportPortfolio" }
     Method { name: "setIntakeStatusFilter"; Parameter { name: "intakeStatusFilter"; type: "QString" } }
     Method { name: "selectScenario"; Parameter { name: "scenarioId"; type: "QString" } }
     Method { name: "selectCompareBase"; Parameter { name: "scenarioId"; type: "QString" } }
@@ -346,7 +344,6 @@ Component {
     Property { name: "selectedEntryId"; type: "QString"; isReadonly: true }
     Property { name: "urgentEntries"; type: "QVariantMap"; isReadonly: true }
     Method { name: "refresh" }
-    Method { name: "exportRegister" }
     Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
     Method { name: "setTypeFilter"; Parameter { name: "typeFilter"; type: "QString" } }
     Method { name: "setStatusFilter"; Parameter { name: "statusFilter"; type: "QString" } }
@@ -458,7 +455,6 @@ Component {
     Method { name: "updateDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "deleteDependency"; type: "QVariantMap"; Parameter { name: "dependencyId"; type: "QString" } }
     Method { name: "calculateWorkingDays"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
-    Method { name: "exportSchedule"; type: "QVariantMap" }
 }
 
 
@@ -609,7 +605,6 @@ Component {
     Property { name: "reviewQueue"; type: "QVariantMap"; isReadonly: true }
     Property { name: "reviewDetail"; type: "QVariantMap"; isReadonly: true }
     Method { name: "refresh" }
-    Method { name: "exportTimesheets" }
     Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
     Method { name: "selectAssignment"; Parameter { name: "assignmentId"; type: "QString" } }
     Method { name: "selectPeriod"; Parameter { name: "periodStart"; type: "QString" } }

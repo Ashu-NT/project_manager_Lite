@@ -22,7 +22,6 @@ Item {
 
     // ── Signals ───────────────────────────────────────────────────────────
     signal rowActivated()
-    signal exportRequested()
     signal createRequested()
     signal columnsStateChanged(var cols)
 
@@ -130,14 +129,13 @@ Item {
             showFilter:    true
             showCustomize: true
             showRefresh:   true
-            showExport:    true
+            showExport:    false
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
             onSearchChanged:   function(text) { if (root.workspaceController !== null) root.workspaceController.setSearchText(text) }
             onFilterClicked:   filterPopup.open()
             onCustomizeClicked: registerTable.openColumnCustomizer(tableToolbar.customizeButtonItem)
             onRefreshRequested: { if (root.workspaceController !== null) root.workspaceController.refresh() }
-            onExportRequested: root.exportRequested()
             onCreateRequested: root.createRequested()
         }
 
