@@ -99,6 +99,7 @@ class DashboardRefreshMixin:
                 workspace_state.operational_tables
             )
             self._raw_operational_tables = serialized_tables
+            self._set_attention_items(self._build_attention_items())
             self._set_operational_tabs(
                 serialize_dashboard_operational_tab_view_models(
                     workspace_state.operational_tabs

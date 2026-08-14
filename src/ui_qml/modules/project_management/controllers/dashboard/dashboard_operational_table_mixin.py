@@ -182,6 +182,42 @@ class DashboardOperationalTableMixin:
             return preferred
         return available_ids[0] if available_ids else ""
 
+    # Categories surfaced in the "Attention Required" panel and how to turn
+    # each table's own row shape into a normalized {title, subtitle,
+    # statusLabel} triple. All three source tables are already bounded/
+    # top_n/recent with real, truthful data (see the R3 Overview Scalable
+    # Queries classification) -- no new query, just a compact digest of
+    # data the Operational Views tabs already show in full.
+    _ATTENTION_CATEGORIES = (
+        ("delayed_tasks", "Delayed", "taskName", "owner"),
+        ("high_risks", "Risk", "title", "owner"),
+        ("pending_approvals", "Approval", "request", "requestedBy"),
+    )
+    _ATTENTION_ITEMS_PER_CATEGORY = 2
+
+    def _build_attention_items(self) -> DashboardObjectList:
+        tables_by_id = {
+            str(table.get("id", "") or ""): table for table in self._raw_operational_tables
+        }
+        items: DashboardObjectList = []
+        for table_id, category_label, title_key, subtitle_key in self._ATTENTION_CATEGORIES:
+            table = tables_by_id.get(table_id)
+            if table is None:
+                continue
+            for row in list(table.get("rows", []) or [])[: self._ATTENTION_ITEMS_PER_CATEGORY]:
+                items.append(
+                    {
+                        "id": str(row.get("id", "") or ""),
+                        "category": category_label,
+                        "title": str(row.get(title_key, "") or ""),
+                        "subtitle": str(row.get(subtitle_key, "") or ""),
+                        "statusLabel": str(row.get("statusLabel", "") or category_label),
+                        "routeId": str(row.get("routeId", "") or ""),
+                        "state": dict(row.get("state", {}) or {}),
+                    }
+                )
+        return items
+
     @staticmethod
     def _empty_operational_table() -> DashboardMap:
         return {

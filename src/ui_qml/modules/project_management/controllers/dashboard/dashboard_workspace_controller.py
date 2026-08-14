@@ -72,6 +72,7 @@ class ProjectManagementDashboardWorkspaceController(
     panelsChanged = Signal()
     chartsChanged = Signal()
     sectionsChanged = Signal()
+    attentionItemsChanged = Signal()
 
     def __init__(
         self,
@@ -122,6 +123,7 @@ class ProjectManagementDashboardWorkspaceController(
         self._charts: DashboardObjectList = []
         self._sections: DashboardObjectList = []
         self._raw_operational_tables: DashboardObjectList = []
+        self._attention_items: DashboardObjectList = []
         self._bind_domain_events()
 
     @Property("QVariantMap", notify=overviewChanged)
@@ -195,6 +197,9 @@ class ProjectManagementDashboardWorkspaceController(
 
     @Property("QVariantList", notify=sectionsChanged)
     def sections(self) -> DashboardObjectList: return self._sections
+
+    @Property("QVariantList", notify=attentionItemsChanged)
+    def attentionItems(self) -> DashboardObjectList: return self._attention_items
 
     @Slot()
     def load(self) -> None: self._load_dashboard()

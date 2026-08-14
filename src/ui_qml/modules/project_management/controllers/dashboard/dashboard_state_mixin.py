@@ -147,5 +147,11 @@ class DashboardStateMixin:
         self._sections = sections
         self.sectionsChanged.emit()
 
+    def _set_attention_items(self, attention_items: DashboardObjectList) -> None:
+        if attention_items == self._attention_items:
+            return
+        self._attention_items = attention_items
+        self.attentionItemsChanged.emit()
+
 
 __all__ = ["DashboardStateMixin"]
