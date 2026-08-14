@@ -80,11 +80,19 @@ AppLayouts.WorkspaceFrame {
 
             AppControls.Label {
                 anchors.centerIn: parent
-                visible: root._tenants.length === 0 && !root._loading
+                visible: root._tenants.length === 0 && !root._loading && root._err.length === 0
                 text: "No tenants available"
                 color: Theme.AppTheme.textMuted
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.bodySize
+            }
+
+            // R6.5: friendlier fallback than the raw danger banner when
+            // the underlying data call fails and leaves nothing to show.
+            AppWidgets.PermissionState {
+                anchors.fill: parent
+                visible: root._tenants.length === 0 && !root._loading && root._err.length > 0
+                message: root._err
             }
 
             ScrollView {

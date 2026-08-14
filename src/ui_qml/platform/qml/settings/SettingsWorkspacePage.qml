@@ -162,7 +162,7 @@ AppLayouts.WorkspaceFrame {
 
                     Sections.SettingsRuntimeSection {
                         anchors.fill: parent
-                        visible: root._activeSection === "runtime"
+                        visible: root._activeSection === "runtime" && root._err.length === 0
                         clip: true
                         workspaceController: root.workspaceController
                         shellModel: root.shellModel
@@ -172,7 +172,7 @@ AppLayouts.WorkspaceFrame {
 
                     Sections.SettingsModulesSection {
                         anchors.fill: parent
-                        visible: root._activeSection === "modules" && !root._detailOpen
+                        visible: root._activeSection === "modules" && !root._detailOpen && root._err.length === 0
                         workspaceController: root.workspaceController
                         moduleColumns: root._moduleColumns
                         moduleCount: root._moduleCount
@@ -188,7 +188,7 @@ AppLayouts.WorkspaceFrame {
 
                     Sections.SettingsIntegrationsSection {
                         anchors.fill: parent
-                        visible: root._activeSection === "integrations"
+                        visible: root._activeSection === "integrations" && root._err.length === 0
                         workspaceController: root.workspaceController
                         capColumns: root._capColumns
                         capCount: root._capCount
@@ -198,10 +198,18 @@ AppLayouts.WorkspaceFrame {
 
                     Sections.SettingsDiagnosticsSection {
                         anchors.fill: parent
-                        visible: root._activeSection === "sysinfo"
+                        visible: root._activeSection === "sysinfo" && root._err.length === 0
                         workspaceController: root.workspaceController
                         supportController: root.supportController
                         busy: root._busy
+                    }
+
+                    // R6.5: friendlier fallback than the raw danger banner
+                    // when the active section's underlying data call fails.
+                    AppWidgets.PermissionState {
+                        anchors.fill: parent
+                        visible: root._err.length > 0
+                        message: root._err
                     }
                 }
             }

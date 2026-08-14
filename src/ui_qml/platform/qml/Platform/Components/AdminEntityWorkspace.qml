@@ -95,7 +95,7 @@ ColumnLayout {
 
     AppWidgets.InlineMessage {
         Layout.fillWidth: true
-        visible: root.errorMessage.length > 0
+        visible: root.errorMessage.length > 0 && root._totalCount > 0
         tone: "danger"
         message: root.errorMessage
     }
@@ -111,6 +111,7 @@ ColumnLayout {
         id: _dataTable
         Layout.fillWidth: true
         Layout.fillHeight: true
+        visible: !(root.errorMessage.length > 0 && root._totalCount === 0)
 
         sourceModel: root.catalogModel
         columns: root.columns
@@ -120,5 +121,14 @@ ColumnLayout {
 
         onRowSelected: function(rowId) { root.rowSelected(rowId) }
         onRowActivated: function(rowId) { root.rowActivated(rowId) }
+    }
+
+    // R6.5: friendlier fallback than the raw danger banner when the
+    // underlying data call fails and leaves nothing to show.
+    AppWidgets.PermissionState {
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        visible: root.errorMessage.length > 0 && root._totalCount === 0
+        message: root.errorMessage
     }
 }

@@ -105,6 +105,13 @@ Item {
         const boundary = root._effectivePopupBoundary()
         const margin = Theme.AppTheme.spacingSm
 
+        if (!overlay || !boundary) {
+            // The popup can be constructed (and its width bound) before this
+            // item is parented into a window with a live Overlay -- fall back
+            // to a reasonable default until _positionPopup() runs for real.
+            return { "x": 0, "y": 0, "width": 280, "height": 280 }
+        }
+
         const topLeft = boundary.mapToItem(overlay, 0, 0)
 
         return {
@@ -128,6 +135,7 @@ Item {
 
     function _positionPopup() {
         const overlay = QQC2.Overlay.overlay
+        if (!overlay) return
         const bounds = root._popupBounds()
         const margin = Theme.AppTheme.spacingXs
 

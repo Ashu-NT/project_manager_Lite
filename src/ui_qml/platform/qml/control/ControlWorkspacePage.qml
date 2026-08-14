@@ -162,7 +162,7 @@ AppLayouts.WorkspaceFrame {
                 ColumnLayout {
                     Layout.fillWidth:  true
                     Layout.fillHeight: true
-                    visible: state.activePanel === "approvals" && !state.detailOpen
+                    visible: state.activePanel === "approvals" && !state.detailOpen && root._err.length === 0
                     spacing: 0
 
                     AppWidgets.TableToolbar {
@@ -202,7 +202,7 @@ AppLayouts.WorkspaceFrame {
                 ColumnLayout {
                     Layout.fillWidth:  true
                     Layout.fillHeight: true
-                    visible: state.activePanel === "audit"
+                    visible: state.activePanel === "audit" && root._err.length === 0
                     spacing: 0
 
                     AppWidgets.TableToolbar {
@@ -244,6 +244,14 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
 
+                // R6.5: friendlier fallback than the raw danger banner
+                // when the active panel's underlying data call fails.
+                AppWidgets.PermissionState {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    visible: root._err.length > 0
+                    message: root._err
+                }
             }
 
             // ── Approval detail overlay ───────────────────────────
