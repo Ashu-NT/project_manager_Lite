@@ -15,13 +15,11 @@ from src.core.modules.project_management.application.financials import (
     ProjectFinanceWorkspaceQuery,
 )
 from src.core.modules.project_management.application.projects import ProjectService
-from src.core.modules.project_management.application.financials.cost.entries.cost_entry_service import (
+from src.core.modules.project_management.contracts.reads.financials.sorting import (
     normalize_cost_entry_sort,
-)
-from src.core.modules.project_management.application.financials.commitments.commitment_service import (
     normalize_commitment_sort,
 )
-from src.core.modules.project_management.application.common.pagination import (
+from src.core.modules.project_management.contracts.reads.pagination import (
     normalize_offset_for_total,
     normalize_page_for_total,
 )

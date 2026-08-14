@@ -33,7 +33,9 @@ from src.core.modules.project_management.contracts.repositories.finance.cost_ent
 from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
     ProjectCostEntryRepository,
 )
-from src.core.modules.project_management.contracts.reads import ReadSort, ReadSortDirection
+from src.core.modules.project_management.contracts.reads.financials.sorting import (
+    normalize_cost_entry_sort,
+)
 from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectCostCodeRepository,
     ProjectFinancialProfileRepository,
@@ -69,19 +71,6 @@ from src.core.platform.domain.approval.policy import is_governance_required
 from src.core.platform.finance import EXCHANGE_RATE_STORAGE, Money, MoneyPayload
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
-
-
-COST_ENTRY_SORT_KEYS = frozenset({"title", "statusLabel", "metaText"})
-
-
-def normalize_cost_entry_sort(*, key: object, direction: object) -> ReadSort:
-    return ReadSort.normalize(
-        key=key,
-        direction=direction,
-        allowed_keys=COST_ENTRY_SORT_KEYS,
-        default_key="metaText",
-        default_direction=ReadSortDirection.DESCENDING,
-    )
 
 
 class ProjectCostEntryService(ProjectManagementModuleGuardMixin):

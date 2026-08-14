@@ -142,28 +142,24 @@ class CollaborationInboxQueryMixin:
             principal_mentions_only=principal_mentions_only,
             unread_only=bool(unread_only),
         )
-        result = self._workspace_reader.read_comment_page(
-            tenant_id=scope.tenant_id,
-            organization_id=scope.organization_id,
-            accessible_project_ids=tuple(project_names),
-            criteria=criteria,
-            page=request.page,
-            page_size=request.page_size,
-        )
+        def read_page(page_number: int):
+            return self._workspace_reader.read_comment_page(
+                tenant_id=scope.tenant_id,
+                organization_id=scope.organization_id,
+                accessible_project_ids=tuple(project_names),
+                criteria=criteria,
+                page=page_number,
+                page_size=request.page_size,
+            )
+
+        result = read_page(request.page)
         normalized_page = normalize_page_for_total(
             page=result.page,
             page_size=result.page_size,
             total=result.total,
         )
         if normalized_page != result.page:
-            result = self._workspace_reader.read_comment_page(
-                tenant_id=scope.tenant_id,
-                organization_id=scope.organization_id,
-                accessible_project_ids=tuple(project_names),
-                criteria=criteria,
-                page=normalized_page,
-                page_size=request.page_size,
-            )
+            result = read_page(normalized_page)
         return CollaborationInboxPage(
             items=tuple(
                 CollaborationInboxItem(

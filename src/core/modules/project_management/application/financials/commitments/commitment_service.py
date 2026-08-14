@@ -23,7 +23,9 @@ from src.core.modules.project_management.contracts.financial_sources.reference i
 from src.core.modules.project_management.contracts.repositories.finance.commitments.commitment import (
     ProjectCommitmentRepository,
 )
-from src.core.modules.project_management.contracts.reads import ReadSort, ReadSortDirection
+from src.core.modules.project_management.contracts.reads.financials.sorting import (
+    normalize_commitment_sort,
+)
 from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
     ProjectCostEntryRepository,
 )
@@ -67,19 +69,6 @@ from src.core.platform.finance import (
 from src.core.platform.integration.canonical_json import canonical_json_sha256
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
-
-
-COMMITMENT_SORT_KEYS = frozenset({"title", "statusLabel", "metaText"})
-
-
-def normalize_commitment_sort(*, key: object, direction: object) -> ReadSort:
-    return ReadSort.normalize(
-        key=key,
-        direction=direction,
-        allowed_keys=COMMITMENT_SORT_KEYS,
-        default_key="metaText",
-        default_direction=ReadSortDirection.DESCENDING,
-    )
 
 
 _SOURCE_STATE_MAP = {
