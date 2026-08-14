@@ -555,6 +555,9 @@ Review are closed. R1.6 is closed: Inbox and Mentions are authoritative pages;
 Activity is explicitly bounded recent collaboration; Approvals reuse the Platform
 owner without PM paging/search claims; Presence is a complete TTL-scoped current
 set; duplicate Team Updates and all snapshot/placeholder paths are removed.
+Final evidence is 668 passing PM tests, 69 focused query/controller/architecture
+tests, three constant-query-count measurement scenarios, and clean Collaboration
+workspace `qmllint` output.
 Portfolio, Dashboard, Finance
 pagination, no-op removal, and deny-safe capability presentation remain open.
 

@@ -90,6 +90,7 @@ class PMCollaborationController(QObject):
             return
         self._clear_current_task_presence()
 
+    @Slot(QObject)
     def on_destroyed_cleanup(self, *_args: object) -> None:
         try:
             self._presence_override_task_id = ""

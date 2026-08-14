@@ -1070,8 +1070,11 @@ Closure evidence:
   Platform approval owner per workspace build.
 - Purpose-query performance remains constant across 1, 5, and 12 projects: Inbox
   and Activity use four measured SQL statements; Presence uses three.
-- Focused Collaboration/architecture evidence passes 44 tests. The full PM run
-  reached 667 passes with one stale dashboard test-double failure; that test file
-  passes 2/2 after migration to `list_recent_activity`.
+- Final focused Collaboration/architecture/controller evidence passes 69 tests;
+  the purpose-query measurement passes 3/3 scenarios, and the collaboration QML
+  passes `qmllint` with synchronized controller type metadata.
+- The final full PM regression suite passes 668 tests. The former stale dashboard
+  test double now consumes `list_recent_activity`; no Collaboration snapshot or
+  Team Updates contract remains in production source or QML type metadata.
 
 R1.6 is closed. R1.7 and all R2/visual redesign work remain unstarted.

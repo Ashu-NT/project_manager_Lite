@@ -588,4 +588,7 @@ export actions were removed because no product contracts existed for them.
 
 The former `R1.6 TEMPORARY` snapshot family and its notification/audit-derived
 presentation types have been deleted with zero production consumers. No
-compatibility wrapper remains. R1.7 and R2 are outside this closure.
+compatibility wrapper remains. Closure verification records 668 passing PM tests,
+69 focused query/controller/architecture tests, three passing purpose-query
+measurement scenarios, and clean Collaboration workspace `qmllint` output. R1.7
+and R2 are outside this closure.
