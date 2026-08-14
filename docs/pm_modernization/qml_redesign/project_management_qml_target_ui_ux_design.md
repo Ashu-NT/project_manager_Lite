@@ -555,11 +555,18 @@ Review are closed. R1.6 is closed: Inbox and Mentions are authoritative pages;
 Activity is explicitly bounded recent collaboration; Approvals reuse the Platform
 owner without PM paging/search claims; Presence is a complete TTL-scoped current
 set; duplicate Team Updates and all snapshot/placeholder paths are removed.
-Final evidence is 668 passing PM tests, 69 focused query/controller/architecture
-tests, three constant-query-count measurement scenarios, and clean Collaboration
-workspace `qmllint` output.
-Portfolio, Dashboard, Finance
-pagination, no-op removal, and deny-safe capability presentation remain open.
+R1.7 is closed: Portfolio aggregate truth is independent of UI paging; Dashboard
+complete and bounded datasets expose truthful controls; Finance Actuals and
+Commitments use authoritative SQL pages/totals/sorting; financial calculation
+remains Decimal-exact; and Rebalance remains absent. R1.7 performance evidence
+records Dashboard at 89 SQL statements and Portfolio at 68 statements in the
+single-project fixture. R1.8 deny-safe capability presentation remains open.
+
+R1.7 does not implement any target visual architecture in this document. It
+only establishes trustworthy query/control foundations for later Overview,
+Portfolio, and Finance work. Accounting ownership remains unchanged: PM owns
+managerial project-finance projections, never statutory ledger, payment,
+invoice, tax, journal, or reconciliation truth.
 
 ### R2 - PM navigation and project context
 

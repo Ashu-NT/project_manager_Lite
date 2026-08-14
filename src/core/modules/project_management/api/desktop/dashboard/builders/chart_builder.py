@@ -160,15 +160,9 @@ def _build_burndown_fallback_chart(dashboard_data: Any) -> ProjectDashboardChart
 
 
 def _build_resource_chart(*, dashboard_data: Any, portfolio_mode: bool) -> ProjectDashboardChartDescriptor:
-    rows = sorted(
-        tuple(getattr(dashboard_data, "resource_load", []) or []),
-        key=lambda row: float(
-            getattr(row, "utilization_percent", row.total_allocation_percent) or 0.0
-        ),
-        reverse=True,
-    )
+    rows = tuple(getattr(dashboard_data, "resource_load", []) or [])
     title = "Cross-project Resource Load" if portfolio_mode else "Resource Load"
-    subtitle = "Top 8 resources by peak utilization pressure."
+    subtitle = "Up to 8 resources with peak utilization context."
     if not rows:
         return ProjectDashboardChartDescriptor(title=title, subtitle=subtitle, chart_type="bar", empty_state="No resource-load data is available yet.")
 

@@ -1077,4 +1077,97 @@ Closure evidence:
   test double now consumes `list_recent_activity`; no Collaboration snapshot or
   Team Updates contract remains in production source or QML type metadata.
 
-R1.6 is closed. R1.7 and all R2/visual redesign work remain unstarted.
+R1.6 is closed. R1.7 is closed below; all R2/visual redesign work remains
+unstarted.
+
+### 23.7 R1.7 Portfolio, Dashboard, and Finance query truthfulness
+
+Status: **closed on 2026-08-14**. The post-R1.6 production paths were audited
+again rather than inferred from the original R1 inventory.
+
+#### Portfolio classification and decision
+
+| Collection or value | Truth classification | R1.7 decision |
+|---|---|---|
+| Executive KPI, health, status, schedule/risk, and financial totals | Global authorized complete-domain calculation | Retained. Values are built before controller heatmap paging and never from a visible page. Tenant/organization and project authorization remain in the application/read boundaries. Portfolio monetary accumulation is now Decimal-exact. |
+| Heatmap | Complete authorized reader facts, then controller-local search/page | Retained as a valid complete-collection projection. Page-local header sorting is disabled because no authoritative pre-page sort contract exists. |
+| Intake, templates, scenarios, and dependencies | Complete scoped workspace collections | Retained; no hidden reader cap was found before overview/aggregate construction. |
+| Recent actions | Deliberately bounded latest 12 | Retained as explicitly recent, not presented as audit history. |
+| Rebalance | Unsupported no-op | Removed. No backend behavior was invented. |
+
+The portfolio performance/query-count guard remains green. The measured
+single-project fixture executes one heatmap read and records 68 SQL statements
+for the complete Portfolio workspace build (about 0.060 seconds in the final
+focused run). A regression with 51 projects proves portfolio KPI values include
+the complete authorized set and retain exact Decimal values independent of any
+UI page size. The existing `financial_detail_included` argument mismatch in the
+non-empty portfolio KPI builder was also fixed and is now preserved in the
+resulting KPI.
+
+#### Dashboard classification and decision
+
+| Dashboard data | Class | Final behavior |
+|---|---|---|
+| KPI overview, status rollup, portfolio health, financial totals, register summary, and resource totals | **A - global/authoritative aggregate** | Built from the complete selected-project or authorized-portfolio calculation. No operational table page contributes to these totals. The false approval KPI/count was removed because Platform currently exposes only a bounded list, not an authoritative count query. |
+| Project health, budget variance, high-risk, and resource operational tables | **D - complete small/materialized collection** | Controller-local search/page remains valid over the complete returned set. Header sorting is disabled rather than sorting one visible page. |
+| Critical-task watchlist | **C - top 8** | Hard bound enforced by the descriptor builder; title/subtitle disclose it; search and pagination are disabled. |
+| Milestone watchlist | **C - next 8** | Same explicit bounded treatment. |
+| Portfolio upcoming work | **C - next 20** | Bound is enforced after the selected-horizon filter; no complete-history controls are shown. |
+| Activity | **C - latest 24 from a bounded recent query** | Subtitle discloses latest-24 semantics; it is not presented as collaboration history. |
+| Pending approvals | **C - up to 120, Platform-owned** | Subtitle discloses the owner-returned bound; search/pagination are disabled and no global count is claimed. |
+| Status/cost/resource charts and overload/baseline panels | **C/D presentation projections** | Top/up-to-N subtitles now disclose slicing. Cost pressure is sorted across the complete ranking set before selecting eight; resource source-order compatibility is retained and labelled "up to 8." |
+
+The descriptor -> view model -> serializer -> controller -> QML chain now
+carries `collectionSemantics`, `supportsSearch`, and `supportsPagination`.
+Bounded controls are deny-safe at both QML and controller boundaries. Dashboard
+tables explicitly use `sortingMode: "none"`. The final measurement remains at
+89 SQL statements with one dashboard service call (about 0.077 seconds), so no
+R1.7 N+1 or query-count regression was introduced.
+
+#### Finance collection classification and decision
+
+| Finance collection | Classification | Final behavior |
+|---|---|---|
+| Actual/cost entries | Formerly incorrectly capped at first 50; now paginated | Controller owns page/page size and semantic sort. Desktop API/service/repository return authoritative total and SQL page. Allowed keys are `title`, `statusLabel` (displayed amount), and `metaText` (effective date), with stable ID tie-breaker. |
+| Commitments | Formerly incorrectly capped at first 50; now paginated | Same authoritative page/sort flow. Allowed keys map to PO-line reference, displayed amount, and delivery/order date, with stable ID tie-breaker. |
+| Budget lines, rate-card lines, planned-cost lines, billing preparations | Existing paginated authoritative collections | Retained; their project-scoped page metadata and controller navigation were already truthful. |
+| Budget/rate/planned versions, forecasts, changes, baselines, billing schedule | Complete selected-project domain collections | Retained. No arbitrary 50-row cap was found in the workspace path. |
+| Cost codes, currencies, profiles, and manual-entry options | Complete bounded reference/configuration data | Retained as selected-organization/project configuration, not transaction history. |
+| Report ledger source page | Deliberately bounded export page of 500 | Retained and already disclosed in the report basis. Control totals continue to use the complete reconciled snapshot. |
+| Ledger, payment, invoice, tax, journal, reconciliation, vendor accounting | Unsupported/Accounting-owned | Not implemented or broadened by R1.7. |
+
+Actuals and Commitments now flow through repository contracts carrying
+`ReadSort`, semantic allowlists, explicit SQL expressions, offset/limit, filtered
+total, and deterministic ID tie-breakers. Sort happens before pagination; sort
+changes reset the corresponding page to 1; refresh and page changes preserve
+controller query state. No arbitrary column interpolation exists.
+
+Finance aggregates were not redirected to visible pages. Budget, actual,
+commitment, forecast, variance, and remaining values continue to come from the
+canonical scoped financial facts/policy composition. `ProjectKPI`, reporting
+cost helpers, and portfolio aggregation now retain `Decimal` for calculation;
+conversion to float is limited to chart/risk-score presentation. Currency,
+rounding, PM ownership, and the Accounting handoff boundary are unchanged.
+
+#### R1.7 verification
+
+- Former-cap regressions create 55 Actuals and 55 Commitments, prove
+  authoritative total `55`, reach records at offsets 40 and 50, prove ascending
+  and descending SQL order across pages, and exclude a second project's Actual.
+- Dashboard regressions prove top-8 enforcement, complete-versus-bounded
+  metadata, removal of the false approval aggregate, and disabled local sorting
+  and bounded controls.
+- Portfolio regression proves 51-project aggregates include every project and
+  exactly retain `Decimal("0.51")`, `Decimal("1.02")`, and
+  `Decimal("0.255")` values.
+- Focused Finance/Portfolio/Dashboard query verification passes 22 tests; the
+  focused Dashboard/Portfolio/performance rerun passes 18 tests; architecture
+  and QML controller-member guardrails pass 24 tests.
+- The final broad PM run passes all 674 tests. It reports 33 existing
+  SQLAlchemy/SQLite warnings and no failures.
+- Targeted changed-workspace `qmllint` has no new missing Financials controller
+  members. Existing Dashboard/Portfolio generated-type warnings and two
+  pre-existing Commitments layout warnings remain outside query truthfulness.
+
+R1.7 changes no PM route, navigation model, visual architecture, Accounting
+boundary, or R2 design. R1.8 remains unstarted.

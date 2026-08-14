@@ -592,3 +592,32 @@ compatibility wrapper remains. Closure verification records 668 passing PM tests
 69 focused query/controller/architecture tests, three passing purpose-query
 measurement scenarios, and clean Collaboration workspace `qmllint` output. R1.7
 and R2 are outside this closure.
+
+## 19. Post-R0.5 R1.7 closure record
+
+R1.7 is closed without reopening the R0.5 repository map or beginning visual
+redesign. No files were moved and no QML-facing facade was split.
+
+The query-truthfulness changes are intentionally capability-local:
+
+- Portfolio retains complete authorized facts for aggregate construction,
+  disables misleading heatmap page-local sorting, removes the unsupported
+  Rebalance action, and keeps recent actions explicitly bounded.
+- Dashboard operational descriptors now publish complete versus bounded
+  semantics. Top-8, next-20/latest-24, and up-to-120 projections disclose their
+  bounds and do not expose complete-history search/pagination/sort controls.
+- Finance Actuals and Commitments now use controller-owned page and sort state,
+  typed desktop page DTOs, allowlisted `ReadSort`, SQL ordering before
+  offset/limit, authoritative totals, and stable ID tie-breakers.
+- Reporting and Portfolio financial calculation remains Decimal-exact; only
+  presentation charts/risk scores cross to float.
+- Generated/manual QML type metadata was synchronized for the new Financials
+  controller members. No compatibility wrapper or temporary R1.7 source was
+  introduced, so there is no R1.7 transition code to retire.
+
+Verification includes 22 focused query truthfulness tests, 18 affected
+Dashboard/Portfolio/performance tests, and 24 architecture/QML guardrail tests.
+The final broad PM run passes all 674 tests with no failures. Dashboard measures
+89 SQL statements and Portfolio 68 in the single-project fixture. R1.8 and R2
+remain outside this closure, and no commit was created by this implementation
+pass.
