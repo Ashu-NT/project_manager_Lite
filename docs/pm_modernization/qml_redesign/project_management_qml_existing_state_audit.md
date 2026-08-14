@@ -951,8 +951,15 @@ R1.2 is complete. `DataTable.sortingMode` now has three explicit behaviors:
 
 The default remains bound to the legacy `clientSideSorting` flag, so the 20
 existing non-PM consumer files retain client behavior without source changes.
-Focused shared-primitive and offscreen workspace verification passes (10 tests),
-including a repository-wide compatibility assertion for those non-PM consumers.
+Live offscreen component coverage now proves that a server-mode header request
+does not destroy controller bindings: the requested direction is emitted while
+the existing indicator remains authoritative, and later controller changes flow
+through the original `sortKey`/`sortDirection` bindings. The same runtime suite
+proves invalid mode is deny-safe without row/model sorting, `column.sortable`
+still blocks interaction, and both legacy `clientSideSorting` defaults retain
+their behavior. Shared, full-route, Platform, Maintenance, and Inventory QML
+regression verification passes (36 tests: five live sorting tests plus 31 shared
+and cross-module tests).
 
 ### 23.4 R1 core collection sorting implementation
 
@@ -972,7 +979,8 @@ The first authoritative sorting slice is complete:
 - Unsafe or unknown keys never become SQL. They normalize to the product default.
 
 Cross-page database, presenter/controller, shared primitive, and offscreen QML
-coverage is green in the combined R1 gate.
+coverage is green in the combined R1 gate. The focused Projects, Tasks,
+Resources, Register, and Scheduling R1.3/R1.4 query gate passes (31 tests).
 
 ### 23.5 R1 Timesheet Review authoritative query
 
