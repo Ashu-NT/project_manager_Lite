@@ -87,12 +87,11 @@ Item {
                     RowLayout {
                         anchors.fill: parent; anchors.leftMargin: Theme.AppTheme.marginMd; anchors.rightMargin: Theme.AppTheme.marginMd; spacing: Theme.AppTheme.spacingMd
                         AppControls.Label { Layout.preferredWidth: 120; text: "Theme Mode"; color: Theme.AppTheme.textMuted; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.smallSize; font.bold: true }
-                        AppControls.ComboBox {
-                            Layout.preferredWidth: 160
-                            model: ["Light", "Dark"]
-                            currentIndex: root.shellModel && root.shellModel.themeMode === "dark" ? 1 : 0
-                            onActivated: {
-                                if (root.shellModel) root.shellModel.setThemeMode(currentIndex === 1 ? "dark" : "light")
+                        AppControls.ToggleSwitch {
+                            checked: root.shellModel ? root.shellModel.themeMode === "dark" : false
+                            text: checked ? "Dark" : "Light"
+                            onToggled: {
+                                if (root.shellModel) root.shellModel.setThemeMode(checked ? "dark" : "light")
                             }
                         }
                         Item { Layout.fillWidth: true }
