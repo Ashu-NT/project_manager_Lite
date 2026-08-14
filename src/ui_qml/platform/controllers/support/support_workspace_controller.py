@@ -38,6 +38,7 @@ class PlatformSupportWorkspaceController(PlatformWorkspaceControllerBase):
     ) -> None:
         super().__init__(parent)
         self._presenter = presenter
+        self._loaded = False
         self._support_settings: dict[str, object] = {}
         self._support_paths: dict[str, object] = {}
         self._update_status: dict[str, object] = {}
@@ -49,7 +50,6 @@ class PlatformSupportWorkspaceController(PlatformWorkspaceControllerBase):
         }
         self._incident_id = ""
         self._bundle_state: dict[str, object] = self._empty_bundle_state()
-        self.refresh()
 
     @Property("QVariantMap", notify=supportSettingsChanged)
     def supportSettings(self) -> dict[str, object]:
@@ -77,6 +77,7 @@ class PlatformSupportWorkspaceController(PlatformWorkspaceControllerBase):
 
     @Slot()
     def refresh(self) -> None:
+        self._loaded = True
         self._set_is_loading(True)
         self._set_error_message("")
         if not self._incident_id:

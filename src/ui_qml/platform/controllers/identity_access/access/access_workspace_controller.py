@@ -40,10 +40,13 @@ class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
         self,
         *,
         presenter: PlatformAccessWorkspacePresenter,
+        runtime_api=None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self._presenter = presenter
+        self._runtime_api = runtime_api
+        self._loaded = False
         self._scope_type_options: list[dict[str, object]] = []
         self._selected_scope_type = ""
         self._scope_options: list[dict[str, object]] = []
@@ -58,7 +61,6 @@ class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
         self._scope_grants: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._security_users: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._bind_domain_events()
-        self.refresh()
 
     @Property("QVariantList", notify=scopeTypeOptionsChanged)
     def scopeTypeOptions(self) -> list[dict[str, object]]:
@@ -114,6 +116,7 @@ class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
 
     @Slot()
     def refresh(self) -> None:
+        self._loaded = True
         self._set_is_loading(True)
         self._set_error_message("")
         self._refresh_scope_type_options()
@@ -224,6 +227,9 @@ class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
             set_operation_result=self._set_operation_result,
             set_feedback_message=self._set_feedback_message,
         )
+
+    def _is_accessible(self) -> bool:
+        return self._has_permission(("access.manage",))
 
     def _bind_domain_events(self) -> None:
         for signal in (

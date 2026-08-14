@@ -116,6 +116,9 @@ AppLayouts.WorkspaceFrame {
                 root._activeSection = section
                 root._selectedRowId = ""
                 root._moduleDetailOpen = false
+                if (section === "sysinfo" && root.supportController) {
+                    root.supportController.ensureLoaded()
+                }
             }
         }
 

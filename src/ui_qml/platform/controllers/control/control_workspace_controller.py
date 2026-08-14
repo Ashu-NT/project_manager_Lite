@@ -39,11 +39,14 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
         *,
         overview_presenter: PlatformControlWorkspacePresenter,
         queue_presenter: PlatformControlQueuePresenter,
+        runtime_api=None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self._overview_presenter = overview_presenter
         self._queue_presenter = queue_presenter
+        self._runtime_api = runtime_api
+        self._loaded = False
         self._approval_queue_table_model = DynamicTableModel(self)
         self._audit_feed_table_model = DynamicTableModel(self)
         self._approval_queue: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
@@ -54,7 +57,6 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
         self._audit_operation_filter = ""
         self._audit_severity_filter = ""
         self._bind_domain_events()
-        self.refresh()
 
     @Property(str, notify=approvalStatusFilterChanged)
     def approvalStatusFilter(self) -> str:
@@ -139,6 +141,7 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
 
     @Slot()
     def refresh(self) -> None:
+        self._loaded = True
         self._set_is_loading(True)
         self._set_error_message("")
         self._set_overview(serialize_workspace_overview(self._overview_presenter.build_overview()))
@@ -180,6 +183,9 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
             operation=self._queue_presenter.reject_request,
             success_message="Approval request rejected.",
         )
+
+    def _is_accessible(self) -> bool:
+        return self._has_permission(("approval.request", "approval.decide", "audit.read"))
 
     def _bind_domain_events(self) -> None:
         for signal in (

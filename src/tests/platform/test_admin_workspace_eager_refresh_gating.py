@@ -1,22 +1,9 @@
-"""Eager-refresh gating -- do_refresh() previously fired all 9 entity
-controllers' desktop-API calls unconditionally, on every construction and
-every subsequent refresh, regardless of what the current user could
-actually access. A user with only e.g. employee.read still triggered
-Sites/Departments/Parties/Documents/Users/Calendars/Organizations desktop-
-API round trips that were always going to be denied server-side anyway.
 
-This gates do_refresh()'s 9-way fan-out through the same permission
-predicate PlatformNavigation.qml uses to decide nav-item visibility (see
-refresh_coordinator._ENTITY_PERMISSIONS), skipping the round trip entirely
-for entities the current session has no permission for. It is a pure
-client-side pre-filter: the backend still enforces every one of these
-independently, so this cannot broaden access, only skip work that would
-have been denied anyway.
-"""
 from __future__ import annotations
 
 from src.application.runtime import build_desktop_api_registry
 from src.core.platform.application.master_data.employee.employee_service import EmployeeService
+from src.core.platform.application.master_data.party.party_service import PartyService
 from src.core.platform.application.master_data.site.site_service import SiteService
 from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
@@ -62,12 +49,19 @@ def test_admin_console_refresh_skips_entities_the_session_cannot_access(services
 
     user_session = services["user_session"]
     original_principal = user_session.principal
+    # Zero permissions -- no entity's gate is satisfied, and (unlike a
+    # single-permission principal) nothing can incidentally pull in
+    # another entity's data as editor-dropdown reference options (e.g.
+    # Employees' refresh also populates its site/department dropdowns via
+    # list_sites()/list_departments() regardless of Sites/Departments
+    # access -- a deliberate, separate concern from workspace-page access,
+    # not something this gate is meant to touch).
     restricted_principal = UserSessionPrincipal(
         user_id=original_principal.user_id,
         username=original_principal.username,
         display_name=original_principal.display_name,
-        role_names=frozenset({"employee_viewer"}),
-        permissions=frozenset({"employee.read"}),
+        role_names=frozenset(),
+        permissions=frozenset(),
     )
     user_session.set_principal(restricted_principal)
     catalog.refreshCurrentPermissions()
@@ -82,11 +76,42 @@ def test_admin_console_refresh_skips_entities_the_session_cannot_access(services
         user_session.set_principal(original_principal)
         catalog.refreshCurrentPermissions()
 
-    # employee.read is present -> the Employees round trip still fires.
-    assert employee_counts["list_employees"] >= 1
-    # site.read / settings.manage are both absent -> the Sites round trip
-    # is skipped entirely, not just denied after being attempted.
+    assert employee_counts["list_employees"] == 0
     assert site_counts["list_sites"] == 0
+
+
+def test_admin_console_refresh_selectively_includes_only_granted_entities(services):
+    """party.read grants access to exactly one entity that has no cross-
+    dependency on any other (unlike Employees, whose refresh also
+    populates site/department dropdown options) -- a clean signal that the
+    gate is per-entity, not all-or-nothing."""
+    registry = build_desktop_api_registry(services)
+    catalog = PlatformWorkspaceCatalog(desktop_api_registry=registry)
+
+    user_session = services["user_session"]
+    original_principal = user_session.principal
+    restricted_principal = UserSessionPrincipal(
+        user_id=original_principal.user_id,
+        username=original_principal.username,
+        display_name=original_principal.display_name,
+        role_names=frozenset({"party_viewer"}),
+        permissions=frozenset({"party.read"}),
+    )
+    user_session.set_principal(restricted_principal)
+    catalog.refreshCurrentPermissions()
+
+    employee_counts, restore_employee = _instrument(EmployeeService, "list_employees")
+    party_counts, restore_party = _instrument(PartyService, "list_parties")
+    try:
+        catalog.adminWorkspace.refresh()
+    finally:
+        restore_employee()
+        restore_party()
+        user_session.set_principal(original_principal)
+        catalog.refreshCurrentPermissions()
+
+    assert party_counts["list_parties"] >= 1
+    assert employee_counts["list_employees"] == 0
 
 
 def test_admin_console_refresh_fails_open_when_runtime_api_missing():

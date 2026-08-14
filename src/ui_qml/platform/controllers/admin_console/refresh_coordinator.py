@@ -1,81 +1,45 @@
-"""Cross-capability refresh aggregation for the temporary Admin Console facade.
-
-Why it still exists: `do_refresh`/`refresh_overview`/`refresh_empty_state` have no
-single-entity owner by construction -- they aggregate state across all 9 entities
-`PlatformAdminWorkspaceController` composes. Capability-specific refresh cascades
-(triggered by a specific entity's mutation) live in that capability's own
-`refresh.py` instead (see e.g. `controllers.organization.employees.refresh`),
-which call back into `refresh_overview`/`refresh_empty_state` here for their
-cross-cutting consequences.
-
-What contract it preserves: byte-for-byte the same three functions and bodies
-that previously lived in `controllers.admin.admin_refresh_service`.
-
-Which later phase removes it: R2 (approved R0 design doc, Implementation Phases
-table), when AdminConsolePage.qml's composition is replaced by the unified
-Platform workspace and no single controller composes all 9 entities anymore.
-"""
 
 from __future__ import annotations
 
 from src.ui_qml.platform.controllers.common import serialize_workspace_overview
 
-_ENTITY_PERMISSIONS: dict[str, tuple[str, ...]] = {
-    "organization": ("settings.manage",),
-    "calendar": ("task.read",),
-    "site": ("settings.manage", "site.read"),
-    "department": ("settings.manage", "department.read"),
-    "employee": ("employee.read",),
-    "user": ("auth.manage", "auth.read", "access.manage", "security.manage"),
-    "party": ("settings.manage", "party.read"),
-    "document": ("settings.manage",),
-    "document_structure": ("settings.manage",),
+# entity -> (required permission codes, controller attribute name)
+_ENTITY_CONTROLLERS: dict[str, tuple[tuple[str, ...], str]] = {
+    "organization": (("settings.manage",), "_organization_controller"),
+    "calendar": (("task.read",), "_calendar_controller"),
+    "site": (("settings.manage", "site.read"), "_site_controller"),
+    "department": (("settings.manage", "department.read"), "_department_controller"),
+    "employee": (("employee.read",), "_employee_controller"),
+    "user": (("auth.manage", "auth.read", "access.manage", "security.manage"), "_user_controller"),
+    "party": (("settings.manage", "party.read"), "_party_controller"),
+    "document": (("settings.manage",), "_document_controller"),
+    "document_structure": (("settings.manage",), "_document_structure_controller"),
 }
 
 
-def _accessible_entities(controller) -> frozenset[str]:
+def _current_permissions(controller) -> frozenset[str] | None:
+    """None means "unknown, fail open" -- no runtime API wired (QML
+    preview, or a test constructing this controller directly without
+    one), or a transient error fetching permissions. This is a perf
+    pre-filter, not the actual authorization boundary, so an unknown
+    state should refresh everything rather than go blank."""
     runtime_api = getattr(controller, "_runtime_api", None)
     if runtime_api is None:
-        # No runtime API wired (QML preview, or a test constructing this
-        # controller directly without one) -- fail open, matching the
-        # unconditional-refresh behavior this replaces.
-        return frozenset(_ENTITY_PERMISSIONS)
+        return None
     result = runtime_api.get_current_permissions()
     if not getattr(result, "ok", False) or getattr(result, "data", None) is None:
-        # Fail open on a transient API error rather than going blank --
-        # this is a perf pre-filter, not the actual authorization boundary.
-        return frozenset(_ENTITY_PERMISSIONS)
-    permissions = frozenset(result.data)
-    return frozenset(
-        entity
-        for entity, codes in _ENTITY_PERMISSIONS.items()
-        if any(code in permissions for code in codes)
-    )
+        return None
+    return frozenset(result.data)
 
 
 def do_refresh(controller) -> None:
     controller._set_is_loading(True)
     controller._set_error_message("")
     refresh_overview(controller)
-    accessible = _accessible_entities(controller)
-    if "organization" in accessible:
-        controller._organization_controller.refresh()
-    if "calendar" in accessible:
-        controller._calendar_controller.refresh()
-    if "site" in accessible:
-        controller._site_controller.refresh()
-    if "department" in accessible:
-        controller._department_controller.refresh()
-    if "employee" in accessible:
-        controller._employee_controller.refresh()
-    if "user" in accessible:
-        controller._user_controller.refresh()
-    if "party" in accessible:
-        controller._party_controller.refresh()
-    if "document" in accessible:
-        controller._document_controller.refresh()
-    if "document_structure" in accessible:
-        controller._document_structure_controller.refresh()
+    permissions = _current_permissions(controller)
+    for required_codes, attr_name in _ENTITY_CONTROLLERS.values():
+        if permissions is None or any(code in permissions for code in required_codes):
+            getattr(controller, attr_name).refresh()
     refresh_empty_state(controller)
     controller._set_is_loading(False)
 

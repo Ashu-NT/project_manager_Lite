@@ -29,6 +29,27 @@ Item {
     // -- Canonical destination state --------------------------------
     property string activeDestination: "overview"
 
+    onActiveDestinationChanged: root._ensureWorkspaceLoaded(root.activeDestination)
+    Component.onCompleted: root._ensureWorkspaceLoaded(root.activeDestination)
+
+    function _ensureWorkspaceLoaded(destinationId) {
+        if (!root.platformCatalog) {
+            return
+        }
+        if (destinationId === "access") {
+            root.platformCatalog.adminAccessWorkspace.ensureLoaded()
+            return
+        }
+        if (destinationId === "control_approvals" || destinationId === "control_audit") {
+            root.platformCatalog.controlWorkspace.ensureLoaded()
+            return
+        }
+        if (destinationId === "settings") {
+            root.platformCatalog.settingsWorkspace.ensureLoaded()
+            return
+        }
+    }
+
     readonly property bool _isMultiTenant: root.platformCatalog
         ? root.platformCatalog.tenantSwitcher.isMultiTenant
         : false

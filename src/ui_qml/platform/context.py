@@ -121,6 +121,7 @@ class PlatformWorkspaceCatalog(QObject):
                 access_api=getattr(desktop_api_registry, "platform_access", None),
                 user_api=user_api,
             ),
+            runtime_api=runtime_api,
             parent=self,
         )
         self._admin_support_workspace = PlatformSupportWorkspaceController(
@@ -132,11 +133,13 @@ class PlatformWorkspaceCatalog(QObject):
         self._control_workspace = PlatformControlWorkspaceController(
             overview_presenter=control_presenter,
             queue_presenter=control_queue_presenter,
+            runtime_api=runtime_api,
             parent=self,
         )
         self._settings_workspace = PlatformSettingsWorkspaceController(
             overview_presenter=settings_presenter,
             catalog_presenter=settings_catalog_presenter,
+            runtime_api=runtime_api,
             parent=self,
         )
         tenant_api = getattr(desktop_api_registry, "platform_tenant", None) if desktop_api_registry is not None else None
@@ -221,6 +224,8 @@ class PlatformWorkspaceCatalog(QObject):
             self._control_workspace,
             self._settings_workspace,
         ):
+            if not getattr(controller, "_loaded", True):
+                continue
             refresh = getattr(controller, "refresh", None)
             if callable(refresh):
                 refresh()

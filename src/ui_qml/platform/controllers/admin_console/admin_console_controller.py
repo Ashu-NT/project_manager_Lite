@@ -1,27 +1,4 @@
-"""Temporary composition facade behind the single-page AdminConsolePage.qml.
 
-Why it still exists: AdminConsolePage.qml is one monolithic QML page bound to one
-controller instance (`adminWorkspace`). Its 9 entity sections, support tab, and
-audit tab all read/write through this one class because the page itself hasn't
-been decomposed into separate capability-owned pages yet.
-
-What contract it preserves: every @Property/@Slot below is the exact QML-facing
-surface AdminConsolePage.qml already binds to (see
-docs/platform_modernization/qml_redesign/platform_ui_repository_restructure_plan.md
-for the full inventory). Its own logic has been extracted into per-capability
-packages (controllers.organization, controllers.calendars,
-controllers.identity_access, controllers.documents, controllers.support) since
-R0.5B; this class now composes and dispatches to them rather than implementing
-entity logic itself.
-
-Which later phase removes it: R2 (approved R0 design doc, Implementation Phases
-table) replaces AdminConsolePage.qml with separate capability-owned workspace
-pages. Once no QML file binds to `adminWorkspace` as one composite object, this
-facade is deleted along with AdminConsolePage.qml itself.
-
-Status: TEMPORARY MIGRATION FACADE. Final target: REMOVE. New feature
-development allowed: NO.
-"""
 
 from __future__ import annotations
 
