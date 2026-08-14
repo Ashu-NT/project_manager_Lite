@@ -6,6 +6,7 @@ import App.Widgets 1.0 as AppWidgets
 import Platform.Controllers 1.0 as PlatformControllers
 import Platform.Components 1.0 as PlatformComponents
 import Platform.Dialogs 1.0 as AdminDialogs
+import App.Controls 1.0 as AppControls
 
 // R4: Employees as a standalone Platform destination. Same shape as
 // OrganizationsWorkspacePage, plus calendar-assignment context (fixed to
@@ -41,6 +42,22 @@ AppLayouts.WorkspaceFrame {
 
     property string selectedRowId: ""
     property bool detailOpen: false
+    property var _pendingConfirm: null
+
+    function requestToggleActive() {
+        const item = root._selectedItem
+        if (!item || !root.workspaceController) return
+        if (item.isActive) {
+            root._pendingConfirm = {
+                "itemId": root.selectedRowId,
+                "message": "Deactivate " + String(item.title || "this employee") + "?",
+                "supportingText": "They will lose access to assigned projects."
+            }
+            confirmDialog.open()
+        } else {
+            root.workspaceController.toggleEmployeeActive(root.selectedRowId)
+        }
+    }
 
     readonly property bool   busy: root.workspaceController ? root.workspaceController.isBusy          : false
     readonly property bool   load: root.workspaceController ? root.workspaceController.isLoading       : false
@@ -134,7 +151,7 @@ AppLayouts.WorkspaceFrame {
         if (actionId === "refresh") { if (root.workspaceController) root.workspaceController.refresh(); return }
         if (actionId === "show_audit") { root.navigateToDestination("control_audit"); return }
         if (actionId === "edit") { root.openEdit(id); return }
-        if (actionId === "toggle_active" && root.workspaceController) { root.workspaceController.toggleEmployeeActive(id); return }
+        if (actionId === "toggle_active" && root.workspaceController) { root.requestToggleActive(); return }
     }
 
     title: "Employees"
@@ -177,14 +194,12 @@ AppLayouts.WorkspaceFrame {
                 busy: root.busy
                 editActionLabel: "Edit"
                 showEditAction: true
-                secondaryActionLabel: "Toggle"
+                secondaryActionLabel: root._selectedItem && root._selectedItem.isActive ? "Deactivate" : "Activate"
                 showSecondaryAction: true
 
                 onCloseRequested: root.selectedRowId = ""
                 onEditRequested: root.openEdit(root.selectedRowId)
-                onSecondaryActionRequested: {
-                    if (root.workspaceController) root.workspaceController.toggleEmployeeActive(root.selectedRowId)
-                }
+                onSecondaryActionRequested: root.requestToggleActive()
             }
         }
 
@@ -217,6 +232,22 @@ AppLayouts.WorkspaceFrame {
             AdminDialogs.AdminDialogHost {
                 workspaceController: root.workspaceController
             }
+        }
+    }
+
+    AppControls.ConfirmationDialog {
+        id: confirmDialog
+        title: "Confirm"
+        confirmLabel: "Deactivate"
+        confirmIcon: "delete"
+        confirmDanger: true
+        message: root._pendingConfirm ? String(root._pendingConfirm.message || "") : ""
+        supportingText: root._pendingConfirm ? String(root._pendingConfirm.supportingText || "") : ""
+        onConfirmed: {
+            const pending = root._pendingConfirm
+            if (!pending || !root.workspaceController) return
+            root.workspaceController.toggleEmployeeActive(pending.itemId)
+            root._pendingConfirm = null
         }
     }
 }

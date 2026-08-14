@@ -15,7 +15,7 @@ AppWidgets.EntityDialog {
 
     modal: true
     focus: true
-    width: 520
+    width: Theme.AppTheme.dialogWidthCompact
     title: root.mode === "reject" ? "Reject Request" : "Approve Request"
     subtitle: root.requestTitle.length > 0
         ? root.requestTitle

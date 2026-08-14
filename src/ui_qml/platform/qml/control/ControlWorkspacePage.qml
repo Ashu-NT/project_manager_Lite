@@ -196,29 +196,30 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
 
-                    AppWidgets.TablePaginationBar {
-                        Layout.fillWidth: true
-                        currentPage: state.queueCurrentPage + 1
-                        pageSize:    state.queuePageSize
-                        totalItems:  state.queueTotalCount
-                        pageSizeOptions: [25, 50, 100]
-                        busy: root._busy || root._load
-                        onPageRequested:     function(page) { state.queueCurrentPage = Math.max(0, page - 1) }
-                        onPageSizeRequested: function(pageSize) {
-                            state.queuePageSize    = pageSize
-                            state.queueCurrentPage = 0
-                        }
-                    }
                 }
 
                 // ── Audit panel ───────────────────────────────────
-                Item {
+                ColumnLayout {
                     Layout.fillWidth:  true
                     Layout.fillHeight: true
                     visible: state.activePanel === "audit"
+                    spacing: 0
+
+                    AppWidgets.TableToolbar {
+                        id: auditToolbar
+                        Layout.fillWidth: true
+                        searchPlaceholder: "Search not available for audit"
+                        showFilter:  true
+                        showViews:   false
+                        showRefresh: true
+                        isBusy:      root._busy
+                        onFilterClicked:    auditFilterPopup.open()
+                        onRefreshRequested: { if (root.workspaceController) root.workspaceController.refresh() }
+                    }
 
                     Flickable {
-                        anchors.fill:   parent
+                        Layout.fillWidth:  true
+                        Layout.fillHeight: true
                         contentWidth:   width
                         contentHeight:  _activityFeed.implicitHeight + Theme.AppTheme.marginMd * 2
                         clip:           true
@@ -297,16 +298,123 @@ AppLayouts.WorkspaceFrame {
                 text: "Filter Approvals"; color: Theme.AppTheme.textPrimary
                 font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.bodySize; font.bold: true
             }
-            AppControls.Label {
+
+            ColumnLayout {
                 Layout.fillWidth: true
-                text:     "Status, module, and date filters will appear here."
-                color:    Theme.AppTheme.textMuted
-                font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.smallSize
-                wrapMode: Text.WordWrap
+                spacing: 3
+                AppControls.Label { text: "Status" }
+                AppControls.ComboBox {
+                    Layout.fillWidth: true
+                    model: ["All", "Pending", "Approved", "Rejected"]
+                    currentIndex: {
+                        const v = (root.workspaceController ? root.workspaceController.approvalStatusFilter : "").toUpperCase()
+                        if (v === "PENDING") return 1
+                        if (v === "APPROVED") return 2
+                        if (v === "REJECTED") return 3
+                        return 0
+                    }
+                    onActivated: {
+                        if (!root.workspaceController) return
+                        const values = ["", "PENDING", "APPROVED", "REJECTED"]
+                        root.workspaceController.setApprovalStatusFilter(values[currentIndex] || "")
+                    }
+                }
             }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 3
+                AppControls.Label { text: "Module / Entity Type" }
+                AppControls.TextField {
+                    Layout.fillWidth: true
+                    text: root.workspaceController ? root.workspaceController.approvalEntityTypeFilter : ""
+                    placeholderText: "e.g. purchase_order"
+                    onEditingFinished: {
+                        if (root.workspaceController) root.workspaceController.setApprovalEntityTypeFilter(text)
+                    }
+                }
+            }
+
             AppControls.SecondaryButton {
                 Layout.alignment: Qt.AlignRight
                 text: "Close"; onClicked: approvalFilterPopup.close()
+            }
+        }
+    }
+
+    // ── Audit filter popup ─────────────────────────────────────────
+    AppWidgets.AnchoredPopup {
+        id: auditFilterPopup
+        anchorItem:   auditToolbar.filterButtonItem
+        implicitWidth: 320
+        padding:      Theme.AppTheme.marginMd
+        closePolicy:  Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        background: Rectangle {
+            color: Theme.AppTheme.surfaceRaised; radius: Theme.AppTheme.radiusMd
+            border.color: Theme.AppTheme.divider; border.width: 1
+        }
+
+        ColumnLayout {
+            width: parent.width; spacing: Theme.AppTheme.spacingMd
+
+            AppControls.Label {
+                text: "Filter Audit"; color: Theme.AppTheme.textPrimary
+                font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.bodySize; font.bold: true
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 3
+                AppControls.Label { text: "Entity Type" }
+                AppControls.TextField {
+                    Layout.fillWidth: true
+                    text: root.workspaceController ? root.workspaceController.auditEntityTypeFilter : ""
+                    placeholderText: "e.g. project"
+                    onEditingFinished: {
+                        if (root.workspaceController) root.workspaceController.setAuditEntityTypeFilter(text)
+                    }
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 3
+                AppControls.Label { text: "Operation" }
+                AppControls.TextField {
+                    Layout.fillWidth: true
+                    text: root.workspaceController ? root.workspaceController.auditOperationFilter : ""
+                    placeholderText: "e.g. update"
+                    onEditingFinished: {
+                        if (root.workspaceController) root.workspaceController.setAuditOperationFilter(text)
+                    }
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 3
+                AppControls.Label { text: "Severity" }
+                AppControls.ComboBox {
+                    Layout.fillWidth: true
+                    model: ["All", "Low", "Medium", "High", "Critical"]
+                    currentIndex: {
+                        const v = (root.workspaceController ? root.workspaceController.auditSeverityFilter : "").toLowerCase()
+                        const options = ["", "low", "medium", "high", "critical"]
+                        const idx = options.indexOf(v)
+                        return idx >= 0 ? idx : 0
+                    }
+                    onActivated: {
+                        if (!root.workspaceController) return
+                        const values = ["", "low", "medium", "high", "critical"]
+                        root.workspaceController.setAuditSeverityFilter(values[currentIndex] || "")
+                    }
+                }
+            }
+
+            AppControls.SecondaryButton {
+                Layout.alignment: Qt.AlignRight
+                text: "Close"; onClicked: auditFilterPopup.close()
             }
         }
     }

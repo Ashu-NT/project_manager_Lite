@@ -17,7 +17,7 @@ AppWidgets.EntityDialog {
 
     modal: true
     focus: true
-    width: 620
+    width: Theme.AppTheme.dialogWidthWide
     title: root.mode === "create" ? "New Party" : "Edit Party"
     primaryText: root.mode === "create" ? "Create" : "Save"
     primaryIcon: root.mode === "create" ? "add" : "save"

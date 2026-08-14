@@ -13,7 +13,7 @@ AppWidgets.EntityDialog {
 
     modal: true
     focus: true
-    width: 520
+    width: Theme.AppTheme.dialogWidthCompact
     title: "Add Document Link"
     subtitle: "Connect the selected shared document to a business record in another module."
     primaryText: "Add Link"

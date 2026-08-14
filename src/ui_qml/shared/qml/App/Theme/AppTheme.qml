@@ -200,6 +200,12 @@ QtObject {
     readonly property int dialogFormWidth: 640
     readonly property int dialogCompactWidth: 420
 
+    // Dialog width tiers (R6): three sizes by content need, replacing the
+    // 8 distinct per-dialog literal widths the audit found.
+    readonly property int dialogWidthCompact: 440
+    readonly property int dialogWidthStandard: 560
+    readonly property int dialogWidthWide: 660
+
     // Tables
     readonly property int tableColumnCompactWidth: 120
     readonly property int tableColumnDefaultWidth: 160

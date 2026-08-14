@@ -15,7 +15,7 @@ AppWidgets.EntityDialog {
 
     modal: true
     focus: true
-    width: 620
+    width: Theme.AppTheme.dialogWidthWide
     title: "Add Calendar Exception"
     primaryText: "Add"
     primaryIcon: "add"

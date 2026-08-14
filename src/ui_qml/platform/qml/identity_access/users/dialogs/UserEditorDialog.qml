@@ -16,7 +16,7 @@ AppWidgets.EntityDialog {
 
     modal: true
     focus: true
-    width: 560
+    width: Theme.AppTheme.dialogWidthStandard
     title: root.mode === "create" ? "New Tenant User" : "Edit User"
 
     primaryText: root.mode === "create" ? "Create" : "Save"

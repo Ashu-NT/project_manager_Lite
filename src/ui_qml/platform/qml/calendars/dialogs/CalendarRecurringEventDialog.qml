@@ -14,7 +14,7 @@ AppWidgets.EntityDialog {
 
     modal: true
     focus: true
-    width: 660
+    width: Theme.AppTheme.dialogWidthWide
     title: "Add Recurring Event"
     primaryText: "Add"
     primaryIcon: "add"

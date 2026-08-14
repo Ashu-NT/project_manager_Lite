@@ -12,16 +12,10 @@ Item {
     property string selectedRowId:      ""
     property string searchText:         ""
     property string activePanel:        "approvals"
-    property int    queuePageSize:      50
-    property int    queueCurrentPage:   0
     property bool   approvalDetailOpen: false
 
     // ── Computed ──────────────────────────────────────────────────────────
     readonly property bool detailOpen: root.approvalDetailOpen && root.activePanel === "approvals"
-
-    readonly property int queueTotalCount: root.workspaceController
-        ? (root.workspaceController.approvalQueue.items || []).length : 0
-    readonly property int queuePageCount: Math.max(1, Math.ceil(root.queueTotalCount / root.queuePageSize))
 
     readonly property int queueCount: root.workspaceController
         ? (root.workspaceController.approvalQueue.items || []).length : 0

@@ -20,8 +20,7 @@ ColumnLayout {
     property string errorMessage:    ""
     property string feedbackMessage: ""
     property string selectedRowId:   ""
-    // Optional Python-owned DynamicTableModel.  When set the DataTable uses
-    // sourceModel directly; the QML-side _pageRows slice is not used.
+    // Python-owned DynamicTableModel that DataTable binds to directly.
     property var    catalogModel:    null
 
     signal createRequested()
@@ -29,19 +28,9 @@ ColumnLayout {
     signal rowActivated(string rowId)
     signal refreshRequested()
 
-    property int _pageSize:    50
-    property int _currentPage: 0
-
     readonly property int _totalCount: root.catalogModel
         ? root.catalogModel.rowCountValue
         : (root.catalog.items || []).length
-    readonly property int _pageCount:  Math.max(1, Math.ceil(root._totalCount / root._pageSize))
-    readonly property var _pageRows:   (root.catalog.items || []).slice(
-        root._currentPage * root._pageSize,
-        (root._currentPage + 1) * root._pageSize
-    )
-
-    onCatalogChanged: root._currentPage = 0
 
     Rectangle {
         Layout.fillWidth: true
@@ -131,23 +120,5 @@ ColumnLayout {
 
         onRowSelected: function(rowId) { root.rowSelected(rowId) }
         onRowActivated: function(rowId) { root.rowActivated(rowId) }
-    }
-
-    // Pagination bar hidden when Python model serves all rows (server-side pagination pending).
-    AppWidgets.TablePaginationBar {
-        Layout.fillWidth: true
-        visible: root.catalogModel === null
-        currentPage: root._currentPage + 1
-        pageSize: root._pageSize
-        totalItems: root._totalCount
-        pageSizeOptions: [25, 50, 100]
-        busy: root.isBusy || root.isLoading
-        onPageRequested: function(page) {
-            root._currentPage = Math.max(0, page - 1)
-        }
-        onPageSizeRequested: function(pageSize) {
-            root._pageSize = pageSize
-            root._currentPage = 0
-        }
     }
 }

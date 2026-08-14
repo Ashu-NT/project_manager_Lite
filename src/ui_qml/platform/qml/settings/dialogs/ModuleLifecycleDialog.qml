@@ -16,7 +16,7 @@ AppWidgets.EntityDialog {
 
     modal: true
     focus: true
-    width: 480
+    width: Theme.AppTheme.dialogWidthCompact
     title: "Module Lifecycle"
     subtitle: root.moduleLabel.length > 0
         ? root.moduleLabel

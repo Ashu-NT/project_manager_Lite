@@ -34,7 +34,25 @@ Item {
     signal addRecurringEventRequested()
     signal openAuditRequested()
 
+    property var _pendingConfirm: null
+
     readonly property var _state: (root.calendar && root.calendar.state) ? root.calendar.state : ({})
+    readonly property var _selectedException: {
+        const id = root.selectedExceptionId
+        if (!id) return null
+        for (let i = 0; i < root.enterpriseExceptions.length; i++) {
+            if (String(root.enterpriseExceptions[i].id) === id) return root.enterpriseExceptions[i]
+        }
+        return null
+    }
+    readonly property var _selectedRecurringEvent: {
+        const id = root.selectedRecurringEventId
+        if (!id) return null
+        for (let i = 0; i < root.recurringEvents.length; i++) {
+            if (String(root.recurringEvents[i].id) === id) return root.recurringEvents[i]
+        }
+        return null
+    }
     readonly property string _title: String(root.calendar && root.calendar.title ? root.calendar.title : "Working Calendar")
     readonly property string _workingDaysText: String(root._state.workingDaysText || "No working days configured")
     readonly property string _hoursPerDayLabel: String(root._state.hoursPerDayLabel || root._state.hoursPerDay || "8")
@@ -211,15 +229,23 @@ Item {
                     root.addRecurringEventRequested()
                 } else if (actionId === "delete_exception") {
                     if (root.workspaceController !== null && root.selectedExceptionId.length > 0) {
-                        const result = root.workspaceController.deleteCalendarException(root.selectedExceptionId)
-                        if (result && result.ok === true)
-                            root.selectedExceptionId = ""
+                        const name = root._selectedException ? String(root._selectedException.name || "this exception") : "this exception"
+                        root._pendingConfirm = {
+                            "type": "delete_exception",
+                            "message": "Delete " + name + "?",
+                            "supportingText": "This calendar exception will be permanently removed."
+                        }
+                        confirmDialog.open()
                     }
                 } else if (actionId === "delete_recurring") {
                     if (root.workspaceController !== null && root.selectedRecurringEventId.length > 0) {
-                        const result = root.workspaceController.deleteCalendarRecurringEvent(root.selectedRecurringEventId)
-                        if (result && result.ok === true)
-                            root.selectedRecurringEventId = ""
+                        const title = root._selectedRecurringEvent ? String(root._selectedRecurringEvent.title || "this recurring event") : "this recurring event"
+                        root._pendingConfirm = {
+                            "type": "delete_recurring",
+                            "message": "Delete " + title + "?",
+                            "supportingText": "This recurring event will be permanently removed."
+                        }
+                        confirmDialog.open()
                     }
                 } else if (actionId === "refresh") {
                     if (root.workspaceController !== null)
@@ -597,6 +623,28 @@ Item {
                     }
                 }
             }
+        }
+    }
+
+    AppControls.ConfirmationDialog {
+        id: confirmDialog
+        title: "Confirm"
+        confirmLabel: "Delete"
+        confirmIcon: "delete"
+        confirmDanger: true
+        message: root._pendingConfirm ? String(root._pendingConfirm.message || "") : ""
+        supportingText: root._pendingConfirm ? String(root._pendingConfirm.supportingText || "") : ""
+        onConfirmed: {
+            const pending = root._pendingConfirm
+            if (!pending || !root.workspaceController) return
+            if (pending.type === "delete_exception") {
+                const result = root.workspaceController.deleteCalendarException(root.selectedExceptionId)
+                if (result && result.ok === true) root.selectedExceptionId = ""
+            } else if (pending.type === "delete_recurring") {
+                const result = root.workspaceController.deleteCalendarRecurringEvent(root.selectedRecurringEventId)
+                if (result && result.ok === true) root.selectedRecurringEventId = ""
+            }
+            root._pendingConfirm = null
         }
     }
 }

@@ -16,7 +16,7 @@ AppWidgets.EntityDialog {
 
     modal: true
     focus: true
-    width: 600
+    width: Theme.AppTheme.dialogWidthStandard
     title: "Assign Calendar"
     primaryText: "Assign"
     primaryIcon: "calendar"

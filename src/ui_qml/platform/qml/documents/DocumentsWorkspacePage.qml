@@ -6,6 +6,7 @@ import App.Widgets 1.0 as AppWidgets
 import Platform.Controllers 1.0 as PlatformControllers
 import Platform.Components 1.0 as PlatformComponents
 import Platform.Dialogs 1.0 as AdminDialogs
+import App.Controls 1.0 as AppControls
 
 // R5: Documents as a standalone Platform destination. List+inspector use
 // the standard shape; the full detail page keeps its existing bespoke
@@ -51,6 +52,22 @@ AppLayouts.WorkspaceFrame {
 
     property string selectedRowId: ""
     property bool detailOpen: false
+    property var _pendingConfirm: null
+
+    function requestToggleActive() {
+        const item = root._selectedItem
+        if (!item || !root.workspaceController) return
+        if (item.isActive) {
+            root._pendingConfirm = {
+                "itemId": root.selectedRowId,
+                "message": "Deactivate " + String(item.title || "this document") + "?",
+                "supportingText": "It will become unavailable for linking."
+            }
+            confirmDialog.open()
+        } else {
+            root.workspaceController.toggleDocumentActive(root.selectedRowId)
+        }
+    }
 
     readonly property bool   busy: root.workspaceController ? root.workspaceController.isBusy          : false
     readonly property bool   load: root.workspaceController ? root.workspaceController.isLoading       : false
@@ -109,7 +126,7 @@ AppLayouts.WorkspaceFrame {
     function handleDetailAction(actionId) {
         const id = root.selectedRowId
         if (actionId === "edit") { root.openEdit(id); return }
-        if (actionId === "toggle_active" && root.workspaceController) { root.workspaceController.toggleDocumentActive(id); return }
+        if (actionId === "toggle_active" && root.workspaceController) { root.requestToggleActive(); return }
         if (actionId === "refresh") { if (root.workspaceController) root.workspaceController.refresh(); return }
         if (actionId === "create_document_link") { root.openDocumentLinkCreate(); return }
         if (actionId === "open_control") { root.navigateToDestination("control_approvals"); return }
@@ -156,14 +173,12 @@ AppLayouts.WorkspaceFrame {
                 busy: root.busy
                 editActionLabel: "Edit"
                 showEditAction: true
-                secondaryActionLabel: "Toggle"
+                secondaryActionLabel: root._selectedItem && root._selectedItem.isActive ? "Deactivate" : "Activate"
                 showSecondaryAction: true
 
                 onCloseRequested: root.selectedRowId = ""
                 onEditRequested: root.openEdit(root.selectedRowId)
-                onSecondaryActionRequested: {
-                    if (root.workspaceController) root.workspaceController.toggleDocumentActive(root.selectedRowId)
-                }
+                onSecondaryActionRequested: root.requestToggleActive()
             }
         }
 
@@ -198,6 +213,22 @@ AppLayouts.WorkspaceFrame {
             AdminDialogs.AdminDialogHost {
                 workspaceController: root.workspaceController
             }
+        }
+    }
+
+    AppControls.ConfirmationDialog {
+        id: confirmDialog
+        title: "Confirm"
+        confirmLabel: "Deactivate"
+        confirmIcon: "delete"
+        confirmDanger: true
+        message: root._pendingConfirm ? String(root._pendingConfirm.message || "") : ""
+        supportingText: root._pendingConfirm ? String(root._pendingConfirm.supportingText || "") : ""
+        onConfirmed: {
+            const pending = root._pendingConfirm
+            if (!pending || !root.workspaceController) return
+            root.workspaceController.toggleDocumentActive(pending.itemId)
+            root._pendingConfirm = null
         }
     }
 }

@@ -74,6 +74,8 @@ Item {
         return [ { "id": "refresh", "label": "Refresh", "icon": "refresh" } ]
     }
 
+    property var _pendingConfirm: null
+
     readonly property var _overviewFields: [
         { "label": "Module",        "value": root._title },
         { "label": "Stage/License", "value": root._subtitle },
@@ -88,6 +90,27 @@ Item {
         onStatusConfirmed: function(moduleCode, lifecycleStatus) {
             root.lifecycleChangeRequested(moduleCode, lifecycleStatus)
             lifecycleDialog.close()
+        }
+    }
+
+    // ── Licensed/Enabled confirmation (D5: genuinely impactful, blocking) ──
+    AppControls.ConfirmationDialog {
+        id: confirmDialog
+        title: "Confirm"
+        confirmLabel: "Confirm"
+        confirmIcon: "approve"
+        confirmDanger: false
+        message: root._pendingConfirm ? String(root._pendingConfirm.message || "") : ""
+        supportingText: root._pendingConfirm ? String(root._pendingConfirm.supportingText || "") : ""
+        onConfirmed: {
+            const pending = root._pendingConfirm
+            if (!pending) return
+            if (pending.type === "licensed") {
+                root.toggleLicensedRequested(root._moduleCode)
+            } else if (pending.type === "enabled") {
+                root.toggleEnabledRequested(root._moduleCode)
+            }
+            root._pendingConfirm = null
         }
     }
 
@@ -129,9 +152,19 @@ Item {
                 if (actionId === "lifecycle") {
                     lifecycleDialog.openForItem(root.module, root.lifecycleOptions)
                 } else if (actionId === "licensed") {
-                    root.toggleLicensedRequested(root._moduleCode)
+                    root._pendingConfirm = {
+                        "type": "licensed",
+                        "message": "Change licensing for " + root._title + "?",
+                        "supportingText": "This changes whether the module is licensed for this tenant."
+                    }
+                    confirmDialog.open()
                 } else if (actionId === "enabled") {
-                    root.toggleEnabledRequested(root._moduleCode)
+                    root._pendingConfirm = {
+                        "type": "enabled",
+                        "message": "Change enablement for " + root._title + "?",
+                        "supportingText": "This changes whether the module is enabled for use right now."
+                    }
+                    confirmDialog.open()
                 }
             }
         }

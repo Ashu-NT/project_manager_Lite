@@ -26,7 +26,12 @@ class PlatformControlQueuePresenter:
         self._approval_api = approval_api
         self._audit_api = audit_api
 
-    def build_approval_queue(self) -> PlatformWorkspaceActionListViewModel:
+    def build_approval_queue(
+        self,
+        *,
+        status: str | None = None,
+        entity_type: str | None = None,
+    ) -> PlatformWorkspaceActionListViewModel:
         if self._approval_api is None:
             return PlatformWorkspaceActionListViewModel(
                 title="Approval Queue",
@@ -34,7 +39,7 @@ class PlatformControlQueuePresenter:
                 empty_state="Approval desktop API is not connected in this QML preview.",
             )
 
-        result = self._approval_api.list_requests(status=None, limit=50)
+        result = self._approval_api.list_requests(status=status, entity_type=entity_type, limit=50)
         if not result.ok or result.data is None:
             message = result.error.message if result.error is not None else "Unable to load approval requests."
             return PlatformWorkspaceActionListViewModel(
@@ -51,7 +56,13 @@ class PlatformControlQueuePresenter:
             items=tuple(self.serialize_approval_item(row) for row in rows),
         )
 
-    def build_audit_feed(self) -> PlatformWorkspaceActionListViewModel:
+    def build_audit_feed(
+        self,
+        *,
+        entity_type: str | None = None,
+        operation: str | None = None,
+        severity: str | None = None,
+    ) -> PlatformWorkspaceActionListViewModel:
         if self._audit_api is None:
             return PlatformWorkspaceActionListViewModel(
                 title="Recent Audit Feed",
@@ -59,7 +70,9 @@ class PlatformControlQueuePresenter:
                 empty_state="Audit desktop API is not connected in this QML preview.",
             )
 
-        result = self._audit_api.list_recent(limit=25)
+        result = self._audit_api.list_recent(
+            limit=25, entity_type=entity_type, operation=operation, severity=severity
+        )
         if not result.ok or result.data is None:
             message = result.error.message if result.error is not None else "Unable to load audit records."
             return PlatformWorkspaceActionListViewModel(
