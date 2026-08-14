@@ -36,6 +36,13 @@ def set_queue_status_options(controller, v: list[dict[str, str]]) -> None:
     controller.queueStatusOptionsChanged.emit()
 
 
+def set_queue_resource_options(controller, v: list[dict[str, str]]) -> None:
+    if v == controller._queue_resource_options:
+        return
+    controller._queue_resource_options = v
+    controller.queueResourceOptionsChanged.emit()
+
+
 def set_selected_project_id(controller, v: str) -> None:
     if v == controller._selected_project_id:
         return
@@ -129,6 +136,41 @@ def set_queue_total_count(controller, v: int) -> None:
     controller.queueTotalCountChanged.emit()
 
 
+def _set_value(controller, attribute: str, value, signal) -> None:
+    if value == getattr(controller, attribute):
+        return
+    setattr(controller, attribute, value)
+    signal.emit()
+
+
+def set_queue_search_text(controller, v: str) -> None:
+    _set_value(controller, "_queue_search_text", v, controller.queueSearchTextChanged)
+
+
+def set_selected_queue_project_id(controller, v: str) -> None:
+    _set_value(controller, "_selected_queue_project_id", v, controller.selectedQueueProjectIdChanged)
+
+
+def set_selected_queue_resource_id(controller, v: str) -> None:
+    _set_value(controller, "_selected_queue_resource_id", v, controller.selectedQueueResourceIdChanged)
+
+
+def set_queue_period_start_from(controller, v: str) -> None:
+    _set_value(controller, "_queue_period_start_from", v, controller.queuePeriodStartFromChanged)
+
+
+def set_queue_period_start_to(controller, v: str) -> None:
+    _set_value(controller, "_queue_period_start_to", v, controller.queuePeriodStartToChanged)
+
+
+def set_queue_sort_key(controller, v: str) -> None:
+    _set_value(controller, "_queue_sort_key", v, controller.queueSortKeyChanged)
+
+
+def set_queue_sort_direction(controller, v: int) -> None:
+    _set_value(controller, "_queue_sort_direction", v, controller.queueSortDirectionChanged)
+
+
 def set_selected_queue_period_ids(controller, ids: list[str]) -> None:
     if ids == controller._selected_queue_period_ids:
         return
@@ -146,6 +188,14 @@ __all__ = [
     "set_project_options",
     "set_queue_page",
     "set_queue_status_options",
+    "set_queue_resource_options",
+    "set_queue_search_text",
+    "set_selected_queue_project_id",
+    "set_selected_queue_resource_id",
+    "set_queue_period_start_from",
+    "set_queue_period_start_to",
+    "set_queue_sort_key",
+    "set_queue_sort_direction",
     "set_queue_total_count",
     "set_review_detail",
     "set_review_queue",

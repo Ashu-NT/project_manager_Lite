@@ -39,6 +39,7 @@ def set_queue_status(controller, queue_status: str) -> None:
         return
     controller._set_selected_queue_status(normalized)
     controller._set_selected_queue_period_id("")
+    controller._set_queue_page(1)
     controller.refresh()
 
 

@@ -26,6 +26,8 @@ from .scheduling_property_updates import (
     set_activity_feed,
     set_activity_page,
     set_activity_page_size,
+    set_activity_sort_direction,
+    set_activity_sort_key,
     set_activity_total_count,
     set_baseline_compare_rows,
     set_baseline_options,
@@ -83,6 +85,7 @@ from .scheduling_selection_actions import (
     select_calendar,
     select_project,
     set_active_panel,
+    set_activity_sort,
     set_include_unchanged,
     set_page,
     set_page_size,
@@ -131,6 +134,8 @@ class ProjectManagementSchedulingWorkspaceController(
     activityPageChanged = Signal()
     activityPageSizeChanged = Signal()
     activityTotalCountChanged = Signal()
+    activitySortKeyChanged = Signal()
+    activitySortDirectionChanged = Signal()
     calendarChanged = Signal()
     baselinesChanged = Signal()
     scheduleChanged = Signal()
@@ -215,6 +220,8 @@ class ProjectManagementSchedulingWorkspaceController(
         self._activity_page = 1
         self._activity_page_size = 25
         self._activity_total_count = 0
+        self._activity_sort_key = "schedule"
+        self._activity_sort_direction = 0
         self._selected_activity_id = ""
         self._calendar: dict[str, object] = default_calendar()
         self._baselines: dict[str, object] = default_baselines()
@@ -324,6 +331,14 @@ class ProjectManagementSchedulingWorkspaceController(
     @Property(int, notify=activityTotalCountChanged)
     def activityTotalCount(self) -> int:
         return self._activity_total_count
+
+    @Property(str, notify=activitySortKeyChanged)
+    def activitySortKey(self) -> str:
+        return self._activity_sort_key
+
+    @Property(int, notify=activitySortDirectionChanged)
+    def activitySortDirection(self) -> int:
+        return self._activity_sort_direction
 
     # ── Panel collection properties ───────────────────────────────────
 
@@ -632,6 +647,10 @@ class ProjectManagementSchedulingWorkspaceController(
     def setActivityPageSize(self, page_size: int) -> None:
         set_page_size(self, page_size)
 
+    @Slot(str, int)
+    def setActivitySort(self, sort_key: str, sort_direction: int) -> None:
+        set_activity_sort(self, sort_key, sort_direction)
+
     # ── Tab-local search text slots ───────────────────────────────────
 
     @Slot(str)
@@ -729,6 +748,8 @@ class ProjectManagementSchedulingWorkspaceController(
     def _set_activity_page(self, v): set_activity_page(self, v)
     def _set_activity_page_size(self, v): set_activity_page_size(self, v)
     def _set_activity_total_count(self, v): set_activity_total_count(self, v)
+    def _set_activity_sort_key(self, v): set_activity_sort_key(self, v)
+    def _set_activity_sort_direction(self, v): set_activity_sort_direction(self, v)
     def _set_selected_activity_id(self, v): set_selected_activity_id(self, v)
     def _set_calendar(self, v): set_calendar(self, v)
     def _set_baselines(self, v): set_baselines(self, v)

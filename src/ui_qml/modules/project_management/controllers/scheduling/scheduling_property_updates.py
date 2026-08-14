@@ -120,6 +120,20 @@ def set_activity_total_count(controller, v: int) -> None:
     controller.activityTotalCountChanged.emit()
 
 
+def set_activity_sort_key(controller, v: str) -> None:
+    if v == controller._activity_sort_key:
+        return
+    controller._activity_sort_key = v
+    controller.activitySortKeyChanged.emit()
+
+
+def set_activity_sort_direction(controller, v: int) -> None:
+    if v == controller._activity_sort_direction:
+        return
+    controller._activity_sort_direction = v
+    controller.activitySortDirectionChanged.emit()
+
+
 def set_selected_activity_id(controller, v: str) -> None:
     if v == controller._selected_activity_id:
         return
@@ -340,6 +354,8 @@ __all__ = [
     "set_activity_page",
     "set_activity_page_size",
     "set_activity_total_count",
+    "set_activity_sort_key",
+    "set_activity_sort_direction",
     "set_baseline_compare_rows",
     "set_baseline_options",
     "set_baseline_register",

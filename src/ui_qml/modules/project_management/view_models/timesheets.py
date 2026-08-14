@@ -64,10 +64,18 @@ class TimesheetsWorkspaceViewModel:
     assignment_options: tuple[TimesheetSelectorOptionViewModel, ...] = field(default_factory=tuple)
     period_options: tuple[TimesheetSelectorOptionViewModel, ...] = field(default_factory=tuple)
     queue_status_options: tuple[TimesheetSelectorOptionViewModel, ...] = field(default_factory=tuple)
+    queue_resource_options: tuple[TimesheetSelectorOptionViewModel, ...] = field(default_factory=tuple)
     selected_project_id: str = "all"
     selected_assignment_id: str = ""
     selected_period_start: str = ""
     selected_queue_status: str = "SUBMITTED"
+    queue_search_text: str = ""
+    selected_queue_project_id: str = "all"
+    selected_queue_resource_id: str = "all"
+    queue_period_start_from: str = ""
+    queue_period_start_to: str = ""
+    queue_sort_key: str = "submittedAt"
+    queue_sort_direction: str = "desc"
     selected_entry_id: str = ""
     selected_queue_period_id: str = ""
     assignment_summary: TimesheetDetailViewModel = field(default_factory=TimesheetDetailViewModel)

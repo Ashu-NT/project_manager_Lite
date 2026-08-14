@@ -94,6 +94,22 @@ class ProjectManagementTimesheetsDesktopApi:
             task_service=self._task_service,
         )
 
+    def list_review_resources(
+        self,
+        *,
+        project_id: str | None = None,
+    ) -> tuple[TimesheetOptionDescriptor, ...]:
+        labels_by_id = {
+            option.resource_id: option.resource_name
+            for option in self.list_assignments(project_id=project_id)
+        }
+        return tuple(
+            TimesheetOptionDescriptor(value=resource_id, label=label)
+            for resource_id, label in sorted(
+                labels_by_id.items(), key=lambda item: item[1].casefold()
+            )
+        )
+
     def build_assignment_snapshot(
         self,
         assignment_id: str,
@@ -111,15 +127,29 @@ class ProjectManagementTimesheetsDesktopApi:
         self,
         *,
         status: str = TimesheetPeriodStatus.SUBMITTED.value,
+        search_text: str = "",
+        project_id: str | None = None,
+        resource_id: str | None = None,
+        period_start_from: date | None = None,
+        period_start_to: date | None = None,
         page: int = 1,
         page_size: int = 25,
+        sort_key: str = "submittedAt",
+        sort_direction: str = "desc",
     ) -> TimesheetReviewPageDesktopDto:
         service = self._require_timesheet_service()
         normalized_status = coerce_queue_status(status)
         result = service.query_review_queue_page(
             status=normalized_status,
+            search_text=search_text,
+            project_id=project_id,
+            resource_id=resource_id,
+            period_start_from=period_start_from,
+            period_start_to=period_start_to,
             page=page,
             page_size=page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
         )
         return TimesheetReviewPageDesktopDto(
             items=tuple(
@@ -129,6 +159,8 @@ class ProjectManagementTimesheetsDesktopApi:
             total=result.total,
             page=result.page,
             page_size=result.page_size,
+            sort_key=result.sort.key,
+            sort_direction=result.sort.direction.value,
         )
 
     def get_review_detail(self, period_id: str) -> TimesheetReviewDetailDesktopDto:

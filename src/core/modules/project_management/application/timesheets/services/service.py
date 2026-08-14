@@ -6,9 +6,12 @@ from src.core.modules.project_management.application.common.module_guard import 
 from src.core.platform.application.time_management.time import TimeService
 from src.core.modules.project_management.application.common.pagination import PageRequest
 from src.core.modules.project_management.contracts.reads.timesheets import (
+    TimesheetReviewCriteria,
     TimesheetReviewReadPage,
     TimesheetReviewReader,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort, ReadSortDirection
+from datetime import date
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_any_permission,
 )
@@ -34,8 +37,15 @@ class TimesheetService(
         self,
         *,
         status: TimesheetPeriodStatus | None = TimesheetPeriodStatus.SUBMITTED,
+        search_text: str = "",
+        project_id: str | None = None,
+        resource_id: str | None = None,
+        period_start_from: date | None = None,
+        period_start_to: date | None = None,
         page: int = 1,
         page_size: int = 25,
+        sort_key: str = "submittedAt",
+        sort_direction: str = "desc",
     ) -> TimesheetReviewReadPage:
         require_any_permission(
             self._user_session,
@@ -45,6 +55,13 @@ class TimesheetService(
         if self._timesheet_review_reader is None or self._tenant_context_service is None:
             raise RuntimeError("Timesheet review reader is not configured.")
         page_request = PageRequest(page=page, page_size=page_size)
+        sort = ReadSort.normalize(
+            key=sort_key,
+            direction=sort_direction,
+            allowed_keys={"title", "statusLabel", "supportingText", "metaText"},
+            default_key="submittedAt",
+            default_direction=ReadSortDirection.DESCENDING,
+        )
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="view timesheet review queue"
         )
@@ -60,7 +77,15 @@ class TimesheetService(
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,
             allowed_project_ids=allowed_project_ids,
-            status=status,
+            criteria=TimesheetReviewCriteria(
+                status=status,
+                search_text=str(search_text or "").strip(),
+                project_id=str(project_id or "").strip() or None,
+                resource_id=str(resource_id or "").strip() or None,
+                period_start_from=period_start_from,
+                period_start_to=period_start_to,
+                sort=sort,
+            ),
             page=page_request.page,
             page_size=page_request.page_size,
         )

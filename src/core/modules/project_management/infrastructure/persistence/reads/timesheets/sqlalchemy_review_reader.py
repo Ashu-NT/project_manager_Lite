@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.reads.timesheets import (
+    TimesheetReviewCriteria,
     TimesheetReviewReadPage,
 )
+from src.core.modules.project_management.infrastructure.persistence.reads.sorting import stable_order_by
 from src.core.modules.project_management.infrastructure.persistence.orm.project import ProjectORM
 from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
 from src.core.modules.project_management.infrastructure.persistence.orm.task import (
@@ -32,12 +34,16 @@ class SqlAlchemyTimesheetReviewReader:
         tenant_id: str,
         organization_id: str,
         allowed_project_ids: tuple[str, ...] | None,
-        status: TimesheetPeriodStatus | None,
+        criteria: TimesheetReviewCriteria,
         page: int,
         page_size: int,
     ) -> TimesheetReviewReadPage:
         if allowed_project_ids == ():
-            return TimesheetReviewReadPage(page=page, page_size=page_size)
+            return TimesheetReviewReadPage(
+                page=page,
+                page_size=page_size,
+                sort=criteria.sort,
+            )
 
         allocation_id = func.coalesce(
             TimeEntryORM.assignment_id,
@@ -61,8 +67,14 @@ class SqlAlchemyTimesheetReviewReader:
             ProjectORM.tenant_id == tenant_id,
             ProjectORM.organization_id == organization_id,
         ]
-        if status is not None:
-            filters.append(TimesheetPeriodORM.status == status)
+        if criteria.status is not None:
+            filters.append(TimesheetPeriodORM.status == criteria.status)
+        if criteria.resource_id:
+            filters.append(TimesheetPeriodORM.resource_id == criteria.resource_id)
+        if criteria.period_start_from is not None:
+            filters.append(TimesheetPeriodORM.period_start >= criteria.period_start_from)
+        if criteria.period_start_to is not None:
+            filters.append(TimesheetPeriodORM.period_start <= criteria.period_start_to)
         if allowed_project_ids is not None:
             filters.append(project_id.in_(allowed_project_ids))
 
@@ -83,11 +95,34 @@ class SqlAlchemyTimesheetReviewReader:
                 )
             )
 
+        match_filters = []
+        if criteria.project_id:
+            match_filters.append(project_id == criteria.project_id)
+        if criteria.search_text:
+            escaped = (
+                criteria.search_text.replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_")
+            )
+            pattern = f"%{escaped.lower()}%"
+            match_filters.append(
+                or_(
+                    func.lower(ResourceORM.name).like(pattern, escape="\\"),
+                    func.lower(ProjectORM.name).like(pattern, escape="\\"),
+                    func.lower(TaskORM.name).like(pattern, escape="\\"),
+                    func.lower(func.coalesce(TimeEntryORM.note, "")).like(pattern, escape="\\"),
+                    func.lower(func.coalesce(TimesheetPeriodORM.submitted_by_username, "")).like(
+                        pattern, escape="\\"
+                    ),
+                )
+            )
+
         period_ids = joined(
             select(TimesheetPeriodORM.id.label("period_id"))
             .select_from(TimesheetPeriodORM)
-        ).group_by(TimesheetPeriodORM.id).subquery()
+        ).where(*match_filters).group_by(TimesheetPeriodORM.id).subquery()
         total = int(self._session.scalar(select(func.count()).select_from(period_ids)) or 0)
+        selected_period_ids = select(period_ids.c.period_id)
 
         summary_stmt = joined(
             select(
@@ -105,7 +140,7 @@ class SqlAlchemyTimesheetReviewReader:
                 func.count(func.distinct(TimeEntryORM.id)),
                 func.sum(TimeEntryORM.hours),
             ).select_from(TimesheetPeriodORM)
-        ).group_by(
+        ).where(TimesheetPeriodORM.id.in_(selected_period_ids)).group_by(
             TimesheetPeriodORM.id,
             TimesheetPeriodORM.resource_id,
             ResourceORM.name,
@@ -118,13 +153,24 @@ class SqlAlchemyTimesheetReviewReader:
             TimesheetPeriodORM.decided_by_username,
             TimesheetPeriodORM.decision_note,
         )
+        sort_expressions = {
+            "title": (func.lower(ResourceORM.name), TimesheetPeriodORM.period_start),
+            "statusLabel": (TimesheetPeriodORM.status,),
+            "supportingText": (func.sum(TimeEntryORM.hours),),
+            "metaText": (TimesheetPeriodORM.submitted_at,),
+            "submittedAt": (
+                TimesheetPeriodORM.submitted_at,
+                TimesheetPeriodORM.period_start,
+            ),
+        }
         summary_rows = self._session.execute(
             summary_stmt
-            .order_by(
-                TimesheetPeriodORM.submitted_at.desc(),
-                TimesheetPeriodORM.period_start.desc(),
-                TimesheetPeriodORM.id,
-            )
+            .order_by(*stable_order_by(
+                sort=criteria.sort,
+                expressions=sort_expressions,
+                default_key="submittedAt",
+                tie_breakers=(TimesheetPeriodORM.id,),
+            ))
             .offset((page - 1) * page_size)
             .limit(page_size)
         ).all()
@@ -167,6 +213,7 @@ class SqlAlchemyTimesheetReviewReader:
             total=total,
             page=page,
             page_size=page_size,
+            sort=criteria.sort,
         )
 
 

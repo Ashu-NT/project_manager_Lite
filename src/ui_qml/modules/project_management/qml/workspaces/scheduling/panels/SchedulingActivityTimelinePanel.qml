@@ -88,6 +88,11 @@ Item {
                         tableId: root.activityTableId
                         columns: root.activityColumns
                         sourceModel: root.workspaceController ? root.workspaceController.scheduleTableModel : null
+                        sortingMode: "server"
+                        sortKey: root.workspaceController ? root.workspaceController.activitySortKey : "schedule"
+                        sortDirection: root.workspaceController
+                            ? root.workspaceController.activitySortDirection
+                            : Qt.AscendingOrder
                         loading: root.workspaceController ? root.workspaceController.isLoading : false
                         emptyText: root.workspaceController ? (root.workspaceController.schedule.emptyState || "No activities are available for the selected planning scope.") : "No activities are available."
                         selectedRowId: root.workspaceController ? root.workspaceController.selectedActivityId : ""
@@ -95,6 +100,10 @@ Item {
                             if (root.workspaceController)
                                 root.workspaceController.saveTableColumnState(root.activityTableId, root._buildColumnState(cols))
                             root.activityColumnsStateChanged(cols)
+                        }
+                        onSortRequested: function(key, direction) {
+                            if (root.workspaceController !== null)
+                                root.workspaceController.setActivitySort(key, direction)
                         }
                         onRowSelected: function(rowId) {
                             if (root.workspaceController !== null) root.workspaceController.selectActivity(rowId)

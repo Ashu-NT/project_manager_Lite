@@ -24,6 +24,11 @@ from .review_queue_controller import (
     set_queue_bulk_selection,
     set_queue_page,
     set_queue_page_size,
+    set_queue_period_range,
+    set_queue_project,
+    set_queue_resource,
+    set_queue_search_text,
+    set_queue_sort,
 )
 from .selection_handler import (
     select_assignment,
@@ -55,6 +60,7 @@ class ProjectManagementTimesheetsWorkspaceController(
     assignmentOptionsChanged = Signal()
     periodOptionsChanged = Signal()
     queueStatusOptionsChanged = Signal()
+    queueResourceOptionsChanged = Signal()
     selectedProjectIdChanged = Signal()
     selectedAssignmentIdChanged = Signal()
     selectedPeriodStartChanged = Signal()
@@ -69,6 +75,13 @@ class ProjectManagementTimesheetsWorkspaceController(
     queuePageChanged = Signal()
     queuePageSizeChanged = Signal()
     queueTotalCountChanged = Signal()
+    queueSearchTextChanged = Signal()
+    selectedQueueProjectIdChanged = Signal()
+    selectedQueueResourceIdChanged = Signal()
+    queuePeriodStartFromChanged = Signal()
+    queuePeriodStartToChanged = Signal()
+    queueSortKeyChanged = Signal()
+    queueSortDirectionChanged = Signal()
     selectedQueuePeriodIdsChanged = Signal()
     selectedQueuePeriodCountChanged = Signal()
 
@@ -99,6 +112,7 @@ class ProjectManagementTimesheetsWorkspaceController(
         self._assignment_options: list[dict[str, str]] = []
         self._period_options: list[dict[str, str]] = []
         self._queue_status_options: list[dict[str, str]] = []
+        self._queue_resource_options: list[dict[str, str]] = []
         self._selected_project_id = "all"
         self._selected_assignment_id = ""
         self._selected_period_start = ""
@@ -113,6 +127,13 @@ class ProjectManagementTimesheetsWorkspaceController(
         self._queue_page = 1
         self._queue_page_size = 25
         self._queue_total_count = 0
+        self._queue_search_text = ""
+        self._selected_queue_project_id = "all"
+        self._selected_queue_resource_id = "all"
+        self._queue_period_start_from = ""
+        self._queue_period_start_to = ""
+        self._queue_sort_key = "submittedAt"
+        self._queue_sort_direction = 1
         self._selected_queue_period_ids: list[str] = []
         bind_timesheets_domain_events(self)
         self.refresh()
@@ -138,6 +159,10 @@ class ProjectManagementTimesheetsWorkspaceController(
     @Property("QVariantList", notify=queueStatusOptionsChanged)
     def queueStatusOptions(self) -> list[dict[str, str]]:
         return self._queue_status_options
+
+    @Property("QVariantList", notify=queueResourceOptionsChanged)
+    def queueResourceOptions(self) -> list[dict[str, str]]:
+        return self._queue_resource_options
 
     @Property(str, notify=selectedProjectIdChanged)
     def selectedProjectId(self) -> str:
@@ -203,6 +228,34 @@ class ProjectManagementTimesheetsWorkspaceController(
     def queueTotalCount(self) -> int:
         return self._queue_total_count
 
+    @Property(str, notify=queueSearchTextChanged)
+    def queueSearchText(self) -> str:
+        return self._queue_search_text
+
+    @Property(str, notify=selectedQueueProjectIdChanged)
+    def selectedQueueProjectId(self) -> str:
+        return self._selected_queue_project_id
+
+    @Property(str, notify=selectedQueueResourceIdChanged)
+    def selectedQueueResourceId(self) -> str:
+        return self._selected_queue_resource_id
+
+    @Property(str, notify=queuePeriodStartFromChanged)
+    def queuePeriodStartFrom(self) -> str:
+        return self._queue_period_start_from
+
+    @Property(str, notify=queuePeriodStartToChanged)
+    def queuePeriodStartTo(self) -> str:
+        return self._queue_period_start_to
+
+    @Property(str, notify=queueSortKeyChanged)
+    def queueSortKey(self) -> str:
+        return self._queue_sort_key
+
+    @Property(int, notify=queueSortDirectionChanged)
+    def queueSortDirection(self) -> int:
+        return self._queue_sort_direction
+
     @Property("QVariantList", notify=selectedQueuePeriodIdsChanged)
     def selectedQueuePeriodIds(self) -> list[str]:
         return self._selected_queue_period_ids
@@ -260,6 +313,26 @@ class ProjectManagementTimesheetsWorkspaceController(
     @Slot(int)
     def setQueuePageSize(self, page_size: int) -> None:
         set_queue_page_size(self, page_size)
+
+    @Slot(str)
+    def setQueueSearchText(self, value: str) -> None:
+        set_queue_search_text(self, value)
+
+    @Slot(str)
+    def setQueueProject(self, value: str) -> None:
+        set_queue_project(self, value)
+
+    @Slot(str)
+    def setQueueResource(self, value: str) -> None:
+        set_queue_resource(self, value)
+
+    @Slot(str, str)
+    def setQueuePeriodRange(self, start: str, end: str) -> None:
+        set_queue_period_range(self, start, end)
+
+    @Slot(str, int)
+    def setQueueSort(self, key: str, direction: int) -> None:
+        set_queue_sort(self, key, direction)
 
     @Slot(str, bool)
     def setQueueBulkSelection(self, period_id: str, selected: bool) -> None:
@@ -339,6 +412,9 @@ class ProjectManagementTimesheetsWorkspaceController(
     def _set_queue_status_options(self, v: list[dict[str, str]]) -> None:
         _setters.set_queue_status_options(self, v)
 
+    def _set_queue_resource_options(self, v: list[dict[str, str]]) -> None:
+        _setters.set_queue_resource_options(self, v)
+
     def _set_selected_project_id(self, v: str) -> None:
         _setters.set_selected_project_id(self, v)
 
@@ -377,6 +453,27 @@ class ProjectManagementTimesheetsWorkspaceController(
 
     def _set_queue_total_count(self, v: int) -> None:
         _setters.set_queue_total_count(self, v)
+
+    def _set_queue_search_text(self, v: str) -> None:
+        _setters.set_queue_search_text(self, v)
+
+    def _set_selected_queue_project_id(self, v: str) -> None:
+        _setters.set_selected_queue_project_id(self, v)
+
+    def _set_selected_queue_resource_id(self, v: str) -> None:
+        _setters.set_selected_queue_resource_id(self, v)
+
+    def _set_queue_period_start_from(self, v: str) -> None:
+        _setters.set_queue_period_start_from(self, v)
+
+    def _set_queue_period_start_to(self, v: str) -> None:
+        _setters.set_queue_period_start_to(self, v)
+
+    def _set_queue_sort_key(self, v: str) -> None:
+        _setters.set_queue_sort_key(self, v)
+
+    def _set_queue_sort_direction(self, v: int) -> None:
+        _setters.set_queue_sort_direction(self, v)
 
     def _set_selected_queue_period_ids(self, ids: list[str]) -> None:
         _setters.set_selected_queue_period_ids(self, ids)

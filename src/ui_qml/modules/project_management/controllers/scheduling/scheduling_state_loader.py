@@ -14,6 +14,8 @@ from .panel_hydrator import hydrate_visible_panel_models, serialize_workspace_pa
 from .scheduling_property_updates import (
     set_activity_page,
     set_activity_page_size,
+    set_activity_sort_direction,
+    set_activity_sort_key,
     set_activity_total_count,
     set_baseline_options,
     set_calendar_options,
@@ -67,6 +69,8 @@ def load_workspace_state(controller) -> None:
             show_delayed_only=controller._show_delayed_only,
             page=controller._activity_page,
             page_size=controller._activity_page_size,
+            sort_key=controller._activity_sort_key,
+            sort_direction="desc" if controller._activity_sort_direction else "asc",
             selected_activity_id=controller._selected_activity_id or None,
             include_unchanged=bool(controller._baselines.get("includeUnchanged", False)),
             activity_log=tuple(controller._activity_log_svc.log),
@@ -92,6 +96,8 @@ def load_workspace_state(controller) -> None:
         set_activity_page(controller, ws.page)
         set_activity_page_size(controller, ws.page_size)
         set_activity_total_count(controller, ws.total_count)
+        set_activity_sort_key(controller, ws.sort_key)
+        set_activity_sort_direction(controller, 1 if ws.sort_direction == "desc" else 0)
         set_selected_activity_id(controller, ws.selected_activity_id)
         panels = serialize_workspace_panels(ws)
         hydrate_visible_panel_models(controller, panels)

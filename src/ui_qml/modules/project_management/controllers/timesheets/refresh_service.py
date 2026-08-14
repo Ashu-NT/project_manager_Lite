@@ -22,6 +22,13 @@ def refresh_timesheets_workspace(controller) -> None:
             assignment_id=controller._selected_assignment_id or None,
             period_start=controller._selected_period_start,
             queue_status=controller._selected_queue_status,
+            queue_search_text=controller._queue_search_text,
+            queue_project_id=controller._selected_queue_project_id,
+            queue_resource_id=controller._selected_queue_resource_id,
+            queue_period_start_from=controller._queue_period_start_from,
+            queue_period_start_to=controller._queue_period_start_to,
+            queue_sort_key=controller._queue_sort_key,
+            queue_sort_direction="desc" if controller._queue_sort_direction else "asc",
             selected_entry_id=controller._selected_entry_id or None,
             selected_queue_period_id=controller._selected_queue_period_id or None,
             queue_page=controller._queue_page,
@@ -42,10 +49,26 @@ def refresh_timesheets_workspace(controller) -> None:
         controller._set_queue_status_options(
             serialize_selector_options(workspace_state.queue_status_options)
         )
+        controller._set_queue_resource_options(
+            serialize_selector_options(workspace_state.queue_resource_options)
+        )
         controller._set_selected_project_id(workspace_state.selected_project_id)
         controller._set_selected_assignment_id(workspace_state.selected_assignment_id)
         controller._set_selected_period_start(workspace_state.selected_period_start)
         controller._set_selected_queue_status(workspace_state.selected_queue_status)
+        controller._set_queue_search_text(workspace_state.queue_search_text)
+        controller._set_selected_queue_project_id(
+            workspace_state.selected_queue_project_id
+        )
+        controller._set_selected_queue_resource_id(
+            workspace_state.selected_queue_resource_id
+        )
+        controller._set_queue_period_start_from(workspace_state.queue_period_start_from)
+        controller._set_queue_period_start_to(workspace_state.queue_period_start_to)
+        controller._set_queue_sort_key(workspace_state.queue_sort_key)
+        controller._set_queue_sort_direction(
+            1 if workspace_state.queue_sort_direction == "desc" else 0
+        )
         controller._set_selected_entry_id(workspace_state.selected_entry_id)
         controller._set_selected_queue_period_id(workspace_state.selected_queue_period_id)
         controller._set_assignment_summary(
@@ -61,6 +84,7 @@ def refresh_timesheets_workspace(controller) -> None:
             serialize_timesheet_collection_view_model(workspace_state.review_queue)
         )
         controller._set_queue_total_count(workspace_state.queue_total_count)
+        controller._set_queue_page(workspace_state.queue_page)
         controller._set_review_detail(
             serialize_timesheet_detail_view_model(workspace_state.review_detail)
         )

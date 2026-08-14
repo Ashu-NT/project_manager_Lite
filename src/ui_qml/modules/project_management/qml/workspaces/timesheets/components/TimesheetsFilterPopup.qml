@@ -12,7 +12,7 @@ AppWidgets.AnchoredPopup {
 
     property var workspaceController: null
     property var state: null
-    width: 280
+    width: 340
     padding: Theme.AppTheme.marginMd
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
@@ -41,17 +41,17 @@ AppWidgets.AnchoredPopup {
             currentIndex: root.state
                 ? root.state.optionIndexForValue(
                     root.workspaceController ? (root.workspaceController.projectOptions || []) : [],
-                    root.workspaceController ? root.workspaceController.selectedProjectId : "all")
+                    root.workspaceController ? root.workspaceController.selectedQueueProjectId : "all")
                 : 0
             onActivated: function(index) {
                 const opts = root.workspaceController ? (root.workspaceController.projectOptions || []) : []
                 if (root.workspaceController !== null && opts[index])
-                    root.workspaceController.selectProject(String(opts[index].value || "all"))
+                    root.workspaceController.setQueueProject(String(opts[index].value || "all"))
             }
         }
 
         AppControls.Label {
-            text: "Assignment"
+            text: "Resource"
             font.bold: true
             font.pixelSize: Theme.AppTheme.captionSize
             font.family: Theme.AppTheme.fontFamily
@@ -59,42 +59,45 @@ AppWidgets.AnchoredPopup {
         }
         AppControls.ComboBox {
             Layout.fillWidth: true
-            model: root.workspaceController ? (root.workspaceController.assignmentOptions || []) : []
+            model: root.workspaceController ? (root.workspaceController.queueResourceOptions || []) : []
             textRole: "label"
             enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
             currentIndex: root.state
                 ? root.state.optionIndexForValue(
-                    root.workspaceController ? (root.workspaceController.assignmentOptions || []) : [],
-                    root.workspaceController ? root.workspaceController.selectedAssignmentId : "")
+                    root.workspaceController ? (root.workspaceController.queueResourceOptions || []) : [],
+                    root.workspaceController ? root.workspaceController.selectedQueueResourceId : "all")
                 : 0
             onActivated: function(index) {
-                const opts = root.workspaceController ? (root.workspaceController.assignmentOptions || []) : []
+                const opts = root.workspaceController ? (root.workspaceController.queueResourceOptions || []) : []
                 if (root.workspaceController !== null && opts[index])
-                    root.workspaceController.selectAssignment(String(opts[index].value || ""))
+                    root.workspaceController.setQueueResource(String(opts[index].value || "all"))
             }
         }
 
         AppControls.Label {
-            text: "Period"
+            text: "Period start range"
             font.bold: true
             font.pixelSize: Theme.AppTheme.captionSize
             font.family: Theme.AppTheme.fontFamily
             color: Theme.AppTheme.textMuted
         }
-        AppControls.ComboBox {
+        RowLayout {
             Layout.fillWidth: true
-            model: root.workspaceController ? (root.workspaceController.periodOptions || []) : []
-            textRole: "label"
-            enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-            currentIndex: root.state
-                ? root.state.optionIndexForValue(
-                    root.workspaceController ? (root.workspaceController.periodOptions || []) : [],
-                    root.workspaceController ? root.workspaceController.selectedPeriodStart : "")
-                : 0
-            onActivated: function(index) {
-                const opts = root.workspaceController ? (root.workspaceController.periodOptions || []) : []
-                if (root.workspaceController !== null && opts[index])
-                    root.workspaceController.selectPeriod(String(opts[index].value || ""))
+            spacing: Theme.AppTheme.spacingSm
+
+            AppControls.DateField {
+                id: periodFromField
+                Layout.fillWidth: true
+                placeholderText: "From"
+                text: root.workspaceController ? root.workspaceController.queuePeriodStartFrom : ""
+                popupBoundaryItem: root.contentItem
+            }
+            AppControls.DateField {
+                id: periodToField
+                Layout.fillWidth: true
+                placeholderText: "To"
+                text: root.workspaceController ? root.workspaceController.queuePeriodStartTo : ""
+                popupBoundaryItem: root.contentItem
             }
         }
 
@@ -108,18 +111,23 @@ AppWidgets.AnchoredPopup {
                 iconName: "close"
                 onClicked: {
                     if (root.workspaceController !== null) {
-                        root.workspaceController.selectProject("all")
-                        root.workspaceController.selectAssignment("")
-                        root.workspaceController.selectPeriod("")
+                        root.workspaceController.setQueueProject("all")
+                        root.workspaceController.setQueueResource("all")
+                        root.workspaceController.setQueuePeriodRange("", "")
                     }
                     root.close()
                 }
             }
-            AppControls.SecondaryButton {
+            AppControls.PrimaryButton {
                 Layout.fillWidth: true
-                text: "Close"
-                iconName: "close"
-                onClicked: root.close()
+                text: "Apply"
+                iconName: "approve"
+                onClicked: {
+                    if (root.workspaceController !== null)
+                        root.workspaceController.setQueuePeriodRange(
+                            periodFromField.text, periodToField.text)
+                    root.close()
+                }
             }
         }
     }
