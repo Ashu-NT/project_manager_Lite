@@ -150,21 +150,41 @@ def test_collaboration_inbox_filters_by_project_scope_and_marks_mentions_read(se
         scope_role="viewer",
     )
     collaboration.post_comment(task_id=task_alpha.id, body="Please review @collab-viewer")
+    collaboration.post_comment(task_id=task_alpha.id, body="Second note for @collab-viewer")
+    collaboration.post_comment(task_id=task_alpha.id, body="Final follow-up @collab-viewer")
     collaboration.post_comment(task_id=task_beta.id, body="Do not show @collab-beta-viewer")
 
     login_as(services, "collab-viewer", "StrongPass123")
 
     inbox = collaboration.list_inbox()
-    assert len(inbox) == 1
-    assert inbox[0].project_id == project_alpha.id
-    assert collaboration.unread_mentions_count() == 1
+    assert len(inbox) == 3
+    assert {item.project_id for item in inbox} == {project_alpha.id}
+    assert collaboration.unread_mentions_count() == 3
+
+    first_page = collaboration.query_mentions_page(page=1, page_size=2)
+    second_page = collaboration.query_mentions_page(page=2, page_size=2)
+    search_page = collaboration.query_mentions_page(search_text="Second note")
+
+    assert first_page.total == 3
+    assert second_page.total == 3
+    assert len(first_page.items) == 2
+    assert len(second_page.items) == 1
+    assert {item.comment_id for item in first_page.items}.isdisjoint(
+        {item.comment_id for item in second_page.items}
+    )
+    assert {item.project_id for item in (*first_page.items, *second_page.items)} == {
+        project_alpha.id
+    }
+    assert len(search_page.items) == 1
+    assert search_page.items[0].body_preview.startswith("Second note")
 
     collaboration.mark_task_mentions_read(task_alpha.id)
 
     refreshed = collaboration.list_inbox()
-    assert len(refreshed) == 1
-    assert refreshed[0].unread is False
+    assert len(refreshed) == 3
+    assert all(item.unread is False for item in refreshed)
     assert collaboration.unread_mentions_count() == 0
+    assert collaboration.query_mentions_page(unread_only=True).total == 0
 
 
 def test_collaboration_notifications_filter_project_scope_for_mentions_and_timesheet_workflow(services):

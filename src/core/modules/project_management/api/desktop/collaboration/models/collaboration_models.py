@@ -124,8 +124,17 @@ class CollaborationWorkspaceSnapshotDto:
     active_presence: tuple[CollaborationPresenceDesktopDto, ...]
 
 
+@dataclass(frozen=True)
+class CollaborationMentionsPageDto:
+    items: tuple[CollaborationInboxDesktopDto, ...]
+    total: int
+    page: int
+    page_size: int
+
+
 __all__ = [
     "CollaborationInboxDesktopDto",
+    "CollaborationMentionsPageDto",
     "CollaborationNotificationDesktopDto",
     "CollaborationPresenceDesktopDto",
     "CollaborationWorkspaceSnapshotDto",

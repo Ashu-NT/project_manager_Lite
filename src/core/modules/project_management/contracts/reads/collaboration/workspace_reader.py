@@ -3,10 +3,25 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Protocol
 
-from .models.workspace_facts import CollaborationWorkspaceFacts
+from .models.workspace_facts import (
+    CollaborationCommentCriteria,
+    CollaborationCommentReadPage,
+    CollaborationWorkspaceFacts,
+)
 
 
 class CollaborationWorkspaceReader(Protocol):
+    def read_comment_page(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        accessible_project_ids: tuple[str, ...],
+        criteria: CollaborationCommentCriteria,
+        page: int,
+        page_size: int,
+    ) -> CollaborationCommentReadPage: ...
+
     def read_facts(
         self,
         *,

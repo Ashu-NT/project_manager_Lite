@@ -56,6 +56,9 @@ def serialize_collaboration_collection_view_model(
         "subtitle": view_model.subtitle,
         "emptyState": view_model.empty_state,
         "items": serialize_collaboration_record_view_models(view_model.items),
+        "totalCount": view_model.total_count or len(view_model.items),
+        "page": view_model.page,
+        "pageSize": view_model.page_size,
     }
 
 

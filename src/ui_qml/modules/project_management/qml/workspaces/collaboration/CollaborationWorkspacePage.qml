@@ -258,6 +258,7 @@ AppLayouts.WorkspaceFrame {
                                    : state.activePanelId === "team_updates" ? root.workspaceController.teamUpdatesTableModel
                                    : root.workspaceController.inboxTableModel)
                                 : null
+                            sortingMode: state.activePanelId === "mentions" ? "none" : "client"
                             selectedRowId: state._selectedRowId
                             emptyText: state._currentPanelModel.emptyState || "No collaboration items are available."
                             loading: root.workspaceController ? root.workspaceController.isLoading : false

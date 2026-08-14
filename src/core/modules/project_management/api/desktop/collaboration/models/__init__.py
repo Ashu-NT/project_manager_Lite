@@ -2,6 +2,7 @@
 
 from src.core.modules.project_management.api.desktop.collaboration.models.collaboration_models import (
     CollaborationInboxDesktopDto,
+    CollaborationMentionsPageDto,
     CollaborationNotificationDesktopDto,
     CollaborationPresenceDesktopDto,
     CollaborationWorkspaceSnapshotDto,
@@ -13,6 +14,7 @@ from src.core.modules.project_management.api.desktop.collaboration.models.collab
 
 __all__ = [
     "CollaborationInboxDesktopDto",
+    "CollaborationMentionsPageDto",
     "CollaborationNotificationDesktopDto",
     "CollaborationPresenceDesktopDto",
     "CollaborationWorkspaceSnapshotDto",

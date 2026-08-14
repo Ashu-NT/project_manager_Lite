@@ -13,6 +13,7 @@ from src.core.modules.project_management.domain.collaboration.mentions.mention i
 )
 from src.core.modules.project_management.domain.collaboration.models.workspace import (
     CollaborationInboxItem,
+    CollaborationInboxPage,
     CollaborationWorkspaceSnapshot,
 )
 from src.core.modules.project_management.domain.collaboration.notifications.notification import (
@@ -25,6 +26,7 @@ from src.core.modules.project_management.domain.collaboration.presence.presence 
 
 __all__ = [
     "CollaborationInboxItem",
+    "CollaborationInboxPage",
     "CollaborationMentionCandidate",
     "CollaborationNotificationItem",
     "CollaborationWorkspaceSnapshot",

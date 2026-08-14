@@ -86,6 +86,8 @@ class ProjectManagementCollaborationWorkspaceController(
         self._approvals: dict[str, object] = default_collection()
         self._activity_feed: dict[str, object] = default_collection()
         self._team_updates: dict[str, object] = default_collection()
+        self._mentions_page = 1
+        self._mentions_page_size = 25
         self._selected_item_detail: dict[str, object] = default_selected_item_detail()
         self._panel_item_index: dict[str, dict[str, dict[str, object]]] = {}
         bind_collaboration_domain_events(self)
@@ -230,6 +232,14 @@ class ProjectManagementCollaborationWorkspaceController(
     @Slot(str)
     def setMentionsSearchText(self, text: str) -> None:
         _fh.set_mentions_search_text(self, text)
+
+    @Slot(int)
+    def setMentionsPage(self, page: int) -> None:
+        _fh.set_mentions_page(self, page)
+
+    @Slot(int)
+    def setMentionsPageSize(self, page_size: int) -> None:
+        _fh.set_mentions_page_size(self, page_size)
 
     @Slot(str)
     def setApprovalsSearchText(self, text: str) -> None:

@@ -19,6 +19,14 @@ class CollaborationInboxItem:
     unread: bool = True
 
 
+@dataclass(frozen=True, slots=True)
+class CollaborationInboxPage:
+    items: tuple[CollaborationInboxItem, ...] = ()
+    total: int = 0
+    page: int = 1
+    page_size: int = 25
+
+
 @dataclass(frozen=True)
 class CollaborationWorkspaceSnapshot:
     notifications: list[CollaborationNotificationItem]
@@ -27,4 +35,8 @@ class CollaborationWorkspaceSnapshot:
     active_presence: list[TaskPresenceStatusItem]
 
 
-__all__ = ["CollaborationInboxItem", "CollaborationWorkspaceSnapshot"]
+__all__ = [
+    "CollaborationInboxItem",
+    "CollaborationInboxPage",
+    "CollaborationWorkspaceSnapshot",
+]

@@ -33,12 +33,16 @@ def test_schedule_sort_orders_complete_collection_before_page_slicing() -> None:
         _item(str(index), f"Activity {index:02d}", date(2026, 8, index))
         for index in range(1, 13)
     )
-    sort = normalize_schedule_sort(key="taskName", direction="desc")
+    ascending_sort = normalize_schedule_sort(key="taskName", direction="asc")
+    descending_sort = normalize_schedule_sort(key="taskName", direction="desc")
 
-    ordered = sort_schedule_items(items, sort=sort)
+    ascending = sort_schedule_items(items, sort=ascending_sort)
+    descending = sort_schedule_items(items, sort=descending_sort)
 
-    assert [item.name for item in ordered[:10]][:2] == ["Activity 12", "Activity 11"]
-    assert [item.name for item in ordered[10:]] == ["Activity 02", "Activity 01"]
+    assert [item.name for item in ascending[:10]][:2] == ["Activity 01", "Activity 02"]
+    assert [item.name for item in ascending[10:]] == ["Activity 11", "Activity 12"]
+    assert [item.name for item in descending[:10]][:2] == ["Activity 12", "Activity 11"]
+    assert [item.name for item in descending[10:]] == ["Activity 02", "Activity 01"]
 
 
 def test_schedule_sort_is_allowlisted_and_keeps_missing_dates_last() -> None:

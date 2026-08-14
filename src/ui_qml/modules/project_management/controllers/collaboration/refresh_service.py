@@ -25,7 +25,15 @@ def refresh_collaboration_workspace(controller) -> None:
                 controller._workspace_presenter.build_view_model()
             )
         )
-        ws = controller._collaboration_workspace_presenter.build_workspace_state()
+        ws = controller._collaboration_workspace_presenter.build_workspace_state(
+            selected_project_id=controller._filter_service.selected_project_id,
+            selected_team_id=controller._filter_service.selected_team_id,
+            selected_period_key=controller._filter_service.selected_period_key,
+            selected_unread_key=controller._filter_service.selected_unread_key,
+            mentions_search_text=controller._filter_service.mentions_search_text,
+            mentions_page=controller._mentions_page,
+            mentions_page_size=controller._mentions_page_size,
+        )
         controller._set_overview(serialize_collaboration_overview_view_model(ws.overview))
         controller._set_notifications(
             serialize_collaboration_collection_view_model(ws.notifications)
@@ -42,6 +50,8 @@ def refresh_collaboration_workspace(controller) -> None:
             serialize_collaboration_panel_tab_view_models(ws.panel_tabs)
         )
         controller._set_mentions(serialize_collaboration_collection_view_model(ws.mentions))
+        controller._mentions_page = ws.mentions.page
+        controller._mentions_page_size = ws.mentions.page_size
         controller._set_approvals(
             serialize_collaboration_collection_view_model(ws.approvals)
         )

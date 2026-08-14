@@ -47,6 +47,12 @@ def test_project_catalog_sort_is_authoritative_across_pages(services) -> None:
     beta = project_service.create_project("Beta Sort")
     gamma = project_service.create_project("Gamma Sort")
 
+    ascending_first = project_service.query_catalog_page(
+        sort_key="title", sort_direction="asc", page=1, page_size=2
+    )
+    ascending_second = project_service.query_catalog_page(
+        sort_key="title", sort_direction="asc", page=2, page_size=2
+    )
     descending_first = project_service.query_catalog_page(
         sort_key="title", sort_direction="desc", page=1, page_size=2
     )
@@ -57,6 +63,8 @@ def test_project_catalog_sort_is_authoritative_across_pages(services) -> None:
         sort_key="arbitrary_sql", sort_direction="desc", page=1, page_size=3
     )
 
+    assert [row.project.id for row in ascending_first.items] == [alpha.id, beta.id]
+    assert [row.project.id for row in ascending_second.items] == [gamma.id]
     assert [row.project.id for row in descending_first.items] == [gamma.id, beta.id]
     assert [row.project.id for row in descending_second.items] == [alpha.id]
     assert descending_first.sort.key == "title"
@@ -128,6 +136,20 @@ def test_task_workspace_sort_is_authoritative_across_pages(services) -> None:
     beta = task_service.create_task(project.id, "Beta Task", wbs_code="2")
     gamma = task_service.create_task(project.id, "Gamma Task", wbs_code="3")
 
+    ascending_first = task_service.query_workspace_page(
+        project_id=project.id,
+        sort_key="title",
+        sort_direction="asc",
+        page=1,
+        page_size=2,
+    )
+    ascending_second = task_service.query_workspace_page(
+        project_id=project.id,
+        sort_key="title",
+        sort_direction="asc",
+        page=2,
+        page_size=2,
+    )
     first = task_service.query_workspace_page(
         project_id=project.id,
         sort_key="title",
@@ -150,6 +172,8 @@ def test_task_workspace_sort_is_authoritative_across_pages(services) -> None:
         page_size=3,
     )
 
+    assert [row.id for row in ascending_first.items] == [alpha.id, beta.id]
+    assert [row.id for row in ascending_second.items] == [gamma.id]
     assert [row.id for row in first.items] == [gamma.id, beta.id]
     assert [row.id for row in second.items] == [alpha.id]
     assert first.sort.direction.value == "desc"
@@ -217,6 +241,12 @@ def test_resource_catalog_sort_is_authoritative_across_pages(services) -> None:
     beta = resource_service.create_resource(name="Beta Resource", role="Planner")
     gamma = resource_service.create_resource(name="Gamma Resource", role="Planner")
 
+    ascending_first = resource_service.query_catalog_page(
+        sort_key="title", sort_direction="asc", page=1, page_size=2
+    )
+    ascending_second = resource_service.query_catalog_page(
+        sort_key="title", sort_direction="asc", page=2, page_size=2
+    )
     first = resource_service.query_catalog_page(
         sort_key="title", sort_direction="desc", page=1, page_size=2
     )
@@ -227,6 +257,8 @@ def test_resource_catalog_sort_is_authoritative_across_pages(services) -> None:
         sort_key="unsafe_sql", sort_direction="desc", page=1, page_size=3
     )
 
+    assert [row.resource.id for row in ascending_first.items] == [alpha.id, beta.id]
+    assert [row.resource.id for row in ascending_second.items] == [gamma.id]
     assert [row.resource.id for row in first.items] == [gamma.id, beta.id]
     assert [row.resource.id for row in second.items] == [alpha.id]
     assert first.sort.direction.value == "desc"
@@ -322,6 +354,20 @@ def test_register_catalog_sort_is_authoritative_across_pages(services) -> None:
         severity=RegisterEntrySeverity.HIGH,
     )
 
+    ascending_first = register_service.query_catalog_page(
+        project_id=project.id,
+        sort_key="title",
+        sort_direction="asc",
+        page=1,
+        page_size=2,
+    )
+    ascending_second = register_service.query_catalog_page(
+        project_id=project.id,
+        sort_key="title",
+        sort_direction="asc",
+        page=2,
+        page_size=2,
+    )
     first = register_service.query_catalog_page(
         project_id=project.id,
         sort_key="title",
@@ -344,6 +390,8 @@ def test_register_catalog_sort_is_authoritative_across_pages(services) -> None:
         page_size=3,
     )
 
+    assert [row.entry.id for row in ascending_first.items] == [alpha.id, beta.id]
+    assert [row.entry.id for row in ascending_second.items] == [gamma.id]
     assert [row.entry.id for row in first.items] == [gamma.id, beta.id]
     assert [row.entry.id for row in second.items] == [alpha.id]
     assert first.sort.direction.value == "desc"
@@ -422,6 +470,12 @@ def test_timesheet_review_query_filters_and_sorts_across_pages(services) -> None
         )
         created.append((resource, period))
 
+    ascending_first = timesheets.query_review_queue_page(
+        sort_key="title", sort_direction="asc", page=1, page_size=2
+    )
+    ascending_second = timesheets.query_review_queue_page(
+        sort_key="title", sort_direction="asc", page=2, page_size=2
+    )
     first = timesheets.query_review_queue_page(
         sort_key="title", sort_direction="desc", page=1, page_size=2
     )
@@ -439,6 +493,11 @@ def test_timesheet_review_query_filters_and_sorts_across_pages(services) -> None
         sort_key="unsafe_sql", sort_direction="asc"
     )
 
+    assert [row.resource_name for row in ascending_first.items] == [
+        "Aaron Reviewer",
+        "Maya Reviewer",
+    ]
+    assert [row.resource_name for row in ascending_second.items] == ["Zoe Reviewer"]
     assert [row.resource_name for row in first.items] == ["Zoe Reviewer", "Maya Reviewer"]
     assert [row.resource_name for row in second.items] == ["Aaron Reviewer"]
     assert {row.resource_name for row in project_page.items} == {

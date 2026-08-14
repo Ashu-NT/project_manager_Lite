@@ -8,28 +8,31 @@ from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
 
 class CollaborationSupportMixin:
-    def _read_cross_project_collaboration_facts(
-        self,
-        *,
-        comment_limit: int,
-        presence_limit: int = 0,
-    ):
+    def _collaboration_scope(self, *, operation_label: str):
         tenant_context = getattr(self, "_tenant_context_service", None)
         if tenant_context is None:
             raise BusinessRuleError(
                 "Active tenant context is required to view collaboration workspace.",
                 code="TENANT_CONTEXT_REQUIRED",
             )
-        scope = tenant_context.require_active_scope_ids(
-            operation_label="view collaboration workspace"
-        )
+        scope = tenant_context.require_active_scope_ids(operation_label=operation_label)
         projects = filter_project_rows(
             self._project_repo.list(),
             self._user_session,
             permission_code="collaboration.read",
             project_id_getter=lambda project: project.id,
         )
-        project_names = {project.id: project.name for project in projects}
+        return scope, {project.id: project.name for project in projects}
+
+    def _read_cross_project_collaboration_facts(
+        self,
+        *,
+        comment_limit: int,
+        presence_limit: int = 0,
+    ):
+        scope, project_names = self._collaboration_scope(
+            operation_label="view collaboration workspace"
+        )
         facts = self._workspace_reader.read_facts(
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,

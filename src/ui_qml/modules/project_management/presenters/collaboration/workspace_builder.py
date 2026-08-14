@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 from src.core.platform.api.desktop.approval.approval import PlatformApprovalDesktopApi
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementCollaborationDesktopApi,
@@ -24,10 +26,39 @@ def build_workspace_state(
     approval_api: PlatformApprovalDesktopApi | None,
     *,
     limit: int = 200,
+    selected_project_id: str = "all",
+    selected_team_id: str = "all",
+    selected_period_key: str = "all",
+    selected_unread_key: str = "all",
+    mentions_search_text: str = "",
+    mentions_page: int = 1,
+    mentions_page_size: int = 25,
 ) -> CollaborationWorkspaceViewModel:
+    # R1.6 TEMPORARY: the snapshot still feeds Inbox, Activity, and Presence.
+    # Delete this call when those final purpose-specific projections are wired.
     snapshot = desktop_api.build_snapshot(limit=limit)
     inbox = build_inbox_collection(snapshot.notifications)
-    mentions = build_mentions_collection(snapshot.inbox)
+    period_deltas = {
+        "24h": timedelta(hours=24),
+        "7d": timedelta(days=7),
+        "30d": timedelta(days=30),
+    }
+    delta = period_deltas.get(selected_period_key)
+    mentions_page_result = desktop_api.query_mentions_page(
+        project_id=(None if selected_project_id == "all" else selected_project_id),
+        author_username=(None if selected_team_id == "all" else selected_team_id),
+        search_text=mentions_search_text,
+        created_since=(datetime.now(timezone.utc) - delta if delta is not None else None),
+        unread_only=selected_unread_key in {"unread", "attention"},
+        page=mentions_page,
+        page_size=mentions_page_size,
+    )
+    mentions = build_mentions_collection(
+        mentions_page_result.items,
+        total_count=mentions_page_result.total,
+        page=mentions_page_result.page,
+        page_size=mentions_page_result.page_size,
+    )
     approvals = build_approvals_collection(approval_api, limit=limit)
     activity_feed = build_activity_collection(
         notifications=snapshot.notifications,
@@ -47,7 +78,7 @@ def build_workspace_state(
     )
     panel_tabs = (
         CollaborationPanelTabViewModel("inbox", "Inbox", len(inbox.items)),
-        CollaborationPanelTabViewModel("mentions", "Mentions", len(mentions.items)),
+        CollaborationPanelTabViewModel("mentions", "Mentions", mentions.total_count),
         CollaborationPanelTabViewModel("approvals", "Approvals", len(approvals.items)),
         CollaborationPanelTabViewModel("activity", "Activity", len(activity_feed.items)),
         CollaborationPanelTabViewModel("team_updates", "Team Updates", len(team_updates.items)),

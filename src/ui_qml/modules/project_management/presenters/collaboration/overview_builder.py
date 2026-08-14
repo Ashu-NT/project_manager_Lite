@@ -30,12 +30,12 @@ def build_overview(
             ),
             CollaborationMetricViewModel(
                 label="Approvals",
-                value=str(len(approvals.items)),
+                value=str(approvals.total_count or len(approvals.items)),
                 supporting_text="Governed approval requests currently visible to the user.",
             ),
             CollaborationMetricViewModel(
                 label="Mentions",
-                value=str(len(mentions.items)),
+                value=str(mentions.total_count),
                 supporting_text="Mention threads across active project work.",
             ),
             CollaborationMetricViewModel(
@@ -50,7 +50,7 @@ def build_overview(
             ),
             CollaborationMetricViewModel(
                 label="Workflow Alerts",
-                value=str(len(inbox.items)),
+                value=str(inbox.total_count or len(inbox.items)),
                 supporting_text="Operational workflow items in the inbox stream.",
             ),
         ),

@@ -111,7 +111,9 @@ Item {
         if (root.activePanelId === "team_updates") return root._teamUpdateRows
         return root._inboxRows
     }
-    readonly property int _currentTableTotalItems: root._currentTableRows.length
+    readonly property int _currentTableTotalItems: root.activePanelId === "mentions"
+        ? Number(root.mentionsPanelModel.totalCount || 0)
+        : root._currentTableRows.length
     readonly property int _currentTablePageCount: Math.max(
         1, Math.ceil(root._currentTableTotalItems / Math.max(1, root._currentTablePageSize))
     )
@@ -206,7 +208,7 @@ Item {
 
     // ── Pagination helpers ────────────────────────────────────────────────
     function _panelPage(panelId) {
-        if (panelId === "mentions") return root.mentionsPage
+        if (panelId === "mentions") return Number(root.mentionsPanelModel.page || 1)
         if (panelId === "approvals") return root.approvalsPage
         if (panelId === "team_updates") return root.teamUpdatesPage
         return root.inboxPage
@@ -214,14 +216,17 @@ Item {
 
     function _setPanelPage(panelId, page) {
         const nextPage = Math.max(1, Number(page) || 1)
-        if (panelId === "mentions") root.mentionsPage = nextPage
+        if (panelId === "mentions") {
+            root.mentionsPage = nextPage
+            if (root.workspaceController) root.workspaceController.setMentionsPage(nextPage)
+        }
         else if (panelId === "approvals") root.approvalsPage = nextPage
         else if (panelId === "team_updates") root.teamUpdatesPage = nextPage
         else root.inboxPage = nextPage
     }
 
     function _panelPageSize(panelId) {
-        if (panelId === "mentions") return root.mentionsPageSize
+        if (panelId === "mentions") return Number(root.mentionsPanelModel.pageSize || 25)
         if (panelId === "approvals") return root.approvalsPageSize
         if (panelId === "team_updates") return root.teamUpdatesPageSize
         return root.inboxPageSize
@@ -229,7 +234,10 @@ Item {
 
     function _setPanelPageSize(panelId, pageSize) {
         const nextPageSize = Math.max(1, Number(pageSize) || 25)
-        if (panelId === "mentions") root.mentionsPageSize = nextPageSize
+        if (panelId === "mentions") {
+            root.mentionsPageSize = nextPageSize
+            if (root.workspaceController) root.workspaceController.setMentionsPageSize(nextPageSize)
+        }
         else if (panelId === "approvals") root.approvalsPageSize = nextPageSize
         else if (panelId === "team_updates") root.teamUpdatesPageSize = nextPageSize
         else root.inboxPageSize = nextPageSize

@@ -23,8 +23,30 @@ class ProjectCollaborationWorkspacePresenter:
         self._desktop_api = desktop_api or build_project_management_collaboration_desktop_api()
         self._approval_api = approval_api
 
-    def build_workspace_state(self, *, limit: int = 200) -> CollaborationWorkspaceViewModel:
-        return build_workspace_state(self._desktop_api, self._approval_api, limit=limit)
+    def build_workspace_state(
+        self,
+        *,
+        limit: int = 200,
+        selected_project_id: str = "all",
+        selected_team_id: str = "all",
+        selected_period_key: str = "all",
+        selected_unread_key: str = "all",
+        mentions_search_text: str = "",
+        mentions_page: int = 1,
+        mentions_page_size: int = 25,
+    ) -> CollaborationWorkspaceViewModel:
+        return build_workspace_state(
+            self._desktop_api,
+            self._approval_api,
+            limit=limit,
+            selected_project_id=selected_project_id,
+            selected_team_id=selected_team_id,
+            selected_period_key=selected_period_key,
+            selected_unread_key=selected_unread_key,
+            mentions_search_text=mentions_search_text,
+            mentions_page=mentions_page,
+            mentions_page_size=mentions_page_size,
+        )
 
     def mark_task_mentions_read(self, task_id: str) -> None:
         mark_task_mentions_read(self._desktop_api, task_id)

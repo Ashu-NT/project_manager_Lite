@@ -114,6 +114,41 @@ class _FakeCollaborationService:
             ],
         )
 
+    def query_mentions_page(
+        self,
+        *,
+        project_id=None,
+        author_username=None,
+        search_text="",
+        created_since=None,
+        unread_only=False,
+        page=1,
+        page_size=25,
+    ) -> SimpleNamespace:
+        rows = list(self.list_workspace_snapshot().inbox)
+        rows = [
+            row
+            for row in rows
+            if (project_id is None or row.project_id == project_id)
+            and (author_username is None or row.author_username == author_username)
+            and (created_since is None or row.created_at >= created_since)
+            and (not unread_only or row.unread)
+            and (
+                not search_text
+                or search_text.casefold()
+                in " ".join(
+                    (row.task_name, row.project_name, row.author_username, row.body_preview)
+                ).casefold()
+            )
+        ]
+        offset = (page - 1) * page_size
+        return SimpleNamespace(
+            items=tuple(rows[offset : offset + page_size]),
+            total=len(rows),
+            page=page,
+            page_size=page_size,
+        )
+
     def mark_task_mentions_read(self, task_id: str) -> None:
         self.marked_task_ids.append(task_id)
 
@@ -217,6 +252,7 @@ def test_project_management_workspace_catalog_exposes_typed_collaboration_contro
     assert controller.overview["title"] == "Collaboration"
     assert controller.notifications["items"][0]["title"] == "Approval requested for Weekly Freeze"
     assert controller.inbox["items"][0]["title"] == "Cable Pull"
+    assert controller.mentions["totalCount"] == 1
     assert controller.activePresence["items"][0]["title"] == "Cable Pull"
 
     result = controller.markTaskRead("task-1")
@@ -225,6 +261,13 @@ def test_project_management_workspace_catalog_exposes_typed_collaboration_contro
         "ok": True,
         "message": "Task mentions marked as read.",
     }
+
+    controller.setMentionsPageSize(1)
+    controller.setMentionsSearchText("Cable")
+
+    assert controller.mentions["page"] == 1
+    assert controller.mentions["pageSize"] == 1
+    assert controller.mentions["totalCount"] == 1
 
 
 def test_collaboration_presenter_skips_null_approval_rows() -> None:

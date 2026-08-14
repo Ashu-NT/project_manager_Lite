@@ -11,6 +11,7 @@ from src.core.modules.project_management.api.desktop.collaboration.commands.task
     TaskCollaborationReactionCommand,
 )
 from src.core.modules.project_management.api.desktop.collaboration.models.collaboration_models import (
+    CollaborationMentionsPageDto,
     CollaborationWorkspaceSnapshotDto,
     TaskCollaborationCommentDesktopDto,
     TaskCollaborationDocumentOptionDescriptor,
@@ -80,6 +81,8 @@ class ProjectManagementCollaborationDesktopApi:
         self._collaboration_service = collaboration_service
 
     def build_snapshot(self, *, limit: int = 200) -> CollaborationWorkspaceSnapshotDto:
+        # R1.6 TEMPORARY: remove after Inbox, Activity, and bounded Presence use
+        # their purpose-specific desktop queries; Mentions no longer consumes it.
         if self._collaboration_service is None:
             return CollaborationWorkspaceSnapshotDto(
                 notifications=(),
@@ -93,6 +96,35 @@ class ProjectManagementCollaborationDesktopApi:
             inbox=tuple(serialize_inbox_item(item) for item in snapshot.inbox),
             recent_activity=tuple(serialize_inbox_item(item) for item in snapshot.recent_activity),
             active_presence=tuple(serialize_presence_item(item) for item in snapshot.active_presence),
+        )
+
+    def query_mentions_page(
+        self,
+        *,
+        project_id: str | None = None,
+        author_username: str | None = None,
+        search_text: str = "",
+        created_since=None,
+        unread_only: bool = False,
+        page: int = 1,
+        page_size: int = 25,
+    ) -> CollaborationMentionsPageDto:
+        if self._collaboration_service is None:
+            return CollaborationMentionsPageDto((), 0, page, page_size)
+        result = self._collaboration_service.query_mentions_page(
+            project_id=project_id,
+            author_username=author_username,
+            search_text=search_text,
+            created_since=created_since,
+            unread_only=unread_only,
+            page=page,
+            page_size=page_size,
+        )
+        return CollaborationMentionsPageDto(
+            items=tuple(serialize_inbox_item(item) for item in result.items),
+            total=result.total,
+            page=result.page,
+            page_size=result.page_size,
         )
 
     def mark_task_mentions_read(self, task_id: str) -> None:

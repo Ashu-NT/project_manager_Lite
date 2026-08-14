@@ -14,7 +14,8 @@ def set_selected_project_id(controller, value: str) -> None:
         return
     controller._filter_service.selected_project_id = v
     controller.selectedProjectIdChanged.emit()
-    rebuild_all_panel_models(controller)
+    controller._mentions_page = 1
+    controller.refresh()
 
 
 def set_selected_team_id(controller, value: str) -> None:
@@ -23,7 +24,8 @@ def set_selected_team_id(controller, value: str) -> None:
         return
     controller._filter_service.selected_team_id = v
     controller.selectedTeamIdChanged.emit()
-    rebuild_all_panel_models(controller)
+    controller._mentions_page = 1
+    controller.refresh()
 
 
 def set_selected_period_key(controller, value: str) -> None:
@@ -32,7 +34,8 @@ def set_selected_period_key(controller, value: str) -> None:
         return
     controller._filter_service.selected_period_key = v
     controller.selectedPeriodKeyChanged.emit()
-    rebuild_all_panel_models(controller)
+    controller._mentions_page = 1
+    controller.refresh()
 
 
 def set_selected_unread_key(controller, value: str) -> None:
@@ -41,7 +44,8 @@ def set_selected_unread_key(controller, value: str) -> None:
         return
     controller._filter_service.selected_unread_key = v
     controller.selectedUnreadKeyChanged.emit()
-    rebuild_all_panel_models(controller)
+    controller._mentions_page = 1
+    controller.refresh()
 
 
 def set_inbox_search_text(controller, text: str) -> None:
@@ -61,9 +65,25 @@ def set_mentions_search_text(controller, text: str) -> None:
         return
     controller._filter_service.mentions_search_text = v
     controller.mentionsSearchTextChanged.emit()
-    controller._table_models.mentions.set_rows(
-        build_mentions_rows(controller._mentions, controller._filter_service)
-    )
+    controller._mentions_page = 1
+    controller.refresh()
+
+
+def set_mentions_page(controller, page: int) -> None:
+    normalized = max(1, int(page or 1))
+    if normalized == controller._mentions_page:
+        return
+    controller._mentions_page = normalized
+    controller.refresh()
+
+
+def set_mentions_page_size(controller, page_size: int) -> None:
+    normalized = max(1, int(page_size or 25))
+    if normalized == controller._mentions_page_size:
+        return
+    controller._mentions_page_size = normalized
+    controller._mentions_page = 1
+    controller.refresh()
 
 
 def set_approvals_search_text(controller, text: str) -> None:
@@ -108,6 +128,8 @@ __all__ = [
     "set_approvals_search_text",
     "set_inbox_search_text",
     "set_mentions_search_text",
+    "set_mentions_page",
+    "set_mentions_page_size",
     "set_selected_period_key",
     "set_selected_project_id",
     "set_selected_team_id",
