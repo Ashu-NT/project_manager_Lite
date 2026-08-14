@@ -1,19 +1,19 @@
 
 from __future__ import annotations
 
-from src.ui_qml.platform.controllers.common import serialize_workspace_overview
+from src.ui_qml.platform.controllers.common import WORKSPACE_PERMISSIONS, serialize_workspace_overview
 
 # entity -> (required permission codes, controller attribute name)
 _ENTITY_CONTROLLERS: dict[str, tuple[tuple[str, ...], str]] = {
-    "organization": (("settings.manage",), "_organization_controller"),
-    "calendar": (("task.read",), "_calendar_controller"),
-    "site": (("settings.manage", "site.read"), "_site_controller"),
-    "department": (("settings.manage", "department.read"), "_department_controller"),
-    "employee": (("employee.read",), "_employee_controller"),
-    "user": (("auth.manage", "auth.read", "access.manage", "security.manage"), "_user_controller"),
-    "party": (("settings.manage", "party.read"), "_party_controller"),
-    "document": (("settings.manage",), "_document_controller"),
-    "document_structure": (("settings.manage",), "_document_structure_controller"),
+    "organization": (WORKSPACE_PERMISSIONS["organization"], "_organization_controller"),
+    "calendar": (WORKSPACE_PERMISSIONS["calendar"], "_calendar_controller"),
+    "site": (WORKSPACE_PERMISSIONS["site"], "_site_controller"),
+    "department": (WORKSPACE_PERMISSIONS["department"], "_department_controller"),
+    "employee": (WORKSPACE_PERMISSIONS["employee"], "_employee_controller"),
+    "user": (WORKSPACE_PERMISSIONS["user"], "_user_controller"),
+    "party": (WORKSPACE_PERMISSIONS["party"], "_party_controller"),
+    "document": (WORKSPACE_PERMISSIONS["document"], "_document_controller"),
+    "document_structure": (WORKSPACE_PERMISSIONS["document_structure"], "_document_structure_controller"),
 }
 
 

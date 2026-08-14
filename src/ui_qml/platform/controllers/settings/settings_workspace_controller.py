@@ -14,6 +14,7 @@ from src.ui_qml.platform.presenters import (
 )
 
 from ..common import (
+    WORKSPACE_PERMISSIONS,
     PlatformWorkspaceControllerBase,
     serialize_action_list,
     serialize_operation_result,
@@ -118,7 +119,7 @@ class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
         )
 
     def _is_accessible(self) -> bool:
-        return self._has_permission(("settings.manage",))
+        return self._has_permission(WORKSPACE_PERMISSIONS["settings"])
 
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_signal(

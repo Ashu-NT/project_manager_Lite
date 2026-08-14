@@ -11,6 +11,7 @@ from src.core.shared.events.domain_events import domain_events
 from src.ui_qml.platform.presenters.identity_access.access.access_workspace_presenter import PlatformAccessWorkspacePresenter
 
 from src.ui_qml.platform.controllers.common import (
+    WORKSPACE_PERMISSIONS,
     PlatformWorkspaceControllerBase,
     run_mutation,
     serialize_action_list,
@@ -229,7 +230,7 @@ class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
         )
 
     def _is_accessible(self) -> bool:
-        return self._has_permission(("access.manage",))
+        return self._has_permission(WORKSPACE_PERMISSIONS["access"])
 
     def _bind_domain_events(self) -> None:
         for signal in (

@@ -12,6 +12,7 @@ from src.ui_qml.platform.presenters import (
 )
 
 from ..common import (
+    WORKSPACE_PERMISSIONS,
     PlatformWorkspaceControllerBase,
     serialize_action_item,
     serialize_action_list,
@@ -185,7 +186,7 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
         )
 
     def _is_accessible(self) -> bool:
-        return self._has_permission(("approval.request", "approval.decide", "audit.read"))
+        return self._has_permission(WORKSPACE_PERMISSIONS["control"])
 
     def _bind_domain_events(self) -> None:
         for signal in (
