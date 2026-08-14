@@ -79,6 +79,12 @@ Item {
         Components.ProjectContextBar {
             objectName: "pmProjectContextBar"
             Layout.fillWidth: true
+            // Only rendered for destinations that actually consume project
+            // context (OPTIONAL/REQUIRED) -- destinations like Portfolio and
+            // Projects operate across all projects by definition, so a
+            // project picker there is meaningless chrome, not a feature.
+            visible: root._activePolicy !== "not_applicable"
+            Layout.preferredHeight: visible ? implicitHeight : 0
             platformCatalog: root.platformCatalog
             projectContext: root._projectContext
             currentPolicy: root._activePolicy

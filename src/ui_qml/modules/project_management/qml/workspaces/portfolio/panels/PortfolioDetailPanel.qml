@@ -16,10 +16,18 @@ Item {
     property var dependenciesModel: ({ "items": [] })
     property var intakeItemsModel: ({ "items": [], "emptyState": "" })
     property var recentActionsModel: ({ "items": [], "emptyState": "" })
+    // Duck-typed PMProjectContextController (R2). Kept as `var` so this file
+    // doesn't need to import ProjectManagement.Controllers just for a type
+    // annotation -- matches ProjectContextBar.qml's own convention.
+    property var pmProjectContext: null
 
     readonly property int _idx: root.detailPage ? root.detailPage.activeSectionIndex : 0
     readonly property bool _hasItem: root.heatmapItem !== null
         && String(root.heatmapItem ? root.heatmapItem.id || "" : "").length > 0
+    readonly property bool _isActiveProject: root._hasItem
+        && root.pmProjectContext !== null
+        && root.pmProjectContext.hasActiveProject
+        && root.pmProjectContext.activeProjectId === String(root.heatmapItem.id || "")
     readonly property int _activeSectionH: {
         if (root._idx === 0) return _sec0.implicitHeight
         if (root._idx === 1) return _sec1.implicitHeight
@@ -75,6 +83,7 @@ Item {
 
                     RowLayout {
                         visible: root._hasItem
+                        Layout.fillWidth: true
                         spacing: Theme.AppTheme.spacingSm
 
                         AppWidgets.StatusChip {
@@ -83,6 +92,37 @@ Item {
 
                         AppWidgets.StatusChip {
                             status: String(root.heatmapItem ? root.heatmapItem.statusLabel || "" : "")
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        AppWidgets.StatusChip {
+                            visible: root._isActiveProject
+                            status: "Active project"
+                        }
+
+                        // Explicit pinning only (R2.10): browsing/opening a
+                        // project's detail never pins it by itself -- only
+                        // this deliberate action sets the shared PM project
+                        // context, so Scheduling/Financials (REQUIRED
+                        // context) can pick it up.
+                        AppControls.PrimaryButton {
+                            visible: !root._isActiveProject
+                            text: "Set Active Project"
+                            enabled: root.pmProjectContext !== null
+                            onClicked: {
+                                if (root.pmProjectContext && root.heatmapItem)
+                                    root.pmProjectContext.selectProject(String(root.heatmapItem.id || ""))
+                            }
+                        }
+
+                        AppControls.SecondaryButton {
+                            visible: root._isActiveProject
+                            text: "Clear Active Project"
+                            enabled: root.pmProjectContext !== null
+                            onClicked: {
+                                if (root.pmProjectContext) root.pmProjectContext.clearProject()
+                            }
                         }
                     }
 

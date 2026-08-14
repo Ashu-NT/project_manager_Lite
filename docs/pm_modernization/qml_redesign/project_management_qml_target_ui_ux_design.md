@@ -1040,4 +1040,79 @@ layer reuses via the shared `ProjectCatalogReader`); the full
 Portfolio+Dashboard regression batch (105 tests) plus the 12 new R3.3
 tests pass. **R3.3 -- PORTFOLIO SCALABLE COLLECTION QUERIES: COMPLETE.**
 
-**R2 - PM NAVIGATION AND PROJECT CONTEXT: COMPLETE.**
+## 22. R3.4 closure: Portfolio IA tabs
+
+The fixed 268px `PortfolioBottomPanel.qml` (five inline tabs: Funding/
+Risks/Capacity/Governance/Activity) and the always-visible
+`PortfolioGovernanceToolbar.qml` scenario toolbar are retired. Portfolio's
+list page is now six equal-weight tabs (`qml/workspaces/portfolio/tabs/`,
+driven by `AppWidgets.DetailTabBar` + `StackLayout`, backed by
+`ProjectManagementPortfolioWorkspaceController.activeTab`/`setActiveTab()`):
+
+- **Executive** -- KPI strip, the bounded `list_top_at_risk_projects()`
+  ranking, and the Recent Actions feed (folded in per product decision --
+  no 7th/8th tab).
+- **Heatmap** -- the server-paginated browse
+  (`list_portfolio_heatmap_page()`); row-activate still opens the existing
+  per-project `PortfolioDetailPanel` drill-down unchanged.
+- **Intake** -- server-paginated browse (`list_intake_items_page()`) with
+  the existing status filter and approve/review/reject actions.
+- **Scenarios** -- the relocated `PortfolioGovernanceToolbar` (scenario
+  select/evaluate/compare, no longer persistent chrome above all tabs) plus
+  a Scenario Library list and Scoring Templates management (folded in per
+  product decision).
+- **Capacity** -- unchanged capacity pool report.
+- **Dependencies** -- server-paginated browse
+  (`list_project_dependencies_page()`) with remove-dependency.
+
+Deliberately not built in this phase (pre-existing gap, not introduced
+here): there was no QML dialog for creating templates/scenarios/
+dependencies/intake items before R3.4 either -- `createTemplate()`/
+`createScenario()`/`createDependency()`/`createIntakeItem()` exist on the
+controller but have no dialog UI wired to them. Recorded as a deferred gap
+rather than built as a rushed addition to a tab-restructuring phase.
+
+Verified through real QML loads (not source-contract checks alone): the
+canonical shell's Portfolio compatibility route loads with the six-tab IA,
+every tab is reachable via `setActiveTab()` without error, and each
+paginated tab's page state is live after load
+(`test_pm_r3_4_portfolio_ia_tabs.py`). Targeted regression: 90 Portfolio
+tests green.
+
+**Unplanned same-session fix**: a direct product report that the R2
+project-context bar looked unprofessional on Portfolio led to the bar
+being hidden entirely for `NOT_APPLICABLE`-policy destinations (Portfolio,
+Projects) rather than always rendered regardless of relevance -- it still
+renders for `OPTIONAL`/`REQUIRED` destinations (Dashboard, Scheduling,
+Financials, etc.), so Scheduling/Financials' explicit-pinning requirement
+is preserved. A visual restyle of the bar itself (chip-style project
+label, hiding the empty results dropdown until a search returns matches)
+was tried and then reverted back to the original styling per direct
+instruction -- only the visibility gating is kept. No pinning/search/clear
+behavior changed. Verified via a real QML load asserting the bar's
+`visible` property across Dashboard (shown), Portfolio (hidden), and
+Scheduling (shown).
+
+**R3.4 -- PORTFOLIO IA TABS: COMPLETE.**
+
+## 23. R3.5 closure: Portfolio interaction redesign
+
+Compare already used R1's authoritative `compare_scenarios()`/
+`evaluate_scenario()` unchanged -- no gap there. Browsing/selection safety
+(opening the Heatmap drill-down, selecting a row, switching tabs) was
+verified to never call `selectProject()` on its own, preserving R2.10's
+explicit-pinning-only rule.
+
+The one real interaction gap: there was no way to pin a project from
+Portfolio into the shared R2 project context, so a user who found a
+project via Portfolio's Heatmap had no path into Scheduling/Financials
+(both `REQUIRED` project context) with that project already active. Added
+an explicit **Set Active Project** / **Clear Active Project** action to
+`PortfolioDetailPanel.qml`'s overview section (visible only when viewing a
+project's drill-down, calling straight through to the same
+`PMProjectContextController.selectProject()`/`clearProject()` the shared
+context bar uses), plus an "Active project" chip when the viewed project
+is already the pinned one. This is a deliberate, explicit action taken
+after viewing a project's detail -- never automatic on row-select/open.
+
+**R3.5 -- PORTFOLIO INTERACTION REDESIGN: COMPLETE.**

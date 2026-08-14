@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 
+from PySide6.QtCore import QObject
 from PySide6.QtGui import QGuiApplication
 
 from src.application.runtime import build_desktop_api_registry
@@ -77,3 +78,33 @@ def test_heatmap_tab_pagination_state_is_exposed_after_load(services) -> None:
     controller.setActiveTab("dependencies")
     assert controller.dependencyPage == 1
     assert controller.dependencyPageSize > 0
+
+
+def test_project_context_bar_is_hidden_for_not_applicable_destinations(services) -> None:
+    """Portfolio's project-context-policy is NOT_APPLICABLE (it operates
+    across all projects by definition) -- the shared project-context bar
+    must not render there, matching a direct product ask to stop showing a
+    meaningless project picker on Portfolio."""
+    _ensure_qgui_application()
+    registry = build_desktop_api_registry(services)
+    pm_catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
+    platform_catalog = PlatformWorkspaceCatalog()
+
+    engine = create_qml_engine()
+    engine.setInitialProperties({"pmCatalog": pm_catalog, "platformCatalog": platform_catalog})
+    engine.load(
+        "src/ui_qml/modules/project_management/qml/workspace/ProjectManagementWorkspace.qml"
+    )
+    root = engine.rootObjects()[0]
+    context_bar = root.findChild(QObject, "pmProjectContextBar")
+    assert context_bar is not None
+
+    # Default destination (dashboard) is OPTIONAL -- the bar is shown.
+    assert context_bar.property("visible") is True
+
+    pm_catalog.pmNavigation.selectWorkspace("portfolio")
+    assert context_bar.property("visible") is False
+
+    # Scheduling is REQUIRED -- the bar must still be reachable there.
+    pm_catalog.pmNavigation.selectWorkspace("scheduling")
+    assert context_bar.property("visible") is True
