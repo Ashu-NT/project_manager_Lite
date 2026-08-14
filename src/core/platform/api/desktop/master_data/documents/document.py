@@ -8,6 +8,7 @@ from src.core.platform.api.desktop.master_data.documents.models.document import 
     DocumentDto,
     DocumentLinkCreateCommand,
     DocumentLinkDto,
+    DocumentRollupSummaryDto,
     DocumentStructureCreateCommand,
     DocumentStructureDto,
     DocumentStructureUpdateCommand,
@@ -37,6 +38,13 @@ class PlatformDocumentDesktopApi:
             lambda: tuple(
                 self._serialize_document(document)
                 for document in self._document_service.list_documents(active_only=active_only)
+            )
+        )
+
+    def get_document_rollup_summary(self) -> DesktopApiResult[DocumentRollupSummaryDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_rollup_summary(
+                self._document_service.get_document_rollup_summary()
             )
         )
 
@@ -177,6 +185,10 @@ class PlatformDocumentDesktopApi:
         return execute_desktop_operation(
             lambda: self._document_service.remove_link(link_id)
         )
+
+    @staticmethod
+    def _serialize_rollup_summary(summary) -> DocumentRollupSummaryDto:
+        return DocumentRollupSummaryDto(total=summary.total, current=summary.current)
 
     @staticmethod
     def _serialize_document(document: Document) -> DocumentDto:

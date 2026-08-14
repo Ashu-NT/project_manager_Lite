@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
+from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.contract.read.overview.platform_overview_rollup_reader import (
+    DepartmentRollupSummary,
+    PlatformOverviewRollupReader,
+)
 from src.core.platform.contract.repositories.master_data.department.contracts import DepartmentRepository
 from src.core.platform.domain.master_data.department import Department
 from src.core.platform.contract.repositories.master_data.employee.contracts import EmployeeRepository
@@ -10,6 +15,8 @@ from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.contract.repositories.master_data.site.contracts import LocationReferenceRepository, SiteRepository
 from src.core.platform.application.tenant.tenancy import TenantContextService
 
+from .department_access import require_department_read_access
+from .department_context import active_organization
 from . import department_commands as _cmd
 from . import department_queries as _queries
 from .department_location_service import (
@@ -31,6 +38,7 @@ class DepartmentService:
         user_session=None,
         enterprise_audit_service=None,
         tenant_context_service: TenantContextService | None = None,
+        overview_rollup_reader: PlatformOverviewRollupReader | None = None,
     ):
         self._session = session
         self._department_repo = department_repo
@@ -41,6 +49,7 @@ class DepartmentService:
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
+        self._overview_rollup_reader = overview_rollup_reader
 
     def register_location_reference_repository(
         self,
@@ -50,6 +59,24 @@ class DepartmentService:
 
     def list_departments(self, *, active_only: bool | None = None) -> list[Department]:
         return _queries.list_departments(self, active_only=active_only)
+
+    def get_department_rollup_summary(self) -> DepartmentRollupSummary:
+        require_department_read_access(self, "view department rollup summary")
+        organization = active_organization(self)
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="view department rollup summary",
+        )
+        if self._overview_rollup_reader is None:
+            raise RuntimeError("Platform overview rollup reader is not configured.")
+        return self._overview_rollup_reader.get_department_summary(
+            organization_id=organization.id,
+            tenant_id=tenant_id,
+        )
 
     def search_departments(
         self,

@@ -33,6 +33,12 @@ class PartyDto:
 
 
 @dataclass(frozen=True)
+class PartyRollupSummaryDto:
+    total: int
+    active: int
+
+
+@dataclass(frozen=True)
 class PartyCreateCommand:
     party_code: str
     party_name: str

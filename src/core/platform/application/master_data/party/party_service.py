@@ -9,6 +9,10 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission, require_permission
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
+from src.core.platform.contract.read.overview.platform_overview_rollup_reader import (
+    PartyRollupSummary,
+    PlatformOverviewRollupReader,
+)
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.contract.repositories.master_data.party.contracts import PartyRepository
@@ -37,6 +41,7 @@ class PartyService:
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
         tenant_context_service: TenantContextService | None = None,
+        overview_rollup_reader: PlatformOverviewRollupReader | None = None,
     ):
         self._session = session
         self._party_repo = party_repo
@@ -44,11 +49,30 @@ class PartyService:
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
+        self._overview_rollup_reader = overview_rollup_reader
 
     def list_parties(self, *, active_only: bool | None = None) -> list[Party]:
         self._require_party_read_access("list parties")
         organization = self._active_organization()
         return self._party_repo.list_for_organization(organization.id, active_only=active_only)
+
+    def get_party_rollup_summary(self) -> PartyRollupSummary:
+        self._require_party_read_access("view party rollup summary")
+        organization = self._active_organization()
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="view party rollup summary",
+        )
+        if self._overview_rollup_reader is None:
+            raise RuntimeError("Platform overview rollup reader is not configured.")
+        return self._overview_rollup_reader.get_party_summary(
+            organization_id=organization.id,
+            tenant_id=tenant_id,
+        )
 
     def search_parties(
         self,

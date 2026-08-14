@@ -14,10 +14,12 @@ from src.core.platform.api.desktop.approval.models.approval import ApprovalReque
 from src.core.platform.api.desktop.master_data.department.models.department import (
     DepartmentDto,
     DepartmentLocationReferenceDto,
+    DepartmentRollupSummaryDto,
 )
 from src.core.platform.api.desktop.master_data.documents.models.document import (
     DocumentDto,
     DocumentLinkDto,
+    DocumentRollupSummaryDto,
     DocumentStructureDto,
 )
 from src.core.platform.api.desktop.master_data.employee.models.employee import (
@@ -25,8 +27,8 @@ from src.core.platform.api.desktop.master_data.employee.models.employee import (
     EmployeeHeadcountSummaryDto,
 )
 from src.core.platform.api.desktop.master_data.org.models.organization import OrganizationDto
-from src.core.platform.api.desktop.master_data.party.models.party import PartyDto
-from src.core.platform.api.desktop.master_data.site.models.site import SiteDto
+from src.core.platform.api.desktop.master_data.party.models.party import PartyDto, PartyRollupSummaryDto
+from src.core.platform.api.desktop.master_data.site.models.site import SiteDto, SiteRollupSummaryDto
 from src.core.platform.api.desktop.models.common import DesktopApiError, DesktopApiResult
 from src.core.platform.api.desktop.platform_runtime.models.runtime import (
     ModuleDto,
@@ -155,6 +157,9 @@ class FakePlatformRuntimeApi:
         if active_only is not None:
             rows = [row for row in rows if row.is_active == active_only]
         return DesktopApiResult(ok=True, data=tuple(rows))
+
+    def get_organization_count(self) -> DesktopApiResult[int]:
+        return DesktopApiResult(ok=True, data=len(self._organizations))
 
     def list_modules(self) -> DesktopApiResult[tuple[ModuleDto, ...]]:
         return DesktopApiResult(ok=True, data=self._modules)
@@ -288,6 +293,17 @@ class FakePlatformSiteApi:
             rows = [row for row in rows if row.is_active == active_only]
         return DesktopApiResult(ok=True, data=tuple(rows))
 
+    def get_site_rollup_summary(self) -> DesktopApiResult[SiteRollupSummaryDto]:
+        ordered = sorted(self._rows, key=lambda row: row.name)
+        return DesktopApiResult(
+            ok=True,
+            data=SiteRollupSummaryDto(
+                total=len(self._rows),
+                active=sum(1 for row in self._rows if row.is_active),
+                sample_names=tuple(row.name for row in ordered[:3]),
+            ),
+        )
+
     def create_site(self, command) -> DesktopApiResult[SiteDto]:
         active_organization = self._runtime_api.get_runtime_context().data.active_organization
         site = SiteDto(
@@ -357,6 +373,15 @@ class FakePlatformDepartmentApi:
         if active_only is not None:
             rows = [row for row in rows if row.is_active == active_only]
         return DesktopApiResult(ok=True, data=tuple(rows))
+
+    def get_department_rollup_summary(self) -> DesktopApiResult[DepartmentRollupSummaryDto]:
+        return DesktopApiResult(
+            ok=True,
+            data=DepartmentRollupSummaryDto(
+                total=len(self._rows),
+                active=sum(1 for row in self._rows if row.is_active),
+            ),
+        )
 
     def list_location_references(self, *, active_only: bool | None = None) -> DesktopApiResult[tuple[DepartmentLocationReferenceDto, ...]]:
         rows = self._location_rows
@@ -641,6 +666,15 @@ class FakePlatformPartyApi:
             rows = [row for row in rows if row.is_active == active_only]
         return DesktopApiResult(ok=True, data=tuple(rows))
 
+    def get_party_rollup_summary(self) -> DesktopApiResult[PartyRollupSummaryDto]:
+        return DesktopApiResult(
+            ok=True,
+            data=PartyRollupSummaryDto(
+                total=len(self._rows),
+                active=sum(1 for row in self._rows if row.is_active),
+            ),
+        )
+
     def create_party(self, command) -> DesktopApiResult[PartyDto]:
         active_organization = self._runtime_api.get_runtime_context().data.active_organization
         party = PartyDto(
@@ -718,6 +752,15 @@ class FakePlatformDocumentApi:
         if active_only is not None:
             rows = [row for row in rows if row.is_active == active_only]
         return DesktopApiResult(ok=True, data=tuple(rows))
+
+    def get_document_rollup_summary(self) -> DesktopApiResult[DocumentRollupSummaryDto]:
+        return DesktopApiResult(
+            ok=True,
+            data=DocumentRollupSummaryDto(
+                total=len(self._rows),
+                current=sum(1 for row in self._rows if row.is_current),
+            ),
+        )
 
     def list_document_structures(self, *, active_only: bool | None = None, object_scope: str | None = None) -> DesktopApiResult[tuple[DocumentStructureDto, ...]]:
         rows = self._structure_rows

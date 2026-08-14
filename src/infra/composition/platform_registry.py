@@ -33,6 +33,9 @@ from src.core.platform.application.master_data.employee.employee_service import 
 from src.core.platform.infrastructure.persistence.read.master_data.employee.employee_headcount_reader import (
     SqlAlchemyEmployeeHeadcountReader,
 )
+from src.core.platform.infrastructure.persistence.read.overview.platform_overview_rollup_reader import (
+    SqlAlchemyPlatformOverviewRollupReader,
+)
 from src.core.platform.application.master_data.org.organization_service import OrganizationService
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
@@ -321,12 +324,15 @@ def build_platform_service_bundle(
         (perf_counter() - started) * 1000,
     )
 
+    overview_rollup_reader = SqlAlchemyPlatformOverviewRollupReader(session)
+
     organization_service = OrganizationService(
         session=session,
         organization_repo=repositories.organization_repo,
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
+        overview_rollup_reader=overview_rollup_reader,
     )
 
     if security_configuration.tenancy_mode is TenancyMode.LOCAL_SINGLE_TENANT:
@@ -376,6 +382,7 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
+        overview_rollup_reader=overview_rollup_reader,
     )
     document_integration_service = DocumentIntegrationService(
         session=session,
@@ -394,6 +401,7 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
+        overview_rollup_reader=overview_rollup_reader,
     )
     site_service = SiteService(
         session=session,
@@ -402,6 +410,7 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
+        overview_rollup_reader=overview_rollup_reader,
     )
     department_service = DepartmentService(
         session=session,
@@ -412,6 +421,7 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
+        overview_rollup_reader=overview_rollup_reader,
     )
 
     def _active_organization() -> Organization | None:

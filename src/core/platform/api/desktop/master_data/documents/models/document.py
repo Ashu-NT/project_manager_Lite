@@ -59,6 +59,12 @@ class DocumentLinkDto:
 
 
 @dataclass(frozen=True)
+class DocumentRollupSummaryDto:
+    total: int
+    current: int
+
+
+@dataclass(frozen=True)
 class DocumentCreateCommand:
     document_code: str
     title: str

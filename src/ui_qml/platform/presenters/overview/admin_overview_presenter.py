@@ -24,6 +24,39 @@ class _HeadcountSummary:
         self.active = active
 
 
+class _SiteSummary:
+    __slots__ = ("total", "active", "sample_names")
+
+    def __init__(self, *, total: int, active: int, sample_names: tuple[str, ...]) -> None:
+        self.total = total
+        self.active = active
+        self.sample_names = sample_names
+
+
+class _DepartmentSummary:
+    __slots__ = ("total", "active")
+
+    def __init__(self, *, total: int, active: int) -> None:
+        self.total = total
+        self.active = active
+
+
+class _PartySummary:
+    __slots__ = ("total", "active")
+
+    def __init__(self, *, total: int, active: int) -> None:
+        self.total = total
+        self.active = active
+
+
+class _DocumentSummary:
+    __slots__ = ("total", "current")
+
+    def __init__(self, *, total: int, current: int) -> None:
+        self.total = total
+        self.current = current
+
+
 class PlatformAdminWorkspacePresenter:
     def __init__(
         self,
@@ -57,19 +90,25 @@ class PlatformAdminWorkspacePresenter:
             )
 
         runtime_context = runtime_result.data if runtime_result is not None else None
-        organizations = self._tuple_data(self._runtime_api.list_organizations(active_only=None) if self._runtime_api is not None else None)
-        sites = self._tuple_data(self._site_api.list_sites(active_only=None) if self._site_api is not None else None)
-        departments = self._tuple_data(
-            self._department_api.list_departments(active_only=None) if self._department_api is not None else None
+        organization_count = self._organization_count(
+            self._runtime_api.get_organization_count() if self._runtime_api is not None else None
+        )
+        site_summary = self._site_summary(
+            self._site_api.get_site_rollup_summary() if self._site_api is not None else None
+        )
+        department_summary = self._department_summary(
+            self._department_api.get_department_rollup_summary() if self._department_api is not None else None
         )
         headcount = self._headcount_summary(
             self._employee_api.get_headcount_summary() if self._employee_api is not None else None
         )
         users = self._tuple_data(self._user_api.list_users() if self._user_api is not None else None)
-        documents = self._tuple_data(
-            self._document_api.list_documents(active_only=None) if self._document_api is not None else None
+        document_summary = self._document_summary(
+            self._document_api.get_document_rollup_summary() if self._document_api is not None else None
         )
-        parties = self._tuple_data(self._party_api.list_parties(active_only=None) if self._party_api is not None else None)
+        party_summary = self._party_summary(
+            self._party_api.get_party_rollup_summary() if self._party_api is not None else None
+        )
 
         if runtime_context is None:
             return PlatformWorkspaceOverviewViewModel(
@@ -87,10 +126,10 @@ class PlatformAdminWorkspacePresenter:
         active_user_count = sum(1 for user in users if user.is_active)
         locked_user_count = sum(1 for user in users if user.locked_until is not None)
         active_employee_count = headcount.active
-        active_site_count = sum(1 for site in sites if site.is_active)
-        active_department_count = sum(1 for department in departments if department.is_active)
-        active_party_count = sum(1 for party in parties if party.is_active)
-        current_document_count = sum(1 for document in documents if document.is_current)
+        active_site_count = site_summary.active
+        active_department_count = department_summary.active
+        active_party_count = party_summary.active
+        current_document_count = document_summary.current
 
         activity_feed_items: tuple[dict, ...] = ()
         if self._audit_api is not None:
@@ -102,7 +141,7 @@ class PlatformAdminWorkspacePresenter:
             status_label="Connected",
             activityFeed=activity_feed_items,
             metrics=(
-                PlatformMetricViewModel("Organizations", str(len(organizations)), "Install profiles"),
+                PlatformMetricViewModel("Organizations", str(organization_count), "Install profiles"),
                 PlatformMetricViewModel("Sites", str(active_site_count), "Active operating sites"),
                 PlatformMetricViewModel("Departments", str(active_department_count), "Active structures"),
                 PlatformMetricViewModel("Employees", str(active_employee_count), "Active workforce records"),
@@ -145,7 +184,7 @@ class PlatformAdminWorkspacePresenter:
                         ),
                         PlatformWorkspaceRowViewModel(
                             "Departments",
-                            str(len(departments)),
+                            str(department_summary.total),
                             f"{active_department_count} active departments across the platform",
                         ),
                     ),
@@ -155,17 +194,17 @@ class PlatformAdminWorkspacePresenter:
                     rows=(
                         PlatformWorkspaceRowViewModel(
                             "Sites",
-                            str(len(sites)),
-                            ", ".join(site.name for site in sites[:3]) or "No sites configured yet",
+                            str(site_summary.total),
+                            ", ".join(site_summary.sample_names) or "No sites configured yet",
                         ),
                         PlatformWorkspaceRowViewModel(
                             "Parties",
-                            str(len(parties)),
+                            str(party_summary.total),
                             f"{active_party_count} active supplier/customer/partner records",
                         ),
                         PlatformWorkspaceRowViewModel(
                             "Documents",
-                            str(len(documents)),
+                            str(document_summary.total),
                             f"{current_document_count} marked current across controlled records",
                         ),
                     ),
@@ -185,6 +224,40 @@ class PlatformAdminWorkspacePresenter:
             return _HeadcountSummary(total=0, active=0)
         data = result.data
         return _HeadcountSummary(total=data.total, active=data.active)
+
+    @staticmethod
+    def _organization_count(result: object | None) -> int:
+        if result is None or not getattr(result, "ok", False) or getattr(result, "data", None) is None:
+            return 0
+        return int(result.data)
+
+    @staticmethod
+    def _site_summary(result: object | None) -> _SiteSummary:
+        if result is None or not getattr(result, "ok", False) or getattr(result, "data", None) is None:
+            return _SiteSummary(total=0, active=0, sample_names=())
+        data = result.data
+        return _SiteSummary(total=data.total, active=data.active, sample_names=tuple(data.sample_names))
+
+    @staticmethod
+    def _department_summary(result: object | None) -> _DepartmentSummary:
+        if result is None or not getattr(result, "ok", False) or getattr(result, "data", None) is None:
+            return _DepartmentSummary(total=0, active=0)
+        data = result.data
+        return _DepartmentSummary(total=data.total, active=data.active)
+
+    @staticmethod
+    def _party_summary(result: object | None) -> _PartySummary:
+        if result is None or not getattr(result, "ok", False) or getattr(result, "data", None) is None:
+            return _PartySummary(total=0, active=0)
+        data = result.data
+        return _PartySummary(total=data.total, active=data.active)
+
+    @staticmethod
+    def _document_summary(result: object | None) -> _DocumentSummary:
+        if result is None or not getattr(result, "ok", False) or getattr(result, "data", None) is None:
+            return _DocumentSummary(total=0, current=0)
+        data = result.data
+        return _DocumentSummary(total=data.total, current=data.current)
 
 
 __all__ = ["PlatformAdminWorkspacePresenter"]

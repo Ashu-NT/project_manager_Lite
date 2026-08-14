@@ -32,6 +32,12 @@ class DepartmentLocationReferenceDto:
 
 
 @dataclass(frozen=True)
+class DepartmentRollupSummaryDto:
+    total: int
+    active: int
+
+
+@dataclass(frozen=True)
 class DepartmentCreateCommand:
     department_code: str
     name: str

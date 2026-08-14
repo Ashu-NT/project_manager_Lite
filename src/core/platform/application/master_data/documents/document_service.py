@@ -11,6 +11,10 @@ from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.contract.read.overview.platform_overview_rollup_reader import (
+    DocumentRollupSummary,
+    PlatformOverviewRollupReader,
+)
 from src.core.platform.contract.repositories.master_data.documents.contracts import (
     DocumentLinkRepository,
     DocumentRepository,
@@ -52,6 +56,7 @@ class DocumentService:
         user_session: Any = None,
         enterprise_audit_service: Any = None,
         tenant_context_service: TenantContextService | None = None,
+        overview_rollup_reader: PlatformOverviewRollupReader | None = None,
     ) -> None:
         self._session = session
         self._document_repo = document_repo
@@ -61,6 +66,7 @@ class DocumentService:
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
+        self._overview_rollup_reader = overview_rollup_reader
 
     def get_context_organization(self) -> Organization:
         require_permission(self._user_session, "settings.manage", operation_label="view document context")
@@ -70,6 +76,24 @@ class DocumentService:
         require_permission(self._user_session, "settings.manage", operation_label="list documents")
         organization = self._active_organization()
         return self._document_repo.list_for_organization(organization.id, active_only=active_only)
+
+    def get_document_rollup_summary(self) -> DocumentRollupSummary:
+        require_permission(self._user_session, "settings.manage", operation_label="view document rollup summary")
+        organization = self._active_organization()
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="view document rollup summary",
+        )
+        if self._overview_rollup_reader is None:
+            raise RuntimeError("Platform overview rollup reader is not configured.")
+        return self._overview_rollup_reader.get_document_summary(
+            organization_id=organization.id,
+            tenant_id=tenant_id,
+        )
 
     def list_document_structures(
         self,

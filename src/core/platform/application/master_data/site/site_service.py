@@ -11,7 +11,12 @@ from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
+from src.core.platform.application.security.authorization import get_authorization_engine
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission, require_permission
+from src.core.platform.contract.read.overview.platform_overview_rollup_reader import (
+    PlatformOverviewRollupReader,
+    SiteRollupSummary,
+)
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.org.support import normalize_code
@@ -42,6 +47,7 @@ class SiteService:
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
         tenant_context_service: TenantContextService | None = None,
+        overview_rollup_reader: PlatformOverviewRollupReader | None = None,
     ):
         self._session = session
         self._site_repo = site_repo
@@ -49,6 +55,7 @@ class SiteService:
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
+        self._overview_rollup_reader = overview_rollup_reader
 
     def list_sites(self, *, active_only: bool | None = None) -> list[Site]:
         self._require_site_read_access("list sites")
@@ -338,6 +345,38 @@ class SiteService:
             self._user_session,
             ("settings.manage", "site.read"),
             operation_label=operation_label,
+        )
+
+    def get_site_rollup_summary(self) -> SiteRollupSummary:
+        self._require_site_read_access("view site rollup summary")
+        organization = self._active_organization()
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="view site rollup summary",
+        )
+        if self._overview_rollup_reader is None:
+            raise RuntimeError("Platform overview rollup reader is not configured.")
+
+        # list_sites() additionally restricts its returned rows to the
+        # caller's site-scope grants via filter_scope_rows() -- replicate
+        # that same restriction here so a scope-restricted caller sees the
+        # same counts/sample they'd see from the full list, not the whole
+        # organization's.
+        engine = get_authorization_engine()
+        allowed_site_ids: frozenset[str] | None = None
+        if engine.is_scope_restricted(self._user_session, "site"):
+            allowed_site_ids = frozenset(
+                engine.scope_ids_for(self._user_session, "site", "site.read")
+            )
+
+        return self._overview_rollup_reader.get_site_summary(
+            organization_id=organization.id,
+            tenant_id=tenant_id,
+            allowed_site_ids=allowed_site_ids,
         )
 
 

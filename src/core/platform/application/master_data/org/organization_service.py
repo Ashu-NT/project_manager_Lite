@@ -15,6 +15,7 @@ from src.core.platform.common.exceptions import (
 )
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.contract.read.overview.platform_overview_rollup_reader import PlatformOverviewRollupReader
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.org.support import (
@@ -39,12 +40,14 @@ class OrganizationService:
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
         tenant_context_service: TenantContextService | None = None,
+        overview_rollup_reader: PlatformOverviewRollupReader | None = None,
     ):
         self._session = session
         self._organization_repo = organization_repo
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
+        self._overview_rollup_reader = overview_rollup_reader
 
     # ------------------------------------------------------------------
     # Tenant context — the single gateway for all runtime methods.
@@ -105,6 +108,13 @@ class OrganizationService:
         require_permission(self._user_session, "settings.manage", operation_label="list organizations")
         tenant_id = self._require_current_tenant_id(operation_label="list organizations")
         return self._organization_repo.list_for_tenant(tenant_id, active_only=active_only)
+
+    def get_organization_count(self) -> int:
+        require_permission(self._user_session, "settings.manage", operation_label="view organization count")
+        tenant_id = self._require_current_tenant_id(operation_label="view organization count")
+        if self._overview_rollup_reader is None:
+            raise RuntimeError("Platform overview rollup reader is not configured.")
+        return self._overview_rollup_reader.get_organization_count(tenant_id=tenant_id)
 
     def get_active_organization(self) -> Organization:
         require_permission(self._user_session, "settings.manage", operation_label="view active organization")

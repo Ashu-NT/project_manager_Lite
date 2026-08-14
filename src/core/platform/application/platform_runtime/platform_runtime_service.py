@@ -127,6 +127,11 @@ class PlatformRuntimeApplicationService:
             return []
         return self._organization_service.list_organizations(active_only=active_only)
 
+    def get_organization_count(self) -> int:
+        if self._organization_service is None:
+            return 0
+        return self._organization_service.get_organization_count()
+
     def get_active_organization(self) -> Organization | None:
         if self._tenant_context_service is not None:
             return self._tenant_context_service.get_active_organization()

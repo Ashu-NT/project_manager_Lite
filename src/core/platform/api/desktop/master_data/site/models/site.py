@@ -31,6 +31,13 @@ class SiteDto:
 
 
 @dataclass(frozen=True)
+class SiteRollupSummaryDto:
+    total: int
+    active: int
+    sample_names: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class SiteCreateCommand:
     site_code: str
     name: str
