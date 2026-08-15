@@ -86,12 +86,11 @@ def build_project_detail_state(
     *,
     project_id: str,
 ) -> ProjectCatalogWorkspaceViewModel:
+    # Opening one project's detail must not scale with the total project
+    # count -- get_project() is a real single-row repository lookup (with
+    # its own per-project permission check), not list-then-filter.
     normalized_project_id = (project_id or "").strip()
-    all_projects = desktop_api.list_projects()
-    selected_project = next(
-        (p for p in all_projects if p.id == normalized_project_id),
-        None,
-    )
+    selected_project = desktop_api.get_project(normalized_project_id)
     return ProjectCatalogWorkspaceViewModel(
         overview=ProjectCatalogOverviewViewModel(
             title="Projects",

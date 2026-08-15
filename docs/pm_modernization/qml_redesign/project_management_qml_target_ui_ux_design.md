@@ -564,6 +564,24 @@ At 1024x640 (chrome may be fully collapsed to satisfy these):
 - vertical scrolling within a page is acceptable where content exceeds
   available height.
 
+**Table scroll is two-axis, not a substitute for `hideBelow`.** The shared
+`DataTable.qml` widget's underlying `TableView`s already expose both a
+vertical `ScrollBar` (`policy: ScrollBar.AsNeeded`) and a dedicated
+horizontal `ScrollBar` (`_hScrollBar`), so every table built on `DataTable`
+-- Projects, Tasks, Portfolio, and every Platform catalog page -- can
+already be scrolled in both directions natively, with no per-page wiring
+required. This is a *complementary* mechanism, not an alternative to
+`hideBelow`: `hideBelow` decides which columns are worth showing at all at
+a given width (identity/status always stay), while horizontal scroll is
+what lets a user reach a column that's still visible-but-off-screen (or a
+table that simply has more columns than any width comfortably fits). Do
+not treat "the table scrolls horizontally" as a reason to skip adding
+`hideBelow` to a column set -- a table that never hides anything and relies
+purely on horizontal scroll fails the acceptance criterion above ("table
+always retains identity and status columns" implies those two stay
+in-view without scrolling; everything else may require either hiding or
+scrolling, and hiding is the better default for genuinely secondary data).
+
 At 1280x720 and every larger acceptance size, additionally: the fixed
 section rail, inspector, and two-column layouts described above are
 available uncompromised (not merely reachable via overflow/collapse).
@@ -1332,20 +1350,33 @@ normalizes each table's differently-shaped rows into one common
 small per-category field-mapping table, exposed as the controller's new
 `attentionItems` property.
 
-**KPI strip responsive wrap:** `App.Widgets.KpiStrip` is shared well beyond
-Overview (30+ consumers across PM, Maintenance, Inventory, and Platform).
-Its `RowLayout` divided available width equally across all metric cells
-with no floor, so a strip with many metrics could squeeze into illegible
-cells at the compact end of the acceptance range. Added a per-cell minimum
-width (108px); once the strip's metric count would need less than that per
-cell, it switches from equal-division to a horizontal-scroll `Flickable`
-instead of continuing to shrink -- matching this doc's general preference
-for scroll over illegible/clipped content. Behavior above that threshold
-is unchanged (same equal-width cells, no scroll), so existing consumers are
-unaffected.
+**KPI strip responsive wrap -- attempted, reverted.** `App.Widgets.KpiStrip`
+is shared well beyond Overview (30+ consumers across PM, Maintenance,
+Inventory, and Platform). Its `RowLayout` divides available width equally
+across all metric cells with no floor, so a strip with many metrics can
+squeeze into illegible cells at the compact end of the acceptance range --
+that gap is real and still open. A first attempt wrapped the row in a
+`Flickable` with a per-cell minimum width, falling back to horizontal
+scroll below that threshold instead of continuing to shrink. All automated
+tests passed (no test exercises this widget's actual pixel rendering), but
+real usage surfaced a live rendering regression on at least two pages
+(Projects, Resources): a single-metric strip rendered as squashed,
+overlapping text instead of the normal centered value/label. The exact
+mechanism wasn't conclusively isolated in this environment (an offscreen
+QQuickView render didn't reproduce the app's real font/theme setup closely
+enough to confirm it directly), so rather than keep guessing against a
+live regression, the change was reverted to the known-good pre-Flickable
+version (git commit `ce275fb2`, confirmed via history to predate this
+attempt). **Do not reintroduce this exact Flickable-wrap approach without
+first getting a faithful visual reproduction** (a real windowed capture,
+not an offscreen grab) to verify the fix before considering it done --
+passing structural tests alone did not catch this. The underlying
+illegible-cells-at-narrow-width gap remains open for a future, more
+carefully verified attempt.
 
 Verified via 3 new attention-panel tests (incl. a real QML-engine load) and
-the full targeted Dashboard/Portfolio batch plus architecture guardrails.
+the full targeted Dashboard/Portfolio batch plus architecture guardrails
+(all still green after the revert).
 
 **Concise operational-tab labels**: the design doc's own R3.4 example
 ("Use concise labels such as: Delays / Risks / Cost / Workload / Approvals
@@ -1402,5 +1433,371 @@ started" since R3.3 closed, which was stale.
 
 **R3.9 -- TARGETED REGRESSION + CLOSURE: COMPLETE.**
 
-**R3 -- OVERVIEW + PORTFOLIO: COMPLETE.** R4 (Work: Projects/Tasks/
-Planning) has not started.
+**R3 -- OVERVIEW + PORTFOLIO: COMPLETE.**
+
+####################################################################
+# R4 -- WORK
+####################################################################
+
+## 28. R4.1 characterization: Projects, Tasks, Planning
+
+Three parallel read-only recon passes (no code changes), same discipline
+as R3.1: real call chains traced end to end, every control checked for
+truthfulness, every finding classified as UX REDESIGN DEBT / PERFORMANCE
+DEFECT / R1 CORRECTNESS GAP / FUTURE FEATURE.
+
+### Projects
+
+Call chain (`ProjectsWorkspacePage.qml` -> `projects_workspace_controller.py`
+-> `ProjectProjectsWorkspacePresenter` -> `list_project_page` ->
+`query_catalog_page` -> `SqlAlchemyProjectCatalogReader`) is fully
+authoritative R1: server search/status-filter/sort/page/export, no gap.
+Findings:
+
+- **No inspector step exists** -- only flat catalog table and a full-screen
+  detail page (`onRowActivated` jumps straight from row to full detail).
+  This is the R4.2 target gap itself (catalog -> inspector -> full detail),
+  not a defect in what exists today.
+- **No "Set Active Project" action anywhere in Projects** -- confirmed via
+  grep, `PMProjectContextController.selectProject()` is never called from
+  this workspace. Opening correctly does not implicitly pin (matches the
+  explicit-pinning rule), but the explicit affordance the R4.2 target
+  requires simply doesn't exist yet.
+- Filter surface is thin: only a Status combobox, despite `siteOptions`
+  already being loaded into the controller unused (**FUTURE FEATURE**).
+- `ProjectsColumnConfig.js` has no `hideBelow` on any of its 9 columns, and
+  `TableToolbar` (6 actions: create/filter/customize/refresh/import/export)
+  has no overflow -- **UX REDESIGN DEBT**, same category R3.7 found in
+  Portfolio.
+- Dialogs (`ProjectEditorDialog` 560px, `ProjectStatusDialog` 420px,
+  `ProjectsImportDialog` 680px) are fixed-width with no clamp -- traced to
+  the shared `EntityDialog`/`CenteredDialog` base, which only clamps
+  height, never width. **Systemic, not Projects-specific.**
+- All workflow actions (create/edit/status/delete, bulk delete/status,
+  CSV/XLSX import, export, resource assign) are real, no dead controls.
+
+### Tasks
+
+Call chain uses the **full breadth** of `TaskService.query_workspace_page`
+(search/status/priority/schedule/sort/page all genuinely wired) -- same
+authoritative method Dashboard's Delayed Tasks tab already reuses. No
+query-truthfulness gap found. Findings:
+
+- **WBS data flows through but is never rendered as a tree**: `wbsCode`,
+  `parentTaskId`, `hierarchyDepth`, `isSummary`, `childCount` all reach the
+  presenter, and a move/reparent dialog exists, but the main table has no
+  expand/collapse/indentation -- hierarchy indent only appears as literal
+  spaces in one dialog's combo text. **UX REDESIGN DEBT** -- no real WBS
+  outline view exists despite the data being there.
+- Assignments, dependencies, progress, time/effort, collaboration,
+  lifecycle -- all present and substantive via a real lazy-loaded
+  multi-section detail inspector (not a flat CRUD table).
+- "Select all" only selects the current page, not all filter-matching rows
+  across pages -- a labeling clarity issue, not a defect.
+- 9 dialogs, all fixed-pixel widths, no responsive clamp (same systemic
+  `EntityDialog` gap as Projects). `TasksColumnConfig.js` has no
+  `hideBelow` on any column (**UX REDESIGN DEBT**).
+- Bulk selection + undo/redo (25-deep stack) confirmed still intact, not
+  regressed. One latent risk: the bulk-property-change handler only
+  branches on `propertyId === "status"` -- any other bulk property would
+  silently no-op if ever wired up (worth checking in R4.3, not urgent now).
+
+### Planning (current "Scheduling")
+
+Nav already labels this "Planning" while the internal route/class names
+stay `scheduling` -- matches the plan's "don't mechanically rename
+internal packages" instruction. Call chain fetches the complete calculated
+project schedule every refresh (VCC, justified -- CPM/baseline/calendar
+math needs the whole graph), filters, **then sorts, then pages** -- the
+previously-flagged PCC ("sort after page-slice") is confirmed **already
+fixed**; only the VCC performance characteristic remains, and only matters
+at large scale (full recalculation on every search keystroke). Findings:
+
+- CPM (critical path/float), baseline compare/variance, and calendar-aware
+  dates are all present and reasonably complete.
+- **Constraints are an R1 correctness gap candidate**: the engine models
+  the full PMI constraint set (`MUST_START_ON`, `FINISH_NO_LATER_THAN`,
+  etc.) but the Constraints panel only ever synthesizes generic
+  "Planned Start / Deadline / Actual Lock" rows from raw dates -- real
+  constraint types/violations are never surfaced or editable in QML. Engine
+  capability outstrips the UI.
+- **Dependency create/edit/delete has no QML entry point at all**, despite
+  full backend command support (`createDependency`/`updateDependency`/
+  `deleteDependency`) -- **FUTURE FEATURE gap to close in R4.4** if
+  dependency editing belongs in Planning.
+- Only one dialog exists (Save Baseline, fixed 420px, same systemic gap).
+- The project/baseline/calendar selector action bar is a fixed-width
+  `RowLayout` with no overflow at narrow widths (**UX REDESIGN DEBT**,
+  same category as R3.7); the activity table has no `hideBelow` either.
+- `SchedulingTimelinePanel.qml` is a **hand-rolled Gantt-lane canvas**, not
+  a table -- column-hiding won't apply to it; R4.5 will need a distinct
+  adaptive strategy (zoom/scroll windowing) for this one panel, matching
+  the plan's own anticipation that Planning "may require specialized
+  adaptive console behavior."
+- A `SplitView` pane has a hard `minimumWidth: 420` that will clip on
+  narrow shells -- concrete R4.5 target.
+
+### Cross-cutting pattern across all three
+
+The exact same two responsive gaps recur in Projects, Tasks, and Planning
+independently: missing `hideBelow` column config, and toolbars/action bars
+with no overflow at narrow widths -- the identical category R3.7 already
+fixed for Portfolio. Dialog-width clamping is a single shared-base-widget
+fix (`EntityDialog`/`CenteredDialog`), not three separate fixes.
+
+**R4.1 -- CHARACTERIZE CURRENT WORK UX: COMPLETE.**
+
+## 29. R4.2 closure: Projects redesign
+
+Built exactly the two gaps R4.1 found: a catalog -> inspector -> full
+detail step (previously a direct catalog -> full-detail jump with nothing
+in between), and an explicit Set/Clear Active Project action (previously
+absent anywhere in Projects).
+
+**Inspector.** `ProjectsWorkspacePage.qml`'s list area is now a
+`RowLayout` (was a plain `Item`) holding `ProjectsListPage` alongside a
+new `AppWidgets.InspectorPanel` -- the same shared widget Platform's
+Sites/Organizations/Users/etc. pages already use, so this follows an
+established pattern rather than inventing a new one. Single-click/select
+(`onRowSelected` -> `selectProject()`) now shows the inspector; it does
+**not** trigger any additional fetch -- the inspector is built purely from
+the already-loaded catalog row's own `state` fields (one label per fact:
+Client, Site, Start, Finish, Approved Budget, Contact, rather than several
+facts mashed into one combined string), the same fields the table's
+columns already display. Only double-click/row-activation still triggers
+`activateProject()`'s heavier `build_project_detail_state()` fetch and
+opens the full detail page -- unchanged from before. The inspector is
+visible only at `compactContentBreakpoint`+ (below that, no inspector, per
+section 11's compact-tier rule), and closes by clearing the selection.
+
+**Explicit Set/Clear Active Project.** The inspector's secondary action
+toggles between "Set Active Project" / "Clear Active Project" based on
+whether the selected row is already `pmProjectContext.activeProjectId`,
+calling `PMProjectContextController.selectProject()`/`clearProject()`
+directly -- the same shared context bar and Portfolio's R3.6 action use.
+Opening/selecting a row still never pins by itself; only this explicit
+action does, matching the global project-context rule.
+
+Verified with 3 new real QML-engine tests (real created project, no
+mocks): selecting a row populates the inspector without opening full
+detail; Set/Clear Active Project correctly toggles
+`pmProjectContext.activeProjectId` and the inspector's own active-state
+read; row activation still opens full detail as before. Full targeted
+sweep (canonical shell/compatibility routes, architecture guardrails, R4.2
+tests) -- 35 tests, all green.
+
+Two incidental fixes made in passing:
+- `ProjectsListPage.qml`'s root `Item` had a leftover `anchors.fill:
+  parent` that started conflicting once its outer usage added
+  `Layout.fillWidth`/`Layout.fillHeight` for the new `RowLayout` --
+  removed (Qt warns "anchors on an item managed by a layout... undefined
+  behavior" for exactly this).
+- Design-doc section 11 gained a note that `DataTable`'s `TableView`
+  already scrolls both horizontally and vertically natively (a real,
+  already-existing capability that wasn't written down anywhere) --
+  complementary to `hideBelow`, not a substitute for it.
+
+**R4.2 -- PROJECTS REDESIGN: COMPLETE.**
+
+## 30. KPI strip regression during R4.2 verification
+
+While testing R4.2 live, a real rendering regression surfaced on multiple
+pages (Projects, Resources): the shared `KpiStrip` widget's earlier
+"responsive wrap" attempt (section 26) rendered a single-metric strip as
+squashed, overlapping text instead of a normal centered value/label. See
+section 26's updated note -- reverted to the known-good pre-Flickable
+version (git commit `ce275fb2`); the underlying illegible-cells-at-narrow-
+width gap remains open for a future, more carefully (visually) verified
+attempt. Confirmed fixed by the user after an app restart.
+
+## 31. R4.2 deep verification pass (Projects, against a full checklist)
+
+The initial R4.2 closure (section 29) built the inspector and Set/Clear
+Active Project action but did not verify the surrounding dialog/detail
+machinery it now surfaces more prominently. A full checklist pass across
+list, detail, Create/Edit dialogs, date picker, selectors, active-project
+semantics, lifecycle actions, navigation, responsive UX, QML wiring, and
+performance found two real, previously-undetected bugs -- both fixed and
+regression-tested:
+
+**Selection silently reassigned across pagination (real bug, fixed).**
+`resolve_selected_project_id()` fell back to `filtered_projects[0].id`
+whenever the requested id wasn't present in the *current page's* items --
+meaning selecting a project on page 1, then turning to page 2, silently
+swapped the selection to an unrelated project the user never clicked. This
+was always latent but harmless before R4.2 (nothing rendered the
+selection); the new inspector makes it a real, visible correctness bug.
+Fixed: selection now clears (returns `""`) rather than substituting a
+different project, in both the "not on this page" and "no id given" cases
+-- selection changes only through an explicit `selectProject()` call, matching
+the same explicit-action rule that governs active-project pinning.
+Regression-tested (`test_pm_r4_2_selection_survives_pagination.py`, 4
+cases, previously zero test coverage existed for this function at all).
+
+**Opening detail scaled with total project count (real performance gap,
+fixed).** `activateProject()` -> `build_project_detail_state()` called
+`desktop_api.list_projects()` (fetch + serialize every project in the
+tenant) just to find one by id, when `get_project(id)` -- a real
+single-row repository lookup with its own per-project permission check --
+already existed and simply wasn't being used. Fixed by switching to it;
+opening one project's detail is now O(1) against project count, and
+correctly re-applies per-project authorization instead of relying on the
+coarser list-level check. Covered by the existing R4.2 inspector tests
+(`test_row_activation_still_opens_full_detail`), re-run and green after
+the change.
+
+**Verified with real evidence (code-traced, not assumed):**
+- Date picker (`DateField.qml`): real calendar popup (month/day/year
+  combos + Today/Clear/Apply), already clamps its own popup to
+  `popupBoundaryItem`'s bounds -- no change needed.
+- Date round-trip: `format_date()`/`optional_date()` operate on plain
+  `datetime.date` via `.isoformat()`/`date.fromisoformat()` -- no
+  `datetime`/timezone conversion anywhere in the path, so no day-shift
+  risk. Empty date strings parse to `None` cleanly; malformed strings
+  raise a clear validation error the dialog surfaces without closing.
+- End-before-start validation: enforced at the domain model level
+  (`Project._validate_date_range()`, `PROJECT_DATE_RANGE_INVALID`) --
+  authoritative regardless of entry point, not just a UI-side check.
+- Edit dialog field population: every field `ProjectEditorDialog.
+  populateFromProject()` reads (`name`, `clientName`, `clientContact`,
+  `startDate`, `endDate`, `siteId`, `status`, `description`) is present in
+  `build_project_state()`'s output -- confirmed the same function backs
+  both the catalog row (feeding the new inspector) and the full detail
+  view, so passing either into `openEditDialog()` populates correctly.
+- Save flow: `run_mutation()` sets busy before the operation and disables
+  the primary button while busy (real duplicate-submission guard, not
+  cosmetic); failure sets `errorMessage` and keeps the dialog open;
+  success closes it and triggers `_request_domain_refresh()`, which
+  re-fetches both the catalog list and the selected project's detail --
+  confirms "successful edit refreshes both list and detail."
+- Detail page sections: all 10 (Overview/Schedule/Tasks/Resources/
+  Financials/Risks/Documents/Activity/Material Demand/Procurement) are
+  real lazy-loaded components with real data bindings, not placeholder
+  shells.
+- Dialog width responsiveness (section 29's `CenteredDialog` fix):
+  re-verified reactive to the overlay resizing after the fact, not just
+  at open time -- a first version only reacted to `widthChanged`/
+  `aboutToShow` and missed the overlay's own width settling after
+  construction; rebuilt around a proper property-binding dependency
+  (`availableDialogWidth`) so it's correct regardless of timing. 2 new
+  regression tests, one confirming the clamp when oversized, one
+  confirming untouched behavior when the dialog already fits.
+- Client/Client Contact are plain text fields, not selectors, in Projects
+  today (matches current scope -- not a gap introduced by R4.2). Site is
+  a real dropdown submitting a stable id. No Calendar or Project-Manager/
+  owner selector exists in Projects -- those concepts belong to Planning
+  (R4.4), not this capability.
+
+**Confirmed pre-existing, unrelated to any R4.2 change:** re-ran the full
+architecture guardrail suite (a stash-diff check, not assumption) --
+6 failures reproduce identically with every R4.1/R4.2 change fully
+stashed out (two `FileNotFoundError`s from stale test paths, a legacy RBAC
+env-var check, a large-module growth budget, a 1200-line test-file limit,
+and one pre-existing parent-relative QML import in Portfolio's
+`ScenariosTab.qml`). None touch anything R4.2 changed.
+
+**Not verified in this pass (needs a real windowed check, not assumed --
+the KpiStrip incident is the standing reminder why):** exact pixel
+behavior at each of the five acceptance sizes; a full manual walkthrough
+of Projects -> Tasks/Planning/Finance cross-navigation deep-links;
+`qmllint` (not installed in this environment, as already noted repeatedly
+in this doc).
+
+**R4.2 -- PROJECTS REDESIGN, DEEP VERIFICATION: COMPLETE** (two real bugs
+found and fixed; visual/cross-navigation items above remain open pending a
+live check).
+
+## 32. DateField popup redesign (shared, all 20 consumers app-wide)
+
+The date-picker's month/day/year row (`App.Controls.DateField`) packed all
+three into a single 3-column `GridLayout` with `Layout.minimumWidth: 0` on
+the month combo. When the popup was clamped to a narrow boundary (e.g. a
+date field inside a compact-width dialog), the month combo -- needing room
+for "September"/"November", not just "May" -- got squeezed down to
+whatever a third of the narrow popup left it, clipping the text.
+
+Redesigned: month is now a full-width row on its own; day and year (both
+short, fixed-width values -- 2 and 4 digits) form a two-column row below.
+This no longer depends on the popup being wide enough for three combos
+side by side, so it doesn't clip regardless of how narrow the field/dialog
+around it is. The Today/Clear/Apply button row also gained real minimum
+widths (was `Layout.minimumWidth: 0` on all three) so button labels can't
+clip either. The popup's own minimum-width floor was raised from 180 to
+240 to match what the redesigned content actually needs.
+
+This is a shared widget used by 20 real consumers across PM, Platform, and
+Inventory (Task/Project/Register/Financials/Calendar/Purchase-Order
+dialogs among them) -- all of them only ever use the field's public API
+(`text`, `placeholderText`, `dateSelected`, `popupBoundaryItem`), never
+reach into its internal month/day/year structure, so this was a contained,
+internal-only layout change with no API surface change. Verified with a
+new real QML-engine test asserting the month/day/year combos render at
+their real (non-clipped) widths at a realistically narrow (260px) boundary
+-- plus the existing DateField registration test and the full R4.2 test
+batch, all green.
+
+## 33. DataTable redesign: margins, header/row alignment, header checkbox,
+column resize, sort icon
+
+Five issues reported live against Projects, all in the shared `DataTable`
+widget (used across PM, Platform, Maintenance, and Inventory -- every list
+page in the app):
+
+1. **Header text cramped/clipped on the left.** Header and row cells both
+   used `Theme.AppTheme.spacingSm` for their left margin -- widened to
+   `spacingMd` (and the matching right margin to `spacingSm`) on both
+   header and row cells (text, status chip, progress bar) so they're
+   consistent with each other and less cramped against the edge.
+2. **Row entries not aligned with their column header.** `_colWidth()`
+   could return a fractional pixel width; the header positions cells in a
+   plain `Row` (full floating-point accumulation) while the data area is a
+   real `TableView` (its own internal column-position accounting) -- each
+   side rounding/snapping that fraction independently drifted a pixel or
+   two further apart with every column to the right. Fixed by rounding
+   `_colWidth()`'s result once, so both sides consume the same integer.
+3. **Header "select all" checkbox didn't work and wasn't centered.** It
+   used `AppControls.CheckBox` -- a real `QQC2.CheckBox` Control with its
+   own internal indicator/contentItem/click layout -- while the working
+   per-row checkboxes are a plain `Rectangle`+`Text`+`MouseArea` with no
+   Control involved at all. Replaced the header checkbox with the exact
+   same hand-rolled pattern the row checkboxes already use, rather than
+   keep fighting the Control's internal state machinery.
+4. **No way to resize a column.** Added a drag handle on each column's
+   right edge (a 9px hit target centered on the existing 1px divider).
+   Dragging shows a live guide line (not a continuous width recompute --
+   that would mean a full table-model rebuild per pixel of mouse
+   movement) and commits the new width once, on release, via the same
+   `preferredWidth` override key `_columnBaseWidth()` already reads, then
+   `columnsStateChanged()` so it persists the same way column visibility/
+   order already do. **Explicitly clarified during this work:** resizing
+   one column must not shrink any other column to compensate -- the table
+   already scrolls horizontally, so growing a column should grow the
+   table's total content width instead. The first commit through this
+   path now freezes every *other* column's currently-rendered width as
+   its own explicit `preferredWidth` at the same moment (captured before
+   the drag's own width lands), not just the dragged column -- otherwise
+   growing one column reduces `_extraFlexSpace`, which every flex-based
+   column's share is computed from, so every other column would visibly
+   narrow as a side effect of resizing something else.
+5. **Sort indicator looked bad.** Replaced the 7px unicode "▲"/"▼" glyphs
+   with real `chevron_up`/`chevron_down` icons from the existing icon font
+   (`AppIcons.AppIcon`) -- crisp and theme-consistent instead of tiny,
+   inconsistently-rendered text glyphs.
+
+**One real bug found and fixed while building the resize handle itself:**
+its `MouseArea` sat *underneath* the pre-existing sort `MouseArea` (which
+fills the whole header cell and is declared after it) -- without an
+explicit `z`, later-declared siblings paint on top and steal input, so
+every press meant for the resize handle was being swallowed by the sort
+click handler instead. Fixed with `z: 1` on the resize handle.
+
+Verified with 4 new real `QTest`-based mouse-simulation tests (real press/
+move/release drag sequences, not just structural checks): the header
+checkbox click-toggles-all and click-toggles-off-when-already-all-
+selected; column resize commits exactly once on release (not per
+intermediate move); resizing one column leaves every other column's width
+unchanged. Full regression: 57 targeted DataTable/R4.2/guardrail tests
+plus the 125-test Portfolio/Dashboard/Overview batch, all green -- this
+widget backs list pages across the entire app, not just Projects.
+
+**R4.2 DataTable redesign: COMPLETE.**

@@ -19,7 +19,18 @@ Item {
     property var selectedDate: _parseDate(field.text)
 
     property Item popupBoundaryItem: null
-    
+
+    // Exposed for tests only (real QML-engine layout verification, e.g.
+    // confirming the picker doesn't clip at a narrow popupBoundaryItem) --
+    // not part of the field's functional API. Plain `var` (not `alias`):
+    // PySide6 can't marshal these anonymous QML control types back to
+    // Python through a strictly-typed alias, but a var-held QObject
+    // reference works.
+    property var datePopup: datePopup
+    property var monthCombo: monthCombo
+    property var dayCombo: dayCombo
+    property var yearCombo: yearCombo
+
     signal accepted()
     signal dateSelected(string text)
 
@@ -118,7 +129,7 @@ Item {
             "x": topLeft.x + margin,
             "y": topLeft.y + margin,
             "width": Math.max(
-                180,
+                240,
                 boundary.width - margin * 2
             ),
             "height": Math.max(
@@ -130,7 +141,11 @@ Item {
 
     function _popupWidth() {
         const bounds = root._popupBounds()
-        return Math.max(180, Math.min(Math.max(root.width, 280), bounds.width))
+        // 240 is the real floor the redesigned content needs (Day/Year
+        // side-by-side, or the Today/Clear/Apply row with real minimum
+        // widths) -- below this the picker would clip regardless of how
+        // narrow the field/dialog around it is.
+        return Math.max(240, Math.min(Math.max(root.width, 280), bounds.width))
     }
 
     function _positionPopup() {
@@ -303,42 +318,48 @@ Item {
                 font.pixelSize: Theme.AppTheme.sectionTitleSize
             }
 
-            GridLayout {
+            // Month gets its own full-width row instead of competing for
+            // space in a 3-across grid -- month names vary a lot in
+            // length ("May" vs "September"), and squeezing it down to a
+            // third of a narrow popup clipped the text. Day/Year are both
+            // short, fixed-width values (2 and 4 digits), so they pair
+            // cleanly as two columns below. This layout no longer depends
+            // on the popup being wide enough for three combos side by
+            // side, so it doesn't clip in a dialog with a narrow date
+            // field.
+            ComboBox {
+                id: monthCombo
+
                 Layout.fillWidth: true
-                columns: 3
-                columnSpacing: Theme.AppTheme.spacingSm
 
-                ComboBox {
-                    id: monthCombo
+                model: root._monthOptions()
+                textRole: "label"
+                currentIndex: root._pickerMonth
 
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 0
+                onActivated: function(index) {
+                    root._pickerMonth = Number(
+                        (model[index] || { "value": 0 }).value || 0
+                    )
 
-                    model: root._monthOptions()
-                    textRole: "label"
-                    currentIndex: root._pickerMonth
+                    const maxDay = root._daysInMonth(
+                        root._pickerYear,
+                        root._pickerMonth
+                    )
 
-                    onActivated: function(index) {
-                        root._pickerMonth = Number(
-                            (model[index] || { "value": 0 }).value || 0
-                        )
-
-                        const maxDay = root._daysInMonth(
-                            root._pickerYear,
-                            root._pickerMonth
-                        )
-
-                        if (root._pickerDay > maxDay)
-                            root._pickerDay = maxDay
-                    }
+                    if (root._pickerDay > maxDay)
+                        root._pickerDay = maxDay
                 }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.AppTheme.spacingSm
 
                 ComboBox {
                     id: dayCombo
 
-                    Layout.preferredWidth: 72
-                    Layout.minimumWidth: 58
-                    Layout.maximumWidth: 78
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 64
 
                     model: root._dayOptions()
                     textRole: "label"
@@ -356,9 +377,8 @@ Item {
                 ComboBox {
                     id: yearCombo
 
-                    Layout.preferredWidth: 88
-                    Layout.minimumWidth: 74
-                    Layout.maximumWidth: 96
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 84
 
                     model: root._yearOptions()
                     textRole: "label"
@@ -397,7 +417,7 @@ Item {
                     iconName: "calendar"
 
                     Layout.fillWidth: true
-                    Layout.minimumWidth: 0
+                    Layout.minimumWidth: 72
 
                     onClicked: {
                         const today = new Date()
@@ -417,7 +437,7 @@ Item {
                     iconName: "close"
 
                     Layout.fillWidth: true
-                    Layout.minimumWidth: 0
+                    Layout.minimumWidth: 72
 
                     onClicked: {
                         field.clear()
@@ -431,7 +451,7 @@ Item {
                     iconName: "approve"
 
                     Layout.fillWidth: true
-                    Layout.minimumWidth: 0
+                    Layout.minimumWidth: 72
 
                     onClicked: {
                         root._applyDate(

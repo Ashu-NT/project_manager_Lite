@@ -34,8 +34,6 @@ Item {
     signal bulkCancelRequested()
     signal bulkActionRequested(string actionId)
 
-    anchors.fill: parent
-
     ColumnLayout {
         anchors.fill: parent
         spacing: Theme.AppTheme.spacingSm

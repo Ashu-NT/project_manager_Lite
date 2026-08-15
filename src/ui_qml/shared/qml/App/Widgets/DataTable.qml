@@ -230,6 +230,19 @@ Item {
     readonly property bool _someChecked: (root.selectedRowIds || []).length > 0 && !root._allChecked
 
     readonly property int _cbColW: 32
+    // Floor for user-driven column resize (drag handle below) -- narrow
+    // enough to shrink a column meaningfully, wide enough that a status
+    // chip or a couple of digits never has to fully disappear.
+    readonly property int _minResizeWidth: 60
+    // Column-resize drag state: a live guide line follows the pointer
+    // while dragging; the actual column width (and the model rebuild that
+    // implies) is only committed once, on release.
+    property string _resizingColumnKey: ""
+    property real   _resizeGuideX: 0
+    // Once true (set the first time any column is manually resized),
+    // _colWidth() stops redistributing flex space across columns --
+    // see the comment there for why.
+    property bool   _hasManualColumnWidths: false
 
     // R7.4: an optional per-column `hideBelow` (pixel) key auto-hides that
     // column once the enclosing window narrows past it, on top of the
@@ -296,11 +309,29 @@ Item {
         if (!col) return Theme.AppTheme.tableColumnDefaultWidth
         const minW = root._columnBaseWidth(col)
         const flex  = col.flex    !== undefined ? col.flex    : 1
-        if (flex === 0) return minW
-        if (root._minDataW >= root._dataAreaW) {
-            return minW
+        // Rounded to a whole pixel: the header positions cells in a plain
+        // Row (full floating-point x accumulation), while _mainView is a
+        // real TableView (its own internal column-position accounting).
+        // Feeding both the same fractional width let each side round/snap
+        // independently, drifting a pixel or two further apart with every
+        // column to the right -- rounding here keeps them numerically
+        // identical, not just theoretically so.
+        if (flex === 0) return Math.round(minW)
+        // Once the user has manually resized any column, stop
+        // redistributing flex space entirely: growing one column would
+        // otherwise shrink the room left for the others (each flex
+        // column's share depends on _extraFlexSpace, which shrinks as
+        // _minDataW grows). The table already scrolls horizontally
+        // (_hScrollBar), so the natural fix is to let total content width
+        // grow/shrink with the resize instead of squeezing every other
+        // column to keep everything crammed into the viewport.
+        if (root._hasManualColumnWidths) {
+            return Math.round(minW)
         }
-        return Math.max(minW, minW + (root._extraFlexSpace * flex) / root._flexTotal)
+        if (root._minDataW >= root._dataAreaW) {
+            return Math.round(minW)
+        }
+        return Math.round(Math.max(minW, minW + (root._extraFlexSpace * flex) / root._flexTotal))
     }
 
     function _applyColumnVisibility(draft) {
@@ -389,39 +420,51 @@ Item {
             id: _headerRow
             anchors.fill: _header
 
-            // Checkbox select-all header (fixed, not scrolled)
+            // Checkbox select-all header (fixed, not scrolled). Deliberately
+            // NOT AppControls.CheckBox: that's a real QQC2.CheckBox Control
+            // with its own internal indicator/contentItem/click layout, and
+            // even with indicator+contentItem overridden here, the control's
+            // own base-style sizing didn't reliably center or click through.
+            // The per-row checkboxes below (a plain Rectangle+Text+
+            // MouseArea, no Control involved) already work correctly and
+            // are visually identical to what this one is drawing, so this
+            // reuses the exact same hand-rolled pattern instead of fighting
+            // the Control's internal state machinery.
             Item {
                 id: _selectAllHeaderCell
                 width:   root._cbColW
                 height:  _headerRow.height
                 visible: root.multiSelect
 
-                AppControls.CheckBox {
-                    id: _headerCb
-                    anchors.centerIn: _selectAllHeaderCell
-                    checkState: root._allChecked  ? Qt.Checked
-                              : root._someChecked ? Qt.PartiallyChecked
-                                                  : Qt.Unchecked
-                    tristate: true
-                    padding:  0; spacing: 0
+                readonly property int _checkState: root._allChecked ? 2
+                    : root._someChecked ? 1 : 0
 
-                    indicator: Rectangle {
-                        implicitWidth: 14; implicitHeight: 14; radius: 2
-                        color: _headerCb.checkState !== Qt.Unchecked
+                Item {
+                    anchors.centerIn: parent
+                    width: 20; height: 20
+
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: 14; height: 14; radius: 2
+                        color: _selectAllHeaderCell._checkState !== 0
                             ? Theme.AppTheme.accent : "transparent"
-                        border.color: _headerCb.checkState !== Qt.Unchecked
+                        border.color: _selectAllHeaderCell._checkState !== 0
                             ? Theme.AppTheme.accent : Theme.AppTheme.subtleBorder
                         border.width: 1
                         Text {
                             anchors.centerIn: parent
-                            text: _headerCb.checkState === Qt.PartiallyChecked ? "—" : "✓"
+                            text: _selectAllHeaderCell._checkState === 1 ? "—" : "✓"
                             color: "white"
                             font.pixelSize: 9; font.bold: true
-                            visible: _headerCb.checkState !== Qt.Unchecked
+                            visible: _selectAllHeaderCell._checkState !== 0
                         }
                     }
-                    contentItem: Item { implicitWidth: 0; implicitHeight: 14 }
-                    onClicked: root.selectAllToggled(!root._allChecked)
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.selectAllToggled(!root._allChecked)
+                    }
                 }
             }
 
@@ -453,8 +496,8 @@ Item {
 
                             RowLayout {
                                 anchors.fill:        parent
-                                anchors.leftMargin:  Theme.AppTheme.spacingSm
-                                anchors.rightMargin: Theme.AppTheme.spacingXs
+                                anchors.leftMargin:  Theme.AppTheme.spacingMd
+                                anchors.rightMargin: Theme.AppTheme.spacingSm
                                 spacing: 3
 
                                 AppControls.Label {
@@ -467,11 +510,11 @@ Item {
                                     font.bold:      true
                                     elide:          Text.ElideRight
                                 }
-                                Text {
-                                    visible:        _hCell._sorted
-                                    text:           root.sortDirection === Qt.AscendingOrder ? "▲" : "▼"
-                                    color:          Theme.AppTheme.accent
-                                    font.pixelSize: 7
+                                AppIcons.AppIcon {
+                                    visible:   _hCell._sorted
+                                    name:      root.sortDirection === Qt.AscendingOrder ? "chevron_up" : "chevron_down"
+                                    size:      Theme.AppTheme.iconXs
+                                    iconColor: Theme.AppTheme.accent
                                 }
                             }
 
@@ -482,6 +525,80 @@ Item {
                                 anchors.bottom: _hCell.bottom
                                 width: 1; color: Theme.AppTheme.divider
                                 visible: _hCell.index < root._visCols.length - 1
+                            }
+
+                            // Resize handle: a slightly wider invisible hit
+                            // target centered on the separator, so dragging
+                            // doesn't require pixel-perfect precision on the
+                            // 1px divider line itself. Rather than committing
+                            // a new column width (and the table-model rebuild
+                            // that implies) on every pixel of mouse movement,
+                            // this only tracks a live guide line while
+                            // dragging and commits once on release -- a
+                            // continuous root.columns rewrite per mouse-move
+                            // event would mean a full model reset per pixel
+                            // dragged.
+                            MouseArea {
+                                id: _resizeHandle
+                                // Above the sort MouseArea below (which
+                                // fills the whole cell and is declared
+                                // after this one -- without an explicit z,
+                                // it would sit on top and steal presses
+                                // meant for this handle).
+                                z: 1
+                                anchors.right: _hCell.right
+                                anchors.top: _hCell.top
+                                anchors.bottom: _hCell.bottom
+                                width: 9
+                                visible: _hCell.index < root._visCols.length - 1
+                                cursorShape: Qt.SizeHorCursor
+                                property real _dragStartWidth: 0
+
+                                onPressed: function(mouse) {
+                                    _resizeHandle._dragStartWidth = _hCell.width
+                                    root._resizingColumnKey = _hCell.modelData.key
+                                    root._resizeGuideX = _resizeHandle.mapToItem(root, mouse.x, 0).x
+                                }
+                                onPositionChanged: function(mouse) {
+                                    if (!pressed) return
+                                    root._resizeGuideX = _resizeHandle.mapToItem(root, mouse.x, 0).x
+                                }
+                                onReleased: function(mouse) {
+                                    if (root._resizingColumnKey.length === 0) return
+                                    const next = Math.max(
+                                        root._minResizeWidth,
+                                        _resizeHandle._dragStartWidth + mouse.x - width / 2
+                                    )
+                                    // Freeze every other column at its
+                                    // currently-rendered width (captured
+                                    // BEFORE this column's width changes),
+                                    // not just the dragged one -- otherwise
+                                    // growing this column reduces
+                                    // _extraFlexSpace, and every flex>0
+                                    // column's share (computed FROM
+                                    // _extraFlexSpace) would recompute
+                                    // smaller purely as a side effect of
+                                    // resizing something else. Freezing
+                                    // means only the dragged column's width
+                                    // actually changes; the table's total
+                                    // content width grows instead, and
+                                    // _hScrollBar already handles that.
+                                    const updated = root.columns.map(function(c) {
+                                        if (c.key === root._resizingColumnKey) {
+                                            const copy = JSON.parse(JSON.stringify(c))
+                                            copy.preferredWidth = next
+                                            return copy
+                                        }
+                                        if (c.preferredWidth !== undefined) return c
+                                        const copy = JSON.parse(JSON.stringify(c))
+                                        copy.preferredWidth = root._colWidth(c)
+                                        return copy
+                                    })
+                                    root.columns = updated
+                                    root._hasManualColumnWidths = true
+                                    root.columnsStateChanged(updated)
+                                    root._resizingColumnKey = ""
+                                }
                             }
 
                             MouseArea {
@@ -771,7 +888,7 @@ Item {
             StatusChip {
                 anchors.verticalCenter: _cell.verticalCenter
                 anchors.left:           _cell.left
-                anchors.leftMargin:     Theme.AppTheme.spacingSm
+                anchors.leftMargin:     Theme.AppTheme.spacingMd
                 visible: _cell._isSt && _cell.display.length > 0
                 status:  _cell.display
             }
@@ -782,7 +899,7 @@ Item {
                 anchors.verticalCenter: _cell.verticalCenter
                 anchors.left:           _cell.left
                 anchors.right:          _cell.right
-                anchors.leftMargin:     Theme.AppTheme.spacingSm
+                anchors.leftMargin:     Theme.AppTheme.spacingMd
                 anchors.rightMargin:    Theme.AppTheme.spacingSm
                 height:  20
                 visible: _cell._isPr
@@ -810,8 +927,8 @@ Item {
             // ── Plain text ────────────────────────────────────────────
             AppControls.Label {
                 anchors.fill:        parent
-                anchors.leftMargin:  Theme.AppTheme.spacingSm
-                anchors.rightMargin: Theme.AppTheme.spacingXs
+                anchors.leftMargin:  Theme.AppTheme.spacingMd
+                anchors.rightMargin: Theme.AppTheme.spacingSm
                 visible:             !_cell._isSt && !_cell._isPr
                 text:                _cell.display
                 verticalAlignment:   Text.AlignVCenter
@@ -878,6 +995,17 @@ Item {
             }
             onClicked: root.rowSelected("")
         }
+    }
+
+    // ── Column-resize live guide line ─────────────────────────────────
+    Rectangle {
+        visible: root._resizingColumnKey.length > 0
+        x: root._resizeGuideX
+        y: _header.y
+        width: 1
+        height: _hScrollBar.y - _header.y
+        color: Theme.AppTheme.accent
+        z: 20
     }
 
     // ── Horizontal scrollbar (shared between header + _mainView) ─────

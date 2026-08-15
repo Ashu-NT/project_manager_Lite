@@ -2,6 +2,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Window
 import QtQuick.Dialogs
 import App.Controls 1.0 as AppControls
 import App.Layouts 1.0 as AppLayouts
@@ -42,6 +43,45 @@ AppLayouts.WorkspaceFrame {
     function _saveColumnState(columns) {
         state.saveColumnState(columns)
         root._columns = state.columns
+    }
+
+    readonly property var pmProjectContext: root.pmCatalog ? root.pmCatalog.pmProjectContext : null
+    readonly property string _inspectorRowId: root.workspaceController
+        ? root.workspaceController.selectedProjectId
+        : ""
+    readonly property var _inspectorItem: {
+        const id = root._inspectorRowId
+        if (!id) return null
+        const items = root.projectsModel.items || []
+        for (let i = 0; i < items.length; i += 1) {
+            if (String(items[i].id || "") === id) return items[i]
+        }
+        return null
+    }
+    // Each field gets its own row rather than mashing several concepts
+    // into one combined string -- read straight from the catalog row's
+    // own `state` (the same fields the table's columns already show, no
+    // new fetch), one label per fact instead of a squashed subtitle.
+    readonly property var _inspectorSections: {
+        const item = root._inspectorItem
+        if (!item) return []
+        const s = item.state || {}
+        return [
+            { "label": "Client", "value": String(s.clientName || "") },
+            { "label": "Site", "value": String(s.siteLabel || "") },
+            { "label": "Start", "value": String(s.startDateLabel || "") },
+            { "label": "Finish", "value": String(s.endDateLabel || "") },
+            { "label": "Approved Budget", "value": String(s.approvedBudgetLabel || "") },
+            { "label": "Contact", "value": String(s.clientContact || "") }
+        ]
+    }
+    readonly property bool _inspectorIsActiveProject: root.pmProjectContext !== null
+        && root.pmProjectContext.hasActiveProject
+        && root._inspectorRowId.length > 0
+        && root.pmProjectContext.activeProjectId === root._inspectorRowId
+
+    function _clearInspectorSelection() {
+        if (root.workspaceController !== null) root.workspaceController.selectProject("")
     }
 
     // ── Detail page state ─────────────────────────────────────────────────
@@ -101,14 +141,16 @@ AppLayouts.WorkspaceFrame {
         anchors.fill: parent
 
         // ── List page ─────────────────────────────────────────────────────
-        Item {
+        RowLayout {
             id: _listPage
             anchors.fill: parent
             visible: !root._detailOpen
+            spacing: 0
 
             Components.ProjectsListPage {
                 id: listPage
-                anchors.fill: parent
+                Layout.fillWidth: true
+                Layout.fillHeight: true
                 workspaceController: root.workspaceController
                 state: state
                 overviewModel: root.overviewModel
@@ -157,6 +199,29 @@ AppLayouts.WorkspaceFrame {
                     } else if (actionId === "change_property") {
                         _bulkChangePopup.open()
                     }
+                }
+            }
+
+            AppWidgets.InspectorPanel {
+                Layout.fillHeight: true
+                visible: root._inspectorItem !== null && Window.width >= Theme.AppTheme.compactContentBreakpoint
+                title: root._inspectorItem ? String(root._inspectorItem.title || "") : ""
+                statusLabel: root._inspectorItem ? String(root._inspectorItem.statusLabel || "") : ""
+                sections: root._inspectorSections
+                busy: root.workspaceController ? root.workspaceController.isBusy : false
+                editActionLabel: "Edit"
+                showEditAction: true
+                secondaryActionLabel: root._inspectorIsActiveProject ? "Clear Active Project" : "Set Active Project"
+                showSecondaryAction: root.pmProjectContext !== null
+
+                onCloseRequested: root._clearInspectorSelection()
+                onEditRequested: {
+                    if (root._inspectorItem) dialogHostLoader.invoke("openEditDialog", root._inspectorItem)
+                }
+                onSecondaryActionRequested: {
+                    if (root.pmProjectContext === null || !root._inspectorRowId) return
+                    if (root._inspectorIsActiveProject) root.pmProjectContext.clearProject()
+                    else root.pmProjectContext.selectProject(root._inspectorRowId)
                 }
             }
 
