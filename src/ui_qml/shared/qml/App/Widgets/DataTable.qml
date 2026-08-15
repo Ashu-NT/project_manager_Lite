@@ -110,7 +110,6 @@ Item {
         if (anchorItem) {
             root.columnCustomizerAnchorItem = anchorItem
         }
-        _colCustomizer.anchorItem = root.columnCustomizerAnchorItem || _columnCustomizerAnchor
         _colCustomizer.open()
     }
     /*
@@ -406,17 +405,10 @@ Item {
     // Notify the header's columnWidthProvider when visible-column set changes.
     //on_VisColsChanged: root._scheduleMainViewLayout()
 
-    Item {
-        id: _columnCustomizerAnchor
-        anchors.top: root.top
-        anchors.right: root.right
-        width: 1
-        height: _header.height
-    }
-
+    // Centered, modal customizer -- no anchor positioning needed (kept as
+    // a no-op public property/param below only for call-site compatibility).
     TableColumnCustomizer {
         id: _colCustomizer
-        anchorItem: root.columnCustomizerAnchorItem || _columnCustomizerAnchor
         columns: root.columns
         onColumnVisibilityChanged: function(draft) {
             root._applyColumnVisibility(draft)
