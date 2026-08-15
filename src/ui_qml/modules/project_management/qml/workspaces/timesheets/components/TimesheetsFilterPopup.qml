@@ -27,6 +27,30 @@ AppWidgets.AnchoredPopup {
         spacing: Theme.AppTheme.spacingSm
 
         AppControls.Label {
+            text: "Status"
+            font.bold: true
+            font.pixelSize: Theme.AppTheme.captionSize
+            font.family: Theme.AppTheme.fontFamily
+            color: Theme.AppTheme.textMuted
+        }
+        AppControls.ComboBox {
+            Layout.fillWidth: true
+            model: root.workspaceController ? (root.workspaceController.queueStatusOptions || []) : []
+            textRole: "label"
+            enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+            currentIndex: root.state
+                ? root.state.optionIndexForValue(
+                    root.workspaceController ? (root.workspaceController.queueStatusOptions || []) : [],
+                    root.workspaceController ? root.workspaceController.selectedQueueStatus : "SUBMITTED")
+                : 0
+            onActivated: function(index) {
+                const opts = root.workspaceController ? (root.workspaceController.queueStatusOptions || []) : []
+                if (root.workspaceController !== null && opts[index])
+                    root.workspaceController.setQueueStatus(String(opts[index].value || "SUBMITTED"))
+            }
+        }
+
+        AppControls.Label {
             text: "Project"
             font.bold: true
             font.pixelSize: Theme.AppTheme.captionSize

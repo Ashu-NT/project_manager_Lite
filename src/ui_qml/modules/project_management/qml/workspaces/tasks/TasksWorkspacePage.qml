@@ -123,11 +123,6 @@ AppLayouts.WorkspaceFrame {
         filterPopup.open()
     }
 
-    function _openViewsPopup() {
-        viewsPopup.anchorItem = listPage.viewsButtonItem
-        viewsPopup.open()
-    }
-
     function _openBulkChangePropertyPopup() {
         bulkChangePropertyPopup.anchorItem = listPage.bulkActionBar
             ? listPage.bulkActionBar.actionButtonForId("change_property")
@@ -258,7 +253,6 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
                 onFilterClicked: root._openFilterPopup()
-                onViewsClicked: root._openViewsPopup()
                 onRefreshRequested: {
                     if (root.workspaceController !== null) {
                         root.workspaceController.refresh()
@@ -288,13 +282,6 @@ AppLayouts.WorkspaceFrame {
                 workspaceController: root.workspaceController
                 state: state
                 anchorItem: listPage.filterButtonItem
-            }
-
-            Components.TasksSavedViewsPopup {
-                id: viewsPopup
-                workspaceController: root.workspaceController
-                state: state
-                anchorItem: listPage.viewsButtonItem
             }
 
             AppWidgets.BulkChangePropertyPopup {

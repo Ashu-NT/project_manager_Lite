@@ -56,7 +56,6 @@ Item {
                 showCustomize: true
                 showExport: false
                 showRefresh: false
-                showViews: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
                 onSearchChanged: function(text) {

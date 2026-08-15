@@ -6,9 +6,6 @@ from types import SimpleNamespace
 from PySide6.QtCore import QSettings
 
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
-from src.ui_qml.modules.project_management.controllers.common import (
-    ProjectManagementTaskViewStore,
-)
 from src.ui_qml.modules.project_management.presenters import (
     ProjectDashboardPresenter,
     ProjectFinancialsWorkspacePresenter,

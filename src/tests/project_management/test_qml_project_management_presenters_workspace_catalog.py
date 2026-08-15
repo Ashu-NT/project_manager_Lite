@@ -138,7 +138,6 @@ def test_project_management_qml_uses_named_modules_and_typed_catalog_properties(
     assert "Enterprise planning and schedule control workspace." in qml_text
     assert 'searchPlaceholder: "Search tasks..."' in qml_text
     assert "showCustomize: true" in qml_text
-    assert "showViews: true" in qml_text
     assert "showExport: true" in qml_text
     assert "AppWidgets.BulkActionBar {" in qml_text
     assert "AppWidgets.BulkChangePropertyPopup {" in qml_text

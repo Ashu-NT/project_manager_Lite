@@ -6,9 +6,6 @@ from types import SimpleNamespace
 from PySide6.QtCore import QSettings
 
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
-from src.ui_qml.modules.project_management.controllers.common import (
-    ProjectManagementTaskViewStore,
-)
 from src.core.modules.project_management.api.desktop import (
     build_project_management_collaboration_desktop_api,
     build_project_management_tasks_desktop_api,
@@ -304,7 +301,6 @@ def _build_tasks_catalog(tmp_path: Path, task_service, collaboration_service, ti
             project_management_collaboration=collaboration_api,
             project_management_timesheets=timesheets_api,
         ),
-        task_view_store=ProjectManagementTaskViewStore(settings),
     )
     return catalog, settings
 

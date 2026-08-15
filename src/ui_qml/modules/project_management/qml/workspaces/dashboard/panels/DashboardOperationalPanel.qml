@@ -126,7 +126,6 @@ Item {
             showExport: false
             showCreate: false
             showFilter: false
-            showViews: false
             showCustomize: true
             isBusy: root.workspaceController
                 ? (root.workspaceController.isBusy || root.workspaceController.isLoading)

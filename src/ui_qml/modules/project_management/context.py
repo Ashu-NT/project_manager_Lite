@@ -22,7 +22,6 @@ from src.ui_qml.modules.project_management.controllers import (
 )
 from src.ui_qml.modules.project_management.controllers.common import (
     PMWorkspaceNavigationController,
-    ProjectManagementTaskViewStore,
     resolve_active_organization_id_from_runtime_api,
     serialize_workspace_view_model,
 )
@@ -54,7 +53,6 @@ class ProjectManagementWorkspaceCatalog(QObject):
     def __init__(
         self,
         desktop_api_registry: object | None = None,
-        task_view_store: ProjectManagementTaskViewStore | None = None,
         auth_engine: Any | None = None,
         user_session_provider: Callable[[], Any | None] | None = None,
         parent: QObject | None = None,
@@ -66,11 +64,6 @@ class ProjectManagementWorkspaceCatalog(QObject):
             getattr(desktop_api_registry, "platform_runtime", None)
             if desktop_api_registry is not None else None
         )
-        self._task_view_store = task_view_store or ProjectManagementTaskViewStore(
-            organization_id_provider=self._active_organization_id,
-        )
-        if task_view_store is not None and hasattr(task_view_store, "set_organization_id_provider"):
-            task_view_store.set_organization_id_provider(self._active_organization_id)
         self._dashboard_api = getattr(
             desktop_api_registry,
             "project_management_dashboard",
@@ -233,7 +226,6 @@ class ProjectManagementWorkspaceCatalog(QObject):
                     collaboration_desktop_api=self._collaboration_api,
                     timesheets_desktop_api=self._timesheets_api,
                 ),
-                task_view_store=self._task_view_store,
                 parent=self,
             )
         return self._tasks_workspace

@@ -4,7 +4,6 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.modules.project_management.controllers.common import (
-    ProjectManagementTaskViewStore,
     ProjectManagementWorkspaceControllerBase,
 )
 from src.ui_qml.modules.project_management.controllers.tasks.pm_assignment_controller import (
@@ -31,7 +30,6 @@ from . import task_bulk_selection_actions as _bulk
 from . import task_filter_actions as _filter
 from . import task_mutation_facade as _mut
 from . import task_pagination_actions as _pag
-from . import task_saved_view_actions as _saved_views
 from . import task_time_selection_actions as _time_sel
 from .task_domain_event_binder import bind_task_domain_events
 from .task_export_handler import export_tasks
@@ -45,8 +43,6 @@ from .task_lazy_section_loader import (
     load_task_assignments_and_dependencies,
     refresh_time_entries_only,
 )
-from .task_saved_view_actions import refresh_task_view_options
-from .task_saved_view_service import TaskSavedViewService
 from .task_selection_handler import (
     activate_task,
     select_project,
@@ -80,11 +76,9 @@ class ProjectManagementTasksWorkspaceController(
     bulkStatusOptionsChanged = Signal()
     priorityOptionsChanged = Signal()
     scheduleOptionsChanged = Signal()
-    taskViewOptionsChanged = Signal()
     selectedStatusFilterChanged = Signal()
     selectedPriorityFilterChanged = Signal()
     selectedScheduleFilterChanged = Signal()
-    selectedTaskViewNameChanged = Signal()
     searchTextChanged = Signal()
     tasksChanged = Signal()
     selectedTaskChanged = Signal()
@@ -123,7 +117,6 @@ class ProjectManagementTasksWorkspaceController(
         *,
         workspace_presenter: ProjectManagementWorkspacePresenter | None = None,
         tasks_workspace_presenter: ProjectTasksWorkspacePresenter | None = None,
-        task_view_store: ProjectManagementTaskViewStore | None = None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
@@ -144,7 +137,6 @@ class ProjectManagementTasksWorkspaceController(
         self._selected_priority_filter = "all"
         self._selected_schedule_filter = "all"
         self._search_text = ""
-        self._selected_task_view_name = ""
         self._selected_task_id = ""
         self._selected_assignment_id = ""
         self._selected_time_period_start = ""
@@ -157,12 +149,6 @@ class ProjectManagementTasksWorkspaceController(
         self._skill_requirements_section_loaded_for_task_id = ""
         self._schedule_impact_section_loaded_for_task_id = ""
         self._schedule_impact: dict[str, object] = {}
-        # ── Saved views ────────────────────────────────────────────────
-        self._task_view_store = task_view_store or ProjectManagementTaskViewStore()
-        self._saved_view_svc = TaskSavedViewService(self._task_view_store)
-        self._saved_view_svc.load_and_init()
-        self._task_view_options: list[dict[str, str]] = []
-        refresh_task_view_options(self)
         # ── Sub-controllers ────────────────────────────────────────────
         create_subcontrollers(self)
         bind_task_domain_events(self)
@@ -220,10 +206,6 @@ class ProjectManagementTasksWorkspaceController(
     def scheduleOptions(self) -> list[dict[str, str]]:
         return self._task_list.scheduleOptions
 
-    @Property("QVariantList", notify=taskViewOptionsChanged)
-    def taskViewOptions(self) -> list[dict[str, str]]:
-        return self._task_view_options
-
     @Property(str, notify=selectedStatusFilterChanged)
     def selectedStatusFilter(self) -> str:
         return self._selected_status_filter
@@ -235,10 +217,6 @@ class ProjectManagementTasksWorkspaceController(
     @Property(str, notify=selectedScheduleFilterChanged)
     def selectedScheduleFilter(self) -> str:
         return self._selected_schedule_filter
-
-    @Property(str, notify=selectedTaskViewNameChanged)
-    def selectedTaskViewName(self) -> str:
-        return self._selected_task_view_name
 
     @Property(str, notify=searchTextChanged)
     def searchText(self) -> str:
@@ -545,24 +523,6 @@ class ProjectManagementTasksWorkspaceController(
     @Slot(str)
     def selectTimeEntry(self, entry_id: str) -> None:
         _time_sel.select_time_entry(self, entry_id)
-
-    # ── Saved view slots ──────────────────────────────────────────────
-
-    @Slot(str)
-    def selectTaskView(self, view_name: str) -> None:
-        _saved_views.select_task_view(self, view_name)
-
-    @Slot(str, result="QVariantMap")
-    def saveCurrentTaskView(self, view_name: str) -> dict[str, object]:
-        return _saved_views.save_current_task_view(self, view_name)
-
-    @Slot(result="QVariantMap")
-    def applySelectedTaskView(self) -> dict[str, object]:
-        return _saved_views.apply_selected_task_view(self)
-
-    @Slot(result="QVariantMap")
-    def deleteSelectedTaskView(self) -> dict[str, object]:
-        return _saved_views.delete_selected_task_view(self)
 
     # ── Export slot ───────────────────────────────────────────────────
 

@@ -19,7 +19,6 @@ Item {
 
     readonly property var bulkActionBar: bulkActionBarItem
     readonly property var filterButtonItem: tableToolbar.filterButtonItem
-    readonly property var viewsButtonItem: tableToolbar.viewsButtonItem
 
     signal rowSelected(string rowId)
     signal rowActivated(string rowId)
@@ -29,7 +28,6 @@ Item {
     signal searchChanged(string text)
     signal filterClicked()
     signal customizeClicked()
-    signal viewsClicked()
     signal refreshRequested()
     signal exportRequested()
     signal createRequested()
@@ -96,7 +94,6 @@ Item {
             createLabel: "New Task"
             showFilter: true
             showCustomize: true
-            showViews: true
             showRefresh: true
             showExport: true
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
@@ -106,7 +103,6 @@ Item {
             }
             onFilterClicked: root.filterClicked()
             onCustomizeClicked: tasksTable.openColumnCustomizer(tableToolbar.customizeButtonItem)
-            onViewsClicked: root.viewsClicked()
             onRefreshRequested: root.refreshRequested()
             onExportRequested: root.exportRequested()
             onCreateRequested: root.createRequested()

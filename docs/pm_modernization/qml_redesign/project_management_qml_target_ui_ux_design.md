@@ -1801,3 +1801,71 @@ plus the 125-test Portfolio/Dashboard/Overview batch, all green -- this
 widget backs list pages across the entire app, not just Projects.
 
 **R4.2 DataTable redesign: COMPLETE.**
+
+## 34. Unplanned maintenance interlude: shell project-context bar and Views
+removal (R4.3 paused for user-driven fixes)
+
+Two direct product requests, out of R-phase sequence, executed before
+resuming R4.3 (Tasks redesign) at the user's explicit request ("make R4.3
+continue after fixes... it can be put on pause" -- there are more fixes
+coming before returning to R4.3).
+
+**1. Shell-level `ProjectContextBar` and `PMProjectContextController`
+removed entirely.** Live report: the top search+project-dropdown bar was
+visible on some workspaces and hidden on others (`NOT_APPLICABLE` policy
+destinations), causing a UI flicker as the user navigated between them.
+Investigation (before deleting anything) confirmed the two REQUIRED-policy
+destinations that were the bar's original reason to exist -- Scheduling and
+Financials -- already maintain their own fully independent in-page project
+selectors and never actually read from `pmProjectContext`, so the shared
+shell-level state had no real functional effect beyond the bar itself, the
+REQUIRED-policy gate, and the Set/Clear Active Project buttons on
+Portfolio/Projects. Per explicit user decision ("Remove everything"),
+deleted:
+- `ProjectContextBar.qml`, `ProjectContextRequiredState.qml` (and their
+  `qmldir` entries).
+- `PMProjectContextController` (`pm_project_context_controller.py`) and its
+  exposure (`pmProjectContext`, `projectContextRequirementSatisfied`,
+  `projectContextRequirementChanged`) from
+  `ProjectManagementWorkspaceCatalog`.
+- The `ProjectContextPolicy` enum and `project_context_policy` field from
+  `navigation.py` (and the `projectContextPolicy` property from
+  `PMWorkspaceNavigationController`) -- nothing else consumed this axis
+  once the shell-level gate was gone.
+- The "Set Active Project"/"Clear Active Project" secondary action from
+  Portfolio's `PortfolioDetailPanel.qml` (R3.6 addition) and from Projects'
+  inspector (`ProjectsWorkspacePage.qml`, R4.2 addition).
+- All now-inapplicable tests (whole files where the test was entirely about
+  this feature; individual tests removed elsewhere). 48 targeted tests
+  green after removal.
+
+**2. "Views" (saved-views) feature removed from the 5 pages that enabled
+it**, per direct request ("delete all qml, controller/presenter codes
+related to it"):
+- **Tasks**: real saved-views subsystem (`TaskSavedViewService`,
+  `task_saved_view_actions.py`, `ProjectManagementTaskViewStore`,
+  `TasksSavedViewsPopup.qml`, `taskViewOptions`/`selectedTaskViewName`/
+  `selectTaskView`/`saveCurrentTaskView`/`applySelectedTaskView`/
+  `deleteSelectedTaskView` on the workspace controller) deleted wholesale.
+- **Timesheets**: investigation found its "Views" button was *not* a
+  saved-views feature at all -- it was the only UI control for the review
+  queue's status filter (Submitted/Approved/Rejected), mislabeled behind
+  the Views affordance, with no other access point (the separate Filter
+  popup only covers Project/Resource/Period range). Flagged to the user
+  rather than silently deleting working functionality; decision was to
+  fold the status combo into the existing `TimesheetsFilterPopup.qml`
+  (no backend change needed -- `queueStatusOptions`/`selectedQueueStatus`/
+  `setQueueStatus` already existed on the controller) and remove the
+  `TimesheetsViewsPopup.qml`/Views button as pure UI dead weight.
+- **Collaboration, Dashboard (`DashboardOperationalPanel`), Scheduling
+  (`SchedulingActivityTimelinePanel`)**: `showViews` was already `false` on
+  all three with no popup/backend ever built -- just removed the dead
+  `showViews: false` flag.
+- `TableToolbar.qml`'s shared `showViews`/`viewsClicked`/`viewsButtonItem`
+  properties were left untouched -- confirmed still genuinely used by
+  Platform's `ControlWorkspacePage.qml` and 5 Inventory/Procurement list
+  pages.
+
+**Status: both removals COMPLETE**, targeted regression green. R4.3 (Tasks
+redesign) remains paused pending further user-directed fixes; resume from
+here when instructed.

@@ -17,7 +17,6 @@ Item {
 
     readonly property var bulkActionBar: bulkActionBarItem
     readonly property var filterButtonItem: tableToolbar.filterButtonItem
-    readonly property var viewsButtonItem: tableToolbar.viewsButtonItem
     readonly property var customizeButtonItem: tableToolbar.customizeButtonItem
 
     signal rowSelected(string rowId)
@@ -26,7 +25,6 @@ Item {
     signal selectAllToggled(bool allSelected)
     signal columnsStateChanged(var columns)
     signal filterClicked()
-    signal viewsClicked()
     signal refreshRequested()
     signal bulkCancelRequested()
     signal bulkActionRequested(string actionId)
@@ -85,7 +83,6 @@ Item {
             showCreate: false
             showFilter: true
             showCustomize: true
-            showViews: true
             showRefresh: true
             showExport: false
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
@@ -96,7 +93,6 @@ Item {
             }
             onFilterClicked: root.filterClicked()
             onCustomizeClicked: reviewTable.openColumnCustomizer(tableToolbar.customizeButtonItem)
-            onViewsClicked: root.viewsClicked()
             onRefreshRequested: root.refreshRequested()
         }
 

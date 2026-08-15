@@ -217,7 +217,6 @@ AppLayouts.WorkspaceFrame {
                             return "Search inbox..."
                         }
                         showFilter: false
-                        showViews: false
                         showCustomize: state.activePanelId !== "activity"
                         showExport: false
                         showRefresh: true

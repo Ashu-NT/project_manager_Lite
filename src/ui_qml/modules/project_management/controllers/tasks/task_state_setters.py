@@ -64,12 +64,6 @@ class TaskStateSettersMixin:
         self._search_text = v
         self.searchTextChanged.emit()
 
-    def _set_selected_task_view_name(self, v: str) -> None:
-        if v == self._selected_task_view_name:
-            return
-        self._selected_task_view_name = v
-        self.selectedTaskViewNameChanged.emit()
-
     def _set_selected_task_id(self, v: str) -> None:
         if v == self._selected_task_id:
             return

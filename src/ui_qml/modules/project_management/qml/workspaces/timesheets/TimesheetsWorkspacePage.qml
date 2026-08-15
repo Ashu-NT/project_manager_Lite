@@ -94,7 +94,6 @@ AppLayouts.WorkspaceFrame {
                     if (root.workspaceController !== null) root._saveColumnState(cols)
                 }
                 onFilterClicked: filterPopup.open()
-                onViewsClicked: viewsPopup.open()
                 onRefreshRequested: {
                     if (root.workspaceController !== null) root.workspaceController.refresh()
                 }
@@ -118,13 +117,6 @@ AppLayouts.WorkspaceFrame {
                 workspaceController: root.workspaceController
                 state: state
                 anchorItem: listPage.filterButtonItem
-            }
-
-            Components.TimesheetsViewsPopup {
-                id: viewsPopup
-                workspaceController: root.workspaceController
-                state: state
-                anchorItem: listPage.viewsButtonItem
             }
         }
 
