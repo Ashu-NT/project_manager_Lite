@@ -83,9 +83,9 @@ def test_project_management_projects_desktop_api_mutates_project_records() -> No
 
 
 def test_project_management_projects_desktop_api_get_project_by_id() -> None:
-    """R2.3: PMProjectContextController resolves a single project by id
-    through this method -- added because it didn't previously exist on the
-    desktop API even though the underlying service already supported it."""
+    """R2.3: a single project resolved by id through this method -- added
+    because it didn't previously exist on the desktop API even though the
+    underlying service already supported it."""
     service = _FakeProjectService()
     api = build_project_management_projects_desktop_api(project_service=service)
     created = api.create_project(

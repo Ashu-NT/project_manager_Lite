@@ -6,7 +6,6 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 from src.ui_qml.modules.project_management.navigation import (
     PM_CANONICAL_ROUTE_ID,
     PM_WORKSPACE_KEYS,
-    ProjectContextPolicy,
     compatibility_route_intent,
     workspace_intent,
 )
@@ -40,14 +39,6 @@ class PMWorkspaceNavigationController(QObject):
     def secondaryId(self) -> str:
         intent = workspace_intent(self._workspace_key)
         return intent.secondary_id if intent is not None else ""
-
-    @Property(str, notify=selectionChanged)
-    def projectContextPolicy(self) -> str:
-        """The current destination's project-context requirement
-        (required/optional/not_applicable) -- owned here as destination
-        metadata, not by PMProjectContextController. See R2.2/R2.9."""
-        intent = workspace_intent(self._workspace_key)
-        return intent.project_context_policy.value if intent is not None else ProjectContextPolicy.OPTIONAL.value
 
     @Property("QVariantMap", notify=routeStateChanged)
     def routeState(self) -> dict[str, str]:

@@ -16,29 +16,21 @@ Item {
     property ShellContexts.ShellContext shellModel
 
     readonly property var _nav: root.pmCatalog ? root.pmCatalog.pmNavigation : null
-    readonly property var _projectContext: root.pmCatalog ? root.pmCatalog.pmProjectContext : null
     readonly property string _activeWorkspaceKey: root._nav ? root._nav.workspaceKey : "dashboard"
-    readonly property string _activePolicy: root._nav ? root._nav.projectContextPolicy : "optional"
-    readonly property bool _contextSatisfied: root.pmCatalog
-        ? root.pmCatalog.projectContextRequirementSatisfied
-        : true
 
     // R2.12: lazy on first activation only. A destination's Loader turns
-    // on the first time it's both selected AND context-satisfied, and then
-    // stays on -- switching away only hides it (Loader.visible), it never
-    // tears the page back down. This is deliberate, not just an
-    // optimization: several capability pages host the shared
-    // SectionDetailPage, which schedules a Qt.callLater() reparent that
-    // can fire after its context is destroyed if the page is torn down and
-    // recreated while such a call is pending. Keeping a visited
-    // destination mounted sidesteps that shared-widget hazard entirely
-    // instead of patching a widely-used primitive as a side effect of R2.
+    // on the first time it's selected, and then stays on -- switching away
+    // only hides it (Loader.visible), it never tears the page back down.
+    // This is deliberate, not just an optimization: several capability
+    // pages host the shared SectionDetailPage, which schedules a
+    // Qt.callLater() reparent that can fire after its context is destroyed
+    // if the page is torn down and recreated while such a call is
+    // pending. Keeping a visited destination mounted sidesteps that
+    // shared-widget hazard entirely instead of patching a widely-used
+    // primitive as a side effect of R2.
     property var _activatedKeys: ({})
 
     function _markActiveKeyLoaded() {
-        if (!root._contextSatisfied) {
-            return
-        }
         if (root._activatedKeys[root._activeWorkspaceKey] === true) {
             return
         }
@@ -49,20 +41,13 @@ Item {
 
     Component.onCompleted: root._markActiveKeyLoaded()
 
-    // Connects to the real, unambiguously-named Qt signals directly
+    // Connects to the real, unambiguously-named Qt signal directly
     // (rather than relying on QML's synthesized change-notification
     // handler name for a local underscore-prefixed computed property,
     // which proved inconsistent to predict).
     Connections {
         target: root._nav
         function onSelectionChanged() {
-            root._markActiveKeyLoaded()
-        }
-    }
-
-    Connections {
-        target: root.pmCatalog
-        function onProjectContextRequirementChanged() {
             root._markActiveKeyLoaded()
         }
     }
@@ -75,20 +60,6 @@ Item {
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
-
-        Components.ProjectContextBar {
-            objectName: "pmProjectContextBar"
-            Layout.fillWidth: true
-            // Only rendered for destinations that actually consume project
-            // context (OPTIONAL/REQUIRED) -- destinations like Portfolio and
-            // Projects operate across all projects by definition, so a
-            // project picker there is meaningless chrome, not a feature.
-            visible: root._activePolicy !== "not_applicable"
-            Layout.preferredHeight: visible ? implicitHeight : 0
-            platformCatalog: root.platformCatalog
-            projectContext: root._projectContext
-            currentPolicy: root._activePolicy
-        }
 
         RowLayout {
             Layout.fillWidth: true
@@ -114,13 +85,6 @@ Item {
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-
-                Components.ProjectContextRequiredState {
-                    objectName: "pmProjectContextRequiredState"
-                    anchors.fill: parent
-                    visible: !root._contextSatisfied
-                    destinationLabel: root._activeWorkspaceKey
-                }
 
                 // R2.6: each capability page is loaded dynamically by URL
                 // (Qt.resolvedUrl, resolved relative to THIS file) rather
@@ -152,7 +116,6 @@ Item {
                         active: root._activatedKeys[_capabilityLoader.modelData.key] === true
                         visible: _capabilityLoader.active
                             && root._activeWorkspaceKey === _capabilityLoader.modelData.key
-                            && root._contextSatisfied
                         asynchronous: false
                         source: _capabilityLoader.active
                             ? Qt.resolvedUrl(_capabilityLoader.modelData.file)

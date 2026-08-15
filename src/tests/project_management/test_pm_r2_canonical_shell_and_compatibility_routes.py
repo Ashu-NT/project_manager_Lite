@@ -103,74 +103,6 @@ def test_all_ten_compatibility_routes_load_canonical_shell_with_correct_destinat
         assert pm_catalog.pmNavigation.secondaryId == secondary_id, route_id
 
 
-def test_compatibility_route_does_not_pin_active_project(services) -> None:
-    """A compatibility-route deep link selecting a destination must not, by itself,
-    change the shared PM active-project context (R2.10)."""
-    _ensure_qgui_application()
-    routes = {route.route_id: route for route in build_project_management_routes()}
-    registry = build_desktop_api_registry(services)
-    pm_catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
-    platform_catalog = PlatformWorkspaceCatalog()
-
-    engine = create_qml_engine()
-    engine.setInitialProperties({"pmCatalog": pm_catalog, "platformCatalog": platform_catalog})
-    engine.load(str(routes["project_management.tasks"].qml_path))
-
-    assert len(engine.rootObjects()) == 1
-    assert pm_catalog.pmProjectContext.hasActiveProject is False
-
-
-def test_required_destination_without_project_shows_dedicated_state(services) -> None:
-    """R2.9: Planning (scheduling) is REQUIRED. With no active project the
-    dedicated ProjectContextRequiredState must be visible; selecting a
-    project must hide it -- proven at the QML object level, not just the
-    controller's boolean property."""
-    _ensure_qgui_application()
-    project = services["project_service"].create_project("Plant Upgrade")
-    registry = build_desktop_api_registry(services)
-    pm_catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
-    platform_catalog = PlatformWorkspaceCatalog()
-
-    engine = create_qml_engine()
-    engine.setInitialProperties({"pmCatalog": pm_catalog, "platformCatalog": platform_catalog})
-    engine.load(
-        "src/ui_qml/modules/project_management/qml/workspace/ProjectManagementWorkspace.qml"
-    )
-    root = engine.rootObjects()[0]
-    required_state = root.findChild(QObject, "pmProjectContextRequiredState")
-    assert required_state is not None
-
-    pm_catalog.pmNavigation.selectWorkspace("scheduling")
-    assert required_state.property("visible") is True
-    assert pm_catalog.projectContextRequirementSatisfied is False
-
-    pm_catalog.pmProjectContext.refreshProjects()
-    pm_catalog.pmProjectContext.selectProject(project.id)
-    assert required_state.property("visible") is False
-    assert pm_catalog.projectContextRequirementSatisfied is True
-
-    pm_catalog.pmProjectContext.clearProject()
-    assert required_state.property("visible") is True
-
-
-def test_optional_destination_never_shows_required_state(services) -> None:
-    _ensure_qgui_application()
-    registry = build_desktop_api_registry(services)
-    pm_catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
-    platform_catalog = PlatformWorkspaceCatalog()
-
-    engine = create_qml_engine()
-    engine.setInitialProperties({"pmCatalog": pm_catalog, "platformCatalog": platform_catalog})
-    engine.load(
-        "src/ui_qml/modules/project_management/qml/workspace/ProjectManagementWorkspace.qml"
-    )
-    root = engine.rootObjects()[0]
-    required_state = root.findChild(QObject, "pmProjectContextRequiredState")
-
-    pm_catalog.pmNavigation.selectWorkspace("tasks")
-    assert required_state.property("visible") is False
-
-
 def test_entering_canonical_shell_only_constructs_the_default_destination(services) -> None:
     """R2.12: constructing/loading the canonical shell must not construct
     (and therefore not refresh/query) any of the nine non-default
@@ -206,34 +138,6 @@ def test_entering_canonical_shell_only_constructs_the_default_destination(servic
     finally:
         for restore in restores:
             restore()
-
-
-def test_project_context_bar_search_does_not_pin_only_explicit_pick_does(services) -> None:
-    """R2.10/R2.11: typing in the project search box must only call
-    searchProjects() (browsing), never selectProject(). Only picking a
-    result from the combo (an explicit user action) pins the context."""
-    _ensure_qgui_application()
-    project = services["project_service"].create_project("Plant Upgrade")
-    registry = build_desktop_api_registry(services)
-    pm_catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
-    platform_catalog = PlatformWorkspaceCatalog()
-
-    engine = create_qml_engine()
-    engine.setInitialProperties({"pmCatalog": pm_catalog, "platformCatalog": platform_catalog})
-    engine.load(
-        "src/ui_qml/modules/project_management/qml/workspace/ProjectManagementWorkspace.qml"
-    )
-    root = engine.rootObjects()[0]
-    context_bar = root.findChild(QObject, "pmProjectContextBar")
-    assert context_bar is not None
-
-    project_context = context_bar.property("projectContext")
-    assert project_context is not None
-    project_context.searchProjects("Plant")
-    assert pm_catalog.pmProjectContext.hasActiveProject is False
-
-    assert project_context.selectProject(project.id) is True
-    assert pm_catalog.pmProjectContext.activeProjectId == project.id
 
 
 def test_nav_rail_is_manually_collapsible_like_platform(services) -> None:

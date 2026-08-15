@@ -45,7 +45,6 @@ AppLayouts.WorkspaceFrame {
         root._columns = state.columns
     }
 
-    readonly property var pmProjectContext: root.pmCatalog ? root.pmCatalog.pmProjectContext : null
     readonly property string _inspectorRowId: root.workspaceController
         ? root.workspaceController.selectedProjectId
         : ""
@@ -75,10 +74,6 @@ AppLayouts.WorkspaceFrame {
             { "label": "Contact", "value": String(s.clientContact || "") }
         ]
     }
-    readonly property bool _inspectorIsActiveProject: root.pmProjectContext !== null
-        && root.pmProjectContext.hasActiveProject
-        && root._inspectorRowId.length > 0
-        && root.pmProjectContext.activeProjectId === root._inspectorRowId
 
     function _clearInspectorSelection() {
         if (root.workspaceController !== null) root.workspaceController.selectProject("")
@@ -211,17 +206,10 @@ AppLayouts.WorkspaceFrame {
                 busy: root.workspaceController ? root.workspaceController.isBusy : false
                 editActionLabel: "Edit"
                 showEditAction: true
-                secondaryActionLabel: root._inspectorIsActiveProject ? "Clear Active Project" : "Set Active Project"
-                showSecondaryAction: root.pmProjectContext !== null
 
                 onCloseRequested: root._clearInspectorSelection()
                 onEditRequested: {
                     if (root._inspectorItem) dialogHostLoader.invoke("openEditDialog", root._inspectorItem)
-                }
-                onSecondaryActionRequested: {
-                    if (root.pmProjectContext === null || !root._inspectorRowId) return
-                    if (root._inspectorIsActiveProject) root.pmProjectContext.clearProject()
-                    else root.pmProjectContext.selectProject(root._inspectorRowId)
                 }
             }
 

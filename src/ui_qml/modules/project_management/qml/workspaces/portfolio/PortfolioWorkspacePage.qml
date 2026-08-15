@@ -211,7 +211,6 @@ AppLayouts.WorkspaceFrame {
                     dependenciesModel: state.dependenciesModel
                     intakeItemsModel:  state.intakeModel
                     recentActionsModel: state.recentActionsModel
-                    pmProjectContext:  root.pmCatalog ? root.pmCatalog.pmProjectContext : null
                 }
             }
         }

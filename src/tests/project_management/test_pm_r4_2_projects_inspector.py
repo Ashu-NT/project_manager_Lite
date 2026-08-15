@@ -75,38 +75,6 @@ def test_selecting_a_row_opens_inspector_without_opening_full_detail(services) -
     assert len(sections) > 0
 
 
-def test_inspector_set_and_clear_active_project(services) -> None:
-    today = date.today()
-    project = services["project_service"].create_project(
-        "R4.2 Active Project Toggle",
-        start_date=today - timedelta(days=5),
-        end_date=today + timedelta(days=60),
-        financial_currency_code="EUR",
-    )
-
-    _ensure_qgui_application()
-    registry = build_desktop_api_registry(services)
-    pm_catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
-    platform_catalog = PlatformWorkspaceCatalog()
-    engine, root = _load_projects_page(pm_catalog, platform_catalog)
-
-    controller = pm_catalog.projectsWorkspace
-    controller.selectProject(project.id)
-
-    assert bool(root.property("_inspectorIsActiveProject")) is False
-
-    pm_project_context = pm_catalog.pmProjectContext
-    pm_project_context.selectProject(project.id)
-
-    assert pm_project_context.activeProjectId == project.id
-    assert bool(root.property("_inspectorIsActiveProject")) is True
-
-    pm_project_context.clearProject()
-
-    assert pm_project_context.hasActiveProject is False
-    assert bool(root.property("_inspectorIsActiveProject")) is False
-
-
 def test_row_activation_still_opens_full_detail(services) -> None:
     today = date.today()
     project = services["project_service"].create_project(

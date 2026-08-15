@@ -21,7 +21,6 @@ from src.ui_qml.modules.project_management.controllers import (
     ProjectManagementTimesheetsWorkspaceController,
 )
 from src.ui_qml.modules.project_management.controllers.common import (
-    PMProjectContextController,
     PMWorkspaceNavigationController,
     ProjectManagementTaskViewStore,
     resolve_active_organization_id_from_runtime_api,
@@ -30,7 +29,6 @@ from src.ui_qml.modules.project_management.controllers.common import (
 from src.ui_qml.modules.project_management.controllers.common.pm_capability_controller import (
     PMCapabilityController,
 )
-from src.ui_qml.modules.project_management.navigation import ProjectContextPolicy
 from src.ui_qml.modules.project_management.presenters import (
     ProjectCollaborationWorkspacePresenter,
     ProjectDashboardWorkspacePresenter,
@@ -53,8 +51,6 @@ QML_IMPORT_MAJOR_VERSION = 1
 @QmlElement
 @QmlUncreatable("Project management workspace catalogs are provided by the shell runtime.")
 class ProjectManagementWorkspaceCatalog(QObject):
-    projectContextRequirementChanged = Signal()
-
     def __init__(
         self,
         desktop_api_registry: object | None = None,
@@ -139,22 +135,10 @@ class ProjectManagementWorkspaceCatalog(QObject):
             user_session_provider=user_session_provider,
             parent=self,
         )
-        # R2.3: the PM-wide project-context and canonical-navigation state
-        # owners. Constructed eagerly (like PMCapabilityController above)
-        # since they are cheap cross-cutting state, not a heavy per-
-        # capability workspace. Wired with the REAL Projects desktop API
-        # already resolved above -- no fake/local project list.
-        self._pm_project_context = PMProjectContextController(
-            projects_api=self._projects_api,
-            parent=self,
-        )
+        # R2.3: the PM-wide canonical-navigation state owner. Constructed
+        # eagerly (like PMCapabilityController above) since it is cheap
+        # cross-cutting state, not a heavy per-capability workspace.
         self._pm_navigation = PMWorkspaceNavigationController(parent=self)
-        self._pm_project_context.activeProjectChanged.connect(
-            self.projectContextRequirementChanged
-        )
-        self._pm_navigation.selectionChanged.connect(
-            self.projectContextRequirementChanged
-        )
         self._projects_workspace: ProjectManagementProjectsWorkspaceController | None = None
         self._financials_workspace: ProjectManagementFinancialsWorkspaceController | None = None
         self._portfolio_workspace: ProjectManagementPortfolioWorkspaceController | None = None
@@ -329,23 +313,9 @@ class ProjectManagementWorkspaceCatalog(QObject):
     def pmCapabilityController(self) -> PMCapabilityController:
         return self._pm_capability
 
-    @Property(PMProjectContextController, constant=True)
-    def pmProjectContext(self) -> PMProjectContextController:
-        return self._pm_project_context
-
     @Property(PMWorkspaceNavigationController, constant=True)
     def pmNavigation(self) -> PMWorkspaceNavigationController:
         return self._pm_navigation
-
-    @Property(bool, notify=projectContextRequirementChanged)
-    def projectContextRequirementSatisfied(self) -> bool:
-        """Composes PMWorkspaceNavigationController's per-destination
-        policy with PMProjectContextController's active-project state so
-        QML never has to duplicate REQUIRED/OPTIONAL/NOT_APPLICABLE logic
-        itself (R2.2/R2.9)."""
-        if self._pm_navigation.projectContextPolicy != ProjectContextPolicy.REQUIRED.value:
-            return True
-        return self._pm_project_context.hasActiveProject
 
     @Slot(str, result="QVariantMap")
     def workspace(self, route_id: str) -> dict[str, str]:
@@ -367,12 +337,6 @@ class ProjectManagementWorkspaceCatalog(QObject):
     @Slot()
     def refreshAllWorkspaces(self) -> None:
         self.refreshCapabilities()
-        # R2.4: session/reauthentication transition -- reload the project
-        # options scoped to the (possibly new) session and re-validate the
-        # active project rather than blindly clearing it. refreshProjects()
-        # already preserves a still-accessible project and clears a stale
-        # one; it fails safe (marks "unavailable") when no API is wired.
-        self._pm_project_context.refreshProjects()
         for controller in (
             self._projects_workspace,
             self._financials_workspace,
@@ -394,14 +358,6 @@ class ProjectManagementWorkspaceCatalog(QObject):
     @Slot()
     def refreshCapabilities(self) -> None:
         self._pm_capability.refresh()
-        # R2.4: tenant switch and organization change both route through
-        # this slot already (see shell/app.py's tenantSwitched/
-        # organizationsChanged wiring). A different tenant/organization
-        # almost always invalidates project-scoped options, so re-scope
-        # them and let refreshProjects()/revalidate() decide whether the
-        # active project is still accessible -- preserve if so, clear if
-        # not. Never silently retain a stale ID.
-        self._pm_project_context.refreshProjects()
 
     @Slot(str, result=bool)
     def isModuleEnabled(self, module_code: str) -> bool:

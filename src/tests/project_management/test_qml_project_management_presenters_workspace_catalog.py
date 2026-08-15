@@ -77,93 +77,24 @@ def test_project_management_workspace_catalog_returns_no_capabilities_without_ac
     )
 
 
-def test_project_management_workspace_catalog_owns_live_project_context_and_navigation(
-    services,
-) -> None:
-    """R2.3: PMProjectContextController and PMWorkspaceNavigationController
-    are catalog-owned and wired to the REAL Projects desktop API, not a
-    fake/local project list."""
-    project = services["project_service"].create_project("Plant Upgrade")
+def test_project_management_workspace_catalog_owns_navigation(services) -> None:
+    """R2.3: PMWorkspaceNavigationController is catalog-owned."""
     registry = build_desktop_api_registry(services)
     catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
 
-    assert catalog.pmProjectContext is not None
     assert catalog.pmNavigation is not None
-    assert catalog.pmProjectContext.hasActiveProject is False
-
-    catalog.pmProjectContext.refreshProjects()
-    option_ids = {option["id"] for option in catalog.pmProjectContext.projectOptions}
-    assert project.id in option_ids
-
-    assert catalog.pmProjectContext.selectProject(project.id) is True
-    assert catalog.pmProjectContext.activeProjectId == project.id
-
-    # Planning (scheduling) is REQUIRED; Dashboard (overview) is OPTIONAL.
-    catalog.pmNavigation.selectWorkspace("scheduling")
-    assert catalog.projectContextRequirementSatisfied is True
-    catalog.pmProjectContext.clearProject()
-    assert catalog.projectContextRequirementSatisfied is False
-
-    catalog.pmNavigation.selectWorkspace("dashboard")
-    assert catalog.projectContextRequirementSatisfied is True
 
 
-def test_refresh_capabilities_preserves_still_accessible_active_project(services) -> None:
-    """R2.4: tenant/organization-change transitions route through
-    refreshCapabilities() (see shell/app.py's tenantSwitched/
-    organizationsChanged wiring). A still-valid active project must survive
-    that refresh, not be silently cleared."""
-    project = services["project_service"].create_project("Plant Upgrade")
+def test_refresh_capabilities_and_all_workspaces_do_not_raise(services) -> None:
+    """R2.4: tenant/organization-change and reauthentication transitions
+    route through refreshCapabilities()/refreshAllWorkspaces() (see
+    shell/app.py's tenantSwitched/organizationsChanged wiring) -- must not
+    raise even with no active workspace controllers constructed yet."""
     registry = build_desktop_api_registry(services)
     catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
-    catalog.pmProjectContext.refreshProjects()
-    catalog.pmProjectContext.selectProject(project.id)
-
-    catalog.refreshCapabilities()
-
-    assert catalog.pmProjectContext.activeProjectId == project.id
-    assert catalog.pmProjectContext.hasActiveProject is True
-
-
-def test_refresh_capabilities_clears_project_that_became_inaccessible(services) -> None:
-    project = services["project_service"].create_project("Plant Upgrade")
-    registry = build_desktop_api_registry(services)
-    catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
-    catalog.pmProjectContext.refreshProjects()
-    catalog.pmProjectContext.selectProject(project.id)
-
-    services["project_service"].delete_project(project.id)
-    catalog.refreshCapabilities()
-
-    assert catalog.pmProjectContext.hasActiveProject is False
-    assert catalog.pmProjectContext.activeProjectId == ""
-
-
-def test_refresh_all_workspaces_reauthentication_path_revalidates_project(services) -> None:
-    """R2.4: refreshAllWorkspaces() is the reauthentication transition
-    (ShellRuntimeSessionController calls it only after a session that had
-    expired successfully re-authenticates)."""
-    project = services["project_service"].create_project("Plant Upgrade")
-    registry = build_desktop_api_registry(services)
-    catalog = ProjectManagementWorkspaceCatalog(desktop_api_registry=registry)
-    catalog.pmProjectContext.refreshProjects()
-    catalog.pmProjectContext.selectProject(project.id)
-
-    catalog.refreshAllWorkspaces()
-
-    assert catalog.pmProjectContext.activeProjectId == project.id
-
-
-def test_project_context_fails_safe_without_projects_api() -> None:
-    """No desktop API registry wired (e.g. QML preview) must not crash a
-    refresh and must not fabricate an active project."""
-    catalog = ProjectManagementWorkspaceCatalog()
 
     catalog.refreshCapabilities()
     catalog.refreshAllWorkspaces()
-
-    assert catalog.pmProjectContext.hasActiveProject is False
-    assert catalog.pmProjectContext.validationStatus == "unavailable"
 
 
 def test_project_management_workspace_catalog_returns_empty_unknown_workspace() -> None:

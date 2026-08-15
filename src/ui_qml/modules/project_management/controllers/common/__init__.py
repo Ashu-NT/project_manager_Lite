@@ -96,16 +96,12 @@ from src.ui_qml.modules.project_management.controllers.common.workspace_controll
 from src.ui_qml.modules.project_management.controllers.common.pm_capability_controller import (
     PMCapabilityController,
 )
-from src.ui_qml.modules.project_management.controllers.common.pm_project_context_controller import (
-    PMProjectContextController,
-)
 from src.ui_qml.modules.project_management.controllers.common.pm_workspace_navigation_controller import (
     PMWorkspaceNavigationController,
 )
 
 __all__ = [
     "PMCapabilityController",
-    "PMProjectContextController",
     "PMWorkspaceNavigationController",
     "ProjectManagementWorkspaceControllerBase",
     "ProjectManagementTaskViewStore",
