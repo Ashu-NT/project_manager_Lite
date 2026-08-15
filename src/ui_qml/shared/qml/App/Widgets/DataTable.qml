@@ -50,6 +50,13 @@ Item {
     // continues to work unchanged when sourceModel is null.
     property var sourceModel: null
 
+    // Exposed for tests only (real QML-engine verification of per-cell
+    // geometry, e.g. confirming the last column's row background/divider
+    // reach the viewport edge after a resize) -- plain `var`, not `alias`:
+    // PySide6 can't marshal TableView's anonymous delegate items back to
+    // Python through a strictly-typed alias.
+    property var _mainViewRef: _mainView
+
     signal rowSelected(string rowId)
     signal rowActivated(string rowId)
     signal sortRequested(string key, int direction)
@@ -332,6 +339,16 @@ Item {
             return Math.round(minW)
         }
         return Math.round(Math.max(minW, minW + (root._extraFlexSpace * flex) / root._flexTotal))
+    }
+
+    // Width the LAST visible column's row background/divider must render at
+    // so they reach the current viewport edge rather than stopping at the
+    // column's own (possibly manually-shrunk) width -- see the cell
+    // delegate's `_rowFillWidth` for why this only applies to the last
+    // column. `cellX` is the cell's x position in _mainView's content
+    // coordinate space (same space TableView positions delegates in).
+    function _rowFillWidthFor(cellWidth, cellX) {
+        return Math.max(cellWidth, (_mainView.contentX + _mainView.width) - cellX)
     }
 
     function _applyColumnVisibility(draft) {
@@ -849,6 +866,22 @@ Item {
             readonly property bool _isSt: _cell.columnType === "status"
             readonly property bool _isPr: _cell.columnType === "progress"
 
+            // The last visible column's background/divider must reach the
+            // edge of the current viewport, not just its own column width --
+            // otherwise shrinking that column (via the resize handle) leaves
+            // an untreated blank strip to its right, since row background/
+            // divider are drawn per-cell and TableView never grows other
+            // columns to compensate for a shrink (by design -- see the
+            // resize-handle notes above). Before manual column widths
+            // existed, flex-based columns always summed to exactly the
+            // viewport width, so this gap could never appear. The formula
+            // lives on `root` (see `_rowFillWidthFor`) so it's independently
+            // testable without reaching into a virtualized TableView delegate.
+            readonly property bool _isLastVisCol: _cell.column === root._visCols.length - 1
+            readonly property real _rowFillWidth: _cell._isLastVisCol
+                ? root._rowFillWidthFor(_cell.width, _cell.x)
+                : _cell.width
+
             readonly property real _pVal: {
                 if (!_isPr) return 0.0
                 const rv = _cell.rawValue
@@ -867,7 +900,10 @@ Item {
             // ── Cell background ───────────────────────────────────────
             Rectangle {
                 id: _cellBackground
-                anchors.fill: parent
+                anchors.left: parent.left
+                anchors.top:  parent.top
+                height: parent.height
+                width:  _cell._rowFillWidth
                 color: _cell._hi
                     ? Theme.AppTheme.selectedSurface
                     : root._hoveredRow === _cell.row
@@ -942,7 +978,9 @@ Item {
 
             // ── Cell bottom divider ───────────────────────────────────
             Rectangle {
-                anchors { left: _cell.left; right: _cell.right; bottom: _cell.bottom }
+                anchors.left:   _cell.left
+                anchors.bottom: _cell.bottom
+                width:  _cell._rowFillWidth
                 height: 1; color: Theme.AppTheme.divider
             }
 

@@ -4,8 +4,6 @@ from datetime import date, datetime
 from pathlib import Path
 from types import SimpleNamespace
 
-from PySide6.QtCore import QSettings
-
 from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.modules.project_management.api.desktop import (
     build_project_management_collaboration_desktop_api,
@@ -14,9 +12,6 @@ from src.core.modules.project_management.api.desktop import (
 from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
 from src.core.platform.domain.master_data.documents import DocumentStorageKind
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
-from src.ui_qml.modules.project_management.controllers.common import (
-    ProjectManagementTaskViewStore,
-)
 from src.tests.project_management._fake_task_workspace_query import (
     build_fake_task_workspace_page,
 )
@@ -609,8 +604,6 @@ def build_task_controller_bundle(tmp_path: Path) -> dict:
         collaboration_service=collaboration_service
     )
     timesheets_api = _FakeTaskTimesheetsDesktopApi()
-    settings = QSettings(str(tmp_path / "pm-task-views.ini"), QSettings.IniFormat)
-    settings.clear()
     catalog = ProjectManagementWorkspaceCatalog(
         desktop_api_registry=SimpleNamespace(
             platform_runtime=_FakePmRuntimeApi("org-1"),
@@ -618,12 +611,11 @@ def build_task_controller_bundle(tmp_path: Path) -> dict:
             project_management_collaboration=collaboration_api,
             project_management_timesheets=timesheets_api,
         ),
-        task_view_store=ProjectManagementTaskViewStore(settings),
     )
     return {
+        "catalog": catalog,
         "controller": catalog.tasksWorkspace,
         "task_service": task_service,
         "collaboration_service": collaboration_service,
         "timesheets_api": timesheets_api,
-        "settings": settings,
     }

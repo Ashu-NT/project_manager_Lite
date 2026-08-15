@@ -25,7 +25,6 @@ def test_pm_tasks_initial_state(tmp_path: Path, qapp) -> None:
     assert controller.selectedTaskId == "task-1"
     assert controller.priorityOptions[0]["label"] == "All priorities"
     assert controller.scheduleOptions[0]["value"] == "all"
-    assert controller.taskViewOptions == [{"value": "", "label": "Current Filters"}]
     assert controller.tasks["items"][0]["title"] == "Cable Pull"
     assert controller.selectedTask["title"] == "Cable Pull"
     assert controller.assignmentOptions == []

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -43,41 +42,17 @@ def test_pm_assignment_preview_maps_availability_and_policy_evidence() -> None:
     }
 
 
-def test_pm_tasks_search_and_view_management(tmp_path: Path, qapp) -> None:
+def test_pm_tasks_search_filters(tmp_path: Path, qapp) -> None:
     bundle = build_task_controller_bundle(tmp_path)
     controller = bundle["controller"]
-    settings = bundle["settings"]
 
     controller.setSearchText("priority>=90")
 
     assert [item["title"] for item in controller.tasks["items"]] == ["Punchlist Closeout"]
 
-    save_view_result = controller.saveCurrentTaskView("High Focus")
-
-    assert save_view_result == {"ok": True, "message": 'Saved task view "High Focus".'}
-    assert controller.selectedTaskViewName == "High Focus"
-    assert controller.taskViewOptions[-1]["value"] == "High Focus"
-    assert json.loads(
-        str(settings.value("tenant/org-1/task/saved_views", "{}"))
-    ) == {"High Focus": {"priority": 0, "query": "priority>=90", "schedule": 0, "status": 0}}
-    assert "task/saved_views" not in set(settings.allKeys())
-
     controller.clearFilters()
 
     assert controller.searchText == ""
-    assert controller.selectedTaskViewName == ""
-
-    controller.selectTaskView("High Focus")
-    apply_view_result = controller.applySelectedTaskView()
-
-    assert apply_view_result == {"ok": True, "message": 'Applied task view "High Focus".'}
-    assert controller.searchText == "priority>=90"
-    assert [item["title"] for item in controller.tasks["items"]] == ["Punchlist Closeout"]
-
-    delete_view_result = controller.deleteSelectedTaskView()
-
-    assert delete_view_result == {"ok": True, "message": 'Deleted task view "High Focus".'}
-    assert controller.taskViewOptions == [{"value": "", "label": "Current Filters"}]
 
 
 def test_pm_tasks_bulk_status_undo_redo_and_select(tmp_path: Path, qapp) -> None:

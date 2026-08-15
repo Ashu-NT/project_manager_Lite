@@ -31,7 +31,6 @@ def test_tasks_controller_initial_state_and_lazy_load(tmp_path: Path, qapp) -> N
     assert controller.selectedTaskId == "task-1"
     assert controller.priorityOptions[0]["label"] == "All priorities"
     assert controller.scheduleOptions[0]["value"] == "all"
-    assert controller.taskViewOptions == [{"value": "", "label": "Current Filters"}]
     assert controller.tasks["items"][0]["title"] == "Cable Pull"
     assert controller.selectedTask["title"] == "Cable Pull"
     assert controller.assignmentOptions == []
