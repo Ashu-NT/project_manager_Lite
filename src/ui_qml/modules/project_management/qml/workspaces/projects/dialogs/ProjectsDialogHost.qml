@@ -12,6 +12,14 @@ Item {
     property var statusTarget: ({})
     property var deleteTarget: ({})
 
+    // Lets callers (e.g. a workspace page's Escape-closes-inspector
+    // shortcut) defer to whichever of these dialogs is currently open,
+    // since each already owns Escape itself while visible.
+    readonly property bool anyDialogOpen: importDialog.opened
+        || editorDialog.opened
+        || statusDialog.opened
+        || deleteDialog.opened
+
     signal deleteRequested(string projectId)
 
     function _handleResult(dialog, result) {

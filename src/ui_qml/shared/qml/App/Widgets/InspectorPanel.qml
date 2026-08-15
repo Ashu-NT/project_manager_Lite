@@ -38,6 +38,15 @@ Rectangle {
     color: Theme.AppTheme.surface
     implicitWidth: Theme.AppTheme.inspectorWidth
 
+    // Swallows presses on the panel's own blank background/padding so a
+    // workspace page's "click outside closes the inspector" catcher never
+    // sees them bleed through -- real controls (buttons, the close "X",
+    // the scrollable body) are declared after this and claim their own
+    // clicks first, ahead of this catch-all.
+    MouseArea {
+        anchors.fill: parent
+    }
+
     Rectangle {
         anchors { top: parent.top; bottom: parent.bottom; left: parent.left }
         width: Theme.AppTheme.borderWidthThin
