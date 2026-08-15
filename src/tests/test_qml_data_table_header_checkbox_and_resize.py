@@ -248,15 +248,18 @@ def test_resizing_one_column_does_not_shrink_others(qapp) -> None:
     del component, engine
 
 
-def test_shrinking_last_column_extends_row_fill_to_viewport_edge(qapp) -> None:
-    # Live user report: after shrinking the LAST (rightmost) column, the
-    # row separator lines/background stopped at the shrunk column's new,
-    # narrower edge, leaving a blank untreated strip to the right -- since
-    # total column width no longer fills the viewport and row background/
-    # divider are drawn per-cell. The two columns below sum to exactly the
-    # 640px window width before any resize, matching the pre-resize-feature
-    # invariant (flex columns always summed to the full viewport) so the
-    # gap only appears once the last column is shrunk.
+def test_shrinking_a_column_extends_last_columns_row_fill_to_viewport_edge(qapp) -> None:
+    # Live user report: after shrinking a column, row separator lines/
+    # background stopped at the last column's edge, leaving a blank
+    # untreated strip to the right. Root cause: the last column (index
+    # length-1) never gets a resize handle of its own (see `visible:
+    # _hCell.index < root._visCols.length - 1`), but flex:0 columns'
+    # _colWidth() always returns their own fixed minWidth/preferredWidth
+    # regardless of `_hasManualColumnWidths` -- so shrinking an EARLIER
+    # column (the only kind draggable) does not grow the last column to
+    # compensate, and total content width drops below the viewport width.
+    # Column 0 (200, draggable) + column 1 (440, last, fixed) sum to
+    # exactly the 640px window width before any resize.
     #
     # PySide6 can't marshal TableView's virtualized delegate items or its
     # QQuickItem*-typed `contentItem` back to Python (confirmed via direct
@@ -300,8 +303,8 @@ def test_shrinking_last_column_extends_row_fill_to_viewport_edge(qapp) -> None:
                 id: table
                 anchors.fill: parent
                 columns: [
-                    {key: "name", label: "Name", flex: 0, minWidth: 300},
-                    {key: "status", label: "Status", flex: 0, minWidth: 340}
+                    {key: "name", label: "Name", flex: 0, minWidth: 200},
+                    {key: "status", label: "Status", flex: 0, minWidth: 440}
                 ]
                 rows: [{id: "1", name: "Alpha", status: "Active"}]
             }
@@ -309,16 +312,19 @@ def test_shrinking_last_column_extends_row_fill_to_viewport_edge(qapp) -> None:
         """,
     )
 
-    # Column 1 (last) spans [300, 640) before resize -- its resize handle is
-    # right-anchored with width 9, spanning local x=[631, 640).
+    assert abs(root.property("col0Width") - 200) < 1.0
+    assert abs(root.property("col1Width") - 440) < 1.0
+
+    # Column 0's resize handle is right-anchored with width 9, spanning
+    # local x=[191, 200) -- shrink it by 100px (200 -> ~100).
     QTest.mousePress(
-        root, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, QPoint(636, 20)
+        root, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, QPoint(196, 20)
     )
     qapp.processEvents()
-    QTest.mouseMove(root, QPoint(460, 20))
+    QTest.mouseMove(root, QPoint(96, 20))
     qapp.processEvents()
     QTest.mouseRelease(
-        root, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, QPoint(460, 20)
+        root, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, QPoint(96, 20)
     )
     qapp.processEvents()
 
@@ -327,9 +333,15 @@ def test_shrinking_last_column_extends_row_fill_to_viewport_edge(qapp) -> None:
     fill_width = root.property("fillWidth")
     viewport_width = root.property("viewportWidth")
 
-    assert col1_width < 340, "column did not actually shrink"
+    assert col0_width < 150, "column 0 did not actually shrink"
+    assert abs(col1_width - 440) < 1.0, (
+        "column 1 (last, no resize handle) must not itself change width"
+    )
+    assert col0_width + col1_width < viewport_width, (
+        "test setup must reproduce the gap: total column width below viewport width"
+    )
     assert fill_width > col1_width, (
-        "row background/divider must extend past the shrunk column's own "
+        "the last column's row background/divider must extend past its own "
         "width to reach the viewport edge, not stop at the column boundary"
     )
     assert abs(fill_width - (viewport_width - col0_width)) < 1.0

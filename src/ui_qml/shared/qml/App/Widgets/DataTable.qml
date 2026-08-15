@@ -1020,10 +1020,23 @@ Item {
         // whenever it lands over actual row content, letting it fall
         // through to that row's own MouseArea unchanged. Only clicks below
         // the last row (or anywhere, when the table is empty) are handled
-        // here.
+        // here. Explicitly parented and sized to _mainView itself (the
+        // Flickable/viewport) -- a Flickable's default `data` property
+        // silently reparents plain children like this one into its
+        // `contentItem`, whose size is the scrollable CONTENT size (not the
+        // viewport) and which scrolls with contentY. With few rows,
+        // contentHeight is far smaller than the visible viewport, so
+        // `anchors.fill: parent` confined this catcher to a small strip at
+        // the top and left the rest of the visibly-empty viewport
+        // completely unclickable; overriding `parent` back to `_mainView`
+        // keeps it viewport-sized and immune to scroll position too.
         MouseArea {
             id: _emptySpaceCatcher
-            anchors.fill: parent
+            parent: _mainView
+            x: 0
+            y: 0
+            width: _mainView.width
+            height: _mainView.height
             z: 10
             onPressed: function(mouse) {
                 const contentBottom = _mainView.contentHeight - _mainView.contentY

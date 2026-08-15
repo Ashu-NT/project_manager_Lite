@@ -1866,6 +1866,37 @@ related to it"):
   Platform's `ControlWorkspacePage.qml` and 5 Inventory/Procurement list
   pages.
 
-**Status: both removals COMPLETE**, targeted regression green. R4.3 (Tasks
-redesign) remains paused pending further user-directed fixes; resume from
-here when instructed.
+**Status: both removals COMPLETE**, targeted regression green.
+
+**3. Two live DataTable bug reports fixed in the same interlude:**
+- **Inspector didn't close on outside click.** `_emptySpaceCatcher` (built
+  earlier this session to clear selection on a blank-space click) used
+  `anchors.fill: parent` -- but a Flickable's default `data` property
+  silently reparents plain children like this into its `contentItem`,
+  whose size is the scrollable CONTENT size, not the viewport, and which
+  scrolls with `contentY`. With few rows, `contentHeight` is far smaller
+  than the visible viewport, so the catcher was confined to a thin strip
+  near the top; the rest of the visibly-empty viewport below it received
+  no click handling at all. Fixed by explicitly overriding
+  `parent: _mainView` and sizing to `_mainView.width`/`height`, so the
+  catcher always spans the real viewport regardless of row count and
+  stays put under scrolling. Verified real row-click passthrough still
+  works (a naive fix could make the now-viewport-sized catcher swallow
+  row clicks instead of falling through to them).
+- **Row lines didn't reach the viewport edge after shrinking a column.**
+  Row background/divider are drawn per-cell in the `_mainView` delegate;
+  the actual last column (index `length-1`) never gets a resize handle of
+  its own, but flex:0 columns' `_colWidth()` always returns their own
+  fixed width regardless of `_hasManualColumnWidths` -- so shrinking an
+  earlier (draggable) column doesn't grow the last column to compensate,
+  and total content width can drop below the viewport width, leaving a
+  blank untreated strip after the last column. Fixed by adding a root-level
+  `_rowFillWidthFor()` function the last-column cell's background/divider
+  call to extend their width to the current viewport edge (via
+  `_mainView.contentX + _mainView.width`) instead of stopping at their own
+  column width. Both fixes verified with real `QTest` mouse-simulation
+  tests (not source-contract checks) plus the full targeted R4.2/DataTable
+  suite, all green.
+
+R4.3 (Tasks redesign) remains paused pending further user-directed fixes;
+resume from here when instructed.
