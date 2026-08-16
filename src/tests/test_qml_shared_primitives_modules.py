@@ -9,9 +9,6 @@ QML_PLATFORM_WIDGETS = Path("src/ui_qml/platform/qml/Platform/Widgets")
 QML_PM_CONTROLLERS = Path(
     "src/ui_qml/modules/project_management/qml/ProjectManagement/Controllers"
 )
-QML_PM_DIALOGS = Path(
-    "src/ui_qml/modules/project_management/qml/ProjectManagement/Dialogs"
-)
 QML_PM_WIDGETS = Path(
     "src/ui_qml/modules/project_management/qml/ProjectManagement/Widgets"
 )
@@ -45,12 +42,11 @@ def test_qml_platform_widgets_module_exists() -> None:
         QML_PLATFORM_CONTROLLERS / "typeinfo" / "settings.fragment",
         QML_PLATFORM_CONTROLLERS / "typeinfo" / "catalog.fragment",
         QML_PLATFORM_DIALOGS / "qmldir",
-        QML_PLATFORM_DIALOGS / "DocumentLinkEditorDialog.qml",
-        QML_PLATFORM_DIALOGS / "DocumentStructureEditorDialog.qml",
-        QML_PLATFORM_WIDGETS / "OverviewSectionCard.qml",
+        Path("src/ui_qml/platform/qml/documents/dialogs/DocumentLinkEditorDialog.qml"),
+        Path("src/ui_qml/platform/qml/documents/dialogs/DocumentStructureEditorDialog.qml"),
         QML_PLATFORM_WIDGETS / "RecordListCard.qml",
-        QML_PLATFORM_WIDGETS / "DocumentDetailPanel.qml",
-        QML_PLATFORM_WIDGETS / "WorkspaceStateBanner.qml",
+        QML_SHARED_ROOT / "Widgets" / "OverviewSectionCard.qml",
+        Path("src/ui_qml/platform/qml/documents/DocumentDetailPanel.qml"),
         QML_PLATFORM_WIDGETS / "qmldir",
     ]
 
@@ -73,36 +69,43 @@ def test_qml_project_management_modules_exist() -> None:
         QML_PM_CONTROLLERS / "typeinfo" / "timesheets.fragment",
         QML_PM_CONTROLLERS / "typeinfo" / "dashboard.fragment",
         QML_PM_CONTROLLERS / "typeinfo" / "catalog.fragment",
-        QML_PM_DIALOGS / "qmldir",
-        QML_PM_DIALOGS / "ManualActualEditorDialog.qml",
-        QML_PM_DIALOGS / "ProjectEditorDialog.qml",
-        QML_PM_DIALOGS / "ProjectStatusDialog.qml",
-        QML_PM_DIALOGS / "RegisterEntryEditorDialog.qml",
-        QML_PM_DIALOGS / "ResourceEditorDialog.qml",
-        QML_PM_DIALOGS / "TaskAssignmentEditorDialog.qml",
-        QML_PM_DIALOGS / "TaskAssignmentHoursDialog.qml",
-        QML_PM_DIALOGS / "TaskAssignmentResponseDialog.qml",
-        QML_PM_DIALOGS / "TaskCollaborationComposerDialog.qml",
-        QML_PM_DIALOGS / "TaskCommentDeleteDialog.qml",
-        QML_PM_DIALOGS / "TaskDependencyEditorDialog.qml",
-        QML_PM_DIALOGS / "TaskEditorDialog.qml",
-        QML_PM_DIALOGS / "TaskProgressDialog.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/financials/dialogs"
+        / "ManualActualEditorDialog.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/projects/dialogs"
+        / "ProjectEditorDialog.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/projects/dialogs"
+        / "ProjectStatusDialog.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/register/dialogs"
+        / "RegisterEntryEditorDialog.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/resources/dialogs"
+        / "ResourceEditorDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskAssignmentEditorDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskAssignmentHoursDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskAssignmentResponseDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskCollaborationComposerDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskCommentDeleteDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskDependencyEditorDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskEditorDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskProgressDialog.qml",
         QML_PM_WIDGETS / "qmldir",
-        QML_PM_WIDGETS / "DashboardChartCard.qml",
-        QML_PM_WIDGETS / "DashboardPanelCard.qml",
-        QML_PM_WIDGETS / "DashboardSectionCard.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/dashboard/components"
+        / "DashboardChartCard.qml",
         QML_PM_WIDGETS / "RecordListCard.qml",
-        QML_PM_WIDGETS / "RegisterCatalogSection.qml",
-        QML_PM_WIDGETS / "RegisterDetailSection.qml",
-        QML_PM_WIDGETS / "RegisterDialogHost.qml",
-        QML_PM_WIDGETS / "RegisterFiltersSection.qml",
-        QML_PM_WIDGETS / "RegisterMetricsSection.qml",
-        QML_PM_WIDGETS / "RegisterUrgentSection.qml",
-        QML_PM_WIDGETS / "TimesheetEntriesCard.qml",
-        QML_PM_WIDGETS / "WorkspaceStateBanner.qml",
-        QML_PM_WIDGETS / "WorkspacePlaceholderPage.qml",
-        QML_PM_WIDGETS / "WorkspaceStatusSection.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "tasks" / "components" / "TasksBulkActions.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/register/sections"
+        / "RegisterDetailSection.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/register/dialogs"
+        / "RegisterDialogHost.qml",
+        UI_QML_ROOT
+        / "modules/project_management/qml/workspaces/register/sections"
+        / "RegisterUrgentSection.qml",
     ]
 
     assert all(path.exists() for path in expected_files)
@@ -244,10 +247,16 @@ def test_qml_shared_theme_matches_legacy_widget_tokens() -> None:
     theme_qml = (QML_SHARED_ROOT / "Theme" / "AppTheme.qml").read_text(encoding="utf-8")
 
     assert 'property string densityMode: "compact"' in theme_qml
-    assert 'readonly property color appBackground: "#F3F6FA"' in theme_qml
+    # R1.10 made these dark-mode-aware (root.darkMode ? <dark> : <light>) rather
+    # than flat literals; the light-mode value is preserved unchanged, so check
+    # for the property declaration and its light-mode value separately instead
+    # of one exact-literal assignment.
+    assert "readonly property color appBackground:" in theme_qml
+    assert '"#F3F6FA"' in theme_qml
     assert "readonly property color background: appBackground" in theme_qml
     assert "readonly property color workspaceBackground:" in theme_qml
-    assert 'readonly property color accent: "#0A66A8"' in theme_qml
+    assert "readonly property color accent:" in theme_qml
+    assert '"#0A66A8"' in theme_qml
     assert "readonly property int toolbarHeight:" in theme_qml
     assert "readonly property int compactRowHeight:" in theme_qml
     assert 'readonly property string fontFamily: "Segoe UI Variable Text"' in theme_qml
@@ -259,3 +268,49 @@ def test_qml_workspace_frame_exposes_default_content_slot() -> None:
     )
 
     assert "default property alias content: contentSlot.data" in frame_qml
+
+
+def test_data_table_declares_explicit_backward_compatible_sorting_modes() -> None:
+    table_qml = (QML_SHARED_ROOT / "Widgets" / "DataTable.qml").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'property string sortingMode: clientSideSorting ? "client" : "none"' in table_qml
+    assert 'mode === "client" || mode === "server" || mode === "none"' in table_qml
+    mode_block = table_qml.split(
+        "readonly property string _effectiveSortingMode:", maxsplit=1
+    )[1].split("}", maxsplit=1)[0]
+    assert ': "none"' in mode_block
+    assert 'signal sortRequested(string key, int direction)' in table_qml
+
+
+def test_data_table_server_sort_is_emit_only() -> None:
+    table_qml = (QML_SHARED_ROOT / "Widgets" / "DataTable.qml").read_text(
+        encoding="utf-8"
+    )
+
+    server_branch = table_qml.split(
+        'if (root._effectiveSortingMode === "server") {', maxsplit=1
+    )[1].split("return", maxsplit=1)[0]
+    assert 'root.sortRequested(normalizedKey, requestedDirection)' in server_branch
+    assert "root.sortKey =" not in server_branch
+    assert "root.sortDirection =" not in server_branch
+    assert "toggleSort" not in server_branch
+    assert "const requestedDirection" in table_qml
+    assert 'root._effectiveSortingMode !== "client"' in table_qml
+    assert 'root._effectiveSortingMode !== "none"' in table_qml
+
+
+def test_non_pm_data_tables_keep_legacy_client_sorting_default() -> None:
+    consumers = [
+        path
+        for path in UI_QML_ROOT.rglob("*.qml")
+        if "AppWidgets.DataTable {" in path.read_text(encoding="utf-8")
+        and "project_management" not in path.parts
+    ]
+
+    assert consumers
+    for path in consumers:
+        content = path.read_text(encoding="utf-8")
+        assert "sortingMode:" not in content, path
+        assert "clientSideSorting:" not in content, path

@@ -34,6 +34,9 @@ class CollaborationCollectionViewModel:
     subtitle: str
     empty_state: str
     items: tuple[CollaborationRecordViewModel, ...] = field(default_factory=tuple)
+    total_count: int = 0
+    page: int = 1
+    page_size: int = 25
 
 @dataclass(frozen=True)
 class CollaborationOptionViewModel:
@@ -80,12 +83,11 @@ class CollaborationDetailViewModel:
 @dataclass(frozen=True)
 class CollaborationWorkspaceViewModel:
     overview: CollaborationOverviewViewModel
-    notifications: CollaborationCollectionViewModel
-    inbox: CollaborationCollectionViewModel
-    recent_activity: CollaborationCollectionViewModel
-    active_presence: CollaborationCollectionViewModel
     context: CollaborationContextViewModel = field(default_factory=CollaborationContextViewModel)
     panel_tabs: tuple[CollaborationPanelTabViewModel, ...] = field(default_factory=tuple)
+    inbox: CollaborationCollectionViewModel = field(
+        default_factory=lambda: CollaborationCollectionViewModel("", "", "", ())
+    )
     mentions: CollaborationCollectionViewModel = field(
         default_factory=lambda: CollaborationCollectionViewModel("", "", "", ())
     )
@@ -93,9 +95,6 @@ class CollaborationWorkspaceViewModel:
         default_factory=lambda: CollaborationCollectionViewModel("", "", "", ())
     )
     activity_feed: CollaborationCollectionViewModel = field(
-        default_factory=lambda: CollaborationCollectionViewModel("", "", "", ())
-    )
-    team_updates: CollaborationCollectionViewModel = field(
         default_factory=lambda: CollaborationCollectionViewModel("", "", "", ())
     )
     empty_state: str = ""

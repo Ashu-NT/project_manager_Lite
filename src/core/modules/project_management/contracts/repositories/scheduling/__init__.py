@@ -1,0 +1,1 @@
+"""Scheduling baseline repository contract."""

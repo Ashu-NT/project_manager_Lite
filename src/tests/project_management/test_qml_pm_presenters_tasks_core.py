@@ -1,4 +1,3 @@
-import json
 from datetime import date, datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -6,9 +5,6 @@ from types import SimpleNamespace
 from PySide6.QtCore import QSettings
 
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
-from src.ui_qml.modules.project_management.controllers.common import (
-    ProjectManagementTaskViewStore,
-)
 from src.ui_qml.modules.project_management.presenters import (
     ProjectDashboardPresenter,
     ProjectFinancialsWorkspacePresenter,
@@ -89,7 +85,6 @@ def test_tasks_controller_initial_state(
     assert controller.selectedTaskId == "task-1"
     assert controller.priorityOptions[0]["label"] == "All priorities"
     assert controller.scheduleOptions[0]["value"] == "all"
-    assert controller.taskViewOptions == [{"value": "", "label": "Current Filters"}]
     assert controller.tasks["items"][0]["title"] == "Cable Pull"
     assert controller.selectedTask["title"] == "Cable Pull"
     assert controller.assignmentOptions == []
@@ -175,7 +170,7 @@ def test_tasks_controller_activate_and_load_detail(
     assert controller.bulkStatusOptions[0]["value"] == "TODO"
 
 
-def test_tasks_controller_search_and_saved_views(
+def test_tasks_controller_search_filters(
     tmp_path: Path,
     qapp,
 ) -> None:
@@ -198,47 +193,6 @@ def test_tasks_controller_search_and_saved_views(
         "Punchlist Closeout"
     ]
 
-    save_view_result = controller.saveCurrentTaskView("High Focus")
-
-    assert save_view_result == {
-        "ok": True,
-        "message": 'Saved task view "High Focus".',
-    }
-    assert controller.selectedTaskViewName == "High Focus"
-    assert controller.taskViewOptions[-1]["value"] == "High Focus"
-    assert json.loads(
-        str(settings.value("tenant/org-1/task/saved_views", "{}"))
-    ) == {
-        "High Focus": {
-            "priority": 0,
-            "query": "priority>=90",
-            "schedule": 0,
-            "status": 0,
-        }
-    }
-    assert "task/saved_views" not in set(settings.allKeys())
-
     controller.clearFilters()
 
     assert controller.searchText == ""
-    assert controller.selectedTaskViewName == ""
-
-    controller.selectTaskView("High Focus")
-    apply_view_result = controller.applySelectedTaskView()
-
-    assert apply_view_result == {
-        "ok": True,
-        "message": 'Applied task view "High Focus".',
-    }
-    assert controller.searchText == "priority>=90"
-    assert [item["title"] for item in controller.tasks["items"]] == [
-        "Punchlist Closeout"
-    ]
-
-    delete_view_result = controller.deleteSelectedTaskView()
-
-    assert delete_view_result == {
-        "ok": True,
-        "message": 'Deleted task view "High Focus".',
-    }
-    assert controller.taskViewOptions == [{"value": "", "label": "Current Filters"}]

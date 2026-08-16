@@ -11,8 +11,12 @@ Component {
     Property { name: "cashflow"; type: "QVariantMap"; isReadonly: true }
     Property { name: "ledger"; type: "QVariantMap"; isReadonly: true }
     Property { name: "ledgerTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "actualSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "actualSortDirection"; type: "int"; isReadonly: true }
     Property { name: "commitments"; type: "QVariantMap"; isReadonly: true }
     Property { name: "commitmentsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "commitmentSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "commitmentSortDirection"; type: "int"; isReadonly: true }
     Property { name: "sourceAnalytics"; type: "QVariantMap"; isReadonly: true }
     Property { name: "costTypeAnalytics"; type: "QVariantMap"; isReadonly: true }
     Property { name: "notes"; type: "QVariantList"; isReadonly: true }
@@ -53,4 +57,10 @@ Component {
     Method { name: "reverseActual"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "newFinancialCommandId"; type: "QString" }
     Method { name: "setConfigurationPage"; Parameter { name: "collection"; type: "QString" } Parameter { name: "page"; type: "int" } }
+    Method { name: "setActualPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setActualPageSize"; Parameter { name: "pageSize"; type: "int" } }
+    Method { name: "setActualSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
+    Method { name: "setCommitmentPage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setCommitmentPageSize"; Parameter { name: "pageSize"; type: "int" } }
+    Method { name: "setCommitmentSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
 }

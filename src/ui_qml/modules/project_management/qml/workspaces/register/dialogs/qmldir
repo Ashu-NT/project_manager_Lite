@@ -1,1 +1,3 @@
 module ProjectManagement.RegisterDialogs
+RegisterDialogHost 1.0 RegisterDialogHost.qml
+RegisterEntryEditorDialog 1.0 RegisterEntryEditorDialog.qml

@@ -149,36 +149,6 @@ AppWidgets.AnchoredPopup {
             }
         }
 
-        // ── Saved view filter ────────────────────────────────────────────
-        AppControls.Label {
-            text: "Saved View"
-            font.bold: true
-            font.pixelSize: Theme.AppTheme.captionSize
-            font.family: Theme.AppTheme.fontFamily
-            color: Theme.AppTheme.textMuted
-        }
-
-        AppControls.ComboBox {
-            Layout.fillWidth: true
-            model: root.workspaceController ? (root.workspaceController.taskViewOptions || []) : []
-            textRole: "label"
-            enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-            currentIndex: root.state
-                ? root.state.optionIndexForValue(
-                    root.workspaceController ? (root.workspaceController.taskViewOptions || []) : [],
-                    root.workspaceController ? root.workspaceController.selectedTaskViewName : ""
-                )
-                : 0
-            onActivated: function(index) {
-                const options = root.workspaceController
-                    ? (root.workspaceController.taskViewOptions || [])
-                    : []
-                if (root.workspaceController !== null && options[index]) {
-                    root.workspaceController.selectTaskView(String(options[index].value || ""))
-                }
-            }
-        }
-
         // ── Action buttons ───────────────────────────────────────────────
         RowLayout {
             Layout.fillWidth: true
@@ -196,17 +166,11 @@ AppWidgets.AnchoredPopup {
                 }
             }
 
-            AppControls.PrimaryButton {
+            AppControls.SecondaryButton {
                 Layout.fillWidth: true
-                text: "Apply View"
-                iconName: "register"
-                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                onClicked: {
-                    if (root.workspaceController !== null) {
-                        root.workspaceController.applySelectedTaskView()
-                    }
-                    root.close()
-                }
+                text: "Close"
+                iconName: "close"
+                onClicked: root.close()
             }
         }
     }

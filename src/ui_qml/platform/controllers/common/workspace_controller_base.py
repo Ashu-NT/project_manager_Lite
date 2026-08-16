@@ -42,6 +42,7 @@ class PlatformWorkspaceControllerBase(QObject):
             "message": "",
         }
         self._pending_domain_refresh = False
+        self._loaded = True
         self._domain_event_subscriptions: list[
             tuple[DomainSignal[Any], Callable[[Any], None]]
         ] = []
@@ -85,6 +86,46 @@ class PlatformWorkspaceControllerBase(QObject):
     def clearMessages(self) -> None:
         self._set_error_message("")
         self._set_feedback_message("")
+
+    @Slot()
+    def ensureLoaded(self) -> None:
+        """Call when this workspace becomes active for the first time.
+        No-ops if already loaded (including for every controller that
+        hasn't opted into lazy loading, which stays permanently
+        "already loaded"), or if the current session can't access this
+        workspace anyway (_is_accessible() -- a perf pre-filter only, the
+        backend still enforces this independently regardless)."""
+        if self._loaded:
+            return
+        if not self._is_accessible():
+            return
+        refresh = getattr(self, "refresh", None)
+        if callable(refresh):
+            refresh()
+
+    def _is_accessible(self) -> bool:
+        """Override in a subclass that opts into lazy loading to report
+        whether the current session can access this workspace at all.
+        Default True: attempt the load regardless (matches every
+        controller that hasn't opted in, and fails open when permission
+        data can't be determined)."""
+        return True
+
+    def _has_permission(self, codes: tuple[str, ...]) -> bool:
+        """Fail-open permission check shared by _is_accessible()
+        overrides: True if the current session holds any of `codes`, or
+        if permission data is unavailable (no runtime API wired, or a
+        transient error) -- this is a client-side optimization only, never
+        the actual authorization boundary, which the backend enforces
+        independently on every call regardless of this result."""
+        runtime_api = getattr(self, "_runtime_api", None)
+        if runtime_api is None:
+            return True
+        result = runtime_api.get_current_permissions()
+        if not getattr(result, "ok", False) or getattr(result, "data", None) is None:
+            return True
+        permissions = frozenset(result.data)
+        return any(code in permissions for code in codes)
 
     def _set_overview(self, overview: dict[str, object]) -> None:
         if overview == self._overview:
@@ -192,6 +233,12 @@ class PlatformWorkspaceControllerBase(QObject):
         )
 
     def _request_domain_refresh(self) -> None:
+        if not self._loaded:
+            # Never activated (lazy-loading controllers only -- always
+            # True for everyone else) -- no background load; the eventual
+            # first ensureLoaded() call fetches fresh data anyway, so
+            # there is nothing stale to invalidate yet.
+            return
         if self._is_loading or self._is_busy:
             self._pending_domain_refresh = True
             logger.debug(

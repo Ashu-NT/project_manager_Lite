@@ -103,9 +103,9 @@ AppLayouts.WorkspaceFrame {
             const actions = []
             if (state.canEdit)    actions.push({ "id": "edit",    "label": "Edit",    "icon": "edit",        "enabled": true, "danger": false })
             if (state.canSubmit)  actions.push({ "id": "submit",  "label": "Submit",  "icon": "approve",     "enabled": true, "danger": false })
-            if (state.canSend)    actions.push({ "id": "send",    "label": "Send",    "icon": "arrow_right", "enabled": true, "danger": false })
+            if (state.canSend)    actions.push({ "id": "send",    "label": "Send",    "icon": "chevron_right", "enabled": true, "danger": false })
             if (state.canReceipt) actions.push({ "id": "receipt", "label": "Receive", "icon": "add",         "enabled": true, "danger": false })
-            if (state.canClose)   actions.push({ "id": "close",   "label": "Close",   "icon": "check",       "enabled": true, "danger": false })
+            if (state.canClose)   actions.push({ "id": "close",   "label": "Close",   "icon": "checkmark",   "enabled": true, "danger": false })
             if (state.canCancel)  actions.push({ "id": "cancel",  "label": "Cancel",  "icon": "reject",      "enabled": true, "danger": true  })
             return actions
         }

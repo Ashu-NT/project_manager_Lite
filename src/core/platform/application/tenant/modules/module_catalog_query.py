@@ -11,6 +11,9 @@ from src.core.platform.domain.tenant.modules.module_entitlement import (
     ModuleEntitlement,
 )
 
+if TYPE_CHECKING:
+    from src.core.platform.domain.tenant.modules.subscription import ModuleEntitlementRecord
+
 
 class ModuleCatalogQueryMixin:
     def bootstrap_defaults(self) -> None:
@@ -23,18 +26,31 @@ class ModuleCatalogQueryMixin:
         return list(self._platform_capabilities)
 
     def list_entitlements(self) -> list[ModuleEntitlement]:
-        return [self._build_entitlement(module) for module in self._modules]
+        return self._entitlements_from_records(self._effective_records(self._fetch_snapshot()))
 
     def list_licensed_modules(self) -> list[EnterpriseModule]:
-        licensed_codes, _enabled_codes = self._effective_codes()
-        return [module for module in self._modules if module.code in licensed_codes]
+        licensed_codes, _enabled_codes = self._effective_codes(self._fetch_snapshot())
+        return self._licensed_from_codes(licensed_codes)
 
     def list_enabled_modules(self) -> list[EnterpriseModule]:
-        _licensed_codes, enabled_codes = self._effective_codes()
-        return [module for module in self._modules if module.code in enabled_codes]
+        _licensed_codes, enabled_codes = self._effective_codes(self._fetch_snapshot())
+        return self._enabled_from_codes(enabled_codes)
 
     def list_available_modules(self) -> list[EnterpriseModule]:
-        licensed_codes, _enabled_codes = self._effective_codes()
+        licensed_codes, _enabled_codes = self._effective_codes(self._fetch_snapshot())
+        return self._available_from_codes(licensed_codes)
+
+    def _entitlements_from_records(self, records: list["ModuleEntitlementRecord"]) -> list[ModuleEntitlement]:
+        records_by_code = {record.module_code: record for record in records}
+        return [self._build_entitlement(module, records_by_code) for module in self._modules]
+
+    def _licensed_from_codes(self, licensed_codes: set[str]) -> list[EnterpriseModule]:
+        return [module for module in self._modules if module.code in licensed_codes]
+
+    def _enabled_from_codes(self, enabled_codes: set[str]) -> list[EnterpriseModule]:
+        return [module for module in self._modules if module.code in enabled_codes]
+
+    def _available_from_codes(self, licensed_codes: set[str]) -> list[EnterpriseModule]:
         return [
             module
             for module in self._modules
@@ -51,25 +67,28 @@ class ModuleCatalogQueryMixin:
         return tuple(sorted(capability_codes))
 
     def is_licensed(self, module_code: str) -> bool:
-        licensed_codes, _enabled_codes = self._effective_codes()
+        licensed_codes, _enabled_codes = self._effective_codes(self._fetch_snapshot())
         return normalize_module_code(module_code) in licensed_codes
 
     def is_enabled(self, module_code: str) -> bool:
-        _licensed_codes, enabled_codes = self._effective_codes()
+        _licensed_codes, enabled_codes = self._effective_codes(self._fetch_snapshot())
         return normalize_module_code(module_code) in enabled_codes
 
     def get_entitlement(self, module_code: str) -> ModuleEntitlement | None:
         target_code = normalize_module_code(module_code)
         for module in self._modules:
             if module.code == target_code:
-                return self._build_entitlement(module)
+                records = self._effective_records(self._fetch_snapshot())
+                records_by_code = {record.module_code: record for record in records}
+                return self._build_entitlement(module, records_by_code)
         return None
 
     def snapshot(self) -> ModuleCatalogSnapshot:
+        licensed_codes, enabled_codes = self._effective_codes(self._fetch_snapshot())
         return ModuleCatalogSnapshot(
-            enabled_modules=tuple(self.list_enabled_modules()),
-            licensed_modules=tuple(self.list_licensed_modules()),
-            available_modules=tuple(self.list_available_modules()),
+            enabled_modules=tuple(self._enabled_from_codes(enabled_codes)),
+            licensed_modules=tuple(self._licensed_from_codes(licensed_codes)),
+            available_modules=tuple(self._available_from_codes(licensed_codes)),
             planned_modules=tuple(self.list_planned_modules()),
             context_label=self.current_context_label(),
         )
@@ -81,13 +100,20 @@ class ModuleCatalogQueryMixin:
         return organization.display_name
 
     def shell_summary(self) -> str:
-        enabled_labels = ", ".join(module.label for module in self.list_enabled_modules()) or "None"
-        licensed_labels = ", ".join(module.label for module in self.list_licensed_modules()) or "None"
-        available_labels = ", ".join(module.label for module in self.list_available_modules()) or "None"
+        # One snapshot answers every question below -- licensed/enabled/
+        # available code sets and the full per-module entitlement list all
+        # derive from the same single fetch instead of each independently
+        # re-querying (the confirmed 15-20-query N+1 this pilot closes).
+        snapshot = self._fetch_snapshot()
+        records = self._effective_records(snapshot)
+        licensed_codes, enabled_codes = self._codes_from_records(records)
+        enabled_labels = ", ".join(module.label for module in self._enabled_from_codes(enabled_codes)) or "None"
+        licensed_labels = ", ".join(module.label for module in self._licensed_from_codes(licensed_codes)) or "None"
+        available_labels = ", ".join(module.label for module in self._available_from_codes(licensed_codes)) or "None"
         planned_labels = ", ".join(module.label for module in self.list_planned_modules()) or "None"
         lifecycle_alerts = ", ".join(
             f"{entitlement.label} ({entitlement.lifecycle_label})"
-            for entitlement in self.list_entitlements()
+            for entitlement in self._entitlements_from_records(records)
             if entitlement.lifecycle_alert
         ) or "None"
         return (
@@ -96,11 +122,9 @@ class ModuleCatalogQueryMixin:
             f"Lifecycle alerts: {lifecycle_alerts}."
         )
 
-    def _build_entitlement(self, module: EnterpriseModule) -> ModuleEntitlement:
-        records_by_code = {
-            record.module_code: record
-            for record in self._effective_records()
-        }
+    def _build_entitlement(
+        self, module: EnterpriseModule, records_by_code: dict[str, "ModuleEntitlementRecord"]
+    ) -> ModuleEntitlement:
         record = records_by_code.get(module.code)
         missing_organization_context = (
             getattr(self, "_entitlement_repo", None) is not None

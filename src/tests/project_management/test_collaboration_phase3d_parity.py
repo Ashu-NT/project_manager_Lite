@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+from src.core.modules.project_management.contracts.reads.collaboration import (
+    CollaborationCommentCriteria,
+)
 from src.core.modules.project_management.infrastructure.persistence.orm.collaboration import (
     TaskPresenceORM,
 )
@@ -13,7 +16,7 @@ from src.tests.project_management._test_repository_tenant_hardening_helpers impo
 )
 
 
-def test_workspace_reader_preserves_mentions_activity_presence_and_limits(services) -> None:
+def test_purpose_queries_preserve_mentions_recent_activity_and_presence(services) -> None:
     projects = services["project_service"]
     tasks = services["task_service"]
     collaboration = services["collaboration_service"]
@@ -26,29 +29,27 @@ def test_workspace_reader_preserves_mentions_activity_presence_and_limits(servic
     collaboration.post_comment(task_id=task.id, body="Latest general update")
     collaboration.touch_task_presence(task.id, activity="editing")
 
-    snapshot = collaboration.list_workspace_snapshot(limit=20)
+    inbox = collaboration.query_inbox_page(page=1, page_size=20)
+    activity = collaboration.list_recent_activity(limit=20)
+    presence = collaboration.list_active_presence()
 
     assert isinstance(
         collaboration._workspace_reader,
         SqlAlchemyCollaborationWorkspaceReader,
     )
-    assert [item.comment_id for item in snapshot.inbox] == [mentioned.id]
-    assert [item.body_preview for item in snapshot.recent_activity] == [
+    assert [item.comment_id for item in inbox.items] == [mentioned.id]
+    assert [item.body_preview for item in activity] == [
         "Latest general update",
         "Please review this package @admin",
     ]
-    assert snapshot.inbox[0].unread is True
-    assert snapshot.notifications[0].entity_id == mentioned.id
-    assert snapshot.notifications[0].attention is True
-    assert len(snapshot.active_presence) == 1
-    assert snapshot.active_presence[0].task_name == "Review package"
-    assert snapshot.active_presence[0].project_name == "Collaboration projection"
-    assert snapshot.active_presence[0].is_self is True
+    assert inbox.items[0].unread is True
+    assert len(presence) == 1
+    assert presence[0].task_name == "Review package"
+    assert presence[0].project_name == "Collaboration projection"
+    assert presence[0].is_self is True
 
-    # The legacy contract limits recent comments before filtering mentions.
-    assert collaboration.list_inbox(limit=1) == []
     collaboration.mark_task_mentions_read(task.id)
-    assert collaboration.list_inbox(limit=20)[0].unread is False
+    assert collaboration.query_inbox_page(page_size=20).items[0].unread is False
 
 
 def test_concrete_collaboration_reader_rejects_cross_organization_ids(services) -> None:
@@ -81,23 +82,57 @@ def test_concrete_collaboration_reader_rejects_cross_organization_ids(services) 
     scope = collaboration._tenant_context_service.require_active_scope_ids(
         operation_label="test collaboration reader isolation"
     )
+    reader = collaboration._workspace_reader
 
-    facts = collaboration._workspace_reader.read_facts(
+    comments = reader.read_comment_page(
         tenant_id=scope.tenant_id,
         organization_id=scope.organization_id,
         accessible_project_ids=(seeded["project_a"], seeded["project_b"]),
-        comment_limit=200,
-        presence_since=datetime.now(timezone.utc) - timedelta(days=1),
-        presence_limit=200,
+        criteria=CollaborationCommentCriteria(),
+        page=1,
+        page_size=200,
+    )
+    presence = reader.read_active_presence(
+        tenant_id=scope.tenant_id,
+        organization_id=scope.organization_id,
+        accessible_project_ids=(seeded["project_a"], seeded["project_b"]),
+        active_since=now - timedelta(days=1),
     )
 
-    assert {comment.project_id for comment in facts.comments} == {seeded["project_a"]}
-    assert seeded["comment_a"] in {comment.comment_id for comment in facts.comments}
-    assert seeded["comment_b"] not in {comment.comment_id for comment in facts.comments}
-    assert {row.task_id for row in facts.active_presence} == {seeded["task_a1"]}
+    assert {comment.project_id for comment in comments.items} == {seeded["project_a"]}
+    assert seeded["comment_a"] in {comment.comment_id for comment in comments.items}
+    assert seeded["comment_b"] not in {comment.comment_id for comment in comments.items}
+    assert {row.task_id for row in presence} == {seeded["task_a1"]}
 
 
-def test_workspace_reader_keeps_scoped_notification_project_names(services) -> None:
+def test_active_presence_returns_complete_current_scoped_set_beyond_legacy_cap(services) -> None:
+    project = services["project_service"].create_project("Large active team")
+    task = services["task_service"].create_task(project.id, "Presence hub")
+    now = datetime.now(timezone.utc)
+    services["session"].add_all(
+        [
+            TaskPresenceORM(
+                id=f"complete-presence-{index:03d}",
+                task_id=task.id,
+                user_id=f"presence-user-{index:03d}",
+                username=f"presence-user-{index:03d}",
+                activity="reviewing",
+                started_at=now,
+                last_seen_at=now,
+            )
+            for index in range(205)
+        ]
+    )
+    services["session"].commit()
+
+    presence = services["collaboration_service"].list_active_presence()
+
+    assert len(presence) == 205
+    assert presence[0].username == "presence-user-000"
+    assert presence[-1].username == "presence-user-204"
+
+
+def test_workspace_queries_keep_scoped_project_names(services) -> None:
     auth = services["auth_service"]
     access = services["access_service"]
     projects = services["project_service"]
@@ -119,8 +154,9 @@ def test_workspace_reader_keeps_scoped_notification_project_names(services) -> N
 
     user = auth.authenticate("phase3d-viewer", "StrongPass123")
     services["user_session"].set_principal(auth.build_principal(user))
-    snapshot = collaboration.list_workspace_snapshot(limit=20)
+    inbox = collaboration.query_inbox_page(page_size=20)
+    activity = collaboration.list_recent_activity(limit=20)
 
-    assert {item.project_id for item in snapshot.inbox} == {alpha.id}
-    assert {item.project_name for item in snapshot.inbox} == {alpha.name}
-    assert beta.id not in {item.project_id for item in snapshot.recent_activity}
+    assert {item.project_id for item in inbox.items} == {alpha.id}
+    assert {item.project_name for item in inbox.items} == {alpha.name}
+    assert beta.id not in {item.project_id for item in activity}

@@ -13,9 +13,25 @@ Component {
     Property { name: "tasksWorkspace"; type: "ProjectManagementTasksWorkspaceController"; isReadonly: true }
     Property { name: "dashboardWorkspace"; type: "ProjectManagementDashboardWorkspaceController"; isReadonly: true }
     Property { name: "timesheetsWorkspace"; type: "ProjectManagementTimesheetsWorkspaceController"; isReadonly: true }
+    Property { name: "pmCapabilityController"; type: "PMCapabilityController"; isReadonly: true }
     Method { name: "workspace"; type: "QVariantMap"; Parameter { name: "routeId"; type: "QString" } }
     Method { name: "dashboardOverview"; type: "QVariantMap" }
     Method { name: "isModuleEnabled"; type: "bool"; Parameter { name: "moduleCode"; type: "QString" } }
     Method { name: "hasCapability"; type: "bool"; Parameter { name: "capabilityId"; type: "QString" } }
     Method { name: "canUseIntegration"; type: "bool"; Parameter { name: "sourceModule"; type: "QString" } Parameter { name: "targetModule"; type: "QString" } Parameter { name: "capability"; type: "QString" } }
+}
+
+Component {
+    name: "PMCapabilityController"
+    accessSemantics: "reference"
+    prototype: "QObject"
+    exports: ["ProjectManagement.Controllers/PMCapabilityController 1.0"]
+    Property { name: "canApproveBaseline"; type: "bool"; isReadonly: true }
+    Property { name: "canApplyLeveling"; type: "bool"; isReadonly: true }
+    Property { name: "canManageSkills"; type: "bool"; isReadonly: true }
+    Property { name: "canRequestAssignmentOverride"; type: "bool"; isReadonly: true }
+    Property { name: "canImport"; type: "bool"; isReadonly: true }
+    Property { name: "canApprovePmRequest"; type: "bool"; isReadonly: true }
+    Property { name: "evaluationState"; type: "QString"; isReadonly: true }
+    Method { name: "refresh" }
 }

@@ -11,40 +11,24 @@ def platform_qml_path(*parts: str) -> Path:
 
 def build_platform_routes() -> list[QmlRoute]:
     return [
+        # The single, unified, navigable Platform entry point. The 4 legacy
+        # per-surface routes (platform.admin/control/settings/tenants) that
+        # used to sit alongside this one were retired in R5.9, once every
+        # capability they hosted (or, for admin/control/settings, could be
+        # reached from) had its own standalone extraction and no longer
+        # depended on `platformCatalog.workspace("platform.<x>")` for header
+        # text. ControlWorkspacePage.qml/SettingsWorkspacePage.qml/
+        # TenantManagementWorkspacePage.qml themselves were NOT deleted --
+        # they're real, current content hosted directly by
+        # PlatformWorkspacePage.qml, reached without going through the route
+        # system at all.
         QmlRoute(
-            route_id="platform.admin",
+            route_id="platform.workspace",
             module_code="platform",
             module_label="Platform",
-            group_label="Administration",
-            title="Admin Console",
-            qml_path=platform_qml_path("workspaces", "admin", "AdminWorkspace.qml"),
-            presenter_key="platform.admin",
-        ),
-        QmlRoute(
-            route_id="platform.control",
-            module_code="platform",
-            module_label="Platform",
-            group_label="Control",
-            title="Control Center",
-            qml_path=platform_qml_path("workspaces", "control", "ControlWorkspace.qml"),
-            presenter_key="platform.control",
-        ),
-        QmlRoute(
-            route_id="platform.settings",
-            module_code="platform",
-            module_label="Platform",
-            group_label="Settings",
-            title="Settings",
-            qml_path=platform_qml_path("workspaces", "settings", "SettingsWorkspace.qml"),
-            presenter_key="platform.settings",
-        ),
-        QmlRoute(
-            route_id="platform.tenants",
-            module_code="platform",
-            module_label="Platform",
-            group_label="Tenants",
-            title="Tenant Management",
-            qml_path=platform_qml_path("workspaces", "tenants", "TenantManagementWorkspace.qml"),
+            group_label="Platform",
+            title="Platform",
+            qml_path=platform_qml_path("workspace", "PlatformWorkspace.qml"),
             presenter_key=None,
         ),
     ]

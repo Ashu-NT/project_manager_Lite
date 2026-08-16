@@ -1,1 +1,3 @@
-﻿module ProjectManagement.RegisterSections
+module workspaces.register.sections
+RegisterDetailSection 1.0 RegisterDetailSection.qml
+RegisterUrgentSection 1.0 RegisterUrgentSection.qml

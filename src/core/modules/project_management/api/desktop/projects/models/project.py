@@ -43,6 +43,8 @@ class ProjectCatalogPageDesktopDto:
     completed: int = 0
     page: int = 1
     page_size: int = 25
+    sort_key: str = "title"
+    sort_direction: str = "asc"
 
 
 __all__ = ["ProjectCatalogPageDesktopDto", "ProjectDesktopDto", "ProjectStatusDescriptor"]

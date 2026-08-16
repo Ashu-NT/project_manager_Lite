@@ -3,14 +3,18 @@ from __future__ import annotations
 from src.core.modules.project_management.access.scope_permissions import (
     require_any_project_permission,
 )
-from src.core.modules.project_management.contracts.repositories.resource import (
+from src.core.modules.project_management.contracts.repositories.resources.resource import (
     ResourceRepository,
 )
-from src.core.modules.project_management.application.common.pagination import PageRequest
+from src.core.modules.project_management.application.common.pagination import (
+    PageRequest,
+    normalize_page_for_total,
+)
 from src.core.modules.project_management.contracts.reads.resources import (
     ResourceCatalogReadPage,
     ResourceCatalogReader,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.domain.enums import CostType
 from src.core.modules.project_management.domain.resources.resource import Resource
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
@@ -36,6 +40,8 @@ class ResourceQueryMixin:
         category: CostType | None = None,
         page: int = 1,
         page_size: int = 25,
+        sort_key: str = "catalog",
+        sort_direction: str = "asc",
     ) -> ResourceCatalogReadPage:
         require_permission(
             self._user_session,
@@ -45,10 +51,24 @@ class ResourceQueryMixin:
         if self._resource_catalog_reader is None or self._tenant_context_service is None:
             raise RuntimeError("Resource catalog reader is not configured.")
         page_request = PageRequest(page=page, page_size=page_size)
+        sort = ReadSort.normalize(
+            key=sort_key,
+            direction=sort_direction,
+            allowed_keys={
+                "title",
+                "resourceCode",
+                "statusLabel",
+                "department",
+                "site",
+                "role",
+                "utilizationValue",
+            },
+            default_key="catalog",
+        )
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="list resource catalog"
         )
-        return self._resource_catalog_reader.read_page(
+        read_kwargs = dict(
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,
             search_text=str(search_text or "").strip(),
@@ -56,7 +76,18 @@ class ResourceQueryMixin:
             category=category,
             page=page_request.page,
             page_size=page_request.page_size,
+            sort=sort,
         )
+        result = self._resource_catalog_reader.read_page(**read_kwargs)
+        normalized_page = normalize_page_for_total(
+            page=result.page,
+            page_size=result.page_size,
+            total=result.filtered_total,
+        )
+        if normalized_page != result.page:
+            read_kwargs["page"] = normalized_page
+            result = self._resource_catalog_reader.read_page(**read_kwargs)
+        return result
 
     def list_for_project_workspace(
         self,

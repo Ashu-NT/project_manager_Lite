@@ -93,6 +93,8 @@ class ProjectManagementRegisterDesktopApi:
         search_text: str = "",
         page: int = 1,
         page_size: int = 25,
+        sort_key: str = "triage",
+        sort_direction: str = "asc",
     ) -> RegisterCatalogPageDesktopDto:
         service = self._require_register_service()
         result = service.query_catalog_page(
@@ -107,6 +109,8 @@ class ProjectManagementRegisterDesktopApi:
             search_text=search_text,
             page=page,
             page_size=page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
         )
 
         def serialize_item(item) -> RegisterEntryDesktopDto:
@@ -130,6 +134,8 @@ class ProjectManagementRegisterDesktopApi:
             due_soon=result.summary.due_soon,
             page=result.page,
             page_size=result.page_size,
+            sort_key=result.sort.key,
+            sort_direction=result.sort.direction.value,
         )
 
     def create_entry(

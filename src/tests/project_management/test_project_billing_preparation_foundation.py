@@ -7,7 +7,7 @@ from pathlib import Path
 from alembic import command
 from alembic.config import Config
 
-from src.core.modules.project_management.contracts.accounting_billing import (
+from src.core.modules.project_management.gateway.billing.accounting_billing import (
     BillingPreparationLinePayload,
     ProjectBillingPreparationPayload,
 )

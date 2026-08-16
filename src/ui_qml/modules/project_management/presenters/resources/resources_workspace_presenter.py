@@ -47,6 +47,8 @@ class ProjectResourcesWorkspacePresenter:
         selected_resource_id: str | None = None,
         page: int = 1,
         page_size: int = 25,
+        sort_key: str = "catalog",
+        sort_direction: str = "asc",
     ) -> ResourceCatalogWorkspaceViewModel:
         return build_workspace_state(
             self._desktop_api,
@@ -56,6 +58,8 @@ class ProjectResourcesWorkspacePresenter:
             selected_resource_id=selected_resource_id,
             page=page,
             page_size=page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
         )
 
     def list_export_records(
@@ -64,6 +68,8 @@ class ProjectResourcesWorkspacePresenter:
         search_text: str = "",
         active_filter: str = "all",
         category_filter: str = "all",
+        sort_key: str = "catalog",
+        sort_direction: str = "asc",
         batch_size: int = 500,
     ) -> tuple:
         records = []
@@ -75,6 +81,8 @@ class ProjectResourcesWorkspacePresenter:
                 category=category_filter,
                 page=page,
                 page_size=batch_size,
+                sort_key=sort_key,
+                sort_direction=sort_direction,
             )
             records.extend(to_resource_record_view_model(item) for item in result.items)
             if page * result.page_size >= result.filtered_total:

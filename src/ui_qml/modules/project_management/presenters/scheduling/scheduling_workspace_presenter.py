@@ -19,7 +19,6 @@ from .command_handler import (
     create_dependency,
     delete_baseline,
     delete_dependency,
-    export_schedule,
     recalculate_schedule,
     reject_baseline,
     submit_baseline,
@@ -49,6 +48,8 @@ class ProjectSchedulingWorkspacePresenter:
         show_delayed_only: bool = False,
         page: int = 1,
         page_size: int = 25,
+        sort_key: str = "schedule",
+        sort_direction: str = "asc",
         selected_activity_id: str | None = None,
         include_unchanged: bool = False,
         activity_log: tuple[dict[str, str], ...] = (),
@@ -66,6 +67,8 @@ class ProjectSchedulingWorkspacePresenter:
             show_delayed_only=show_delayed_only,
             page=page,
             page_size=page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
             selected_activity_id=selected_activity_id,
             include_unchanged=include_unchanged,
             activity_log=activity_log,
@@ -106,9 +109,5 @@ class ProjectSchedulingWorkspacePresenter:
 
     def calculate_working_days(self, payload: dict[str, Any]) -> str:
         return calculate_working_days(self._desktop_api, payload)
-
-    @staticmethod
-    def export_schedule(project_id: str) -> str:
-        return export_schedule(project_id)
 
 __all__ = ["ProjectSchedulingWorkspacePresenter"]

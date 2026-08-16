@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission, require_permission
 from src.core.platform.domain.security.auth import Role, UserAccount, normalize_auth_username
-from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 
 from src.core.platform.application.security.auth.session.session_service import refresh_current_session_if_user
 from src.core.platform.application.security.auth.audit.security_audit import add_atomic_security_audit
@@ -53,6 +53,35 @@ def list_users(service: AuthService) -> list[UserAccount]:
             ).role_names
         )
     ]
+
+
+def get_user_rollup_summary(service: AuthService):
+    """Overview-only equivalent of list_users() + Python total/active/locked
+    aggregation -- one SQL query instead of one full materialization plus,
+    for tenant callers, a per-user platform-role-exclusion N+1. Same
+    permission check and same platform-operator/tenant-caller branch as
+    list_users(); never used by the paginated Users workspace page, which
+    keeps calling list_users() unchanged. See SqlAlchemyPlatformOverview
+    RollupReader.get_user_summary()'s module docstring for the exclusion
+    predicate's semantic-equivalence proof.
+    """
+    require_any_permission(
+        service._user_session,
+        ("auth.manage", "auth.read", "access.manage", "security.manage"),
+        operation_label="view user rollup summary",
+    )
+    if service._overview_rollup_reader is None:
+        raise BusinessRuleError(
+            "Platform overview rollup reader is not configured.",
+            code="OVERVIEW_ROLLUP_READER_REQUIRED",
+        )
+    if is_platform_operator(service):
+        return service._overview_rollup_reader.get_user_summary(tenant_id=None)
+    tenant_id = require_actor_active_tenant(
+        service,
+        operation_label="view tenant user rollup summary",
+    )
+    return service._overview_rollup_reader.get_user_summary(tenant_id=tenant_id)
 
 
 def list_roles(service: AuthService) -> list[Role]:

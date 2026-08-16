@@ -11,7 +11,7 @@ from decimal import Decimal
 from typing import Callable
 
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 from src.core.modules.project_management.contracts.reads.financials.models.finance_snapshot_facts import (
     EvmSeriesFacts,
 )

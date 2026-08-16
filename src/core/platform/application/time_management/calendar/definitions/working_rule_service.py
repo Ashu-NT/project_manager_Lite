@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from datetime import date, time
-from typing import Any
+from typing import Any, Callable
 
 from sqlalchemy.orm import Session
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.contract.time_management.calendar.contracts import (
+from src.core.platform.contract.repositories.time_management.calendar.contracts import (
     CalendarWorkingRuleRepository,
     PlatformCalendarRepository,
 )
@@ -23,11 +23,16 @@ class WorkingRuleService:
         calendar_repo: PlatformCalendarRepository,
         rule_repo: CalendarWorkingRuleRepository,
         user_session: Any = None,
+        on_calendar_data_changed: Callable[[], None] | None = None,
     ) -> None:
         self._session = session
         self._calendar_repo = calendar_repo
         self._rule_repo = rule_repo
         self._user_session = user_session
+        # Invalidates the (process-lifetime) EnterpriseCalendarResolver's rule
+        # cache — without this, a saved/deleted rule stays invisible to every
+        # resolver-backed read until the app restarts.
+        self._on_calendar_data_changed = on_calendar_data_changed
 
     def list_rules(self, calendar_id: str) -> list[CalendarWorkingRule]:
         require_permission(self._user_session, "task.read", operation_label="list working rules")
@@ -50,6 +55,7 @@ class WorkingRuleService:
         effective_from: date | None = None,
         effective_to: date | None = None,
         priority: int = 0,
+        commit: bool = True,
     ) -> CalendarWorkingRule:
         require_permission(
             self._user_session, "task.manage", operation_label="save working rule"
@@ -85,11 +91,19 @@ class WorkingRuleService:
             existing.effective_to = candidate.effective_to
             existing.priority = candidate.priority
             self._rule_repo.save(existing)
-            self._session.commit()
+            if commit:
+                self._session.commit()
+                self._invalidate_resolver_cache()
+            else:
+                self._session.flush()
             return existing
 
         self._rule_repo.save(candidate)
-        self._session.commit()
+        if commit:
+            self._session.commit()
+            self._invalidate_resolver_cache()
+        else:
+            self._session.flush()
         return candidate
 
     def delete_rule(self, rule_id: str) -> None:
@@ -101,6 +115,7 @@ class WorkingRuleService:
             raise NotFoundError(f"Working rule '{rule_id}' not found.")
         self._rule_repo.delete(rule_id)
         self._session.commit()
+        self._invalidate_resolver_cache()
 
     def seed_standard_week(
         self,
@@ -111,7 +126,13 @@ class WorkingRuleService:
         break_minutes: int = 60,
         working_days: set[int] | None = None,
     ) -> list[CalendarWorkingRule]:
-        """Seed Mon-Fri (or custom set) with a standard schedule. Idempotent."""
+        """Seed Mon-Fri (or custom set) with a standard schedule. Idempotent.
+
+        All 7 weekday rules are staged and committed together in one
+        transaction — a mid-loop failure must not leave a partially-edited
+        week, and a partial commit sequence would also fire 7 separate
+        `save_rule` commits for what is a single logical "set up this
+        calendar's working week" operation."""
         require_permission(
             self._user_session, "task.manage", operation_label="seed working rules"
         )
@@ -119,18 +140,29 @@ class WorkingRuleService:
         self._validate_time_window(start_time, end_time)
         wd = working_days if working_days is not None else {0, 1, 2, 3, 4}
         rules = []
-        for day in range(7):
-            rules.append(
-                self.save_rule(
-                    calendar_id,
-                    day,
-                    is_working_day=day in wd,
-                    start_time=start_time if day in wd else None,
-                    end_time=end_time if day in wd else None,
-                    break_minutes=break_minutes if day in wd else 0,
+        try:
+            for day in range(7):
+                rules.append(
+                    self.save_rule(
+                        calendar_id,
+                        day,
+                        is_working_day=day in wd,
+                        start_time=start_time if day in wd else None,
+                        end_time=end_time if day in wd else None,
+                        break_minutes=break_minutes if day in wd else 0,
+                        commit=False,
+                    )
                 )
-            )
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
+        self._invalidate_resolver_cache()
         return rules
+
+    def _invalidate_resolver_cache(self) -> None:
+        if self._on_calendar_data_changed is not None:
+            self._on_calendar_data_changed()
 
     def _require_calendar(self, calendar_id: str) -> None:
         if self._calendar_repo.get(calendar_id) is None:

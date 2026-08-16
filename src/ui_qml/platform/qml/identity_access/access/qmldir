@@ -1,0 +1,4 @@
+module identity_access.access
+AdminAccessDetailPage 1.0 AdminAccessDetailPage.qml
+AccessSecurityPanel 1.0 AccessSecurityPanel.qml
+AccessWorkspacePage 1.0 AccessWorkspacePage.qml

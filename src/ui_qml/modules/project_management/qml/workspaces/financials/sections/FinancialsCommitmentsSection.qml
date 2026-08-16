@@ -16,13 +16,19 @@ Item {
     property var commitmentsModel: ({ "title": "", "subtitle": "", "emptyState": "", "items": [] })
     property var commitmentsTableModel: null
     property bool isBusy: false
+    property string sortKey: "metaText"
+    property int sortDirection: Qt.DescendingOrder
+
+    signal pageRequested(int page)
+    signal pageSizeRequested(int pageSize)
+    signal sortRequested(string key, int direction)
 
     readonly property var _columns: [
-        { "key": "title", "label": "Source line", "flex": 1.5 },
-        { "key": "subtitle", "label": "Lifecycle", "flex": 1 },
-        { "key": "statusLabel", "label": "Committed", "flex": 0, "minWidth": 120 },
-        { "key": "supportingText", "label": "Matched / Remaining", "flex": 2 },
-        { "key": "metaText", "label": "Delivery / Order", "flex": 0, "minWidth": 130 }
+        { "key": "title", "label": "Source line", "flex": 1.5, "sortable": true },
+        { "key": "subtitle", "label": "Lifecycle", "flex": 1, "sortable": false },
+        { "key": "statusLabel", "label": "Committed", "flex": 0, "minWidth": 120, "sortable": true },
+        { "key": "supportingText", "label": "Matched / Remaining", "flex": 2, "sortable": false },
+        { "key": "metaText", "label": "Delivery / Order", "flex": 0, "minWidth": 130, "sortable": true }
     ]
 
     implicitHeight: _col.implicitHeight
@@ -151,9 +157,26 @@ Item {
                         anchors.fill: parent
                         columns: root._columns
                         sourceModel: root.commitmentsTableModel
+                        sortingMode: "server"
+                        sortKey: root.sortKey
+                        sortDirection: root.sortDirection
                         loading: root.isBusy
                         emptyText: root.commitmentsModel.emptyState || "No commitments."
+                        onSortRequested: function(key, direction) {
+                            root.sortRequested(key, direction)
+                        }
                     }
+                }
+
+                AppWidgets.TablePaginationBar {
+                    Layout.fillWidth: true
+                    visible: Number(root.commitmentsModel.total || 0) > Number(root.commitmentsModel.pageSize || 50)
+                    currentPage: Number(root.commitmentsModel.page || 1)
+                    pageSize: Number(root.commitmentsModel.pageSize || 50)
+                    totalItems: Number(root.commitmentsModel.total || 0)
+                    busy: root.isBusy
+                    onPageRequested: function(page) { root.pageRequested(page) }
+                    onPageSizeRequested: function(pageSize) { root.pageSizeRequested(pageSize) }
                 }
             }
         }

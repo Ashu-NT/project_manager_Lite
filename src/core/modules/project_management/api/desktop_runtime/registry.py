@@ -14,6 +14,9 @@ from src.core.modules.project_management.api.desktop import (
     ProjectManagementTasksDesktopApi,
     ProjectManagementTimesheetsDesktopApi,
 )
+from src.core.modules.project_management.gateway.task.reservation import (
+    TaskReservationGateway,
+)
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.master_data.employee.employee_service import EmployeeService
 from src.core.platform.application.master_data.site.site_service import SiteService
@@ -39,8 +42,7 @@ class ProjectManagementDesktopRuntimePlatformDependencies:
     employee_service: EmployeeService
     site_service: SiteService
     approval_service: ApprovalService
-    procurement_service: object | None
-    reservation_service: object | None
+    reservation_service: TaskReservationGateway | None
     enterprise_calendar_api: object | None = None
 
 

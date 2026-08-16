@@ -1,0 +1,4 @@
+module calendars.dialogs
+CalendarEditorDialog 1.0 CalendarEditorDialog.qml
+CalendarExceptionDialog 1.0 CalendarExceptionDialog.qml
+CalendarRecurringEventDialog 1.0 CalendarRecurringEventDialog.qml

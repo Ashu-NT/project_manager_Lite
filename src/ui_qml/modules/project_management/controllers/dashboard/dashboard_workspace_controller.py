@@ -72,6 +72,7 @@ class ProjectManagementDashboardWorkspaceController(
     panelsChanged = Signal()
     chartsChanged = Signal()
     sectionsChanged = Signal()
+    attentionItemsChanged = Signal()
 
     def __init__(
         self,
@@ -92,7 +93,7 @@ class ProjectManagementDashboardWorkspaceController(
         )
         self._workspace = workspace_view_model
         self._overview = default_dashboard_overview(
-            str(workspace_view_model.get("title", "") or "Dashboard")
+            str(workspace_view_model.get("title", "") or "Overview")
         )
         self._has_loaded = False
         self._is_refreshing = False
@@ -122,6 +123,7 @@ class ProjectManagementDashboardWorkspaceController(
         self._charts: DashboardObjectList = []
         self._sections: DashboardObjectList = []
         self._raw_operational_tables: DashboardObjectList = []
+        self._attention_items: DashboardObjectList = []
         self._bind_domain_events()
 
     @Property("QVariantMap", notify=overviewChanged)
@@ -196,6 +198,9 @@ class ProjectManagementDashboardWorkspaceController(
     @Property("QVariantList", notify=sectionsChanged)
     def sections(self) -> DashboardObjectList: return self._sections
 
+    @Property("QVariantList", notify=attentionItemsChanged)
+    def attentionItems(self) -> DashboardObjectList: return self._attention_items
+
     @Slot()
     def load(self) -> None: self._load_dashboard()
 
@@ -228,13 +233,6 @@ class ProjectManagementDashboardWorkspaceController(
 
     @Slot(str)
     def selectOperationalRow(self, row_id: str) -> None: self._select_operational_row_from_qml(row_id)
-
-    @Slot(result="QVariantMap")
-    def exportDashboard(self) -> DashboardMap:
-        message = "Export is not available here. Open the Reports section to generate dashboard summaries and project health exports."
-        self._set_error_message("")
-        self._set_feedback_message(message)
-        return {"ok": True, "message": message}
 
 
 __all__ = ["ProjectManagementDashboardWorkspaceController"]

@@ -70,6 +70,18 @@ class ProjectStateSettersMixin:
         self._project_total_count = v
         self.projectTotalCountChanged.emit()
 
+    def _set_project_sort_key(self, value: str) -> None:
+        if value == self._project_sort_key:
+            return
+        self._project_sort_key = value
+        self.projectSortKeyChanged.emit()
+
+    def _set_project_sort_direction(self, value: int) -> None:
+        if value == self._project_sort_direction:
+            return
+        self._project_sort_direction = value
+        self.projectSortDirectionChanged.emit()
+
     def _set_selected_project_ids(self, selected_ids: list[str]) -> None:
         if selected_ids == self._selected_project_ids:
             return

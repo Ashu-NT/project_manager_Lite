@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
-from src.core.modules.project_management.contracts.repositories.rate_resolution import (
+from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
     UnresolvedLaborRate,
 )
 
@@ -168,6 +168,32 @@ class CostBreakdownRow:
     actual: Decimal
 
 
+# ── Commercial / profitability DTOs (ADR-PF-010) ───────────────────────────────
+
+@dataclass(frozen=True)
+class ProjectCommercialProjection:
+    """ADR-PF-010's five commercial projections. contract_value/billable_amount/
+    externally_invoiced_amount/externally_paid_amount are ordinary Project
+    Finance authority data (finance.read); forecast_revenue_at_completion/
+    revenue_basis/projected_margin_* are further redacted without
+    finance.read_profitability (profitability_detail_included is False, all
+    four are None/"") -- the same mixed-content pattern as
+    ProjectKPI.financial_detail_included."""
+
+    project_id: str
+    project_currency: str | None
+    contract_value: Decimal | None
+    billable_amount: Decimal
+    externally_invoiced_amount: Decimal
+    externally_paid_amount: Decimal
+    external_accounting_data_available: bool
+    forecast_revenue_at_completion: Decimal | None
+    revenue_basis: str
+    projected_margin_amount: Decimal | None
+    projected_margin_percent: Decimal | None
+    profitability_detail_included: bool = True
+
+
 # ── Labor DTOs ────────────────────────────────────────────────────────────────
 
 @dataclass
@@ -203,20 +229,6 @@ class PlannedLaborResourceRow:
     total_cost: float
 
 
-@dataclass
-class LaborPlanActualRow:
-    resource_id: str
-    resource_name: str
-    planned_hours: float
-    planned_hourly_rate: float
-    planned_currency_code: str | None
-    planned_cost: float
-    actual_hours: float
-    actual_currency_code: str | None
-    actual_cost: float
-    variance_cost: float
-
-
 @dataclass(frozen=True)
 class LaborDetailsResult:
     """Rich result for labor details — rows plus which resources' rates
@@ -230,16 +242,6 @@ class LaborDetailsResult:
     unresolved_rates: tuple[UnresolvedLaborRate, ...]
     planned_rows: tuple[PlannedLaborResourceRow, ...] = ()
     planned_unresolved_rates: tuple[UnresolvedLaborRate, ...] = ()
-
-    @property
-    def is_complete(self) -> bool:
-        return not self.unresolved_rates
-
-
-@dataclass(frozen=True)
-class LaborPlanResult:
-    rows: tuple[LaborPlanActualRow, ...]
-    unresolved_rates: tuple[UnresolvedLaborRate, ...]
 
     @property
     def is_complete(self) -> bool:
@@ -290,13 +292,13 @@ __all__ = [
     "CostSourceRow",
     "CostSourceBreakdown",
     "CostBreakdownRow",
+    # Commercial / profitability
+    "ProjectCommercialProjection",
     # Labor
     "LaborAssignmentRow",
     "LaborResourceRow",
     "PlannedLaborResourceRow",
-    "LaborPlanActualRow",
     "LaborDetailsResult",
-    "LaborPlanResult",
     # EVM
     "EarnedValueMetrics",
     "EvmSeriesPoint",

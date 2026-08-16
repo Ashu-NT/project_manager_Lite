@@ -3,7 +3,6 @@ import QtQuick
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
-import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
 import workspaces.dashboard.components 1.0
 
 Item {
@@ -16,6 +15,9 @@ Item {
         : []
     readonly property var scheduleChart: root.chartModels.length > 0 ? root.chartModels[0] : null
     readonly property var costChart: root.chartModels.length > 1 ? root.chartModels[1] : null
+    readonly property var attentionItems: root.workspaceController
+        ? (root.workspaceController.attentionItems || [])
+        : []
     readonly property bool portfolioBarLayout: root.scheduleChart !== null
         && root.costChart !== null
         && String(root.scheduleChart.chartType || "") !== "line"
@@ -59,7 +61,7 @@ Item {
                 title: root.scheduleChart ? root.scheduleChart.title || "Portfolio Status" : ""
                 subtitle: root.scheduleChart ? root.scheduleChart.subtitle || "" : ""
 
-                ProjectManagementWidgets.DashboardChartCard {
+                DashboardChartCard {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     title: ""
@@ -74,17 +76,13 @@ Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: root.barPanelHeight
                 Layout.minimumHeight: 208
-                title: root.costChart ? root.costChart.title || "Cost Pressure" : ""
-                subtitle: root.costChart ? root.costChart.subtitle || "" : ""
+                title: "Attention Required"
+                subtitle: "Delayed tasks, high risks, and pending approvals needing action."
 
-                ProjectManagementWidgets.DashboardChartCard {
+                DashboardAttentionPanel {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    title: ""
-                    subtitle: ""
-                    chartType: root.costChart ? root.costChart.chartType || "bar" : "bar"
-                    emptyState: root.costChart ? root.costChart.emptyState || "" : ""
-                    points: root.costChart ? (root.costChart.points || []) : []
+                    items: root.attentionItems
                 }
             }
         }
@@ -104,7 +102,7 @@ Item {
                 title: root.scheduleChart ? root.scheduleChart.title || "Schedule Trend" : ""
                 subtitle: root.scheduleChart ? root.scheduleChart.subtitle || "" : ""
 
-                ProjectManagementWidgets.DashboardChartCard {
+                DashboardChartCard {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     title: ""
@@ -119,18 +117,13 @@ Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: root.linePanelHeight
                 Layout.minimumHeight: 280
-                visible: root.costChart !== null
-                title: root.costChart ? root.costChart.title || "Cost Trend" : ""
-                subtitle: root.costChart ? root.costChart.subtitle || "" : ""
+                title: "Attention Required"
+                subtitle: "Delayed tasks, high risks, and pending approvals needing action."
 
-                ProjectManagementWidgets.DashboardChartCard {
+                DashboardAttentionPanel {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    title: ""
-                    subtitle: ""
-                    chartType: root.costChart ? root.costChart.chartType || "line" : "line"
-                    emptyState: root.costChart ? root.costChart.emptyState || "" : ""
-                    points: root.costChart ? (root.costChart.points || []) : []
+                    items: root.attentionItems
                 }
             }
         }

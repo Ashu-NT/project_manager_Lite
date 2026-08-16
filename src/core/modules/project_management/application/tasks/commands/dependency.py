@@ -15,7 +15,7 @@ from src.core.modules.project_management.domain.enums import DependencyType
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from src.core.modules.project_management.contracts.repositories.task import (
+    from src.core.modules.project_management.contracts.repositories.tasks.task import (
         DependencyRepository,
         TaskRepository,
     )

@@ -162,7 +162,7 @@ def _build_resource_overload_panel(*, dashboard_data: Any, portfolio_mode: bool)
         )
     display = (overloaded + at_risk)[:8]
     return ProjectDashboardPanelDescriptor(
-        title="Resource Overloads", subtitle=f"{fmt_int(len(overloaded))} overloaded, {fmt_int(len(at_risk))} near-capacity.",
+        title="Resource Overloads", subtitle=f"Up to 8 shown; {fmt_int(len(overloaded))} overloaded, {fmt_int(len(at_risk))} near-capacity in the complete resource set.",
         metrics=(ProjectDashboardMetricDescriptor("Resources", fmt_int(len(rows)), "In scope"), ProjectDashboardMetricDescriptor("Overloaded", fmt_int(len(overloaded)), "Above 100% capacity"), ProjectDashboardMetricDescriptor("At Risk", fmt_int(len(at_risk)), "90–100% utilization")),
         rows=tuple(ProjectDashboardPanelRowDescriptor(label=str(getattr(r, "resource_name", "") or "Resource"), value=fmt_percent(_util(r), 0), supporting_text=f"Capacity: {fmt_percent(getattr(r, 'capacity_percent', 100.0), 0)}", tone="danger" if bool(getattr(r, "is_overloaded", False)) else "warning") for r in display),
     )

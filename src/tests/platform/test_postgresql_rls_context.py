@@ -12,11 +12,13 @@ from src.infra.persistence.db.postgresql_rls import (
 from src.infra.persistence.migrations.versions.h6i7j8k9l0m1_enable_postgresql_tenant_rls import (
     TENANT_RLS_TABLES,
 )
+from src.infra.persistence.migrations.versions.pfaudit_p04_001_enable_audit_entries_rls import (
+    _TABLE as AUDIT_ENTRIES_CUSTOM_RLS_TABLE,
+)
 from src.infra.persistence.orm import Base
 
 
 _IDENTITY_BOOTSTRAP_TABLES = {
-    "audit_entries",
     "notifications",
     "organizations",
     "role_bindings",
@@ -24,6 +26,11 @@ _IDENTITY_BOOTSTRAP_TABLES = {
     "roles",
     "user_tenants",
 }
+
+# Tables with a bespoke policy (not the generic single-predicate one in
+# TENANT_RLS_TABLES) because a plain tenant-match predicate would reject or
+# hide their legitimate NULL-tenant rows. See pfaudit_p04_001 for audit_entries.
+_CUSTOM_POLICY_TABLES = {AUDIT_ENTRIES_CUSTOM_RLS_TABLE}
 
 
 class _FakePostgresConnection:
@@ -101,4 +108,4 @@ def test_every_tenant_bearing_table_has_rls_or_explicit_bootstrap_classification
         if "tenant_id" in table.c
     }
 
-    assert tenant_tables == set(TENANT_RLS_TABLES) | _IDENTITY_BOOTSTRAP_TABLES
+    assert tenant_tables == set(TENANT_RLS_TABLES) | _IDENTITY_BOOTSTRAP_TABLES | _CUSTOM_POLICY_TABLES

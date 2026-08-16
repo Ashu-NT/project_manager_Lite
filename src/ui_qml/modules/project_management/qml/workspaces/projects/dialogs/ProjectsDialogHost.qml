@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import App.Controls 1.0 as AppControls
-import ProjectManagement.Dialogs 1.0 as ProjectManagementDialogs
 
 Item {
     id: root
@@ -12,6 +11,14 @@ Item {
     property var editTarget: ({})
     property var statusTarget: ({})
     property var deleteTarget: ({})
+
+    // Lets callers (e.g. a workspace page's Escape-closes-inspector
+    // shortcut) defer to whichever of these dialogs is currently open,
+    // since each already owns Escape itself while visible.
+    readonly property bool anyDialogOpen: importDialog.opened
+        || editorDialog.opened
+        || statusDialog.opened
+        || deleteDialog.opened
 
     signal deleteRequested(string projectId)
 
@@ -56,12 +63,12 @@ Item {
         deleteDialog.open()
     }
 
-    ProjectManagementDialogs.ProjectsImportDialog {
+    ProjectsImportDialog {
         id: importDialog
         workspaceController: root.workspaceController
     }
 
-    ProjectManagementDialogs.ProjectEditorDialog {
+    ProjectEditorDialog {
         id: editorDialog
         statusOptions: root.statusOptions
         siteOptions: root.siteOptions
@@ -83,7 +90,7 @@ Item {
         }
     }
 
-    ProjectManagementDialogs.ProjectStatusDialog {
+    ProjectStatusDialog {
         id: statusDialog
         statusOptions: root.statusOptions
         busy: root.workspaceController ? root.workspaceController.isBusy : false

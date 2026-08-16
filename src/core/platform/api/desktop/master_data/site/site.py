@@ -6,6 +6,7 @@ from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.master_data.site.models.site import (
     SiteCreateCommand,
     SiteDto,
+    SiteRollupSummaryDto,
     SiteUpdateCommand,
 )
 from src.core.platform.application.master_data.site.site_service import SiteService
@@ -20,6 +21,13 @@ class PlatformSiteDesktopApi:
     def get_context(self) -> DesktopApiResult[OrganizationDto]:
         return execute_desktop_operation(
             lambda: serialize_organization(self._site_service.get_context_organization())
+        )
+
+    def get_site_rollup_summary(self) -> DesktopApiResult[SiteRollupSummaryDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_rollup_summary(
+                self._site_service.get_site_rollup_summary()
+            )
         )
 
     def list_sites(
@@ -84,6 +92,14 @@ class PlatformSiteDesktopApi:
                     expected_version=command.expected_version,
                 )
             )
+        )
+
+    @staticmethod
+    def _serialize_rollup_summary(summary) -> SiteRollupSummaryDto:
+        return SiteRollupSummaryDto(
+            total=summary.total,
+            active=summary.active,
+            sample_names=summary.sample_names,
         )
 
     @staticmethod

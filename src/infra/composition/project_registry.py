@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 
 import logging
 from dataclasses import dataclass
@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.access import ScopedRolePolicy
 from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.contract.approval.contracts import (
+from src.core.platform.contract.models.approval.contracts import (
     ApprovalHandlerResult,
     ApprovalPostCommitEvent,
 )
@@ -47,7 +47,7 @@ from src.core.modules.project_management.application.financials import (
     ProjectRateCardService,
     RateCardResolver,
 )
-from src.core.modules.project_management.infrastructure.persistence.repositories.rate_resolution_reader import (
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_resolution_reader import (
     SqlAlchemyRateResolutionReader,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.financials import (
@@ -450,6 +450,7 @@ def build_project_management_service_bundle(
         evm_series_reader=SqlAlchemyEvmSeriesReader(session=session),
         finance_snapshot_reader=SqlAlchemyFinanceSnapshotReader(session=session),
         financial_profile_repo=repositories.project_financial_profile_repo,
+        billing_repo=repositories.project_billing_repo,
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
     )
@@ -540,7 +541,6 @@ def build_project_management_service_bundle(
         task_repo=repositories.task_repo,
         project_repo=repositories.project_repo,
         user_repo=repositories.user_repo,
-        audit_repo=repositories.audit_entry_repo,
         workspace_reader=SqlAlchemyCollaborationWorkspaceReader(session=session),
         document_integration_service=platform_services.document_integration_service,
         user_session=platform_services.user_session,
@@ -566,6 +566,7 @@ def build_project_management_service_bundle(
         user_session=platform_services.user_session,
         module_catalog_service=platform_services.module_catalog_service,
         tenant_context_service=platform_services.tenant_context_service,
+        project_catalog_reader=SqlAlchemyProjectCatalogReader(session=session),
     )
     baseline_service = BaselineService(
         session=session,

@@ -26,23 +26,19 @@ from src.core.modules.project_management.application.collaboration.queries.colla
 from src.core.modules.project_management.application.collaboration.queries.collaboration_inbox import (
     CollaborationInboxQueryMixin,
 )
-from src.core.modules.project_management.application.collaboration.queries.collaboration_notifications import (
-    CollaborationNotificationQueryMixin,
-)
 from src.core.modules.project_management.application.collaboration.queries.collaboration_presence import (
     CollaborationPresenceQueryMixin,
 )
-from src.core.modules.project_management.contracts.repositories.collaboration import (
+from src.core.modules.project_management.contracts.repositories.collaboration.collaboration import (
     TaskCommentRepository,
     TaskPresenceRepository,
 )
 from src.core.modules.project_management.contracts.reads.collaboration import (
     CollaborationWorkspaceReader,
 )
-from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.task import TaskRepository
-from src.core.platform.contract.history.audit.contracts import AuditRepository
-from src.core.platform.contract.security.auth import UserRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
+from src.core.platform.contract.repositories.security.auth import UserRepository
 from src.core.platform.application.master_data.documents import DocumentIntegrationService
 
 
@@ -52,7 +48,6 @@ class CollaborationService(
     CollaborationCommentQueryMixin,
     CollaborationDocumentQueryMixin,
     CollaborationInboxQueryMixin,
-    CollaborationNotificationQueryMixin,
     CollaborationPresenceCommandMixin,
     CollaborationPresenceQueryMixin,
     CollaborationPrincipalMixin,
@@ -67,7 +62,6 @@ class CollaborationService(
         task_repo: TaskRepository,
         project_repo: ProjectRepository,
         user_repo: UserRepository,
-        audit_repo: AuditRepository,
         workspace_reader: CollaborationWorkspaceReader,
         document_integration_service: DocumentIntegrationService | None = None,
         user_session=None,
@@ -83,7 +77,6 @@ class CollaborationService(
         self._task_repo = task_repo
         self._project_repo = project_repo
         self._user_repo = user_repo
-        self._audit_repo = audit_repo
         self._workspace_reader = workspace_reader
         self._document_integration_service = document_integration_service
         self._user_session = user_session

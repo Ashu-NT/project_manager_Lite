@@ -9,7 +9,7 @@ from src.core.platform.infrastructure.persistence.mappers.tenant.tenancy.user_te
     user_tenant_to_orm,
 )
 from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.user_tenant import UserTenantORM
-from src.core.platform.contract.tenant.tenancy.contracts import UserTenantMembershipRepository
+from src.core.platform.contract.repositories.tenant.tenancy.contracts import UserTenantMembershipRepository
 from src.core.platform.domain.tenant.tenancy.user_tenant_membership import (
     MEMBERSHIP_STATUS_ACTIVE,
     UserTenantMembership,

@@ -23,6 +23,8 @@ def do_refresh(controller) -> None:
             selected_time_entry_id=controller._selected_time_entry_id or None,
             page=controller._task_page,
             page_size=controller._task_page_size,
+            sort_key=controller._task_sort_key,
+            sort_direction="desc" if controller._task_sort_direction else "asc",
         )
         controller._task_list._update(ws)
         controller._set_selected_task_id(ws.selected_task_id)
@@ -35,6 +37,8 @@ def do_refresh(controller) -> None:
         controller._set_task_total_count(ws.total_count)
         controller._set_task_page(ws.page)
         controller._set_task_page_size(ws.page_size)
+        controller._set_task_sort_key(ws.sort_key)
+        controller._set_task_sort_direction(1 if ws.sort_direction == "desc" else 0)
     except Exception as exc:  # pragma: no cover - defensive fallback
         controller._set_error_message(str(exc))
     finally:

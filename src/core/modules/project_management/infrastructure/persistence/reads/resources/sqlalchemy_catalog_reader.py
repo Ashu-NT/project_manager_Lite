@@ -8,6 +8,8 @@ from src.core.modules.project_management.contracts.reads.resources import (
     ResourceCatalogReadPage,
     ResourceCatalogSummary,
 )
+from src.core.modules.project_management.contracts.reads.sorting import ReadSort
+from src.core.modules.project_management.infrastructure.persistence.reads.sorting import stable_order_by
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
 from src.core.modules.project_management.infrastructure.persistence.mappers.resource import (
     resource_from_orm,
@@ -39,6 +41,7 @@ class SqlAlchemyResourceCatalogReader:
         category: CostType | None,
         page: int,
         page_size: int,
+        sort: ReadSort,
     ) -> ResourceCatalogReadPage:
         scope_filters = (
             ResourceORM.tenant_id == tenant_id,
@@ -123,9 +126,32 @@ class SqlAlchemyResourceCatalogReader:
         ).select_from(ResourceORM)
         for target, condition in joins:
             rows_stmt = rows_stmt.outerjoin(target, condition)
+        sort_expressions = {
+            "title": (func.lower(ResourceORM.name),),
+            "resourceCode": (func.lower(func.coalesce(ResourceORM.resource_code, "")),),
+            "statusLabel": (ResourceORM.is_active,),
+            "department": (func.lower(func.coalesce(DepartmentORM.name, EmployeeORM.department, "")),),
+            "site": (func.lower(func.coalesce(SiteORM.name, EmployeeORM.site_name, "")),),
+            "role": (func.lower(func.coalesce(ResourceORM.role, "")),),
+            "utilizationValue": (ResourceORM.capacity_percent,),
+        }
+        order_by = (
+            (
+                ResourceORM.is_active.desc(),
+                func.lower(ResourceORM.name).asc(),
+                ResourceORM.id.asc(),
+            )
+            if sort.key == "catalog"
+            else stable_order_by(
+                sort=sort,
+                expressions=sort_expressions,
+                default_key="title",
+                tie_breakers=(ResourceORM.id,),
+            )
+        )
         rows = self._session.execute(
             rows_stmt.where(*filtered)
-            .order_by(ResourceORM.is_active.desc(), func.lower(ResourceORM.name), ResourceORM.id)
+            .order_by(*order_by)
             .offset((page - 1) * page_size)
             .limit(page_size)
         ).all()
@@ -145,6 +171,7 @@ class SqlAlchemyResourceCatalogReader:
             page=page,
             page_size=page_size,
             summary=summary,
+            sort=sort,
         )
 
 

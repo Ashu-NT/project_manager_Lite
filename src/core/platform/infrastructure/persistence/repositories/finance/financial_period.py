@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.contract.finance import FinancialPeriodRepository
+from src.core.platform.contract.repositories.finance import FinancialPeriodRepository
 from src.core.platform.finance.periods import FinancialPeriod, FinancialPeriodStatus
 from src.core.platform.infrastructure.persistence.mappers.finance import (
     financial_period_from_orm,

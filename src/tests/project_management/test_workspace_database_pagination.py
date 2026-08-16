@@ -41,6 +41,44 @@ def test_project_catalog_filters_counts_and_pages_in_database(services) -> None:
     assert search_page.items[0].project.id == alpha.id
 
 
+def test_project_catalog_sort_is_authoritative_across_pages(services) -> None:
+    project_service = services["project_service"]
+    alpha = project_service.create_project("Alpha Sort")
+    beta = project_service.create_project("Beta Sort")
+    gamma = project_service.create_project("Gamma Sort")
+
+    ascending_first = project_service.query_catalog_page(
+        sort_key="title", sort_direction="asc", page=1, page_size=2
+    )
+    ascending_second = project_service.query_catalog_page(
+        sort_key="title", sort_direction="asc", page=2, page_size=2
+    )
+    descending_first = project_service.query_catalog_page(
+        sort_key="title", sort_direction="desc", page=1, page_size=2
+    )
+    descending_second = project_service.query_catalog_page(
+        sort_key="title", sort_direction="desc", page=2, page_size=2
+    )
+    unsupported = project_service.query_catalog_page(
+        sort_key="arbitrary_sql", sort_direction="desc", page=1, page_size=3
+    )
+    beyond_last = project_service.query_catalog_page(
+        sort_key="title", sort_direction="asc", page=99, page_size=2
+    )
+
+    assert [row.project.id for row in ascending_first.items] == [alpha.id, beta.id]
+    assert [row.project.id for row in ascending_second.items] == [gamma.id]
+    assert [row.project.id for row in descending_first.items] == [gamma.id, beta.id]
+    assert [row.project.id for row in descending_second.items] == [alpha.id]
+    assert descending_first.sort.key == "title"
+    assert descending_first.sort.direction.value == "desc"
+    assert [row.project.id for row in unsupported.items] == [alpha.id, beta.id, gamma.id]
+    assert unsupported.sort.key == "title"
+    assert unsupported.sort.direction.value == "asc"
+    assert beyond_last.page == 2
+    assert [row.project.id for row in beyond_last.items] == [gamma.id]
+
+
 def test_task_workspace_pages_effective_wbs_rollups_before_filtering(services) -> None:
     project_service = services["project_service"]
     task_service = services["task_service"]
@@ -96,6 +134,68 @@ def test_task_workspace_pages_effective_wbs_rollups_before_filtering(services) -
     assert [item.id for item in priority_page.items] == [child.id]
 
 
+def test_task_workspace_sort_is_authoritative_across_pages(services) -> None:
+    project = services["project_service"].create_project("Task Sort Project")
+    task_service = services["task_service"]
+    alpha = task_service.create_task(project.id, "Alpha Task", wbs_code="1")
+    beta = task_service.create_task(project.id, "Beta Task", wbs_code="2")
+    gamma = task_service.create_task(project.id, "Gamma Task", wbs_code="3")
+
+    ascending_first = task_service.query_workspace_page(
+        project_id=project.id,
+        sort_key="title",
+        sort_direction="asc",
+        page=1,
+        page_size=2,
+    )
+    ascending_second = task_service.query_workspace_page(
+        project_id=project.id,
+        sort_key="title",
+        sort_direction="asc",
+        page=2,
+        page_size=2,
+    )
+    first = task_service.query_workspace_page(
+        project_id=project.id,
+        sort_key="title",
+        sort_direction="desc",
+        page=1,
+        page_size=2,
+    )
+    second = task_service.query_workspace_page(
+        project_id=project.id,
+        sort_key="title",
+        sort_direction="desc",
+        page=2,
+        page_size=2,
+    )
+    unsupported = task_service.query_workspace_page(
+        project_id=project.id,
+        sort_key="unsafe_sql",
+        sort_direction="desc",
+        page=1,
+        page_size=3,
+    )
+    beyond_last = task_service.query_workspace_page(
+        project_id=project.id,
+        sort_key="title",
+        sort_direction="asc",
+        page=99,
+        page_size=2,
+    )
+
+    assert [row.id for row in ascending_first.items] == [alpha.id, beta.id]
+    assert [row.id for row in ascending_second.items] == [gamma.id]
+    assert [row.id for row in first.items] == [gamma.id, beta.id]
+    assert [row.id for row in second.items] == [alpha.id]
+    assert first.sort.direction.value == "desc"
+    assert [row.id for row in unsupported.items] == [alpha.id, beta.id, gamma.id]
+    assert unsupported.sort.key == "wbsCode"
+    assert unsupported.sort.direction.value == "asc"
+    assert beyond_last.page == 2
+    assert [row.id for row in beyond_last.items] == [gamma.id]
+
+
 def test_resource_catalog_filters_aggregates_and_pages_in_database(services) -> None:
     resource_service = services["resource_service"]
     employee = services["employee_service"].create_employee(
@@ -147,6 +247,43 @@ def test_resource_catalog_filters_aggregates_and_pages_in_database(services) -> 
     assert employee_search.items[0].department_label == "Delivery"
     assert inactive_equipment.filtered_total == 1
     assert inactive_equipment.items[0].resource.id == vendor_resource.id
+
+
+def test_resource_catalog_sort_is_authoritative_across_pages(services) -> None:
+    resource_service = services["resource_service"]
+    alpha = resource_service.create_resource(name="Alpha Resource", role="Planner")
+    beta = resource_service.create_resource(name="Beta Resource", role="Planner")
+    gamma = resource_service.create_resource(name="Gamma Resource", role="Planner")
+
+    ascending_first = resource_service.query_catalog_page(
+        sort_key="title", sort_direction="asc", page=1, page_size=2
+    )
+    ascending_second = resource_service.query_catalog_page(
+        sort_key="title", sort_direction="asc", page=2, page_size=2
+    )
+    first = resource_service.query_catalog_page(
+        sort_key="title", sort_direction="desc", page=1, page_size=2
+    )
+    second = resource_service.query_catalog_page(
+        sort_key="title", sort_direction="desc", page=2, page_size=2
+    )
+    unsupported = resource_service.query_catalog_page(
+        sort_key="unsafe_sql", sort_direction="desc", page=1, page_size=3
+    )
+    beyond_last = resource_service.query_catalog_page(
+        sort_key="title", sort_direction="asc", page=99, page_size=2
+    )
+
+    assert [row.resource.id for row in ascending_first.items] == [alpha.id, beta.id]
+    assert [row.resource.id for row in ascending_second.items] == [gamma.id]
+    assert [row.resource.id for row in first.items] == [gamma.id, beta.id]
+    assert [row.resource.id for row in second.items] == [alpha.id]
+    assert first.sort.direction.value == "desc"
+    assert [row.resource.id for row in unsupported.items] == [alpha.id, beta.id, gamma.id]
+    assert unsupported.sort.key == "catalog"
+    assert unsupported.sort.direction.value == "asc"
+    assert beyond_last.page == 2
+    assert [row.resource.id for row in beyond_last.items] == [gamma.id]
 
 
 def test_register_catalog_filters_urgent_queue_and_pages_in_database(services) -> None:
@@ -214,6 +351,82 @@ def test_register_catalog_filters_urgent_queue_and_pages_in_database(services) -
     assert change.id not in {item.entry.id for item in first_page.urgent_items}
 
 
+def test_register_catalog_sort_is_authoritative_across_pages(services) -> None:
+    project = services["project_service"].create_project("Register Sort Project")
+    register_service = services["register_service"]
+    alpha = register_service.create_entry(
+        project.id,
+        entry_type=RegisterEntryType.RISK,
+        title="Alpha Register Entry",
+        severity=RegisterEntrySeverity.LOW,
+    )
+    beta = register_service.create_entry(
+        project.id,
+        entry_type=RegisterEntryType.ISSUE,
+        title="Beta Register Entry",
+        severity=RegisterEntrySeverity.MEDIUM,
+    )
+    gamma = register_service.create_entry(
+        project.id,
+        entry_type=RegisterEntryType.CHANGE,
+        title="Gamma Register Entry",
+        severity=RegisterEntrySeverity.HIGH,
+    )
+
+    ascending_first = register_service.query_catalog_page(
+        project_id=project.id,
+        sort_key="title",
+        sort_direction="asc",
+        page=1,
+        page_size=2,
+    )
+    ascending_second = register_service.query_catalog_page(
+        project_id=project.id,
+        sort_key="title",
+        sort_direction="asc",
+        page=2,
+        page_size=2,
+    )
+    first = register_service.query_catalog_page(
+        project_id=project.id,
+        sort_key="title",
+        sort_direction="desc",
+        page=1,
+        page_size=2,
+    )
+    second = register_service.query_catalog_page(
+        project_id=project.id,
+        sort_key="title",
+        sort_direction="desc",
+        page=2,
+        page_size=2,
+    )
+    unsupported = register_service.query_catalog_page(
+        project_id=project.id,
+        sort_key="unsafe_sql",
+        sort_direction="desc",
+        page=1,
+        page_size=3,
+    )
+    beyond_last = register_service.query_catalog_page(
+        project_id=project.id,
+        sort_key="title",
+        sort_direction="asc",
+        page=99,
+        page_size=2,
+    )
+
+    assert [row.entry.id for row in ascending_first.items] == [alpha.id, beta.id]
+    assert [row.entry.id for row in ascending_second.items] == [gamma.id]
+    assert [row.entry.id for row in first.items] == [gamma.id, beta.id]
+    assert [row.entry.id for row in second.items] == [alpha.id]
+    assert first.sort.direction.value == "desc"
+    assert unsupported.sort.key == "triage"
+    assert unsupported.sort.direction.value == "asc"
+    assert beyond_last.page == 2
+    assert [row.entry.id for row in beyond_last.items] == [gamma.id]
+
+
 def test_timesheet_review_queue_aggregates_and_pages_in_database(services) -> None:
     project = services["project_service"].create_project("Timesheet Database Paging")
     task = services["task_service"].create_task(
@@ -253,6 +466,82 @@ def test_timesheet_review_queue_aggregates_and_pages_in_database(services) -> No
     assert page.items[0].entry_count == 1
     assert page.items[0].total_hours == 7.5
     assert page.items[0].project_ids == (project.id,)
+
+
+def test_timesheet_review_query_filters_and_sorts_across_pages(services) -> None:
+    project_service = services["project_service"]
+    task_service = services["task_service"]
+    resource_service = services["resource_service"]
+    timesheets = services["timesheet_service"]
+    alpha_project = project_service.create_project("Alpha Review Project")
+    beta_project = project_service.create_project("Beta Review Project")
+
+    created = []
+    for name, project, month in (
+        ("Aaron Reviewer", alpha_project, 6),
+        ("Maya Reviewer", alpha_project, 7),
+        ("Zoe Reviewer", beta_project, 8),
+    ):
+        task = task_service.create_task(project.id, f"{name} Task")
+        resource = resource_service.create_resource(name=name, role="Engineer")
+        assignment = task_service.assign_resource(task.id, resource.id)
+        period_start = date(2026, month, 1)
+        timesheets.add_time_entry(
+            assignment.id,
+            entry_date=date(2026, month, 2),
+            hours=8,
+            note=f"{name} database review",
+        )
+        period = timesheets.submit_timesheet_period(
+            resource.id,
+            period_start=period_start,
+        )
+        created.append((resource, period))
+
+    ascending_first = timesheets.query_review_queue_page(
+        sort_key="title", sort_direction="asc", page=1, page_size=2
+    )
+    ascending_second = timesheets.query_review_queue_page(
+        sort_key="title", sort_direction="asc", page=2, page_size=2
+    )
+    first = timesheets.query_review_queue_page(
+        sort_key="title", sort_direction="desc", page=1, page_size=2
+    )
+    second = timesheets.query_review_queue_page(
+        sort_key="title", sort_direction="desc", page=2, page_size=2
+    )
+    project_page = timesheets.query_review_queue_page(project_id=alpha_project.id)
+    resource_page = timesheets.query_review_queue_page(resource_id=created[1][0].id)
+    date_page = timesheets.query_review_queue_page(
+        period_start_from=date(2026, 7, 1),
+        period_start_to=date(2026, 7, 31),
+    )
+    search_page = timesheets.query_review_queue_page(search_text="Zoe Reviewer")
+    unsupported = timesheets.query_review_queue_page(
+        sort_key="unsafe_sql", sort_direction="asc"
+    )
+    beyond_last = timesheets.query_review_queue_page(
+        sort_key="title", sort_direction="asc", page=99, page_size=2
+    )
+
+    assert [row.resource_name for row in ascending_first.items] == [
+        "Aaron Reviewer",
+        "Maya Reviewer",
+    ]
+    assert [row.resource_name for row in ascending_second.items] == ["Zoe Reviewer"]
+    assert [row.resource_name for row in first.items] == ["Zoe Reviewer", "Maya Reviewer"]
+    assert [row.resource_name for row in second.items] == ["Aaron Reviewer"]
+    assert {row.resource_name for row in project_page.items} == {
+        "Aaron Reviewer",
+        "Maya Reviewer",
+    }
+    assert [row.resource_name for row in resource_page.items] == ["Maya Reviewer"]
+    assert [row.resource_name for row in date_page.items] == ["Maya Reviewer"]
+    assert [row.resource_name for row in search_page.items] == ["Zoe Reviewer"]
+    assert unsupported.sort.key == "submittedAt"
+    assert unsupported.sort.direction.value == "desc"
+    assert beyond_last.page == 2
+    assert [row.resource_name for row in beyond_last.items] == ["Zoe Reviewer"]
 
 
 def test_workspace_page_query_budgets_are_constant(services) -> None:

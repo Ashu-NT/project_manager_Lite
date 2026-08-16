@@ -206,6 +206,15 @@ def test_project_management_workspace_catalog_exposes_typed_scheduling_controlle
     assert controller.criticalPath["items"][0]["title"] == "Cable Pull"
     assert controller.baselines["rows"][0]["title"] == "Cable Pull"
 
+    controller.setActivitySort("taskName", 1)
+
+    assert controller.activitySortKey == "taskName"
+    assert controller.activitySortDirection == 1
+    assert [item["title"] for item in controller.schedule["items"]] == [
+        "Punchlist Closeout",
+        "Cable Pull",
+    ]
+
     controller.selectProject("proj-2")
 
     assert controller.selectedProjectId == "proj-2"

@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.platform.contract.data_operations.runtime_tracking.contracts import RuntimeExecutionRepository
+from src.core.platform.contract.repositories.data_operations.runtime_tracking.contracts import RuntimeExecutionRepository
 from src.core.platform.domain.data_operations.runtime_tracking import RuntimeExecution
 from src.core.platform.infrastructure.persistence.orm.data_operations.runtime_tracking.runtime_tracking import (
     RuntimeExecutionORM,

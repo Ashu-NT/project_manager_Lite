@@ -90,9 +90,20 @@ def _build_portfolio_status_chart(*, dashboard_data: Any) -> ProjectDashboardCha
 
 
 def _build_portfolio_cost_chart(*, dashboard_data: Any) -> ProjectDashboardChartDescriptor:
-    rankings = tuple(getattr(getattr(dashboard_data, "portfolio", None), "project_rankings", []) or [])
+    rankings = sorted(
+        tuple(
+            getattr(
+                getattr(dashboard_data, "portfolio", None),
+                "project_rankings",
+                [],
+            )
+            or []
+        ),
+        key=lambda row: abs(row.cost_variance or 0),
+        reverse=True,
+    )
     return ProjectDashboardChartDescriptor(
-        title="Cost Pressure", subtitle="Projects with the highest variance pressure.", chart_type="bar",
+        title="Cost Pressure", subtitle="Top 8 projects with the highest variance pressure.", chart_type="bar",
         empty_state="No project cost-pressure rows are available yet.",
         points=tuple(_PT(label=r.project_name, value=float(abs(r.cost_variance or 0.0)), value_label=fmt_float(r.cost_variance, 0), supporting_text=f"Late {fmt_int(r.late_tasks)} | Critical {fmt_int(r.critical_tasks)}", tone="danger" if float(r.cost_variance or 0.0) > 0.0 else "accent") for r in rankings[:8]),
     )
@@ -130,7 +141,7 @@ def _build_cost_trend_chart(
     sources = getattr(dashboard_data, "cost_sources", None)
     source_rows = tuple(getattr(sources, "rows", []) or []) if sources is not None else ()
     return ProjectDashboardChartDescriptor(
-        title="Cost Trend", subtitle="Actual cost against planned budget lines.", chart_type="bar",
+        title="Cost Trend", subtitle="Top 8 budget lines by source order; actual cost against plan.", chart_type="bar",
         empty_state="No cost-trend data is available yet for this project.",
         points=tuple(_PT(label=r.source_label, value=float(r.actual or 0.0), value_label=fmt_float(r.actual, 0), supporting_text=f"Planned {fmt_float(r.planned, 0)}", target_value=float(r.planned or 0.0), tone="danger" if float(r.actual or 0.0) > float(r.planned or 0.0) else "accent") for r in source_rows[:8]),
     )
@@ -151,7 +162,7 @@ def _build_burndown_fallback_chart(dashboard_data: Any) -> ProjectDashboardChart
 def _build_resource_chart(*, dashboard_data: Any, portfolio_mode: bool) -> ProjectDashboardChartDescriptor:
     rows = tuple(getattr(dashboard_data, "resource_load", []) or [])
     title = "Cross-project Resource Load" if portfolio_mode else "Resource Load"
-    subtitle = "Peak utilization pressure across assigned resources."
+    subtitle = "Up to 8 resources with peak utilization context."
     if not rows:
         return ProjectDashboardChartDescriptor(title=title, subtitle=subtitle, chart_type="bar", empty_state="No resource-load data is available yet.")
 

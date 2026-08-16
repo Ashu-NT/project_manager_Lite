@@ -16,7 +16,7 @@ from src.core.modules.maintenance.contracts.repositories import (
 )
 from src.core.modules.maintenance import MaintenanceDowntimeEventService, MaintenanceFailureCodeService
 from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
-from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
 from .test_maintenance_foundation_asset import _TenantContext
 

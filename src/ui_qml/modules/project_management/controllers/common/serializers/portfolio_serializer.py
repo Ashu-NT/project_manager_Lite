@@ -3,6 +3,7 @@ from __future__ import annotations
 from src.ui_qml.modules.project_management.view_models.portfolio import (
     PortfolioCollectionViewModel,
     PortfolioOverviewViewModel,
+    PortfolioPagedCollectionViewModel,
     PortfolioRecordViewModel,
     PortfolioSummaryViewModel,
 )
@@ -48,12 +49,24 @@ def serialize_portfolio_record_view_models(
 def serialize_portfolio_collection_view_model(
     view_model: PortfolioCollectionViewModel,
 ) -> dict[str, object]:
-    return {
+    payload = {
         "title": view_model.title,
         "subtitle": view_model.subtitle,
         "emptyState": view_model.empty_state,
         "items": serialize_portfolio_record_view_models(view_model.items),
     }
+    if isinstance(view_model, PortfolioPagedCollectionViewModel):
+        payload.update(
+            {
+                "total": view_model.total,
+                "page": view_model.page,
+                "pageSize": view_model.page_size,
+                "sortKey": view_model.sort_key,
+                "sortDirection": view_model.sort_direction,
+                "searchText": view_model.search_text,
+            }
+        )
+    return payload
 
 
 def serialize_portfolio_summary_view_model(

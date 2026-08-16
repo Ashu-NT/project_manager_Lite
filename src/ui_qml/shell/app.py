@@ -9,6 +9,7 @@ from PySide6.QtCore import QEventLoop
 from PySide6.QtGui import QFont, QGuiApplication, QIcon
 
 from src.application.runtime import build_desktop_api_registry
+from src.core.platform.application.security.authorization import get_authorization_engine
 from src.infra.platform.env_loader import load_env_file
 from src.infra.composition.app_container import build_service_dict
 from src.infra.persistence.db.engine import get_db_url
@@ -127,7 +128,8 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
         app,
         settings_store=settings_store,
     )
-    logger.info("Runtime environment configured theme=%s", startup_theme)
+    startup_density = settings_store.load_density_mode()
+    logger.info("Runtime environment configured theme=%s density=%s", startup_theme, startup_density)
     services: dict[str, object] | None = None
     if desktop_api_registry is None:
         services = build_services()
@@ -161,6 +163,7 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
         update_shell_runtime_state(
             shell_context,
             theme_mode=startup_theme,
+            density_mode=startup_density,
             user_display_name=principal.display_name or principal.username if principal else "",
         )
         logger.info(
@@ -169,7 +172,7 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
             principal is not None,
         )
     else:
-        update_shell_runtime_state(shell_context, theme_mode=startup_theme)
+        update_shell_runtime_state(shell_context, theme_mode=startup_theme, density_mode=startup_density)
     logger.debug("Creating workspace catalogs.")
     if hasattr(app, "setProperty"):
         app.setProperty(
@@ -184,6 +187,12 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
     logger.debug("Platform workspace catalog created.")
     pm_workspace_catalog = ProjectManagementWorkspaceCatalog(
         desktop_api_registry=desktop_api_registry,
+        auth_engine=get_authorization_engine() if services is not None else None,
+        user_session_provider=(
+            (lambda: services["user_session"])
+            if services is not None
+            else None
+        ),
     )
     logger.debug("Project Management workspace catalog created.")
     inventory_workspace_catalog = InventoryProcurementWorkspaceCatalog(
@@ -194,6 +203,12 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
         desktop_api_registry=desktop_api_registry,
     )
     logger.debug("Maintenance workspace catalog created.")
+    platform_workspace_catalog.tenantSwitcher.tenantSwitched.connect(
+        pm_workspace_catalog.refreshCapabilities
+    )
+    platform_workspace_catalog.adminWorkspace.organizationsChanged.connect(
+        pm_workspace_catalog.refreshCapabilities
+    )
     runtime_session_controller = None
     if services is not None:
         try:

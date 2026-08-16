@@ -6,6 +6,7 @@ from src.core.platform.api.desktop.models.common import DesktopApiResult
 from src.core.platform.api.desktop.master_data.party.models.party import (
     PartyCreateCommand,
     PartyDto,
+    PartyRollupSummaryDto,
     PartyUpdateCommand,
 )
 from src.core.platform.application.master_data.party.party_service import PartyService
@@ -32,6 +33,13 @@ class PlatformPartyDesktopApi:
             lambda: tuple(
                 self._serialize_party(party)
                 for party in self._party_service.list_parties(active_only=active_only)
+            )
+        )
+
+    def get_party_rollup_summary(self) -> DesktopApiResult[PartyRollupSummaryDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_rollup_summary(
+                self._party_service.get_party_rollup_summary()
             )
         )
 
@@ -86,6 +94,10 @@ class PlatformPartyDesktopApi:
                 )
             )
         )
+
+    @staticmethod
+    def _serialize_rollup_summary(summary) -> PartyRollupSummaryDto:
+        return PartyRollupSummaryDto(total=summary.total, active=summary.active)
 
     @staticmethod
     def _serialize_party(party: Party) -> PartyDto:

@@ -24,13 +24,19 @@ class CollaborationPresenceQueryMixin:
             limit=50,
         )
 
-    def list_active_presence(self, *, limit: int = 200) -> list[TaskPresenceStatusItem]:
+    def list_active_presence(self) -> list[TaskPresenceStatusItem]:
         require_permission(self._user_session, "collaboration.read", operation_label="view active task presence")
-        facts, _project_names = self._read_cross_project_collaboration_facts(
-            comment_limit=0,
-            presence_limit=limit,
+        scope, project_names = self._collaboration_scope(
+            operation_label="view active task presence"
         )
-        return self._presence_items_from_facts(facts.active_presence)
+        rows = self._workspace_reader.read_active_presence(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            accessible_project_ids=tuple(project_names),
+            active_since=datetime.now(timezone.utc)
+            - timedelta(seconds=self._presence_ttl_seconds),
+        )
+        return self._presence_items_from_facts(rows)
 
     def _presence_items_from_facts(self, rows) -> list[TaskPresenceStatusItem]:
         principal = self._user_session.principal if self._user_session is not None else None

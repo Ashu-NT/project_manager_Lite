@@ -1,4 +1,3 @@
 module workspaces.dashboard.panels
 DashboardOperationalPanel 1.0 DashboardOperationalPanel.qml
 DashboardInsightPanel 1.0 DashboardInsightPanel.qml
-DashboardTablePanel 1.0 DashboardTablePanel.qml

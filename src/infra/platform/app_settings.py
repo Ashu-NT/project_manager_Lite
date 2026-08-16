@@ -15,13 +15,13 @@ class AppSettingsStore:
     _UNSCOPED_TENANT_SEGMENT = "__no_organization__"
 
     _KEY_THEME_MODE = "ui/theme_mode"
+    _KEY_DENSITY_MODE = "ui/density_mode"
     _KEY_TAB_INDEX = "ui/current_tab_index"
     _KEY_GEOMETRY = "ui/platform/shell/main_window_geometry"
     _KEY_GOVERNANCE_MODE = "governance/mode"
     _KEY_UPDATE_CHANNEL = "updates/channel"
     _KEY_UPDATE_AUTO_CHECK = "updates/auto_check"
     _KEY_UPDATE_MANIFEST_URL = "updates/manifest_url"
-    _KEY_TASK_SAVED_VIEWS = "task/saved_views"
     _KEY_DASHBOARD_LAYOUT = "dashboard/layout"
     _KEY_TABLE_COLUMN_STATE = "ui/table_column_state"
 
@@ -45,6 +45,20 @@ class AppSettingsStore:
     def save_theme_mode(self, mode: str) -> None:
         normalized = (mode or "light").strip().lower()
         self._settings.setValue(self._KEY_THEME_MODE, "dark" if normalized == "dark" else "light")
+        self._settings.sync()
+
+    def load_density_mode(self, default_mode: str = "compact") -> str:
+        default = (default_mode or "compact").strip().lower()
+        if default not in {"compact", "comfortable", "spacious"}:
+            default = "compact"
+        raw = str(self._settings.value(self._KEY_DENSITY_MODE, default)).strip().lower()
+        return raw if raw in {"compact", "comfortable", "spacious"} else default
+
+    def save_density_mode(self, mode: str) -> None:
+        normalized = (mode or "compact").strip().lower()
+        if normalized not in {"compact", "comfortable", "spacious"}:
+            normalized = "compact"
+        self._settings.setValue(self._KEY_DENSITY_MODE, normalized)
         self._settings.sync()
 
     def load_governance_mode(self, default_mode: str = "off") -> str:
@@ -119,36 +133,6 @@ class AppSettingsStore:
         if geometry is not None and not geometry.isEmpty():
             self._settings.setValue(self._KEY_GEOMETRY, geometry)
             self._settings.sync()
-
-    def load_task_saved_views(self, *, organization_id: str | None = None) -> dict[str, dict[str, object]]:
-        raw = self._settings.value(self._tenant_key(self._KEY_TASK_SAVED_VIEWS, organization_id), "{}")
-        try:
-            payload = json.loads(str(raw or "{}"))
-        except (TypeError, ValueError, json.JSONDecodeError):
-            return {}
-        if not isinstance(payload, dict):
-            return {}
-        normalized: dict[str, dict[str, object]] = {}
-        for key, value in payload.items():
-            if isinstance(key, str) and isinstance(value, dict):
-                normalized[key] = dict(value)
-        return normalized
-
-    def save_task_saved_views(
-        self,
-        views: dict[str, dict[str, object]],
-        *,
-        organization_id: str | None = None,
-    ) -> None:
-        payload = {}
-        for key, value in (views or {}).items():
-            if isinstance(key, str) and isinstance(value, dict):
-                payload[key] = value
-        self._settings.setValue(
-            self._tenant_key(self._KEY_TASK_SAVED_VIEWS, organization_id),
-            json.dumps(payload, sort_keys=True),
-        )
-        self._settings.sync()
 
     def load_dashboard_layout(self, *, organization_id: str | None = None) -> dict[str, object]:
         raw = self._settings.value(self._tenant_key(self._KEY_DASHBOARD_LAYOUT, organization_id), "{}")

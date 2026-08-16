@@ -10,19 +10,19 @@ from src.ui_qml.shell.qml_engine import create_qml_engine, load_qml
 
 
 PROJECT_EDITOR_DIALOG = Path(
-    "src/ui_qml/modules/project_management/qml/ProjectManagement/Dialogs/ProjectEditorDialog.qml"
+    "src/ui_qml/modules/project_management/qml/workspaces/projects/dialogs/ProjectEditorDialog.qml"
 )
 PROJECT_STATUS_DIALOG = Path(
-    "src/ui_qml/modules/project_management/qml/ProjectManagement/Dialogs/ProjectStatusDialog.qml"
+    "src/ui_qml/modules/project_management/qml/workspaces/projects/dialogs/ProjectStatusDialog.qml"
 )
 TASK_EDITOR_DIALOG = Path(
-    "src/ui_qml/modules/project_management/qml/ProjectManagement/Dialogs/TaskEditorDialog.qml"
+    "src/ui_qml/modules/project_management/qml/workspaces/tasks/dialogs/TaskEditorDialog.qml"
 )
 TASK_PROGRESS_DIALOG = Path(
-    "src/ui_qml/modules/project_management/qml/ProjectManagement/Dialogs/TaskProgressDialog.qml"
+    "src/ui_qml/modules/project_management/qml/workspaces/tasks/dialogs/TaskProgressDialog.qml"
 )
 TASK_ASSIGNMENT_EDITOR_DIALOG = Path(
-    "src/ui_qml/modules/project_management/qml/ProjectManagement/Dialogs/TaskAssignmentEditorDialog.qml"
+    "src/ui_qml/modules/project_management/qml/workspaces/tasks/dialogs/TaskAssignmentEditorDialog.qml"
 )
 TASKS_DIALOG_HOST = Path(
     "src/ui_qml/modules/project_management/qml/workspaces/tasks/TasksDialogHost.qml"

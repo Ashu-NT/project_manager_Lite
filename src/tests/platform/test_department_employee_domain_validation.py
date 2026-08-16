@@ -31,6 +31,11 @@ class _FakeTenantContext:
         return self._organization.id
 
 
+class _FakeEnterpriseAuditService:
+    def record(self, **kwargs) -> None:
+        return None
+
+
 class _FakeDepartmentRepo:
     def __init__(self) -> None:
         self._rows: dict[str, Department] = {}
@@ -208,6 +213,7 @@ def test_department_service_uses_entity_validation(monkeypatch):
         site_repo=site_repo,
         employee_repo=_FakeEmployeeRepo(),
         user_session=object(),
+        enterprise_audit_service=_FakeEnterpriseAuditService(),
         tenant_context_service=_FakeTenantContext(organization),
     )
 
@@ -346,6 +352,7 @@ def test_employee_service_uses_entity_validation_and_final_state(monkeypatch):
         organization_repo=object(),
         tenant_context_service=_FakeTenantContext(organization),
         user_session=object(),
+        enterprise_audit_service=_FakeEnterpriseAuditService(),
     )
 
     created = service.create_employee(

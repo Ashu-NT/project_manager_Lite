@@ -12,24 +12,29 @@ from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.contracts.financial_sources import (
+from src.core.modules.project_management.contracts.financial_sources.procurement import (
+    ProcurementCommitmentFinancialSource,
+)
+from src.core.modules.project_management.contracts.financial_sources.reference import (
     FinancialPostingPurpose,
     FinancialSourceModule,
     FinancialSourceType,
-    ProcurementCommitmentFinancialSource,
 )
-from src.core.modules.project_management.contracts.repositories.commitment import (
+from src.core.modules.project_management.contracts.repositories.finance.commitments.commitment import (
     ProjectCommitmentRepository,
 )
-from src.core.modules.project_management.contracts.repositories.cost_entry import (
+from src.core.modules.project_management.contracts.reads.financials.sorting import (
+    normalize_commitment_sort,
+)
+from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import (
     ProjectCostEntryRepository,
 )
-from src.core.modules.project_management.contracts.repositories.financial_configuration import (
+from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectCostCodeRepository,
     ProjectFinancialProfileRepository,
 )
-from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
 from src.core.modules.project_management.domain.financials.commitment import (
     ProjectCommitment,
     ProjectCommitmentLine,
@@ -52,8 +57,8 @@ from src.core.platform.application.security.authorization.enforcement.permission
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-from src.core.platform.contract.master_data.party.contracts import PartyRepository
-from src.core.platform.contract.master_data.site.contracts import SiteRepository
+from src.core.platform.contract.repositories.master_data.party.contracts import PartyRepository
+from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
 from src.core.platform.finance import (
     EXCHANGE_RATE_STORAGE,
     DecimalQuantity,
@@ -120,14 +125,26 @@ class ProjectCommitmentService(ProjectManagementModuleGuardMixin):
         return line
 
     def list_for_project(
-        self, project_id: str, *, offset: int = 0, limit: int = 50
+        self,
+        project_id: str,
+        *,
+        offset: int = 0,
+        limit: int = 50,
+        sort_key: str = "metaText",
+        sort_direction: str = "desc",
     ) -> tuple[list[ProjectCommitmentLine], int]:
         require_permission(self._user_session, "finance.read", operation_label="list commitments")
         require_project_permission(
             self._user_session, project_id, "finance.read", operation_label="list commitments"
         )
         return self._commitment_repo.list_lines_for_project(
-            project_id, offset=offset, limit=limit
+            project_id,
+            offset=offset,
+            limit=limit,
+            sort=normalize_commitment_sort(
+                key=sort_key,
+                direction=sort_direction,
+            ),
         )
 
     def ingest_procurement_source(

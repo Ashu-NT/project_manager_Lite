@@ -210,16 +210,52 @@ class _FakeTimesheetService:
         self,
         *,
         status=TimesheetPeriodStatus.SUBMITTED,
+        search_text="",
+        project_id=None,
+        resource_id=None,
+        period_start_from=None,
+        period_start_to=None,
         page=1,
         page_size=25,
+        sort_key="submittedAt",
+        sort_direction="desc",
     ) -> SimpleNamespace:
         rows = self.list_timesheet_review_queue(status=status, limit=10000)
+        rows = [
+            row
+            for row in rows
+            if (project_id is None or project_id in row.project_ids)
+            and (resource_id is None or resource_id == row.resource_id)
+            and (period_start_from is None or row.period_start >= period_start_from)
+            and (period_start_to is None or row.period_start <= period_start_to)
+            and (
+                not search_text
+                or search_text.casefold() in row.resource_name.casefold()
+                or search_text.casefold()
+                in (row.submitted_by_username or "").casefold()
+            )
+        ]
+        reverse = sort_direction == "desc"
+        if sort_key == "title":
+            rows.sort(
+                key=lambda row: (row.resource_name.casefold(), row.period_id),
+                reverse=reverse,
+            )
+        else:
+            rows.sort(
+                key=lambda row: (row.submitted_at or row.period_start, row.period_id),
+                reverse=reverse,
+            )
         offset = (page - 1) * page_size
         return SimpleNamespace(
             items=tuple(rows[offset:offset + page_size]),
             total=len(rows),
             page=page,
             page_size=page_size,
+            sort=SimpleNamespace(
+                key=sort_key,
+                direction=SimpleNamespace(value=sort_direction),
+            ),
         )
 
     def get_timesheet_review_detail(self, period_id: str) -> SimpleNamespace:

@@ -90,7 +90,7 @@ AppControls.CenteredDialog {
     modal: true
     focus: true
     closePolicy: Popup.CloseOnEscape
-    width:  Theme.AppTheme.dialogFormWidth   // 640 — dialogs may override
+    width:  Theme.AppTheme.dialogWidthStandard   // 560 — dialogs may override
 
     // Largest height the dialog may occupy: window height minus top+bottom margin.
     readonly property real maxDialogHeight:

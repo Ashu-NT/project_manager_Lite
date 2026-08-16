@@ -1,0 +1,2 @@
+module control.dialogs
+ApprovalDecisionDialog 1.0 ApprovalDecisionDialog.qml

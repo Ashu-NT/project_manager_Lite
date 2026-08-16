@@ -172,7 +172,7 @@ def test_measure_single_project_dashboard_and_portfolio_workspaces(
         (registers, "get_dashboard_snapshot", "register.get_dashboard_snapshot"),
         (baselines, "list_baselines", "baseline.list_baselines"),
         (baselines, "get_approved_baseline", "baseline.get_approved"),
-        (collaboration, "list_workspace_snapshot", "collaboration.workspace_snapshot"),
+        (collaboration, "list_recent_activity", "collaboration.recent_activity"),
         (approvals, "list_pending", "approval.list_pending"),
         (calendar_resolver, "resolve_range", "calendar.resolve_range"),
         (
@@ -241,3 +241,53 @@ def test_measure_single_project_dashboard_and_portfolio_workspaces(
     assert portfolio_calls["portfolio.list_heatmap"] == 1
     assert dashboard_sql.total_statements > 0
     assert portfolio_sql.total_statements > 0
+
+
+def test_dashboard_portfolio_scope_batches_shared_lookups_once_per_project(
+    services,
+) -> None:
+    """R3.7: get_portfolio_data() must not re-fetch the full resource table or
+    re-run CPM/per-task assignment lookups once per project on top of what
+    get_project_kpis()/_build_upcoming_tasks() already need."""
+    today = date.today()
+    project_count = 4
+    projects = []
+    for index in range(project_count):
+        project = services["project_service"].create_project(
+            f"Portfolio Scale Project {index}",
+            start_date=today,
+            end_date=today + timedelta(days=30),
+            financial_currency_code="EUR",
+        )
+        services["task_service"].create_task(
+            project.id,
+            f"Portfolio Scale Task {index}",
+            start_date=today,
+            duration_days=5,
+        )
+        projects.append(project)
+
+    dashboard = services["dashboard_service"]
+    resources = services["resource_service"]
+    tasks = services["task_service"]
+    scheduling_targets = [
+        (dashboard._sched, "recalculate_project_schedule", "sched.recalculate"),
+        (resources, "list_resources", "resources.list_resources"),
+        (tasks, "list_tasks_for_project", "tasks.list_for_project"),
+        (tasks, "list_assignments_for_tasks", "tasks.list_assignments_for_tasks"),
+        (tasks, "list_assignments_for_task", "tasks.list_assignments_for_task"),
+    ]
+
+    with count_calls(scheduling_targets) as calls:
+        data = dashboard.get_portfolio_data()
+
+    assert data.portfolio.projects_total == project_count
+    # Resources are fetched once for the whole portfolio, not once per project.
+    assert calls["resources.list_resources"] == 1
+    # CPM runs once per project (computed by get_portfolio_data and reused by
+    # get_project_kpis via its schedule= override), not twice per project.
+    assert calls["sched.recalculate"] == project_count
+    # Assignments are fetched in one bulk call per project; the per-task
+    # fallback (list_assignments_for_task) must never fire.
+    assert calls["tasks.list_assignments_for_tasks"] == project_count
+    assert calls["tasks.list_assignments_for_task"] == 0

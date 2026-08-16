@@ -11,14 +11,10 @@ from src.core.modules.project_management.access.scope_permissions import require
 from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
 from src.core.modules.project_management.application.financials.rate_cards.rate_card_resolver import RateCardResolver
-from src.core.modules.project_management.contracts.accounting_billing import (
-    BillingPreparationLinePayload,
-    ProjectBillingPreparationPayload,
-)
-from src.core.modules.project_management.contracts.repositories.billing import ProjectBillingRepository
-from src.core.modules.project_management.contracts.repositories.cost_entry import ProjectCostEntryRepository
-from src.core.modules.project_management.contracts.repositories.financial_configuration import ProjectFinancialProfileRepository
-from src.core.modules.project_management.contracts.repositories.labor_posting import ApprovedTimeLaborPostingRepository
+from src.core.modules.project_management.contracts.repositories.finance.invoicing.billing import ProjectBillingRepository
+from src.core.modules.project_management.contracts.repositories.finance.cost_entries.cost_entry import ProjectCostEntryRepository
+from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import ProjectFinancialProfileRepository
+from src.core.modules.project_management.contracts.repositories.finance.cost_entries.labor_posting import ApprovedTimeLaborPostingRepository
 from src.core.modules.project_management.domain.financials.billing_preparation import (
     BillableSourceType,
     BillingExternalEventType,
@@ -35,6 +31,10 @@ from src.core.modules.project_management.domain.financials.billing_profile impor
 from src.core.modules.project_management.domain.financials.configuration import BillingMethod
 from src.core.modules.project_management.domain.financials.cost_entry import ProjectCostEntryStatus
 from src.core.modules.project_management.domain.financials.rate_cards import RateType
+from src.core.modules.project_management.gateway.billing.accounting_billing import (
+    BillingPreparationLinePayload,
+    ProjectBillingPreparationPayload,
+)
 from src.core.platform.application.approval.approval_service import ApprovalService
 from src.core.platform.application.finance.financial_period_service import FinancialPeriodService
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission

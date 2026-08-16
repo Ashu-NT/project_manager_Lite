@@ -128,7 +128,7 @@ class DashboardSnapshotService:
             pending_approvals = self._list_pending_approvals(project_id=None)
             operational_tables = build_operational_tables(dashboard_data=dashboard_data, pending_approvals=pending_approvals, selected_period_key=selected_period_key, portfolio_mode=True)
             return ProjectDashboardSnapshotDescriptor(
-                overview=build_contextual_overview(project_name="Portfolio Overview", dashboard_data=dashboard_data, pending_approval_count=len(pending_approvals), selected_view_key=selected_view_key, portfolio_mode=True),
+                overview=build_contextual_overview(project_name="Portfolio Overview", dashboard_data=dashboard_data, selected_view_key=selected_view_key, portfolio_mode=True),
                 **_selectors,
                 health_cards=build_health_cards(dashboard_data=dashboard_data, pending_approvals=pending_approvals, portfolio_mode=True, project_id=None, baseline_service=self._baseline_service),
                 operational_tabs=build_operational_tabs(operational_tables),
@@ -154,7 +154,7 @@ class DashboardSnapshotService:
         pending_approvals = self._list_pending_approvals(project_id=selected_project_id)
         operational_tables = build_operational_tables(dashboard_data=dashboard_data, pending_approvals=pending_approvals, selected_period_key=selected_period_key, portfolio_mode=False)
         return ProjectDashboardSnapshotDescriptor(
-            overview=build_contextual_overview(project_name=project_label, dashboard_data=dashboard_data, pending_approval_count=len(pending_approvals), selected_view_key=selected_view_key, portfolio_mode=False),
+            overview=build_contextual_overview(project_name=project_label, dashboard_data=dashboard_data, selected_view_key=selected_view_key, portfolio_mode=False),
             **_selectors,
             health_cards=build_health_cards(dashboard_data=dashboard_data, pending_approvals=pending_approvals, portfolio_mode=False, project_id=selected_project_id, baseline_service=self._baseline_service),
             operational_tabs=build_operational_tabs(operational_tables),

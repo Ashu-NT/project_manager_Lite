@@ -42,6 +42,7 @@ from .record_mappers import (
     to_timeline_record,
 )
 from .schedule_filter import matches_schedule_filters
+from .schedule_sort import normalize_schedule_sort, sort_schedule_items
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,8 @@ def build_workspace_state(
     show_delayed_only: bool = False,
     page: int = 1,
     page_size: int = 25,
+    sort_key: str = "schedule",
+    sort_direction: str = "asc",
     selected_activity_id: str | None = None,
     include_unchanged: bool = False,
     activity_log: tuple[dict[str, str], ...] = (),
@@ -141,6 +144,8 @@ def build_workspace_state(
             show_delayed_only=show_delayed_only,
         )
     )
+    schedule_sort = normalize_schedule_sort(key=sort_key, direction=sort_direction)
+    ordered_schedule = sort_schedule_items(filtered_schedule, sort=schedule_sort)
     total_count = len(filtered_schedule)
     resolved_page_size = max(10, int(page_size or 25))
     resolved_page = max(1, int(page or 1))
@@ -149,7 +154,7 @@ def build_workspace_state(
         resolved_page = total_pages
     page_start = (resolved_page - 1) * resolved_page_size
     page_end = page_start + resolved_page_size
-    paged_schedule = filtered_schedule[page_start:page_end]
+    paged_schedule = ordered_schedule[page_start:page_end]
 
     resolved_selected_activity_id = resolve_selected_activity_id(
         selected_activity_id,
@@ -276,6 +281,8 @@ def build_workspace_state(
         page=resolved_page,
         page_size=resolved_page_size,
         total_count=total_count,
+        sort_key=schedule_sort.key,
+        sort_direction=schedule_sort.direction.value,
         selected_activity_id=resolved_selected_activity_id,
         calendar=build_calendar_view_model(calendar_snapshot),
         baselines=SchedulingBaselineCompareViewModel(

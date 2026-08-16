@@ -12,6 +12,7 @@ from src.ui_qml.platform.presenters import (
 )
 
 from ..common import (
+    WORKSPACE_PERMISSIONS,
     PlatformWorkspaceControllerBase,
     serialize_action_item,
     serialize_action_list,
@@ -28,22 +29,99 @@ QML_IMPORT_MAJOR_VERSION = 1
 class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
     approvalQueueChanged = Signal()
     auditFeedChanged = Signal()
+    approvalStatusFilterChanged = Signal()
+    approvalEntityTypeFilterChanged = Signal()
+    auditEntityTypeFilterChanged = Signal()
+    auditOperationFilterChanged = Signal()
+    auditSeverityFilterChanged = Signal()
 
     def __init__(
         self,
         *,
         overview_presenter: PlatformControlWorkspacePresenter,
         queue_presenter: PlatformControlQueuePresenter,
+        runtime_api=None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self._overview_presenter = overview_presenter
         self._queue_presenter = queue_presenter
+        self._runtime_api = runtime_api
+        self._loaded = False
         self._approval_queue_table_model = DynamicTableModel(self)
         self._audit_feed_table_model = DynamicTableModel(self)
         self._approval_queue: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._audit_feed: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
+        self._approval_status_filter = ""
+        self._approval_entity_type_filter = ""
+        self._audit_entity_type_filter = ""
+        self._audit_operation_filter = ""
+        self._audit_severity_filter = ""
         self._bind_domain_events()
+
+    @Property(str, notify=approvalStatusFilterChanged)
+    def approvalStatusFilter(self) -> str:
+        return self._approval_status_filter
+
+    @Slot(str)
+    def setApprovalStatusFilter(self, value: str) -> None:
+        normalized = value or ""
+        if normalized == self._approval_status_filter:
+            return
+        self._approval_status_filter = normalized
+        self.approvalStatusFilterChanged.emit()
+        self.refresh()
+
+    @Property(str, notify=approvalEntityTypeFilterChanged)
+    def approvalEntityTypeFilter(self) -> str:
+        return self._approval_entity_type_filter
+
+    @Slot(str)
+    def setApprovalEntityTypeFilter(self, value: str) -> None:
+        normalized = value or ""
+        if normalized == self._approval_entity_type_filter:
+            return
+        self._approval_entity_type_filter = normalized
+        self.approvalEntityTypeFilterChanged.emit()
+        self.refresh()
+
+    @Property(str, notify=auditEntityTypeFilterChanged)
+    def auditEntityTypeFilter(self) -> str:
+        return self._audit_entity_type_filter
+
+    @Slot(str)
+    def setAuditEntityTypeFilter(self, value: str) -> None:
+        normalized = value or ""
+        if normalized == self._audit_entity_type_filter:
+            return
+        self._audit_entity_type_filter = normalized
+        self.auditEntityTypeFilterChanged.emit()
+        self.refresh()
+
+    @Property(str, notify=auditOperationFilterChanged)
+    def auditOperationFilter(self) -> str:
+        return self._audit_operation_filter
+
+    @Slot(str)
+    def setAuditOperationFilter(self, value: str) -> None:
+        normalized = value or ""
+        if normalized == self._audit_operation_filter:
+            return
+        self._audit_operation_filter = normalized
+        self.auditOperationFilterChanged.emit()
+        self.refresh()
+
+    @Property(str, notify=auditSeverityFilterChanged)
+    def auditSeverityFilter(self) -> str:
+        return self._audit_severity_filter
+
+    @Slot(str)
+    def setAuditSeverityFilter(self, value: str) -> None:
+        normalized = value or ""
+        if normalized == self._audit_severity_filter:
+            return
+        self._audit_severity_filter = normalized
+        self.auditSeverityFilterChanged.emit()
         self.refresh()
 
     @Property("QVariantMap", notify=approvalQueueChanged)
@@ -64,11 +142,19 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
 
     @Slot()
     def refresh(self) -> None:
+        self._loaded = True
         self._set_is_loading(True)
         self._set_error_message("")
         self._set_overview(serialize_workspace_overview(self._overview_presenter.build_overview()))
-        self._set_approval_queue(serialize_action_list(self._queue_presenter.build_approval_queue()))
-        self._set_audit_feed(serialize_action_list(self._queue_presenter.build_audit_feed()))
+        self._set_approval_queue(serialize_action_list(self._queue_presenter.build_approval_queue(
+            status=self._approval_status_filter or None,
+            entity_type=self._approval_entity_type_filter or None,
+        )))
+        self._set_audit_feed(serialize_action_list(self._queue_presenter.build_audit_feed(
+            entity_type=self._audit_entity_type_filter or None,
+            operation=self._audit_operation_filter or None,
+            severity=self._audit_severity_filter or None,
+        )))
         has_items = bool(self._approval_queue.get("items") or self._audit_feed.get("items"))
         self._set_empty_state("" if has_items else str(self._approval_queue.get("emptyState") or self._audit_feed.get("emptyState") or ""))
         self._set_is_loading(False)
@@ -98,6 +184,9 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
             operation=self._queue_presenter.reject_request,
             success_message="Approval request rejected.",
         )
+
+    def _is_accessible(self) -> bool:
+        return self._has_permission(WORKSPACE_PERMISSIONS["control"])
 
     def _bind_domain_events(self) -> None:
         for signal in (

@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import date, time
-from typing import Any
+from typing import Any, Callable
 
 from sqlalchemy.orm import Session
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.contract.time_management.calendar.contracts import ShiftPatternRepository
+from src.core.platform.contract.repositories.time_management.calendar.contracts import ShiftPatternRepository
 from src.core.platform.domain.time_management.calendar.enterprise_calendar import (
     ShiftPattern,
     ShiftPatternDay,
@@ -26,12 +26,17 @@ class ShiftPatternService:
         organization_repo: Any,
         user_session: Any = None,
         tenant_context_service: TenantContextService | None = None,
+        on_calendar_data_changed: Callable[[], None] | None = None,
     ) -> None:
         self._session = session
         self._pattern_repo = pattern_repo
         self._organization_repo = organization_repo
         self._user_session = user_session
         self._tenant_context_service = tenant_context_service
+        # Invalidates the (process-lifetime) EnterpriseCalendarResolver's
+        # shift-pattern caches — without this, a saved/deleted pattern or day
+        # stays invisible to every resolver-backed read until the app restarts.
+        self._on_calendar_data_changed = on_calendar_data_changed
 
     def _active_org_id(self) -> str:
         if self._tenant_context_service is None:
@@ -88,6 +93,7 @@ class ShiftPatternService:
             raise ValidationError(f"Shift pattern code '{pattern.code}' already exists.")
         self._pattern_repo.add(pattern)
         self._session.commit()
+        self._invalidate_resolver_cache()
         return pattern
 
     def update_shift_pattern(
@@ -124,6 +130,7 @@ class ShiftPatternService:
 
         self._pattern_repo.update(updated)
         self._session.commit()
+        self._invalidate_resolver_cache()
         return updated
 
     def delete_shift_pattern(self, pattern_id: str) -> None:
@@ -133,6 +140,7 @@ class ShiftPatternService:
         pattern = self._require_pattern_in_active_organization(pattern_id)
         self._pattern_repo.delete(pattern_id)
         self._session.commit()
+        self._invalidate_resolver_cache()
 
     def list_days(self, pattern_id: str) -> list[ShiftPatternDay]:
         require_permission(
@@ -170,6 +178,7 @@ class ShiftPatternService:
         )
         self._pattern_repo.save_day(day)
         self._session.commit()
+        self._invalidate_resolver_cache()
         return day
 
     def delete_day(self, day_id: str) -> None:
@@ -178,6 +187,11 @@ class ShiftPatternService:
         )
         self._pattern_repo.delete_day(day_id)
         self._session.commit()
+        self._invalidate_resolver_cache()
+
+    def _invalidate_resolver_cache(self) -> None:
+        if self._on_calendar_data_changed is not None:
+            self._on_calendar_data_changed()
 
     def _require_pattern_in_active_organization(self, pattern_id: str) -> ShiftPattern:
         org_id = self._active_org_id()

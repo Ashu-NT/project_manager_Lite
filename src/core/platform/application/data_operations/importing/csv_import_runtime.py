@@ -15,7 +15,7 @@ from src.core.platform.domain.data_operations.importing import (
     ImportSourceRow,
     ImportSummary,
 )
-from src.core.platform.contract.tenant.modules import SupportsModuleEntitlements
+from src.core.platform.contract.port.tenant.modules import SupportsModuleEntitlements
 from src.core.platform.application.data_operations.runtime_tracking.runtime_execution_service import (
     RuntimeExecutionService,
 )

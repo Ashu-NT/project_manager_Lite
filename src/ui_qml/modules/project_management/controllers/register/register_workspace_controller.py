@@ -31,6 +31,7 @@ from .register_selection_handler import (
     select_project,
     set_entry_page,
     set_entry_page_size,
+    set_entry_sort,
     set_search_text,
     set_severity_filter,
     set_status_filter,
@@ -49,7 +50,6 @@ from .register_mutation_handler import (
     generate_entity_code,
     update_entry,
 )
-from .register_export_handler import export_register
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -77,6 +77,8 @@ class ProjectManagementRegisterWorkspaceController(
     entryPageChanged = Signal()
     entryPageSizeChanged = Signal()
     entryTotalCountChanged = Signal()
+    entrySortKeyChanged = Signal()
+    entrySortDirectionChanged = Signal()
     selectedEntryIdsChanged = Signal()
     selectedEntryCountChanged = Signal()
 
@@ -112,6 +114,8 @@ class ProjectManagementRegisterWorkspaceController(
         self._entry_page = 1
         self._entry_page_size = 25
         self._entry_total_count = 0
+        self._entry_sort_key = "triage"
+        self._entry_sort_direction = 0
         self._selected_entry_ids: list[str] = []
 
         bind_register_domain_events(self)
@@ -195,6 +199,14 @@ class ProjectManagementRegisterWorkspaceController(
     def entryTotalCount(self) -> int:
         return self._entry_total_count
 
+    @Property(str, notify=entrySortKeyChanged)
+    def entrySortKey(self) -> str:
+        return self._entry_sort_key
+
+    @Property(int, notify=entrySortDirectionChanged)
+    def entrySortDirection(self) -> int:
+        return self._entry_sort_direction
+
     @Property("QVariantList", notify=selectedEntryIdsChanged)
     def selectedEntryIds(self) -> list[str]:
         return self._selected_entry_ids
@@ -225,6 +237,8 @@ class ProjectManagementRegisterWorkspaceController(
                 selected_entry_id=self._selected_entry_id or None,
                 page=self._entry_page,
                 page_size=self._entry_page_size,
+                sort_key=self._entry_sort_key,
+                sort_direction="desc" if self._entry_sort_direction else "asc",
             )
             self._set_overview(
                 serialize_register_overview_view_model(workspace_state.overview)
@@ -250,6 +264,12 @@ class ProjectManagementRegisterWorkspaceController(
                 serialize_register_collection_view_model(workspace_state.entries)
             )
             self._set_entry_total_count(workspace_state.total_count)
+            self._set_entry_page(workspace_state.page)
+            self._set_entry_page_size(workspace_state.page_size)
+            self._set_entry_sort_key(workspace_state.sort_key)
+            self._set_entry_sort_direction(
+                1 if workspace_state.sort_direction == "desc" else 0
+            )
             self._set_selected_entry_id(workspace_state.selected_entry_id)
             self._set_selected_entry(
                 serialize_register_detail_view_model(
@@ -299,6 +319,10 @@ class ProjectManagementRegisterWorkspaceController(
     def setEntryPageSize(self, page_size: int) -> None:
         set_entry_page_size(self, page_size)
 
+    @Slot(str, int)
+    def setEntrySort(self, sort_key: str, sort_direction: int) -> None:
+        set_entry_sort(self, sort_key, sort_direction)
+
     # ── Bulk ─────────────────────────────────────────────────────────────
 
     @Slot(str, bool)
@@ -322,10 +346,6 @@ class ProjectManagementRegisterWorkspaceController(
         return apply_bulk_entry_status(self, payload)
 
     # ── Export ───────────────────────────────────────────────────────────
-
-    @Slot()
-    def exportRegister(self) -> None:
-        export_register(self)
 
     # ── CRUD ─────────────────────────────────────────────────────────────
 

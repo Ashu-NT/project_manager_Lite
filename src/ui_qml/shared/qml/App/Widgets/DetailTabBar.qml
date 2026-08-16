@@ -27,59 +27,68 @@ Item {
             color: Theme.AppTheme.border
         }
 
-        Row {
+        Flickable {
             anchors.fill: parent
+            contentWidth: tabRow.implicitWidth
+            contentHeight: height
+            boundsBehavior: Flickable.StopAtBounds
+            interactive: tabRow.implicitWidth > width
+            clip: true
 
-            Repeater {
-                model: root.tabs
+            Row {
+                id: tabRow
 
-                delegate: Item {
-                    id: tabItem
-                    required property var modelData
-                    required property int index
+                Repeater {
+                    model: root.tabs
 
-                    readonly property bool isActive: root.currentIndex === tabItem.index
-                    readonly property string tabLabel: typeof tabItem.modelData === "string"
-                        ? tabItem.modelData
-                        : (tabItem.modelData.label || "")
+                    delegate: Item {
+                        id: tabItem
+                        required property var modelData
+                        required property int index
 
-                    width: tabText.implicitWidth + 24
-                    height: 36
+                        readonly property bool isActive: root.currentIndex === tabItem.index
+                        readonly property string tabLabel: typeof tabItem.modelData === "string"
+                            ? tabItem.modelData
+                            : (tabItem.modelData.label || "")
 
-                    // Hover background
-                    Rectangle {
-                        anchors.fill: parent
-                        color: tabHover.containsMouse && !tabItem.isActive
-                            ? Theme.AppTheme.hoverSurface
-                            : "transparent"
-                    }
+                        width: tabText.implicitWidth + 24
+                        height: 36
 
-                    // Active bottom accent
-                    Rectangle {
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.bottom: parent.bottom
-                        height: 2
-                        color: Theme.AppTheme.accent
-                        visible: tabItem.isActive
-                    }
+                        // Hover background
+                        Rectangle {
+                            anchors.fill: parent
+                            color: tabHover.containsMouse && !tabItem.isActive
+                                ? Theme.AppTheme.hoverSurface
+                                : "transparent"
+                        }
 
-                    AppControls.Label {
-                        id: tabText
-                        anchors.centerIn: parent
-                        text: tabItem.tabLabel
-                        color: tabItem.isActive ? Theme.AppTheme.accent : Theme.AppTheme.textMuted
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.captionSize
-                        font.bold: tabItem.isActive
-                    }
+                        // Active bottom accent
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            height: 2
+                            color: Theme.AppTheme.accent
+                            visible: tabItem.isActive
+                        }
 
-                    MouseArea {
-                        id: tabHover
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.tabSelected(tabItem.index)
+                        AppControls.Label {
+                            id: tabText
+                            anchors.centerIn: parent
+                            text: tabItem.tabLabel
+                            color: tabItem.isActive ? Theme.AppTheme.accent : Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            font.bold: tabItem.isActive
+                        }
+
+                        MouseArea {
+                            id: tabHover
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.tabSelected(tabItem.index)
+                        }
                     }
                 }
             }

@@ -2,12 +2,7 @@ from datetime import date, datetime
 from pathlib import Path
 from types import SimpleNamespace
 
-from PySide6.QtCore import QSettings
-
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
-from src.ui_qml.modules.project_management.controllers.common import (
-    ProjectManagementTaskViewStore,
-)
 from src.core.modules.project_management.api.desktop import (
     build_project_management_collaboration_desktop_api,
     build_project_management_tasks_desktop_api,
@@ -47,9 +42,6 @@ class _FakeCollaborationService:
         self.cleared_presence: list[str] = []
         self._comments: list[SimpleNamespace] = []
         self._comment_documents: dict[str, list[SimpleNamespace]] = {}
-
-    def list_workspace_snapshot(self, *, limit: int = 200) -> SimpleNamespace:
-        return SimpleNamespace(notifications=[], inbox=[], recent_activity=[], active_presence=[])
 
     def mark_task_mentions_read(self, task_id: str) -> None:
         self.marked_task_ids.append(task_id)
@@ -222,8 +214,6 @@ def _build_catalog(tmp_path: Path, task_service):
     )
     collaboration_service = _FakeCollaborationService()
     collaboration_api = build_project_management_collaboration_desktop_api(collaboration_service=collaboration_service)
-    settings = QSettings(str(tmp_path / "pm-task-views.ini"), QSettings.IniFormat)
-    settings.clear()
     catalog = ProjectManagementWorkspaceCatalog(
         desktop_api_registry=SimpleNamespace(
             platform_runtime=_FakePmRuntimeApi("org-1"),
@@ -231,7 +221,6 @@ def _build_catalog(tmp_path: Path, task_service):
             project_management_collaboration=collaboration_api,
             project_management_timesheets=_FakeTaskTimesheetsDesktopApi(),
         ),
-        task_view_store=ProjectManagementTaskViewStore(settings),
     )
     return catalog
 

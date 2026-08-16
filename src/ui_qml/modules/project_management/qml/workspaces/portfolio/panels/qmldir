@@ -1,3 +1,2 @@
 module ProjectManagement.PortfolioPanels
 PortfolioDetailPanel 1.0 PortfolioDetailPanel.qml
-PortfolioBottomPanel 1.0 PortfolioBottomPanel.qml

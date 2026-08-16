@@ -8,10 +8,13 @@ import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
 
-from src.core.modules.project_management.application.financials.cost_entries import (
+from src.core.modules.project_management.api.desktop.financials.api import (
+    ProjectManagementFinancialsDesktopApi,
+)
+from src.core.modules.project_management.application.financials.cost.entries import (
     CostEntryApprovalOutcome,
 )
-from src.core.modules.project_management.contracts.financial_sources import (
+from src.core.modules.project_management.contracts.financial_sources.reference import (
     FinancialPostingPurpose,
     FinancialSourceModule,
     FinancialSourceReference,
@@ -219,6 +222,81 @@ def test_manual_entry_lifecycle_is_idempotent_posts_and_reverses_exactly(service
     entries, total = service.list_for_project(project.id, limit=1)
     assert total == 2
     assert len(entries) == 1
+
+
+def test_cost_entry_query_pages_and_sorts_before_the_former_fifty_row_cap(
+    services,
+) -> None:
+    organization, project, cost_code, _period = _create_project_finance_setup(services)
+    service = services["cost_entry_service"]
+    for index in range(55):
+        service.create_manual_entry(
+            project_id=project.id,
+            command_id=f"r17-actual-{index:03d}",
+            description=f"Actual {index:03d}",
+            amount=Decimal("0.01"),
+            currency_code=organization.base_currency,
+            transaction_date=date(2026, 1, 12),
+            cost_code_id=cost_code.id,
+        )
+
+    foreign_project = services["project_service"].create_project(
+        "Other scoped actuals",
+        financial_currency_code=organization.base_currency,
+    )
+    service.create_manual_entry(
+        project_id=foreign_project.id,
+        command_id="r17-foreign-actual",
+        description="Foreign Actual",
+        amount=Decimal("99.99"),
+        currency_code=organization.base_currency,
+        transaction_date=date(2026, 1, 12),
+        cost_code_id=cost_code.id,
+    )
+
+    first_page, first_total = service.list_for_project(
+        project.id,
+        offset=0,
+        limit=20,
+        sort_key="title",
+        sort_direction="asc",
+    )
+    third_page, third_total = service.list_for_project(
+        project.id,
+        offset=40,
+        limit=20,
+        sort_key="title",
+        sort_direction="asc",
+    )
+    descending_page, _ = service.list_for_project(
+        project.id,
+        offset=0,
+        limit=5,
+        sort_key="title",
+        sort_direction="desc",
+    )
+    desktop_page = ProjectManagementFinancialsDesktopApi(
+        cost_entry_service=service
+    ).list_cost_entries(
+        project.id,
+        offset=50,
+        limit=10,
+        sort_key="title",
+        sort_direction="asc",
+    )
+
+    assert first_total == third_total == 55
+    assert [row.description for row in first_page[:2]] == ["Actual 000", "Actual 001"]
+    assert [row.description for row in third_page] == [
+        f"Actual {index:03d}" for index in range(40, 55)
+    ]
+    assert [row.description for row in descending_page] == [
+        f"Actual {index:03d}" for index in range(54, 49, -1)
+    ]
+    assert desktop_page.total == 55
+    assert [row.description for row in desktop_page.items] == [
+        f"Actual {index:03d}" for index in range(50, 55)
+    ]
 
 
 def test_cross_currency_posting_requires_and_freezes_fx_snapshot(services) -> None:

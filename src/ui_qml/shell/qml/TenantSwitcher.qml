@@ -43,7 +43,7 @@ Rectangle {
         spacing: Theme.AppTheme.spacingXs
 
         AppIcons.AppIcon {
-            name: "business"
+            name: "tenant"
             size: Theme.AppTheme.iconSm
             iconColor: Theme.AppTheme.textMuted
         }
@@ -59,7 +59,7 @@ Rectangle {
         }
 
         AppIcons.AppIcon {
-            name: "expand_more"
+            name: "chevron_down"
             size: Theme.AppTheme.iconSm
             iconColor: Theme.AppTheme.textMuted
         }

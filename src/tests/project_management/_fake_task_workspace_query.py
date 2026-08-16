@@ -10,6 +10,7 @@ from src.core.modules.project_management.contracts.reads.tasks import (
     TaskWorkspaceReadPage,
     TaskWorkspaceSummary,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort
 
 
 def _status(task) -> str:
@@ -38,6 +39,8 @@ def build_fake_task_workspace_page(
     schedule="all",
     page=1,
     page_size=25,
+    sort_key="wbsCode",
+    sort_direction="asc",
     project_names=None,
 ):
     project_names = project_names or {
@@ -118,8 +121,40 @@ def build_fake_task_workspace_page(
                 return False
         return True
 
+    sort = ReadSort.normalize(
+        key=sort_key,
+        direction=sort_direction,
+        allowed_keys={
+            "wbsCode",
+            "title",
+            "statusLabel",
+            "projectName",
+            "priorityLabel",
+            "startDateLabel",
+            "endDateLabel",
+            "progressValue",
+        },
+        default_key="wbsCode",
+    )
+    key_by_sort = {
+        "wbsCode": lambda task: (
+            project_names.get(task.project_id, "").casefold(),
+            str(getattr(task, "wbs_code", task.id) or task.id),
+            int(getattr(task, "sort_order", 0) or 0),
+        ),
+        "title": lambda task: (str(getattr(task, "name", "")).casefold(),),
+        "statusLabel": lambda task: (_status(task),),
+        "projectName": lambda task: (project_names.get(task.project_id, "").casefold(),),
+        "priorityLabel": lambda task: (int(getattr(task, "priority", 0) or 0),),
+        "startDateLabel": lambda task: (getattr(task, "start_date", None) or date.min,),
+        "endDateLabel": lambda task: (getattr(task, "end_date", None) or date.min,),
+        "progressValue": lambda task: (float(getattr(task, "percent_complete", 0) or 0),),
+    }
     filtered = [task for task in rows if matches(task)]
-    filtered.sort(key=lambda task: (project_names.get(task.project_id, "").casefold(), task.id))
+    filtered.sort(
+        key=lambda task: (*key_by_sort[sort.key](task), task.id),
+        reverse=sort.direction.value == "desc",
+    )
     offset = (page - 1) * page_size
     items = tuple(
         TaskWorkspaceReadItem(
@@ -165,6 +200,7 @@ def build_fake_task_workspace_page(
                 for task in rows
             ),
         ),
+        sort=sort,
     )
 
 

@@ -77,6 +77,8 @@ class RegisterWorkspaceViewModel:
     total_count: int = 0
     page: int = 1
     page_size: int = 25
+    sort_key: str = "triage"
+    sort_direction: str = "asc"
 
 __all__ = [
     "RegisterCollectionViewModel",

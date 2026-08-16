@@ -5,7 +5,7 @@ import QtQuick.Layouts
 import App.Mock 1.0 as AppMock
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
-import ProjectManagement.Widgets 1.0 as ProjectManagementWidgets
+import workspaces.register.sections 1.0 as Sections
 import App.Controls 1.0 as AppControls
 
 Item {
@@ -74,7 +74,7 @@ Item {
                     implicitHeight: detailSection.implicitHeight + Theme.AppTheme.spacingMd * 2
                     height: implicitHeight
 
-                    ProjectManagementWidgets.RegisterDetailSection {
+                    Sections.RegisterDetailSection {
                         id: detailSection
                         anchors.top:    parent.top
                         anchors.left:   parent.left
@@ -300,7 +300,7 @@ Item {
                     implicitHeight: _fallbackImpact.implicitHeight + Theme.AppTheme.spacingMd * 2
                     height: implicitHeight
 
-                    ProjectManagementWidgets.RegisterUrgentSection {
+                    Sections.RegisterUrgentSection {
                         id: _fallbackImpact
                         anchors.top:    parent.top
                         anchors.left:   parent.left
@@ -334,7 +334,7 @@ Item {
                     implicitHeight: urgentSection.implicitHeight + Theme.AppTheme.spacingMd * 2
                     height: implicitHeight
 
-                    ProjectManagementWidgets.RegisterUrgentSection {
+                    Sections.RegisterUrgentSection {
                         id: urgentSection
                         anchors.top:    parent.top
                         anchors.left:   parent.left

@@ -14,6 +14,12 @@ class TenantDto:
 
 
 @dataclass(frozen=True)
+class TenantCreateCommand:
+    tenant_code: str
+    display_name: str
+
+
+@dataclass(frozen=True)
 class TenantInvitationDto:
     membership_id: str
     tenant_id: str
@@ -23,4 +29,4 @@ class TenantInvitationDto:
     expires_at: datetime
 
 
-__all__ = ["TenantDto", "TenantInvitationDto"]
+__all__ = ["TenantCreateCommand", "TenantDto", "TenantInvitationDto"]

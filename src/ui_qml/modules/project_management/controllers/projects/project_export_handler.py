@@ -13,6 +13,10 @@ def export_projects(controller, columns: list, file_path: str) -> dict[str, obje
         records = controller._projects_workspace_presenter.list_export_records(
             search_text=controller._search_text,
             status_filter=controller._selected_status_filter,
+            sort_key=controller._project_sort_key,
+            sort_direction=(
+                "desc" if controller._project_sort_direction else "asc"
+            ),
         )
         rows = serialize_project_record_view_models(records)
         result = export_to_file(rows, list(columns), (file_path or "").strip())

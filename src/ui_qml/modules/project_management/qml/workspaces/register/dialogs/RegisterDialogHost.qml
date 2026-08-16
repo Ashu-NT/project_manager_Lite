@@ -1,0 +1,102 @@
+import QtQuick
+import QtQuick.Controls
+import App.Controls 1.0 as AppControls
+
+Item {
+    id: root
+
+    property var workspaceController: null
+    property var projectOptions: []
+    property var typeOptions: []
+    property var statusOptions: []
+    property var severityOptions: []
+    property bool typeFieldVisible: true
+    property string fixedTypeValue: "RISK"
+    property string entryLabel: "Register Entry"
+    property var editTarget: ({})
+    property var deleteTarget: ({})
+
+    signal deleteRequested(string entryId)
+
+    function _handleResult(dialog, result) {
+        if (!result || result.success) {
+            dialog.close()
+        } else {
+            dialog.errorMessage = result.error || "An unexpected error occurred."
+        }
+    }
+
+    function openCreateDialog() {
+        root.editTarget = {
+            "state": {
+                "type": root.fixedTypeValue,
+                "status": "OPEN",
+                "severity": "MEDIUM"
+            }
+        }
+        editorDialog.modeTitle = "Create " + root.entryLabel
+        editorDialog.entryData = root.editTarget
+        editorDialog.errorMessage = ""
+        editorDialog.open()
+    }
+
+    function openEditDialog(entryData) {
+        root.editTarget = entryData || ({})
+        editorDialog.modeTitle = "Edit " + root.entryLabel
+        editorDialog.entryData = root.editTarget
+        editorDialog.errorMessage = ""
+        editorDialog.open()
+    }
+
+    function openDeleteDialog(entryData) {
+        root.deleteTarget = entryData || ({})
+        deleteDialog.open()
+    }
+
+    RegisterEntryEditorDialog {
+        id: editorDialog
+
+        workspaceController: root.workspaceController
+        projectOptions: root.projectOptions
+        typeOptions: root.typeOptions
+        statusOptions: root.statusOptions
+        severityOptions: root.severityOptions
+        typeFieldVisible: root.typeFieldVisible
+        fixedTypeValue: root.fixedTypeValue
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+
+        onSubmitted: function(payload) {
+            if (!root.workspaceController) return
+            var state = root.editTarget && root.editTarget.state ? root.editTarget.state : (root.editTarget || {})
+            var result
+            if (state.entryId) {
+                payload.entryId = state.entryId
+                payload.expectedVersion = state.version
+                result = root.workspaceController.updateEntry(payload)
+            } else {
+                result = root.workspaceController.createEntry(payload)
+            }
+            root._handleResult(editorDialog, result)
+        }
+    }
+
+    AppControls.ConfirmationDialog {
+        id: deleteDialog
+        title: "Delete " + root.entryLabel
+        closePolicy: Popup.CloseOnEscape
+        confirmLabel: "Delete " + root.entryLabel
+        confirmIcon: "delete"
+        confirmDanger: true
+        message: root.deleteTarget && root.deleteTarget.title
+            ? "Delete " + root.deleteTarget.title + " from the project register?"
+            : "Delete the selected project register entry?"
+        supportingText: "This removes the entry, its mitigation notes, and its current governance state from the PM register."
+
+        onConfirmed: {
+            var state = root.deleteTarget && root.deleteTarget.state ? root.deleteTarget.state : (root.deleteTarget || {})
+            if (state.entryId) {
+                root.deleteRequested(String(state.entryId))
+            }
+        }
+    }
+}

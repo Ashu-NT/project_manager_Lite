@@ -37,24 +37,18 @@ class ProjectManagementCollaborationWorkspaceController(
     ProjectManagementWorkspaceControllerBase
 ):
     overviewChanged = Signal()
-    notificationsChanged = Signal()
     selectedProjectIdChanged = Signal()
     selectedTeamIdChanged = Signal()
     selectedPeriodKeyChanged = Signal()
     selectedUnreadKeyChanged = Signal()
     inboxSearchTextChanged = Signal()
     mentionsSearchTextChanged = Signal()
-    approvalsSearchTextChanged = Signal()
-    teamUpdatesSearchTextChanged = Signal()
     inboxChanged = Signal()
-    recentActivityChanged = Signal()
-    activePresenceChanged = Signal()
     contextChanged = Signal()
     panelTabsChanged = Signal()
     mentionsChanged = Signal()
     approvalsChanged = Signal()
     activityFeedChanged = Signal()
-    teamUpdatesChanged = Signal()
     selectedItemDetailChanged = Signal()
 
     def __init__(
@@ -76,30 +70,26 @@ class ProjectManagementCollaborationWorkspaceController(
         self._table_models = create_collaboration_table_models(self)
         self._filter_service = CollaborationPanelFilterService()
         self._overview: dict[str, object] = default_overview()
-        self._notifications: dict[str, object] = default_collection()
         self._inbox: dict[str, object] = default_collection()
-        self._recent_activity: dict[str, object] = default_collection()
-        self._active_presence: dict[str, object] = default_collection()
         self._context: dict[str, object] = default_context()
         self._panel_tabs: list[dict[str, object]] = []
         self._mentions: dict[str, object] = default_collection()
         self._approvals: dict[str, object] = default_collection()
         self._activity_feed: dict[str, object] = default_collection()
-        self._team_updates: dict[str, object] = default_collection()
+        self._inbox_page = 1
+        self._inbox_page_size = 25
+        self._mentions_page = 1
+        self._mentions_page_size = 25
         self._selected_item_detail: dict[str, object] = default_selected_item_detail()
         self._panel_item_index: dict[str, dict[str, dict[str, object]]] = {}
         bind_collaboration_domain_events(self)
         self.refresh()
 
-    # ── Overview / notifications ──────────────────────────────────────
+    # Overview
 
     @Property("QVariantMap", notify=overviewChanged)
     def overview(self) -> dict[str, object]:
         return self._overview
-
-    @Property("QVariantMap", notify=notificationsChanged)
-    def notifications(self) -> dict[str, object]:
-        return self._notifications
 
     # ── Panel table models ────────────────────────────────────────────
 
@@ -114,10 +104,6 @@ class ProjectManagementCollaborationWorkspaceController(
     @Property(QObject, constant=True)
     def approvalsTableModel(self) -> DynamicTableModel:
         return self._table_models.approvals
-
-    @Property(QObject, constant=True)
-    def teamUpdatesTableModel(self) -> DynamicTableModel:
-        return self._table_models.team_updates
 
     @Property(QObject, constant=True)
     def relatedItemsTableModel(self) -> DynamicTableModel:
@@ -149,27 +135,11 @@ class ProjectManagementCollaborationWorkspaceController(
     def mentionsSearchText(self) -> str:
         return self._filter_service.mentions_search_text
 
-    @Property(str, notify=approvalsSearchTextChanged)
-    def approvalsSearchText(self) -> str:
-        return self._filter_service.approvals_search_text
-
-    @Property(str, notify=teamUpdatesSearchTextChanged)
-    def teamUpdatesSearchText(self) -> str:
-        return self._filter_service.team_updates_search_text
-
     # ── Collection properties ─────────────────────────────────────────
 
     @Property("QVariantMap", notify=inboxChanged)
     def inbox(self) -> dict[str, object]:
         return self._inbox
-
-    @Property("QVariantMap", notify=recentActivityChanged)
-    def recentActivity(self) -> dict[str, object]:
-        return self._recent_activity
-
-    @Property("QVariantMap", notify=activePresenceChanged)
-    def activePresence(self) -> dict[str, object]:
-        return self._active_presence
 
     @Property("QVariantMap", notify=contextChanged)
     def context(self) -> dict[str, object]:
@@ -190,10 +160,6 @@ class ProjectManagementCollaborationWorkspaceController(
     @Property("QVariantMap", notify=activityFeedChanged)
     def activityFeed(self) -> dict[str, object]:
         return self._activity_feed
-
-    @Property("QVariantMap", notify=teamUpdatesChanged)
-    def teamUpdates(self) -> dict[str, object]:
-        return self._team_updates
 
     @Property("QVariantMap", notify=selectedItemDetailChanged)
     def selectedItemDetail(self) -> dict[str, object]:
@@ -227,17 +193,25 @@ class ProjectManagementCollaborationWorkspaceController(
     def setInboxSearchText(self, text: str) -> None:
         _fh.set_inbox_search_text(self, text)
 
+    @Slot(int)
+    def setInboxPage(self, page: int) -> None:
+        _fh.set_inbox_page(self, page)
+
+    @Slot(int)
+    def setInboxPageSize(self, page_size: int) -> None:
+        _fh.set_inbox_page_size(self, page_size)
+
     @Slot(str)
     def setMentionsSearchText(self, text: str) -> None:
         _fh.set_mentions_search_text(self, text)
 
-    @Slot(str)
-    def setApprovalsSearchText(self, text: str) -> None:
-        _fh.set_approvals_search_text(self, text)
+    @Slot(int)
+    def setMentionsPage(self, page: int) -> None:
+        _fh.set_mentions_page(self, page)
 
-    @Slot(str)
-    def setTeamUpdatesSearchText(self, text: str) -> None:
-        _fh.set_team_updates_search_text(self, text)
+    @Slot(int)
+    def setMentionsPageSize(self, page_size: int) -> None:
+        _fh.set_mentions_page_size(self, page_size)
 
     # ── Selection slots ───────────────────────────────────────────────
 
@@ -271,10 +245,6 @@ class ProjectManagementCollaborationWorkspaceController(
     def rejectRequest(self, request_id: str) -> dict[str, object]:
         return _mut.reject_request(self, request_id)
 
-    @Slot(str, result="QVariantMap")
-    def exportPanel(self, panel_id: str) -> dict[str, object]:
-        return _mut.export_panel(self, panel_id)
-
     # ── Domain event handler ──────────────────────────────────────────
 
     def _on_domain_event(self, _payload: object) -> None:
@@ -285,17 +255,8 @@ class ProjectManagementCollaborationWorkspaceController(
     def _set_overview(self, overview: dict[str, object]) -> None:
         _setters.set_overview(self, overview)
 
-    def _set_notifications(self, notifications: dict[str, object]) -> None:
-        _setters.set_notifications(self, notifications)
-
     def _set_inbox(self, inbox: dict[str, object]) -> None:
         _setters.set_inbox(self, inbox)
-
-    def _set_recent_activity(self, recent_activity: dict[str, object]) -> None:
-        _setters.set_recent_activity(self, recent_activity)
-
-    def _set_active_presence(self, active_presence: dict[str, object]) -> None:
-        _setters.set_active_presence(self, active_presence)
 
     def _set_context(self, context: dict[str, object]) -> None:
         _setters.set_context(self, context)
@@ -311,9 +272,6 @@ class ProjectManagementCollaborationWorkspaceController(
 
     def _set_activity_feed(self, activity_feed: dict[str, object]) -> None:
         _setters.set_activity_feed(self, activity_feed)
-
-    def _set_team_updates(self, team_updates: dict[str, object]) -> None:
-        _setters.set_team_updates(self, team_updates)
 
     def _set_selected_item_detail(
         self, selected_item_detail: dict[str, object]

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 from datetime import date
 from sqlalchemy.orm import Session
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
-import src.core.modules.project_management.contracts.repositories.resource as resource_contracts
-import src.core.modules.project_management.contracts.repositories.task as task_contracts
+import src.core.modules.project_management.contracts.repositories.resources.resource as resource_contracts
+import src.core.modules.project_management.contracts.repositories.tasks.task as task_contracts
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.modules.project_management.application.scheduling.leveling.leveling import (

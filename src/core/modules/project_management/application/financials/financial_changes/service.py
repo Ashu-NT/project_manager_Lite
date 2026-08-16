@@ -12,25 +12,25 @@ from src.core.modules.project_management.application.common.clock import Clock
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.contracts.schedule_change import (
+from src.core.modules.project_management.contracts.ports.schedule_change import (
     ApprovedScheduleChangePort,
     ApprovedTaskScheduleChange,
 )
-from src.core.modules.project_management.contracts.repositories.budget import (
+from src.core.modules.project_management.contracts.repositories.finance.budgets.budget import (
     ProjectBudgetRepository,
 )
-from src.core.modules.project_management.contracts.repositories.financial_change import (
+from src.core.modules.project_management.contracts.repositories.finance.financial_changes.financial_change import (
     FinancialChangeRepository,
 )
-from src.core.modules.project_management.contracts.repositories.financial_configuration import (
+from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectCostCodeRepository,
     ProjectFinancialProfileRepository,
 )
-from src.core.modules.project_management.contracts.repositories.forecast import (
+from src.core.modules.project_management.contracts.repositories.finance.forecasts.forecast import (
     ProjectForecastRepository,
 )
-from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
 from src.core.modules.project_management.domain.financials.budget import (
     BudgetLine,
     ProjectBudget,

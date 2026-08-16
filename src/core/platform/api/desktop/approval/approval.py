@@ -25,6 +25,7 @@ class PlatformApprovalDesktopApi:
         self,
         *,
         status: ApprovalStatus | str | None = None,
+        project_id: str | None = None,
         entity_type: str | list[str] | None = None,
         limit: int = 500,
     ) -> DesktopApiResult[tuple[ApprovalRequestDto, ...]]:
@@ -33,6 +34,7 @@ class PlatformApprovalDesktopApi:
                 self._serialize_request(request)
                 for request in self._approval_service.list_requests(
                     status=status,
+                    project_id=project_id,
                     limit=limit,
                     entity_type=entity_type,
                 )

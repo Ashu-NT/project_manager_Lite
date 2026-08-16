@@ -36,8 +36,20 @@ class ProjectDashboardOperationalTableDescriptor:
     title: str
     subtitle: str = ""
     empty_state: str = ""
+    collection_semantics: str = "complete"
+    supports_search: bool = True
+    supports_pagination: bool = True
     columns: tuple[ProjectDashboardTableColumnDescriptor, ...] = field(default_factory=tuple)
     rows: tuple[ProjectDashboardTableRowDescriptor, ...] = field(default_factory=tuple)
+    # Populated only for genuinely SCALABLE tables (server-paginated) --
+    # see ProjectManagementDashboardDesktopApi.list_delayed_tasks_page().
+    # total_count is the authoritative filtered count, never len(rows).
+    page: int = 1
+    page_size: int = 25
+    total_count: int = 0
+    sort_key: str = ""
+    sort_direction: str = "asc"
+    search_text: str = ""
 
 
 __all__ = [

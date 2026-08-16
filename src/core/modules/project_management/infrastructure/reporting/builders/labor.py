@@ -7,27 +7,26 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.modules.project_management.contracts.repositories.project import (
+from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectRepository,
     ProjectResourceRepository,
 )
-from src.core.modules.project_management.contracts.repositories.task import (
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     TaskRepository,
 )
-from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from src.core.modules.project_management.contracts.repositories.financial_configuration import ProjectFinancialProfileRepository
-from src.core.modules.project_management.contracts.repositories.rate_resolution import (
+from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import ProjectFinancialProfileRepository
+from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
     LaborRateResolver,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
-from src.core.modules.project_management.application.financials.costs.labor_cost import (
+from src.core.modules.project_management.application.financials.cost.engines.labor_cost import (
     LaborCostEngine,
 )
 from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
     LaborAssignmentRow,
     LaborDetailsResult,
-    LaborPlanActualRow,
     LaborResourceRow,
 )
 
@@ -68,13 +67,3 @@ class ReportingLaborMixin:
         self, project_id: str, as_of: date | None = None
     ) -> list[LaborResourceRow]:
         return list(self.calculate_project_labor_details(project_id, as_of).rows)
-
-    def get_project_labor_plan_vs_actual(
-        self, project_id: str, as_of: date | None = None
-    ) -> list[LaborPlanActualRow]:
-        self._require_finance_sensitive_view(
-            "view labor plan versus actual", project_id=project_id
-        )
-        return self._make_labor_engine().get_project_labor_plan_vs_actual(
-            project_id, as_of or date.today()
-        )

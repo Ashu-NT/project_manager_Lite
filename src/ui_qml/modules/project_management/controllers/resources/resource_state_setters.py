@@ -82,6 +82,18 @@ class ResourceStateSettersMixin:
         self._resource_total_count = v
         self.resourceTotalCountChanged.emit()
 
+    def _set_resource_sort_key(self, value: str) -> None:
+        if value == self._resource_sort_key:
+            return
+        self._resource_sort_key = value
+        self.resourceSortKeyChanged.emit()
+
+    def _set_resource_sort_direction(self, value: int) -> None:
+        if value == self._resource_sort_direction:
+            return
+        self._resource_sort_direction = value
+        self.resourceSortDirectionChanged.emit()
+
     def _set_selected_resource_ids(self, selected_ids: list[str]) -> None:
         if selected_ids == self._selected_resource_ids:
             return

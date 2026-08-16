@@ -3,10 +3,10 @@
 function baseColumns() {
     return [
         { "key": "title",          "label": "Resource / Period", "flex": 2,   "sortable": true,  "visibleByDefault": true },
-        { "key": "statusLabel",    "label": "Status",            "flex": 0,   "minWidth": 110, "type": "status", "visibleByDefault": true },
-        { "key": "subtitle",       "label": "Assignment",        "flex": 1.5,                    "visibleByDefault": true },
-        { "key": "metaText",       "label": "Hours",             "flex": 0,   "minWidth": 80,    "visibleByDefault": true },
-        { "key": "supportingText", "label": "Period",            "flex": 0,   "minWidth": 110,   "visibleByDefault": true }
+        { "key": "statusLabel",    "label": "Status",            "flex": 0,   "minWidth": 110, "type": "status", "sortable": true, "visibleByDefault": true },
+        { "key": "subtitle",       "label": "Projects",          "flex": 1.5, "sortable": false, "visibleByDefault": true },
+        { "key": "supportingText", "label": "Hours",             "flex": 0,   "minWidth": 110, "sortable": true, "visibleByDefault": true },
+        { "key": "metaText",       "label": "Submitted",         "flex": 1.2, "sortable": true, "visibleByDefault": true }
     ]
 }
 

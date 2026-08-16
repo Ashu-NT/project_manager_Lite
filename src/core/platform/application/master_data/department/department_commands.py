@@ -80,6 +80,29 @@ def create_department(
     )
     try:
         service._department_repo.add(department)
+        # Audit is staged in the same transaction as the business write (ADR-003:
+        # "the business mutation and successful security audit intent commit
+        # atomically") — never a second, separate commit.
+        record_audit_entry(
+            service,
+            operation="create",
+            entity_type="department",
+            entity_id=department.id,
+            module="platform",
+            severity="low",
+            metadata={
+                "action": "department.create",
+                "organization_id": organization.id,
+                "department_code": department.department_code,
+                "name": department.name,
+                "site_id": department.site_id or "",
+                "default_location_id": department.default_location_id or "",
+                "department_type": department.department_type,
+                "is_active": str(department.is_active),
+            },
+            commit=False,
+            fail_closed=True,
+        )
         service._session.commit()
     except IntegrityError as exc:
         service._session.rollback()
@@ -90,24 +113,6 @@ def create_department(
     except Exception:
         service._session.rollback()
         raise
-    record_audit_entry(
-        service,
-        operation="create",
-        entity_type="department",
-        entity_id=department.id,
-        module="platform",
-        severity="low",
-        metadata={
-            "action": "department.create",
-            "organization_id": organization.id,
-            "department_code": department.department_code,
-            "name": department.name,
-            "site_id": department.site_id or "",
-            "default_location_id": department.default_location_id or "",
-            "department_type": department.department_type,
-            "is_active": str(department.is_active),
-        },
-    )
     domain_events.departments_changed.emit(department.id)
     return department
 
@@ -204,6 +209,29 @@ def update_department(
 
     try:
         service._department_repo.update(candidate)
+        # Audit is staged in the same transaction as the business write (ADR-003:
+        # "the business mutation and successful security audit intent commit
+        # atomically") — never a second, separate commit.
+        record_audit_entry(
+            service,
+            operation="update",
+            entity_type="department",
+            entity_id=candidate.id,
+            module="platform",
+            severity="low",
+            metadata={
+                "action": "department.update",
+                "organization_id": organization.id,
+                "department_code": candidate.department_code,
+                "name": candidate.name,
+                "site_id": candidate.site_id or "",
+                "default_location_id": candidate.default_location_id or "",
+                "department_type": candidate.department_type,
+                "is_active": str(candidate.is_active),
+            },
+            commit=False,
+            fail_closed=True,
+        )
         service._session.commit()
     except IntegrityError as exc:
         service._session.rollback()
@@ -214,24 +242,6 @@ def update_department(
     except Exception:
         service._session.rollback()
         raise
-    record_audit_entry(
-        service,
-        operation="update",
-        entity_type="department",
-        entity_id=candidate.id,
-        module="platform",
-        severity="low",
-        metadata={
-            "action": "department.update",
-            "organization_id": organization.id,
-            "department_code": candidate.department_code,
-            "name": candidate.name,
-            "site_id": candidate.site_id or "",
-            "default_location_id": candidate.default_location_id or "",
-            "department_type": candidate.department_type,
-            "is_active": str(candidate.is_active),
-        },
-    )
     domain_events.departments_changed.emit(candidate.id)
     return candidate
 

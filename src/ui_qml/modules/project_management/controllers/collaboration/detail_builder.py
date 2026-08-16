@@ -10,7 +10,7 @@ from src.ui_qml.modules.project_management.view_models.collaboration import (
     CollaborationRecordViewModel,
 )
 
-from .utils import panel_label
+from .labels import panel_label
 
 
 def to_record_view_model(item: dict[str, object]) -> CollaborationRecordViewModel:
@@ -105,7 +105,7 @@ def build_detail_payload(
 
     activity_items = matching_items_for_task_or_project(
         panel_item_index=panel_item_index,
-        source_panels=("activity", "team_updates"),
+        source_panels=("activity",),
         task_id=task_id,
         project_id=project_id,
         exclude_item_id=item_id,

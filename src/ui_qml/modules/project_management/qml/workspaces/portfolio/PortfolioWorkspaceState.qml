@@ -30,37 +30,47 @@ Item {
     readonly property var capacityPoolModel: root.workspaceController
         ? root.workspaceController.capacityPool
         : ({ "title": "Capacity Pool", "subtitle": "", "emptyState": "No capacity data available.", "items": [] })
+    readonly property var topAtRiskModel: root.workspaceController
+        ? root.workspaceController.topAtRiskProjects
+        : ({ "title": "Top At-Risk Projects", "subtitle": "", "emptyState": "", "items": [] })
+
+    // ── Primary tab bar (R3.4 six-tab IA) ──────────────────────────────────
+    readonly property var tabKeys: ["executive", "heatmap", "intake", "scenarios", "capacity", "dependencies"]
+    readonly property var tabLabels: ["Executive", "Heatmap", "Intake", "Scenarios", "Capacity", "Dependencies"]
+    readonly property int activeTabIndex: {
+        const key = root.workspaceController ? root.workspaceController.activeTab : "executive"
+        const idx = root.tabKeys.indexOf(key)
+        return idx >= 0 ? idx : 0
+    }
 
     // ── Mutable UI state ──────────────────────────────────────────────────
     property string selectedRowId:        ""
-    property var    selectedRowIds:       []
-    property int    bottomTab:            0
-    property string selectedFundingId:    ""
     property bool   detailOpen:           false
     property int    pendingDetailSection: 0
 
     // ── Column definitions ────────────────────────────────────────────────
+
     readonly property var heatmapColumns: [
         { "key": "title",          "label": "Project",       "flex": 3, "minWidth": 180, "sortable": true },
-        { "key": "subtitle",       "label": "Status",        "flex": 1, "minWidth": 90                    },
+        { "key": "subtitle",       "label": "Status",        "flex": 1, "minWidth": 90,  "hideBelow": 760  },
         { "key": "statusLabel",    "label": "Pressure",      "flex": 1, "minWidth": 80, "type": "status"  },
-        { "key": "supportingText", "label": "Delivery",      "flex": 2, "minWidth": 160                   },
-        { "key": "metaText",       "label": "Cost Variance", "flex": 1, "minWidth": 100                   }
+        { "key": "supportingText", "label": "Delivery",      "flex": 2, "minWidth": 160, "hideBelow": 760  },
+        { "key": "metaText",       "label": "Cost Variance", "flex": 1, "minWidth": 100, "hideBelow": 760  }
     ]
 
     readonly property var fundingColumns: [
         { "key": "title",          "label": "Intake Item",       "flex": 3, "minWidth": 160, "sortable": true },
         { "key": "statusLabel",    "label": "Status",            "flex": 1, "minWidth": 90,  "type": "status" },
-        { "key": "subtitle",       "label": "Sponsor",           "flex": 2, "minWidth": 120                   },
-        { "key": "supportingText", "label": "Budget / Capacity", "flex": 2, "minWidth": 160                   },
-        { "key": "metaText",       "label": "Score",             "flex": 1, "minWidth": 60                    }
+        { "key": "subtitle",       "label": "Sponsor",           "flex": 2, "minWidth": 120, "hideBelow": 760 },
+        { "key": "supportingText", "label": "Budget / Capacity", "flex": 2, "minWidth": 160, "hideBelow": 760 },
+        { "key": "metaText",       "label": "Score",             "flex": 1, "minWidth": 60,  "hideBelow": 760 }
     ]
 
     readonly property var riskColumns: [
         { "key": "title",          "label": "Dependency", "flex": 3, "minWidth": 200                  },
-        { "key": "subtitle",       "label": "Type",       "flex": 1, "minWidth": 100                  },
+        { "key": "subtitle",       "label": "Type",       "flex": 1, "minWidth": 100, "hideBelow": 760 },
         { "key": "statusLabel",    "label": "Pressure",   "flex": 1, "minWidth": 80, "type": "status" },
-        { "key": "supportingText", "label": "Status",     "flex": 2, "minWidth": 160                  }
+        { "key": "supportingText", "label": "Status",     "flex": 2, "minWidth": 160, "hideBelow": 760 }
     ]
 
     // ── Computed rows ─────────────────────────────────────────────────────
@@ -74,22 +84,4 @@ Item {
         return null
     }
 
-    readonly property var activityItems: {
-        return (root.recentActionsModel.items || []).map(function(item) {
-            return {
-                "title":       String(item.title       || ""),
-                "metaText":    String(item.metaText    || item.subtitle || ""),
-                "statusLabel": String(item.statusLabel || "")
-            }
-        })
-    }
-
-    // ── Helpers ───────────────────────────────────────────────────────────
-    function optionIndexForValue(options, value) {
-        const opts = options || []
-        for (let i = 0; i < opts.length; i += 1) {
-            if (String(opts[i].value || "") === String(value || "")) return i
-        }
-        return 0
-    }
 }

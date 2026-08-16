@@ -81,6 +81,8 @@ class ProjectManagementProjectsDesktopApi:
         status: str = "all",
         page: int = 1,
         page_size: int = 25,
+        sort_key: str = "title",
+        sort_direction: str = "asc",
     ) -> ProjectCatalogPageDesktopDto:
         service = self._require_project_service()
         normalized_status = str(status or "all").strip().lower()
@@ -94,6 +96,8 @@ class ProjectManagementProjectsDesktopApi:
             status=status_value,
             page=page,
             page_size=page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
         )
         return ProjectCatalogPageDesktopDto(
             items=tuple(
@@ -113,7 +117,18 @@ class ProjectManagementProjectsDesktopApi:
             completed=result.summary.completed,
             page=result.page,
             page_size=result.page_size,
+            sort_key=result.sort.key,
+            sort_direction=result.sort.direction.value,
         )
+
+    def get_project(self, project_id: str) -> ProjectDesktopDto | None:
+        normalized_id = str(project_id or "").strip()
+        if not normalized_id or self._project_service is None:
+            return None
+        project = self._project_service.get_project(normalized_id)
+        if project is None:
+            return None
+        return serialize_project(project, site_lookup=self._site_lookup())
 
     def list_projects_by_status(self, status: str) -> tuple[ProjectDesktopDto, ...]:
         if self._project_service is None:

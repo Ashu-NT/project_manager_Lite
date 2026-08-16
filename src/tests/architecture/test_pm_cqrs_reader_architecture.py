@@ -20,10 +20,10 @@ from src.core.modules.project_management.application.financials.earned_value.evm
 from src.core.modules.project_management.application.financials.earned_value.evm_calculator import (
     EarnedValueCalculator,
 )
-from src.core.modules.project_management.application.financials.costs.cost_breakdown_engine import (
+from src.core.modules.project_management.application.financials.cost.engines.cost_breakdown_engine import (
     CostBreakdownEngine,
 )
-from src.core.modules.project_management.application.financials.costs.cost_policy_engine import (
+from src.core.modules.project_management.application.financials.cost.engines.cost_policy_engine import (
     CostPolicyEngine,
 )
 from src.core.modules.project_management.infrastructure.reporting.builders.cost_breakdown import (
@@ -50,9 +50,6 @@ from src.core.modules.project_management.application.portfolio.queries.portfolio
 from src.core.modules.project_management.application.collaboration.queries.collaboration_inbox import (
     CollaborationInboxQueryMixin,
 )
-from src.core.modules.project_management.application.collaboration.queries.collaboration_notifications import (
-    CollaborationNotificationQueryMixin,
-)
 from src.core.modules.project_management.application.collaboration.queries.collaboration_presence import (
     CollaborationPresenceQueryMixin,
 )
@@ -70,7 +67,7 @@ CONTRACT_READS = PM_ROOT / "contracts/reads"
 FINANCE_READS = PM_ROOT / "infrastructure/persistence/reads/financials"
 FINANCE_STATEMENTS = FINANCE_READS / "statements/finance_snapshot_statements.py"
 FINANCE_READER = FINANCE_READS / "sqlalchemy_finance_snapshot_reader.py"
-FINANCE_POLICY = PM_ROOT / "application/financials/costs/cost_policy_engine.py"
+FINANCE_POLICY = PM_ROOT / "application/financials/cost/engines/cost_policy_engine.py"
 PROJECT_REGISTRY = REPO_ROOT / "src/infra/composition/project_registry.py"
 PORTFOLIO_POOL_READER = (
     PM_ROOT
@@ -552,24 +549,23 @@ def test_finance_snapshot_is_a_disposable_read_model_not_a_persisted_authority()
         assert forbidden not in command_source
 
 
-def test_collaboration_cross_project_reads_use_one_scoped_fact_graph() -> None:
+def test_collaboration_cross_project_reads_use_purpose_specific_scoped_readers() -> None:
     support_source = inspect.getsource(CollaborationSupportMixin)
     inbox_source = inspect.getsource(CollaborationInboxQueryMixin)
-    notification_source = inspect.getsource(CollaborationNotificationQueryMixin)
     presence_source = inspect.getsource(CollaborationPresenceQueryMixin.list_active_presence)
     registry = PROJECT_REGISTRY.read_text(encoding="utf-8")
     reader_source = COLLABORATION_WORKSPACE_READER.read_text(encoding="utf-8")
 
-    assert support_source.count("self._workspace_reader.read_facts(") == 1
     assert "filter_project_rows(" in support_source
-    assert "_read_cross_project_collaboration_facts(" in inbox_source
-    assert "_read_cross_project_collaboration_facts(" in notification_source
-    assert "_read_cross_project_collaboration_facts(" in presence_source
+    assert inbox_source.count("self._workspace_reader.read_comment_page(") == 1
+    assert "self._workspace_reader.read_comment_authors(" in inbox_source
+    assert "self._workspace_reader.read_active_presence(" in presence_source
     for removed in (
         "_accessible_task_context_for_collaboration",
         "_accessible_tasks_for_collaboration",
         "_list_accessible_comments",
         "_principal_can_access_project",
+        "_read_cross_project_collaboration_facts",
     ):
         assert removed not in support_source
     for forbidden in (
@@ -579,7 +575,6 @@ def test_collaboration_cross_project_reads_use_one_scoped_fact_graph() -> None:
         "_project_repo.get(",
     ):
         assert forbidden not in inbox_source
-        assert forbidden not in notification_source
         assert forbidden not in presence_source
     assert (
         "workspace_reader=SqlAlchemyCollaborationWorkspaceReader(session=session)"
@@ -591,6 +586,61 @@ def test_collaboration_cross_project_reads_use_one_scoped_fact_graph() -> None:
         "ProjectORM.id.in_(project_ids)",
     ):
         assert predicate in reader_source
+    assert ".limit(max(0, int(presence_limit)))" not in reader_source
+
+
+def test_collaboration_r16_has_no_snapshot_or_duplicate_approval_authority() -> None:
+    collaboration_source = "\n".join(
+        path.read_text(encoding="utf-8")
+        for root in (
+            PM_ROOT / "application/collaboration",
+            PM_ROOT / "api/desktop/collaboration",
+            PM_ROOT / "contracts/reads/collaboration",
+            PM_ROOT / "infrastructure/persistence/reads/collaboration",
+            REPO_ROOT / "src/ui_qml/modules/project_management/controllers/collaboration",
+            REPO_ROOT / "src/ui_qml/modules/project_management/presenters/collaboration",
+        )
+        for path in root.rglob("*.py")
+    )
+    workspace_qml_root = (
+        REPO_ROOT / "src/ui_qml/modules/project_management/qml/workspaces/collaboration"
+    )
+    controller_typeinfo_root = (
+        REPO_ROOT
+        / "src/ui_qml/modules/project_management/qml/ProjectManagement/Controllers/typeinfo"
+    )
+    collaboration_qml_source = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (
+            *workspace_qml_root.rglob("*.qml"),
+            controller_typeinfo_root / "collaboration.fragment",
+            controller_typeinfo_root / "plugins.qmltypes",
+        )
+    )
+    approvals_builder = (
+        REPO_ROOT
+        / "src/ui_qml/modules/project_management/presenters/collaboration/approvals_builder.py"
+    ).read_text(encoding="utf-8")
+
+    retired_source = collaboration_source + "\n" + collaboration_qml_source
+    for forbidden in (
+        "list_workspace_snapshot",
+        "CollaborationWorkspaceSnapshot",
+        "CollaborationWorkspaceFacts",
+        "R1.6 TEMPORARY",
+        "teamUpdates",
+        "Team Updates",
+        "exportPanel",
+    ):
+        assert forbidden not in retired_source
+    assert "approval_api.list_requests(" in approvals_builder
+    for forbidden in (
+        "ApprovalRequestORM",
+        "approval_requests",
+        "approve_and_apply",
+        "def approve_request",
+    ):
+        assert forbidden not in approvals_builder
 
 
 def test_budget_approval_uses_one_immutable_command_result_for_both_outcomes() -> None:

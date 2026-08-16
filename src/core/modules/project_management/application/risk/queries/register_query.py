@@ -4,13 +4,17 @@ from datetime import date
 
 from src.core.modules.project_management.domain.risk.register import RegisterEntry, RegisterEntrySeverity, RegisterEntryStatus, RegisterEntryType
 from src.core.platform.common.exceptions import NotFoundError
-from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.register import RegisterEntryRepository
-from src.core.modules.project_management.application.common.pagination import PageRequest
+from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.register.register import RegisterEntryRepository
+from src.core.modules.project_management.application.common.pagination import (
+    PageRequest,
+    normalize_page_for_total,
+)
 from src.core.modules.project_management.contracts.reads.register import (
     RegisterCatalogReadPage,
     RegisterCatalogReader,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.access.scope_permissions import filter_project_rows, require_project_permission
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.modules.project_management.application.risk.dto.register_summary import (
@@ -40,6 +44,8 @@ class RegisterQueryMixin:
         as_of: date | None = None,
         page: int = 1,
         page_size: int = 25,
+        sort_key: str = "triage",
+        sort_direction: str = "asc",
     ) -> RegisterCatalogReadPage:
         require_permission(
             self._user_session,
@@ -56,6 +62,21 @@ class RegisterQueryMixin:
         if self._register_catalog_reader is None or self._tenant_context_service is None:
             raise RuntimeError("Register catalog reader is not configured.")
         page_request = PageRequest(page=page, page_size=page_size)
+        sort = ReadSort.normalize(
+            key=sort_key,
+            direction=sort_direction,
+            allowed_keys={
+                "title",
+                "entryCode",
+                "typeLabel",
+                "projectTitle",
+                "ownerName",
+                "severityLabel",
+                "statusLabel",
+                "dueDateLabel",
+            },
+            default_key="triage",
+        )
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="view register catalog"
         )
@@ -64,7 +85,7 @@ class RegisterQueryMixin:
             allowed_project_ids = tuple(
                 sorted(self._user_session.project_ids_for("register.read"))
             )
-        return self._register_catalog_reader.read_page(
+        read_kwargs = dict(
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,
             allowed_project_ids=allowed_project_ids,
@@ -76,7 +97,18 @@ class RegisterQueryMixin:
             as_of=as_of or date.today(),
             page=page_request.page,
             page_size=page_request.page_size,
+            sort=sort,
         )
+        result = self._register_catalog_reader.read_page(**read_kwargs)
+        normalized_page = normalize_page_for_total(
+            page=result.page,
+            page_size=result.page_size,
+            total=result.filtered_total,
+        )
+        if normalized_page != result.page:
+            read_kwargs["page"] = normalized_page
+            result = self._register_catalog_reader.read_page(**read_kwargs)
+        return result
 
     def get_entry(self, entry_id: str) -> RegisterEntry:
         require_permission(self._user_session, "register.read", operation_label="view register entry")

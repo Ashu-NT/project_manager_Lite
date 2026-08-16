@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from src.core.modules.project_management.api.desktop.collaboration.models.collaboration_models import (
     CollaborationInboxDesktopDto,
-    CollaborationNotificationDesktopDto,
     CollaborationPresenceDesktopDto,
     TaskCollaborationCommentDesktopDto,
     TaskCollaborationReactionSummaryDto,
@@ -14,23 +13,6 @@ from src.core.modules.project_management.api.desktop.collaboration.utils.formatt
     format_enum_label,
     format_linked_document_label,
 )
-
-
-def serialize_notification(item) -> CollaborationNotificationDesktopDto:
-    return CollaborationNotificationDesktopDto(
-        entity_id=item.entity_id,
-        notification_type=item.notification_type,
-        notification_type_label=format_enum_label(item.notification_type),
-        entity_type=item.entity_type,
-        headline=item.headline,
-        body_preview=item.body_preview,
-        actor_username=item.actor_username,
-        created_at=item.created_at,
-        created_at_label=format_datetime(item.created_at),
-        project_id=item.project_id,
-        project_name=item.project_name or "",
-        attention=bool(item.attention),
-    )
 
 
 def serialize_inbox_item(item) -> CollaborationInboxDesktopDto:
@@ -169,7 +151,6 @@ def serialize_task_comment(
 
 __all__ = [
     "serialize_inbox_item",
-    "serialize_notification",
     "serialize_presence_item",
     "serialize_task_comment",
 ]

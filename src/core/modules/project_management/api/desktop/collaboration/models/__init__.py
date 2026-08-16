@@ -1,10 +1,10 @@
 """Collaboration desktop DTOs and view models."""
 
 from src.core.modules.project_management.api.desktop.collaboration.models.collaboration_models import (
+    CollaborationCommentPageDto,
+    CollaborationContextOptionsDto,
     CollaborationInboxDesktopDto,
-    CollaborationNotificationDesktopDto,
     CollaborationPresenceDesktopDto,
-    CollaborationWorkspaceSnapshotDto,
     TaskCollaborationCommentDesktopDto,
     TaskCollaborationDocumentOptionDescriptor,
     TaskCollaborationMentionOptionDescriptor,
@@ -12,10 +12,10 @@ from src.core.modules.project_management.api.desktop.collaboration.models.collab
 )
 
 __all__ = [
+    "CollaborationCommentPageDto",
+    "CollaborationContextOptionsDto",
     "CollaborationInboxDesktopDto",
-    "CollaborationNotificationDesktopDto",
     "CollaborationPresenceDesktopDto",
-    "CollaborationWorkspaceSnapshotDto",
     "TaskCollaborationCommentDesktopDto",
     "TaskCollaborationDocumentOptionDescriptor",
     "TaskCollaborationMentionOptionDescriptor",

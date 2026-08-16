@@ -8,7 +8,7 @@ from datetime import date, time
 from time import perf_counter
 from typing import Any
 
-from src.core.platform.contract.time_management.calendar.contracts import (
+from src.core.platform.contract.repositories.time_management.calendar.contracts import (
     CalendarAssignmentRepository,
     CalendarExceptionRepository,
     CalendarRecurringEventRepository,

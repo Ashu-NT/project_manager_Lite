@@ -6,9 +6,6 @@ from types import SimpleNamespace
 from PySide6.QtCore import QSettings
 
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
-from src.ui_qml.modules.project_management.controllers.common import (
-    ProjectManagementTaskViewStore,
-)
 from src.core.modules.project_management.api.desktop import (
     build_project_management_collaboration_desktop_api,
     build_project_management_tasks_desktop_api,
@@ -70,9 +67,6 @@ class _FakeCollaborationService:
                 ),
             ]
         }
-
-    def list_workspace_snapshot(self, *, limit: int = 200) -> SimpleNamespace:
-        return SimpleNamespace(notifications=[], inbox=[], recent_activity=[], active_presence=[])
 
     def mark_task_mentions_read(self, task_id: str) -> None:
         self.marked_task_ids.append(task_id)
@@ -326,7 +320,6 @@ def _build_tasks_catalog(
             project_management_collaboration=collaboration_api,
             project_management_timesheets=timesheets_api,
         ),
-        task_view_store=ProjectManagementTaskViewStore(settings),
     )
     return catalog, settings
 

@@ -117,6 +117,8 @@ class ProjectManagementResourcesDesktopApi:
         category: str = "all",
         page: int = 1,
         page_size: int = 25,
+        sort_key: str = "catalog",
+        sort_direction: str = "asc",
     ) -> ResourceCatalogPageDesktopDto:
         service = self._require_resource_service()
         normalized_active = str(active or "all").strip().lower()
@@ -135,6 +137,8 @@ class ProjectManagementResourcesDesktopApi:
             category=category_value,
             page=page,
             page_size=page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
         )
         items: list[ResourceDesktopDto] = []
         for item in result.items:
@@ -166,6 +170,8 @@ class ProjectManagementResourcesDesktopApi:
             average_capacity=result.summary.average_capacity,
             page=result.page,
             page_size=result.page_size,
+            sort_key=result.sort.key,
+            sort_direction=result.sort.direction.value,
         )
 
     def create_resource(self, command: ResourceCreateCommand) -> ResourceDesktopDto:

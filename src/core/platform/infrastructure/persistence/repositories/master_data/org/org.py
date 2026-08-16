@@ -8,7 +8,7 @@ from src.core.platform.infrastructure.persistence.mappers.master_data.org.org im
     organization_to_orm,
 )
 from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
-from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
 from src.infra.persistence.db.optimistic import update_with_version_check
 

@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Window
 import Shell.Context 1.0 as ShellContexts
 import App.Theme 1.0 as Theme
 import App.Icons 1.0 as AppIcons
@@ -12,8 +13,13 @@ Rectangle {
 
     property ShellContexts.ShellContext shellModel
     property bool collapsed: false
+    // R7.3: below the shared narrow-layout breakpoint the drawer also
+    // collapses itself, independent of the manual toggle -- Window.width
+    // resolves to the enclosing ApplicationWindow regardless of nesting.
+    readonly property bool _effectiveCollapsed: drawer.collapsed
+        || (Window.width > 0 && Window.width < Theme.AppTheme.narrowLayoutBreakpoint)
 
-    implicitWidth: drawer.collapsed
+    implicitWidth: drawer._effectiveCollapsed
         ? Theme.AppTheme.sidebarCollapsedWidth
         : Theme.AppTheme.sidebarWidth
 
@@ -26,9 +32,7 @@ Rectangle {
     function iconForRoute(routeId) {
         const icons = {
             "shell.home": "home",
-            "platform.admin": "admin",
-            "platform.control": "control",
-            "platform.settings": "settings",
+            "platform.workspace": "admin",
             "project_management.projects": "project",
             "project_management.tasks": "tasks",
             "project_management.scheduling": "calendar",
@@ -105,7 +109,7 @@ Rectangle {
 
         Item {
             Layout.fillWidth: true
-            Layout.preferredHeight: drawer.collapsed
+            Layout.preferredHeight: drawer._effectiveCollapsed
                 ? Theme.AppTheme.spacingSm
                 : Theme.AppTheme.marginMd
         }
@@ -115,8 +119,8 @@ Rectangle {
             Layout.fillWidth: true
             Layout.leftMargin: Theme.AppTheme.marginMd
             Layout.rightMargin: Theme.AppTheme.marginMd
-            Layout.preferredHeight: drawer.collapsed ? 0 : Theme.AppTheme.inputHeight
-            visible: !drawer.collapsed
+            Layout.preferredHeight: drawer._effectiveCollapsed ? 0 : Theme.AppTheme.inputHeight
+            visible: !drawer._effectiveCollapsed
             text: drawer._filter
             placeholderText: "Filter navigation"
             debounceInterval: 160
@@ -125,7 +129,7 @@ Rectangle {
 
         Item {
             Layout.fillWidth: true
-            Layout.preferredHeight: drawer.collapsed
+            Layout.preferredHeight: drawer._effectiveCollapsed
                 ? Theme.AppTheme.spacingSm
                 : Theme.AppTheme.spacingMd
         }
@@ -154,13 +158,13 @@ Rectangle {
 
                         Layout.fillWidth: true
                         height: navDelegate.isHeader
-                            ? (drawer.collapsed ? 0 : Theme.AppTheme.captionSize + Theme.AppTheme.spacingLg)
+                            ? (drawer._effectiveCollapsed ? 0 : Theme.AppTheme.captionSize + Theme.AppTheme.spacingLg)
                             : Theme.AppTheme.sidebarRowHeight
                         clip: true
 
                         Item {
                             anchors.fill: parent
-                            visible: navDelegate.isHeader && !drawer.collapsed
+                            visible: navDelegate.isHeader && !drawer._effectiveCollapsed
 
                             RowLayout {
                                 anchors.left: parent.left
@@ -231,7 +235,7 @@ Rectangle {
 
                             AppIcons.AppIcon {
                                 anchors.centerIn: parent
-                                visible: drawer.collapsed
+                                visible: drawer._effectiveCollapsed
                                 name: navDelegate.modelData.icon || "default"
                                 size: Theme.AppTheme.iconMd
                                 iconColor: navDelegate.isSelected
@@ -244,7 +248,7 @@ Rectangle {
                                 anchors.leftMargin: Theme.AppTheme.marginMd
                                 anchors.rightMargin: Theme.AppTheme.marginMd
                                 spacing: Theme.AppTheme.spacingSm
-                                visible: !drawer.collapsed
+                                visible: !drawer._effectiveCollapsed
 
                                 AppIcons.AppIcon {
                                     name: navDelegate.modelData.icon || "default"
@@ -280,7 +284,7 @@ Rectangle {
                             }
 
                             ToolTip {
-                                visible: drawer.collapsed && rowHover.containsMouse
+                                visible: drawer._effectiveCollapsed && rowHover.containsMouse
                                 text: navDelegate.modelData.title || ""
                                 delay: 300
                             }
@@ -306,7 +310,7 @@ Rectangle {
                 anchors.leftMargin: Theme.AppTheme.marginMd
                 anchors.rightMargin: Theme.AppTheme.marginMd
                 spacing: Theme.AppTheme.spacingSm
-                visible: !drawer.collapsed
+                visible: !drawer._effectiveCollapsed
 
                 AppControls.Label {
                     Layout.fillWidth: true
@@ -325,7 +329,7 @@ Rectangle {
 
             AppIcons.AppIcon {
                 anchors.centerIn: parent
-                visible: drawer.collapsed
+                visible: drawer._effectiveCollapsed
                 name: "chevron_right"
                 size: Theme.AppTheme.iconXs
                 iconColor: Theme.AppTheme.textMuted
@@ -340,7 +344,7 @@ Rectangle {
             }
 
             ToolTip {
-                visible: collapseHover.containsMouse && drawer.collapsed
+                visible: collapseHover.containsMouse && drawer._effectiveCollapsed
                 text: "Expand sidebar"
                 delay: 300
             }

@@ -1,0 +1,4 @@
+module ProjectManagement.Scheduling
+SchedulingWorkspace 1.0 SchedulingWorkspace.qml
+SchedulingWorkspacePage 1.0 SchedulingWorkspacePage.qml
+SchedulingWorkspaceState 1.0 SchedulingWorkspaceState.qml

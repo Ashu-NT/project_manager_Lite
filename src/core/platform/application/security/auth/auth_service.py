@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.application.security.auth.auth_query import AuthQueryMixin
 from src.core.platform.application.security.auth.auth_validation import AuthValidationMixin
-from src.core.platform.contract.security.auth import (
+from src.core.platform.contract.read.overview.platform_overview_rollup_reader import PlatformOverviewRollupReader
+from src.core.platform.contract.repositories.security.auth import (
     AuthSessionRepository,
     PermissionRepository,
     RoleBindingRepository,
@@ -36,8 +37,8 @@ from src.core.platform.application.security.authorization.roles.canonical_role_r
 
 if TYPE_CHECKING:
     from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
-    from src.core.platform.contract.history.audit.contracts import AuditRepository
-    from src.core.platform.contract.tenant.tenancy.contracts import UserTenantMembershipRepository
+    from src.core.platform.contract.repositories.history.audit.contracts import AuditRepository
+    from src.core.platform.contract.repositories.tenant.tenancy.contracts import UserTenantMembershipRepository
     from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
     from src.core.platform.application.security.authorization.roles.role_governance_service import RoleGovernanceService
@@ -65,6 +66,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
             ScopeTenantResolver,
         ] | None = None,
         allow_platform_customer_context: bool = False,
+        overview_rollup_reader: PlatformOverviewRollupReader | None = None,
     ):
         self._session: Session = session
         self._user_repo: UserRepository = user_repo
@@ -85,6 +87,7 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
         self._allow_platform_customer_context = bool(
             allow_platform_customer_context
         )
+        self._overview_rollup_reader = overview_rollup_reader
         self._canonical_role_resolver = (
             CanonicalRoleResolver(
                 role_binding_repo=role_binding_repo,
@@ -242,23 +245,26 @@ class AuthService(AuthQueryMixin, AuthValidationMixin):
     def force_user_password_reset(self, user_id: str) -> None:
         _pw.force_user_password_reset(self, user_id)
 
-    def reset_user_password(self, user_id: str, new_password: str) -> None:
-        _pw.reset_user_password(self, user_id, new_password)
+    def reset_user_password(self, user_id: str, new_password: str) -> UserAccount:
+        return _pw.reset_user_password(self, user_id, new_password)
 
-    def assign_role(self, user_id: str, role_name: str) -> None:
-        _roles.assign_role(self, user_id, role_name)
+    def assign_role(self, user_id: str, role_name: str) -> UserAccount:
+        return _roles.assign_role(self, user_id, role_name)
 
-    def revoke_role(self, user_id: str, role_name: str) -> None:
-        _roles.revoke_role(self, user_id, role_name)
+    def revoke_role(self, user_id: str, role_name: str) -> UserAccount:
+        return _roles.revoke_role(self, user_id, role_name)
 
-    def assign_customer_role(self, user_id: str, role_name: str) -> None:
-        _roles.assign_customer_role(self, user_id, role_name)
+    def assign_customer_role(self, user_id: str, role_name: str) -> UserAccount:
+        return _roles.assign_customer_role(self, user_id, role_name)
 
-    def revoke_customer_role(self, user_id: str, role_name: str) -> None:
-        _roles.revoke_customer_role(self, user_id, role_name)
+    def revoke_customer_role(self, user_id: str, role_name: str) -> UserAccount:
+        return _roles.revoke_customer_role(self, user_id, role_name)
 
     def list_users(self) -> list[UserAccount]:
         return _users.list_users(self)
+
+    def get_user_rollup_summary(self):
+        return _users.get_user_rollup_summary(self)
 
     def list_roles(self) -> list[Role]:
         return _users.list_roles(self)

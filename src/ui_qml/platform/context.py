@@ -5,14 +5,14 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.platform.api.desktop.integration import IntegrationCapabilityDesktopApi
 from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
-from src.ui_qml.platform.controllers.admin import (
+from src.ui_qml.platform.controllers.admin_console import PlatformAdminWorkspaceController
+from src.ui_qml.platform.controllers.identity_access.access import (
     PlatformAdminAccessWorkspaceController,
-    PlatformAdminWorkspaceController,
-    PlatformSupportWorkspaceController,
 )
+from src.ui_qml.platform.controllers.support import PlatformSupportWorkspaceController
 from src.ui_qml.platform.controllers.control import PlatformControlWorkspaceController
 from src.ui_qml.platform.controllers.settings import PlatformSettingsWorkspaceController
-from src.ui_qml.platform.controllers.shell import TenantSwitcherController
+from src.ui_qml.platform.controllers.tenants import TenantSwitcherController
 from src.ui_qml.platform.presenters import (
     PlatformAccessWorkspacePresenter,
     PlatformAdminWorkspacePresenter,
@@ -52,6 +52,9 @@ class PlatformWorkspaceCatalog(QObject):
         runtime_api = desktop_api
         if desktop_api_registry is not None:
             runtime_api = getattr(desktop_api_registry, "platform_runtime", None) or desktop_api
+        self._runtime_api = runtime_api
+        self._current_permissions: frozenset[str] = frozenset()
+        self._reload_current_permissions()
         self._integration_api: IntegrationCapabilityDesktopApi | None = (
             getattr(desktop_api_registry, "integration_capability", None)
             if desktop_api_registry is not None
@@ -74,7 +77,6 @@ class PlatformWorkspaceCatalog(QObject):
             user_api=user_api,
             document_api=document_api,
             party_api=party_api,
-            audit_api=getattr(desktop_api_registry, "platform_enterprise_audit", None),
         )
         control_presenter = PlatformControlWorkspacePresenter(
             approval_api=getattr(desktop_api_registry, "platform_approval", None),
@@ -111,6 +113,7 @@ class PlatformWorkspaceCatalog(QObject):
             document_presenter=PlatformDocumentCatalogPresenter(document_api=document_api),
             document_management_presenter=PlatformDocumentManagementPresenter(document_api=document_api),
             enterprise_calendar_api=enterprise_calendar_api,
+            runtime_api=runtime_api,
             parent=self,
         )
         self._admin_access_workspace = PlatformAdminAccessWorkspaceController(
@@ -118,6 +121,7 @@ class PlatformWorkspaceCatalog(QObject):
                 access_api=getattr(desktop_api_registry, "platform_access", None),
                 user_api=user_api,
             ),
+            runtime_api=runtime_api,
             parent=self,
         )
         self._admin_support_workspace = PlatformSupportWorkspaceController(
@@ -129,11 +133,13 @@ class PlatformWorkspaceCatalog(QObject):
         self._control_workspace = PlatformControlWorkspaceController(
             overview_presenter=control_presenter,
             queue_presenter=control_queue_presenter,
+            runtime_api=runtime_api,
             parent=self,
         )
         self._settings_workspace = PlatformSettingsWorkspaceController(
             overview_presenter=settings_presenter,
             catalog_presenter=settings_catalog_presenter,
+            runtime_api=runtime_api,
             parent=self,
         )
         tenant_api = getattr(desktop_api_registry, "platform_tenant", None) if desktop_api_registry is not None else None
@@ -218,6 +224,8 @@ class PlatformWorkspaceCatalog(QObject):
             self._control_workspace,
             self._settings_workspace,
         ):
+            if not getattr(controller, "_loaded", True):
+                continue
             refresh = getattr(controller, "refresh", None)
             if callable(refresh):
                 refresh()
@@ -272,6 +280,36 @@ class PlatformWorkspaceCatalog(QObject):
     def changeModuleLifecycleStatus(self, module_code: str, lifecycle_status: str) -> dict[str, object]:
         self._settings_workspace.changeModuleLifecycleStatus(module_code, lifecycle_status)
         return dict(self._settings_workspace.operationResult)
+
+    # ------------------------------------------------------------------
+    # RBAC visibility slots — used by the shell nav and workspace pages to
+    # hide destinations/actions the current user has no backend permission
+    # for, instead of showing them and letting the desktop-API call fail.
+    # ------------------------------------------------------------------
+
+    def _reload_current_permissions(self) -> None:
+        if self._runtime_api is None:
+            self._current_permissions = frozenset()
+            return
+        result = self._runtime_api.get_current_permissions()
+        if not getattr(result, "ok", False) or getattr(result, "data", None) is None:
+            self._current_permissions = frozenset()
+            return
+        self._current_permissions = frozenset(result.data)
+
+    @Slot()
+    def refreshCurrentPermissions(self) -> None:
+        """Call after a tenant/organization switch or re-authentication so
+        nav/action visibility reflects the new session's actual authority."""
+        self._reload_current_permissions()
+
+    @Slot(str, result=bool)
+    def hasPermission(self, permission_code: str) -> bool:
+        return permission_code in self._current_permissions
+
+    @Slot("QVariantList", result=bool)
+    def hasAnyPermission(self, permission_codes: list) -> bool:
+        return any(code in self._current_permissions for code in permission_codes)
 
     # ------------------------------------------------------------------
     # Module capability slots — used by all QML workspaces to gate

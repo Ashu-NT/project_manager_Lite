@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import date
 
-from src.core.modules.project_management.contracts.repositories.task import (
+from src.core.modules.project_management.contracts.repositories.tasks.task import (
     AssignmentRepository,
     TaskRepository,
     TimesheetAssignmentContext,
@@ -13,7 +13,10 @@ from src.core.modules.project_management.access.scope_permissions import require
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import ValidationError
 from src.core.modules.project_management.domain.enums import TaskStatus
-from src.core.modules.project_management.application.common.pagination import PageRequest
+from src.core.modules.project_management.application.common.pagination import (
+    PageRequest,
+    normalize_page_for_total,
+)
 from src.core.modules.project_management.application.tasks.workspace_filters import (
     build_task_workspace_criteria,
 )
@@ -21,6 +24,7 @@ from src.core.modules.project_management.contracts.reads.tasks import (
     TaskWorkspaceReadPage,
     TaskWorkspaceReader,
 )
+from src.core.modules.project_management.contracts.reads import ReadSort
 
 
 class TaskQueryMixin:
@@ -62,6 +66,8 @@ class TaskQueryMixin:
         page: int = 1,
         page_size: int = 25,
         as_of: date | None = None,
+        sort_key: str = "wbsCode",
+        sort_direction: str = "asc",
     ) -> TaskWorkspaceReadPage:
         require_permission(self._user_session, "task.read", operation_label="list task workspace")
         normalized_project_id = str(project_id or "").strip() or None
@@ -76,6 +82,21 @@ class TaskQueryMixin:
             raise RuntimeError("Task workspace reader is not configured.")
 
         page_request = PageRequest(page=page, page_size=page_size)
+        sort = ReadSort.normalize(
+            key=sort_key,
+            direction=sort_direction,
+            allowed_keys={
+                "wbsCode",
+                "title",
+                "statusLabel",
+                "projectName",
+                "priorityLabel",
+                "startDateLabel",
+                "endDateLabel",
+                "progressValue",
+            },
+            default_key="wbsCode",
+        )
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="list task workspace"
         )
@@ -90,14 +111,24 @@ class TaskQueryMixin:
             schedule=schedule,
             as_of=as_of or date.today(),
         )
-        result = self._task_workspace_reader.read_page(
+        read_kwargs = dict(
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,
             allowed_project_ids=allowed_project_ids,
             criteria=criteria,
             page=page_request.page,
             page_size=page_request.page_size,
+            sort=sort,
         )
+        result = self._task_workspace_reader.read_page(**read_kwargs)
+        normalized_page = normalize_page_for_total(
+            page=result.page,
+            page_size=result.page_size,
+            total=result.filtered_total,
+        )
+        if normalized_page != result.page:
+            read_kwargs["page"] = normalized_page
+            result = self._task_workspace_reader.read_page(**read_kwargs)
         items = tuple(
             replace(
                 item,

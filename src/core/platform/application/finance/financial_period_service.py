@@ -19,7 +19,7 @@ from src.core.platform.common.exceptions import (
     NotFoundError,
     ValidationError,
 )
-from src.core.platform.contract.finance import FinancialPeriodRepository
+from src.core.platform.contract.repositories.finance import FinancialPeriodRepository
 from src.core.platform.finance.periods import FinancialPeriod, FinancialPeriodStatus
 from src.core.shared.audit import record_audit_entry
 

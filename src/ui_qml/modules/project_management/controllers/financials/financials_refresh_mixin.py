@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from PySide6.QtCore import Qt
+
 from src.ui_qml.modules.project_management.controllers.common import (
     serialize_financials_baseline_variance_view_models,
     serialize_financials_collection_view_model,
@@ -30,6 +32,21 @@ class FinancialsRefreshMixin:
                 planned_cost_line_page=self._planned_cost_line_page,
                 billing_preparation_page=self._billing_preparation_page,
                 configuration_page_size=self._configuration_page_size,
+                actual_page=self._actual_page,
+                commitment_page=self._commitment_page,
+                transaction_page_size=self._transaction_page_size,
+                actual_sort_key=self._actual_sort_key,
+                actual_sort_direction=(
+                    "desc"
+                    if self._actual_sort_direction == Qt.DescendingOrder.value
+                    else "asc"
+                ),
+                commitment_sort_key=self._commitment_sort_key,
+                commitment_sort_direction=(
+                    "desc"
+                    if self._commitment_sort_direction == Qt.DescendingOrder.value
+                    else "asc"
+                ),
                 selected_forecast_id=self._selected_forecast_id or None,
                 selected_change_id=self._selected_change_id or None,
                 selected_baseline_id=self._selected_baseline_id or None,
@@ -60,6 +77,12 @@ class FinancialsRefreshMixin:
             )
             self._set_ledger(
                 serialize_financials_collection_view_model(workspace_state.ledger)
+            )
+            self._actual_page = workspace_state.ledger.page
+            self._transaction_page_size = workspace_state.ledger.page_size
+            self._set_actual_sort_state(
+                workspace_state.actual_sort_key,
+                workspace_state.actual_sort_direction,
             )
             self._set_source_analytics(
                 serialize_financials_collection_view_model(
@@ -100,6 +123,12 @@ class FinancialsRefreshMixin:
             self._set_commitments(
                 serialize_financials_collection_view_model(workspace_state.commitments)
             )
+            self._commitment_page = workspace_state.commitments.page
+            self._transaction_page_size = workspace_state.commitments.page_size
+            self._set_commitment_sort_state(
+                workspace_state.commitment_sort_key,
+                workspace_state.commitment_sort_direction,
+            )
             self._set_baseline_variance(
                 serialize_financials_baseline_variance_view_models(
                     workspace_state.baseline_variance
@@ -124,12 +153,15 @@ class FinancialsRefreshMixin:
             self._set_budget_lines(
                 serialize_financials_collection_view_model(workspace_state.budget_lines)
             )
+            self._budget_line_page = workspace_state.budget_lines.page
+            self._configuration_page_size = workspace_state.budget_lines.page_size
             self._set_rate_cards(
                 serialize_financials_collection_view_model(workspace_state.rate_cards)
             )
             self._set_rate_lines(
                 serialize_financials_collection_view_model(workspace_state.rate_lines)
             )
+            self._rate_line_page = workspace_state.rate_lines.page
             self._set_planned_cost_versions(
                 serialize_financials_collection_view_model(
                     workspace_state.planned_cost_versions
@@ -138,6 +170,7 @@ class FinancialsRefreshMixin:
             self._set_planned_cost_lines(
                 serialize_financials_collection_view_model(workspace_state.planned_cost_lines)
             )
+            self._planned_cost_line_page = workspace_state.planned_cost_lines.page
             self._set_billing_profile(
                 serialize_financials_detail_view_model(workspace_state.billing_profile)
             )
@@ -149,6 +182,7 @@ class FinancialsRefreshMixin:
                     workspace_state.billing_preparations
                 )
             )
+            self._billing_preparation_page = workspace_state.billing_preparations.page
         except Exception as exc:  # pragma: no cover - defensive fallback
             self._set_error_message(str(exc))
         finally:

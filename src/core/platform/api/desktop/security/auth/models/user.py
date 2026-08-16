@@ -13,6 +13,13 @@ class RoleDto:
 
 
 @dataclass(frozen=True)
+class UserRollupSummaryDto:
+    total: int
+    active: int
+    locked: int
+
+
+@dataclass(frozen=True)
 class UserDto:
     id: str
     username: str

@@ -56,6 +56,16 @@ class PlatformRuntimeDesktopApi:
             )
         )
 
+    def get_organization_count(self) -> DesktopApiResult[int]:
+        return self._execute(
+            lambda: self._platform_runtime_application_service.get_organization_count()
+        )
+
+    def get_current_permissions(self) -> DesktopApiResult[tuple[str, ...]]:
+        return self._execute(
+            lambda: tuple(sorted(self._platform_runtime_application_service.get_current_permissions()))
+        )
+
     def list_modules(self) -> DesktopApiResult[tuple[ModuleDto, ...]]:
         return self._execute(
             lambda: tuple(

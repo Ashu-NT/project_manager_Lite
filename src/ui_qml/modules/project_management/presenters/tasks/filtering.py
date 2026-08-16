@@ -11,7 +11,7 @@ from .task_filters import (
     build_task_schedule_options,
     normalize_task_filter,
 )
-from .utils import NormalizedTaskFilters, TaskFilterOptions
+from .filter_models import NormalizedTaskFilters, TaskFilterOptions
 
 def build_task_filter_options(desktop_api: Any) -> TaskFilterOptions:
     project_options = (

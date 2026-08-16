@@ -5,19 +5,21 @@ from dataclasses import dataclass
 from src.core.modules.project_management.application.financials.commitments import (
     ProjectCommitmentService,
 )
-from src.core.modules.project_management.application.financials.cost_entries import (
+from src.core.modules.project_management.application.financials.cost.entries import (
     ProjectCostEntryService,
 )
-from src.core.modules.project_management.contracts.financial_sources import (
-    FinancialPostingPurpose,
-    FinancialSourceModule,
-    FinancialSourceReference,
-    FinancialSourceType,
+from src.core.modules.project_management.contracts.financial_sources.procurement import (
     ProcurementCommitmentFinancialSource,
     ProcurementCommitmentState,
     ProcurementReceiptAccrualFinancialSource,
 )
-from src.core.modules.project_management.contracts.repositories.task import TaskRepository
+from src.core.modules.project_management.contracts.financial_sources.reference import (
+    FinancialPostingPurpose,
+    FinancialSourceModule,
+    FinancialSourceReference,
+    FinancialSourceType,
+)
+from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.integration import (
     PROCUREMENT_COMMITMENT_EVENT_TYPE,

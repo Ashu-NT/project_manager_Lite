@@ -15,7 +15,8 @@ from src.core.platform.common.exceptions import (
 )
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.read.overview.platform_overview_rollup_reader import PlatformOverviewRollupReader
+from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.org.support import (
     DEFAULT_ORGANIZATION_CODE,
@@ -39,12 +40,14 @@ class OrganizationService:
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
         tenant_context_service: TenantContextService | None = None,
+        overview_rollup_reader: PlatformOverviewRollupReader | None = None,
     ):
         self._session = session
         self._organization_repo = organization_repo
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
+        self._overview_rollup_reader = overview_rollup_reader
 
     # ------------------------------------------------------------------
     # Tenant context — the single gateway for all runtime methods.
@@ -106,6 +109,13 @@ class OrganizationService:
         tenant_id = self._require_current_tenant_id(operation_label="list organizations")
         return self._organization_repo.list_for_tenant(tenant_id, active_only=active_only)
 
+    def get_organization_count(self) -> int:
+        require_permission(self._user_session, "settings.manage", operation_label="view organization count")
+        tenant_id = self._require_current_tenant_id(operation_label="view organization count")
+        if self._overview_rollup_reader is None:
+            raise RuntimeError("Platform overview rollup reader is not configured.")
+        return self._overview_rollup_reader.get_organization_count(tenant_id=tenant_id)
+
     def get_active_organization(self) -> Organization:
         require_permission(self._user_session, "settings.manage", operation_label="view active organization")
         tenant_id = self._require_current_tenant_id(operation_label="view active organization")
@@ -131,6 +141,7 @@ class OrganizationService:
         timezone_name: str = DEFAULT_ORGANIZATION_TIMEZONE,
         base_currency: str = DEFAULT_ORGANIZATION_CURRENCY,
         is_active: bool = True,
+        commit: bool = True,
     ) -> Organization:
         require_permission(self._user_session, "settings.manage", operation_label="create organization")
         tenant_id = self._require_current_tenant_id(operation_label="create organization")
@@ -148,30 +159,39 @@ class OrganizationService:
             if organization.is_active:
                 self._deactivate_other_organizations(tenant_id=tenant_id, exclude_id=None)
             self._organization_repo.add(organization)
-            self._session.commit()
+            # Audit is staged in the same transaction as the business write (ADR-003:
+            # "the business mutation and successful security audit intent commit
+            # atomically" for platform provisioning) — never a second, separate commit.
+            record_audit_entry(
+                self,
+                operation="create",
+                entity_type="organization",
+                entity_id=organization.id,
+                module="platform",
+                severity="low",
+                metadata={
+                    "action": "organization.create",
+                    "organization_code": organization.organization_code,
+                    "display_name": organization.display_name,
+                    "timezone_name": organization.timezone_name,
+                    "base_currency": organization.base_currency,
+                    "is_active": str(organization.is_active),
+                },
+                commit=False,
+                fail_closed=True,
+            )
+            if commit:
+                self._session.commit()
+            else:
+                self._session.flush()
         except IntegrityError as exc:
             self._session.rollback()
             raise ValidationError("Organization code already exists.", code="ORGANIZATION_CODE_EXISTS") from exc
         except Exception:
             self._session.rollback()
             raise
-        record_audit_entry(
-            self,
-            operation="create",
-            entity_type="organization",
-            entity_id=organization.id,
-            module="platform",
-            severity="low",
-            metadata={
-                "action": "organization.create",
-                "organization_code": organization.organization_code,
-                "display_name": organization.display_name,
-                "timezone_name": organization.timezone_name,
-                "base_currency": organization.base_currency,
-                "is_active": str(organization.is_active),
-            },
-        )
-        domain_events.organizations_changed.emit(organization.id)
+        if commit:
+            domain_events.organizations_changed.emit(organization.id)
         return organization
 
     def update_organization(
@@ -251,7 +271,7 @@ class OrganizationService:
         domain_events.organizations_changed.emit(candidate.id)
         return candidate
 
-    def set_active_organization(self, organization_id: str) -> Organization:
+    def set_active_organization(self, organization_id: str, *, commit: bool = True) -> Organization:
         require_permission(self._user_session, "settings.manage", operation_label="set active organization")
         tenant_id = self._require_current_tenant_id(operation_label="set active organization")
         organization = self._organization_repo.get_for_tenant(organization_id, tenant_id)
@@ -265,28 +285,37 @@ class OrganizationService:
         try:
             self._deactivate_other_organizations(tenant_id=tenant_id, exclude_id=organization.id)
             self._organization_repo.update(candidate)
-            self._session.commit()
+            record_audit_entry(
+                self,
+                operation="update",
+                entity_type="organization",
+                entity_id=candidate.id,
+                module="platform",
+                severity="low",
+                metadata={
+                    "action": "organization.set_active",
+                    "organization_code": candidate.organization_code,
+                    "display_name": candidate.display_name,
+                },
+                commit=False,
+                fail_closed=True,
+            )
+            if commit:
+                self._session.commit()
+            else:
+                self._session.flush()
         except Exception:
             self._session.rollback()
             raise
-        record_audit_entry(
-            self,
-            operation="update",
-            entity_type="organization",
-            entity_id=candidate.id,
-            module="platform",
-            severity="low",
-            metadata={
-                "action": "organization.set_active",
-                "organization_code": candidate.organization_code,
-                "display_name": candidate.display_name,
-            },
-        )
-        if self._tenant_context_service is not None:
-            self._tenant_context_service.set_active_organization(candidate.id)
-        elif self._user_session is not None:
-            self._user_session.set_active_organization_id(candidate.id)
-        domain_events.organizations_changed.emit(candidate.id)
+        if commit:
+            if self._tenant_context_service is not None:
+                self._tenant_context_service.set_active_organization(candidate.id)
+            elif self._user_session is not None:
+                self._user_session.set_active_organization_id(candidate.id)
+            domain_events.organizations_changed.emit(candidate.id)
+        # else: the caller deferred commit() to fold this into a larger transaction.
+        # It must call tenant_context_service.set_active_organization(...) itself,
+        # only after its own commit succeeds — this row isn't durable yet.
         return candidate
 
     # ------------------------------------------------------------------

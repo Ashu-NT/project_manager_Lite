@@ -24,12 +24,12 @@ from src.core.modules.project_management.application.financials.models.finance_m
     FinanceReconciliation,
     FinanceSnapshot,
 )
-from src.core.modules.project_management.application.financials.costs.cost_policy_engine import (
+from src.core.modules.project_management.application.financials.cost.engines.cost_policy_engine import (
     CostControlTotals,
     CostPolicyEngine,
     CostPolicySnapshot,
 )
-from src.core.modules.project_management.application.financials.costs.labor_cost import LaborCostEngine
+from src.core.modules.project_management.application.financials.cost.engines.labor_cost import LaborCostEngine
 from src.core.modules.project_management.application.financials.earned_value.evm_calculator import (
     EarnedValueCalculator,
 )
@@ -53,7 +53,7 @@ from src.core.modules.project_management.application.financials.planned_costs im
     PlannedCostCalculationResult,
     PlannedCostService,
 )
-from src.core.modules.project_management.application.financials.cost_entries import (
+from src.core.modules.project_management.application.financials.cost.entries import (
     ApprovedTimeLaborCostConsumer,
     CostEntryApprovalOutcome,
     CostEntryApprovalResult,

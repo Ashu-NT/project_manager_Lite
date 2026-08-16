@@ -27,12 +27,27 @@ class TimesheetFinancialEventsMixin:
                 "Approved timesheet period is missing its decision timestamp.",
                 code="APPROVED_TIME_TIMESTAMP_REQUIRED",
             )
-        emitted = 0
+        # Resolve project_id for every entry up front (same skip condition as
+        # before), then batch-fetch every distinct work allocation ONE time
+        # instead of calling WorkAllocationRepository.get() once per entry --
+        # entries usually share allocations, so this was a confirmed N+1.
+        resolved_entries: list[tuple[object, str]] = []
+        work_allocation_ids: set[str] = set()
         for entry in entries:
             project_id = self._resolve_entry_project_id(entry=entry)
             if not project_id:
                 continue
-            allocation = self._work_allocation_repo.get(entry.work_allocation_id)
+            resolved_entries.append((entry, project_id))
+            if entry.work_allocation_id:
+                work_allocation_ids.add(entry.work_allocation_id)
+        allocations_by_id = {
+            allocation.id: allocation
+            for allocation in self._work_allocation_repo.list_by_ids(sorted(work_allocation_ids))
+        }
+
+        emitted = 0
+        for entry, project_id in resolved_entries:
+            allocation = allocations_by_id.get(entry.work_allocation_id)
             task_id = getattr(allocation, "task_id", None) if allocation is not None else None
             if entry.organization_id and entry.organization_id != context.organization_id:
                 raise BusinessRuleError(

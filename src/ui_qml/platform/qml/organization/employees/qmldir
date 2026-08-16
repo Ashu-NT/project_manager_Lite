@@ -1,0 +1,3 @@
+module organization.employees
+AdminEmployeeDetailPage 1.0 AdminEmployeeDetailPage.qml
+EmployeesWorkspacePage 1.0 EmployeesWorkspacePage.qml

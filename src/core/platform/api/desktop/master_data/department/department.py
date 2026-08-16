@@ -7,6 +7,7 @@ from src.core.platform.api.desktop.master_data.department.models.department impo
     DepartmentCreateCommand,
     DepartmentDto,
     DepartmentLocationReferenceDto,
+    DepartmentRollupSummaryDto,
     DepartmentUpdateCommand,
 )
 from src.core.platform.application.master_data.department.department_service import DepartmentService
@@ -32,6 +33,13 @@ class PlatformDepartmentDesktopApi:
             lambda: tuple(
                 self._serialize_department(department)
                 for department in self._department_service.list_departments(active_only=active_only)
+            )
+        )
+
+    def get_department_rollup_summary(self) -> DesktopApiResult[DepartmentRollupSummaryDto]:
+        return execute_desktop_operation(
+            lambda: self._serialize_rollup_summary(
+                self._department_service.get_department_rollup_summary()
             )
         )
 
@@ -90,6 +98,10 @@ class PlatformDepartmentDesktopApi:
                 )
             )
         )
+
+    @staticmethod
+    def _serialize_rollup_summary(summary) -> DepartmentRollupSummaryDto:
+        return DepartmentRollupSummaryDto(total=summary.total, active=summary.active)
 
     @staticmethod
     def _serialize_department(department: Department) -> DepartmentDto:

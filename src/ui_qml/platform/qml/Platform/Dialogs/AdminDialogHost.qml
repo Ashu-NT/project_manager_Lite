@@ -1,0 +1,441 @@
+import QtQuick
+import QtQuick.Controls
+import Platform.Controllers 1.0 as PlatformControllers
+import Platform.Dialogs 1.0 as PlatformDialogs
+import organization.organizations.dialogs 1.0 as OrganizationDialogs
+import organization.sites.dialogs 1.0 as SiteDialogs
+import organization.departments.dialogs 1.0 as DepartmentDialogs
+import organization.employees.dialogs 1.0 as EmployeeDialogs
+import organization.parties.dialogs 1.0 as PartyDialogs
+import identity_access.users.dialogs 1.0 as UserDialogs
+import documents.dialogs 1.0 as DocumentDialogs
+import calendars.dialogs 1.0 as CalendarDialogs
+
+// Relocated here in R5.9 (Admin facade retirement) -- this dialog host is a
+// genuine shared dependency of every standalone Platform capability page
+// (R4's six entity pages, R5's four), reached via LazyObjectLoader, and had
+// to survive admin_console/'s deletion. Nothing about its own content
+// changed; only its physical location and module registration moved from
+// admin_console.dialogs to the existing, already-shared Platform.Dialogs
+// module (which also hosts CalendarAssignmentDialog).
+Item {
+    id: root
+
+    property PlatformControllers.PlatformAdminWorkspaceController workspaceController
+
+    function _activeOrganizationName() {
+        const items = root.workspaceController
+            ? ((root.workspaceController.organizations || {}).items || [])
+            : []
+        for (let index = 0; index < items.length; index += 1) {
+            const item = items[index] || {}
+            const state = item.state || {}
+            if (state.isActive === true) {
+                return String(state.displayName || item.title || "")
+            }
+        }
+        return ""
+    }
+
+    // Keeps the dialog open and shows the backend error inside it on failure;
+    // clears and closes only on success. Mirrors the dialog-result handling in
+    // the other modules' dialog hosts.
+    function _handleResult(dialog, result) {
+        if (!result || result.ok === false) {
+            dialog.errorMessage = String((result && result.message) || "Operation failed. Please try again.")
+        } else {
+            dialog.errorMessage = ""
+            dialog.close()
+        }
+    }
+
+    function _calendarOptions() {
+        const items = root.workspaceController
+            ? ((root.workspaceController.calendars || {}).items || [])
+            : []
+        const options = []
+        for (let index = 0; index < items.length; index += 1) {
+            const item = items[index] || {}
+            const state = item.state || {}
+            const value = String(state.calendarId || state.id || item.id || "")
+            if (!value.length)
+                continue
+            const typeLabel = String(state.calendarType || item.statusLabel || "")
+            const codeLabel = String(state.code || "")
+            let label = String(state.name || item.title || value)
+            const suffix = []
+            if (typeLabel.length > 0)
+                suffix.push(typeLabel)
+            if (codeLabel.length > 0)
+                suffix.push(codeLabel)
+            if (suffix.length > 0)
+                label += " (" + suffix.join(" - ") + ")"
+            options.push({
+                "label": label,
+                "value": value
+            })
+        }
+        return options
+    }
+
+    function openOrganizationCreate() {
+        if (root.workspaceController === null) {
+            return
+        }
+        organizationDialog.openForCreate(root.workspaceController.organizationEditorOptions.moduleOptions || [])
+    }
+
+    function openOrganizationEdit(state) {
+        organizationDialog.openForEdit(state || {})
+    }
+
+    function openSiteCreate() {
+        siteDialog.organizationName = root._activeOrganizationName()
+        siteDialog.openForCreate()
+    }
+
+    function openSiteEdit(state) {
+        const siteState = state || {}
+        siteDialog.organizationName = String(siteState.organizationName || root._activeOrganizationName())
+        siteDialog.openForEdit(state || {})
+    }
+
+    function openCalendarCreate() {
+        calendarEditorDialog.openForCreate()
+    }
+
+    function openCalendarEdit(state) {
+        calendarEditorDialog.openForEdit(state || {})
+    }
+
+    function openCalendarExceptionCreate(calendarId) {
+        calendarExceptionDialog.openForCreate(calendarId || "")
+    }
+
+    function openCalendarRecurringEventCreate(calendarId) {
+        calendarRecurringEventDialog.openForCreate(calendarId || "")
+    }
+
+    function openCalendarAssign(entityType, entityId, entityLabel, calendars) {
+        calendarAssignmentDialog.openForAssign(
+            entityType || "", entityId || "", entityLabel || "", calendars || []
+        )
+    }
+
+    function openDepartmentCreate() {
+        if (root.workspaceController === null) {
+            return
+        }
+        departmentDialog.openForCreate(root.workspaceController.departmentEditorOptions || {})
+    }
+
+    function openDepartmentEdit(state) {
+        if (root.workspaceController === null) {
+            return
+        }
+        departmentDialog.openForEdit(
+            state || {},
+            root.workspaceController.departmentEditorOptions || {}
+        )
+    }
+
+    function openEmployeeCreate() {
+        if (root.workspaceController === null) {
+            return
+        }
+        employeeDialog.openForCreate(root.workspaceController.employeeEditorOptions || {})
+    }
+
+    function openEmployeeEdit(state) {
+        if (root.workspaceController === null) {
+            return
+        }
+        employeeDialog.openForEdit(
+            state || {},
+            root.workspaceController.employeeEditorOptions || {}
+        )
+    }
+
+    function openUserCreate() {
+        if (root.workspaceController === null) {
+            return
+        }
+        userDialog.openForCreate(root.workspaceController.userEditorOptions || {})
+    }
+
+    function openUserEdit(state) {
+        if (root.workspaceController === null) {
+            return
+        }
+        userDialog.openForEdit(
+            state || {},
+            root.workspaceController.userEditorOptions || {}
+        )
+    }
+
+    function openPartyCreate() {
+        if (root.workspaceController === null) {
+            return
+        }
+        partyDialog.openForCreate(root.workspaceController.partyEditorOptions || {})
+    }
+
+    function openPartyEdit(state) {
+        if (root.workspaceController === null) {
+            return
+        }
+        partyDialog.openForEdit(
+            state || {},
+            root.workspaceController.partyEditorOptions || {}
+        )
+    }
+
+    function openDocumentCreate() {
+        if (root.workspaceController === null) {
+            return
+        }
+        documentDialog.openForCreate(root.workspaceController.documentEditorOptions || {})
+    }
+
+    function openDocumentEdit(state) {
+        if (root.workspaceController === null) {
+            return
+        }
+        documentDialog.openForEdit(
+            state || {},
+            root.workspaceController.documentEditorOptions || {}
+        )
+    }
+
+    function openDocumentLinkCreate(documentId) {
+        documentLinkDialog.openForCreate(documentId || "")
+    }
+
+    function openDocumentStructureCreate() {
+        if (root.workspaceController === null) {
+            return
+        }
+        documentStructureDialog.openForCreate(
+            root.workspaceController.documentStructureEditorOptions || {}
+        )
+    }
+
+    function openDocumentStructureEdit(state) {
+        if (root.workspaceController === null) {
+            return
+        }
+        documentStructureDialog.openForEdit(
+            state || {},
+            root.workspaceController.documentStructureEditorOptions || {}
+        )
+    }
+
+    OrganizationDialogs.OrganizationEditorDialog {
+        id: organizationDialog
+
+        parent: Overlay.overlay
+        workspaceController: root.workspaceController
+
+        onSaveRequested: function(mode, payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = mode === "create"
+                ? root.workspaceController.createOrganization(payload)
+                : root.workspaceController.updateOrganization(payload)
+            root._handleResult(organizationDialog, result)
+        }
+    }
+
+    SiteDialogs.SiteEditorDialog {
+        id: siteDialog
+
+        parent: Overlay.overlay
+        workspaceController: root.workspaceController
+
+        onSaveRequested: function(mode, payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = mode === "create"
+                ? root.workspaceController.createSite(payload)
+                : root.workspaceController.updateSite(payload)
+            root._handleResult(siteDialog, result)
+        }
+    }
+
+    DepartmentDialogs.DepartmentEditorDialog {
+        id: departmentDialog
+
+        parent: Overlay.overlay
+        workspaceController: root.workspaceController
+
+        onSaveRequested: function(mode, payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = mode === "create"
+                ? root.workspaceController.createDepartment(payload)
+                : root.workspaceController.updateDepartment(payload)
+            root._handleResult(departmentDialog, result)
+        }
+    }
+
+    EmployeeDialogs.EmployeeEditorDialog {
+        id: employeeDialog
+
+        parent: Overlay.overlay
+        workspaceController: root.workspaceController
+
+        onSaveRequested: function(mode, payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = mode === "create"
+                ? root.workspaceController.createEmployee(payload)
+                : root.workspaceController.updateEmployee(payload)
+            root._handleResult(employeeDialog, result)
+        }
+    }
+
+    UserDialogs.UserEditorDialog {
+        id: userDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(mode, payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = mode === "create"
+                ? root.workspaceController.createUser(payload)
+                : root.workspaceController.updateUser(payload)
+            root._handleResult(userDialog, result)
+        }
+    }
+
+    PartyDialogs.PartyEditorDialog {
+        id: partyDialog
+
+        parent: Overlay.overlay
+        workspaceController: root.workspaceController
+
+        onSaveRequested: function(mode, payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = mode === "create"
+                ? root.workspaceController.createParty(payload)
+                : root.workspaceController.updateParty(payload)
+            root._handleResult(partyDialog, result)
+        }
+    }
+
+    DocumentDialogs.DocumentEditorDialog {
+        id: documentDialog
+
+        parent: Overlay.overlay
+        workspaceController: root.workspaceController
+
+        onSaveRequested: function(mode, payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = mode === "create"
+                ? root.workspaceController.createDocument(payload)
+                : root.workspaceController.updateDocument(payload)
+            root._handleResult(documentDialog, result)
+        }
+    }
+
+    DocumentDialogs.DocumentLinkEditorDialog {
+        id: documentLinkDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = root.workspaceController.addDocumentLink(payload)
+            root._handleResult(documentLinkDialog, result)
+        }
+    }
+
+    DocumentDialogs.DocumentStructureEditorDialog {
+        id: documentStructureDialog
+
+        parent: Overlay.overlay
+        workspaceController: root.workspaceController
+
+        onSaveRequested: function(mode, payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = mode === "create"
+                ? root.workspaceController.createDocumentStructure(payload)
+                : root.workspaceController.updateDocumentStructure(payload)
+            root._handleResult(documentStructureDialog, result)
+        }
+    }
+
+    CalendarDialogs.CalendarEditorDialog {
+        id: calendarEditorDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(mode, payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = mode === "create"
+                ? root.workspaceController.createEnterpriseCalendar(payload)
+                : root.workspaceController.updateEnterpriseCalendar(payload)
+            root._handleResult(calendarEditorDialog, result)
+        }
+    }
+
+    CalendarDialogs.CalendarExceptionDialog {
+        id: calendarExceptionDialog
+
+        parent: Overlay.overlay
+        calendarOptions: root._calendarOptions()
+
+        onSaveRequested: function(payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = root.workspaceController.addCalendarException(payload)
+            root._handleResult(calendarExceptionDialog, result)
+        }
+    }
+
+    CalendarDialogs.CalendarRecurringEventDialog {
+        id: calendarRecurringEventDialog
+
+        parent: Overlay.overlay
+        calendarOptions: root._calendarOptions()
+
+        onSaveRequested: function(payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = root.workspaceController.addCalendarRecurringEvent(payload)
+            root._handleResult(calendarRecurringEventDialog, result)
+        }
+    }
+
+    PlatformDialogs.CalendarAssignmentDialog {
+        id: calendarAssignmentDialog
+
+        parent: Overlay.overlay
+
+        onSaveRequested: function(payload) {
+            if (root.workspaceController === null) {
+                return
+            }
+            const result = root.workspaceController.assignCalendar(payload)
+            root._handleResult(calendarAssignmentDialog, result)
+        }
+    }
+}

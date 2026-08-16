@@ -11,7 +11,10 @@ from src.core.modules.project_management.api.desktop.collaboration.commands.task
     TaskCollaborationReactionCommand,
 )
 from src.core.modules.project_management.api.desktop.collaboration.models.collaboration_models import (
-    CollaborationWorkspaceSnapshotDto,
+    CollaborationCommentPageDto,
+    CollaborationContextOptionsDto,
+    CollaborationInboxDesktopDto,
+    CollaborationPresenceDesktopDto,
     TaskCollaborationCommentDesktopDto,
     TaskCollaborationDocumentOptionDescriptor,
     TaskCollaborationMentionOptionDescriptor,
@@ -19,7 +22,6 @@ from src.core.modules.project_management.api.desktop.collaboration.models.collab
 )
 from src.core.modules.project_management.api.desktop.collaboration.serializers.collaboration_serializers import (
     serialize_inbox_item,
-    serialize_notification,
     serialize_presence_item,
     serialize_task_comment,
 )
@@ -79,20 +81,99 @@ class ProjectManagementCollaborationDesktopApi:
     ) -> None:
         self._collaboration_service = collaboration_service
 
-    def build_snapshot(self, *, limit: int = 200) -> CollaborationWorkspaceSnapshotDto:
+    def query_inbox_page(
+        self,
+        *,
+        project_id: str | None = None,
+        author_username: str | None = None,
+        search_text: str = "",
+        created_since=None,
+        unread_only: bool = False,
+        page: int = 1,
+        page_size: int = 25,
+    ) -> CollaborationCommentPageDto:
         if self._collaboration_service is None:
-            return CollaborationWorkspaceSnapshotDto(
-                notifications=(),
-                inbox=(),
-                recent_activity=(),
-                active_presence=(),
+            return CollaborationCommentPageDto((), 0, page, page_size)
+        result = self._collaboration_service.query_inbox_page(
+            project_id=project_id,
+            author_username=author_username,
+            search_text=search_text,
+            created_since=created_since,
+            unread_only=unread_only,
+            page=page,
+            page_size=page_size,
+        )
+        return CollaborationCommentPageDto(
+            items=tuple(serialize_inbox_item(item) for item in result.items),
+            total=result.total,
+            page=result.page,
+            page_size=result.page_size,
+        )
+
+    def query_mentions_page(
+        self,
+        *,
+        project_id: str | None = None,
+        author_username: str | None = None,
+        search_text: str = "",
+        created_since=None,
+        unread_only: bool = False,
+        page: int = 1,
+        page_size: int = 25,
+    ) -> CollaborationCommentPageDto:
+        if self._collaboration_service is None:
+            return CollaborationCommentPageDto((), 0, page, page_size)
+        result = self._collaboration_service.query_mentions_page(
+            project_id=project_id,
+            author_username=author_username,
+            search_text=search_text,
+            created_since=created_since,
+            unread_only=unread_only,
+            page=page,
+            page_size=page_size,
+        )
+        return CollaborationCommentPageDto(
+            items=tuple(serialize_inbox_item(item) for item in result.items),
+            total=result.total,
+            page=result.page,
+            page_size=result.page_size,
+        )
+
+    def list_recent_activity(
+        self,
+        *,
+        project_id: str | None = None,
+        author_username: str | None = None,
+        created_since=None,
+        limit: int = 100,
+    ) -> tuple[CollaborationInboxDesktopDto, ...]:
+        if self._collaboration_service is None:
+            return ()
+        return tuple(
+            serialize_inbox_item(item)
+            for item in self._collaboration_service.list_recent_activity(
+                project_id=project_id,
+                author_username=author_username,
+                created_since=created_since,
+                limit=limit,
             )
-        snapshot = self._collaboration_service.list_workspace_snapshot(limit=limit)
-        return CollaborationWorkspaceSnapshotDto(
-            notifications=tuple(serialize_notification(item) for item in snapshot.notifications),
-            inbox=tuple(serialize_inbox_item(item) for item in snapshot.inbox),
-            recent_activity=tuple(serialize_inbox_item(item) for item in snapshot.recent_activity),
-            active_presence=tuple(serialize_presence_item(item) for item in snapshot.active_presence),
+        )
+
+    def list_active_presence(self) -> tuple[CollaborationPresenceDesktopDto, ...]:
+        if self._collaboration_service is None:
+            return ()
+        return tuple(
+            serialize_presence_item(item)
+            for item in self._collaboration_service.list_active_presence()
+        )
+
+    def list_context_options(self) -> CollaborationContextOptionsDto:
+        if self._collaboration_service is None:
+            return CollaborationContextOptionsDto((), ())
+        context = self._collaboration_service.list_workspace_context()
+        return CollaborationContextOptionsDto(
+            projects=context.projects,
+            people=context.people,
         )
 
     def mark_task_mentions_read(self, task_id: str) -> None:

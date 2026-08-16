@@ -9,7 +9,7 @@ import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "panels" as Panels
-import "sections" as Sections
+import "tabs" as Tabs
 
 AppLayouts.WorkspaceFrame {
     id: root
@@ -33,13 +33,6 @@ AppLayouts.WorkspaceFrame {
     }
 
     // ── Detail-page context actions ────────────────────────────────────
-    property int _activeDetailSectionIndex: 0
-    readonly property var _detailActions: {
-        if (root._activeDetailSectionIndex === 0)
-            return [{ "id": "evaluate", "label": "Evaluate", "icon": "approve", "enabled": true, "danger": false }]
-        return []
-    }
-
     // ══════════════════════════════════════════════════════════════════
     //  Stacked layout: list page / detail page
     // ══════════════════════════════════════════════════════════════════
@@ -84,193 +77,62 @@ AppLayouts.WorkspaceFrame {
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
-                Sections.PortfolioGovernanceToolbar {
+                AppWidgets.DetailTabBar {
+                    id: primaryTabBar
                     Layout.fillWidth: true
-                    scenarioOptions:          root.workspaceController ? (root.workspaceController.scenarioOptions || []) : []
-                    selectedScenarioId:       root.workspaceController ? root.workspaceController.selectedScenarioId : ""
-                    selectedBaseScenarioId:   root.workspaceController ? root.workspaceController.selectedBaseScenarioId : ""
-                    selectedCompareScenarioId: root.workspaceController ? root.workspaceController.selectedCompareScenarioId : ""
-                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                    onScenarioSelected:       function(id) { if (root.workspaceController !== null) root.workspaceController.selectScenario(id) }
-                    onCompareBaseSelected:    function(id) { if (root.workspaceController !== null) root.workspaceController.selectCompareBase(id) }
-                    onCompareScenarioSelected: function(id) { if (root.workspaceController !== null) root.workspaceController.selectCompareScenario(id) }
-                    onRefreshRequested:       { if (root.workspaceController !== null) root.workspaceController.refresh() }
-                    onCompareRequested:       { state.bottomTab = 2 }
-                    onRebalanceRequested:     { if (root.workspaceController !== null) root.workspaceController.refresh() }
-                    onExportRequested:        { if (root.workspaceController !== null) root.workspaceController.exportPortfolio() }
-                }
-
-                AppWidgets.KpiStrip {
-                    Layout.fillWidth: true
-                    metrics: root.overviewModel.metrics || []
-                }
-
-                AppWidgets.TableToolbar {
-                    id: tableToolbar
-                    Layout.fillWidth: true
-                    searchText:        root.workspaceController ? root.workspaceController.heatmapSearchText : ""
-                    searchPlaceholder: "Search portfolio projects..."
-                    showRefresh: true
-                    showExport:  true
-                    showFilter:  true
-                    showCreate:  false
-                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                    onSearchChanged: function(text) {
+                    tabs: state.tabLabels
+                    currentIndex: state.activeTabIndex
+                    onTabSelected: function(index) {
                         if (root.workspaceController !== null)
-                            root.workspaceController.setHeatmapSearchText(text)
-                        state.selectedRowIds = []
+                            root.workspaceController.setActiveTab(state.tabKeys[index])
                     }
-                    onFilterClicked:   filterPopup.open()
-                    onRefreshRequested: { if (root.workspaceController !== null) root.workspaceController.refresh() }
-                    onExportRequested:  { if (root.workspaceController !== null) root.workspaceController.exportPortfolio() }
                 }
 
-                Item {
+                StackLayout {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    clip: true
+                    currentIndex: state.activeTabIndex
 
-                    AppWidgets.DataTable {
-                        id: _heatmapTable
-                        anchors.top:    parent.top
-                        anchors.left:   parent.left
-                        anchors.right:  parent.right
-                        anchors.bottom: _paginationBar.top
-                        multiSelect:    true
-                        columns:        state.heatmapColumns
-                        sourceModel:    root.workspaceController ? root.workspaceController.heatmapTableModel : null
-                        loading:        root.workspaceController ? root.workspaceController.isLoading : false
-                        emptyText:      state.heatmapModel.emptyState || "No portfolio projects available."
-                        selectedRowId:  state.selectedRowId
-                        selectedRowIds: state.selectedRowIds
+                    Tabs.ExecutiveTab {
+                        overviewModel:      root.overviewModel
+                        topAtRiskModel:     state.topAtRiskModel
+                        recentActionsModel: state.recentActionsModel
+                    }
 
-                        onRowSelected: function(rowId) { state.selectedRowId = rowId }
+                    Tabs.HeatmapTab {
+                        workspaceController: root.workspaceController
+                        heatmapModel:        state.heatmapModel
+                        heatmapColumns:      state.heatmapColumns
+                        selectedRowId:       state.selectedRowId
                         onRowActivated: function(rowId) {
                             state.selectedRowId = rowId
                             state.pendingDetailSection = 0
                             state.detailOpen = true
                         }
-                        onRowSelectionToggled: function(rowId, selected) {
-                            const ids = state.selectedRowIds.slice()
-                            const idx = ids.indexOf(rowId)
-                            if (selected && idx < 0)         ids.push(rowId)
-                            else if (!selected && idx >= 0)  ids.splice(idx, 1)
-                            state.selectedRowIds = ids
-                        }
-                        onSelectAllToggled: function(allSelected) {
-                            state.selectedRowIds = allSelected
-                                ? (root.workspaceController ? (root.workspaceController.heatmapVisibleRowIds || []) : [])
-                                : []
-                        }
                     }
 
-                    AppWidgets.TablePaginationBar {
-                        id: _paginationBar
-                        anchors.left:   parent.left
-                        anchors.right:  parent.right
-                        anchors.bottom: _bottomPanel.top
-                        currentPage: root.workspaceController ? root.workspaceController.heatmapPage : 1
-                        pageSize:    root.workspaceController ? root.workspaceController.heatmapPageSize : 25
-                        totalItems:  root.workspaceController ? root.workspaceController.heatmapTotalCount : 0
-                        busy: root.workspaceController ? root.workspaceController.isBusy : false
-                        onPageRequested: function(page) {
-                            if (root.workspaceController !== null)
-                                root.workspaceController.setHeatmapPage(page)
-                        }
-                        onPageSizeRequested: function(ps) {
-                            if (root.workspaceController !== null)
-                                root.workspaceController.setHeatmapPageSize(ps)
-                        }
+                    Tabs.IntakeTab {
+                        workspaceController:        root.workspaceController
+                        intakeModel:                state.intakeModel
+                        intakeStatusOptions:        root.workspaceController ? (root.workspaceController.intakeStatusOptions || []) : []
+                        selectedIntakeStatusFilter: root.workspaceController ? root.workspaceController.selectedIntakeStatusFilter : "all"
+                        fundingColumns:             state.fundingColumns
                     }
 
-                    AppWidgets.BulkActionBar {
-                        id: _bulkBar
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        anchors.bottom:       _paginationBar.top
-                        anchors.bottomMargin: Theme.AppTheme.spacingMd
-                        z: 10
-                        selectedCount: state.selectedRowIds.length
-                        busy: root.workspaceController ? root.workspaceController.isBusy : false
-                        actions: [{ "id": "evaluate", "label": "Evaluate Scenario", "icon": "approve", "danger": false, "enabled": true }]
-                        onCancelRequested:   { state.selectedRowIds = [] }
-                        onActionTriggered:   function(actionId) { if (actionId === "evaluate") state.bottomTab = 2 }
-                    }
-
-                    // ── Intake status filter popup ─────────────────────
-                    AppWidgets.AnchoredPopup {
-                        id: filterPopup
-                        anchorItem:  tableToolbar.filterButtonItem
-                        width:       280
-                        padding:     Theme.AppTheme.marginMd
-                        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-
-                        background: Rectangle {
-                            radius: Theme.AppTheme.radiusLg
-                            color:  Theme.AppTheme.surfaceRaised
-                            border.color: Theme.AppTheme.divider
-                            border.width: 1
-                        }
-
-                        contentItem: ColumnLayout {
-                            spacing: Theme.AppTheme.spacingSm
-
-                            AppControls.Label {
-                                text:           "Intake Status"
-                                font.bold:      true
-                                font.pixelSize: Theme.AppTheme.captionSize
-                                font.family:    Theme.AppTheme.fontFamily
-                                color:          Theme.AppTheme.textMuted
-                            }
-
-                            AppControls.ComboBox {
-                                Layout.fillWidth: true
-                                model:    root.workspaceController ? (root.workspaceController.intakeStatusOptions || []) : []
-                                textRole: "label"
-                                enabled:  !(root.workspaceController ? root.workspaceController.isBusy : false)
-                                currentIndex: state.optionIndexForValue(
-                                    root.workspaceController ? (root.workspaceController.intakeStatusOptions || []) : [],
-                                    root.workspaceController ? root.workspaceController.selectedIntakeStatusFilter : "all"
-                                )
-                                onActivated: function(idx) {
-                                    const opts = root.workspaceController ? (root.workspaceController.intakeStatusOptions || []) : []
-                                    if (root.workspaceController !== null && opts[idx])
-                                        root.workspaceController.setIntakeStatusFilter(String(opts[idx].value || "all"))
-                                }
-                            }
-
-                            AppControls.SecondaryButton {
-                                Layout.fillWidth: true
-                                text:     "Clear Filters"
-                                iconName: "delete"
-                                enabled:  !(root.workspaceController ? root.workspaceController.isBusy : false)
-                                onClicked: {
-                                    if (root.workspaceController !== null)
-                                        root.workspaceController.setIntakeStatusFilter("all")
-                                    filterPopup.close()
-                                }
-                            }
-                        }
-                    }
-
-                    Panels.PortfolioBottomPanel {
-                        id: _bottomPanel
-                        anchors.left:   parent.left
-                        anchors.right:  parent.right
-                        anchors.bottom: parent.bottom
-                        height: 268
+                    Tabs.ScenariosTab {
                         workspaceController: root.workspaceController
-                        bottomTab:           state.bottomTab
-                        selectedFundingId:   state.selectedFundingId
-                        intakeModel:         state.intakeModel
-                        dependenciesModel:   state.dependenciesModel
-                        capacityPoolModel:   state.capacityPoolModel
+                        scenariosModel:      state.scenariosModel
                         templatesModel:      state.templatesModel
-                        activityItems:       state.activityItems
-                        recentActionsModel:  state.recentActionsModel
-                        onBottomTabRequested:         function(tab) { state.bottomTab = tab }
-                        onSelectedFundingIdRequested: function(id)  { state.selectedFundingId = id }
+                    }
+
+                    Tabs.CapacityTab {
+                        capacityPoolModel: state.capacityPoolModel
+                    }
+
+                    Tabs.DependenciesTab {
+                        workspaceController: root.workspaceController
+                        dependenciesModel:   state.dependenciesModel
+                        riskColumns:         state.riskColumns
                     }
                 }
             }
@@ -308,10 +170,8 @@ AppLayouts.WorkspaceFrame {
                 sections:    ["Overview", "Scenarios", "Dependencies", "Funding", "Activity"]
                 z:           20
                 Component.onCompleted: {
-                    root._activeDetailSectionIndex = 0
                     scrollToSection(state.pendingDetailSection)
                 }
-                onSectionChanged: function(index) { root._activeDetailSectionIndex = index }
 
                 AppWidgets.ContextualActionToolbar {
                     detailPagePinned: true
@@ -324,14 +184,7 @@ AppLayouts.WorkspaceFrame {
                         ? String(state.selectedHeatmapItem.subtitle || "")
                         : ""
                     busy:     root.workspaceController ? root.workspaceController.isBusy : false
-                    actions:  root._detailActions
                     onBackRequested: state.detailOpen = false
-                    onActionTriggered: function(actionId) {
-                        if (actionId === "evaluate") {
-                            state.detailOpen = false
-                            state.bottomTab = 2
-                        }
-                    }
                 }
 
                 AppWidgets.SectionScopedInlineMessage {

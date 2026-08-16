@@ -6,15 +6,17 @@ from typing import Protocol
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
-from src.core.platform.contract.master_data.employee.contracts import EmployeeRepository
-from src.core.platform.contract.time_management.time.contracts import (
+from src.core.platform.contract.repositories.master_data.employee.contracts import EmployeeRepository
+from src.core.platform.contract.interface.time_management.time.contracts import (
+    WorkAllocationRecord,
+    WorkOwnerRecord,
+    WorkResourceRecord,
+)
+from src.core.platform.contract.repositories.time_management.time.contracts import (
     TimeEntryRepository,
     TimesheetPeriodRepository,
-    WorkAllocationRecord,
     WorkAllocationRepository,
-    WorkOwnerRecord,
     WorkOwnerRepository,
-    WorkResourceRecord,
     WorkResourceRepository,
 )
 from src.core.platform.domain.time_management.time import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus

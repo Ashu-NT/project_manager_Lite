@@ -11,7 +11,7 @@ from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.contract.master_data.documents.contracts import (
+from src.core.platform.contract.repositories.master_data.documents.contracts import (
     DocumentLinkRepository,
     DocumentRepository,
     DocumentStructureRepository,
@@ -31,7 +31,7 @@ from src.core.platform.domain.master_data.documents.support import (
     infer_title,
     normalize_optional_text,
 )
-from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.application.tenant.tenancy import TenantContextService
 
@@ -130,6 +130,29 @@ class DocumentIntegrationService:
                 )
                 self._link_repo.add(link)
                 created.append(document)
+                # Audit is staged in the same transaction as the business write
+                # (ADR-003: "the business mutation and successful security audit
+                # intent commit atomically") — never a second, separate commit.
+                record_audit_entry(
+                    self,
+                    operation="create",
+                    entity_type="document",
+                    entity_id=document.id,
+                    module="platform",
+                    severity="low",
+                    metadata={
+                        "action": "document.linked_attachment.create",
+                        "module_code": normalized_module,
+                        "entity_type": normalized_entity_type,
+                        "entity_id": normalized_entity_id,
+                        "link_role": normalized_role,
+                        "storage_kind": document.storage_kind.value,
+                        "storage_uri": document.storage_uri,
+                        "document_structure_id": document.document_structure_id,
+                    },
+                    commit=False,
+                    fail_closed=True,
+                )
             self._session.commit()
         except IntegrityError:
             self._session.rollback()
@@ -138,24 +161,6 @@ class DocumentIntegrationService:
             self._session.rollback()
             raise
         for document in created:
-            record_audit_entry(
-                self,
-                operation="create",
-                entity_type="document",
-                entity_id=document.id,
-                module="platform",
-                severity="low",
-                metadata={
-                    "action": "document.linked_attachment.create",
-                    "module_code": normalized_module,
-                    "entity_type": normalized_entity_type,
-                    "entity_id": normalized_entity_id,
-                    "link_role": normalized_role,
-                    "storage_kind": document.storage_kind.value,
-                    "storage_uri": document.storage_uri,
-                    "document_structure_id": document.document_structure_id,
-                },
-            )
             domain_events.documents_changed.emit(document.id)
         return created
 
@@ -235,6 +240,26 @@ class DocumentIntegrationService:
             raise ValidationError("Document link already exists.", code="DOCUMENT_LINK_EXISTS")
         try:
             self._link_repo.add(link)
+            # Audit is staged in the same transaction as the business write (ADR-003:
+            # "the business mutation and successful security audit intent commit
+            # atomically") — never a second, separate commit.
+            record_audit_entry(
+                self,
+                operation="update",
+                entity_type="document",
+                entity_id=document.id,
+                module="platform",
+                severity="low",
+                metadata={
+                    "action": "document.link_existing",
+                    "module_code": link.module_code,
+                    "entity_type": link.entity_type,
+                    "entity_id": link.entity_id,
+                    "link_role": link.link_role,
+                },
+                commit=False,
+                fail_closed=True,
+            )
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -242,21 +267,6 @@ class DocumentIntegrationService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit_entry(
-            self,
-            operation="update",
-            entity_type="document",
-            entity_id=document.id,
-            module="platform",
-            severity="low",
-            metadata={
-                "action": "document.link_existing",
-                "module_code": link.module_code,
-                "entity_type": link.entity_type,
-                "entity_id": link.entity_id,
-                "link_role": link.link_role,
-            },
-        )
         domain_events.documents_changed.emit(document.id)
         return link
 
@@ -291,25 +301,30 @@ class DocumentIntegrationService:
             raise NotFoundError("Document link not found.", code="DOCUMENT_LINK_NOT_FOUND")
         try:
             self._link_repo.delete(existing.id)
+            # Audit is staged in the same transaction as the business write (ADR-003:
+            # "the business mutation and successful security audit intent commit
+            # atomically") — never a second, separate commit.
+            record_audit_entry(
+                self,
+                operation="delete",
+                entity_type="document",
+                entity_id=document.id,
+                module="platform",
+                severity="low",
+                metadata={
+                    "action": "document.unlink_existing",
+                    "module_code": normalized_module,
+                    "entity_type": normalized_entity_type,
+                    "entity_id": normalized_entity_id,
+                    "link_role": normalized_role,
+                },
+                commit=False,
+                fail_closed=True,
+            )
             self._session.commit()
         except Exception:
             self._session.rollback()
             raise
-        record_audit_entry(
-            self,
-            operation="delete",
-            entity_type="document",
-            entity_id=document.id,
-            module="platform",
-            severity="low",
-            metadata={
-                "action": "document.unlink_existing",
-                "module_code": normalized_module,
-                "entity_type": normalized_entity_type,
-                "entity_id": normalized_entity_id,
-                "link_role": normalized_role,
-            },
-        )
         domain_events.documents_changed.emit(document.id)
 
     def _resolve_structure_for_context(

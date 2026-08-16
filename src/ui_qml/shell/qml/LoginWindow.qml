@@ -322,7 +322,7 @@ ApplicationWindow {
                     spacing: 8
 
                     AppIcons.AppIcon {
-                        name: "warning"
+                        name: "risk"
                         size: Theme.AppTheme.iconSm
                         iconColor: Theme.AppTheme.danger
                         anchors.verticalCenter: parent.verticalCenter

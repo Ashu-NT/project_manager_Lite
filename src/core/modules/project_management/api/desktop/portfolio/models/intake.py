@@ -23,4 +23,15 @@ class PortfolioIntakeDesktopDto:
     version: int
 
 
-__all__ = ["PortfolioIntakeDesktopDto"]
+@dataclass(frozen=True)
+class PortfolioIntakePageDto:
+    items: tuple[PortfolioIntakeDesktopDto, ...] = ()
+    total: int = 0
+    page: int = 1
+    page_size: int = 25
+    sort_key: str = "updatedAt"
+    sort_direction: str = "desc"
+    search_text: str = ""
+
+
+__all__ = ["PortfolioIntakeDesktopDto", "PortfolioIntakePageDto"]

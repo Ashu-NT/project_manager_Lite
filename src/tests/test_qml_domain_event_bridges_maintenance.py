@@ -237,14 +237,14 @@ def test_implemented_qml_workspace_controllers_bind_domain_event_hooks() -> None
             "self._bind_domain_events()",
             "domain_events.modules_changed",
         ),
-        "src/ui_qml/platform/controllers/admin/access_workspace_controller.py": (
+        "src/ui_qml/platform/controllers/identity_access/access/access_workspace_controller.py": (
             "self._bind_domain_events()",
             "domain_events.access_changed",
         ),
-        "src/ui_qml/platform/controllers/admin/admin_console_controller.py": (
+        "src/ui_qml/platform/controllers/admin_console/admin_console_controller.py": (
             "self._bind_domain_events()",
         ),
-        "src/ui_qml/platform/controllers/admin/admin_domain_event_binder.py": (
+        "src/ui_qml/platform/controllers/admin_console/domain_event_binder.py": (
             "domain_events.organizations_changed",
         ),
         "src/ui_qml/modules/maintenance/controllers/dashboard/dashboard_workspace_controller.py": (

@@ -9,35 +9,20 @@ from src.ui_qml.modules.project_management.view_models.collaboration import (
 
 def build_context_view_model(
     *,
-    inbox: CollaborationCollectionViewModel,
-    mentions: CollaborationCollectionViewModel,
-    approvals: CollaborationCollectionViewModel,
-    activity_feed: CollaborationCollectionViewModel,
-    team_updates: CollaborationCollectionViewModel,
+    projects,
+    people,
 ) -> CollaborationContextViewModel:
     project_options = [CollaborationOptionViewModel("all", "All Projects")]
-    seen_projects: set[tuple[str, str]] = set()
-    team_options = [CollaborationOptionViewModel("all", "All Teams")]
-    seen_teams: set[str] = set()
-    for collection in (inbox, mentions, approvals, activity_feed, team_updates):
-        for item in collection.items:
-            state = dict(item.state)
-            project_id = str(state.get("projectId") or "").strip()
-            project_name = str(state.get("projectName") or "").strip()
-            if project_id and (project_id, project_name) not in seen_projects:
-                project_options.append(
-                    CollaborationOptionViewModel(project_id, project_name or project_id)
-                )
-                seen_projects.add((project_id, project_name))
-            team_key = str(
-                state.get("actorUsername")
-                or state.get("requestor")
-                or state.get("username")
-                or ""
-            ).strip()
-            if team_key and team_key not in seen_teams:
-                team_options.append(CollaborationOptionViewModel(team_key, f"@{team_key}"))
-                seen_teams.add(team_key)
+    project_options.extend(
+        CollaborationOptionViewModel(str(project_id), str(project_name or project_id))
+        for project_id, project_name in projects
+    )
+    team_options = [CollaborationOptionViewModel("all", "All People")]
+    team_options.extend(
+        CollaborationOptionViewModel(str(username), f"@{username}")
+        for username in people
+        if str(username).strip()
+    )
     return CollaborationContextViewModel(
         project_options=tuple(project_options),
         team_options=tuple(team_options),
@@ -61,11 +46,10 @@ def build_workspace_empty_state(
     mentions: CollaborationCollectionViewModel,
     approvals: CollaborationCollectionViewModel,
     activity_feed: CollaborationCollectionViewModel,
-    team_updates: CollaborationCollectionViewModel,
 ) -> str:
     if any(
         collection.items
-        for collection in (inbox, mentions, approvals, activity_feed, team_updates)
+        for collection in (inbox, mentions, approvals, activity_feed)
     ):
         return ""
     return "No collaboration or workflow activity is available for the accessible project scope yet."

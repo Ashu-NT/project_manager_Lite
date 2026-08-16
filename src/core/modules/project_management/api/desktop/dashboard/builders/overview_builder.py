@@ -32,18 +32,18 @@ _PROJECT_SUBTITLES = {
 
 _PORTFOLIO_METRIC_ORDER = {
     "executive": ("total_projects", "active_projects", "on_track", "delayed", "budget_variance", "high_risks", "open_tasks", "utilization"),
-    "pmo": ("active_projects", "on_track", "delayed", "critical_tasks", "high_risks", "pending_approvals", "open_tasks", "utilization"),
-    "project_manager": ("active_projects", "delayed", "critical_tasks", "high_risks", "open_tasks", "pending_approvals", "utilization", "budget_variance"),
-    "resource_manager": ("active_projects", "utilization", "open_tasks", "delayed", "critical_tasks", "high_risks", "pending_approvals", "budget_variance"),
-    "financial": ("budget_variance", "pending_approvals", "active_projects", "delayed", "open_tasks", "high_risks", "utilization", "total_projects"),
+    "pmo": ("active_projects", "on_track", "delayed", "critical_tasks", "high_risks", "open_tasks", "utilization"),
+    "project_manager": ("active_projects", "delayed", "critical_tasks", "high_risks", "open_tasks", "utilization", "budget_variance"),
+    "resource_manager": ("active_projects", "utilization", "open_tasks", "delayed", "critical_tasks", "high_risks", "budget_variance"),
+    "financial": ("budget_variance", "active_projects", "delayed", "open_tasks", "high_risks", "utilization", "total_projects"),
 }
 
 _PROJECT_METRIC_ORDER = {
     "executive": ("progress", "spi", "cpi", "budget_variance", "forecast_variance", "high_risks", "open_tasks", "utilization"),
-    "pmo": ("progress", "delayed", "critical_tasks", "high_risks", "pending_approvals", "open_tasks", "spi", "cpi"),
-    "project_manager": ("progress", "delayed", "critical_tasks", "open_tasks", "high_risks", "pending_approvals", "utilization", "spi"),
-    "resource_manager": ("utilization", "open_tasks", "delayed", "critical_tasks", "progress", "pending_approvals", "high_risks", "budget_variance"),
-    "financial": ("budget_variance", "forecast_variance", "cpi", "spi", "pending_approvals", "high_risks", "open_tasks", "progress"),
+    "pmo": ("progress", "delayed", "critical_tasks", "high_risks", "open_tasks", "spi", "cpi"),
+    "project_manager": ("progress", "delayed", "critical_tasks", "open_tasks", "high_risks", "utilization", "spi"),
+    "resource_manager": ("utilization", "open_tasks", "delayed", "critical_tasks", "progress", "high_risks", "budget_variance"),
+    "financial": ("budget_variance", "forecast_variance", "cpi", "spi", "high_risks", "open_tasks", "progress"),
 }
 
 
@@ -75,7 +75,7 @@ def overloaded_resource_count(rows: tuple[Any, ...]) -> int:
 
 def build_empty_overview() -> ProjectDashboardOverviewDescriptor:
     return ProjectDashboardOverviewDescriptor(
-        title="Dashboard",
+        title="Overview",
         subtitle="Select a project to see schedule and cost health.",
         metrics=(
             ProjectDashboardMetricDescriptor("Tasks", "0 / 0", "Done / Total"),
@@ -99,7 +99,7 @@ def build_overview_from_dashboard_data(
     tasks_total = int(getattr(kpi, "tasks_total", 0) or 0)
     tasks_completed = int(getattr(kpi, "tasks_completed", 0) or 0)
     progress = 100.0 * tasks_completed / tasks_total if tasks_total else 0.0
-    title = project_name or getattr(kpi, "name", "") or "Dashboard"
+    title = project_name or getattr(kpi, "name", "") or "Overview"
     return ProjectDashboardOverviewDescriptor(
         title=title,
         subtitle="Project execution health",
@@ -124,16 +124,15 @@ def build_contextual_overview(
     *,
     project_name: str,
     dashboard_data: Any,
-    pending_approval_count: int,
     selected_view_key: str,
     portfolio_mode: bool,
 ) -> ProjectDashboardOverviewDescriptor:
     kpi = getattr(dashboard_data, "kpi", None)
-    title = project_name or getattr(kpi, "name", "") or "Dashboard"
+    title = project_name or getattr(kpi, "name", "") or "Overview"
 
     if portfolio_mode:
-        return _build_portfolio_overview(title=title, dashboard_data=dashboard_data, kpi=kpi, pending_approval_count=pending_approval_count, selected_view_key=selected_view_key)
-    return _build_project_overview(title=title, dashboard_data=dashboard_data, kpi=kpi, pending_approval_count=pending_approval_count, selected_view_key=selected_view_key)
+        return _build_portfolio_overview(title=title, dashboard_data=dashboard_data, kpi=kpi, selected_view_key=selected_view_key)
+    return _build_project_overview(title=title, dashboard_data=dashboard_data, kpi=kpi, selected_view_key=selected_view_key)
 
 
 def _build_portfolio_overview(
@@ -141,7 +140,6 @@ def _build_portfolio_overview(
     title: str,
     dashboard_data: Any,
     kpi: Any,
-    pending_approval_count: int,
     selected_view_key: str,
 ) -> ProjectDashboardOverviewDescriptor:
     portfolio = getattr(dashboard_data, "portfolio", None)
@@ -163,7 +161,6 @@ def _build_portfolio_overview(
         "high_risks": ProjectDashboardMetricDescriptor("At Risk", fmt_int(at_risk_projects), "Projects requiring intervention"),
         "open_tasks": ProjectDashboardMetricDescriptor("Open Tasks", fmt_int(open_tasks), "Tasks not yet complete"),
         "utilization": ProjectDashboardMetricDescriptor("Utilization", fmt_percent(utilization, 0), "Average visible resource load"),
-        "pending_approvals": ProjectDashboardMetricDescriptor("Approvals", fmt_int(pending_approval_count), "Pending governed changes"),
         "critical_tasks": ProjectDashboardMetricDescriptor("Critical", fmt_int(getattr(kpi, "critical_tasks", 0)), "Critical tasks across visible projects"),
     }
     subtitle = _PORTFOLIO_SUBTITLES.get(selected_view_key, "Executive portfolio command center")
@@ -179,7 +176,6 @@ def _build_project_overview(
     title: str,
     dashboard_data: Any,
     kpi: Any,
-    pending_approval_count: int,
     selected_view_key: str,
 ) -> ProjectDashboardOverviewDescriptor:
     evm = getattr(dashboard_data, "evm", None)
@@ -200,7 +196,6 @@ def _build_project_overview(
         "forecast_variance": ProjectDashboardMetricDescriptor("Forecast Var.", fmt_float(getattr(evm, "VAC", 0.0), 0), "Variance at completion"),
         "high_risks": ProjectDashboardMetricDescriptor("High Risks", fmt_int(getattr(summary, "critical_items", 0) or 0), "Critical register exposure"),
         "open_tasks": ProjectDashboardMetricDescriptor("Open Tasks", fmt_int(open_tasks), "Tasks not yet complete"),
-        "pending_approvals": ProjectDashboardMetricDescriptor("Approvals", fmt_int(pending_approval_count), "Pending governed changes"),
         "utilization": ProjectDashboardMetricDescriptor(
             "Utilization", fmt_percent(utilization, 0),
             f"{fmt_int(overloads)} overloaded resource(s)" if overloads else "Resource load within capacity",

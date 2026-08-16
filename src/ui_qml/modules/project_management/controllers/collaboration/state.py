@@ -6,7 +6,15 @@ def default_overview() -> dict[str, object]:
 
 
 def default_collection() -> dict[str, object]:
-    return {"title": "", "subtitle": "", "emptyState": "", "items": []}
+    return {
+        "title": "",
+        "subtitle": "",
+        "emptyState": "",
+        "items": [],
+        "totalCount": 0,
+        "page": 1,
+        "pageSize": 25,
+    }
 
 
 def default_context() -> dict[str, object]:

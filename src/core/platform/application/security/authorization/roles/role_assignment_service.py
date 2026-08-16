@@ -6,6 +6,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
     authorization_denied,
     require_permission,
 )
+from src.core.platform.domain.security.auth import UserAccount
 from src.core.platform.domain.security.authorization.roles import (
     ROLE_SCOPE_PLATFORM,
     ROLE_SCOPE_TENANT,
@@ -50,7 +51,7 @@ def _require_canonical_target_membership(
     )
 
 
-def assign_role(service: AuthService, user_id: str, role_name: str) -> None:
+def assign_role(service: AuthService, user_id: str, role_name: str) -> UserAccount:
     require_permission(service._user_session, "auth.manage", operation_label="assign role")
     tenant_id = service._tenant_context_service.require_active_tenant_id(
         operation_label="assign role"
@@ -91,9 +92,10 @@ def assign_role(service: AuthService, user_id: str, role_name: str) -> None:
         role_id=role.id,
     )
     refresh_current_session_if_user(service, user.id)
+    return user
 
 
-def revoke_role(service: AuthService, user_id: str, role_name: str) -> None:
+def revoke_role(service: AuthService, user_id: str, role_name: str) -> UserAccount:
     require_permission(service._user_session, "auth.manage", operation_label="revoke role")
     tenant_id = service._tenant_context_service.require_active_tenant_id(
         operation_label="revoke role"
@@ -141,6 +143,7 @@ def revoke_role(service: AuthService, user_id: str, role_name: str) -> None:
             binding.id
         )
     refresh_current_session_if_user(service, user.id)
+    return user
 
 
 def _require_customer_assignable_role(
@@ -174,7 +177,7 @@ def _require_customer_assignable_role(
     return normalized
 
 
-def assign_customer_role(service: AuthService, user_id: str, role_name: str) -> None:
+def assign_customer_role(service: AuthService, user_id: str, role_name: str) -> UserAccount:
     require_permission(
         service._user_session,
         "auth.manage",
@@ -186,10 +189,10 @@ def assign_customer_role(service: AuthService, user_id: str, role_name: str) -> 
         operation_label="assign a tenant role",
         denial_code="ROLE_CROSS_TENANT_DENIED",
     )
-    assign_role(service, user_id, _require_customer_assignable_role(service, role_name))
+    return assign_role(service, user_id, _require_customer_assignable_role(service, role_name))
 
 
-def revoke_customer_role(service: AuthService, user_id: str, role_name: str) -> None:
+def revoke_customer_role(service: AuthService, user_id: str, role_name: str) -> UserAccount:
     require_permission(
         service._user_session,
         "auth.manage",
@@ -201,7 +204,7 @@ def revoke_customer_role(service: AuthService, user_id: str, role_name: str) -> 
         operation_label="revoke a tenant role",
         denial_code="ROLE_CROSS_TENANT_DENIED",
     )
-    revoke_role(service, user_id, _require_customer_assignable_role(service, role_name))
+    return revoke_role(service, user_id, _require_customer_assignable_role(service, role_name))
 
 
 __all__ = [

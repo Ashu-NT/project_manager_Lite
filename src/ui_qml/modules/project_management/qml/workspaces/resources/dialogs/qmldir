@@ -1,2 +1,5 @@
 module ProjectManagement.ResourcesDialogs
+ResourceCertificationEditorDialog 1.0 ResourceCertificationEditorDialog.qml
+ResourceEditorDialog 1.0 ResourceEditorDialog.qml
 ResourcesDialogHost 1.0 ResourcesDialogHost.qml
+ResourceSkillEditorDialog 1.0 ResourceSkillEditorDialog.qml

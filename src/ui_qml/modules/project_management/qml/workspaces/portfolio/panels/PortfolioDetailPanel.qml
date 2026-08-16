@@ -75,6 +75,7 @@ Item {
 
                     RowLayout {
                         visible: root._hasItem
+                        Layout.fillWidth: true
                         spacing: Theme.AppTheme.spacingSm
 
                         AppWidgets.StatusChip {

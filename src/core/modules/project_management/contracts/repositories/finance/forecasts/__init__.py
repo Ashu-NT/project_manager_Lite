@@ -1,0 +1,1 @@
+"""Project forecast repository contract."""

@@ -4,7 +4,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from src.core.platform.common.exceptions import OperationNotPermittedError
-from src.core.platform.contract.events.platform_events.contracts import PlatformEventRepository
+from src.core.platform.contract.repositories.events.platform_events.contracts import PlatformEventRepository
 from src.core.platform.domain.events.platform_events.platform_event import PlatformEvent
 from src.core.platform.infrastructure.persistence.mappers.events.platform_events.platform_events import (
     platform_event_from_orm,

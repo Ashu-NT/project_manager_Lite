@@ -4,7 +4,7 @@ from datetime import date
 from decimal import Decimal
 
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
-from src.core.modules.project_management.contracts.repositories.rate_resolution import (
+from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
     LaborRateResolver,
 )
 from src.core.modules.project_management.contracts.reads.financials.finance_snapshot_reader import (
@@ -28,13 +28,13 @@ from src.core.modules.project_management.application.financials.utils.helpers im
     normalize_currency,
     normalize_period,
 )
-from src.core.modules.project_management.application.financials.costs.ledger import (
+from src.core.modules.project_management.application.financials.cost.engines.ledger import (
     build_finance_ledger_rows,
 )
-from src.core.modules.project_management.application.financials.costs.cost_policy_engine import (
+from src.core.modules.project_management.application.financials.cost.engines.cost_policy_engine import (
     CostPolicyEngine,
 )
-from src.core.modules.project_management.application.financials.costs.labor_cost import (
+from src.core.modules.project_management.application.financials.cost.engines.labor_cost import (
     LaborCostEngine,
 )
 from src.core.modules.project_management.application.financials.models.finance_models import (

@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Window
 import App.Icons 1.0 as AppIcons
 import App.Theme 1.0 as Theme
 import App.Models 1.0 as AppModels
@@ -29,7 +30,11 @@ Item {
     property string selectedRowId:  ""
     property string sortKey:        ""
     property int    sortDirection:  Qt.AscendingOrder
+    // "client" sorts a complete local collection, "server" emits query
+    // intent without mutating the loaded page, and "none" disables sorting.
+    // The default binding retains compatibility with the legacy flag.
     property bool   clientSideSorting: true
+    property string sortingMode: clientSideSorting ? "client" : "none"
     property bool   showFilter:     false
     property bool   loading:        false
     property string emptyText:      "No records"
@@ -45,9 +50,16 @@ Item {
     // continues to work unchanged when sourceModel is null.
     property var sourceModel: null
 
+    // Exposed for tests only (real QML-engine verification of per-cell
+    // geometry, e.g. confirming the last column's row background/divider
+    // reach the viewport edge after a resize) -- plain `var`, not `alias`:
+    // PySide6 can't marshal TableView's anonymous delegate items back to
+    // Python through a strictly-typed alias.
+    property var _mainViewRef: _mainView
+
     signal rowSelected(string rowId)
     signal rowActivated(string rowId)
-    signal sortRequested(string key)
+    signal sortRequested(string key, int direction)
     signal rowSelectionToggled(string rowId, bool selected)
     signal selectAllToggled(bool allSelected)
     signal filterClicked()
@@ -55,8 +67,23 @@ Item {
     signal columnsStateChanged(var columns)
 
     // ── Private helpers ───────────────────────────────────────────────
-    property int  _hoveredRow:        -1
-    property int  _currentRow:        -1
+    property int    _hoveredRow:        -1
+    property int    _currentRow:        -1
+    // Manual same-row double-click tracking: TableView's `reuseItems: true`
+    // recycles delegate Items across different rows, so each delegate's own
+    // built-in onDoubleClicked fires whenever the SAME visual Item receives
+    // two quick clicks -- even if the model row underneath changed in
+    // between (i.e. clicking row A then quickly clicking row B). Tracking
+    // the last-clicked row id/time at the table level instead makes double-
+    // click detection correctly require the SAME logical row twice.
+    property string _lastClickRowId:    ""
+    property double _lastClickTimeMs:   0
+    readonly property string _effectiveSortingMode: {
+        const mode = String(root.sortingMode || "").trim().toLowerCase()
+        return mode === "client" || mode === "server" || mode === "none"
+            ? mode
+            : "none"
+    }
     //property bool _layoutPending:     false   // debounce guard for forceLayout
 
     function _rebuildSelectedLookup() {
@@ -72,11 +99,17 @@ Item {
         return root._selectedLookup[String(rowId)] === true
     }
 
+    function _canSortColumn(column) {
+        return root._effectiveSortingMode !== "none"
+            && column
+            && column.sortable !== false
+            && String(column.key || "").length > 0
+    }
+
     function openColumnCustomizer(anchorItem) {
         if (anchorItem) {
             root.columnCustomizerAnchorItem = anchorItem
         }
-        _colCustomizer.anchorItem = root.columnCustomizerAnchorItem || _columnCustomizerAnchor
         _colCustomizer.open()
     }
     /*
@@ -94,23 +127,27 @@ Item {
 
     function _toggleSort(key) {
         const normalizedKey = String(key || "")
-        if (!normalizedKey.length) {
+        if (!normalizedKey.length || root._effectiveSortingMode === "none") {
             return
         }
-        // Update visual indicator — applies whether sourceModel is set or not.
-        if (root.sortKey === normalizedKey) {
-            root.sortDirection = root.sortDirection === Qt.AscendingOrder
-                ? Qt.DescendingOrder
-                : Qt.AscendingOrder
-        } else {
-            root.sortKey = normalizedKey
-            root.sortDirection = Qt.AscendingOrder
+        const requestedDirection = root.sortKey === normalizedKey
+            && root.sortDirection === Qt.AscendingOrder
+            ? Qt.DescendingOrder
+            : Qt.AscendingOrder
+
+        // Server mode is intent-only. The controller/query remains authoritative
+        // for both the active key and direction, including the visual indicator.
+        if (root._effectiveSortingMode === "server") {
+            root.sortRequested(normalizedKey, requestedDirection)
+            return
         }
-        // Delegate actual sort: Python model when sourceModel is set,
-        // otherwise _displayRows recomputes via clientSideSorting.
+
+        root.sortKey = normalizedKey
+        root.sortDirection = requestedDirection
         if (root.sourceModel) {
             root.sourceModel.toggleSort(normalizedKey)
         }
+        root.sortRequested(normalizedKey, requestedDirection)
     }
 
     function _sortValue(rawValue) {
@@ -175,7 +212,8 @@ Item {
     readonly property var _displayRows: {
         const sourceRows = root.rows || []
         const rowsCopy = sourceRows.slice()
-        if (!root.clientSideSorting || String(root.sortKey || "").length === 0) {
+        if (root._effectiveSortingMode !== "client"
+                || String(root.sortKey || "").length === 0) {
             return rowsCopy
         }
         const key = String(root.sortKey || "")
@@ -198,11 +236,31 @@ Item {
     readonly property bool _someChecked: (root.selectedRowIds || []).length > 0 && !root._allChecked
 
     readonly property int _cbColW: 32
+    // Floor for user-driven column resize (drag handle below) -- narrow
+    // enough to shrink a column meaningfully, wide enough that a status
+    // chip or a couple of digits never has to fully disappear.
+    readonly property int _minResizeWidth: 60
+    // Column-resize drag state: a live guide line follows the pointer
+    // while dragging; the actual column width (and the model rebuild that
+    // implies) is only committed once, on release.
+    property string _resizingColumnKey: ""
+    property real   _resizeGuideX: 0
+    // Once true (set the first time any column is manually resized),
+    // _colWidth() stops redistributing flex space across columns --
+    // see the comment there for why.
+    property bool   _hasManualColumnWidths: false
 
+    // R7.4: an optional per-column `hideBelow` (pixel) key auto-hides that
+    // column once the enclosing window narrows past it, on top of the
+    // existing manual `visible` flag -- additive, columns without
+    // `hideBelow` behave exactly as before.
     readonly property var _visCols: {
         const r = []
         for (let i = 0; i < root.columns.length; i++) {
-            if (root.columns[i].visible !== false) r.push(root.columns[i])
+            const col = root.columns[i]
+            if (col.visible === false) continue
+            if (col.hideBelow && Window.width > 0 && Window.width < col.hideBelow) continue
+            r.push(col)
         }
         return r
     }
@@ -257,11 +315,39 @@ Item {
         if (!col) return Theme.AppTheme.tableColumnDefaultWidth
         const minW = root._columnBaseWidth(col)
         const flex  = col.flex    !== undefined ? col.flex    : 1
-        if (flex === 0) return minW
-        if (root._minDataW >= root._dataAreaW) {
-            return minW
+        // Rounded to a whole pixel: the header positions cells in a plain
+        // Row (full floating-point x accumulation), while _mainView is a
+        // real TableView (its own internal column-position accounting).
+        // Feeding both the same fractional width let each side round/snap
+        // independently, drifting a pixel or two further apart with every
+        // column to the right -- rounding here keeps them numerically
+        // identical, not just theoretically so.
+        if (flex === 0) return Math.round(minW)
+        // Once the user has manually resized any column, stop
+        // redistributing flex space entirely: growing one column would
+        // otherwise shrink the room left for the others (each flex
+        // column's share depends on _extraFlexSpace, which shrinks as
+        // _minDataW grows). The table already scrolls horizontally
+        // (_hScrollBar), so the natural fix is to let total content width
+        // grow/shrink with the resize instead of squeezing every other
+        // column to keep everything crammed into the viewport.
+        if (root._hasManualColumnWidths) {
+            return Math.round(minW)
         }
-        return Math.max(minW, minW + (root._extraFlexSpace * flex) / root._flexTotal)
+        if (root._minDataW >= root._dataAreaW) {
+            return Math.round(minW)
+        }
+        return Math.round(Math.max(minW, minW + (root._extraFlexSpace * flex) / root._flexTotal))
+    }
+
+    // Width the LAST visible column's row background/divider must render at
+    // so they reach the current viewport edge rather than stopping at the
+    // column's own (possibly manually-shrunk) width -- see the cell
+    // delegate's `_rowFillWidth` for why this only applies to the last
+    // column. `cellX` is the cell's x position in _mainView's content
+    // coordinate space (same space TableView positions delegates in).
+    function _rowFillWidthFor(cellWidth, cellX) {
+        return Math.max(cellWidth, (_mainView.contentX + _mainView.width) - cellX)
     }
 
     function _applyColumnVisibility(draft) {
@@ -319,17 +405,10 @@ Item {
     // Notify the header's columnWidthProvider when visible-column set changes.
     //on_VisColsChanged: root._scheduleMainViewLayout()
 
-    Item {
-        id: _columnCustomizerAnchor
-        anchors.top: root.top
-        anchors.right: root.right
-        width: 1
-        height: _header.height
-    }
-
+    // Centered, modal customizer -- no anchor positioning needed (kept as
+    // a no-op public property/param below only for call-site compatibility).
     TableColumnCustomizer {
         id: _colCustomizer
-        anchorItem: root.columnCustomizerAnchorItem || _columnCustomizerAnchor
         columns: root.columns
         onColumnVisibilityChanged: function(draft) {
             root._applyColumnVisibility(draft)
@@ -350,39 +429,51 @@ Item {
             id: _headerRow
             anchors.fill: _header
 
-            // Checkbox select-all header (fixed, not scrolled)
+            // Checkbox select-all header (fixed, not scrolled). Deliberately
+            // NOT AppControls.CheckBox: that's a real QQC2.CheckBox Control
+            // with its own internal indicator/contentItem/click layout, and
+            // even with indicator+contentItem overridden here, the control's
+            // own base-style sizing didn't reliably center or click through.
+            // The per-row checkboxes below (a plain Rectangle+Text+
+            // MouseArea, no Control involved) already work correctly and
+            // are visually identical to what this one is drawing, so this
+            // reuses the exact same hand-rolled pattern instead of fighting
+            // the Control's internal state machinery.
             Item {
                 id: _selectAllHeaderCell
                 width:   root._cbColW
                 height:  _headerRow.height
                 visible: root.multiSelect
 
-                AppControls.CheckBox {
-                    id: _headerCb
-                    anchors.centerIn: _selectAllHeaderCell
-                    checkState: root._allChecked  ? Qt.Checked
-                              : root._someChecked ? Qt.PartiallyChecked
-                                                  : Qt.Unchecked
-                    tristate: true
-                    padding:  0; spacing: 0
+                readonly property int _checkState: root._allChecked ? 2
+                    : root._someChecked ? 1 : 0
 
-                    indicator: Rectangle {
-                        implicitWidth: 14; implicitHeight: 14; radius: 2
-                        color: _headerCb.checkState !== Qt.Unchecked
+                Item {
+                    anchors.centerIn: parent
+                    width: 20; height: 20
+
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: 14; height: 14; radius: 2
+                        color: _selectAllHeaderCell._checkState !== 0
                             ? Theme.AppTheme.accent : "transparent"
-                        border.color: _headerCb.checkState !== Qt.Unchecked
+                        border.color: _selectAllHeaderCell._checkState !== 0
                             ? Theme.AppTheme.accent : Theme.AppTheme.subtleBorder
                         border.width: 1
                         Text {
                             anchors.centerIn: parent
-                            text: _headerCb.checkState === Qt.PartiallyChecked ? "—" : "✓"
+                            text: _selectAllHeaderCell._checkState === 1 ? "—" : "✓"
                             color: "white"
                             font.pixelSize: 9; font.bold: true
-                            visible: _headerCb.checkState !== Qt.Unchecked
+                            visible: _selectAllHeaderCell._checkState !== 0
                         }
                     }
-                    contentItem: Item { implicitWidth: 0; implicitHeight: 14 }
-                    onClicked: root.selectAllToggled(!root._allChecked)
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.selectAllToggled(!root._allChecked)
+                    }
                 }
             }
 
@@ -406,15 +497,16 @@ Item {
                             required property var modelData
                             required property int index
 
-                            readonly property bool _sorted: root.sortKey === _hCell.modelData.key
+                            readonly property bool _sorted: root._effectiveSortingMode !== "none"
+                                && root.sortKey === _hCell.modelData.key
 
                             width:  root._colWidth(_hCell.modelData)
                             height: Theme.AppTheme.normalRowHeight
 
                             RowLayout {
                                 anchors.fill:        parent
-                                anchors.leftMargin:  Theme.AppTheme.spacingSm
-                                anchors.rightMargin: Theme.AppTheme.spacingXs
+                                anchors.leftMargin:  Theme.AppTheme.spacingMd
+                                anchors.rightMargin: Theme.AppTheme.spacingSm
                                 spacing: 3
 
                                 AppControls.Label {
@@ -427,11 +519,11 @@ Item {
                                     font.bold:      true
                                     elide:          Text.ElideRight
                                 }
-                                Text {
-                                    visible:        _hCell._sorted
-                                    text:           root.sortDirection === Qt.AscendingOrder ? "▲" : "▼"
-                                    color:          Theme.AppTheme.accent
-                                    font.pixelSize: 7
+                                AppIcons.AppIcon {
+                                    visible:   _hCell._sorted
+                                    name:      root.sortDirection === Qt.AscendingOrder ? "chevron_up" : "chevron_down"
+                                    size:      Theme.AppTheme.iconXs
+                                    iconColor: Theme.AppTheme.accent
                                 }
                             }
 
@@ -444,13 +536,86 @@ Item {
                                 visible: _hCell.index < root._visCols.length - 1
                             }
 
+                            // Resize handle: a slightly wider invisible hit
+                            // target centered on the separator, so dragging
+                            // doesn't require pixel-perfect precision on the
+                            // 1px divider line itself. Rather than committing
+                            // a new column width (and the table-model rebuild
+                            // that implies) on every pixel of mouse movement,
+                            // this only tracks a live guide line while
+                            // dragging and commits once on release -- a
+                            // continuous root.columns rewrite per mouse-move
+                            // event would mean a full model reset per pixel
+                            // dragged.
+                            MouseArea {
+                                id: _resizeHandle
+                                // Above the sort MouseArea below (which
+                                // fills the whole cell and is declared
+                                // after this one -- without an explicit z,
+                                // it would sit on top and steal presses
+                                // meant for this handle).
+                                z: 1
+                                anchors.right: _hCell.right
+                                anchors.top: _hCell.top
+                                anchors.bottom: _hCell.bottom
+                                width: 9
+                                visible: _hCell.index < root._visCols.length - 1
+                                cursorShape: Qt.SizeHorCursor
+                                property real _dragStartWidth: 0
+
+                                onPressed: function(mouse) {
+                                    _resizeHandle._dragStartWidth = _hCell.width
+                                    root._resizingColumnKey = _hCell.modelData.key
+                                    root._resizeGuideX = _resizeHandle.mapToItem(root, mouse.x, 0).x
+                                }
+                                onPositionChanged: function(mouse) {
+                                    if (!pressed) return
+                                    root._resizeGuideX = _resizeHandle.mapToItem(root, mouse.x, 0).x
+                                }
+                                onReleased: function(mouse) {
+                                    if (root._resizingColumnKey.length === 0) return
+                                    const next = Math.max(
+                                        root._minResizeWidth,
+                                        _resizeHandle._dragStartWidth + mouse.x - width / 2
+                                    )
+                                    // Freeze every other column at its
+                                    // currently-rendered width (captured
+                                    // BEFORE this column's width changes),
+                                    // not just the dragged one -- otherwise
+                                    // growing this column reduces
+                                    // _extraFlexSpace, and every flex>0
+                                    // column's share (computed FROM
+                                    // _extraFlexSpace) would recompute
+                                    // smaller purely as a side effect of
+                                    // resizing something else. Freezing
+                                    // means only the dragged column's width
+                                    // actually changes; the table's total
+                                    // content width grows instead, and
+                                    // _hScrollBar already handles that.
+                                    const updated = root.columns.map(function(c) {
+                                        if (c.key === root._resizingColumnKey) {
+                                            const copy = JSON.parse(JSON.stringify(c))
+                                            copy.preferredWidth = next
+                                            return copy
+                                        }
+                                        if (c.preferredWidth !== undefined) return c
+                                        const copy = JSON.parse(JSON.stringify(c))
+                                        copy.preferredWidth = root._colWidth(c)
+                                        return copy
+                                    })
+                                    root.columns = updated
+                                    root._hasManualColumnWidths = true
+                                    root.columnsStateChanged(updated)
+                                    root._resizingColumnKey = ""
+                                }
+                            }
+
                             MouseArea {
                                 anchors.fill: parent
-                                enabled:      _hCell.modelData.sortable !== false
+                                enabled:      root._canSortColumn(_hCell.modelData)
                                 cursorShape:  enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                                 onClicked: {
                                     root._toggleSort(_hCell.modelData.key)
-                                    root.sortRequested(_hCell.modelData.key)
                                 }
                             }
                         }
@@ -693,6 +858,22 @@ Item {
             readonly property bool _isSt: _cell.columnType === "status"
             readonly property bool _isPr: _cell.columnType === "progress"
 
+            // The last visible column's background/divider must reach the
+            // edge of the current viewport, not just its own column width --
+            // otherwise shrinking that column (via the resize handle) leaves
+            // an untreated blank strip to its right, since row background/
+            // divider are drawn per-cell and TableView never grows other
+            // columns to compensate for a shrink (by design -- see the
+            // resize-handle notes above). Before manual column widths
+            // existed, flex-based columns always summed to exactly the
+            // viewport width, so this gap could never appear. The formula
+            // lives on `root` (see `_rowFillWidthFor`) so it's independently
+            // testable without reaching into a virtualized TableView delegate.
+            readonly property bool _isLastVisCol: _cell.column === root._visCols.length - 1
+            readonly property real _rowFillWidth: _cell._isLastVisCol
+                ? root._rowFillWidthFor(_cell.width, _cell.x)
+                : _cell.width
+
             readonly property real _pVal: {
                 if (!_isPr) return 0.0
                 const rv = _cell.rawValue
@@ -711,7 +892,10 @@ Item {
             // ── Cell background ───────────────────────────────────────
             Rectangle {
                 id: _cellBackground
-                anchors.fill: parent
+                anchors.left: parent.left
+                anchors.top:  parent.top
+                height: parent.height
+                width:  _cell._rowFillWidth
                 color: _cell._hi
                     ? Theme.AppTheme.selectedSurface
                     : root._hoveredRow === _cell.row
@@ -732,7 +916,7 @@ Item {
             StatusChip {
                 anchors.verticalCenter: _cell.verticalCenter
                 anchors.left:           _cell.left
-                anchors.leftMargin:     Theme.AppTheme.spacingSm
+                anchors.leftMargin:     Theme.AppTheme.spacingMd
                 visible: _cell._isSt && _cell.display.length > 0
                 status:  _cell.display
             }
@@ -743,7 +927,7 @@ Item {
                 anchors.verticalCenter: _cell.verticalCenter
                 anchors.left:           _cell.left
                 anchors.right:          _cell.right
-                anchors.leftMargin:     Theme.AppTheme.spacingSm
+                anchors.leftMargin:     Theme.AppTheme.spacingMd
                 anchors.rightMargin:    Theme.AppTheme.spacingSm
                 height:  20
                 visible: _cell._isPr
@@ -771,8 +955,8 @@ Item {
             // ── Plain text ────────────────────────────────────────────
             AppControls.Label {
                 anchors.fill:        parent
-                anchors.leftMargin:  Theme.AppTheme.spacingSm
-                anchors.rightMargin: Theme.AppTheme.spacingXs
+                anchors.leftMargin:  Theme.AppTheme.spacingMd
+                anchors.rightMargin: Theme.AppTheme.spacingSm
                 visible:             !_cell._isSt && !_cell._isPr
                 text:                _cell.display
                 verticalAlignment:   Text.AlignVCenter
@@ -786,7 +970,9 @@ Item {
 
             // ── Cell bottom divider ───────────────────────────────────
             Rectangle {
-                anchors { left: _cell.left; right: _cell.right; bottom: _cell.bottom }
+                anchors.left:   _cell.left
+                anchors.bottom: _cell.bottom
+                width:  _cell._rowFillWidth
                 height: 1; color: Theme.AppTheme.divider
             }
 
@@ -797,9 +983,19 @@ Item {
                 onClicked: {
                     root._currentRow = _cell.row
                     _mainView.forceActiveFocus()
-                    root.rowSelected(_cell.rowId)
+                    const now = Date.now()
+                    const isSameRowDoubleClick = root._lastClickRowId === _cell.rowId
+                        && root._lastClickRowId.length > 0
+                        && (now - root._lastClickTimeMs) <= Qt.styleHints.mouseDoubleClickInterval
+                    root._lastClickRowId = _cell.rowId
+                    root._lastClickTimeMs = now
+                    if (isSameRowDoubleClick) {
+                        root._lastClickRowId = ""
+                        root.rowActivated(_cell.rowId)
+                    } else {
+                        root.rowSelected(_cell.rowId)
+                    }
                 }
-                onDoubleClicked: root.rowActivated(_cell.rowId)
             }
 
             // ── Hover tracking ────────────────────────────────────────
@@ -810,6 +1006,49 @@ Item {
                 }
             }
         }
+
+        // ── Empty-space click: clears selection, closing the inspector ──
+        // Sits on top (z above the row delegates) but declines the press
+        // whenever it lands over actual row content, letting it fall
+        // through to that row's own MouseArea unchanged. Only clicks below
+        // the last row (or anywhere, when the table is empty) are handled
+        // here. Explicitly parented and sized to _mainView itself (the
+        // Flickable/viewport) -- a Flickable's default `data` property
+        // silently reparents plain children like this one into its
+        // `contentItem`, whose size is the scrollable CONTENT size (not the
+        // viewport) and which scrolls with contentY. With few rows,
+        // contentHeight is far smaller than the visible viewport, so
+        // `anchors.fill: parent` confined this catcher to a small strip at
+        // the top and left the rest of the visibly-empty viewport
+        // completely unclickable; overriding `parent` back to `_mainView`
+        // keeps it viewport-sized and immune to scroll position too.
+        MouseArea {
+            id: _emptySpaceCatcher
+            parent: _mainView
+            x: 0
+            y: 0
+            width: _mainView.width
+            height: _mainView.height
+            z: 10
+            onPressed: function(mouse) {
+                const contentBottom = _mainView.contentHeight - _mainView.contentY
+                if (mouse.y < contentBottom) {
+                    mouse.accepted = false
+                }
+            }
+            onClicked: root.rowSelected("")
+        }
+    }
+
+    // ── Column-resize live guide line ─────────────────────────────────
+    Rectangle {
+        visible: root._resizingColumnKey.length > 0
+        x: root._resizeGuideX
+        y: _header.y
+        width: 1
+        height: _hScrollBar.y - _header.y
+        color: Theme.AppTheme.accent
+        z: 20
     }
 
     // ── Horizontal scrollbar (shared between header + _mainView) ─────

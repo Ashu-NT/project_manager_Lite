@@ -6,7 +6,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from src.core.platform.domain.security.auth.session import UserSessionContext
-from src.core.platform.contract.master_data.employee.contracts import EmployeeRepository
+from src.core.platform.contract.repositories.master_data.employee.contracts import EmployeeRepository
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.platform.application.time_management.time.timesheet_entries import TimesheetEntriesMixin
 from src.core.platform.application.time_management.time.timesheet_periods import TimesheetPeriodsMixin
@@ -15,7 +15,7 @@ from src.core.platform.application.time_management.time.timesheet_review import 
 from src.core.platform.application.time_management.time.timesheet_support import TimesheetSupportMixin
 from src.core.platform.application.time_management.time.timesheet_financial_events import TimesheetFinancialEventsMixin
 from src.core.platform.application.integration import IntegrationOutboxService
-from src.core.platform.contract.time_management.time.contracts import (
+from src.core.platform.contract.repositories.time_management.time.contracts import (
     TimeEntryRepository,
     TimesheetPeriodRepository,
     WorkAllocationRepository,

@@ -149,34 +149,18 @@ def test_project_management_dashboard_desktop_api_normalizes_naive_activity_time
             )
         ),
         collaboration_service=SimpleNamespace(
-            list_workspace_snapshot=lambda limit=120: SimpleNamespace(
-                notifications=[
-                    SimpleNamespace(
-                        entity_id="approval-1",
-                        entity_type="approval_request",
-                        headline="Approval requested",
-                        notification_type="approval",
-                        actor_username="planner",
-                        created_at=activity_at,
-                        project_id="proj-1",
-                        project_name="Plant Upgrade",
-                    )
-                ],
-                recent_activity=[
-                    SimpleNamespace(
-                        comment_id="comment-1",
-                        task_id="task-1",
-                        task_name="Cable Pull",
-                        unread=False,
-                        author_username="pm",
-                        created_at=recent_at,
-                        project_id="proj-1",
-                        project_name="Plant Upgrade",
-                    )
-                ],
-                inbox=[],
-                active_presence=[],
-            )
+            list_recent_activity=lambda **kwargs: [
+                SimpleNamespace(
+                    comment_id="comment-1",
+                    task_id="task-1",
+                    task_name="Cable Pull",
+                    mentions=(),
+                    author_username="pm",
+                    created_at=recent_at,
+                    project_id="proj-1",
+                    project_name="Plant Upgrade",
+                )
+            ]
         ),
         approval_service=SimpleNamespace(
             list_pending=lambda project_id=None, limit=120: [
@@ -198,9 +182,9 @@ def test_project_management_dashboard_desktop_api_normalizes_naive_activity_time
 
     snapshot = api.build_snapshot(project_id="proj-1", period_key="30d")
 
-    assert snapshot.activity_feed.items[0].title == "Approval requested"
+    assert snapshot.activity_feed.items[0].title == "Cable Pull update"
     assert snapshot.activity_feed.items[0].meta_text.endswith(
-        activity_at.strftime("%Y-%m-%d %H:%M")
+        recent_at.strftime("%Y-%m-%d %H:%M")
     )
     approvals_table = next(
         table for table in snapshot.operational_tables if table.id == "pending_approvals"

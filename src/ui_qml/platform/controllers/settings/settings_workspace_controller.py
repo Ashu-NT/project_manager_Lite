@@ -14,6 +14,7 @@ from src.ui_qml.platform.presenters import (
 )
 
 from ..common import (
+    WORKSPACE_PERMISSIONS,
     PlatformWorkspaceControllerBase,
     serialize_action_list,
     serialize_operation_result,
@@ -37,11 +38,14 @@ class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
         *,
         overview_presenter: PlatformSettingsWorkspacePresenter,
         catalog_presenter: PlatformSettingsCatalogPresenter,
+        runtime_api=None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self._overview_presenter = overview_presenter
         self._catalog_presenter = catalog_presenter
+        self._runtime_api = runtime_api
+        self._loaded = False
         self._module_entitlements_table_model = DynamicTableModel(self)
         self._integration_capabilities_table_model = DynamicTableModel(self)
         self._module_entitlements: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
@@ -49,7 +53,6 @@ class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
         self._integration_capabilities: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._lifecycle_options = [dict(option) for option in self._catalog_presenter.lifecycle_options()]
         self._bind_domain_events()
-        self.refresh()
 
     @Property("QVariantMap", notify=moduleEntitlementsChanged)
     def moduleEntitlements(self) -> dict[str, object]:
@@ -77,6 +80,7 @@ class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
 
     @Slot()
     def refresh(self) -> None:
+        self._loaded = True
         self._set_is_loading(True)
         self._set_error_message("")
         self._set_overview(serialize_workspace_overview(self._overview_presenter.build_overview()))
@@ -113,6 +117,9 @@ class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
             ),
             success_message="Module lifecycle status updated.",
         )
+
+    def _is_accessible(self) -> bool:
+        return self._has_permission(WORKSPACE_PERMISSIONS["settings"])
 
     def _bind_domain_events(self) -> None:
         self._subscribe_domain_signal(

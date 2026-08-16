@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Property, QObject, Slot
+from collections.abc import Callable
+from typing import Any
+
+from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.platform.api.desktop.integration import IntegrationCapabilityDesktopApi
@@ -18,7 +21,7 @@ from src.ui_qml.modules.project_management.controllers import (
     ProjectManagementTimesheetsWorkspaceController,
 )
 from src.ui_qml.modules.project_management.controllers.common import (
-    ProjectManagementTaskViewStore,
+    PMWorkspaceNavigationController,
     resolve_active_organization_id_from_runtime_api,
     serialize_workspace_view_model,
 )
@@ -50,7 +53,8 @@ class ProjectManagementWorkspaceCatalog(QObject):
     def __init__(
         self,
         desktop_api_registry: object | None = None,
-        task_view_store: ProjectManagementTaskViewStore | None = None,
+        auth_engine: Any | None = None,
+        user_session_provider: Callable[[], Any | None] | None = None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
@@ -60,11 +64,6 @@ class ProjectManagementWorkspaceCatalog(QObject):
             getattr(desktop_api_registry, "platform_runtime", None)
             if desktop_api_registry is not None else None
         )
-        self._task_view_store = task_view_store or ProjectManagementTaskViewStore(
-            organization_id_provider=self._active_organization_id,
-        )
-        if task_view_store is not None and hasattr(task_view_store, "set_organization_id_provider"):
-            task_view_store.set_organization_id_provider(self._active_organization_id)
         self._dashboard_api = getattr(
             desktop_api_registry,
             "project_management_dashboard",
@@ -124,7 +123,15 @@ class ProjectManagementWorkspaceCatalog(QObject):
             getattr(desktop_api_registry, "integration_capability", None)
             if desktop_api_registry is not None else None
         )
-        self._pm_capability = PMCapabilityController(parent=self)
+        self._pm_capability = PMCapabilityController(
+            auth_engine=auth_engine,
+            user_session_provider=user_session_provider,
+            parent=self,
+        )
+        # R2.3: the PM-wide canonical-navigation state owner. Constructed
+        # eagerly (like PMCapabilityController above) since it is cheap
+        # cross-cutting state, not a heavy per-capability workspace.
+        self._pm_navigation = PMWorkspaceNavigationController(parent=self)
         self._projects_workspace: ProjectManagementProjectsWorkspaceController | None = None
         self._financials_workspace: ProjectManagementFinancialsWorkspaceController | None = None
         self._portfolio_workspace: ProjectManagementPortfolioWorkspaceController | None = None
@@ -219,7 +226,6 @@ class ProjectManagementWorkspaceCatalog(QObject):
                     collaboration_desktop_api=self._collaboration_api,
                     timesheets_desktop_api=self._timesheets_api,
                 ),
-                task_view_store=self._task_view_store,
                 parent=self,
             )
         return self._tasks_workspace
@@ -299,6 +305,10 @@ class ProjectManagementWorkspaceCatalog(QObject):
     def pmCapabilityController(self) -> PMCapabilityController:
         return self._pm_capability
 
+    @Property(PMWorkspaceNavigationController, constant=True)
+    def pmNavigation(self) -> PMWorkspaceNavigationController:
+        return self._pm_navigation
+
     @Slot(str, result="QVariantMap")
     def workspace(self, route_id: str) -> dict[str, str]:
         presenter = self._presenters.get(route_id)
@@ -318,9 +328,7 @@ class ProjectManagementWorkspaceCatalog(QObject):
 
     @Slot()
     def refreshAllWorkspaces(self) -> None:
-        refresh = getattr(self._pm_capability, "refresh", None)
-        if callable(refresh):
-            refresh()
+        self.refreshCapabilities()
         for controller in (
             self._projects_workspace,
             self._financials_workspace,
@@ -338,6 +346,10 @@ class ProjectManagementWorkspaceCatalog(QObject):
             controller_refresh = getattr(controller, "refresh", None)
             if callable(controller_refresh):
                 controller_refresh()
+
+    @Slot()
+    def refreshCapabilities(self) -> None:
+        self._pm_capability.refresh()
 
     @Slot(str, result=bool)
     def isModuleEnabled(self, module_code: str) -> bool:

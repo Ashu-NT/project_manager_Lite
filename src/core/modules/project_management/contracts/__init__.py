@@ -1,23 +1,23 @@
 """Project management contracts."""
 
-from src.core.modules.project_management.contracts.financial_sources import (
+from src.core.modules.project_management.contracts.financial_sources.approved_time import (
     ApprovedTimeFinancialSource,
-    ApprovedTimeFinancialSourceProvider,
+)
+from src.core.modules.project_management.contracts.financial_sources.procurement import (
+    ProcurementCommitmentFinancialSource,
+    ProcurementCommitmentState,
+    ProcurementReceiptAccrualFinancialSource,
+)
+from src.core.modules.project_management.contracts.financial_sources.reference import (
     FinancialPostingPurpose,
     FinancialSourceModule,
     FinancialSourcePage,
     FinancialSourceReference,
     FinancialSourceType,
-    ProcurementCommitmentFinancialSource,
-    ProcurementCommitmentState,
-    ProcurementFinancialSourceProvider,
-    ProcurementReceiptAccrualFinancialSource,
     financial_source_content_hash,
 )
-
 __all__ = [
     "ApprovedTimeFinancialSource",
-    "ApprovedTimeFinancialSourceProvider",
     "FinancialPostingPurpose",
     "FinancialSourceModule",
     "FinancialSourcePage",
@@ -25,7 +25,6 @@ __all__ = [
     "FinancialSourceType",
     "ProcurementCommitmentFinancialSource",
     "ProcurementCommitmentState",
-    "ProcurementFinancialSourceProvider",
     "ProcurementReceiptAccrualFinancialSource",
     "financial_source_content_hash",
 ]

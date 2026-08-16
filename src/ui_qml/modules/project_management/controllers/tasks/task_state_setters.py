@@ -22,6 +22,18 @@ class TaskStateSettersMixin:
         self._task_total_count = v
         self.taskTotalCountChanged.emit()
 
+    def _set_task_sort_key(self, value: str) -> None:
+        if value == self._task_sort_key:
+            return
+        self._task_sort_key = value
+        self.taskSortKeyChanged.emit()
+
+    def _set_task_sort_direction(self, value: int) -> None:
+        if value == self._task_sort_direction:
+            return
+        self._task_sort_direction = value
+        self.taskSortDirectionChanged.emit()
+
     def _set_selected_project_id(self, v: str) -> None:
         if v == self._selected_project_id:
             return
@@ -51,12 +63,6 @@ class TaskStateSettersMixin:
             return
         self._search_text = v
         self.searchTextChanged.emit()
-
-    def _set_selected_task_view_name(self, v: str) -> None:
-        if v == self._selected_task_view_name:
-            return
-        self._selected_task_view_name = v
-        self.selectedTaskViewNameChanged.emit()
 
     def _set_selected_task_id(self, v: str) -> None:
         if v == self._selected_task_id:

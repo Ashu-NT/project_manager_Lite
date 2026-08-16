@@ -2,6 +2,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Window
 import QtQuick.Dialogs
 import App.Controls 1.0 as AppControls
 import App.Layouts 1.0 as AppLayouts
@@ -42,6 +43,40 @@ AppLayouts.WorkspaceFrame {
     function _saveColumnState(columns) {
         state.saveColumnState(columns)
         root._columns = state.columns
+    }
+
+    readonly property string _inspectorRowId: root.workspaceController
+        ? root.workspaceController.selectedProjectId
+        : ""
+    readonly property var _inspectorItem: {
+        const id = root._inspectorRowId
+        if (!id) return null
+        const items = root.projectsModel.items || []
+        for (let i = 0; i < items.length; i += 1) {
+            if (String(items[i].id || "") === id) return items[i]
+        }
+        return null
+    }
+    // Each field gets its own row rather than mashing several concepts
+    // into one combined string -- read straight from the catalog row's
+    // own `state` (the same fields the table's columns already show, no
+    // new fetch), one label per fact instead of a squashed subtitle.
+    readonly property var _inspectorSections: {
+        const item = root._inspectorItem
+        if (!item) return []
+        const s = item.state || {}
+        return [
+            { "label": "Client", "value": String(s.clientName || "") },
+            { "label": "Site", "value": String(s.siteLabel || "") },
+            { "label": "Start", "value": String(s.startDateLabel || "") },
+            { "label": "Finish", "value": String(s.endDateLabel || "") },
+            { "label": "Approved Budget", "value": String(s.approvedBudgetLabel || "") },
+            { "label": "Contact", "value": String(s.clientContact || "") }
+        ]
+    }
+
+    function _clearInspectorSelection() {
+        if (root.workspaceController !== null) root.workspaceController.selectProject("")
     }
 
     // ── Detail page state ─────────────────────────────────────────────────
@@ -96,19 +131,52 @@ AppLayouts.WorkspaceFrame {
         }
     }
 
+    // Closes the inspector on Escape, but only when nothing else currently
+    // owns Escape -- an open popup/dialog already closes itself on Escape,
+    // and should keep exclusive claim to the key while it's up.
+    Shortcut {
+        sequence: "Escape"
+        enabled: root._inspectorItem !== null
+            && !root._detailOpen
+            && !filterPopup.opened
+            && !_bulkChangePopup.opened
+            && !_bulkDeleteDialog.opened
+            && !(dialogHostLoader.item && dialogHostLoader.item.anyDialogOpen)
+        onActivated: root._clearInspectorSelection()
+    }
+
     // ── Stacked layout: list page / detail page ───────────────────
     Item {
         anchors.fill: parent
 
+        // Clicking blank workspace background (KPI strip padding, toolbar
+        // gaps, pagination-bar margins, etc. -- anywhere that isn't an
+        // actual control or the inspector panel itself) closes the
+        // inspector, mirroring DataTable's own empty-space-click behavior
+        // but covering the whole list/detail region. Declared first so it
+        // sits behind `_listPage` in paint/hit order: real controls and
+        // popups (which reparent into Overlay.overlay, above everything)
+        // claim their own clicks before they ever reach this catcher, and
+        // InspectorPanel now swallows clicks on its own blank background
+        // too, so this never fires for clicks meant for the panel.
+        MouseArea {
+            anchors.fill: parent
+            visible: !root._detailOpen
+            enabled: root._inspectorItem !== null
+            onPressed: root._clearInspectorSelection()
+        }
+
         // ── List page ─────────────────────────────────────────────────────
-        Item {
+        RowLayout {
             id: _listPage
             anchors.fill: parent
             visible: !root._detailOpen
+            spacing: 0
 
             Components.ProjectsListPage {
                 id: listPage
-                anchors.fill: parent
+                Layout.fillWidth: true
+                Layout.fillHeight: true
                 workspaceController: root.workspaceController
                 state: state
                 overviewModel: root.overviewModel
@@ -142,7 +210,7 @@ AppLayouts.WorkspaceFrame {
                     if (root.workspaceController !== null) root.workspaceController.refresh()
                 }
                 onImportRequested: {
-                    if (root.pmCatalog ? root.pmCatalog.pmCapabilityController.canImport : true)
+                    if (root.pmCatalog ? root.pmCatalog.pmCapabilityController.canImport : false)
                         dialogHostLoader.invoke("openImportDialog")
                 }
                 onExportRequested: _exportDialog.open()
@@ -157,6 +225,22 @@ AppLayouts.WorkspaceFrame {
                     } else if (actionId === "change_property") {
                         _bulkChangePopup.open()
                     }
+                }
+            }
+
+            AppWidgets.InspectorPanel {
+                Layout.fillHeight: true
+                visible: root._inspectorItem !== null && Window.width >= Theme.AppTheme.compactContentBreakpoint
+                title: root._inspectorItem ? String(root._inspectorItem.title || "") : ""
+                statusLabel: root._inspectorItem ? String(root._inspectorItem.statusLabel || "") : ""
+                sections: root._inspectorSections
+                busy: root.workspaceController ? root.workspaceController.isBusy : false
+                editActionLabel: "Edit"
+                showEditAction: true
+
+                onCloseRequested: root._clearInspectorSelection()
+                onEditRequested: {
+                    if (root._inspectorItem) dialogHostLoader.invoke("openEditDialog", root._inspectorItem)
                 }
             }
 

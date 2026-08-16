@@ -4,11 +4,10 @@ from __future__ import annotations
 def rebuild_panel_item_index(controller) -> None:
     controller._panel_item_index = {}
     panel_map = {
-        "inbox": controller._notifications,
+        "inbox": controller._inbox,
         "mentions": controller._mentions,
         "approvals": controller._approvals,
         "activity": controller._activity_feed,
-        "team_updates": controller._team_updates,
     }
     for pid, panel in panel_map.items():
         controller._panel_item_index[pid] = {

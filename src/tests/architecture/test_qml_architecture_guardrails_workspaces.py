@@ -8,16 +8,18 @@ ROOT = REPO_ROOT
 SRC_ROOT = ROOT / "src"
 UI_QML_ROOT = SRC_ROOT / "ui_qml"
 PLATFORM_ADMIN_CONSOLE_CONTROLLER = (
-    UI_QML_ROOT / "platform" / "controllers" / "admin" / "admin_console_controller.py"
+    UI_QML_ROOT / "platform" / "controllers" / "admin_console" / "admin_console_controller.py"
 )
+STALE_PLATFORM_ADMIN_DIRECTORY = UI_QML_ROOT / "platform" / "controllers" / "admin"
 STALE_PLATFORM_ADMIN_WORKSPACE_CONTROLLER = (
-    UI_QML_ROOT / "platform" / "controllers" / "admin" / "admin_workspace_controller.py"
+    UI_QML_ROOT / "platform" / "controllers" / "admin_console" / "admin_workspace_controller.py"
 )
 
 
 def test_platform_admin_workspace_controller_uses_split_entrypoint() -> None:
     assert PLATFORM_ADMIN_CONSOLE_CONTROLLER.exists()
     assert not STALE_PLATFORM_ADMIN_WORKSPACE_CONTROLLER.exists()
+    assert not STALE_PLATFORM_ADMIN_DIRECTORY.exists()
 
 
 def test_project_management_projects_workspace_no_longer_uses_placeholder_page() -> None:
@@ -97,22 +99,6 @@ def test_project_management_financials_workspace_no_longer_uses_placeholder_page
     text = financials_workspace.read_text(encoding="utf-8", errors="ignore")
 
     assert "FinancialsWorkspacePage" in text
-    assert "WorkspacePlaceholderPage" not in text
-
-
-def test_project_management_risk_workspace_no_longer_uses_placeholder_page() -> None:
-    risk_workspace = (
-        UI_QML_ROOT
-        / "modules"
-        / "project_management"
-        / "qml"
-        / "workspaces"
-        / "risk"
-        / "RiskWorkspace.qml"
-    )
-    text = risk_workspace.read_text(encoding="utf-8", errors="ignore")
-
-    assert "RiskWorkspacePage" in text
     assert "WorkspacePlaceholderPage" not in text
 
 

@@ -117,6 +117,8 @@ class SchedulingWorkspaceViewModel:
     page: int = 1
     page_size: int = 25
     total_count: int = 0
+    sort_key: str = "schedule"
+    sort_direction: str = "asc"
     selected_activity_id: str = ""
     calendar: SchedulingCalendarViewModel = field(
         default_factory=lambda: SchedulingCalendarViewModel(summary_text="")

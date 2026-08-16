@@ -294,7 +294,8 @@ authorization.
 
 ### 11.6 Planned Costing
 
-**Status: IMPLEMENTED (tactical), assignment-labor-only (2026-08-06).** Versioned
+**Status: IMPLEMENTED, authoritative for KPI/dashboard/FinanceSnapshot planned totals
+(2026-08-11; item 7 closure 2026-08-12).** Versioned
 `ProjectPlannedCostVersion`/`ProjectPlannedCostLine` snapshots (CURRENT/SUPERSEDED, no
 approval lifecycle — see `project_planned_cost_snapshot_plan.md`, deleted 2026-08-06: its
 design deviated from what was actually built, see 11.6 below for the accurate shape)
@@ -304,13 +305,21 @@ the same rate-card resolver `CostPolicyEngine`/`LaborCostEngine` use, with sourc
 `ProjectFinancialProfile.default_cost_code_id` — a stated, coarser-than-`BudgetLine`
 limitation) dimensions. Completeness is tracked as three independent flags
 (`rates_complete`/`allocations_complete`/`cost_codes_complete`) plus diagnostic reason codes,
-not one ambiguous flag. `ProjectResource.planned_hours` remains the authoritative
-project-resource planning envelope; `allocated_planned_hours` is a constrained WBS
-distribution of it, enforced at write time, not an independent planning total — a design
-review's recommendation to instead build a full versioned `ProjectLaborPlan`/
-`LaborPlanAllocation` aggregate (its own DRAFT/SUBMIT/APPROVE lifecycle) was deliberately
-deferred as a larger, separately scoped future phase rather than done here. Manual/material
-planned-cost lines and baseline-comparison sourcing remain unimplemented in this slice.
+not one ambiguous flag. `CostPolicyEngine`/`ledger.py` now source KPI, dashboard, cost
+breakdown, and `FinanceSnapshot.planned` totals from this versioned, allocated-to-task model —
+not from `ProjectResource.planned_hours` (see §19 Phase B item 7). `calculate_snapshot` is a
+governed, permission-gated (`plannedcost.manage`) action, consistent with Budget/Forecast/
+Baseline generation elsewhere in this system — it is not, and does not need to be,
+auto-triggered on every assignment/rate mutation; a project with no snapshot yet correctly
+shows no planned-cost contribution rather than an error. A design review's recommendation to
+additionally build a full versioned `ProjectLaborPlan`/`LaborPlanAllocation` aggregate (its own
+DRAFT/SUBMIT/APPROVE lifecycle, and a genuinely distinct resource-envelope-capacity question,
+not a competing "planned cost" source) remains deliberately deferred as a larger, separately
+scoped future phase; the interim `LaborCostEngine.calculate_project_labor_plan_vs_actual`
+placeholder for that question was unreached by any production caller and was deleted
+(2026-08-12) rather than left half-alive. Manual/material planned-cost lines and
+baseline-comparison sourcing (which exact rate-card line/version valued each baseline task)
+remain unimplemented.
 
 ### 11.7 Commitments
 
@@ -712,6 +721,15 @@ Implementation progress (2026-08-02):
 - Verification: the final focused A0 approval/event/security/RLS set has 32 passing tests; the finance/forecast/reporting batch has 30 passes; and 116 Inventory tests pass. The wider PM/platform run has 465 passes and 15 independently identified unrelated legacy/date-relative failures.
 - All A0 code gates are met. A hosted PostgreSQL run under a non-owner, non-superuser, non-`BYPASSRLS` application role remains a deployment-environment gate; it is not replaced by SQLite architecture tests.
 
+Implementation progress (2026-08-11 update — F0, `RBAC reporting`):
+
+- The 2026-08-02 pass above closed `report.view` only for `FinanceService`/`ProjectFinanceWorkspaceQuery`. `ReportingService` (EVM, cost breakdown, cost source breakdown, labor detail) and `DashboardService` (cost-source/EVM/KPI financial fields) still authorized on `report.view` alone, re-exposing the same finding through the reporting/dashboard/export surface.
+- Added `ReportingService._require_finance_view` (`finance.read`) and `_require_finance_sensitive_view` (`finance.read_sensitive`) gates and wired them into `get_cost_breakdown`/`get_project_cost_source_breakdown`/`get_project_cost_control_totals` (`cost_breakdown.py`, `cost_policy.py`), `get_earned_value`/`get_evm_series` (`evm_core.py`, `evm_series.py`), and `get_project_labor_details`/`get_project_labor_plan_vs_actual`/`calculate_project_labor_details` (`labor.py`).
+- `report.view` remains the correct, sufficient gate for genuinely non-financial reports (`get_gantt_data`, `get_resource_load_summary`, `get_critical_path`) — it was not blanket-replaced.
+- `get_project_kpis` and `DashboardService.get_dashboard_data` mix schedule/non-financial facts with financial fields in one DTO; both now redact the financial fields (`financial_detail_included`/`cost_sources`/`evm` become `false`/`None`) for a `report.view`-only caller instead of denying the whole call, mirroring the existing `FinanceService` labor-redaction convention.
+- New regression coverage in `src/tests/project_management/test_project_finance_phase_a0_security.py` (the "F0 — ReportingService / DashboardService authorization boundary closure" section): `report.view`-alone allow/deny split, KPI/dashboard redaction-not-denial, `finance.read` vs `finance.read_sensitive` tiering, export-permission-is-not-read, and cross-project/cross-organization isolation. Full file: 18 passed.
+- All A0 code gates are now met for the reporting/dashboard/export surface as well, not only `FinanceService`.
+
 #### Phase A1 - Monetary foundations
 
 Ownership: **PLATFORM FOUNDATION + PLATFORM ORGANIZATION + PROJECT FINANCE/PROCUREMENT/TIME ADOPTION**
@@ -792,58 +810,41 @@ ADR gate: complete. ADR-PF-003, ADR-PF-005, and ADR-PF-009 are accepted.
    allocation) and `BaselineTask.baseline_planned_cost`'s `float` type are
    both deliberately unchanged. `create_baseline` now requires an explicit
    `rate_as_of: date` argument (never `date.today()` inside the service).
-   **Still remaining under item 7:** the "planning reports" half —
-   `CostPolicyEngine`/`LaborCostEngine`'s own "planned" figures (feeding
-   KPIs/dashboards/`FinanceSnapshot.planned`) still read
-   `ProjectResource.planned_hours` directly rather than the new
-   `ProjectPlannedCostVersion`. Baseline provenance (which exact rate-card
-   line/version valued each task) is also not recorded — a later baseline
-   financial-snapshot extension would be needed for that.
-
-   **Investigated and explicitly rejected (2026-08-06): cutting
-   `CostPolicyEngine`/`ledger.py`/`LaborCostEngine` over onto
-   `ProjectPlannedCostVersion`.** This is not a safe data-source swap and
-   would be a regression if done as literally scoped:
-   - **Granularity mismatch.** The three existing call sites
-     (`CostPolicyEngine._resolve_planned_labor_map`, `ledger.py`'s
-     `build_computed_labor_plan_rows`, `LaborCostEngine
-     .calculate_project_labor_plan_vs_actual`) all sum a resource's full
-     `ProjectResource.planned_hours` *envelope*, with no dependency on any
-     task assignment existing. `ProjectPlannedCostVersion` only counts
-     hours actually *allocated* to a task
-     (`TaskAssignment.allocated_planned_hours`) — partial/zero allocation
-     is an explicitly normal state. Cutting over would silently drop
-     unallocated planned hours from every KPI/dashboard reading them (a
-     real, confirmed test regression: `test_technical_math_reporting_
-     cost_policy.py::test_cost_policy_consistent_across_kpi_evm_
-     breakdown_and_totals` has 10 planned hours with 0 allocated to any
-     task; `total_planned_cost` would drop from 1150.0 to 150.0).
-   - **Three call sites, not one, and they'd disagree.** `ledger.py`'s own
-     docstring states its planned-labor rows intentionally share
-     `CostPolicyEngine`'s exact source "so this ledger's rows never
-     disagree with the engine's totals in the same finance snapshot."
-     Cutting over only one of the three would break that invariant within
-     a single `FinanceSnapshot`.
-   - **No freshness mechanism exists.** `ProjectPlannedCostVersion` only
-     updates via an explicit `calculate_snapshot()` call; nothing in
-     production ever calls it today (only tests do), `planned_costs_changed`
-     has zero subscribers, and no assignment-mutating command triggers a
-     recalculation. `CostPolicyEngine`/KPIs are live, always-current read
-     paths — reading this snapshot instead would show `$0` planned for
-     every project until someone manually triggers a calculation.
-
-   Decision: leave `CostPolicyEngine`/`ledger.py`/`LaborCostEngine` as they
-   are — they already resolve through the rate-card resolver correctly at
-   their own (coarser, envelope-level) granularity, which is not wrong,
-   just a different, legitimate view than the new snapshot's
-   allocated-to-task view. The real gap is that nothing yet surfaces
-   `ProjectPlannedCostVersion` to users (no desktop endpoint/report exists
-   for it) — a future additive report, not a replacement of existing
-   figures, would be the correct way to make it visible. A genuine full
-   cutover would require, at minimum, an assignment-change-triggered
-   recalculation mechanism and a product decision on whether unallocated
-   envelope hours should still count as "planned" — out of scope for this
-   phase.
+   **Item 7 closed (2026-08-12).** The rejection below (2026-08-06) is
+   retained as historical record, but the cutover it rejected was
+   subsequently performed anyway by an unrelated legacy-`CostItem` deletion
+   pass (2026-08-11, `CostPolicyEngine`/`ledger.py` rewrite) — and, once
+   re-audited, the two objections that made it look unsafe turned out not
+   to hold at the scope this project actually needed:
+   - **The granularity mismatch was real, but resolvable by not merging.**
+     `CostPolicyEngine`/`ledger.py`'s KPI/dashboard/`FinanceSnapshot.planned`
+     figures now source exclusively from `ProjectPlannedCostVersion`
+     (allocated-to-task), which is correct — this is the single canonical
+     "planned cost" figure. `LaborCostEngine.calculate_project_labor_plan_vs_actual`
+     (the third call site, answering the *different* question "is this
+     resource over/under their envelope") was never merged into it; it sat
+     unreached by any production caller and has been **deleted** (pre-release,
+     no compatibility burden to preserve) rather than resurrected as a
+     competing "planned" source. A resource-capacity plan-vs-actual report,
+     if wanted later, should be rebuilt cleanly and explicitly scoped as
+     that — not left half-alive next to the canonical figure.
+   - **The "no freshness mechanism" concern was investigated further and is
+     not a gap.** `PlannedCostService.calculate_snapshot` requires
+     `plannedcost.manage` — it is an explicit, governed, permission-gated
+     action, exactly like Budget-version and Forecast-version generation and
+     Baseline creation elsewhere in this system. None of those recalculate
+     automatically on every underlying mutation either. A project with no
+     snapshot calculated yet correctly shows no planned-cost contribution —
+     the same graceful-degradation behavior `BaselineService.create_baseline`
+     already relies on today (verified: it creates baselines against
+     projects with zero `ProjectPlannedCostVersion` rows without error,
+     `test_baseline_comparison_workflow.py`). This is optional-capability
+     behavior, not tactical debt, and does not require an auto-recalculation
+     pipeline.
+   - Baseline provenance (which exact rate-card line/version valued each
+     task) remains unrecorded — still a real, separately-scoped gap if a
+     baseline financial-snapshot extension is ever wanted, not part of this
+     item's closure.
 8. Complete (2026-08-09): replaced the QML combined "Budget" cost-line section with separate Profile, Budget Versions, Budget Lines, Rate Cards, and Planned Costs views. The false legacy component was deleted rather than retained as compatibility UI.
 
 Exit gate: approved budgets cannot mutate; rate selection is deterministic; historical snapshots remain stable after rate changes; plan totals reconcile by cost code/WBS/period; cross-tenant references fail.
@@ -1362,7 +1363,7 @@ This register is mandatory implementation scope. A phase cannot close while its 
 | Transitional component | Origin/added in | Removal gate | Owner | Status |
 | --- | --- | --- | --- | --- |
 | Desktop forecast/commitment fallback builders | Pre-existing | A2 canonical service composition and parity tests pass | PM Finance | CLOSED; formulas and empty compatibility paths deleted 2026-08-02 |
-| `report.view` finance authorization | Pre-existing | A0 finance permission grants and policy tests pass | Platform Security / PM Finance | CLOSED; replaced by `finance.read` on 2026-08-02 |
+| `report.view` finance authorization | Pre-existing | A0 finance permission grants and policy tests pass | Platform Security / PM Finance | CLOSED; replaced by `finance.read` on 2026-08-02 for `FinanceService`; extended to `ReportingService`/`DashboardService` (EVM, cost breakdown, cost source breakdown, labor detail, KPI/dashboard redaction) on 2026-08-11 (F0, commit `RBAC reporting`) — see Phase A0 implementation progress above |
 | Admin-session cost-governance bypass | Pre-existing | A0 removal tests pass | Platform Security | CLOSED; removed 2026-08-02 |
 | `cost.manage` umbrella/alias | Pre-existing; transitional mapping in A0 | Target command permissions active across desktop/services | Platform Security / PM Finance | CLOSED 2026-08-09; removed after C.6 runtime command/QML cutover |
 | Hard-coded PM `EUR` defaults | Pre-existing | A1 Organization/Profile currency resolution cutover | Platform Foundation / PM | CLOSED; command constants removed and Organization resolution active 2026-08-02 |
@@ -1378,7 +1379,7 @@ This register is mandatory implementation scope. A phase cannot close while its 
 | Planned dual-read comparison | C | D canonical report reconciliation complete | PM Finance | NOT CREATED |
 | Planned dual-write adapter, only if required | C | New writes and reports reconcile; legacy writes disabled | PM Finance | NOT CREATED |
 | Client-side fixed-limit Procurement lookup | Pre-existing | C typed project-source contract active | Procurement / PM Integration | CLOSED 2026-08-08; caller-free desktop projection deleted in DA0 instead of retained |
-| Legacy financial permission aliases/feature flags | A0 onward | E final role/API/controller inventory passes | Platform Security / PM Finance | NOT CREATED |
+| Legacy financial permission aliases/feature flags | A0 onward | E final role/API/controller inventory passes | Platform Security / PM Finance | CLOSED 2026-08-12; E final role/API/controller inventory (item 7 gate) confirmed no alias or feature-flag code was ever added to `role_permission_catalog.py` or any Phase E desktop/controller surface — row closes as never-created rather than removed |
 | Approval `commit=False` transaction switches in legacy cost/baseline/dependency/scheduling services | A0 | C dedicated approved commands own the shared Unit of Work | Platform Workflow / PM | CLOSED 2026-08-06; `CostLifecycleMixin`/`BaselineService`/`TaskDependencyMixin` each split into a public governed method + a private `_apply_*_decision` (mirroring `BudgetService`); `SchedulingEngine`/`_sync_project_schedule`'s `commit` params re-scoped as plain caller-owned batching, not an approval bridge — no regressions (24 pre-existing failures unchanged, 428 passed) |
 | Approved-handler `bypass_approval=True` switches | Pre-existing; constrained in A0 handlers | C handlers call dedicated internal approved commands with no public bypass flag | Platform Workflow / PM | CLOSED 2026-08-06; `bypass_approval` parameter removed entirely from `add_cost_item`/`update_cost_item`/`delete_cost_item`/`create_baseline`/`add_dependency`/`remove_dependency` — no caller anywhere (checked) passed `bypass_approval=True` except the composition apply handlers, now rewired to call `_apply_*_decision` directly. `TaskDependencyMixin.update_dependency`'s governed branch was dead code (not in `DEFAULT_GOVERNED_ACTIONS`, no apply handler ever registered) — deleted rather than wired up. |
 | Unused FinanceService ReportingService compatibility argument | A0 candidate | Remove before A0 merge | PM Finance | CLOSED; deleted 2026-08-02 |

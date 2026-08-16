@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import App.Controls 1.0 as AppControls
-import ProjectManagement.Dialogs 1.0 as ProjectManagementDialogs
+import "dialogs" as TaskDialogs
 
 Item {
     id: root
@@ -206,7 +206,7 @@ Item {
         bulkDeleteDialog.open()
     }
 
-    ProjectManagementDialogs.TaskEditorDialog {
+    TaskDialogs.TaskEditorDialog {
         id: editorDialog
         objectName: "taskEditorDialog"
 
@@ -244,7 +244,7 @@ Item {
         }
     }
 
-    ProjectManagementDialogs.TaskProgressDialog {
+    TaskDialogs.TaskProgressDialog {
         id: progressDialog
         objectName: "taskProgressDialog"
 
@@ -267,7 +267,7 @@ Item {
         }
     }
 
-    ProjectManagementDialogs.TaskAssignmentEditorDialog {
+    TaskDialogs.TaskAssignmentEditorDialog {
         id: assignmentEditorDialog
         objectName: "taskAssignmentEditorDialog"
 
@@ -287,7 +287,7 @@ Item {
         }
     }
 
-    ProjectManagementDialogs.TaskAssignmentHoursDialog {
+    TaskDialogs.TaskAssignmentHoursDialog {
         id: assignmentHoursDialog
         objectName: "taskAssignmentHoursDialog"
 
@@ -300,7 +300,7 @@ Item {
         }
     }
 
-    ProjectManagementDialogs.TaskDependencyEditorDialog {
+    TaskDialogs.TaskDependencyEditorDialog {
         id: dependencyEditorDialog
         objectName: "taskDependencyEditorDialog"
 
@@ -315,7 +315,7 @@ Item {
         }
     }
 
-    ProjectManagementDialogs.TaskCollaborationComposerDialog {
+    TaskDialogs.TaskCollaborationComposerDialog {
         id: collaborationComposerDialog
         objectName: "taskCollaborationComposerDialog"
 
@@ -341,7 +341,7 @@ Item {
         }
     }
 
-    ProjectManagementDialogs.TaskWbsMoveDialog {
+    TaskDialogs.TaskWbsMoveDialog {
         id: wbsMoveDialog
         objectName: "taskWbsMoveDialog"
 
@@ -364,7 +364,7 @@ Item {
         }
     }
 
-    ProjectManagementDialogs.TaskAssignmentResponseDialog {
+    TaskDialogs.TaskAssignmentResponseDialog {
         id: assignmentResponseDialog
         objectName: "taskAssignmentResponseDialog"
 
@@ -379,7 +379,7 @@ Item {
         }
     }
 
-    ProjectManagementDialogs.TaskCommentDeleteDialog {
+    TaskDialogs.TaskCommentDeleteDialog {
         id: deleteCommentDialog
         objectName: "taskCommentDeleteDialog"
         busy: root.workspaceController ? root.workspaceController.isBusy : false

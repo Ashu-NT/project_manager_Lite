@@ -48,11 +48,21 @@ Item {
     property bool isBusy: false
     property var detailPage: null
     property string selectedActualEntryId: ""
+    property string actualSortKey: "metaText"
+    property int actualSortDirection: Qt.DescendingOrder
+    property string commitmentSortKey: "metaText"
+    property int commitmentSortDirection: Qt.DescendingOrder
     signal configurationPageRequested(string collection, int page)
     signal forecastSelected(string forecastId)
     signal financialChangeSelected(string changeId)
     signal varianceBaselineSelected(string baselineId)
     signal actualEntrySelected(string entryId)
+    signal actualPageRequested(int page)
+    signal actualPageSizeRequested(int pageSize)
+    signal actualSortRequested(string key, int direction)
+    signal commitmentPageRequested(int page)
+    signal commitmentPageSizeRequested(int pageSize)
+    signal commitmentSortRequested(string key, int direction)
 
     readonly property int _idx: root.detailPage ? root.detailPage.activeSectionIndex : 0
     readonly property var _sections: root.detailPage ? (root.detailPage.sections || []) : []
@@ -81,7 +91,6 @@ Item {
         if (name === "Change Control")  return _changeControl.implicitHeight
         if (name === "Commitments")     return _commitments.implicitHeight
         if (name === "Billing Preparation") return _invoices.implicitHeight
-        if (name === "Purchase Orders") return _purchaseOrders.implicitHeight
         if (name === "Activity")        return _activity.implicitHeight
         if (name === "Variance")        return _variance.implicitHeight
         if (name === "Reports")         return _reports.implicitHeight
@@ -188,7 +197,12 @@ Item {
                 ledgerTableModel: root.ledgerTableModel
                 isBusy: root.isBusy
                 selectedEntryId: root.selectedActualEntryId
+                sortKey: root.actualSortKey
+                sortDirection: root.actualSortDirection
                 onEntrySelected: function(entryId) { root.actualEntrySelected(entryId) }
+                onPageRequested: function(page) { root.actualPageRequested(page) }
+                onPageSizeRequested: function(pageSize) { root.actualPageSizeRequested(pageSize) }
+                onSortRequested: function(key, direction) { root.actualSortRequested(key, direction) }
             }
         }
     }
@@ -242,6 +256,11 @@ Item {
                 commitmentsModel: root.commitmentsModel
                 commitmentsTableModel: root.commitmentsTableModel
                 isBusy: root.isBusy
+                sortKey: root.commitmentSortKey
+                sortDirection: root.commitmentSortDirection
+                onPageRequested: function(page) { root.commitmentPageRequested(page) }
+                onPageSizeRequested: function(pageSize) { root.commitmentPageSizeRequested(pageSize) }
+                onSortRequested: function(key, direction) { root.commitmentSortRequested(key, direction) }
             }
         }
     }
@@ -262,17 +281,6 @@ Item {
                     root.configurationPageRequested("billing_preparations", page)
                 }
             }
-        }
-    }
-
-    AppWidgets.LazySectionLoader {
-        id: _purchaseOrders
-        anchors.left: parent.left
-        anchors.right: parent.right
-        active: root._idx === root._secIdx("Purchase Orders")
-        loadingMessage: "Loading financials..."
-        sourceComponent: Component {
-            FinancialsPurchaseOrdersSection { width: parent ? parent.width : 0 }
         }
     }
 

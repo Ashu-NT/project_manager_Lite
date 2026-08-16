@@ -8,7 +8,7 @@ def set_search_text(controller, search_text: str) -> None:
     if normalized == controller._search_text:
         return
     controller._set_search_text(normalized)
-    controller._resource_page = 1
+    controller._set_resource_page(1)
     controller.refresh()
 
 
@@ -17,7 +17,7 @@ def set_active_filter(controller, active_filter: str) -> None:
     if normalized == controller._selected_active_filter:
         return
     controller._set_selected_active_filter(normalized)
-    controller._resource_page = 1
+    controller._set_resource_page(1)
     controller.refresh()
 
 
@@ -25,8 +25,8 @@ def set_category_filter(controller, category_filter: str) -> None:
     normalized = (category_filter or "").strip().upper() or "ALL"
     if normalized == controller._selected_category_filter.upper():
         return
-    controller._set_selected_category_filter(category_filter)
-    controller._resource_page = 1
+    controller._set_selected_category_filter(normalized)
+    controller._set_resource_page(1)
     controller.refresh()
 
 
@@ -54,8 +54,22 @@ def set_resource_page(controller, page: int) -> None:
 def set_resource_page_size(controller, page_size: int) -> None:
     if page_size <= 0 or page_size == controller._resource_page_size:
         return
-    controller._resource_page_size = page_size
-    controller.resourcePageSizeChanged.emit()
+    controller._set_resource_page_size(page_size)
+    controller._set_resource_page(1)
+    controller.refresh()
+
+
+def set_resource_sort(controller, sort_key: str, sort_direction: int) -> None:
+    normalized_key = (sort_key or "").strip()
+    if not normalized_key:
+        return
+    if (
+        normalized_key == controller._resource_sort_key
+        and sort_direction == controller._resource_sort_direction
+    ):
+        return
+    controller._set_resource_sort_key(normalized_key)
+    controller._set_resource_sort_direction(sort_direction)
     controller._set_resource_page(1)
     controller.refresh()
 
@@ -67,5 +81,6 @@ __all__ = [
     "set_category_filter",
     "set_resource_page",
     "set_resource_page_size",
+    "set_resource_sort",
     "set_search_text",
 ]

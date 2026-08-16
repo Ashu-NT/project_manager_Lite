@@ -25,31 +25,34 @@ def refresh_collaboration_workspace(controller) -> None:
                 controller._workspace_presenter.build_view_model()
             )
         )
-        ws = controller._collaboration_workspace_presenter.build_workspace_state()
+        ws = controller._collaboration_workspace_presenter.build_workspace_state(
+            selected_project_id=controller._filter_service.selected_project_id,
+            selected_team_id=controller._filter_service.selected_team_id,
+            selected_period_key=controller._filter_service.selected_period_key,
+            selected_unread_key=controller._filter_service.selected_unread_key,
+            inbox_search_text=controller._filter_service.inbox_search_text,
+            inbox_page=controller._inbox_page,
+            inbox_page_size=controller._inbox_page_size,
+            mentions_search_text=controller._filter_service.mentions_search_text,
+            mentions_page=controller._mentions_page,
+            mentions_page_size=controller._mentions_page_size,
+        )
         controller._set_overview(serialize_collaboration_overview_view_model(ws.overview))
-        controller._set_notifications(
-            serialize_collaboration_collection_view_model(ws.notifications)
-        )
         controller._set_inbox(serialize_collaboration_collection_view_model(ws.inbox))
-        controller._set_recent_activity(
-            serialize_collaboration_collection_view_model(ws.recent_activity)
-        )
-        controller._set_active_presence(
-            serialize_collaboration_collection_view_model(ws.active_presence)
-        )
+        controller._inbox_page = ws.inbox.page
+        controller._inbox_page_size = ws.inbox.page_size
         controller._set_context(serialize_collaboration_context_view_model(ws.context))
         controller._set_panel_tabs(
             serialize_collaboration_panel_tab_view_models(ws.panel_tabs)
         )
         controller._set_mentions(serialize_collaboration_collection_view_model(ws.mentions))
+        controller._mentions_page = ws.mentions.page
+        controller._mentions_page_size = ws.mentions.page_size
         controller._set_approvals(
             serialize_collaboration_collection_view_model(ws.approvals)
         )
         controller._set_activity_feed(
             serialize_collaboration_collection_view_model(ws.activity_feed)
-        )
-        controller._set_team_updates(
-            serialize_collaboration_collection_view_model(ws.team_updates)
         )
         rebuild_panel_item_index(controller)
         controller._set_empty_state(ws.empty_state)

@@ -4,10 +4,10 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.core.modules.project_management.infrastructure.persistence.repositories.project import (
+from src.core.modules.project_management.infrastructure.persistence.repositories.projects.project import (
     SqlAlchemyProjectRepository,
 )
-from src.core.modules.project_management.infrastructure.persistence.repositories.task import (
+from src.core.modules.project_management.infrastructure.persistence.repositories.tasks.task import (
     SqlAlchemyAssignmentRepository,
     SqlAlchemyDependencyRepository,
 )

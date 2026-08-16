@@ -77,7 +77,7 @@ Item {
 
     function _baseColumns() {
         return [
-            { "key": "activityCode",      "label": "Activity ID", "flex": 0,   "minWidth": 96,  "sortable": true, "required": true, "visibleByDefault": true  },
+            { "key": "activityCode",      "label": "Activity ID", "flex": 0,   "minWidth": 96,  "sortable": false, "required": true, "visibleByDefault": true  },
             { "key": "wbs",               "label": "WBS",         "flex": 0,   "minWidth": 72,  "sortable": true, "visibleByDefault": true  },
             { "key": "taskName",          "label": "Task Name",   "flex": 2.1, "sortable": true, "required": true, "visibleByDefault": true  },
             { "key": "start",             "label": "Start",       "flex": 0,   "minWidth": 90,  "visibleByDefault": true  },
@@ -87,7 +87,7 @@ Item {
             { "key": "float",             "label": "Float",       "flex": 0,   "minWidth": 72,  "visibleByDefault": true  },
             { "key": "critical",          "label": "Critical",    "flex": 0,   "minWidth": 88,  "type": "status",  "visibleByDefault": true  },
             { "key": "constraint",        "label": "Constraint",  "flex": 1.1, "visibleByDefault": false },
-            { "key": "calendar",          "label": "Calendar",    "flex": 0.9, "visibleByDefault": false },
+            { "key": "calendar",          "label": "Calendar",    "flex": 0.9, "sortable": false, "visibleByDefault": false },
             { "key": "progress",          "label": "Progress",    "flex": 1.0, "minWidth": 120, "type": "progress", "visibleByDefault": true },
             { "key": "status",            "label": "Status",      "flex": 0.9, "type": "status", "visibleByDefault": true }
         ]

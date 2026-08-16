@@ -35,6 +35,7 @@ from .resource_selection_handler import (
     set_category_filter,
     set_resource_page,
     set_resource_page_size,
+    set_resource_sort,
     set_search_text,
 )
 from .resource_bulk_handler import (
@@ -83,6 +84,8 @@ class ProjectManagementResourcesWorkspaceController(
     resourcePageChanged = Signal()
     resourcePageSizeChanged = Signal()
     resourceTotalCountChanged = Signal()
+    resourceSortKeyChanged = Signal()
+    resourceSortDirectionChanged = Signal()
     selectedResourceIdsChanged = Signal()
     selectedResourceCountChanged = Signal()
     resourceSkillsChanged = Signal()
@@ -118,6 +121,8 @@ class ProjectManagementResourcesWorkspaceController(
         self._resource_page = 1
         self._resource_page_size = 25
         self._resource_total_count = 0
+        self._resource_sort_key = "catalog"
+        self._resource_sort_direction = 0
         self._selected_resource_ids: list[str] = []
         self._selected_resource_count = 0
         self._resource_skills: list[dict[str, object]] = []
@@ -186,6 +191,14 @@ class ProjectManagementResourcesWorkspaceController(
     def resourceTotalCount(self) -> int:
         return self._resource_total_count
 
+    @Property(str, notify=resourceSortKeyChanged)
+    def resourceSortKey(self) -> str:
+        return self._resource_sort_key
+
+    @Property(int, notify=resourceSortDirectionChanged)
+    def resourceSortDirection(self) -> int:
+        return self._resource_sort_direction
+
     @Property("QVariantList", notify=selectedResourceIdsChanged)
     def selectedResourceIds(self) -> list[str]:
         return list(self._selected_resource_ids)
@@ -242,6 +255,8 @@ class ProjectManagementResourcesWorkspaceController(
                 selected_resource_id=self._selected_resource_id or None,
                 page=self._resource_page,
                 page_size=self._resource_page_size,
+                sort_key=self._resource_sort_key,
+                sort_direction="desc" if self._resource_sort_direction else "asc",
             )
             self._set_overview(
                 serialize_resource_catalog_overview_view_model(workspace_state.overview)
@@ -274,6 +289,8 @@ class ProjectManagementResourcesWorkspaceController(
             self._set_resource_total_count(workspace_state.total_count)
             self._set_resource_page(workspace_state.page)
             self._set_resource_page_size(workspace_state.page_size)
+            self._set_resource_sort_key(workspace_state.sort_key)
+            self._set_resource_sort_direction(1 if workspace_state.sort_direction == "desc" else 0)
             self._set_resource_availability(
                 serialize_resource_availability_view_model(workspace_state.resource_availability)
             )
@@ -320,6 +337,10 @@ class ProjectManagementResourcesWorkspaceController(
     @Slot(int)
     def setResourcePageSize(self, page_size: int) -> None:
         set_resource_page_size(self, page_size)
+
+    @Slot(str, int)
+    def setResourceSort(self, sort_key: str, sort_direction: int) -> None:
+        set_resource_sort(self, sort_key, sort_direction)
 
     # ── Bulk ─────────────────────────────────────────────────────────────
 

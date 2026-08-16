@@ -1,0 +1,265 @@
+pragma ComponentBehavior: Bound
+import App.Controls 1.0 as AppControls
+
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import App.Layouts 1.0 as AppLayouts
+import App.Widgets 1.0 as AppWidgets
+import App.Icons 1.0 as AppIcons
+import App.Theme 1.0 as Theme
+import Platform.Controllers 1.0 as PlatformControllers
+import Platform.Dialogs 1.0 as PlatformDialogs
+import Platform.Widgets 1.0 as PlatformWidgets
+import Shell.Context 1.0 as ShellContexts
+import "components" as Components
+import "sections" as Sections
+import "detail" as Detail
+
+AppLayouts.WorkspaceFrame {
+    id: root
+
+    // ── Public API (backward-compatible) ─────────────────────────
+    property ShellContexts.ShellContext shellModel
+    property PlatformControllers.PlatformWorkspaceCatalog platformCatalog
+    // R5.9: the route-based `workspace("platform.settings")` lookup this
+    // used to build (routeId/title/summary from the now-retired legacy
+    // route) is gone along with the route itself -- the summary text was
+    // always just a fixed "Platform / Settings" label, so it's inlined
+    // directly rather than derived from a route that no longer exists.
+    property var workspaceModel: ({ "routeId": "platform.workspace", "title": "Settings", "summary": "Platform / Settings" })
+    property PlatformControllers.PlatformSettingsWorkspaceController workspaceController: root.platformCatalog
+        ? root.platformCatalog.settingsWorkspace
+        : null
+    property PlatformControllers.PlatformSupportWorkspaceController supportController: root.platformCatalog
+        ? root.platformCatalog.adminSupportWorkspace
+        : null
+
+    function moduleItemById(itemId) {
+        const items = root.workspaceController
+            ? (root.workspaceController.moduleEntitlements.items || []) : []
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].id === itemId) return items[i]
+        }
+        return null
+    }
+
+    title: root.workspaceController
+        ? (root.workspaceController.overview.title || "Settings")
+        : "Settings"
+    subtitle: root.workspaceController ? root.workspaceController.overview.subtitle : ""
+
+    // ── Internal state ────────────────────────────────────────────
+    property string _activeSection: "modules"
+    property string _selectedRowId: ""
+    property bool _moduleDetailOpen: false
+
+    readonly property bool _detailOpen: root._moduleDetailOpen
+        && root._activeSection === "modules"
+
+    readonly property var _selectedItem: {
+        const id = root._selectedRowId
+        if (!id) return null
+        const items = root.workspaceController
+            ? (root.workspaceController.moduleEntitlements.items || []) : []
+        for (let i = 0; i < items.length; i++) {
+            if (String(items[i].id) === String(id)) return items[i]
+        }
+        return null
+    }
+
+    readonly property bool   _busy: root.workspaceController ? root.workspaceController.isBusy          : false
+    readonly property bool   _load: root.workspaceController ? root.workspaceController.isLoading       : false
+    readonly property string _err:  root.workspaceController ? root.workspaceController.errorMessage    : ""
+    readonly property string _ok:   root.workspaceController ? root.workspaceController.feedbackMessage : ""
+
+    readonly property int _moduleCount: root.workspaceController
+        ? (root.workspaceController.moduleEntitlements.items || []).length : 0
+    readonly property int _capCount: root.workspaceController
+        ? (root.workspaceController.integrationCapabilities.items || []).length : 0
+
+    // RBAC: gates the Lifecycle/Licensed/Enabled module actions -- a
+    // client-side UX optimization mirroring PlatformNavigation's own
+    // destination gate; the backend enforces "settings.manage"
+    // independently regardless.
+    readonly property bool _canManageModules: root.platformCatalog
+        ? root.platformCatalog.hasPermission("settings.manage")
+        : true
+
+    readonly property var _moduleContextActions: {
+        const item = root._selectedItem
+        if (root._activeSection !== "modules" || !item) return []
+        return [
+            { id: "lifecycle", label: "Lifecycle", icon: "settings", enabled: !!(item.canTertiaryAction) && root._canManageModules, danger: false },
+            { id: "licensed",  label: "Licensed",  icon: "approve",  enabled: !!(item.canPrimaryAction) && root._canManageModules,  danger: false },
+            { id: "enabled",   label: "Enabled",   icon: "approve",  enabled: !!(item.canSecondaryAction) && root._canManageModules, danger: false }
+        ]
+    }
+
+    readonly property var _moduleColumns: [
+        { key: "title",       label: "Module",          flex: 2, minWidth: 140, sortable: true,  visible: true },
+        { key: "subtitle",    label: "Stage / License", flex: 3, minWidth: 160, sortable: false, visible: true },
+        { key: "statusLabel", label: "Lifecycle",       flex: 0, minWidth: 100, sortable: false, visible: true, type: "status" },
+        { key: "metaText",    label: "Runtime",         flex: 3, minWidth: 200, sortable: false, visible: true }
+    ]
+    readonly property var _capColumns: [
+        { key: "title",       label: "Capability",  flex: 4, minWidth: 220, sortable: true,  visible: true },
+        { key: "subtitle",    label: "Provider",    flex: 1, minWidth: 90,  sortable: true,  visible: true },
+        { key: "metaText",    label: "Consumers",   flex: 3, minWidth: 140, sortable: false, visible: true },
+        { key: "statusLabel", label: "Status",      flex: 0, minWidth: 90,  sortable: false, visible: true, type: "status" }
+    ]
+
+    // ── Shell layout ──────────────────────────────────────────────
+    RowLayout {
+        anchors.fill: parent
+        spacing: 0
+
+        // ── Left navigation sidebar ───────────────────────────────
+        Components.SettingsSidebarNav {
+            id: _sidebar
+            Layout.fillHeight: true
+            Layout.preferredWidth: implicitWidth
+            activeSection: root._activeSection
+            onSectionChanged: function(section) {
+                root._activeSection = section
+                root._selectedRowId = ""
+                root._moduleDetailOpen = false
+                if (section === "sysinfo" && root.supportController) {
+                    root.supportController.ensureLoaded()
+                }
+            }
+        }
+
+        // ── Right side: metrics + banners + content ───────────────
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 0
+
+            AppWidgets.KpiStrip {
+                Layout.fillWidth: true
+                metrics: root.workspaceController
+                    ? (root.workspaceController.overview.metrics || []) : []
+            }
+
+            AppWidgets.InlineMessage {
+                Layout.fillWidth: true
+                visible: (root._load || root._busy) && root._err.length === 0
+                tone: "info"
+                message: root._busy ? "Saving changes..." : "Loading..."
+            }
+            AppWidgets.InlineMessage {
+                Layout.fillWidth: true
+                visible: root._err.length > 0
+                tone: "danger"
+                message: root._err
+            }
+            AppWidgets.InlineMessage {
+                Layout.fillWidth: true
+                visible: root._ok.length > 0 && root._err.length === 0
+                tone: "success"
+                message: root._ok
+            }
+
+            // ── Content area ──────────────────────────────────────
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                spacing: 0
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+
+                    Sections.SettingsRuntimeSection {
+                        anchors.fill: parent
+                        visible: root._activeSection === "runtime" && root._err.length === 0
+                        clip: true
+                        workspaceController: root.workspaceController
+                        shellModel: root.shellModel
+                        workspaceModel: root.workspaceModel
+                        busy: root._busy
+                    }
+
+                    Sections.SettingsModulesSection {
+                        anchors.fill: parent
+                        visible: root._activeSection === "modules" && !root._detailOpen && root._err.length === 0
+                        workspaceController: root.workspaceController
+                        moduleColumns: root._moduleColumns
+                        moduleCount: root._moduleCount
+                        selectedRowId: root._selectedRowId
+                        busy: root._busy
+                        load: root._load
+                        onRowSelected: function(id) { root._selectedRowId = id }
+                        onRowActivated: function(id) {
+                            root._selectedRowId = id
+                            root._moduleDetailOpen = true
+                        }
+                    }
+
+                    Sections.SettingsIntegrationsSection {
+                        anchors.fill: parent
+                        visible: root._activeSection === "integrations" && root._err.length === 0
+                        workspaceController: root.workspaceController
+                        capColumns: root._capColumns
+                        capCount: root._capCount
+                        busy: root._busy
+                        load: root._load
+                    }
+
+                    Sections.SettingsDiagnosticsSection {
+                        anchors.fill: parent
+                        visible: root._activeSection === "sysinfo" && root._err.length === 0
+                        workspaceController: root.workspaceController
+                        supportController: root.supportController
+                        busy: root._busy
+                    }
+
+                    // R6.5: friendlier fallback than the raw danger banner
+                    // when the active section's underlying data call fails.
+                    AppWidgets.PermissionState {
+                        anchors.fill: parent
+                        visible: root._err.length > 0
+                        message: root._err
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Module detail page — full-area overlay ────────────────────
+    Loader {
+        id: _moduleDetailLoader
+        anchors.fill: parent
+        z: 10
+        active: root._detailOpen
+        visible: root._detailOpen && status === Loader.Ready
+        asynchronous: true
+        sourceComponent: Component {
+            Detail.SettingsModuleDetailPage {
+                module: root._selectedItem || ({})
+                lifecycleOptions: root.workspaceController ? (root.workspaceController.lifecycleOptions || []) : []
+                canManageModules: root._canManageModules
+                busy: root._busy
+                errorMessage: root._err
+                feedbackMessage: root._ok
+                onBackRequested: {
+                    root._moduleDetailOpen = false
+                    root._selectedRowId = ""
+                }
+                onLifecycleChangeRequested: function(moduleCode, lifecycleStatus) {
+                    if (root.workspaceController)
+                        root.workspaceController.changeModuleLifecycleStatus(moduleCode, lifecycleStatus)
+                }
+                onToggleLicensedRequested: function(moduleCode) {
+                    if (root.workspaceController)
+                        root.workspaceController.toggleModuleLicensed(moduleCode)
+                }
+                onToggleEnabledRequested: function(moduleCode) {
+                    if (root.workspaceController)
+                        root.workspaceController.toggleModuleEnabled(moduleCode)
+                }
+            }
+        }
+    }
+}

@@ -6,39 +6,14 @@ from src.ui_qml.modules.project_management.view_models.collaboration import (
 )
 
 from .formatting import iso_datetime
-from .routing import notification_route_id
-from .utils import sort_records_by_created_desc
 
 
-def build_activity_collection(
-    *,
-    notifications,
-    recent_activity,
-) -> CollaborationCollectionViewModel:
-    rows: list[CollaborationRecordViewModel] = []
-    for n in notifications:
-        rows.append(
-            CollaborationRecordViewModel(
-                id=f"activity-note:{n.entity_type}:{n.entity_id}",
-                title=n.headline,
-                status_label=n.notification_type_label,
-                subtitle=n.project_name or "Cross-project activity",
-                supporting_text=n.body_preview or f"From @{n.actor_username}",
-                meta_text=n.created_at_label,
-                state={
-                    "panelId": "activity",
-                    "routeId": notification_route_id(n),
-                    "projectId": n.project_id or "",
-                    "projectName": n.project_name or "",
-                    "actorUsername": n.actor_username,
-                    "entityId": n.entity_id,
-                    "entityType": n.entity_type,
-                    "createdAt": iso_datetime(n.created_at),
-                },
-            )
-        )
-    for item in recent_activity:
-        rows.append(
+def build_activity_collection(recent_activity) -> CollaborationCollectionViewModel:
+    return CollaborationCollectionViewModel(
+        title="Activity",
+        subtitle="The 100 most recent task comments in the selected collaboration scope.",
+        empty_state="No recent collaboration activity matches the current scope.",
+        items=tuple(
             CollaborationRecordViewModel(
                 id=f"activity-comment:{item.comment_id}",
                 title=item.task_name,
@@ -54,14 +29,12 @@ def build_activity_collection(
                     "taskId": item.task_id,
                     "commentId": item.comment_id,
                     "actorUsername": item.author_username,
-                    "mentionsLabel": item.mentions_label,
                     "createdAt": iso_datetime(item.created_at),
                 },
             )
-        )
-    return CollaborationCollectionViewModel(
-        title="Activity",
-        subtitle="Workflow and collaboration activity across accessible project operations.",
-        empty_state="No workflow activity is available yet.",
-        items=sort_records_by_created_desc(tuple(rows)),
+            for item in recent_activity
+        ),
     )
+
+
+__all__ = ["build_activity_collection"]

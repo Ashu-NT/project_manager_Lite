@@ -1,8 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
-from src.core.modules.project_management.domain.collaboration.notifications.notification import CollaborationNotificationItem
-from src.core.modules.project_management.domain.collaboration.presence.presence import TaskPresenceStatusItem
 
 
 @dataclass
@@ -19,12 +17,22 @@ class CollaborationInboxItem:
     unread: bool = True
 
 
+@dataclass(frozen=True, slots=True)
+class CollaborationInboxPage:
+    items: tuple[CollaborationInboxItem, ...] = ()
+    total: int = 0
+    page: int = 1
+    page_size: int = 25
+
+
 @dataclass(frozen=True)
-class CollaborationWorkspaceSnapshot:
-    notifications: list[CollaborationNotificationItem]
-    inbox: list[CollaborationInboxItem]
-    recent_activity: list[CollaborationInboxItem]
-    active_presence: list[TaskPresenceStatusItem]
+class CollaborationContextOptions:
+    projects: tuple[tuple[str, str], ...] = ()
+    people: tuple[str, ...] = ()
 
 
-__all__ = ["CollaborationInboxItem", "CollaborationWorkspaceSnapshot"]
+__all__ = [
+    "CollaborationContextOptions",
+    "CollaborationInboxItem",
+    "CollaborationInboxPage",
+]

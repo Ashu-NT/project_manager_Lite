@@ -9,6 +9,9 @@ Item {
     id: root
 
     property var metrics: []
+    property bool clickable: false
+
+    signal metricActivated(int index)
 
     implicitHeight: Theme.AppTheme.normalRowHeight + Theme.AppTheme.sectionGap
     visible: root.metrics.length > 0
@@ -107,6 +110,13 @@ Item {
                             font.pixelSize: Theme.AppTheme.captionSize
                             elide: Text.ElideRight
                         }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        enabled: root.clickable
+                        cursorShape: root.clickable ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        onClicked: root.metricActivated(kpiCell.index)
                     }
                 }
             }

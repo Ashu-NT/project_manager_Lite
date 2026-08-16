@@ -23,7 +23,7 @@ AppLayouts.WorkspaceFrame {
         ? root.workspaceController.workspace
         : ({
             "routeId": "project_management.dashboard",
-            "title": "Dashboard",
+            "title": "Overview",
             "summary": "Project KPIs, health summaries, and executive delivery views."
         })
     readonly property var overviewModel: root.workspaceController
@@ -36,7 +36,18 @@ AppLayouts.WorkspaceFrame {
 
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
-    Component.onCompleted: root.ensureLoaded()
+    Component.onCompleted: {
+        root.ensureLoaded()
+        // Defensive retry: when this page is created inside a Loader, the
+        // Loader assigns pmCatalog in its onLoaded handler, which runs
+        // AFTER this Component.onCompleted -- so the very first
+        // ensureLoaded() call above always sees workspaceController as
+        // null here. onWorkspaceControllerChanged normally catches the
+        // follow-up once pmCatalog lands, but Qt.callLater gives a second,
+        // guaranteed-after-binding-settles attempt so the page can never
+        // get stuck pre-load if that change notification is ever missed.
+        Qt.callLater(root.ensureLoaded)
+    }
     onWorkspaceControllerChanged: root.ensureLoaded()
 
     function ensureLoaded() {
@@ -93,11 +104,6 @@ AppLayouts.WorkspaceFrame {
                 }
             }
 
-            onExportRequested: function() {
-                if (root.workspaceController !== null) {
-                    root.workspaceController.exportDashboard()
-                }
-            }
         }
 
         AppWidgets.InlineMessage {

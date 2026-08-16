@@ -68,7 +68,7 @@ def force_user_password_reset(service: AuthService, user_id: str) -> None:
     domain_events.auth_changed.emit(user.id)
 
 
-def reset_user_password(service: AuthService, user_id: str, new_password: str) -> None:
+def reset_user_password(service: AuthService, user_id: str, new_password: str) -> UserAccount:
     require_permission(service._user_session, "auth.manage", operation_label="reset user password")
     require_target_user_in_active_tenant(
         service,
@@ -91,6 +91,7 @@ def reset_user_password(service: AuthService, user_id: str, new_password: str) -
     )
     domain_events.auth_changed.emit(user.id)
     refresh_current_session_if_user(service, user.id)
+    return user
 
 
 def _persist_password_mutation(

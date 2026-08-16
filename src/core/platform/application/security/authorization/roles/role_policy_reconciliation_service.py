@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.contract.security.auth import (
+from src.core.platform.contract.repositories.security.auth import (
     AuthPolicyReconciliationRepository,
     AuthSessionRepository,
     PermissionRepository,

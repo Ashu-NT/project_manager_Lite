@@ -19,8 +19,6 @@ from src.core.modules.project_management.application.financials.models.finance_m
     EvmSeriesPoint,
     LaborAssignmentRow,
     LaborDetailsResult,
-    LaborPlanActualRow,
-    LaborPlanResult,
     LaborResourceRow,
 )
 
@@ -51,11 +49,11 @@ class ProjectKPI:
     tasks_not_started: int
     critical_tasks: int
     late_tasks: int
-    total_planned_cost: float | None
-    total_actual_cost: float | None
-    cost_variance: float | None
-    total_committed_cost: float | None
-    committment_variance: float | None
+    total_planned_cost: Decimal | None
+    total_actual_cost: Decimal | None
+    cost_variance: Decimal | None
+    total_committed_cost: Decimal | None
+    committment_variance: Decimal | None
     financial_detail_included: bool = True
 
 @dataclass
@@ -110,7 +108,7 @@ class BaselineComparisonRow:
     start_shift_days: int | None
     finish_shift_days: int | None
     duration_delta_days: int | None
-    planned_cost_delta: Decimal
+    planned_cost_delta: Decimal | None
     change_type: str
 
 @dataclass
@@ -128,3 +126,4 @@ class BaselineComparisonResult:
     removed_tasks: int
     unchanged_tasks: int
     rows: list[BaselineComparisonRow]
+    financial_detail_included: bool = True

@@ -4,14 +4,27 @@ from __future__ import annotations
 from datetime import datetime
 
 from src.core.modules.project_management.application.portfolio import PortfolioService
+from src.core.modules.project_management.application.portfolio.queries.portfolio_executive import (
+    TOP_AT_RISK_PROJECTS_LIMIT,
+)
 from src.core.modules.project_management.application.projects import ProjectService
 from src.core.modules.project_management.application.resources import PortfolioResourcePoolService
+from src.core.modules.project_management.domain.enums import ProjectStatus
 
 from src.core.modules.project_management.api.desktop.portfolio.models.capacity import PortfolioCapacityResourceDto
-from src.core.modules.project_management.api.desktop.portfolio.models.dependencies import PortfolioDependencyDesktopDto
+from src.core.modules.project_management.api.desktop.portfolio.models.dependencies import (
+    PortfolioDependencyDesktopDto,
+    PortfolioDependencyPageDto,
+)
 from src.core.modules.project_management.api.desktop.portfolio.models.executive import PortfolioExecutiveDesktopSnapshot
-from src.core.modules.project_management.api.desktop.portfolio.models.heatmap import PortfolioHeatmapDesktopDto
-from src.core.modules.project_management.api.desktop.portfolio.models.intake import PortfolioIntakeDesktopDto
+from src.core.modules.project_management.api.desktop.portfolio.models.heatmap import (
+    PortfolioHeatmapDesktopDto,
+    PortfolioHeatmapPageDto,
+)
+from src.core.modules.project_management.api.desktop.portfolio.models.intake import (
+    PortfolioIntakeDesktopDto,
+    PortfolioIntakePageDto,
+)
 from src.core.modules.project_management.api.desktop.portfolio.models.options import (
     PortfolioOptionDescriptor,
     PortfolioProjectOptionDescriptor,
@@ -89,6 +102,73 @@ class ProjectManagementPortfolioDesktopApi:
         )
         return tuple(serialize_intake_item(i) for i in rows)
 
+    def list_intake_items_page(
+        self,
+        *,
+        status: str | None = None,
+        search_text: str = "",
+        page: int = 1,
+        page_size: int = 25,
+        sort_key: str = "updatedAt",
+        sort_direction: str = "desc",
+    ) -> PortfolioIntakePageDto:
+        service = self._portfolio_service
+        if service is None:
+            return PortfolioIntakePageDto(
+                page=page, page_size=page_size, sort_key=sort_key,
+                sort_direction=sort_direction, search_text=search_text,
+            )
+        normalized_status = coerce_intake_status(status) if status else None
+        result = service.list_intake_items_page(
+            status=normalized_status,
+            search_text=search_text,
+            page=page,
+            page_size=page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
+        )
+        return PortfolioIntakePageDto(
+            items=tuple(serialize_intake_item(row) for row in result.items),
+            total=result.total or 0,
+            page=result.page,
+            page_size=result.page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
+            search_text=search_text,
+        )
+
+    def list_dependencies_page(
+        self,
+        *,
+        search_text: str = "",
+        page: int = 1,
+        page_size: int = 25,
+        sort_key: str = "updatedAt",
+        sort_direction: str = "desc",
+    ) -> PortfolioDependencyPageDto:
+        service = self._portfolio_service
+        if service is None:
+            return PortfolioDependencyPageDto(
+                page=page, page_size=page_size, sort_key=sort_key,
+                sort_direction=sort_direction, search_text=search_text,
+            )
+        result = service.list_project_dependencies_page(
+            search_text=search_text,
+            page=page,
+            page_size=page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
+        )
+        return PortfolioDependencyPageDto(
+            items=tuple(serialize_dependency(row) for row in result.items),
+            total=result.total or 0,
+            page=result.page,
+            page_size=result.page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
+            search_text=search_text,
+        )
+
     def list_scenarios(self) -> tuple[PortfolioScenarioDesktopDto, ...]:
         service = self._portfolio_service
         if service is None:
@@ -120,15 +200,69 @@ class ProjectManagementPortfolioDesktopApi:
             return ()
         return tuple(serialize_heatmap_row(row) for row in service.list_portfolio_heatmap())
 
+    def list_top_at_risk_projects(self) -> tuple[PortfolioHeatmapDesktopDto, ...]:
+        """Bounded/top_n analytical projection -- ranks pressure across the
+        complete authorized project scope. Never derived from a paginated
+        Heatmap page; see PortfolioService.list_top_at_risk_projects."""
+        service = self._portfolio_service
+        if service is None:
+            return ()
+        return tuple(serialize_heatmap_row(row) for row in service.list_top_at_risk_projects())
+
+    def list_heatmap_page(
+        self,
+        *,
+        search_text: str = "",
+        status: str | None = None,
+        page: int = 1,
+        page_size: int = 25,
+        sort_key: str = "projectName",
+        sort_direction: str = "asc",
+    ) -> PortfolioHeatmapPageDto:
+        service = self._portfolio_service
+        if service is None:
+            return PortfolioHeatmapPageDto(
+                page=page, page_size=page_size, sort_key=sort_key,
+                sort_direction=sort_direction, search_text=search_text,
+            )
+        normalized_status = _coerce_project_status(status)
+        result = service.list_portfolio_heatmap_page(
+            search_text=search_text,
+            status=normalized_status,
+            page=page,
+            page_size=page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
+        )
+        return PortfolioHeatmapPageDto(
+            items=tuple(serialize_heatmap_row(row) for row in result.items),
+            total=result.total or 0,
+            page=result.page,
+            page_size=result.page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
+            search_text=search_text,
+        )
+
     def get_executive_snapshot(self) -> PortfolioExecutiveDesktopSnapshot:
+        """Portfolio-wide aggregates for the Executive tab. Computes the full
+        accessible-scope heatmap once and derives both the bounded Top At-Risk
+        ranking and the hot-project count from that single scan -- see
+        PortfolioExecutiveDesktopSnapshot."""
         service = self._portfolio_service
         if service is None:
             return PortfolioExecutiveDesktopSnapshot()
         heatmap_rows = service.list_portfolio_heatmap()
         dependency_rows = service.list_project_dependencies(heatmap_rows=heatmap_rows)
+        hot_count = sum(1 for row in heatmap_rows if row.pressure_label == "Hot")
         return PortfolioExecutiveDesktopSnapshot(
             heatmap=tuple(serialize_heatmap_row(row) for row in heatmap_rows),
             dependencies=tuple(serialize_dependency(row) for row in dependency_rows),
+            top_at_risk_projects=tuple(
+                serialize_heatmap_row(row) for row in heatmap_rows[:TOP_AT_RISK_PROJECTS_LIMIT]
+            ),
+            hot_project_count=hot_count,
+            dependency_count=len(dependency_rows),
         )
 
     def list_dependencies(self) -> tuple[PortfolioDependencyDesktopDto, ...]:
@@ -232,6 +366,16 @@ class ProjectManagementPortfolioDesktopApi:
         if self._portfolio_service is None:
             raise RuntimeError("Project management portfolio desktop API is not connected.")
         return self._portfolio_service
+
+
+def _coerce_project_status(value: str | None) -> ProjectStatus | None:
+    normalized = str(value or "").strip().upper()
+    if not normalized or normalized == "ALL":
+        return None
+    try:
+        return ProjectStatus(normalized)
+    except ValueError:
+        return None
 
 
 __all__ = ["ProjectManagementPortfolioDesktopApi"]

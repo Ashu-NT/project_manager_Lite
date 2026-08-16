@@ -331,20 +331,26 @@ then passed with its affected six-test cluster. Query budgets are pinned at 4/4/
 for Projects/Tasks/Resources/Register/empty Timesheet review, including the shared entitlement
 guard statement.
 
-## 1. Finance — Phase B, remaining
+## 1. Finance — Phase B (complete)
 
 Source: `../project_finance_existing_state_and_implementation_plan.md` §19 Phase B, items 7-8.
 
-- **Item 7, second half (not done):** `CostPolicyEngine`/`LaborCostEngine`'s own "planned"
-  figures (feeding KPIs/dashboards/`FinanceSnapshot.planned`) still read
-  `ProjectResource.planned_hours` directly instead of `ProjectPlannedCostVersion`. A full
-  cutover was investigated and explicitly rejected for now — see the doc's Phase B item 7
-  sub-section — because of a granularity mismatch (envelope-level vs allocated-to-task),
-  three call sites that would disagree, and no freshness/recalculation-trigger mechanism.
-  Before revisiting: decide whether unallocated envelope hours should still count as
-  "planned," and build an assignment-change-triggered recalculation mechanism.
+- **Item 7 closed (2026-08-12).** `CostPolicyEngine`/`ledger.py`'s own "planned" figures
+  (feeding KPIs/dashboards/`FinanceSnapshot.planned`) now source from the versioned,
+  allocated-to-task `ProjectPlannedCostVersion` (cut over 2026-08-11, alongside the legacy
+  `CostItem` deletion), not `ProjectResource.planned_hours` — see the doc's Phase B item 7
+  sub-section for what the original 2026-08-06 rejection got right (the granularity
+  mismatch was real) versus what it got wrong (the "no freshness mechanism" concern; the
+  versioned snapshot is a governed, explicitly-triggered action like Budget/Forecast/
+  Baseline generation, not something that needs auto-recalculation). The third, competing
+  call site the rejection cited — `LaborCostEngine.calculate_project_labor_plan_vs_actual`,
+  a resource-envelope-capacity report, not a "planned cost" duplicate — was unreached by any
+  production caller and was deleted (2026-08-12) rather than merged or left half-alive; a
+  distinct resource-capacity report remains deliberately deferred to the still-unscoped
+  `ProjectLaborPlan`/`LaborPlanAllocation` future phase if wanted.
 - Baseline provenance (which exact rate-card line/version valued each baseline task) is not
-  recorded — would need a baseline financial-snapshot extension.
+  recorded — would need a baseline financial-snapshot extension. Not part of item 7's
+  closure; still open if ever needed.
 - **Item 8 (complete 2026-08-09):** replaced the QML combined "Budget" cost-line section with
   separate project-level Profile, Budget Versions, Budget Lines, Rate Cards, and Planned Costs
   views. A canonical application projection owns RBAC, scope, totals, and label resolution with a
@@ -705,6 +711,18 @@ graph checkpoint passes `54` tests. The broader PM finance/resource/portfolio/ba
 selection passes `342` tests (`253 deselected`, 22 dependency warnings) after correcting stale
 Decimal-contract fixtures. Phase E implementation is proceeding under accepted ADR-PF-010.
 
+- **F0 — `report.view` finance-authorization boundary, full closure (complete 2026-08-11).** The
+  2026-08-02 A0 pass replaced `report.view` with `finance.read`/`finance.read_sensitive` only for
+  `FinanceService`; `ReportingService` (EVM, cost breakdown, cost source breakdown, labor detail)
+  and `DashboardService` (cost-source/EVM/KPI financial fields) still authorized on `report.view`
+  alone. Both now gate financial-authority methods on `finance.read`/`finance.read_sensitive`,
+  while `report.view` correctly remains sufficient for genuinely non-financial reports (Gantt,
+  resource load, critical path), and mixed schedule/financial DTOs (`get_project_kpis`,
+  dashboard data) redact financial fields for a `report.view`-only caller instead of denying the
+  whole call. See `../project_finance_existing_state_and_implementation_plan.md` Phase A0
+  implementation progress and the transition-code register (§20) for detail. Regression:
+  `src/tests/project_management/test_project_finance_phase_a0_security.py`, 18 passed.
+
 ## 5. Finance — resolved Phase E product decisions
 
 Source: master doc section 24 and accepted ADR-PF-010.
@@ -737,12 +755,189 @@ Phase E implementation checkpoint (2026-08-11):
   batched query rather than an N+1 loop.
 - Pending: a real Accounting publisher/worker adapter, because no target Accounting module/system
   exists yet; PM will not manufacture a fake authoritative invoice path.
-- Pending: disposable commercial revenue/profitability projections with sensitive-margin redaction,
-  plus complete governed command dialogs and the final no-transition/no-dead-code inventory.
+- Pending: complete governed billing command dialogs (QML/controller wiring for the 9 write
+  commands; UI-layer work, tracked separately from the backend inventory below).
+- **Item-7 no-transition/no-dead-code inventory — backend half complete (2026-08-12).** Audited the
+  full Phase E billing/profitability code path (commands, DTOs, serializers, desktop API, service,
+  reporting builder, permission wiring) for dead or orphaned code. Findings: zero `TRANSITION(PF-...)`
+  markers remain anywhere in `src/`; no legacy financial permission alias or feature-flag code was
+  ever added (the transition-code register's row for it closes as never-created, not removed); all
+  9 governed billing commands and 9 of 10 desktop API methods have real test callers; no duplicate
+  cost/margin/billable-total composition path exists outside the single canonical chain
+  (`profitability_calculator.py` -> `builders/profitability.py`, reusing `CostPolicyEngine`); exactly
+  one `finance.read_profitability` check site exists with no bypass. One real gap was found and
+  fixed: the `get_commercial_projection` desktop-facade method (`api.py:609`) had zero callers
+  anywhere, including tests, despite the service method it wraps being thoroughly tested — added
+  `test_desktop_api_get_commercial_projection_serializes_service_result` and
+  `test_desktop_api_get_commercial_projection_without_reporting_service_returns_empty_dto` to
+  `test_project_finance_profitability_projection.py` (13 passed). `record_external_outcome` remains
+  intentionally unexposed on the desktop surface pending a real Accounting integration boundary, not
+  dead code. Remaining item-7 scope is the QML dialog wiring noted above, which is UI-layer work, not
+  a backend transition/dead-code concern.
+
+Commercial/profitability projection checkpoint (2026-08-12):
+
+- Complete: `finance.read_profitability` permission (distinct from `finance.read_sensitive`,
+  granted by default to `finance_controller`/`auditor`); `ProjectCommercialProjection` read model
+  and `ReportingService.get_project_commercial_projection` covering ADR-PF-010's five projections
+  (`contract_value`, `billable_amount`, `externally_invoiced_amount`, `externally_paid_amount`,
+  `projected_margin_amount`/`projected_margin_percent`), reusing `CostPolicyEngine`'s canonical
+  `estimate_at_completion` as the sole cost-at-completion source (no second cost-composition path);
+  desktop API surface (`get_commercial_projection`); 11 tests covering positive/negative margin,
+  zero-contract-value, redaction, no-billing-profile, project scope, and full external-event-history
+  invoiced/paid aggregation (a real bug — checking only the *latest* event silently lost an earlier
+  invoice reference once a later `RECONCILED` event superseded it — was found and fixed by this
+  test suite).
+- **Fixed-price is the only billing method that produces a projected margin.** `contract_value`
+  does not move with cost, so it already *is* forecast revenue at completion for fixed-price — this
+  is exact, not deferred.
+- **Time-and-materials and cost-plus profitability are intentionally not implemented in this pass**
+  — see "T&M Forecast Billable Revenue — investigation outcome" immediately below. This is not a
+  missing formula patchable from existing data; a dedicated investigation proved the domain cannot
+  currently produce an authoritative `forecast_tnm_revenue_at_completion` (labor) or a safe
+  cost-plus recoverable-revenue figure (materials/markup). Both remain explicitly unavailable
+  (`revenue_basis = "unavailable_time_and_materials_forecast_billing"` /
+  `"unavailable_cost_plus_recoverability"`) rather than approximated by `contract_value` or by
+  applying markup to unfiltered `estimate_at_completion`. **Do not treat this as incomplete
+  Phase E work** — it is explicitly deferred because the necessary domain semantics do not yet
+  exist, not because the current pass ran out of scope.
 - Verification: focused Phase E/domain/migration/persistence/service/desktop/QML runs pass; latest
   checkpoints include `18`, `41`, `35`, `12`, and `24` passing tests. The expanded PM financial/
   billing selection passes `48` tests and the combined architecture checkpoint passes `60` tests,
-  with clean `qmllint`.
+  with clean `qmllint`. Commercial-projection checkpoint: 11 new tests plus 210 passing in the
+  broader finance/billing/reporting regression selection.
+
+### T&M Forecast Billable Revenue — investigation outcome (2026-08-12)
+
+Investigated whether the existing domain already has enough information to compute
+`forecast_tnm_revenue_at_completion` for T&M projects, and whether Inventory/Procurement already
+owns the material facts a materials component would need. Conclusion: **no, on both labor and
+materials**, and the gap is a multi-phase capability build, not a small addition. Current behavior
+for `billing_method = time_and_materials` is, and remains:
+
+- `contract_value` — remains available as configured commercial metadata (via the ordinary
+  `finance.read`-gated projection).
+- Governed billing preparation (create/submit/approve/deliver, `add_approved_time_source`) —
+  remains fully available; unaffected by this decision.
+- `forecast_revenue_at_completion`, `projected_margin_amount`, `projected_margin_percent` —
+  unavailable.
+- `revenue_basis` — `"unavailable_time_and_materials_forecast_billing"`.
+
+`contract_value` must **not** be used as a fallback T&M forecast-revenue value in any future
+change unless the domain is explicitly extended to define it as forecast revenue, an NTE amount,
+or a contractual ceiling — none of which it is today (confirmed: `contract_value` is never
+compared against any preparation's cumulative total anywhere in the codebase; no NTE/cap field or
+enforcement exists on `ProjectBillingProfile` or anywhere else in Project Finance).
+
+**A. PM labor-forecasting prerequisites** (none of these exist today):
+
+1. An authoritative approved labor forecast baseline. Today `TaskAssignment.allocated_planned_hours`
+   is a tactical WBS allocation mechanism constrained against the `ProjectResource.planned_hours`
+   envelope, not an approved labor-planning baseline (`domain/financials/planned_cost.py:1-16`).
+2. Actual-vs-remaining-hours semantics without double counting. Today planned and actual hours are
+   computed and reported side-by-side (`LaborCostEngine`) and are never netted against each other;
+   no `remaining_hours` concept exists anywhere in the finance code.
+3. Billable/non-billable classification at the assignment or hours level. Today the only
+   `is_billable` flag in PM is project-wide (`ProjectFinancialProfile.is_billable`) — nothing at
+   assignment/hour granularity.
+4. Future billing-rate resolution semantics. `RateCardResolver`/`RateType.BILLING` can structurally
+   accept a future `as_of` date, but no caller anywhere does this, and the one existing sibling
+   forecast mechanism (`ForecastGenerationService.generate_draft`) explicitly *rejects* a future
+   `as_of_date` (`PROJECT_FORECAST_AS_OF_FUTURE`). No convention exists for which date a forecast
+   billing-rate resolution should use (project end date? task planned end date? today's rate held
+   constant?).
+5. How future rate changes across forecast periods are handled — undefined; no forecasting-period
+   rate-change policy exists to extend.
+6. Reuse `RateCardResolver`/`RateType.BILLING` for whatever labor forecast-rate mechanism is
+   eventually built — do not create a second billing-rate engine.
+
+Target shape once the above exist (not to be implemented until they do): remaining forecast
+billable labor revenue equals remaining forecast billable hours multiplied by the applicable
+future billing rate.
+
+**B. Inventory/Procurement material-forecasting prerequisites** — do not make PM own these
+concepts; Inventory/Procurement owns operational material/procurement truth but currently provides
+no forward-looking *commercial* facts:
+
+1. No forecast material-demand model exists (no analog to `ProjectPlannedCostVersion` anywhere in
+   `inventory_procurement`).
+2. Project/task attribution for forecast demand is inconsistent today: requisitions and
+   reservations carry a generic, optional `source_reference_type`/`source_reference_id` pair; POs
+   and receipts carry none at all (recoverable only by walking back through the requisition).
+3. No billable/recoverable vs internal/non-billable material classification exists anywhere in
+   Inventory/Procurement (confirmed: zero hits for billable/recoverable/chargeable/reimbursable).
+4. No customer-facing material selling-price concept exists in either module. The only markup
+   concept anywhere in Project Finance is `ProjectBillingProfile.cost_plus_markup_percent`
+   (unrelated to materials); Inventory/Procurement's own "Pricing" API surfaces supplier/procurement
+   cost (`PurchaseOrderLine.unit_price`), not a customer price.
+5. Commercial customer-pricing semantics remain undefined — a future design must determine which of
+   reimbursement-at-cost, cost-plus-markup, contractual selling price, or non-billable-material this
+   system should support, per contract, rather than assuming one.
+6. Actual consumption vs. remaining forecast demand semantics, and prevention of actual/forecast
+   material double counting, are both unsolved — there is currently no forecast concept to net
+   actual consumption against.
+
+Do not assume procurement cost equals customer billing price.
+
+**C. Cross-module integration prerequisite.** PM Finance must consume any future
+Inventory/Procurement-owned forecast material/commercial facts through a stable, explicit
+cross-module mechanism — an application contract/port, a query/projection contract, or an
+integration event/read model (the same family of mechanism already used for the existing
+commitment/receipt-accrual outbox/inbox) — never by importing Inventory/Procurement repository or
+concrete application-service classes into PM. Today's outbox carries exactly two event types
+(PO-state-transition commitment, receipt-posted accrual), both point-in-time facts with no
+forward-looking demand signal; a declared pull-based contract
+(`contracts/financial_sources.py::ProcurementFinancialSourceProvider`) exists but has zero
+implementations. Do not invent final contract/event names now — design them when this future phase
+actually begins, against whatever material-forecast model Inventory/Procurement adopts.
+
+**Future T&M profitability target**, once A-C exist: `forecast_tnm_revenue_at_completion` equals
+actual/approved billable revenue to date, plus remaining forecast billable labor revenue, plus
+remaining forecast billable material/expense revenue. `projected_tnm_margin_amount` equals
+`forecast_tnm_revenue_at_completion` minus `CostPolicyEngine.estimate_at_completion` (the cost side
+must keep reusing this canonical result — no second cost-composition path).
+`projected_tnm_margin_percent` equals `projected_tnm_margin_amount` divided by
+`forecast_tnm_revenue_at_completion`.
+
+Ownership stays exactly as already established: PM owns project planning, billing preparation, and
+profitability projection; Inventory/Procurement owns material/procurement operational truth;
+Accounting owns invoice/payment/statutory truth. T&M profitability must never cause PM to take
+ownership of Inventory/Procurement persistence or of accounting behavior.
+
+## 5A. PM / Inventory-Procurement boundary — architecture debt (found 2026-08-12, fixed 2026-08-12)
+
+Found while investigating T&M material facts (§5 above) — unrelated to profitability
+implementation, recorded and fixed separately.
+
+PM's `TasksApi` (`api/desktop/tasks/api.py`, reservation listing/creation) previously received
+Inventory's live `ReservationService` object directly through the composition root
+(`src/infra/composition/inventory_registry.py`, `src/application/runtime/desktop_api_registry.py`),
+typed as plain `object` in PM's own registry (`api/desktop_runtime/registry.py`) specifically to
+avoid a static import. This was a real, synchronous, direct-object-reference cross-module
+dependency that the static-import architecture guard
+(`src/tests/architecture/test_pm_inventory_module_boundary.py`) could not detect, since that test
+only AST-walks for static imports and this channel was duck-typed. A parallel `procurement_service`
+dependency threaded through the same registry was also unused (dead wiring).
+
+**Fix applied:** PM now owns a structural `Protocol` port,
+`src/core/modules/project_management/gateway/task/reservation.py::TaskReservationGateway`
+(mirroring the existing zero-import `ProcurementFinancialSourceProvider` pattern in
+`contracts/financial_sources.py`), declaring exactly the `list_reservations`/`create_reservation`
+shape `TasksApi` needs. `api/desktop_runtime/registry.py`, `api/desktop/tasks/factories/
+tasks_api_factory.py`, and `api/desktop/tasks/api.py` now type `reservation_service` as
+`TaskReservationGateway | None` instead of plain `object`; Inventory's existing `ReservationService`
+satisfies it structurally with no import in either direction and no code change on the Inventory
+side. `TasksApi`'s defensive `getattr`/`callable` guards around the two calls were simplified to
+direct method calls now that the type is proper. The dead `procurement_service` field was deleted
+from the registry dataclass and its construction site in `desktop_api_registry.py`; the unrelated,
+still-used `procurement_service=` wiring for `InventoryDataExchangeService`/`InventoryReportingService`/
+`MaintenanceMaterialService` in `inventory_registry.py` was left untouched.
+
+Verification: the PM/Inventory static-import boundary test passes, all 20 reservation-scoped tests
+pass, and the combined `project_management` + `architecture` regression passes 802 tests with only
+4 pre-existing, unrelated failures (the generated `shared_resources_rc.py`/`enterprise_calendar.py`
+hard line-limit guard, its paired growth-budget guard, a legacy-ORM import guardrail, and a QML
+Projects-presenter catalog test) — none reference reservations, the gateway, or this change.
 
 ## 6. PM Enterprise UI/UX — pending items
 

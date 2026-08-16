@@ -2,7 +2,7 @@
 from datetime import date
 from decimal import Decimal
 
-from src.core.platform.contract.time_management.calendar.calendar_protocol import CalendarProtocol
+from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 
 from sqlalchemy.orm import Session
 
@@ -12,12 +12,12 @@ from src.core.modules.project_management.domain.scheduling.baseline import (
     BaselineVarianceRecord,
     ProjectBaseline,
 )
-from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.task import TaskRepository
-from src.core.modules.project_management.contracts.repositories.planned_cost import (
+from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.finance.planned_costs.planned_cost import (
     ProjectPlannedCostVersionRepository,
 )
-from src.core.modules.project_management.contracts.repositories.baseline import BaselineRepository
+from src.core.modules.project_management.contracts.repositories.scheduling.baseline import BaselineRepository
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
 from src.core.platform.application.tenant.tenancy.tenant_context import (
     TenantContext,

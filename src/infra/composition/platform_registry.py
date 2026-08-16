@@ -30,11 +30,17 @@ from src.core.platform.application.master_data.documents import DocumentIntegrat
 from src.core.platform.application.master_data.data_exchange import MasterDataExchangeService
 from src.core.platform.application.master_data.department.department_service import DepartmentService
 from src.core.platform.application.master_data.employee.employee_service import EmployeeService
+from src.core.platform.infrastructure.persistence.read.master_data.employee.employee_headcount_reader import (
+    SqlAlchemyEmployeeHeadcountReader,
+)
+from src.core.platform.infrastructure.persistence.read.overview.platform_overview_rollup_reader import (
+    SqlAlchemyPlatformOverviewRollupReader,
+)
 from src.core.platform.application.master_data.org.organization_service import OrganizationService
-from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.application.master_data.site.site_service import SiteService
-from src.core.platform.contract.master_data.site.contracts import SiteRepository
+from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
 from src.core.platform.domain.master_data.site.access_policy import (
     SITE_SCOPE_ROLE_CHOICES,
     normalize_site_scope_role,
@@ -49,7 +55,7 @@ from src.core.platform.application.tenant.tenancy import (
     build_tenant_context_policy,
 )
 from src.core.platform.application.master_data.party.party_service import PartyService
-from src.core.platform.contract.master_data.party.contracts import PartyRepository
+from src.core.platform.contract.repositories.master_data.party.contracts import PartyRepository
 from src.core.platform.application.data_operations.runtime_tracking import RuntimeExecutionService
 from src.core.platform.application.security.identity import ServicePrincipalService
 from src.core.platform.application.time_management.calendar.enterprise_calendar_service import EnterpriseCalendarService
@@ -62,6 +68,7 @@ from src.core.platform.application.time_management.calendar.capacity.enterprise_
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import WorkingTimeCalculator
 from src.core.platform.application.time_management.calendar.capacity.global_calendar_shim import GlobalCalendarShim
 from src.core.platform.infrastructure.persistence.repositories.tenant.modules.modules import SqlAlchemyModuleEntitlementRepository
+from src.core.platform.infrastructure.persistence.read.tenant.modules.module_entitlement_reader import SqlAlchemyModuleEntitlementReader
 from src.core.platform.infrastructure.persistence.repositories.data_operations.runtime_tracking.runtime_tracking import SqlAlchemyRuntimeExecutionRepository
 from src.infra.composition.repositories import RepositoryBundle
 from src.infra.platform.operational_support import current_trace_id
@@ -264,6 +271,7 @@ def build_platform_service_bundle(
         permission_repo=repositories.permission_repo,
         role_binding_repo=repositories.role_binding_repo,
     )
+    overview_rollup_reader = SqlAlchemyPlatformOverviewRollupReader(session)
     auth_service = AuthService(
         session=session,
         user_repo=repositories.user_repo,
@@ -278,6 +286,7 @@ def build_platform_service_bundle(
         tenant_context_service=tenant_context_service,
         request_id_provider=current_trace_id,
         role_binding_repo=repositories.role_binding_repo,
+        overview_rollup_reader=overview_rollup_reader,
         canonical_scope_tenant_resolvers={
             "organization": lambda tenant_id, organization_id: (
                 repositories.organization_repo.get_for_tenant(
@@ -323,6 +332,7 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
+        overview_rollup_reader=overview_rollup_reader,
     )
 
     if security_configuration.tenancy_mode is TenancyMode.LOCAL_SINGLE_TENANT:
@@ -372,6 +382,7 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
+        overview_rollup_reader=overview_rollup_reader,
     )
     document_integration_service = DocumentIntegrationService(
         session=session,
@@ -390,6 +401,7 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
+        overview_rollup_reader=overview_rollup_reader,
     )
     site_service = SiteService(
         session=session,
@@ -398,6 +410,7 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
+        overview_rollup_reader=overview_rollup_reader,
     )
     department_service = DepartmentService(
         session=session,
@@ -408,6 +421,7 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
+        overview_rollup_reader=overview_rollup_reader,
     )
 
     def _active_organization() -> Organization | None:
@@ -417,6 +431,7 @@ def build_platform_service_bundle(
         session,
         tenant_context_service=tenant_context_service,
     )
+    module_entitlement_reader = SqlAlchemyModuleEntitlementReader(session)
     configure_session_rls_context(session, user_session=user_session)
     validate_postgresql_execution_role(session)
     module_catalog_service = ModuleCatalogService(
@@ -428,6 +443,7 @@ def build_platform_service_bundle(
             else os.getenv("PM_ENABLED_MODULES")
         ),
         entitlement_repo=module_entitlement_repo,
+        entitlement_reader=module_entitlement_reader,
         session=session,
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
@@ -444,6 +460,7 @@ def build_platform_service_bundle(
         organization_service=organization_service,
         tenant_context_service=tenant_context_service,
         user_session=user_session,
+        session=session,
     )
     runtime_execution_service = RuntimeExecutionService(
         runtime_execution_repo=SqlAlchemyRuntimeExecutionRepository(
@@ -538,6 +555,7 @@ def build_platform_service_bundle(
         user_session=user_session,
         tenant_context_service=tenant_context_service,
     )
+    employee_headcount_reader = SqlAlchemyEmployeeHeadcountReader(session)
     employee_service = EmployeeService(
         session=session,
         employee_repo=repositories.employee_repo,
@@ -548,6 +566,7 @@ def build_platform_service_bundle(
         tenant_context_service=tenant_context_service,
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
+        headcount_reader=employee_headcount_reader,
     )
     master_data_exchange_service = MasterDataExchangeService(
         site_service=site_service,
@@ -567,11 +586,32 @@ def build_platform_service_bundle(
         user_session=user_session,
         tenant_context_service=tenant_context_service,
     )
+
+    def _get_active_org_id() -> str:
+        return tenant_context_service.get_active_organization_id() or ""
+
+    # Constructed before the write-side calendar services below so its
+    # invalidate_cache can be wired into them — this resolver is a single
+    # process-lifetime instance (built once here), so a mutation that never
+    # invalidates its caches leaves every later read stale until restart.
+    enterprise_calendar_resolver = EnterpriseCalendarResolver(
+        organization_id=_get_active_org_id(),
+        calendar_repo=repositories.platform_calendar_repo,
+        rule_repo=repositories.calendar_working_rule_repo,
+        exception_repo=repositories.calendar_exception_repo,
+        recurring_repo=repositories.calendar_recurring_event_repo,
+        assignment_repo=repositories.calendar_assignment_repo,
+        project_assignment_repo=repositories.project_calendar_assignment_repo,
+        resource_assignment_repo=repositories.resource_calendar_assignment_repo,
+        calculator=working_time_calculator,
+        shift_pattern_repo=repositories.shift_pattern_repo,
+    )
     working_rule_service = WorkingRuleService(
         session=session,
         calendar_repo=repositories.platform_calendar_repo,
         rule_repo=repositories.calendar_working_rule_repo,
         user_session=user_session,
+        on_calendar_data_changed=enterprise_calendar_resolver.invalidate_cache,
     )
     calendar_exception_service = CalendarExceptionService(
         session=session,
@@ -584,6 +624,7 @@ def build_platform_service_bundle(
         calendar_repo=repositories.platform_calendar_repo,
         event_repo=repositories.calendar_recurring_event_repo,
         user_session=user_session,
+        on_calendar_data_changed=enterprise_calendar_resolver.invalidate_cache,
     )
     shift_pattern_service = ShiftPatternService(
         session=session,
@@ -591,6 +632,7 @@ def build_platform_service_bundle(
         organization_repo=repositories.organization_repo,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
+        on_calendar_data_changed=enterprise_calendar_resolver.invalidate_cache,
     )
     calendar_assignment_service = CalendarAssignmentService(
         session=session,
@@ -599,22 +641,6 @@ def build_platform_service_bundle(
         project_assignment_repo=repositories.project_calendar_assignment_repo,
         resource_assignment_repo=repositories.resource_calendar_assignment_repo,
         user_session=user_session,
-    )
-
-    def _get_active_org_id() -> str:
-        return tenant_context_service.get_active_organization_id() or ""
-
-    enterprise_calendar_resolver = EnterpriseCalendarResolver(
-        organization_id=_get_active_org_id(),
-        calendar_repo=repositories.platform_calendar_repo,
-        rule_repo=repositories.calendar_working_rule_repo,
-        exception_repo=repositories.calendar_exception_repo,
-        recurring_repo=repositories.calendar_recurring_event_repo,
-        assignment_repo=repositories.calendar_assignment_repo,
-        project_assignment_repo=repositories.project_calendar_assignment_repo,
-        resource_assignment_repo=repositories.resource_calendar_assignment_repo,
-        calculator=working_time_calculator,
-        shift_pattern_repo=repositories.shift_pattern_repo,
     )
     global_calendar_shim = GlobalCalendarShim(resolver=enterprise_calendar_resolver)
     # Bootstrap global calendar. After the Alembic migration drops legacy tables,

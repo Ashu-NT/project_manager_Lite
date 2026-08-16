@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Controls
-import ProjectManagement.Dialogs 1.0 as ProjectManagementDialogs
 
 Item {
     id: root
@@ -43,7 +42,7 @@ Item {
         actualLifecycleDialog.open()
     }
 
-    ProjectManagementDialogs.ManualActualEditorDialog {
+    ManualActualEditorDialog {
         id: editorDialog
 
         selectedProjectId: root.selectedProjectId
@@ -58,7 +57,7 @@ Item {
         }
     }
 
-    ProjectManagementDialogs.ActualLifecycleDialog {
+    ActualLifecycleDialog {
         id: actualLifecycleDialog
 
         busy: root.workspaceController ? root.workspaceController.isBusy : false

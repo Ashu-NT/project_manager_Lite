@@ -12,7 +12,7 @@ function baseColumns(hasInvStockCap) {
         { "key": "progressValue",  "label": "Progress",  "flex": 1,   "minWidth": 110, "type": "progress", "visibleByDefault": true }
     ]
     if (hasInvStockCap)
-        cols.push({ "key": "materialDemandLabel", "label": "Material", "flex": 0, "minWidth": 90, "visibleByDefault": true })
+        cols.push({ "key": "materialDemandLabel", "label": "Material", "flex": 0, "minWidth": 90, "sortable": false, "visibleByDefault": true })
     return cols
 }
 

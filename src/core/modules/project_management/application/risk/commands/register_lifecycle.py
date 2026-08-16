@@ -17,8 +17,8 @@ from src.core.modules.project_management.domain.risk.register import (
 )
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from src.core.modules.project_management.contracts.repositories.project import ProjectRepository
-from src.core.modules.project_management.contracts.repositories.register import RegisterEntryRepository
+from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
+from src.core.modules.project_management.contracts.repositories.register.register import RegisterEntryRepository
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
 from src.core.shared.activity import record_activity
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission

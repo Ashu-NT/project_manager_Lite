@@ -17,7 +17,7 @@ CenteredDialog {
     signal confirmed()
 
     modal: true
-    width: 420
+    width: Theme.AppTheme.dialogWidthCompact
     padding: Theme.AppTheme.dialogPadding
     closePolicy: Popup.CloseOnEscape
 

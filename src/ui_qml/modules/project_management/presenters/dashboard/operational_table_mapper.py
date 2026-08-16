@@ -16,6 +16,9 @@ def to_operational_tables(
             title=table.title,
             subtitle=table.subtitle,
             empty_state=table.empty_state,
+            collection_semantics=table.collection_semantics,
+            supports_search=table.supports_search,
+            supports_pagination=table.supports_pagination,
             columns=tuple(
                 ProjectDashboardTableColumnViewModel(
                     key=column.key,
@@ -37,6 +40,12 @@ def to_operational_tables(
                 )
                 for row in table.rows
             ),
+            page=getattr(table, "page", 1),
+            page_size=getattr(table, "page_size", 25),
+            total_count=getattr(table, "total_count", 0),
+            sort_key=getattr(table, "sort_key", ""),
+            sort_direction=getattr(table, "sort_direction", "asc"),
+            search_text=getattr(table, "search_text", ""),
         )
         for table in tables
     )

@@ -28,14 +28,14 @@ def _call_keywords(source: str, function_name: str) -> set[str]:
 
 
 def test_financial_source_contracts_do_not_import_source_modules_or_ui() -> None:
-    path = (
+    package_dir = (
         ROOT
         / "src"
         / "core"
         / "modules"
         / "project_management"
         / "contracts"
-        / "financial_sources.py"
+        / "financial_sources"
     )
     forbidden_prefixes = (
         "src.core.platform.time",
@@ -44,7 +44,8 @@ def test_financial_source_contracts_do_not_import_source_modules_or_ui() -> None
     )
 
     violations = sorted(
-        name
+        f"{path.name}:{name}"
+        for path in sorted(package_dir.glob("*.py"))
         for name in _import_names(path)
         if name.startswith(forbidden_prefixes)
     )

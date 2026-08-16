@@ -8,6 +8,9 @@ import pytest
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.modules.project_management.domain.enums import DependencyType
+from src.core.modules.project_management.infrastructure.persistence.orm.collaboration import (
+    TaskCommentORM,
+)
 from src.tests.ui_runtime_helpers import login_as
 
 
@@ -150,30 +153,116 @@ def test_collaboration_inbox_filters_by_project_scope_and_marks_mentions_read(se
         scope_role="viewer",
     )
     collaboration.post_comment(task_id=task_alpha.id, body="Please review @collab-viewer")
+    collaboration.post_comment(task_id=task_alpha.id, body="Second note for @collab-viewer")
+    collaboration.post_comment(task_id=task_alpha.id, body="Final follow-up @collab-viewer")
     collaboration.post_comment(task_id=task_beta.id, body="Do not show @collab-beta-viewer")
 
     login_as(services, "collab-viewer", "StrongPass123")
 
-    inbox = collaboration.list_inbox()
-    assert len(inbox) == 1
-    assert inbox[0].project_id == project_alpha.id
-    assert collaboration.unread_mentions_count() == 1
+    inbox = collaboration.query_inbox_page(page_size=500).items
+    assert len(inbox) == 3
+    assert {item.project_id for item in inbox} == {project_alpha.id}
+    assert collaboration.unread_mentions_count() == 3
+
+    first_page = collaboration.query_mentions_page(page=1, page_size=2)
+    second_page = collaboration.query_mentions_page(page=2, page_size=2)
+    beyond_last_page = collaboration.query_mentions_page(page=99, page_size=2)
+    search_page = collaboration.query_mentions_page(search_text="Second note")
+
+    assert first_page.total == 3
+    assert second_page.total == 3
+    assert len(first_page.items) == 2
+    assert len(second_page.items) == 1
+    assert beyond_last_page.page == 2
+    assert [item.comment_id for item in beyond_last_page.items] == [
+        item.comment_id for item in second_page.items
+    ]
+    assert {item.comment_id for item in first_page.items}.isdisjoint(
+        {item.comment_id for item in second_page.items}
+    )
+    assert {item.project_id for item in (*first_page.items, *second_page.items)} == {
+        project_alpha.id
+    }
+    assert len(search_page.items) == 1
+    assert search_page.items[0].body_preview.startswith("Second note")
 
     collaboration.mark_task_mentions_read(task_alpha.id)
 
-    refreshed = collaboration.list_inbox()
-    assert len(refreshed) == 1
-    assert refreshed[0].unread is False
+    refreshed = collaboration.query_inbox_page(page_size=500).items
+    assert len(refreshed) == 3
+    assert all(item.unread is False for item in refreshed)
     assert collaboration.unread_mentions_count() == 0
+    assert collaboration.query_mentions_page(unread_only=True).total == 0
 
 
-def test_collaboration_notifications_filter_project_scope_for_mentions_and_timesheet_workflow(services):
+def test_collaboration_inbox_remains_authoritative_beyond_former_snapshot_cap(services):
+    auth = services["auth_service"]
+    access = services["access_service"]
+    project = services["project_service"].create_project("Large collaboration inbox")
+    task = services["task_service"].create_task(project.id, "High-volume review")
+    viewer = auth.register_user(
+        "bulk-inbox-viewer",
+        "StrongPass123",
+        role_names=["viewer"],
+    )
+    access.assign_scope_grant(
+        scope_type="project",
+        scope_id=project.id,
+        user_id=viewer.id,
+        scope_role="viewer",
+    )
+    now = datetime.now(timezone.utc)
+    services["session"].add_all(
+        [
+            TaskCommentORM(
+                id=f"bulk-inbox-comment-{index:03d}",
+                task_id=task.id,
+                author_user_id=None,
+                author_username="admin",
+                body=(
+                    "Oldest searchable inbox needle"
+                    if index == 0
+                    else f"Bulk inbox item {index:03d}"
+                ),
+                mentions_json='["bulk-inbox-viewer"]',
+                mentioned_user_ids_json=f'["{viewer.id}"]',
+                attachments_json="[]",
+                read_by_json="[]",
+                read_by_user_ids_json="[]",
+                reactions_json="{}",
+                created_at=now - timedelta(seconds=204 - index),
+            )
+            for index in range(205)
+        ]
+    )
+    services["session"].commit()
+    login_as(services, "bulk-inbox-viewer", "StrongPass123")
+    collaboration = services["collaboration_service"]
+
+    first = collaboration.query_inbox_page(page=1, page_size=25)
+    ninth = collaboration.query_inbox_page(page=9, page_size=25)
+    searched = collaboration.query_inbox_page(
+        project_id=project.id,
+        author_username="admin",
+        search_text="oldest searchable inbox needle",
+        unread_only=True,
+        page=1,
+        page_size=25,
+    )
+
+    assert first.total == 205
+    assert len(first.items) == 25
+    assert ninth.total == 205
+    assert len(ninth.items) == 5
+    assert searched.total == 1
+    assert searched.items[0].comment_id == "bulk-inbox-comment-000"
+
+
+def test_collaboration_recent_activity_filters_project_scope(services):
     auth = services["auth_service"]
     access = services["access_service"]
     project_service = services["project_service"]
     task_service = services["task_service"]
-    resource_service = services["resource_service"]
-    timesheet_service = services["timesheet_service"]
     collaboration = services["collaboration_service"]
 
     project_alpha = project_service.create_project("Notifications Alpha")
@@ -188,41 +277,16 @@ def test_collaboration_notifications_filter_project_scope_for_mentions_and_times
         user_id=viewer.id,
         scope_role="viewer",
     )
-    collaboration.post_comment(task_id=task_alpha.id, body="Please review @notify-viewer")
-
-    resource = resource_service.create_resource("Shared Contributor", hourly_rate=95.0)
-    assignment_alpha = task_service.assign_resource(task_alpha.id, resource.id, 50.0)
-    assignment_beta = task_service.assign_resource(task_beta.id, resource.id, 50.0)
-    timesheet_service.add_time_entry(
-        assignment_alpha.id,
-        entry_date=date(2026, 6, 2),
-        hours=3.0,
-        note="Alpha execution",
-    )
-    timesheet_service.add_time_entry(
-        assignment_beta.id,
-        entry_date=date(2026, 6, 3),
-        hours=2.5,
-        note="Beta execution",
-    )
-    timesheet_service.submit_timesheet_period(
-        resource.id,
-        period_start=date(2026, 6, 1),
-        note="Ready for review",
-    )
+    collaboration.post_comment(task_id=task_alpha.id, body="Visible activity")
+    collaboration.post_comment(task_id=task_beta.id, body="Hidden activity")
 
     login_as(services, "notify-viewer", "StrongPass123")
 
-    notifications = collaboration.list_notifications(limit=20)
+    activity = collaboration.list_recent_activity(limit=20)
 
-    mention = next(item for item in notifications if item.notification_type == "mention")
-    timesheet_notice = next(item for item in notifications if item.notification_type == "timesheet")
-
-    assert mention.project_id == project_alpha.id
-    assert mention.project_name == project_alpha.name
-    assert timesheet_notice.project_name == project_alpha.name
-    assert project_beta.name not in timesheet_notice.project_name
-    assert "Timesheet submitted" in timesheet_notice.headline
+    assert [item.body_preview for item in activity] == ["Visible activity"]
+    assert activity[0].project_id == project_alpha.id
+    assert activity[0].project_name == project_alpha.name
 
 
 def test_collaboration_service_tracks_active_task_presence(services):

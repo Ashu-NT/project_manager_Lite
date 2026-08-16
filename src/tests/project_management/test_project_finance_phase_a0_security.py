@@ -351,6 +351,56 @@ def test_report_view_alone_gets_redacted_kpis_not_a_denial(services):
     assert kpi.tasks_total >= 1
 
 
+def test_report_view_alone_gets_redacted_baseline_comparison_not_a_denial(services):
+    """Case A: compare_baselines mixes schedule (non-financial) facts with
+    Project Finance authority data (planned cost) per row. report.view
+    without finance.read must still return the schedule comparison — the
+    planned-cost fields are redacted (None), not a denial of the whole
+    call. Regression test for the F0 gap where this method authorized on
+    report.view alone with no redaction."""
+    project_id = _seed_labor_finance_project(services)
+    baseline_service = services["baseline_service"]
+    baseline_1 = baseline_service.create_baseline(project_id, "BL1", rate_as_of=date(2026, 1, 5))
+    baseline_2 = baseline_service.create_baseline(project_id, "BL2", rate_as_of=date(2026, 1, 5))
+    _register_and_login(services, "report-only-baseline", role_names=["viewer"])
+    reporting = services["reporting_service"]
+
+    comparison = reporting.compare_baselines(
+        project_id=project_id,
+        baseline_a_id=baseline_1.id,
+        baseline_b_id=baseline_2.id,
+        include_unchanged=True,
+    )
+
+    assert comparison.financial_detail_included is False
+    assert comparison.total_tasks_compared >= 1
+    for row in comparison.rows:
+        assert row.baseline_a_planned_cost is None
+        assert row.baseline_b_planned_cost is None
+        assert row.planned_cost_delta is None
+
+
+def test_finance_read_allows_baseline_comparison_cost_detail(services):
+    """Case B: finance.read must allow the planned-cost fields in a
+    baseline comparison to be visible."""
+    project_id = _seed_labor_finance_project(services)
+    baseline_service = services["baseline_service"]
+    baseline_1 = baseline_service.create_baseline(project_id, "BL1", rate_as_of=date(2026, 1, 5))
+    baseline_2 = baseline_service.create_baseline(project_id, "BL2", rate_as_of=date(2026, 1, 5))
+    _register_and_login(services, "finance-reader-baseline", role_names=["project_manager"])
+    reporting = services["reporting_service"]
+
+    comparison = reporting.compare_baselines(
+        project_id=project_id,
+        baseline_a_id=baseline_1.id,
+        baseline_b_id=baseline_2.id,
+        include_unchanged=True,
+    )
+
+    assert comparison.financial_detail_included is True
+    assert any(row.planned_cost_delta is not None for row in comparison.rows)
+
+
 def test_dashboard_data_redacts_finance_without_failing_for_report_view_only(services):
     """DashboardService.get_dashboard_data must keep working for a
     report.view-only caller, with cost_sources/EVM/KPI-cost fields absent
@@ -390,7 +440,7 @@ def test_finance_read_without_sensitive_denies_identified_labor_detail(services)
     """Case B (redact/deny half): individually resource-identified labor
     rate/cost detail requires finance.read_sensitive, matching the existing
     FinanceService labor redaction convention. There is no non-sensitive
-    aggregate variant of these ReportingService methods, so the established
+    aggregate variant of this ReportingService method, so the established
     convention is enforced as a denial rather than a silent redaction."""
     project_id = _seed_labor_finance_project(services)
     _register_and_login(services, "finance-reader-nonsensitive-2", role_names=["project_manager"])
@@ -399,9 +449,6 @@ def test_finance_read_without_sensitive_denies_identified_labor_detail(services)
     with pytest.raises(BusinessRuleError, match="finance.read_sensitive") as exc:
         reporting.get_project_labor_details(project_id)
     assert exc.value.code == "PERMISSION_DENIED"
-
-    with pytest.raises(BusinessRuleError, match="finance.read_sensitive"):
-        reporting.get_project_labor_plan_vs_actual(project_id)
 
 
 def test_finance_read_sensitive_allows_identified_labor_detail(services):

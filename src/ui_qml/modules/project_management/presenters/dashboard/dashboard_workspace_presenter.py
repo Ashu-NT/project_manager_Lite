@@ -5,9 +5,11 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_dashboard_desktop_api,
 )
 from src.ui_qml.modules.project_management.view_models.dashboard import (
+    ProjectDashboardOperationalTableViewModel,
     ProjectDashboardWorkspaceViewModel,
 )
 
+from .operational_table_mapper import to_operational_tables
 from .utils import logger
 from .workspace_builder import build_workspace_state
 
@@ -45,6 +47,30 @@ class ProjectDashboardWorkspacePresenter:
             period_key=period_key,
             view_key=view_key,
         )
+
+    def list_delayed_tasks_page(
+        self,
+        *,
+        project_id: str | None = None,
+        search_text: str = "",
+        page: int = 1,
+        page_size: int = 25,
+        sort_key: str = "endDateLabel",
+        sort_direction: str = "asc",
+    ) -> ProjectDashboardOperationalTableViewModel:
+        """The one SCALABLE operational collection (R3 -- Overview Scalable
+        Queries): always server-paginated, never sliced from a locally
+        materialized list -- see ProjectManagementDashboardDesktopApi.
+        list_delayed_tasks_page()."""
+        descriptor = self._desktop_api.list_delayed_tasks_page(
+            project_id=project_id,
+            search_text=search_text,
+            page=page,
+            page_size=page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
+        )
+        return to_operational_tables([descriptor])[0]
 
 
 __all__ = ["ProjectDashboardWorkspacePresenter"]

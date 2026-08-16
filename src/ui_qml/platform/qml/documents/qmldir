@@ -1,0 +1,6 @@
+module documents
+AdminDocumentsDetailPage 1.0 AdminDocumentsDetailPage.qml
+AdminDocumentStructureDetailPage 1.0 AdminDocumentStructureDetailPage.qml
+DocumentDetailPanel 1.0 DocumentDetailPanel.qml
+DocumentsWorkspacePage 1.0 DocumentsWorkspacePage.qml
+DocumentStructuresWorkspacePage 1.0 DocumentStructuresWorkspacePage.qml

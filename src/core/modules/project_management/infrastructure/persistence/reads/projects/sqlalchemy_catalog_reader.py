@@ -8,6 +8,10 @@ from src.core.modules.project_management.contracts.reads.projects import (
     ProjectCatalogReadPage,
     ProjectCatalogSummary,
 )
+from src.core.modules.project_management.contracts.reads.sorting import ReadSort
+from src.core.modules.project_management.infrastructure.persistence.reads.sorting import (
+    stable_order_by,
+)
 from src.core.modules.project_management.domain.enums import ProjectStatus
 from src.core.modules.project_management.infrastructure.persistence.mappers.project import (
     project_from_orm,
@@ -42,6 +46,7 @@ class SqlAlchemyProjectCatalogReader:
         status: ProjectStatus | None,
         page: int,
         page_size: int,
+        sort: ReadSort,
     ) -> ProjectCatalogReadPage:
         if allowed_project_ids == ():
             return ProjectCatalogReadPage(page=page, page_size=page_size)
@@ -103,7 +108,7 @@ class SqlAlchemyProjectCatalogReader:
             .correlate(ProjectORM)
             .scalar_subquery()
         )
-        rows = self._session.execute(
+        rows_stmt = (
             select(
                 ProjectORM,
                 SiteORM.name,
@@ -123,7 +128,27 @@ class SqlAlchemyProjectCatalogReader:
                 & (ProjectFinancialProfileORM.organization_id == ProjectORM.organization_id),
             )
             .where(*filtered)
-            .order_by(func.lower(ProjectORM.name), ProjectORM.id)
+        )
+        sort_expressions = {
+            "title": (func.lower(ProjectORM.name),),
+            "projectCode": (func.lower(func.coalesce(ProjectORM.project_code, "")),),
+            "statusLabel": (ProjectORM.status,),
+            "clientName": (func.lower(func.coalesce(ProjectORM.client_name, "")),),
+            "siteLabel": (func.lower(func.coalesce(SiteORM.name, "")),),
+            "clientContact": (func.lower(func.coalesce(ProjectORM.client_contact, "")),),
+            "startDateLabel": (ProjectORM.start_date,),
+            "endDateLabel": (ProjectORM.end_date,),
+            "approvedBudgetLabel": (approved_budget,),
+        }
+        rows = self._session.execute(
+            rows_stmt.order_by(
+                *stable_order_by(
+                    sort=sort,
+                    expressions=sort_expressions,
+                    default_key="title",
+                    tie_breakers=(ProjectORM.id,),
+                )
+            )
             .offset((page - 1) * page_size)
             .limit(page_size)
         ).all()
@@ -141,6 +166,7 @@ class SqlAlchemyProjectCatalogReader:
             page=page,
             page_size=page_size,
             summary=summary,
+            sort=sort,
         )
 
 

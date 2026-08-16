@@ -4,7 +4,7 @@ from src.ui_qml.modules.project_management.view_models.register import (
     RegisterMetricViewModel,
     RegisterOverviewViewModel,
 )
-from .utils import WorkspaceMode
+from .workspace_mode import WorkspaceMode
 
 def build_overview(
     *,

@@ -1,0 +1,3 @@
+module organization.organizations
+AdminOrganizationDetailPage 1.0 AdminOrganizationDetailPage.qml
+OrganizationsWorkspacePage 1.0 OrganizationsWorkspacePage.qml

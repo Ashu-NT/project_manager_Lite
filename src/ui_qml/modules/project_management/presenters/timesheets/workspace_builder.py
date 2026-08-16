@@ -27,6 +27,13 @@ def build_workspace_state(
     assignment_id: str | None = None,
     period_start: str = "",
     queue_status: str = "SUBMITTED",
+    queue_search_text: str = "",
+    queue_project_id: str = "all",
+    queue_resource_id: str = "all",
+    queue_period_start_from: str = "",
+    queue_period_start_to: str = "",
+    queue_sort_key: str = "submittedAt",
+    queue_sort_direction: str = "desc",
     selected_entry_id: str | None = None,
     selected_queue_period_id: str | None = None,
     queue_page: int = 1,
@@ -53,6 +60,25 @@ def build_workspace_state(
     )
     normalized_queue_status = normalize_filter(
         queue_status, queue_status_options, default_value="SUBMITTED"
+    )
+    normalized_queue_project_id = normalize_filter(
+        queue_project_id, project_options, default_value="all"
+    )
+    queue_resource_options = (
+        TimesheetSelectorOptionViewModel(value="all", label="All resources"),
+        *(
+            TimesheetSelectorOptionViewModel(value=option.value, label=option.label)
+            for option in desktop_api.list_review_resources(
+                project_id=(
+                    None
+                    if normalized_queue_project_id == "all"
+                    else normalized_queue_project_id
+                )
+            )
+        ),
+    )
+    normalized_queue_resource_id = normalize_filter(
+        queue_resource_id, queue_resource_options, default_value="all"
     )
     snapshot = None
     if resolved_assignment_id:
@@ -82,8 +108,19 @@ def build_workspace_state(
     )
     review_page = desktop_api.list_review_queue_page(
         status=normalized_queue_status,
+        search_text=(queue_search_text or "").strip(),
+        project_id=(
+            None if normalized_queue_project_id == "all" else normalized_queue_project_id
+        ),
+        resource_id=(
+            None if normalized_queue_resource_id == "all" else normalized_queue_resource_id
+        ),
+        period_start_from=optional_date(queue_period_start_from),
+        period_start_to=optional_date(queue_period_start_to),
         page=queue_page,
         page_size=queue_page_size,
+        sort_key=queue_sort_key,
+        sort_direction=queue_sort_direction,
     )
     review_queue_rows = review_page.items
     review_queue = TimesheetCollectionViewModel(
@@ -131,10 +168,18 @@ def build_workspace_state(
         assignment_options=assignment_options,
         period_options=period_options,
         queue_status_options=queue_status_options,
+        queue_resource_options=queue_resource_options,
         selected_project_id=normalized_project_id,
         selected_assignment_id=resolved_assignment_id,
         selected_period_start=resolved_period_start,
         selected_queue_status=normalized_queue_status,
+        queue_search_text=(queue_search_text or "").strip(),
+        selected_queue_project_id=normalized_queue_project_id,
+        selected_queue_resource_id=normalized_queue_resource_id,
+        queue_period_start_from=queue_period_start_from,
+        queue_period_start_to=queue_period_start_to,
+        queue_sort_key=review_page.sort_key,
+        queue_sort_direction=review_page.sort_direction,
         selected_entry_id=resolved_selected_entry_id,
         selected_queue_period_id=resolved_queue_period_id,
         assignment_summary=build_assignment_summary(snapshot),

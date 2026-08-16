@@ -1,0 +1,3 @@
+module ProjectManagement.Workspace
+ProjectManagementWorkspace 1.0 ProjectManagementWorkspace.qml
+ProjectManagementWorkspacePage 1.0 ProjectManagementWorkspacePage.qml

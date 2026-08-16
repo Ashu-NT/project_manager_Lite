@@ -17,7 +17,6 @@ Item {
 
     readonly property var bulkActionBar: bulkActionBarItem
     readonly property var filterButtonItem: tableToolbar.filterButtonItem
-    readonly property var viewsButtonItem: tableToolbar.viewsButtonItem
     readonly property var customizeButtonItem: tableToolbar.customizeButtonItem
 
     signal rowSelected(string rowId)
@@ -26,9 +25,7 @@ Item {
     signal selectAllToggled(bool allSelected)
     signal columnsStateChanged(var columns)
     signal filterClicked()
-    signal viewsClicked()
     signal refreshRequested()
-    signal exportRequested()
     signal bulkCancelRequested()
     signal bulkActionRequested(string actionId)
 
@@ -82,19 +79,21 @@ Item {
             id: tableToolbar
             Layout.fillWidth: true
             searchPlaceholder: "Search timesheets..."
+            searchText: root.workspaceController ? root.workspaceController.queueSearchText : ""
             showCreate: false
             showFilter: true
             showCustomize: true
-            showViews: true
             showRefresh: true
-            showExport: true
+            showExport: false
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
+            onSearchChanged: function(text) {
+                if (root.workspaceController !== null)
+                    root.workspaceController.setQueueSearchText(text)
+            }
             onFilterClicked: root.filterClicked()
             onCustomizeClicked: reviewTable.openColumnCustomizer(tableToolbar.customizeButtonItem)
-            onViewsClicked: root.viewsClicked()
             onRefreshRequested: root.refreshRequested()
-            onExportRequested: root.exportRequested()
         }
 
         Item {
@@ -112,6 +111,11 @@ Item {
                 tableId: root.state ? root.state.tableId : ""
                 columns: root.state ? root.state.columns : []
                 sourceModel: root.workspaceController ? root.workspaceController.reviewQueueTableModel : null
+                sortingMode: "server"
+                sortKey: root.workspaceController ? root.workspaceController.queueSortKey : "submittedAt"
+                sortDirection: root.workspaceController
+                    ? root.workspaceController.queueSortDirection
+                    : Qt.DescendingOrder
                 loading: root.workspaceController ? root.workspaceController.isLoading : false
                 emptyText: root.reviewQueueModel.emptyState || "No timesheet periods available."
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedQueuePeriodId : ""
@@ -123,6 +127,10 @@ Item {
                 onRowSelectionToggled: function(rowId, selected) { root.rowSelectionToggled(rowId, selected) }
                 onSelectAllToggled: function(allSelected) { root.selectAllToggled(allSelected) }
                 onColumnsStateChanged: function(cols) { root.columnsStateChanged(cols) }
+                onSortRequested: function(key, direction) {
+                    if (root.workspaceController !== null)
+                        root.workspaceController.setQueueSort(key, direction)
+                }
             }
 
             AppWidgets.TablePaginationBar {

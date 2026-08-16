@@ -1,0 +1,2 @@
+module organization.departments.dialogs
+DepartmentEditorDialog 1.0 DepartmentEditorDialog.qml

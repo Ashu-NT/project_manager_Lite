@@ -1,0 +1,5 @@
+﻿module Platform.SettingsSections
+SettingsRuntimeSection 1.0 SettingsRuntimeSection.qml
+SettingsModulesSection 1.0 SettingsModulesSection.qml
+SettingsIntegrationsSection 1.0 SettingsIntegrationsSection.qml
+SettingsDiagnosticsSection 1.0 SettingsDiagnosticsSection.qml

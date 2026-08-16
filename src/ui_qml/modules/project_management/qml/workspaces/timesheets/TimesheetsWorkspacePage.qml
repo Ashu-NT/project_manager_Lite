@@ -94,12 +94,8 @@ AppLayouts.WorkspaceFrame {
                     if (root.workspaceController !== null) root._saveColumnState(cols)
                 }
                 onFilterClicked: filterPopup.open()
-                onViewsClicked: viewsPopup.open()
                 onRefreshRequested: {
                     if (root.workspaceController !== null) root.workspaceController.refresh()
-                }
-                onExportRequested: {
-                    if (root.workspaceController !== null) root.workspaceController.exportTimesheets()
                 }
                 onBulkCancelRequested: {
                     if (root.workspaceController !== null)
@@ -121,13 +117,6 @@ AppLayouts.WorkspaceFrame {
                 workspaceController: root.workspaceController
                 state: state
                 anchorItem: listPage.filterButtonItem
-            }
-
-            Components.TimesheetsViewsPopup {
-                id: viewsPopup
-                workspaceController: root.workspaceController
-                state: state
-                anchorItem: listPage.viewsButtonItem
             }
         }
 

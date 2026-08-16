@@ -5,6 +5,9 @@ from src.ui_qml.modules.project_management.context import ProjectManagementWorks
 
 
 class _FakeTimesheetsDesktopApi:
+    def __init__(self):
+        self.review_queries = []
+
     def list_projects(self):
         return (
             SimpleNamespace(value="proj-1", label="Plant Upgrade"),
@@ -28,6 +31,17 @@ class _FakeTimesheetsDesktopApi:
             SimpleNamespace(value="SUBMITTED", label="Submitted"),
             SimpleNamespace(value="APPROVED", label="Approved"),
         )
+
+    def list_review_resources(self, *, project_id=None):
+        rows = (
+            SimpleNamespace(value="res-1", label="Electrical Crew"),
+            SimpleNamespace(value="res-2", label="Alex Taylor"),
+        )
+        if project_id == "proj-1":
+            return rows[:1]
+        if project_id == "proj-2":
+            return rows[1:]
+        return rows
 
     def build_assignment_snapshot(self, assignment_id, *, period_start=None):
         assert assignment_id == "assign-1"
@@ -77,7 +91,34 @@ class _FakeTimesheetsDesktopApi:
             scope_summary="Task period entries: 2 | Resource month total: 16.00h",
         )
 
-    def list_review_queue_page(self, *, status="SUBMITTED", page=1, page_size=25):
+    def list_review_queue_page(
+        self,
+        *,
+        status="SUBMITTED",
+        search_text="",
+        project_id=None,
+        resource_id=None,
+        period_start_from=None,
+        period_start_to=None,
+        page=1,
+        page_size=25,
+        sort_key="submittedAt",
+        sort_direction="desc",
+    ):
+        self.review_queries.append(
+            {
+                "status": status,
+                "search_text": search_text,
+                "project_id": project_id,
+                "resource_id": resource_id,
+                "period_start_from": period_start_from,
+                "period_start_to": period_start_to,
+                "page": page,
+                "page_size": page_size,
+                "sort_key": sort_key,
+                "sort_direction": sort_direction,
+            }
+        )
         if status == "all":
             rows = (
                 SimpleNamespace(
@@ -95,7 +136,14 @@ class _FakeTimesheetsDesktopApi:
                     period_start=date(2026, 5, 1),
                 ),
             )
-            return SimpleNamespace(items=rows, total=len(rows), page=page, page_size=page_size)
+            return SimpleNamespace(
+                items=rows,
+                total=len(rows),
+                page=page,
+                page_size=page_size,
+                sort_key=sort_key,
+                sort_direction=sort_direction,
+            )
         rows = (
             SimpleNamespace(
                 period_id="period-1",
@@ -112,7 +160,14 @@ class _FakeTimesheetsDesktopApi:
                 period_start=date(2026, 5, 1),
             ),
         )
-        return SimpleNamespace(items=rows, total=len(rows), page=page, page_size=page_size)
+        return SimpleNamespace(
+            items=rows,
+            total=len(rows),
+            page=page,
+            page_size=page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
+        )
 
     def get_review_detail(self, period_id):
         assert period_id == "period-1"
@@ -142,9 +197,10 @@ class _FakeTimesheetsDesktopApi:
 
 
 def test_project_management_workspace_catalog_exposes_typed_timesheets_controller() -> None:
+    desktop_api = _FakeTimesheetsDesktopApi()
     catalog = ProjectManagementWorkspaceCatalog(
         desktop_api_registry=SimpleNamespace(
-            project_management_timesheets=_FakeTimesheetsDesktopApi()
+            project_management_timesheets=desktop_api
         )
     )
 
@@ -161,3 +217,22 @@ def test_project_management_workspace_catalog_exposes_typed_timesheets_controlle
 
     assert controller.selectedQueueStatus == "all"
     assert controller.reviewDetail["title"] == "Electrical Crew | May 2026"
+
+    controller.setQueuePage(2)
+    controller.setQueueSort("title", 0)
+
+    assert controller.queuePage == 1
+    assert controller.queueSortKey == "title"
+    assert controller.queueSortDirection == 0
+    assert desktop_api.review_queries[-1]["page"] == 1
+    assert desktop_api.review_queries[-1]["sort_key"] == "title"
+    assert desktop_api.review_queries[-1]["sort_direction"] == "asc"
+
+    controller.setQueuePage(2)
+
+    assert controller.queuePage == 2
+    assert controller.queueSortKey == "title"
+    assert controller.queueSortDirection == 0
+    assert desktop_api.review_queries[-1]["page"] == 2
+    assert desktop_api.review_queries[-1]["sort_key"] == "title"
+    assert desktop_api.review_queries[-1]["sort_direction"] == "asc"

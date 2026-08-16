@@ -10,7 +10,8 @@ from src.core.platform.domain.tenant.modules import (
     module_storage_codes,
     normalize_module_code,
 )
-from src.core.platform.contract.tenant.modules.contracts import ModuleEntitlementRepository
+from src.core.platform.contract.repositories.tenant.modules.contracts import ModuleEntitlementRepository
+from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
 from src.core.platform.infrastructure.persistence.orm.tenant.modules.modules import ModuleEntitlementORM
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
@@ -56,15 +57,13 @@ class SqlAlchemyModuleEntitlementRepository(
             lifecycle_status=row.lifecycle_status,
         )
 
-    def _list_rows_for_codes(
+    def _list_rows_for_codes_in_scope(
         self,
         organization_id: str,
         module_code: str,
+        *,
+        tenant_id: str,
     ) -> list[ModuleEntitlementORM]:
-        tenant_id = self._require_organization_scope(
-            organization_id,
-            operation_label="view organization module entitlement",
-        )
         candidate_codes = module_storage_codes(module_code)
         return self.session.execute(
             select(ModuleEntitlementORM)
@@ -74,23 +73,9 @@ class SqlAlchemyModuleEntitlementRepository(
             .order_by(ModuleEntitlementORM.module_code.asc())
         ).scalars().all()
 
-    def get_for_organization(
-        self,
-        organization_id: str,
-        module_code: str,
-    ) -> ModuleEntitlementRecord | None:
-        canonical_code = normalize_module_code(module_code)
-        rows = self._list_rows_for_codes(organization_id, canonical_code)
-        obj = self._preferred_record(rows, canonical_code)
-        if obj is None:
-            return None
-        return self._to_record(obj, canonical_code)
-
-    def list_all_for_organization(self, organization_id: str) -> list[ModuleEntitlementRecord]:
-        tenant_id = self._require_organization_scope(
-            organization_id,
-            operation_label="list organization module entitlements",
-        )
+    def _list_all_rows_in_scope(
+        self, organization_id: str, *, tenant_id: str
+    ) -> list[ModuleEntitlementRecord]:
         rows = self.session.execute(
             select(ModuleEntitlementORM)
             .where(ModuleEntitlementORM.organization_id == organization_id)
@@ -106,17 +91,15 @@ class SqlAlchemyModuleEntitlementRepository(
             records_by_code[canonical_code] = self._to_record(row, canonical_code)
         return [records_by_code[code] for code in sorted(records_by_code)]
 
-    def upsert_for_organization(
+    def _upsert_in_scope(
         self,
         organization_id: str,
         record: ModuleEntitlementRecord,
+        *,
+        tenant_id: str,
     ) -> None:
-        tenant_id = self._require_organization_scope(
-            organization_id,
-            operation_label="update organization module entitlement",
-        )
         canonical_code = record.module_code
-        rows = self._list_rows_for_codes(organization_id, canonical_code)
+        rows = self._list_rows_for_codes_in_scope(organization_id, canonical_code, tenant_id=tenant_id)
         obj = self._preferred_record(rows, canonical_code)
         extra_rows = [row for row in rows if row is not obj]
         for extra_row in extra_rows:
@@ -141,6 +124,69 @@ class SqlAlchemyModuleEntitlementRepository(
         obj.lifecycle_status = record.lifecycle_status
         obj.updated_at = _utc_now_naive()
 
+    def get_for_organization(
+        self,
+        organization_id: str,
+        module_code: str,
+    ) -> ModuleEntitlementRecord | None:
+        # Ordinary/runtime read: the active organization only.
+        tenant_id = self._require_organization_scope(
+            organization_id,
+            operation_label="view organization module entitlement",
+        )
+        canonical_code = normalize_module_code(module_code)
+        rows = self._list_rows_for_codes_in_scope(organization_id, canonical_code, tenant_id=tenant_id)
+        obj = self._preferred_record(rows, canonical_code)
+        if obj is None:
+            return None
+        return self._to_record(obj, canonical_code)
+
+    def list_all_for_organization(self, organization_id: str) -> list[ModuleEntitlementRecord]:
+        # Ordinary/runtime read: the active organization only.
+        tenant_id = self._require_organization_scope(
+            organization_id,
+            operation_label="list organization module entitlements",
+        )
+        return self._list_all_rows_in_scope(organization_id, tenant_id=tenant_id)
+
+    def upsert_for_organization(
+        self,
+        organization_id: str,
+        record: ModuleEntitlementRecord,
+    ) -> None:
+        # Ordinary/runtime write: the active organization only.
+        tenant_id = self._require_organization_scope(
+            organization_id,
+            operation_label="update organization module entitlement",
+        )
+        self._upsert_in_scope(organization_id, record, tenant_id=tenant_id)
+
+    def list_all_for_organization_in_tenant(self, organization_id: str) -> list[ModuleEntitlementRecord]:
+        # Tenant-administration/provisioning read: any organization within the
+        # authenticated tenant, not only the currently active one — e.g.
+        # reading back the entitlements a provisioning call just seeded for a
+        # not-yet-active organization.
+        tenant_id = self._require_tenant_scope(
+            organization_id,
+            operation_label="list organization module entitlements during provisioning",
+        )
+        return self._list_all_rows_in_scope(organization_id, tenant_id=tenant_id)
+
+    def upsert_for_organization_in_tenant(
+        self,
+        organization_id: str,
+        record: ModuleEntitlementRecord,
+    ) -> None:
+        # Tenant-administration/provisioning write: explicitly allowed to
+        # initialize a specified organization within the authenticated tenant
+        # before that organization becomes active. Ordinary runtime writes
+        # must keep using upsert_for_organization (active organization only).
+        tenant_id = self._require_tenant_scope(
+            organization_id,
+            operation_label="update organization module entitlement during provisioning",
+        )
+        self._upsert_in_scope(organization_id, record, tenant_id=tenant_id)
+
     def get(self, module_code: str) -> ModuleEntitlementRecord | None:
         ctx = self._context(operation_label="view module entitlement")
         return self.get_for_organization(ctx.organization_id, module_code)
@@ -159,9 +205,38 @@ class SqlAlchemyModuleEntitlementRepository(
         *,
         operation_label: str,
     ) -> str:
+        """Ordinary/runtime scope: organization_id must be the active organization."""
         ctx = self._context(operation_label=operation_label)
         normalized_id = str(organization_id or "").strip()
         if normalized_id != ctx.organization_id:
+            raise NotFoundError(
+                "Organization not found in the active tenant.",
+                code="ORGANIZATION_NOT_FOUND",
+            )
+        return ctx.tenant_id
+
+    def _require_tenant_scope(
+        self,
+        organization_id: str,
+        *,
+        operation_label: str,
+    ) -> str:
+        """Tenant-administration/provisioning scope: organization_id must belong
+        to the authenticated tenant, but need not be the active organization."""
+        ctx = self._context(operation_label=operation_label)
+        normalized_id = str(organization_id or "").strip()
+        if not normalized_id:
+            raise NotFoundError(
+                "Organization not found in the active tenant.",
+                code="ORGANIZATION_NOT_FOUND",
+            )
+        exists = self.session.execute(
+            select(OrganizationORM.id).where(
+                OrganizationORM.id == normalized_id,
+                OrganizationORM.tenant_id == ctx.tenant_id,
+            )
+        ).scalar_one_or_none()
+        if exists is None:
             raise NotFoundError(
                 "Organization not found in the active tenant.",
                 code="ORGANIZATION_NOT_FOUND",

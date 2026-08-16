@@ -84,9 +84,6 @@ from src.ui_qml.modules.project_management.controllers.common.undo_stack import 
     ProjectManagementUndoCommand,
     ProjectManagementUndoStack,
 )
-from src.ui_qml.modules.project_management.controllers.common.task_view_store import (
-    ProjectManagementTaskViewStore,
-)
 from src.ui_qml.modules.project_management.controllers.common.runtime_context import (
     resolve_active_organization_id_from_runtime_api,
 )
@@ -96,11 +93,14 @@ from src.ui_qml.modules.project_management.controllers.common.workspace_controll
 from src.ui_qml.modules.project_management.controllers.common.pm_capability_controller import (
     PMCapabilityController,
 )
+from src.ui_qml.modules.project_management.controllers.common.pm_workspace_navigation_controller import (
+    PMWorkspaceNavigationController,
+)
 
 __all__ = [
     "PMCapabilityController",
+    "PMWorkspaceNavigationController",
     "ProjectManagementWorkspaceControllerBase",
-    "ProjectManagementTaskViewStore",
     "ProjectManagementUndoCommand",
     "ProjectManagementUndoStack",
     "resolve_active_organization_id_from_runtime_api",

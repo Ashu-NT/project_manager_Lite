@@ -8,20 +8,26 @@ from sqlalchemy.orm import Session
 
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError, ValidationError
-from src.core.platform.contract.master_data.department.contracts import DepartmentRepository
+from src.core.platform.contract.repositories.master_data.department.contracts import DepartmentRepository
 from src.core.platform.application.master_data.employee.employee_support import (
     build_employee_audit_details,
     resolve_employee_department_reference,
     resolve_employee_site_reference,
     sync_linked_employee_resources,
 )
-from src.core.platform.contract.master_data.employee.contracts import (
+from src.core.platform.contract.repositories.master_data.employee.contracts import (
     EmployeeRepository,
     LinkedEmployeeResourceRepository,
 )
+from src.core.platform.contract.read.master_data.employee.employee_headcount_reader import (
+    EmployeeDepartmentBreakdownRow,
+    EmployeeHeadcountReader,
+    EmployeeHeadcountSummary,
+    EmployeeSiteBreakdownRow,
+)
 from src.core.platform.domain.master_data.employee import Employee, EmploymentType
-from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
-from src.core.platform.contract.master_data.site.contracts import SiteRepository
+from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
@@ -44,6 +50,7 @@ class EmployeeService:
         tenant_context_service: TenantContextService | None = None,
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
+        headcount_reader: EmployeeHeadcountReader | None = None,
     ):
         self._session = session
         self._employee_repo = employee_repo
@@ -51,6 +58,7 @@ class EmployeeService:
         self._site_repo = site_repo
         self._department_repo = department_repo
         self._organization_repo = organization_repo
+        self._headcount_reader = headcount_reader
         self._tenant_context_service = tenant_context_service or (
             TenantContextService(
                 organization_repo=organization_repo,
@@ -113,6 +121,20 @@ class EmployeeService:
         )
         try:
             self._employee_repo.add(employee)
+            # Audit is staged in the same transaction as the business write (ADR-003:
+            # "the business mutation and successful security audit intent commit
+            # atomically") — never a second, separate commit.
+            record_audit_entry(
+                self,
+                operation="create",
+                entity_type="employee",
+                entity_id=employee.id,
+                module="platform",
+                severity="low",
+                metadata={"action": "employee.create", **build_employee_audit_details(employee)},
+                commit=False,
+                fail_closed=True,
+            )
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -120,15 +142,6 @@ class EmployeeService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit_entry(
-            self,
-            operation="create",
-            entity_type="employee",
-            entity_id=employee.id,
-            module="platform",
-            severity="low",
-            metadata={"action": "employee.create", **build_employee_audit_details(employee)},
-        )
         domain_events.employees_changed.emit(employee.id)
         return employee
 
@@ -208,7 +221,21 @@ class EmployeeService:
 
         try:
             self._employee_repo.update(candidate)
-            sync_linked_employee_resources(candidate, self._resource_repo)
+            touched_resource_ids = sync_linked_employee_resources(candidate, self._resource_repo)
+            # Audit is staged in the same transaction as the business write (ADR-003:
+            # "the business mutation and successful security audit intent commit
+            # atomically") — never a second, separate commit.
+            record_audit_entry(
+                self,
+                operation="update",
+                entity_type="employee",
+                entity_id=candidate.id,
+                module="platform",
+                severity="low",
+                metadata={"action": "employee.update", **build_employee_audit_details(candidate)},
+                commit=False,
+                fail_closed=True,
+            )
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -216,22 +243,92 @@ class EmployeeService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit_entry(
-            self,
-            operation="update",
-            entity_type="employee",
-            entity_id=candidate.id,
-            module="platform",
-            severity="low",
-            metadata={"action": "employee.update", **build_employee_audit_details(candidate)},
-        )
+        # Only emit resources_changed once the linked-resource mutations above
+        # are actually durable — emitting inside sync_linked_employee_resources
+        # (before commit) would fire events for rows that could still roll back.
+        for resource_id in touched_resource_ids:
+            domain_events.resources_changed.emit(resource_id)
         domain_events.employees_changed.emit(candidate.id)
         return candidate
 
-    def list_employees(self, *, active_only: bool | None = None) -> list[Employee]:
+    def list_employees(
+        self,
+        *,
+        active_only: bool | None = None,
+        department_id: str | None = None,
+        site_id: str | None = None,
+    ) -> list[Employee]:
         require_permission(self._user_session, "employee.read", operation_label="list employees")
         organization_id = self._active_organization_id(operation_label="list employees")
-        return self._employee_repo.list_for_organization(organization_id, active_only=active_only)
+        return self._employee_repo.list_for_organization(
+            organization_id,
+            active_only=active_only,
+            department_id=department_id,
+            site_id=site_id,
+        )
+
+    def get_headcount_summary(self) -> EmployeeHeadcountSummary:
+        require_permission(
+            self._user_session, "employee.read", operation_label="view employee headcount summary"
+        )
+        if self._tenant_context_service is None:
+            raise ValidationError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        if self._headcount_reader is None:
+            raise RuntimeError("Employee headcount reader is not configured.")
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="view employee headcount summary",
+        )
+        organization_id = self._active_organization_id(
+            operation_label="view employee headcount summary"
+        )
+        return self._headcount_reader.get_summary(
+            tenant_id=tenant_id, organization_id=organization_id
+        )
+
+    def get_department_breakdown(self) -> tuple[EmployeeDepartmentBreakdownRow, ...]:
+        require_permission(
+            self._user_session, "employee.read", operation_label="view employee department breakdown"
+        )
+        if self._tenant_context_service is None:
+            raise ValidationError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        if self._headcount_reader is None:
+            raise RuntimeError("Employee headcount reader is not configured.")
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="view employee department breakdown",
+        )
+        organization_id = self._active_organization_id(
+            operation_label="view employee department breakdown"
+        )
+        return self._headcount_reader.get_department_breakdown(
+            tenant_id=tenant_id, organization_id=organization_id
+        )
+
+    def get_site_breakdown(self) -> tuple[EmployeeSiteBreakdownRow, ...]:
+        require_permission(
+            self._user_session, "employee.read", operation_label="view employee site breakdown"
+        )
+        if self._tenant_context_service is None:
+            raise ValidationError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        if self._headcount_reader is None:
+            raise RuntimeError("Employee headcount reader is not configured.")
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="view employee site breakdown",
+        )
+        organization_id = self._active_organization_id(
+            operation_label="view employee site breakdown"
+        )
+        return self._headcount_reader.get_site_breakdown(
+            tenant_id=tenant_id, organization_id=organization_id
+        )
 
     def get_employee(self, employee_id: str) -> Employee:
         require_permission(self._user_session, "employee.read", operation_label="view employee")

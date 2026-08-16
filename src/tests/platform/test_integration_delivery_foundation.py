@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from src.core.modules.inventory_procurement.infrastructure.persistence.orm.integration_outbox import ProcurementFinancialOutboxORM
 from src.core.modules.inventory_procurement.infrastructure.persistence.repositories.integration_outbox import SqlAlchemyProcurementFinancialOutboxRepository
 from src.core.modules.project_management.infrastructure.persistence.orm.finance_inbox import ProjectFinanceInboxORM
-from src.core.modules.project_management.infrastructure.persistence.repositories.finance_inbox import SqlAlchemyProjectFinanceInboxRepository
+from src.core.modules.project_management.infrastructure.persistence.repositories.finance.finance_inbox import SqlAlchemyProjectFinanceInboxRepository
 from src.core.platform.application.integration import (
     InboxDeliveryDisposition,
     IntegrationInboxService,

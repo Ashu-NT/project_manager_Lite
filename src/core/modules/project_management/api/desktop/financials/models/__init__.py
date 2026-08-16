@@ -1,6 +1,14 @@
 """Financial desktop DTO models."""
 
 from src.core.modules.project_management.api.desktop.financials.models.baseline_variance import BaselineVarianceRecordDto
+from src.core.modules.project_management.api.desktop.financials.models.billing import (
+    FinancialBillingPreparationDto,
+    FinancialBillingPreparationLineDto,
+    FinancialBillingProfileDto,
+    FinancialBillingScheduleLineDto,
+    FinancialBillingWorkspaceDto,
+    FinancialCommercialProjectionDto,
+)
 from src.core.modules.project_management.api.desktop.financials.models.commitments import (
     FinancialCommitmentLineDto,
     FinancialCommitmentLinePageDto,
@@ -42,6 +50,12 @@ from src.core.modules.project_management.api.desktop.financials.models.snapshots
 __all__ = [
     "BaselineVarianceRecordDto",
     "FinancialAnalyticsRowDto",
+    "FinancialBillingPreparationDto",
+    "FinancialBillingPreparationLineDto",
+    "FinancialBillingProfileDto",
+    "FinancialBillingScheduleLineDto",
+    "FinancialBillingWorkspaceDto",
+    "FinancialCommercialProjectionDto",
     "FinancialCommitmentSummaryDto",
     "FinancialCommitmentLineDto",
     "FinancialCommitmentLinePageDto",

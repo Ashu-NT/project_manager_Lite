@@ -15,6 +15,20 @@ Popup {
 
     parent: Overlay.overlay
 
+    function clampSize() {
+        if (!root.clampToParent || !root.parent) {
+            return
+        }
+        const maxWidth = Math.max(40, root.parent.width - root.minimumMargin * 2)
+        const maxHeight = Math.max(40, root.parent.height - root.minimumMargin * 2)
+        if (root.width > maxWidth) {
+            root.width = maxWidth
+        }
+        if (root.height > maxHeight) {
+            root.height = maxHeight
+        }
+    }
+
     function reposition() {
         if (!root.anchorItem || !root.parent) {
             return
@@ -59,7 +73,10 @@ Popup {
         root.y = Math.round(nextY)
     }
 
-    onAboutToShow: Qt.callLater(root.reposition)
+    onAboutToShow: {
+        Qt.callLater(root.clampSize)
+        Qt.callLater(root.reposition)
+    }
     onAnchorItemChanged: {
         if (root.visible) {
             Qt.callLater(root.reposition)

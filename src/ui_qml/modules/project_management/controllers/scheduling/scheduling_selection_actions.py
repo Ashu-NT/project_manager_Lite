@@ -5,6 +5,8 @@ from PySide6.QtCore import QTimer
 from .scheduling_property_updates import (
     set_activity_page,
     set_activity_page_size,
+    set_activity_sort_direction,
+    set_activity_sort_key,
     set_baseline_variance_rows,
     set_baselines,
     set_search_text,
@@ -164,6 +166,22 @@ def set_page_size(controller, page_size: int) -> None:
     controller.refresh()
 
 
+def set_activity_sort(controller, sort_key: str, sort_direction: int) -> None:
+    normalized_key = (sort_key or "").strip()
+    normalized_direction = 1 if sort_direction == 1 else 0
+    if not normalized_key:
+        return
+    if (
+        normalized_key == controller._activity_sort_key
+        and normalized_direction == controller._activity_sort_direction
+    ):
+        return
+    set_activity_sort_key(controller, normalized_key)
+    set_activity_sort_direction(controller, normalized_direction)
+    set_activity_page(controller, 1)
+    controller.refresh()
+
+
 __all__ = [
     "activate_activity",
     "apply_search_text",
@@ -178,6 +196,7 @@ __all__ = [
     "select_calendar",
     "select_project",
     "set_active_panel",
+    "set_activity_sort",
     "set_include_unchanged",
     "set_page",
     "set_page_size",

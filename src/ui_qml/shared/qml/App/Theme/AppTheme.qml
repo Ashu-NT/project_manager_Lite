@@ -3,6 +3,8 @@ pragma Singleton
 import QtQuick
 
 QtObject {
+    id: root
+
     readonly property string fontFamily: "Segoe UI Variable Text"
 
     property string densityMode: "compact"
@@ -11,57 +13,74 @@ QtObject {
     readonly property bool comfortableDensity: densityMode === "comfortable"
     readonly property bool spaciousDensity: densityMode === "spacious"
 
+    property string themeMode: "light"
+    readonly property bool darkMode: themeMode === "dark"
+
     // Surface hierarchy
-    readonly property color appBackground: "#F3F6FA"
+    readonly property color appBackground: root.darkMode ? "#1B1F24" : "#F3F6FA"
     readonly property color background: appBackground
-    readonly property color workspaceBackground: "#F7F8FA"
-    readonly property color surface: "#FCFDFE"
-    readonly property color surfaceAlt: "#EEF3F8"
-    readonly property color surfaceRaised: "#FFFFFF"
-    readonly property color surfaceSunken: "#E9EFF6"
-    readonly property color surfaceOverlay: "#F6F7F9"
-    readonly property color hoverSurface: "#EEF2F6"
-    readonly property color selectedSurface: "#E4EDF7"
+    readonly property color workspaceBackground: root.darkMode ? "#1F242A" : "#F7F8FA"
+    readonly property color surface: root.darkMode ? "#22282F" : "#FCFDFE"
+    readonly property color surfaceAlt: root.darkMode ? "#262D35" : "#EEF3F8"
+    readonly property color surfaceRaised: root.darkMode ? "#2A323B" : "#FFFFFF"
+    readonly property color surfaceSunken: root.darkMode ? "#181C21" : "#E9EFF6"
+    readonly property color surfaceOverlay: root.darkMode ? "#2E363F" : "#F6F7F9"
+    readonly property color hoverSurface: root.darkMode ? "#323B45" : "#EEF2F6"
+    readonly property color selectedSurface: root.darkMode ? "#243447" : "#E4EDF7"
 
     // Borders and separators
-    readonly property color border: "#CAD4DF"
-    readonly property color borderStrong: "#B4C3D3"
-    readonly property color subtleBorder: "#D3DCE6"
-    readonly property color divider: "#D7E0E8"
-    readonly property color focusBorder: "#0A66A8"
-    readonly property color shadowColor: "#160A1B2A"
-    readonly property color overlayScrim: "#4016202B"
+    readonly property color border: root.darkMode ? "#3A434D" : "#CAD4DF"
+    readonly property color borderStrong: root.darkMode ? "#4A5560" : "#B4C3D3"
+    readonly property color subtleBorder: root.darkMode ? "#333B44" : "#D3DCE6"
+    readonly property color divider: root.darkMode ? "#343C45" : "#D7E0E8"
+    readonly property color focusBorder: root.darkMode ? "#4CA3E0" : "#0A66A8"
+    readonly property color shadowColor: root.darkMode ? "#33000000" : "#160A1B2A"
+    readonly property color overlayScrim: root.darkMode ? "#66000000" : "#4016202B"
+
+    // Elevation (shadow-based layering; QML has no native box-shadow, so
+    // these are conventions for Rectangle-based drop-shadow effects layered
+    // beneath raised surfaces)
+    readonly property color elevationLowShadow: shadowColor
+    readonly property color elevationMediumShadow: root.darkMode ? "#4D000000" : "#20000000"
+    readonly property color elevationHighShadow: root.darkMode ? "#66000000" : dialogShadow
+    readonly property int elevationLowBlur: 4
+    readonly property int elevationMediumBlur: 10
+    readonly property int elevationHighBlur: 18
+
+    // Border widths
+    readonly property int borderWidthThin: 1
+    readonly property int borderWidthMedium: 2
 
     // Navigation
-    readonly property color navBackground: "#E8EEF5"
-    readonly property color navHoverBackground: "#DAE5F1"
-    readonly property color navSelectedBackground: "#D3E4F8"
-    readonly property color navSelectedText: "#0A5B95"
-    readonly property color navMutedText: "#6A788A"
+    readonly property color navBackground: root.darkMode ? "#20262D" : "#E8EEF5"
+    readonly property color navHoverBackground: root.darkMode ? "#2B333C" : "#DAE5F1"
+    readonly property color navSelectedBackground: root.darkMode ? "#28405A" : "#D3E4F8"
+    readonly property color navSelectedText: root.darkMode ? "#6FB3E8" : "#0A5B95"
+    readonly property color navMutedText: root.darkMode ? "#8B97A6" : "#6A788A"
 
     // Text
-    readonly property color textPrimary: "#17222D"
-    readonly property color textSecondary: "#3D4B5D"
-    readonly property color textMuted: "#667487"
+    readonly property color textPrimary: root.darkMode ? "#E7ECF2" : "#17222D"
+    readonly property color textSecondary: root.darkMode ? "#B7C1CD" : "#3D4B5D"
+    readonly property color textMuted: root.darkMode ? "#8B97A6" : "#667487"
     readonly property color textOnAccent: "#FFFFFF"
 
     // Accent
-    readonly property color accent: "#0A66A8"
-    readonly property color accentHover: "#09588F"
-    readonly property color accentPressed: "#084B7A"
-    readonly property color accentSoft: "#D8E7F7"
-    readonly property color accentSoftForeground: "#FFFFFF"
+    readonly property color accent: root.darkMode ? "#4CA3E0" : "#0A66A8"
+    readonly property color accentHover: root.darkMode ? "#5FB0E8" : "#09588F"
+    readonly property color accentPressed: root.darkMode ? "#3D8AC4" : "#084B7A"
+    readonly property color accentSoft: root.darkMode ? "#1E3A52" : "#D8E7F7"
+    readonly property color accentSoftForeground: root.darkMode ? "#E7ECF2" : "#FFFFFF"
 
     // Semantic
-    readonly property color success: "#1E7F5A"
-    readonly property color successSoft: "#E7F4EE"
-    readonly property color warning: "#9A5A00"
-    readonly property color warningSoft: "#FEF2DE"
-    readonly property color danger: "#B3282D"
-    readonly property color dangerSoft: "#FDEBEC"
+    readonly property color success: root.darkMode ? "#4CBE8C" : "#1E7F5A"
+    readonly property color successSoft: root.darkMode ? "#1B3A2C" : "#E7F4EE"
+    readonly property color warning: root.darkMode ? "#E0A94C" : "#9A5A00"
+    readonly property color warningSoft: root.darkMode ? "#3F3320" : "#FEF2DE"
+    readonly property color danger: root.darkMode ? "#E56A6E" : "#B3282D"
+    readonly property color dangerSoft: root.darkMode ? "#3F2426" : "#FDEBEC"
     readonly property color error: danger
-    readonly property color info: "#0A66A8"
-    readonly property color infoSoft: "#E2EEF9"
+    readonly property color info: root.darkMode ? "#4CA3E0" : "#0A66A8"
+    readonly property color infoSoft: root.darkMode ? "#1E3145" : "#E2EEF9"
 
     // Spacing
     readonly property int spacingXs: 4
@@ -91,6 +110,21 @@ QtObject {
     readonly property int subtitleSize: 18
     readonly property int headerSize: 24
 
+    // Typography roles -- semantic names for the type scale above, so
+    // feature QML can bind to "what this text is" rather than a raw size.
+    readonly property int typePageTitleSize: headerSize
+    readonly property int typeSectionHeadingSize: sectionSize
+    readonly property int typeBodySize: bodySize
+    readonly property int typeSupportingTextSize: smallSize
+    readonly property int typeMetadataSize: captionSize
+    readonly property int typeTableTextSize: smallSize
+    readonly property int typeFormLabelSize: smallSize
+    readonly property int typeButtonTextSize: smallSize
+
+    readonly property int weightRegular: Font.Normal
+    readonly property int weightMedium: Font.Medium
+    readonly property int weightSemibold: Font.DemiBold
+
     // Sizing
     readonly property int sizeXs: 16
     readonly property int sizeSm: 24
@@ -113,6 +147,24 @@ QtObject {
     readonly property int pagePadding: spaciousDensity ? 28 : comfortableDensity ? 24 : 20
     readonly property int sectionGap: spaciousDensity ? 20 : comfortableDensity ? 16 : 12
     readonly property int detailRailWidth: 220
+
+    readonly property int navRailExpandedWidth: detailRailWidth
+    readonly property int navRailCollapsedWidth: 48
+
+    // R7.3/R7.4: responsive breakpoints, both keyed off the top-level window
+    // width (via the Window attached property, not a page's own post-nav-
+    // chrome width, which would double-subtract chrome and misfire).
+    // narrowLayoutBreakpoint: below this, nav rails auto-collapse to
+    // icon-only, reclaiming chrome before anything else degrades.
+    // compactContentBreakpoint: the hard minimum (D8) -- below this, the
+    // inspector collapses and lower-priority table columns hide.
+    readonly property int narrowLayoutBreakpoint: 1280
+    readonly property int compactContentBreakpoint: 1024
+
+    // Inspector panel (list -> inspector -> detail pattern). Matches the
+    // width AdminEntityDetailPanel.qml is already given today
+    // (AdminConsolePage.qml's Layout.preferredWidth: 288).
+    readonly property int inspectorWidth: 288
 
     // Icon sizes
     readonly property int iconXs: 11
@@ -157,6 +209,12 @@ QtObject {
     readonly property int dialogMaxWidth: 920
     readonly property int dialogFormWidth: 640
     readonly property int dialogCompactWidth: 420
+
+    // Dialog width tiers (R6): three sizes by content need, replacing the
+    // 8 distinct per-dialog literal widths the audit found.
+    readonly property int dialogWidthCompact: 440
+    readonly property int dialogWidthStandard: 560
+    readonly property int dialogWidthWide: 660
 
     // Tables
     readonly property int tableColumnCompactWidth: 120

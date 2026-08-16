@@ -114,6 +114,11 @@ Item {
                 tableId: root.state ? root.state.tableId : ""
                 columns: root.state ? root.state.columns : []
                 sourceModel: root.workspaceController ? root.workspaceController.resourcesTableModel : null
+                sortingMode: "server"
+                sortKey: root.workspaceController ? root.workspaceController.resourceSortKey : "catalog"
+                sortDirection: root.workspaceController
+                    ? root.workspaceController.resourceSortDirection
+                    : Qt.AscendingOrder
                 loading: root.workspaceController ? root.workspaceController.isLoading : false
                 emptyText: root.resourcesModel.emptyState || "No resources available."
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedResourceId : ""
@@ -125,6 +130,10 @@ Item {
                 onRowSelectionToggled: function(rowId, selected) { root.rowSelectionToggled(rowId, selected) }
                 onSelectAllToggled: function(allSelected) { root.selectAllToggled(allSelected) }
                 onColumnsStateChanged: function(columns) { root.columnsStateChanged(columns) }
+                onSortRequested: function(key, direction) {
+                    if (root.workspaceController !== null)
+                        root.workspaceController.setResourceSort(key, direction)
+                }
             }
 
             AppWidgets.TablePaginationBar {

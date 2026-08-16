@@ -22,7 +22,6 @@ Item {
 
     // ── Signals ───────────────────────────────────────────────────────────
     signal rowActivated()
-    signal exportRequested()
     signal createRequested()
     signal columnsStateChanged(var cols)
 
@@ -130,14 +129,13 @@ Item {
             showFilter:    true
             showCustomize: true
             showRefresh:   true
-            showExport:    true
+            showExport:    false
             isBusy: root.workspaceController ? root.workspaceController.isBusy : false
 
             onSearchChanged:   function(text) { if (root.workspaceController !== null) root.workspaceController.setSearchText(text) }
             onFilterClicked:   filterPopup.open()
             onCustomizeClicked: registerTable.openColumnCustomizer(tableToolbar.customizeButtonItem)
             onRefreshRequested: { if (root.workspaceController !== null) root.workspaceController.refresh() }
-            onExportRequested: root.exportRequested()
             onCreateRequested: root.createRequested()
         }
 
@@ -156,12 +154,21 @@ Item {
                 tableId:        "pm.register.table"
                 columns:        root.columns
                 sourceModel:    root.workspaceController ? root.workspaceController.entriesTableModel : null
+                sortingMode:    "server"
+                sortKey:        root.workspaceController ? root.workspaceController.entrySortKey : "triage"
+                sortDirection:  root.workspaceController
+                    ? root.workspaceController.entrySortDirection
+                    : Qt.AscendingOrder
                 loading:        root.workspaceController ? root.workspaceController.isLoading : false
                 emptyText:      root.entriesModel.emptyState || "No register entries available."
                 selectedRowId:  root.workspaceController ? root.workspaceController.selectedEntryId : ""
                 selectedRowIds: root.workspaceController ? (root.workspaceController.selectedEntryIds || []) : []
 
                 onColumnsStateChanged: function(cols) { root.columnsStateChanged(cols) }
+                onSortRequested: function(key, direction) {
+                    if (root.workspaceController !== null)
+                        root.workspaceController.setEntrySort(key, direction)
+                }
                 onRowSelected: function(rowId) { if (root.workspaceController !== null) root.workspaceController.selectEntry(rowId) }
                 onRowActivated: function(rowId) {
                     if (root.workspaceController !== null) root.workspaceController.selectEntry(rowId)

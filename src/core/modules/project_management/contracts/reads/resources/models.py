@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from src.core.modules.project_management.domain.resources.resource import Resource
+from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,6 +32,7 @@ class ResourceCatalogReadPage:
     page: int = 1
     page_size: int = 25
     summary: ResourceCatalogSummary = ResourceCatalogSummary()
+    sort: ReadSort = ReadSort("catalog")
 
 
 __all__ = [

@@ -12,9 +12,9 @@ import src.ui_qml.shell.context  # noqa: F401
 import src.ui_qml.shell.login  # noqa: F401
 import src.ui_qml.platform.context  # noqa: F401
 import src.ui_qml.platform.controllers.common.workspace_controller_base  # noqa: F401
-import src.ui_qml.platform.controllers.admin.admin_console_controller  # noqa: F401
-import src.ui_qml.platform.controllers.admin.access_workspace_controller  # noqa: F401
-import src.ui_qml.platform.controllers.admin.support_workspace_controller  # noqa: F401
+import src.ui_qml.platform.controllers.admin_console.admin_console_controller  # noqa: F401
+import src.ui_qml.platform.controllers.identity_access.access.access_workspace_controller  # noqa: F401
+import src.ui_qml.platform.controllers.support.support_workspace_controller  # noqa: F401
 import src.ui_qml.platform.controllers.control.control_workspace_controller  # noqa: F401
 import src.ui_qml.platform.controllers.settings.settings_workspace_controller  # noqa: F401
 import src.ui_qml.modules.project_management.context  # noqa: F401

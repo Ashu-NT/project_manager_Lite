@@ -9,7 +9,7 @@ Item {
 
     property var workspaceController: null
     property bool hasResource: false
-    property bool canManageSkills: true
+    property bool canManageSkills: false
     property bool isBusy: false
 
     signal addSkillRequested()

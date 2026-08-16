@@ -73,15 +73,13 @@ Item {
                     Layout.fillWidth: true
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     actions: {
-                        const canApprove = root.pmCatalog ? root.pmCatalog.pmCapabilityController.canApproveBaseline : true
+                        const canApprove = root.pmCatalog ? root.pmCatalog.pmCapabilityController.canApproveBaseline : false
                         return [
                             { "id": "save",    "label": "Save Baseline", "icon": "register", "enabled": String(root.workspaceController ? root.workspaceController.selectedProjectId : "").length > 0 },
                             { "id": "submit",  "label": "Submit",  "icon": "approve", "enabled": root.selectedBaselineRegisterStatus === "draft" && root.selectedBaselineRegisterId.length > 0 },
-                            { "id": "approve", "label": "Approve", "icon": "success", "enabled": canApprove && root.selectedBaselineRegisterStatus === "submitted" && root.selectedBaselineRegisterId.length > 0 },
+                            { "id": "approve", "label": "Approve", "icon": "approve", "enabled": canApprove && root.selectedBaselineRegisterStatus === "submitted" && root.selectedBaselineRegisterId.length > 0 },
                             { "id": "reject",  "label": "Reject",  "icon": "reject",  "danger": true, "enabled": canApprove && root.selectedBaselineRegisterStatus === "submitted" && root.selectedBaselineRegisterId.length > 0 },
-                            { "id": "compare", "label": "Compare", "icon": "refresh", "enabled": (root.baselinesModel.options || []).length > 1 },
-                            { "id": "archive", "label": "Archive", "icon": "delete",  "danger": true, "enabled": root.selectedBaselineRegisterId.length > 0 },
-                            { "id": "export",  "label": "Export",  "icon": "export",  "enabled": true }
+                            { "id": "archive", "label": "Archive", "icon": "delete",  "danger": true, "enabled": root.selectedBaselineRegisterId.length > 0 }
                         ]
                     }
 
@@ -139,12 +137,8 @@ Item {
                             root.workspaceController.approveBaseline(root.selectedBaselineRegisterId)
                         } else if (actionId === "reject" && root.selectedBaselineRegisterId.length > 0) {
                             root.workspaceController.rejectBaseline(root.selectedBaselineRegisterId)
-                        } else if (actionId === "compare") {
-                            root.workspaceController.refresh()
                         } else if (actionId === "archive" && root.selectedBaselineRegisterId.length > 0) {
                             root.workspaceController.deleteBaseline(root.selectedBaselineRegisterId)
-                        } else if (actionId === "export") {
-                            root.workspaceController.exportSchedule()
                         }
                     }
                 }
@@ -162,12 +156,11 @@ Item {
                     searchText: root.workspaceController ? root.workspaceController.baselinesSearchText : ""
                     searchPlaceholder: "Search baselines..."
                     showCustomize: true
-                    showExport: true
+                    showExport: false
                     showRefresh: false
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     onSearchChanged: function(text) { if (root.workspaceController) root.workspaceController.setBaselinesSearchText(text) }
                     onCustomizeClicked: baselineRegisterTable.openColumnCustomizer(baselinesToolbar.customizeButtonItem)
-                    onExportRequested: { if (root.workspaceController !== null) root.workspaceController.exportSchedule() }
                 }
 
                 AppWidgets.DataTable {

@@ -35,11 +35,23 @@ class CollaborationPresenceFact:
 
 
 @dataclass(frozen=True, slots=True)
-class CollaborationWorkspaceFacts:
-    tenant_id: str
-    organization_id: str
-    comments: tuple[CollaborationCommentFact, ...]
-    active_presence: tuple[CollaborationPresenceFact, ...]
+class CollaborationCommentCriteria:
+    project_id: str | None = None
+    author_username: str | None = None
+    search_text: str = ""
+    created_since: datetime | None = None
+    mention_aliases: tuple[str, ...] = ()
+    principal_user_id: str | None = None
+    principal_mentions_only: bool = False
+    unread_only: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class CollaborationCommentReadPage:
+    items: tuple[CollaborationCommentFact, ...] = ()
+    total: int = 0
+    page: int = 1
+    page_size: int = 25
 
 
 __all__ = [name for name in globals() if name.startswith("Collaboration")]

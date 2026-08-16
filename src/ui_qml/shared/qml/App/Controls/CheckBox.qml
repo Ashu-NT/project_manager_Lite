@@ -12,6 +12,9 @@ QQC2.CheckBox {
     indicator: Rectangle {
         implicitWidth: Theme.AppTheme.iconMd + 4
         implicitHeight: Theme.AppTheme.iconMd + 4
+
+        y: (control.height - height) / 2
+        
         radius: Theme.AppTheme.radiusSm
         color: control.checked
             ? Theme.AppTheme.accent

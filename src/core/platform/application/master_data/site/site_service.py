@@ -11,11 +11,16 @@ from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.access.authorization import filter_scope_rows, require_scope_permission
+from src.core.platform.application.security.authorization import get_authorization_engine
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_any_permission, require_permission
-from src.core.platform.contract.master_data.org.contracts import OrganizationRepository
+from src.core.platform.contract.read.overview.platform_overview_rollup_reader import (
+    PlatformOverviewRollupReader,
+    SiteRollupSummary,
+)
+from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.master_data.org.support import normalize_code
-from src.core.platform.contract.master_data.site.contracts import SiteRepository
+from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
 from src.core.platform.domain.master_data.site import Site
 from src.core.platform.application.tenant.tenancy import TenantContextService
 
@@ -42,6 +47,7 @@ class SiteService:
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
         tenant_context_service: TenantContextService | None = None,
+        overview_rollup_reader: PlatformOverviewRollupReader | None = None,
     ):
         self._session = session
         self._site_repo = site_repo
@@ -49,6 +55,7 @@ class SiteService:
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
+        self._overview_rollup_reader = overview_rollup_reader
 
     def list_sites(self, *, active_only: bool | None = None) -> list[Site]:
         self._require_site_read_access("list sites")
@@ -171,6 +178,29 @@ class SiteService:
             raise ValidationError("Site code already exists in the active organization.", code="SITE_CODE_EXISTS")
         try:
             self._site_repo.add(site)
+            # Audit is staged in the same transaction as the business write (ADR-003:
+            # "the business mutation and successful security audit intent commit
+            # atomically") — never a second, separate commit.
+            record_audit_entry(
+                self,
+                operation="create",
+                entity_type="site",
+                entity_id=site.id,
+                module="platform",
+                severity="low",
+                metadata={
+                    "action": "site.create",
+                    "organization_id": organization.id,
+                    "site_code": site.site_code,
+                    "name": site.name,
+                    "status": site.status,
+                    "city": site.city,
+                    "country": site.country,
+                    "is_active": str(site.is_active),
+                },
+                commit=False,
+                fail_closed=True,
+            )
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -178,24 +208,6 @@ class SiteService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit_entry(
-            self,
-            operation="create",
-            entity_type="site",
-            entity_id=site.id,
-            module="platform",
-            severity="low",
-            metadata={
-                "action": "site.create",
-                "organization_id": organization.id,
-                "site_code": site.site_code,
-                "name": site.name,
-                "status": site.status,
-                "city": site.city,
-                "country": site.country,
-                "is_active": str(site.is_active),
-            },
-        )
         domain_events.sites_changed.emit(site.id)
         return site
 
@@ -281,6 +293,29 @@ class SiteService:
             raise ValidationError("Site code already exists in the active organization.", code="SITE_CODE_EXISTS")
         try:
             self._site_repo.update(candidate)
+            # Audit is staged in the same transaction as the business write (ADR-003:
+            # "the business mutation and successful security audit intent commit
+            # atomically") — never a second, separate commit.
+            record_audit_entry(
+                self,
+                operation="update",
+                entity_type="site",
+                entity_id=candidate.id,
+                module="platform",
+                severity="low",
+                metadata={
+                    "action": "site.update",
+                    "organization_id": organization.id,
+                    "site_code": candidate.site_code,
+                    "name": candidate.name,
+                    "status": candidate.status,
+                    "city": candidate.city,
+                    "country": candidate.country,
+                    "is_active": str(candidate.is_active),
+                },
+                commit=False,
+                fail_closed=True,
+            )
             self._session.commit()
         except IntegrityError as exc:
             self._session.rollback()
@@ -288,24 +323,6 @@ class SiteService:
         except Exception:
             self._session.rollback()
             raise
-        record_audit_entry(
-            self,
-            operation="update",
-            entity_type="site",
-            entity_id=candidate.id,
-            module="platform",
-            severity="low",
-            metadata={
-                "action": "site.update",
-                "organization_id": organization.id,
-                "site_code": candidate.site_code,
-                "name": candidate.name,
-                "status": candidate.status,
-                "city": candidate.city,
-                "country": candidate.country,
-                "is_active": str(candidate.is_active),
-            },
-        )
         domain_events.sites_changed.emit(candidate.id)
         return candidate
 
@@ -328,6 +345,38 @@ class SiteService:
             self._user_session,
             ("settings.manage", "site.read"),
             operation_label=operation_label,
+        )
+
+    def get_site_rollup_summary(self) -> SiteRollupSummary:
+        self._require_site_read_access("view site rollup summary")
+        organization = self._active_organization()
+        if self._tenant_context_service is None:
+            raise BusinessRuleError(
+                "Active organization context is required.",
+                code="TENANT_CONTEXT_REQUIRED",
+            )
+        tenant_id = self._tenant_context_service.require_active_tenant_id(
+            operation_label="view site rollup summary",
+        )
+        if self._overview_rollup_reader is None:
+            raise RuntimeError("Platform overview rollup reader is not configured.")
+
+        # list_sites() additionally restricts its returned rows to the
+        # caller's site-scope grants via filter_scope_rows() -- replicate
+        # that same restriction here so a scope-restricted caller sees the
+        # same counts/sample they'd see from the full list, not the whole
+        # organization's.
+        engine = get_authorization_engine()
+        allowed_site_ids: frozenset[str] | None = None
+        if engine.is_scope_restricted(self._user_session, "site"):
+            allowed_site_ids = frozenset(
+                engine.scope_ids_for(self._user_session, "site", "site.read")
+            )
+
+        return self._overview_rollup_reader.get_site_summary(
+            organization_id=organization.id,
+            tenant_id=tenant_id,
+            allowed_site_ids=allowed_site_ids,
         )
 
 

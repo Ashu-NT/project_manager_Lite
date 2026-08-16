@@ -165,6 +165,21 @@ def test_workspace_query_paginates_lines_without_corrupting_version_totals(servi
     assert len(result.rate_lines) == 1
     assert result.rate_line_total >= 2
 
+    beyond_last = services["finance_workspace_query"].get(
+        project.id,
+        budget_line_page=99,
+        rate_line_page=99,
+        planned_cost_line_page=99,
+        page_size=1,
+    )
+
+    assert beyond_last.budget_line_page == 2
+    assert len(beyond_last.budget_lines) == 1
+    assert beyond_last.rate_line_page == beyond_last.rate_line_total
+    assert len(beyond_last.rate_lines) == 1
+    assert beyond_last.planned_cost_line_page == 1
+    assert len(beyond_last.planned_cost_lines) == 1
+
 
 def test_desktop_projection_formats_canonical_workspace_without_recalculation(services) -> None:
     project = _seed_workspace(services)
@@ -230,6 +245,13 @@ def test_financials_uses_grouped_scrollable_navigation_and_project_scope_selecto
     navigation_rail = Path(
         "src/ui_qml/shared/qml/App/Widgets/SectionNavigationRail.qml"
     ).read_text(encoding="utf-8")
+    # R1.4 re-implemented SectionNavigationRail on top of the shared
+    # GroupedNavigationRail primitive (R0.1 D7); the scrollable-content
+    # implementation now lives there, not in SectionNavigationRail.qml
+    # itself, which is now a thin wrapper.
+    grouped_rail = Path(
+        "src/ui_qml/shared/qml/App/Widgets/GroupedNavigationRail.qml"
+    ).read_text(encoding="utf-8")
 
     for group in ("Configuration", "Planning", "Cost Control", "Commercial", "Insights"):
         assert f'"group": "{group}"' in page
@@ -239,5 +261,6 @@ def test_financials_uses_grouped_scrollable_navigation_and_project_scope_selecto
     assert "workspaceController.selectProject" in page
     assert "sectionGroupsCollapsedByDefault: true" in section_page
     assert "SectionNavigationRail" in section_page
-    assert "contentHeight: navColumn.implicitHeight" in navigation_rail
-    assert "ScrollBar.vertical: ScrollBar" in navigation_rail
+    assert "GroupedNavigationRail" in navigation_rail
+    assert "contentHeight: navColumn.implicitHeight" in grouped_rail
+    assert "ScrollBar.vertical: ScrollBar" in grouped_rail

@@ -1,0 +1,3 @@
+module organization.parties
+AdminPartyDetailPage 1.0 AdminPartyDetailPage.qml
+PartiesWorkspacePage 1.0 PartiesWorkspacePage.qml

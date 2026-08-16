@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from PySide6.QtCore import Property, QObject, Signal, Slot
+from PySide6.QtCore import Property, QObject, Qt, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.modules.project_management.controllers.common import (
@@ -47,6 +47,8 @@ class ProjectManagementFinancialsWorkspaceController(
     selectedProjectIdChanged = Signal()
     cashflowChanged = Signal()
     ledgerChanged = Signal()
+    actualSortKeyChanged = Signal()
+    actualSortDirectionChanged = Signal()
     sourceAnalyticsChanged = Signal()
     costTypeAnalyticsChanged = Signal()
     notesChanged = Signal()
@@ -59,6 +61,8 @@ class ProjectManagementFinancialsWorkspaceController(
     financialChangeImpactsChanged = Signal()
     commitmentSummaryChanged = Signal()
     commitmentsChanged = Signal()
+    commitmentSortKeyChanged = Signal()
+    commitmentSortDirectionChanged = Signal()
     baselineVarianceChanged = Signal()
     selectedBaselineIdChanged = Signal()
     baselineVersionsChanged = Signal()
@@ -101,6 +105,9 @@ class ProjectManagementFinancialsWorkspaceController(
         self._ledger_table_model = DynamicTableModel(self)
         self._cashflow = default_collection()
         self._ledger = default_collection()
+        self._actual_page = 1
+        self._actual_sort_key = "metaText"
+        self._actual_sort_direction = Qt.DescendingOrder.value
         self._source_analytics = default_collection()
         self._cost_type_analytics = default_collection()
         self._notes: list[str] = []
@@ -113,6 +120,10 @@ class ProjectManagementFinancialsWorkspaceController(
         self._financial_change_impacts = default_collection()
         self._commitment_summary = default_commitment_summary()
         self._commitments = default_collection()
+        self._commitment_page = 1
+        self._commitment_sort_key = "metaText"
+        self._commitment_sort_direction = Qt.DescendingOrder.value
+        self._transaction_page_size = 50
         self._commitments_table_model = DynamicTableModel(self)
         self._baseline_variance: FinancialsObjectList = []
         self._selected_baseline_id = ""
@@ -161,6 +172,12 @@ class ProjectManagementFinancialsWorkspaceController(
     @Property(QObject, constant=True)
     def ledgerTableModel(self) -> DynamicTableModel: return self._ledger_table_model
 
+    @Property(str, notify=actualSortKeyChanged)
+    def actualSortKey(self) -> str: return self._actual_sort_key
+
+    @Property(int, notify=actualSortDirectionChanged)
+    def actualSortDirection(self) -> int: return self._actual_sort_direction
+
     @Property("QVariantMap", notify=sourceAnalyticsChanged)
     def sourceAnalytics(self) -> FinancialsMap: return self._source_analytics
 
@@ -199,6 +216,12 @@ class ProjectManagementFinancialsWorkspaceController(
 
     @Property(QObject, constant=True)
     def commitmentsTableModel(self) -> DynamicTableModel: return self._commitments_table_model
+
+    @Property(str, notify=commitmentSortKeyChanged)
+    def commitmentSortKey(self) -> str: return self._commitment_sort_key
+
+    @Property(int, notify=commitmentSortDirectionChanged)
+    def commitmentSortDirection(self) -> int: return self._commitment_sort_direction
 
     @Property("QVariantList", notify=baselineVarianceChanged)
     def baselineVariance(self) -> FinancialsObjectList: return self._baseline_variance
@@ -291,6 +314,28 @@ class ProjectManagementFinancialsWorkspaceController(
     @Slot(str, int)
     def setConfigurationPage(self, collection: str, page: int) -> None:
         self._set_configuration_page(collection, page)
+
+    @Slot(int)
+    def setActualPage(self, page: int) -> None: self._set_actual_page(page)
+
+    @Slot(int)
+    def setActualPageSize(self, page_size: int) -> None:
+        self._set_transaction_page_size(page_size)
+
+    @Slot(str, int)
+    def setActualSort(self, sort_key: str, sort_direction: int) -> None:
+        self._set_actual_sort(sort_key, sort_direction)
+
+    @Slot(int)
+    def setCommitmentPage(self, page: int) -> None: self._set_commitment_page(page)
+
+    @Slot(int)
+    def setCommitmentPageSize(self, page_size: int) -> None:
+        self._set_transaction_page_size(page_size)
+
+    @Slot(str, int)
+    def setCommitmentSort(self, sort_key: str, sort_direction: int) -> None:
+        self._set_commitment_sort(sort_key, sort_direction)
 
 
 __all__ = ["ProjectManagementFinancialsWorkspaceController"]

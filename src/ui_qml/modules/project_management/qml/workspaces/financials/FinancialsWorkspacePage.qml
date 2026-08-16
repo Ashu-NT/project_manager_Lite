@@ -48,8 +48,6 @@ AppLayouts.WorkspaceFrame {
         return null
     }
 
-    readonly property bool _hasProcPoCap: root.pmCatalog
-        ? root.pmCatalog.hasCapability("procurement.purchase_orders.read") : false
     readonly property var _detailSections: {
         const sections = [
             { "label": "Profile", "group": "Configuration" },
@@ -63,9 +61,6 @@ AppLayouts.WorkspaceFrame {
             { "label": "Commitments", "group": "Cost Control" },
             { "label": "Billing Preparation", "group": "Commercial" }
         ]
-        if (root._hasProcPoCap) {
-            sections.push({ "label": "Purchase Orders", "group": "Commercial" })
-        }
         sections.push({ "label": "Variance", "group": "Insights" })
         sections.push({ "label": "Reports", "group": "Insights" })
         sections.push({ "label": "Activity", "group": "Insights" })
@@ -94,48 +89,48 @@ AppLayouts.WorkspaceFrame {
                         : false,
                     "danger": false
                 },
-                {
+                Boolean(state.canSubmit) ? {
                     "id": "submit_actual",
                     "label": "Submit",
                     "icon": "approve",
-                    "enabled": !busy && Boolean(state.canSubmit),
+                    "enabled": !busy,
                     "danger": false
-                },
-                {
+                } : null,
+                Boolean(state.canApprove) ? {
                     "id": "approve_actual",
                     "label": "Approve",
-                    "icon": "success",
-                    "enabled": !busy && Boolean(state.canApprove),
+                    "icon": "approve",
+                    "enabled": !busy,
                     "danger": false
-                },
-                {
+                } : null,
+                Boolean(state.canApprove) ? {
                     "id": "reject_actual",
                     "label": "Reject",
                     "icon": "reject",
-                    "enabled": !busy && Boolean(state.canApprove),
+                    "enabled": !busy,
                     "danger": true
-                },
-                {
+                } : null,
+                Boolean(state.canPost) ? {
                     "id": "post_actual",
                     "label": "Post",
                     "icon": "save",
-                    "enabled": !busy && Boolean(state.canPost),
+                    "enabled": !busy,
                     "danger": false
-                },
-                {
+                } : null,
+                Boolean(state.canReverse) ? {
                     "id": "reverse_actual",
                     "label": "Reverse",
                     "icon": "delete",
-                    "enabled": !busy && Boolean(state.canReverse),
+                    "enabled": !busy,
                     "danger": true
-                }
-            ]
+                } : null
+            ].filter(Boolean)
         }
         if (root._activeDetailSection === "Reports") return [
             {
                 "id": "export_excel",
                 "label": "Export Excel",
-                "icon": "download",
+                "icon": "export",
                 "enabled": root.workspaceController
                     ? root.workspaceController.selectedProjectId.length > 0 : false,
                 "danger": false
@@ -143,7 +138,7 @@ AppLayouts.WorkspaceFrame {
             {
                 "id": "export_pdf",
                 "label": "Export PDF",
-                "icon": "download",
+                "icon": "export",
                 "enabled": root.workspaceController
                     ? root.workspaceController.selectedProjectId.length > 0 : false,
                 "danger": false
@@ -352,6 +347,8 @@ AppLayouts.WorkspaceFrame {
                     ledgerModel: root.ledgerModel
                     ledgerTableModel: root.workspaceController ? root.workspaceController.ledgerTableModel : null
                     selectedActualEntryId: root._selectedActualEntryId
+                    actualSortKey: root.workspaceController ? root.workspaceController.actualSortKey : "metaText"
+                    actualSortDirection: root.workspaceController ? root.workspaceController.actualSortDirection : Qt.DescendingOrder
                     onActualEntrySelected: function(entryId) { root._selectedActualEntryId = entryId }
                     sourceAnalyticsModel: root.sourceAnalyticsModel
                     overviewModel: root.overviewModel
@@ -365,6 +362,8 @@ AppLayouts.WorkspaceFrame {
                     commitmentSummaryModel: root.workspaceController ? root.workspaceController.commitmentSummary : ({})
                     commitmentsModel: root.workspaceController ? root.workspaceController.commitments : ({})
                     commitmentsTableModel: root.workspaceController ? root.workspaceController.commitmentsTableModel : null
+                    commitmentSortKey: root.workspaceController ? root.workspaceController.commitmentSortKey : "metaText"
+                    commitmentSortDirection: root.workspaceController ? root.workspaceController.commitmentSortDirection : Qt.DescendingOrder
                     baselineVarianceModel: root.baselineVarianceModel
                     baselineVersionsModel: root.workspaceController ? root.workspaceController.baselineVersions : ({ "items": [] })
                     varianceBasisModel: root.workspaceController ? root.workspaceController.varianceBasis : ({ "fields": [] })
@@ -385,6 +384,24 @@ AppLayouts.WorkspaceFrame {
                         if (root.workspaceController !== null) {
                             root.workspaceController.setConfigurationPage(collection, page)
                         }
+                    }
+                    onActualPageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setActualPage(page)
+                    }
+                    onActualPageSizeRequested: function(pageSize) {
+                        if (root.workspaceController !== null) root.workspaceController.setActualPageSize(pageSize)
+                    }
+                    onActualSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setActualSort(key, direction)
+                    }
+                    onCommitmentPageRequested: function(page) {
+                        if (root.workspaceController !== null) root.workspaceController.setCommitmentPage(page)
+                    }
+                    onCommitmentPageSizeRequested: function(pageSize) {
+                        if (root.workspaceController !== null) root.workspaceController.setCommitmentPageSize(pageSize)
+                    }
+                    onCommitmentSortRequested: function(key, direction) {
+                        if (root.workspaceController !== null) root.workspaceController.setCommitmentSort(key, direction)
                     }
                     onForecastSelected: function(forecastId) {
                         if (root.workspaceController !== null)

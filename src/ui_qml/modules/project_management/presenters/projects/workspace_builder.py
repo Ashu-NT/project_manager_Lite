@@ -24,6 +24,8 @@ def build_workspace_state(
     selected_project_id: str | None = None,
     page: int = 1,
     page_size: int = 25,
+    sort_key: str = "title",
+    sort_direction: str = "asc",
 ) -> ProjectCatalogWorkspaceViewModel:
     status_options = (
         ProjectStatusOptionViewModel(value="all", label="All statuses"),
@@ -39,6 +41,8 @@ def build_workspace_state(
         status=normalized_status_filter,
         page=page,
         page_size=page_size,
+        sort_key=sort_key,
+        sort_direction=sort_direction,
     )
     paged_projects = project_page.items
     resolved_selected_project_id = resolve_selected_project_id(
@@ -72,6 +76,8 @@ def build_workspace_state(
         total_count=project_page.filtered_total,
         page=project_page.page,
         page_size=project_page.page_size,
+        sort_key=project_page.sort_key,
+        sort_direction=project_page.sort_direction,
     )
 
 
@@ -80,12 +86,11 @@ def build_project_detail_state(
     *,
     project_id: str,
 ) -> ProjectCatalogWorkspaceViewModel:
+    # Opening one project's detail must not scale with the total project
+    # count -- get_project() is a real single-row repository lookup (with
+    # its own per-project permission check), not list-then-filter.
     normalized_project_id = (project_id or "").strip()
-    all_projects = desktop_api.list_projects()
-    selected_project = next(
-        (p for p in all_projects if p.id == normalized_project_id),
-        None,
-    )
+    selected_project = desktop_api.get_project(normalized_project_id)
     return ProjectCatalogWorkspaceViewModel(
         overview=ProjectCatalogOverviewViewModel(
             title="Projects",

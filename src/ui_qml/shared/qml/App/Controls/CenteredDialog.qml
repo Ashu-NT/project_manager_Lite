@@ -13,6 +13,23 @@ Dialog {
     focus: true
     implicitWidth: Math.min(Theme.AppTheme.dialogFormWidth, Theme.AppTheme.dialogMaxWidth)
 
+
+    property real requestedDialogWidth: -1
+
+    readonly property real availableDialogWidth: root.parent ? root.parent.width : 99999
+
+    function _applyClampedWidth() {
+        if (root.requestedDialogWidth < 0) return
+        const maxWidth = Math.max(160, root.availableDialogWidth - root.minimumSideMargin * 2)
+        root.width = Math.min(root.requestedDialogWidth, maxWidth)
+    }
+
+    Component.onCompleted: {
+        root.requestedDialogWidth = root.width
+        root._applyClampedWidth()
+    }
+    onAvailableDialogWidthChanged: root._applyClampedWidth()
+
     Overlay.modal: Rectangle {
         color: Theme.AppTheme.overlayScrim
     }

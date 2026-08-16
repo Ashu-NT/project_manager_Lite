@@ -8,7 +8,13 @@ from src.ui_qml.modules.project_management.view_models.collaboration import (
 from .formatting import iso_datetime
 
 
-def build_mentions_collection(inbox) -> CollaborationCollectionViewModel:
+def build_mentions_collection(
+    inbox,
+    *,
+    total_count: int | None = None,
+    page: int = 1,
+    page_size: int = 25,
+) -> CollaborationCollectionViewModel:
     return CollaborationCollectionViewModel(
         title="Mentions",
         subtitle="Direct mentions needing follow-up or acknowledgment.",
@@ -41,4 +47,7 @@ def build_mentions_collection(inbox) -> CollaborationCollectionViewModel:
             )
             for item in inbox
         ),
+        total_count=len(inbox) if total_count is None else total_count,
+        page=page,
+        page_size=page_size,
     )

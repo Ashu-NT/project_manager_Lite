@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, TypeVar
 
-from src.core.platform.contract.security.authorization.enforcement.authorization_engine import (
+from src.core.platform.contract.port.security.authorization.enforcement.authorization_engine import (
     AuthorizationEngine,
 )
 

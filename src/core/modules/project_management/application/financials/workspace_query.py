@@ -8,7 +8,10 @@ from src.core.modules.project_management.access.scope_permissions import (
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
-from src.core.modules.project_management.application.common.pagination import PageRequest
+from src.core.modules.project_management.application.common.pagination import (
+    PageRequest,
+    normalize_page_for_total,
+)
 from src.core.modules.project_management.application.financials.workspace_models import (
     FinanceBudgetLineRead,
     FinanceBudgetVersionRead,
@@ -18,21 +21,21 @@ from src.core.modules.project_management.application.financials.workspace_models
     FinanceRateLineRead,
     ProjectFinanceWorkspaceRead,
 )
-from src.core.modules.project_management.contracts.repositories.budget import (
+from src.core.modules.project_management.contracts.repositories.finance.budgets.budget import (
     ProjectBudgetRepository,
 )
-from src.core.modules.project_management.contracts.repositories.financial_configuration import (
+from src.core.modules.project_management.contracts.repositories.finance.configuration.financial_configuration import (
     ProjectCostCodeRepository,
     ProjectFinancialProfileRepository,
 )
-from src.core.modules.project_management.contracts.repositories.planned_cost import (
+from src.core.modules.project_management.contracts.repositories.finance.planned_costs.planned_cost import (
     ProjectPlannedCostVersionRepository,
 )
-from src.core.modules.project_management.contracts.repositories.rate_cards import (
+from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_cards import (
     ProjectRateCardRepository,
 )
-from src.core.modules.project_management.contracts.repositories.resource import ResourceRepository
-from src.core.modules.project_management.contracts.repositories.task import TaskRepository
+from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
+from src.core.modules.project_management.contracts.repositories.tasks.task import TaskRepository
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
@@ -105,34 +108,49 @@ class ProjectFinanceWorkspaceQuery(ProjectManagementModuleGuardMixin):
 
         budgets = self._budget_repo.list_for_project(project_id, include_superseded=True)
         budget_by_id = {item.id: item for item in budgets}
+        budget_line_summaries = self._budget_repo.summarize_lines_for_project(project_id)
+        budget_line_total = sum(item[0] for item in budget_line_summaries.values())
+        budget_page.page = normalize_page_for_total(
+            page=budget_page.page,
+            page_size=budget_page.page_size,
+            total=budget_line_total,
+        )
         budget_lines = self._budget_repo.list_lines_for_project(
             project_id, offset=budget_page.offset, limit=budget_page.limit
         )
-        budget_line_summaries = self._budget_repo.summarize_lines_for_project(project_id)
-        budget_line_total = sum(item[0] for item in budget_line_summaries.values())
         cards = self._rate_card_repo.list_visible_for_project(
             project_id, include_inactive=True
         )
         card_by_id = {item.id: item for item in cards}
+        rate_line_counts = self._rate_card_repo.count_lines_by_card(
+            tuple(card_by_id), include_inactive=True
+        )
+        rate_line_total = sum(rate_line_counts.values())
+        rate_page.page = normalize_page_for_total(
+            page=rate_page.page,
+            page_size=rate_page.page_size,
+            total=rate_line_total,
+        )
         rate_lines = self._rate_card_repo.list_lines_for_cards(
             tuple(card_by_id),
             include_inactive=True,
             offset=rate_page.offset,
             limit=rate_page.limit,
         )
-        rate_line_counts = self._rate_card_repo.count_lines_by_card(
-            tuple(card_by_id), include_inactive=True
-        )
-        rate_line_total = sum(rate_line_counts.values())
         planned_versions = self._planned_cost_repo.list_for_project(project_id)
         planned_version_by_id = {item.id: item for item in planned_versions}
-        planned_lines = self._planned_cost_repo.list_lines_for_project(
-            project_id, offset=planned_page.offset, limit=planned_page.limit
-        )
         planned_line_summaries = self._planned_cost_repo.summarize_lines_for_project(
             project_id
         )
         planned_line_total = sum(item[0] for item in planned_line_summaries.values())
+        planned_page.page = normalize_page_for_total(
+            page=planned_page.page,
+            page_size=planned_page.page_size,
+            total=planned_line_total,
+        )
+        planned_lines = self._planned_cost_repo.list_lines_for_project(
+            project_id, offset=planned_page.offset, limit=planned_page.limit
+        )
         default_code = cost_code_by_id.get(
             profile.default_cost_code_id
         )

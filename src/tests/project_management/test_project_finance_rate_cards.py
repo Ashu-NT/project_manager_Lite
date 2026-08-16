@@ -102,7 +102,7 @@ def test_get_or_create_legacy_card_is_idempotent(services) -> None:
     from src.core.modules.project_management.infrastructure.persistence.orm.rate_cards import (
         ProjectRateCardORM,
     )
-    from src.core.modules.project_management.infrastructure.persistence.repositories.rate_cards import (
+    from src.core.modules.project_management.infrastructure.persistence.repositories.finance.rate_cards.rate_cards import (
         SqlAlchemyProjectRateCardRepository,
     )
 

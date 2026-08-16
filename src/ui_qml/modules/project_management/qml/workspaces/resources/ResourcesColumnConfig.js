@@ -8,8 +8,8 @@ function baseColumns() {
         { "key": "department",         "label": "Department",   "flex": 1.2, "sortable": true,                   "visibleByDefault": true },
         { "key": "site",               "label": "Site",         "flex": 1,   "sortable": true,                   "visibleByDefault": true },
         { "key": "role",               "label": "Role",         "flex": 1.2, "sortable": true,                   "visibleByDefault": true },
-        { "key": "assignedHoursLabel", "label": "Assigned Hrs", "flex": 0,   "minWidth": 100,                    "visibleByDefault": true },
-        { "key": "availabilityLabel",  "label": "Availability", "flex": 0,   "minWidth": 100,                    "visibleByDefault": false },
+        { "key": "assignedHoursLabel", "label": "Assigned Hrs", "flex": 0,   "minWidth": 100, "sortable": false, "visibleByDefault": true },
+        { "key": "availabilityLabel",  "label": "Availability", "flex": 0,   "minWidth": 100, "sortable": false, "visibleByDefault": false },
         { "key": "utilizationValue",   "label": "Utilization",  "flex": 1,   "minWidth": 110, "type": "progress", "visibleByDefault": true }
     ]
 }

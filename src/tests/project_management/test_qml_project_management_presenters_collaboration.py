@@ -54,64 +54,96 @@ class _FakeCollaborationService:
             ]
         }
 
-    def list_workspace_snapshot(self, *, limit: int = 200) -> SimpleNamespace:
-        assert limit == 200
+    @staticmethod
+    def _inbox_rows() -> list[SimpleNamespace]:
+        return [
+            SimpleNamespace(
+                comment_id="comment-1",
+                task_id="task-1",
+                task_name="Cable Pull",
+                project_id="proj-1",
+                project_name="Plant Upgrade",
+                author_username="jamie",
+                body_preview="Please review the updated execution window.",
+                mentions=["planner"],
+                created_at=datetime(2026, 5, 1, 8, 45),
+                unread=True,
+            )
+        ]
+
+    def query_mentions_page(
+        self,
+        *,
+        project_id=None,
+        author_username=None,
+        search_text="",
+        created_since=None,
+        unread_only=False,
+        page=1,
+        page_size=25,
+    ) -> SimpleNamespace:
+        rows = self._inbox_rows()
+        rows = [
+            row
+            for row in rows
+            if (project_id is None or row.project_id == project_id)
+            and (author_username is None or row.author_username == author_username)
+            and (created_since is None or row.created_at >= created_since)
+            and (not unread_only or row.unread)
+            and (
+                not search_text
+                or search_text.casefold()
+                in " ".join(
+                    (row.task_name, row.project_name, row.author_username, row.body_preview)
+                ).casefold()
+            )
+        ]
+        offset = (page - 1) * page_size
         return SimpleNamespace(
-            notifications=[
-                SimpleNamespace(
-                    notification_type="approval",
-                    entity_type="approval_request",
-                    entity_id="approval-1",
-                    headline="Approval requested for Weekly Freeze",
-                    body_preview="Baseline comparison needs governance review.",
-                    actor_username="alex",
-                    created_at=datetime(2026, 5, 1, 9, 30),
-                    project_id="proj-1",
-                    project_name="Plant Upgrade",
-                    attention=True,
-                )
-            ],
-            inbox=[
-                SimpleNamespace(
-                    comment_id="comment-1",
-                    task_id="task-1",
-                    task_name="Cable Pull",
-                    project_id="proj-1",
-                    project_name="Plant Upgrade",
-                    author_username="jamie",
-                    body_preview="Please review the updated execution window.",
-                    mentions=["planner"],
-                    created_at=datetime(2026, 5, 1, 8, 45),
-                    unread=True,
-                )
-            ],
-            recent_activity=[
-                SimpleNamespace(
-                    comment_id="comment-2",
-                    task_id="task-2",
-                    task_name="Commissioning Pack",
-                    project_id="proj-1",
-                    project_name="Plant Upgrade",
-                    author_username="morgan",
-                    body_preview="Draft punchlist is now linked for review.",
-                    mentions=[],
-                    created_at=datetime(2026, 5, 1, 8, 15),
-                    unread=False,
-                )
-            ],
-            active_presence=[
-                SimpleNamespace(
-                    task_id="task-1",
-                    task_name="Cable Pull",
-                    project_id="proj-1",
-                    project_name="Plant Upgrade",
-                    username="planner",
-                    display_name="Alex Taylor",
-                    activity="reviewing",
-                    last_seen_at=datetime(2026, 5, 1, 9, 35),
-                    is_self=True,
-                )
-            ],
+            items=tuple(rows[offset : offset + page_size]),
+            total=len(rows),
+            page=page,
+            page_size=page_size,
+        )
+
+    def query_inbox_page(self, **kwargs) -> SimpleNamespace:
+        return self.query_mentions_page(**kwargs)
+
+    def list_recent_activity(self, **kwargs) -> list[SimpleNamespace]:
+        return [
+            SimpleNamespace(
+                comment_id="comment-2",
+                task_id="task-2",
+                task_name="Commissioning Pack",
+                project_id="proj-1",
+                project_name="Plant Upgrade",
+                author_username="morgan",
+                body_preview="Draft punchlist is now linked for review.",
+                mentions=[],
+                created_at=datetime(2026, 5, 1, 8, 15),
+                unread=False,
+            )
+        ]
+
+    def list_active_presence(self) -> list[SimpleNamespace]:
+        return [
+            SimpleNamespace(
+                task_id="task-1",
+                task_name="Cable Pull",
+                project_id="proj-1",
+                project_name="Plant Upgrade",
+                username="planner",
+                display_name="Alex Taylor",
+                activity="reviewing",
+                last_seen_at=datetime(2026, 5, 1, 9, 35),
+                is_self=True,
+            )
+        ]
+
+    def list_workspace_context(self) -> SimpleNamespace:
+        return SimpleNamespace(
+            projects=(("proj-1", "Plant Upgrade"),),
+            people=("jamie", "morgan"),
         )
 
     def mark_task_mentions_read(self, task_id: str) -> None:
@@ -215,9 +247,9 @@ def test_project_management_workspace_catalog_exposes_typed_collaboration_contro
 
     assert controller.workspace["routeId"] == "project_management.collaboration"
     assert controller.overview["title"] == "Collaboration"
-    assert controller.notifications["items"][0]["title"] == "Approval requested for Weekly Freeze"
     assert controller.inbox["items"][0]["title"] == "Cable Pull"
-    assert controller.activePresence["items"][0]["title"] == "Cable Pull"
+    assert controller.mentions["totalCount"] == 1
+    assert controller.overview["metrics"][3]["value"] == "1"
 
     result = controller.markTaskRead("task-1")
 
@@ -226,10 +258,22 @@ def test_project_management_workspace_catalog_exposes_typed_collaboration_contro
         "message": "Task mentions marked as read.",
     }
 
+    controller.setMentionsPageSize(1)
+    controller.setMentionsSearchText("Cable")
+
+    assert controller.mentions["page"] == 1
+    assert controller.mentions["pageSize"] == 1
+    assert controller.mentions["totalCount"] == 1
+
+    controller.setInboxPage(2)
+    assert controller.inbox["page"] == 2
+    controller.setInboxSearchText("Cable")
+    assert controller.inbox["page"] == 1
+
 
 def test_collaboration_presenter_skips_null_approval_rows() -> None:
     class _FakeApprovalApi:
-        def list_requests(self, *, status=None, limit: int = 200) -> DesktopApiResult[tuple[ApprovalRequestDto | None, ...]]:
+        def list_requests(self, *, status=None, project_id=None, limit: int = 200) -> DesktopApiResult[tuple[ApprovalRequestDto | None, ...]]:
             return DesktopApiResult(
                 ok=True,
                 data=(
@@ -261,3 +305,65 @@ def test_collaboration_presenter_skips_null_approval_rows() -> None:
 
     assert len(workspace.approvals.items) == 1
     assert workspace.approvals.items[0].id == "approval-1"
+
+
+def test_collaboration_presenter_fetches_each_authoritative_owner_once() -> None:
+    class _CountingDesktopApi:
+        def __init__(self) -> None:
+            self.calls = {
+                "inbox": 0,
+                "mentions": 0,
+                "activity": 0,
+                "presence": 0,
+                "context": 0,
+            }
+
+        @staticmethod
+        def _page(page: int, page_size: int) -> SimpleNamespace:
+            return SimpleNamespace(items=(), total=0, page=page, page_size=page_size)
+
+        def query_inbox_page(self, **kwargs) -> SimpleNamespace:
+            self.calls["inbox"] += 1
+            return self._page(kwargs["page"], kwargs["page_size"])
+
+        def query_mentions_page(self, **kwargs) -> SimpleNamespace:
+            self.calls["mentions"] += 1
+            return self._page(kwargs["page"], kwargs["page_size"])
+
+        def list_recent_activity(self, **kwargs) -> tuple:
+            self.calls["activity"] += 1
+            return ()
+
+        def list_active_presence(self) -> tuple:
+            self.calls["presence"] += 1
+            return ()
+
+        def list_context_options(self) -> SimpleNamespace:
+            self.calls["context"] += 1
+            return SimpleNamespace(projects=(), people=())
+
+    class _CountingApprovalApi:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def list_requests(self, **kwargs) -> DesktopApiResult[tuple]:
+            self.calls += 1
+            return DesktopApiResult(ok=True, data=())
+
+    desktop_api = _CountingDesktopApi()
+    approval_api = _CountingApprovalApi()
+    presenter = ProjectCollaborationWorkspacePresenter(
+        desktop_api=desktop_api,
+        approval_api=approval_api,
+    )
+
+    presenter.build_workspace_state()
+
+    assert desktop_api.calls == {
+        "inbox": 1,
+        "mentions": 1,
+        "activity": 1,
+        "presence": 1,
+        "context": 1,
+    }
+    assert approval_api.calls == 1

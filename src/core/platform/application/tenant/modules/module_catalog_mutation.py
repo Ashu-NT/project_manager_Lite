@@ -113,6 +113,7 @@ class ModuleCatalogMutationMixin:
         *,
         licensed_module_codes: Iterable[str],
         enabled_module_codes: Iterable[str] | None = None,
+        commit: bool = True,
     ) -> list[ModuleEntitlementRecord]:
         require_permission(
             self._user_session,
@@ -150,11 +151,18 @@ class ModuleCatalogMutationMixin:
                     code="MODULE_NOT_AVAILABLE",
                 )
 
+        # Tenant-administration/provisioning write: this seeds a *specified*
+        # organization's entitlements, which is explicitly allowed to target an
+        # organization other than the currently active one (e.g. a
+        # newly-created, not-yet-active organization) as long as it belongs to
+        # the authenticated tenant. Ordinary runtime entitlement changes
+        # (set_module_state, above) keep using the active-organization-only
+        # upsert_for_organization.
         for module in self._modules:
             licensed = module.code in licensed_codes
             enabled = module.code in enabled_codes and licensed
             lifecycle_status = default_lifecycle_status(licensed)
-            self._entitlement_repo.upsert_for_organization(
+            self._entitlement_repo.upsert_for_organization_in_tenant(
                 normalized_organization_id,
                 ModuleEntitlementRecord(
                     module_code=module.code,
@@ -164,9 +172,9 @@ class ModuleCatalogMutationMixin:
                 ),
             )
 
-        if self._session is not None:
-            self._session.commit()
-
+        # Audit is staged in the same transaction as the entitlement writes
+        # (ADR-003: business mutation and audit intent commit atomically for
+        # platform provisioning) — never a second, separate commit.
         record_audit_entry(
             self,
             operation="update",
@@ -180,11 +188,19 @@ class ModuleCatalogMutationMixin:
                 "licensed_modules": ",".join(sorted(licensed_codes)),
                 "enabled_modules": ",".join(sorted(enabled_codes)),
             },
+            commit=False,
+            fail_closed=True,
         )
-        active_organization = self._current_organization()
-        if active_organization is not None and active_organization.id == normalized_organization_id:
-            domain_events.modules_changed.emit(f"organization:{normalized_organization_id}")
-        return self._entitlement_repo.list_all_for_organization(normalized_organization_id)
+        if self._session is not None:
+            if commit:
+                self._session.commit()
+            else:
+                self._session.flush()
+        if commit:
+            active_organization = self._current_organization()
+            if active_organization is not None and active_organization.id == normalized_organization_id:
+                domain_events.modules_changed.emit(f"organization:{normalized_organization_id}")
+        return self._entitlement_repo.list_all_for_organization_in_tenant(normalized_organization_id)
 
 
 __all__ = ["ModuleCatalogMutationMixin"]

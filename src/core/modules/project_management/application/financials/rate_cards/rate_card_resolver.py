@@ -12,7 +12,7 @@ from src.core.modules.project_management.application.financials.rate_cards.rate_
     classify_line,
     select_within_level,
 )
-from src.core.modules.project_management.contracts.repositories.rate_resolution import (
+from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_resolution import (
     DatedRateResolutionBatch,
     RateResolutionBatch,
     RateResolutionCandidate,

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Protocol
 
+from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,
     RegisterEntryStatus,
@@ -27,6 +28,7 @@ class RegisterCatalogReader(Protocol):
         as_of: date,
         page: int,
         page_size: int,
+        sort: ReadSort,
     ) -> RegisterCatalogReadPage: ...
 
 

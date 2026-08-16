@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import date
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from src.core.platform.contract.time_management.calendar.contracts import (
+from src.core.platform.contract.repositories.time_management.calendar.contracts import (
     CalendarAssignmentRepository,
     CalendarExceptionRepository,
     CalendarRecurringEventRepository,
@@ -239,6 +240,19 @@ class SqlAlchemyPlatformCalendarRepository(
             PlatformCalendarORM.calendar_type,
             PlatformCalendarORM.priority.desc(),
             PlatformCalendarORM.name,
+        )
+        rows = self._session.execute(stmt).scalars().all()
+        return [platform_calendar_from_orm(r) for r in rows]
+
+    def list_by_ids(self, calendar_ids: Iterable[str]) -> list[PlatformCalendar]:
+        ids = set(calendar_ids)
+        if not ids:
+            return []
+        ctx = self._context(operation_label="access platform calendars")
+        stmt = select(PlatformCalendarORM).where(
+            PlatformCalendarORM.id.in_(ids),
+            PlatformCalendarORM.tenant_id == ctx.tenant_id,
+            PlatformCalendarORM.organization_id == ctx.organization_id,
         )
         rows = self._session.execute(stmt).scalars().all()
         return [platform_calendar_from_orm(r) for r in rows]

@@ -3,6 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Generic, TypeVar
 
+from src.core.modules.project_management.contracts.reads.pagination import (
+    normalize_offset_for_total,
+    normalize_page_for_total,
+)
+
 T = TypeVar("T")
 
 
@@ -78,4 +83,9 @@ class PaginatedResult(Generic[T]):
         return PaginatedResult(items=items, page=1, page_size=len(items), total=len(items))
 
 
-__all__ = ["PageRequest", "PaginatedResult"]
+__all__ = [
+    "PageRequest",
+    "PaginatedResult",
+    "normalize_offset_for_total",
+    "normalize_page_for_total",
+]

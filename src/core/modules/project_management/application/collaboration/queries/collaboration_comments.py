@@ -42,7 +42,7 @@ class CollaborationCommentQueryMixin:
         return self._list_mention_candidates_for_project(task.project_id)
 
     def unread_mentions_count(self) -> int:
-        return sum(1 for item in self.list_inbox(limit=500) if item.unread)
+        return self.query_mentions_page(unread_only=True, page=1, page_size=1).total
 
     def get_task_comment_action_context(
         self,

@@ -91,6 +91,9 @@ def serialize_dashboard_operational_table_view_models(
             "title": view_model.title,
             "subtitle": view_model.subtitle,
             "emptyState": view_model.empty_state,
+            "collectionSemantics": view_model.collection_semantics,
+            "supportsSearch": view_model.supports_search,
+            "supportsPagination": view_model.supports_pagination,
             "columns": [
                 {
                     "key": column.key,
@@ -112,6 +115,12 @@ def serialize_dashboard_operational_table_view_models(
                 }
                 for row in view_model.rows
             ],
+            "page": view_model.page,
+            "pageSize": view_model.page_size,
+            "totalCount": view_model.total_count,
+            "sortKey": view_model.sort_key,
+            "sortDirection": view_model.sort_direction,
+            "searchText": view_model.search_text,
         }
         for view_model in view_models
     ]
