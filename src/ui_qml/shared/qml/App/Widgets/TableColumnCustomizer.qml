@@ -87,19 +87,7 @@ AppControls.CenteredDialog {
     }
 
     // ── Drag-reorder (right pane) ──────────────────────────────────────
-    // Split out as named, independently callable functions -- rather than
-    // inline MouseArea handlers -- so reorder correctness (including the
-    // "hidden rows can't be dragged, active rows can cross them" rules)
-    // is directly testable without simulating pixel-perfect mouse events
-    // against this dialog's runtime-computed centered position/size.
-    // `_dragOverlay` below is the only real caller of these three.
-    //
-    // The whole active row is a drag target (not just the grip icon) --
-    // gating to a narrow handle column made real dragging nearly
-    // impossible to trigger, since almost every press landed outside it
-    // and fell through to the list's own scroll instead. Only hidden rows
-    // still fall through (so they remain undraggable and the pane can
-    // still be click-dragged to scroll from a hidden row's area).
+
     function _dragPress(index) {
         const col = root._draft[index]
         if (!col || col.visible !== true)
