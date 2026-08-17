@@ -128,12 +128,24 @@ Item {
 
                     AppControls.CenteredDialog {
                         id: activityFilterPopup
+
+                        // Draft selections, staged until Apply commits them.
+                        property string _draftStatus: "all"
+                        property bool _draftCriticalOnly: false
+                        property bool _draftDelayedOnly: false
+
                         title: "Filter Activities"
-                        width: 320
+                        width: 340
                         padding: 0
                         modal: true
                         focus: true
                         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+                        onAboutToShow: {
+                            _draftStatus = root.workspaceController ? root.workspaceController.selectedStatusFilter : "all"
+                            _draftCriticalOnly = root.workspaceController ? root.workspaceController.showCriticalOnly : false
+                            _draftDelayedOnly = root.workspaceController ? root.workspaceController.showDelayedOnly : false
+                        }
 
                         contentItem: ColumnLayout {
                             spacing: Theme.AppTheme.spacingMd
@@ -155,31 +167,27 @@ Item {
                                     enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
                                     currentIndex: root._optionIndex(
                                         root.workspaceController ? (root.workspaceController.statusOptions || []) : [],
-                                        root.workspaceController ? root.workspaceController.selectedStatusFilter : "all"
+                                        activityFilterPopup._draftStatus
                                     )
                                     onActivated: function(index) {
                                         const options = root.workspaceController ? (root.workspaceController.statusOptions || []) : []
-                                        if (root.workspaceController !== null && options[index])
-                                            root.workspaceController.setStatusFilter(String(options[index].value || "all"))
+                                        if (options[index])
+                                            activityFilterPopup._draftStatus = String(options[index].value || "all")
                                     }
                                 }
 
                                 AppControls.CheckBox {
                                     text: "Critical only"
-                                    checked: root.workspaceController ? root.workspaceController.showCriticalOnly : false
+                                    checked: activityFilterPopup._draftCriticalOnly
                                     enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                                    onToggled: {
-                                        if (root.workspaceController !== null) root.workspaceController.setShowCriticalOnly(checked)
-                                    }
+                                    onToggled: activityFilterPopup._draftCriticalOnly = checked
                                 }
 
                                 AppControls.CheckBox {
                                     text: "Delayed only"
-                                    checked: root.workspaceController ? root.workspaceController.showDelayedOnly : false
+                                    checked: activityFilterPopup._draftDelayedOnly
                                     enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                                    onToggled: {
-                                        if (root.workspaceController !== null) root.workspaceController.setShowDelayedOnly(checked)
-                                    }
+                                    onToggled: activityFilterPopup._draftDelayedOnly = checked
                                 }
                             }
 
@@ -208,9 +216,16 @@ Item {
                                 Item { Layout.fillWidth: true }
 
                                 AppControls.PrimaryButton {
-                                    text: "Done"
+                                    text: "Apply"
                                     iconName: "approve"
-                                    onClicked: activityFilterPopup.close()
+                                    onClicked: {
+                                        if (root.workspaceController !== null) {
+                                            root.workspaceController.setStatusFilter(activityFilterPopup._draftStatus)
+                                            root.workspaceController.setShowCriticalOnly(activityFilterPopup._draftCriticalOnly)
+                                            root.workspaceController.setShowDelayedOnly(activityFilterPopup._draftDelayedOnly)
+                                        }
+                                        activityFilterPopup.close()
+                                    }
                                 }
                             }
                         }

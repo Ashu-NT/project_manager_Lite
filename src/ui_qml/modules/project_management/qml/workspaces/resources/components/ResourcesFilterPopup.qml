@@ -12,12 +12,21 @@ AppControls.CenteredDialog {
     property var workspaceController: null
     property var state: null
 
+    // Draft selections, staged until Apply commits them to the controller.
+    property string _draftActive: "all"
+    property string _draftCategory: "all"
+
     title: "Filter Resources"
-    width: 320
+    width: 340
     padding: 0
     modal: true
     focus: true
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+    onAboutToShow: {
+        root._draftActive = root.workspaceController ? root.workspaceController.selectedActiveFilter : "all"
+        root._draftCategory = root.workspaceController ? root.workspaceController.selectedCategoryFilter : "all"
+    }
 
     contentItem: ColumnLayout {
         spacing: Theme.AppTheme.spacingMd
@@ -46,15 +55,10 @@ AppControls.CenteredDialog {
                 ]
                 textRole: "label"
                 enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                currentIndex: {
-                    const v = root.workspaceController
-                        ? root.workspaceController.selectedActiveFilter : "all"
-                    return v === "active" ? 1 : v === "inactive" ? 2 : 0
-                }
+                currentIndex: root._draftActive === "active" ? 1 : root._draftActive === "inactive" ? 2 : 0
                 onActivated: function(index) {
                     const vals = ["all", "active", "inactive"]
-                    if (root.workspaceController !== null)
-                        root.workspaceController.setActiveFilter(vals[index] || "all")
+                    root._draftActive = vals[index] || "all"
                 }
             }
 
@@ -71,15 +75,13 @@ AppControls.CenteredDialog {
                 textRole: "label"
                 enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
                 currentIndex: root.state
-                    ? root.state.categoryIndexForValue(
-                        root.workspaceController ? root.workspaceController.selectedCategoryFilter : "all")
+                    ? root.state.categoryIndexForValue(root._draftCategory)
                     : 0
                 onActivated: function(index) {
                     const opt = root.workspaceController
                         ? (root.workspaceController.categoryOptions || [])[index]
                         : null
-                    if (opt && root.workspaceController)
-                        root.workspaceController.setCategoryFilter(String(opt.value || "all"))
+                    root._draftCategory = String((opt && opt.value) || "all")
                 }
             }
         }
@@ -113,6 +115,17 @@ AppControls.CenteredDialog {
                 text: "Close"
                 iconName: "close"
                 onClicked: root.close()
+            }
+            AppControls.PrimaryButton {
+                text: "Apply"
+                iconName: "approve"
+                onClicked: {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.setActiveFilter(root._draftActive)
+                        root.workspaceController.setCategoryFilter(root._draftCategory)
+                    }
+                    root.close()
+                }
             }
         }
     }

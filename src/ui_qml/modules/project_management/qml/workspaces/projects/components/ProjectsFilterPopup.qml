@@ -12,12 +12,19 @@ AppControls.CenteredDialog {
     property var workspaceController: null
     property var state: null
 
+    // Draft selection, staged until Apply commits it to the controller.
+    property string _draftStatus: "all"
+
     title: "Filter Projects"
-    width: 320
+    width: 340
     padding: 0
     modal: true
     focus: true
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+    onAboutToShow: {
+        root._draftStatus = root.workspaceController ? root.workspaceController.selectedStatusFilter : "all"
+    }
 
     contentItem: ColumnLayout {
         spacing: Theme.AppTheme.spacingMd
@@ -43,16 +50,12 @@ AppControls.CenteredDialog {
                 model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
                 textRole: "label"
                 enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                currentIndex: root.state
-                    ? root.state.statusIndexForValue(
-                        root.workspaceController ? root.workspaceController.selectedStatusFilter : "all")
-                    : 0
+                currentIndex: root.state ? root.state.statusIndexForValue(root._draftStatus) : 0
                 onActivated: function(index) {
                     const opt = root.workspaceController
                         ? (root.workspaceController.statusOptions || [])[index]
                         : null
-                    if (opt && root.workspaceController)
-                        root.workspaceController.setStatusFilter(String(opt.value || "all"))
+                    root._draftStatus = String((opt && opt.value) || "all")
                 }
             }
         }
@@ -84,6 +87,15 @@ AppControls.CenteredDialog {
                 text: "Close"
                 iconName: "close"
                 onClicked: root.close()
+            }
+            AppControls.PrimaryButton {
+                text: "Apply"
+                iconName: "approve"
+                onClicked: {
+                    if (root.workspaceController !== null)
+                        root.workspaceController.setStatusFilter(root._draftStatus)
+                    root.close()
+                }
             }
         }
     }

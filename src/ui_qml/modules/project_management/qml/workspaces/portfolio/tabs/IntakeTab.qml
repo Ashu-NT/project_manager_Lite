@@ -159,12 +159,20 @@ Item {
 
             AppControls.CenteredDialog {
                 id: filterPopup
+
+                // Draft selection, staged until Apply commits it.
+                property string _draftIntakeStatus: "all"
+
                 title: "Filter Intake"
-                width: 320
+                width: 340
                 padding: 0
                 modal: true
                 focus: true
                 closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+                onAboutToShow: {
+                    _draftIntakeStatus = root.selectedIntakeStatusFilter || "all"
+                }
 
                 contentItem: ColumnLayout {
                     spacing: Theme.AppTheme.spacingMd
@@ -192,12 +200,12 @@ Item {
                             enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
                             currentIndex: root.optionIndexForValue(
                                 root.intakeStatusOptions || [],
-                                root.selectedIntakeStatusFilter
+                                filterPopup._draftIntakeStatus
                             )
                             onActivated: function(idx) {
                                 const opts = root.intakeStatusOptions || []
-                                if (root.workspaceController !== null && opts[idx])
-                                    root.workspaceController.setIntakeStatusFilter(String(opts[idx].value || "all"))
+                                if (opts[idx])
+                                    filterPopup._draftIntakeStatus = String(opts[idx].value || "all")
                             }
                         }
                     }
@@ -230,6 +238,15 @@ Item {
                             text: "Close"
                             iconName: "close"
                             onClicked: filterPopup.close()
+                        }
+                        AppControls.PrimaryButton {
+                            text: "Apply"
+                            iconName: "approve"
+                            onClicked: {
+                                if (root.workspaceController !== null)
+                                    root.workspaceController.setIntakeStatusFilter(filterPopup._draftIntakeStatus)
+                                filterPopup.close()
+                            }
                         }
                     }
                 }

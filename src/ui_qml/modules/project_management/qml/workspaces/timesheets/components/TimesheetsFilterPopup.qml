@@ -12,12 +12,23 @@ AppControls.CenteredDialog {
     property var workspaceController: null
     property var state: null
 
+    // Draft selections, staged until Apply commits them to the controller.
+    property string _draftQueueStatus: "SUBMITTED"
+    property string _draftProjectId: "all"
+    property string _draftResourceId: "all"
+
     title: "Filter Review Queue"
     width: 360
     padding: 0
     modal: true
     focus: true
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+    onAboutToShow: {
+        root._draftQueueStatus = root.workspaceController ? root.workspaceController.selectedQueueStatus : "SUBMITTED"
+        root._draftProjectId = root.workspaceController ? root.workspaceController.selectedQueueProjectId : "all"
+        root._draftResourceId = root.workspaceController ? root.workspaceController.selectedQueueResourceId : "all"
+    }
 
     contentItem: ColumnLayout {
         spacing: Theme.AppTheme.spacingMd
@@ -45,12 +56,12 @@ AppControls.CenteredDialog {
             currentIndex: root.state
                 ? root.state.optionIndexForValue(
                     root.workspaceController ? (root.workspaceController.queueStatusOptions || []) : [],
-                    root.workspaceController ? root.workspaceController.selectedQueueStatus : "SUBMITTED")
+                    root._draftQueueStatus)
                 : 0
             onActivated: function(index) {
                 const opts = root.workspaceController ? (root.workspaceController.queueStatusOptions || []) : []
-                if (root.workspaceController !== null && opts[index])
-                    root.workspaceController.setQueueStatus(String(opts[index].value || "SUBMITTED"))
+                if (opts[index])
+                    root._draftQueueStatus = String(opts[index].value || "SUBMITTED")
             }
         }
 
@@ -69,12 +80,12 @@ AppControls.CenteredDialog {
             currentIndex: root.state
                 ? root.state.optionIndexForValue(
                     root.workspaceController ? (root.workspaceController.projectOptions || []) : [],
-                    root.workspaceController ? root.workspaceController.selectedQueueProjectId : "all")
+                    root._draftProjectId)
                 : 0
             onActivated: function(index) {
                 const opts = root.workspaceController ? (root.workspaceController.projectOptions || []) : []
-                if (root.workspaceController !== null && opts[index])
-                    root.workspaceController.setQueueProject(String(opts[index].value || "all"))
+                if (opts[index])
+                    root._draftProjectId = String(opts[index].value || "all")
             }
         }
 
@@ -93,12 +104,12 @@ AppControls.CenteredDialog {
             currentIndex: root.state
                 ? root.state.optionIndexForValue(
                     root.workspaceController ? (root.workspaceController.queueResourceOptions || []) : [],
-                    root.workspaceController ? root.workspaceController.selectedQueueResourceId : "all")
+                    root._draftResourceId)
                 : 0
             onActivated: function(index) {
                 const opts = root.workspaceController ? (root.workspaceController.queueResourceOptions || []) : []
-                if (root.workspaceController !== null && opts[index])
-                    root.workspaceController.setQueueResource(String(opts[index].value || "all"))
+                if (opts[index])
+                    root._draftResourceId = String(opts[index].value || "all")
             }
         }
 
@@ -160,9 +171,13 @@ AppControls.CenteredDialog {
                 text: "Apply"
                 iconName: "approve"
                 onClicked: {
-                    if (root.workspaceController !== null)
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.setQueueStatus(root._draftQueueStatus)
+                        root.workspaceController.setQueueProject(root._draftProjectId)
+                        root.workspaceController.setQueueResource(root._draftResourceId)
                         root.workspaceController.setQueuePeriodRange(
                             periodFromField.text, periodToField.text)
+                    }
                     root.close()
                 }
             }

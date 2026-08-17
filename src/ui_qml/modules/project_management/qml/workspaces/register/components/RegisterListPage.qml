@@ -241,12 +241,24 @@ Item {
             // ── Filter popup (project / status / severity) ────────────────
             AppControls.CenteredDialog {
                 id: filterPopup
+
+                // Draft selections, staged until Apply commits them.
+                property string _draftProjectId: "all"
+                property string _draftStatus: "all"
+                property string _draftSeverity: "all"
+
                 title:       "Filter Register"
-                width:       320
+                width:       340
                 padding:     0
                 modal:       true
                 focus:       true
                 closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+                onAboutToShow: {
+                    _draftProjectId = root.workspaceController ? root.workspaceController.selectedProjectId : "all"
+                    _draftStatus = root.workspaceController ? root.workspaceController.selectedStatusFilter : "all"
+                    _draftSeverity = root.workspaceController ? root.workspaceController.selectedSeverityFilter : "all"
+                }
 
                 contentItem: ColumnLayout {
                     spacing: Theme.AppTheme.spacingMd
@@ -262,22 +274,22 @@ Item {
                         AppControls.Label { text: "Project";  font.bold: true; font.pixelSize: Theme.AppTheme.captionSize; font.family: Theme.AppTheme.fontFamily; color: Theme.AppTheme.textMuted }
                         AppControls.ComboBox {
                             Layout.fillWidth: true; model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []; textRole: "label"; enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                            currentIndex: root._optionIndexForValue(root.workspaceController ? (root.workspaceController.projectOptions || []) : [], root.workspaceController ? root.workspaceController.selectedProjectId : "all")
-                            onActivated: function(index) { const opts = root.workspaceController ? (root.workspaceController.projectOptions || []) : []; if (root.workspaceController !== null && opts[index]) root.workspaceController.selectProject(String(opts[index].value || "all")) }
+                            currentIndex: root._optionIndexForValue(root.workspaceController ? (root.workspaceController.projectOptions || []) : [], filterPopup._draftProjectId)
+                            onActivated: function(index) { const opts = root.workspaceController ? (root.workspaceController.projectOptions || []) : []; if (opts[index]) filterPopup._draftProjectId = String(opts[index].value || "all") }
                         }
 
                         AppControls.Label { text: "Status";   font.bold: true; font.pixelSize: Theme.AppTheme.captionSize; font.family: Theme.AppTheme.fontFamily; color: Theme.AppTheme.textMuted }
                         AppControls.ComboBox {
                             Layout.fillWidth: true; model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []; textRole: "label"; enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                            currentIndex: root._optionIndexForValue(root.workspaceController ? (root.workspaceController.statusOptions || []) : [], root.workspaceController ? root.workspaceController.selectedStatusFilter : "all")
-                            onActivated: function(index) { const opts = root.workspaceController ? (root.workspaceController.statusOptions || []) : []; if (root.workspaceController !== null && opts[index]) root.workspaceController.setStatusFilter(String(opts[index].value || "all")) }
+                            currentIndex: root._optionIndexForValue(root.workspaceController ? (root.workspaceController.statusOptions || []) : [], filterPopup._draftStatus)
+                            onActivated: function(index) { const opts = root.workspaceController ? (root.workspaceController.statusOptions || []) : []; if (opts[index]) filterPopup._draftStatus = String(opts[index].value || "all") }
                         }
 
                         AppControls.Label { text: "Severity"; font.bold: true; font.pixelSize: Theme.AppTheme.captionSize; font.family: Theme.AppTheme.fontFamily; color: Theme.AppTheme.textMuted }
                         AppControls.ComboBox {
                             Layout.fillWidth: true; model: root.workspaceController ? (root.workspaceController.severityOptions || []) : []; textRole: "label"; enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                            currentIndex: root._optionIndexForValue(root.workspaceController ? (root.workspaceController.severityOptions || []) : [], root.workspaceController ? root.workspaceController.selectedSeverityFilter : "all")
-                            onActivated: function(index) { const opts = root.workspaceController ? (root.workspaceController.severityOptions || []) : []; if (root.workspaceController !== null && opts[index]) root.workspaceController.setSeverityFilter(String(opts[index].value || "all")) }
+                            currentIndex: root._optionIndexForValue(root.workspaceController ? (root.workspaceController.severityOptions || []) : [], filterPopup._draftSeverity)
+                            onActivated: function(index) { const opts = root.workspaceController ? (root.workspaceController.severityOptions || []) : []; if (opts[index]) filterPopup._draftSeverity = String(opts[index].value || "all") }
                         }
                     }
 
@@ -306,6 +318,17 @@ Item {
                         }
                         Item { Layout.fillWidth: true }
                         AppControls.SecondaryButton { text: "Close"; iconName: "close"; onClicked: filterPopup.close() }
+                        AppControls.PrimaryButton {
+                            text: "Apply"; iconName: "approve"
+                            onClicked: {
+                                if (root.workspaceController !== null) {
+                                    root.workspaceController.selectProject(filterPopup._draftProjectId)
+                                    root.workspaceController.setStatusFilter(filterPopup._draftStatus)
+                                    root.workspaceController.setSeverityFilter(filterPopup._draftSeverity)
+                                }
+                                filterPopup.close()
+                            }
+                        }
                     }
                 }
             }
