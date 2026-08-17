@@ -16,7 +16,6 @@ Item {
     property var resourcesModel: ({})
 
     readonly property var bulkActionBar: bulkActionBarItem
-    readonly property var filterButtonItem: tableToolbar.filterButtonItem
     readonly property var customizeButtonItem: tableToolbar.customizeButtonItem
 
     signal rowSelected(string rowId)

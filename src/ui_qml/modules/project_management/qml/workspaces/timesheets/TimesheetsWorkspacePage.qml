@@ -116,7 +116,6 @@ AppLayouts.WorkspaceFrame {
                 id: filterPopup
                 workspaceController: root.workspaceController
                 state: state
-                anchorItem: listPage.filterButtonItem
             }
         }
 

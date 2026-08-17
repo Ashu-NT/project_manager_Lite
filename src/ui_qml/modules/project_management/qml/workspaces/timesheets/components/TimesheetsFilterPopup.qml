@@ -4,27 +4,31 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
-import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
-AppWidgets.AnchoredPopup {
+AppControls.CenteredDialog {
     id: root
 
     property var workspaceController: null
     property var state: null
-    width: 340
-    padding: Theme.AppTheme.marginMd
+
+    title: "Filter Review Queue"
+    width: 360
+    padding: 0
+    modal: true
+    focus: true
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surfaceRaised
-        border.color: Theme.AppTheme.divider
-        border.width: 1
-    }
-
     contentItem: ColumnLayout {
-        spacing: Theme.AppTheme.spacingSm
+        spacing: Theme.AppTheme.spacingMd
+
+        Item { Layout.preferredHeight: Theme.AppTheme.spacingXs }
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.AppTheme.dialogPadding
+            Layout.rightMargin: Theme.AppTheme.dialogPadding
+            spacing: Theme.AppTheme.spacingSm
 
         AppControls.Label {
             text: "Status"
@@ -124,15 +128,24 @@ AppWidgets.AnchoredPopup {
                 popupBoundaryItem: root.contentItem
             }
         }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 1
+            color: Theme.AppTheme.divider
+        }
 
         RowLayout {
             Layout.fillWidth: true
+            Layout.leftMargin: Theme.AppTheme.dialogPadding
+            Layout.rightMargin: Theme.AppTheme.dialogPadding
+            Layout.bottomMargin: Theme.AppTheme.spacingSm
             spacing: Theme.AppTheme.spacingSm
 
             AppControls.SecondaryButton {
-                Layout.fillWidth: true
                 text: "Clear"
-                iconName: "close"
+                iconName: "refresh"
                 onClicked: {
                     if (root.workspaceController !== null) {
                         root.workspaceController.setQueueProject("all")
@@ -142,8 +155,8 @@ AppWidgets.AnchoredPopup {
                     root.close()
                 }
             }
+            Item { Layout.fillWidth: true }
             AppControls.PrimaryButton {
-                Layout.fillWidth: true
                 text: "Apply"
                 iconName: "approve"
                 onClicked: {

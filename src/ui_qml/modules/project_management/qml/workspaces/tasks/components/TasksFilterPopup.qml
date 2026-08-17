@@ -4,10 +4,9 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
-import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
-AppWidgets.AnchoredPopup {
+AppControls.CenteredDialog {
     id: root
 
     // ── Input properties ─────────────────────────────────────────────────
@@ -15,19 +14,23 @@ AppWidgets.AnchoredPopup {
     property var state: null
 
     // ── Layout ───────────────────────────────────────────────────────────
-    width: 304
-    padding: Theme.AppTheme.marginMd
+    title: "Filter Tasks"
+    width: 340
+    padding: 0
+    modal: true
+    focus: true
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surfaceRaised
-        border.color: Theme.AppTheme.divider
-        border.width: 1
-    }
-
     contentItem: ColumnLayout {
-        spacing: Theme.AppTheme.spacingSm
+        spacing: Theme.AppTheme.spacingMd
+
+        Item { Layout.preferredHeight: Theme.AppTheme.spacingXs }
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.AppTheme.dialogPadding
+            Layout.rightMargin: Theme.AppTheme.dialogPadding
+            spacing: Theme.AppTheme.spacingSm
 
         // ── Project filter ───────────────────────────────────────────────
         AppControls.Label {
@@ -148,16 +151,25 @@ AppWidgets.AnchoredPopup {
                 }
             }
         }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 1
+            color: Theme.AppTheme.divider
+        }
 
         // ── Action buttons ───────────────────────────────────────────────
         RowLayout {
             Layout.fillWidth: true
+            Layout.leftMargin: Theme.AppTheme.dialogPadding
+            Layout.rightMargin: Theme.AppTheme.dialogPadding
+            Layout.bottomMargin: Theme.AppTheme.spacingSm
             spacing: Theme.AppTheme.spacingSm
 
             AppControls.SecondaryButton {
-                Layout.fillWidth: true
                 text: "Clear"
-                iconName: "close"
+                iconName: "refresh"
                 onClicked: {
                     if (root.workspaceController !== null) {
                         root.workspaceController.clearFilters()
@@ -166,8 +178,9 @@ AppWidgets.AnchoredPopup {
                 }
             }
 
+            Item { Layout.fillWidth: true }
+
             AppControls.SecondaryButton {
-                Layout.fillWidth: true
                 text: "Close"
                 iconName: "close"
                 onClicked: root.close()

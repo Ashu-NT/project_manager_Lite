@@ -18,7 +18,6 @@ Item {
     property var selectedTaskModel: ({})
 
     readonly property var bulkActionBar: bulkActionBarItem
-    readonly property var filterButtonItem: tableToolbar.filterButtonItem
 
     signal rowSelected(string rowId)
     signal rowActivated(string rowId)

@@ -119,7 +119,6 @@ AppLayouts.WorkspaceFrame {
     }
 
     function _openFilterPopup() {
-        filterPopup.anchorItem = listPage.filterButtonItem
         filterPopup.open()
     }
 
@@ -281,7 +280,6 @@ AppLayouts.WorkspaceFrame {
                 id: filterPopup
                 workspaceController: root.workspaceController
                 state: state
-                anchorItem: listPage.filterButtonItem
             }
 
             AppWidgets.BulkChangePropertyPopup {

@@ -126,76 +126,88 @@ Item {
                         }
                     }
 
-                    AppWidgets.AnchoredPopup {
+                    AppControls.CenteredDialog {
                         id: activityFilterPopup
-                        anchorItem: activityToolbar.filterButtonItem
-                        width: 288
-                        padding: Theme.AppTheme.marginMd
+                        title: "Filter Activities"
+                        width: 320
+                        padding: 0
+                        modal: true
+                        focus: true
                         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-                        background: Rectangle {
-                            radius: Theme.AppTheme.radiusLg
-                            color: Theme.AppTheme.surfaceRaised
-                            border.color: Theme.AppTheme.divider
-                            border.width: 1
-                        }
-
                         contentItem: ColumnLayout {
-                            spacing: Theme.AppTheme.spacingSm
+                            spacing: Theme.AppTheme.spacingMd
 
-                            AppControls.Label { text: "Filters"; font.bold: true; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.captionSize; color: Theme.AppTheme.textMuted }
-                            AppControls.Label { text: "Status"; font.bold: true; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.captionSize; color: Theme.AppTheme.textMuted }
+                            Item { Layout.preferredHeight: Theme.AppTheme.spacingXs }
 
-                            AppControls.ComboBox {
+                            ColumnLayout {
                                 Layout.fillWidth: true
-                                model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
-                                textRole: "label"
-                                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                                currentIndex: root._optionIndex(
-                                    root.workspaceController ? (root.workspaceController.statusOptions || []) : [],
-                                    root.workspaceController ? root.workspaceController.selectedStatusFilter : "all"
-                                )
-                                onActivated: function(index) {
-                                    const options = root.workspaceController ? (root.workspaceController.statusOptions || []) : []
-                                    if (root.workspaceController !== null && options[index])
-                                        root.workspaceController.setStatusFilter(String(options[index].value || "all"))
+                                Layout.leftMargin: Theme.AppTheme.dialogPadding
+                                Layout.rightMargin: Theme.AppTheme.dialogPadding
+                                spacing: Theme.AppTheme.spacingSm
+
+                                AppControls.Label { text: "Status"; font.bold: true; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.captionSize; color: Theme.AppTheme.textMuted }
+
+                                AppControls.ComboBox {
+                                    Layout.fillWidth: true
+                                    model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                                    textRole: "label"
+                                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                                    currentIndex: root._optionIndex(
+                                        root.workspaceController ? (root.workspaceController.statusOptions || []) : [],
+                                        root.workspaceController ? root.workspaceController.selectedStatusFilter : "all"
+                                    )
+                                    onActivated: function(index) {
+                                        const options = root.workspaceController ? (root.workspaceController.statusOptions || []) : []
+                                        if (root.workspaceController !== null && options[index])
+                                            root.workspaceController.setStatusFilter(String(options[index].value || "all"))
+                                    }
+                                }
+
+                                AppControls.CheckBox {
+                                    text: "Critical only"
+                                    checked: root.workspaceController ? root.workspaceController.showCriticalOnly : false
+                                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                                    onToggled: {
+                                        if (root.workspaceController !== null) root.workspaceController.setShowCriticalOnly(checked)
+                                    }
+                                }
+
+                                AppControls.CheckBox {
+                                    text: "Delayed only"
+                                    checked: root.workspaceController ? root.workspaceController.showDelayedOnly : false
+                                    enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                                    onToggled: {
+                                        if (root.workspaceController !== null) root.workspaceController.setShowDelayedOnly(checked)
+                                    }
                                 }
                             }
 
-                            AppControls.CheckBox {
-                                text: "Critical only"
-                                checked: root.workspaceController ? root.workspaceController.showCriticalOnly : false
-                                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                                onToggled: {
-                                    if (root.workspaceController !== null) root.workspaceController.setShowCriticalOnly(checked)
-                                }
-                            }
-
-                            AppControls.CheckBox {
-                                text: "Delayed only"
-                                checked: root.workspaceController ? root.workspaceController.showDelayedOnly : false
-                                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                                onToggled: {
-                                    if (root.workspaceController !== null) root.workspaceController.setShowDelayedOnly(checked)
-                                }
+                            Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 1
+                                color: Theme.AppTheme.divider
                             }
 
                             RowLayout {
                                 Layout.fillWidth: true
+                                Layout.leftMargin: Theme.AppTheme.dialogPadding
+                                Layout.rightMargin: Theme.AppTheme.dialogPadding
+                                Layout.bottomMargin: Theme.AppTheme.spacingSm
                                 spacing: Theme.AppTheme.spacingSm
 
                                 AppControls.SecondaryButton {
-                                    Layout.fillWidth: true
                                     text: "Clear"
-                                    iconName: "close"
+                                    iconName: "refresh"
                                     onClicked: {
                                         if (root.workspaceController !== null) root.workspaceController.clearFilters()
                                         activityFilterPopup.close()
                                     }
                                 }
 
+                                Item { Layout.fillWidth: true }
+
                                 AppControls.PrimaryButton {
-                                    Layout.fillWidth: true
                                     text: "Done"
                                     iconName: "approve"
                                     onClicked: activityFilterPopup.close()

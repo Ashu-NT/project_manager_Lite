@@ -157,56 +157,79 @@ Item {
                 }
             }
 
-            AppWidgets.AnchoredPopup {
+            AppControls.CenteredDialog {
                 id: filterPopup
-                anchorItem: tableToolbar.filterButtonItem
-                width: 280
-                padding: Theme.AppTheme.marginMd
+                title: "Filter Intake"
+                width: 320
+                padding: 0
+                modal: true
+                focus: true
                 closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-                background: Rectangle {
-                    radius: Theme.AppTheme.radiusLg
-                    color: Theme.AppTheme.surfaceRaised
-                    border.color: Theme.AppTheme.divider
-                    border.width: 1
-                }
-
                 contentItem: ColumnLayout {
-                    spacing: Theme.AppTheme.spacingSm
+                    spacing: Theme.AppTheme.spacingMd
 
-                    AppControls.Label {
-                        text: "Intake Status"
-                        font.bold: true
-                        font.pixelSize: Theme.AppTheme.captionSize
-                        font.family: Theme.AppTheme.fontFamily
-                        color: Theme.AppTheme.textMuted
-                    }
+                    Item { Layout.preferredHeight: Theme.AppTheme.spacingXs }
 
-                    AppControls.ComboBox {
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        model: root.intakeStatusOptions || []
-                        textRole: "label"
-                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                        currentIndex: root.optionIndexForValue(
-                            root.intakeStatusOptions || [],
-                            root.selectedIntakeStatusFilter
-                        )
-                        onActivated: function(idx) {
-                            const opts = root.intakeStatusOptions || []
-                            if (root.workspaceController !== null && opts[idx])
-                                root.workspaceController.setIntakeStatusFilter(String(opts[idx].value || "all"))
+                        Layout.leftMargin: Theme.AppTheme.dialogPadding
+                        Layout.rightMargin: Theme.AppTheme.dialogPadding
+                        spacing: Theme.AppTheme.spacingSm
+
+                        AppControls.Label {
+                            text: "Intake Status"
+                            font.bold: true
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            font.family: Theme.AppTheme.fontFamily
+                            color: Theme.AppTheme.textMuted
+                        }
+
+                        AppControls.ComboBox {
+                            Layout.fillWidth: true
+                            model: root.intakeStatusOptions || []
+                            textRole: "label"
+                            enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                            currentIndex: root.optionIndexForValue(
+                                root.intakeStatusOptions || [],
+                                root.selectedIntakeStatusFilter
+                            )
+                            onActivated: function(idx) {
+                                const opts = root.intakeStatusOptions || []
+                                if (root.workspaceController !== null && opts[idx])
+                                    root.workspaceController.setIntakeStatusFilter(String(opts[idx].value || "all"))
+                            }
                         }
                     }
 
-                    AppControls.SecondaryButton {
+                    Rectangle {
                         Layout.fillWidth: true
-                        text: "Clear Filter"
-                        iconName: "delete"
-                        enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                        onClicked: {
-                            if (root.workspaceController !== null)
-                                root.workspaceController.setIntakeStatusFilter("all")
-                            filterPopup.close()
+                        Layout.preferredHeight: 1
+                        color: Theme.AppTheme.divider
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: Theme.AppTheme.dialogPadding
+                        Layout.rightMargin: Theme.AppTheme.dialogPadding
+                        Layout.bottomMargin: Theme.AppTheme.spacingSm
+                        spacing: Theme.AppTheme.spacingSm
+
+                        AppControls.SecondaryButton {
+                            text: "Clear"
+                            iconName: "refresh"
+                            enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                            onClicked: {
+                                if (root.workspaceController !== null)
+                                    root.workspaceController.setIntakeStatusFilter("all")
+                                filterPopup.close()
+                            }
+                        }
+                        Item { Layout.fillWidth: true }
+                        AppControls.SecondaryButton {
+                            text: "Close"
+                            iconName: "close"
+                            onClicked: filterPopup.close()
                         }
                     }
                 }

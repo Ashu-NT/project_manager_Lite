@@ -239,43 +239,62 @@ Item {
             }
 
             // ── Filter popup (project / status / severity) ────────────────
-            AppWidgets.AnchoredPopup {
+            AppControls.CenteredDialog {
                 id: filterPopup
-                anchorItem:  tableToolbar.filterButtonItem
-                width:       280
-                padding:     Theme.AppTheme.marginMd
+                title:       "Filter Register"
+                width:       320
+                padding:     0
+                modal:       true
+                focus:       true
                 closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-                background: Rectangle { radius: Theme.AppTheme.radiusLg; color: Theme.AppTheme.surfaceRaised; border.color: Theme.AppTheme.divider; border.width: 1 }
-
                 contentItem: ColumnLayout {
-                    spacing: Theme.AppTheme.spacingSm
+                    spacing: Theme.AppTheme.spacingMd
 
-                    AppControls.Label { text: "Project";  font.bold: true; font.pixelSize: Theme.AppTheme.captionSize; font.family: Theme.AppTheme.fontFamily; color: Theme.AppTheme.textMuted }
-                    AppControls.ComboBox {
-                        Layout.fillWidth: true; model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []; textRole: "label"; enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                        currentIndex: root._optionIndexForValue(root.workspaceController ? (root.workspaceController.projectOptions || []) : [], root.workspaceController ? root.workspaceController.selectedProjectId : "all")
-                        onActivated: function(index) { const opts = root.workspaceController ? (root.workspaceController.projectOptions || []) : []; if (root.workspaceController !== null && opts[index]) root.workspaceController.selectProject(String(opts[index].value || "all")) }
+                    Item { Layout.preferredHeight: Theme.AppTheme.spacingXs }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: Theme.AppTheme.dialogPadding
+                        Layout.rightMargin: Theme.AppTheme.dialogPadding
+                        spacing: Theme.AppTheme.spacingSm
+
+                        AppControls.Label { text: "Project";  font.bold: true; font.pixelSize: Theme.AppTheme.captionSize; font.family: Theme.AppTheme.fontFamily; color: Theme.AppTheme.textMuted }
+                        AppControls.ComboBox {
+                            Layout.fillWidth: true; model: root.workspaceController ? (root.workspaceController.projectOptions || []) : []; textRole: "label"; enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                            currentIndex: root._optionIndexForValue(root.workspaceController ? (root.workspaceController.projectOptions || []) : [], root.workspaceController ? root.workspaceController.selectedProjectId : "all")
+                            onActivated: function(index) { const opts = root.workspaceController ? (root.workspaceController.projectOptions || []) : []; if (root.workspaceController !== null && opts[index]) root.workspaceController.selectProject(String(opts[index].value || "all")) }
+                        }
+
+                        AppControls.Label { text: "Status";   font.bold: true; font.pixelSize: Theme.AppTheme.captionSize; font.family: Theme.AppTheme.fontFamily; color: Theme.AppTheme.textMuted }
+                        AppControls.ComboBox {
+                            Layout.fillWidth: true; model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []; textRole: "label"; enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                            currentIndex: root._optionIndexForValue(root.workspaceController ? (root.workspaceController.statusOptions || []) : [], root.workspaceController ? root.workspaceController.selectedStatusFilter : "all")
+                            onActivated: function(index) { const opts = root.workspaceController ? (root.workspaceController.statusOptions || []) : []; if (root.workspaceController !== null && opts[index]) root.workspaceController.setStatusFilter(String(opts[index].value || "all")) }
+                        }
+
+                        AppControls.Label { text: "Severity"; font.bold: true; font.pixelSize: Theme.AppTheme.captionSize; font.family: Theme.AppTheme.fontFamily; color: Theme.AppTheme.textMuted }
+                        AppControls.ComboBox {
+                            Layout.fillWidth: true; model: root.workspaceController ? (root.workspaceController.severityOptions || []) : []; textRole: "label"; enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                            currentIndex: root._optionIndexForValue(root.workspaceController ? (root.workspaceController.severityOptions || []) : [], root.workspaceController ? root.workspaceController.selectedSeverityFilter : "all")
+                            onActivated: function(index) { const opts = root.workspaceController ? (root.workspaceController.severityOptions || []) : []; if (root.workspaceController !== null && opts[index]) root.workspaceController.setSeverityFilter(String(opts[index].value || "all")) }
+                        }
                     }
 
-                    AppControls.Label { text: "Status";   font.bold: true; font.pixelSize: Theme.AppTheme.captionSize; font.family: Theme.AppTheme.fontFamily; color: Theme.AppTheme.textMuted }
-                    AppControls.ComboBox {
-                        Layout.fillWidth: true; model: root.workspaceController ? (root.workspaceController.statusOptions || []) : []; textRole: "label"; enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                        currentIndex: root._optionIndexForValue(root.workspaceController ? (root.workspaceController.statusOptions || []) : [], root.workspaceController ? root.workspaceController.selectedStatusFilter : "all")
-                        onActivated: function(index) { const opts = root.workspaceController ? (root.workspaceController.statusOptions || []) : []; if (root.workspaceController !== null && opts[index]) root.workspaceController.setStatusFilter(String(opts[index].value || "all")) }
-                    }
-
-                    AppControls.Label { text: "Severity"; font.bold: true; font.pixelSize: Theme.AppTheme.captionSize; font.family: Theme.AppTheme.fontFamily; color: Theme.AppTheme.textMuted }
-                    AppControls.ComboBox {
-                        Layout.fillWidth: true; model: root.workspaceController ? (root.workspaceController.severityOptions || []) : []; textRole: "label"; enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-                        currentIndex: root._optionIndexForValue(root.workspaceController ? (root.workspaceController.severityOptions || []) : [], root.workspaceController ? root.workspaceController.selectedSeverityFilter : "all")
-                        onActivated: function(index) { const opts = root.workspaceController ? (root.workspaceController.severityOptions || []) : []; if (root.workspaceController !== null && opts[index]) root.workspaceController.setSeverityFilter(String(opts[index].value || "all")) }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 1
+                        color: Theme.AppTheme.divider
                     }
 
                     RowLayout {
-                        Layout.fillWidth: true; spacing: Theme.AppTheme.spacingSm
+                        Layout.fillWidth: true
+                        Layout.leftMargin: Theme.AppTheme.dialogPadding
+                        Layout.rightMargin: Theme.AppTheme.dialogPadding
+                        Layout.bottomMargin: Theme.AppTheme.spacingSm
+                        spacing: Theme.AppTheme.spacingSm
                         AppControls.SecondaryButton {
-                            Layout.fillWidth: true; text: "Clear"; iconName: "close"
+                            text: "Clear"; iconName: "refresh"
                             onClicked: {
                                 if (root.workspaceController !== null) {
                                     root.workspaceController.selectProject("all")
@@ -285,7 +304,8 @@ Item {
                                 filterPopup.close()
                             }
                         }
-                        AppControls.SecondaryButton { Layout.fillWidth: true; text: "Close"; iconName: "close"; onClicked: filterPopup.close() }
+                        Item { Layout.fillWidth: true }
+                        AppControls.SecondaryButton { text: "Close"; iconName: "close"; onClicked: filterPopup.close() }
                     }
                 }
             }
