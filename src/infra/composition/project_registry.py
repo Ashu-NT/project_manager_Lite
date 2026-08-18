@@ -150,7 +150,7 @@ class ProjectManagementServiceBundle:
     project_calendar_adapter: ProjectCalendarAdapter
     enterprise_resource_availability: EnterpriseResourceAvailabilityService
     resource_capacity_calculator: ResourceCapacityCalculator
-    task_assignment_availability_service: ResourceAvailabilityService
+    resource_multi_project_allocation_service: ResourceAvailabilityService
     portfolio_resource_pool_service: PortfolioResourcePoolService
 
 
@@ -287,6 +287,13 @@ def build_project_management_service_bundle(
         cert_repo=repositories.resource_cert_repo,
         requirement_repo=repositories.task_skill_req_repo,
     )
+    # Constructed here (ahead of its other use sites further below) so
+    # TaskService's authoritative capacity check (docs §44) can share the
+    # same calendar-resolution instance -- no reason to build two.
+    enterprise_resource_availability = EnterpriseResourceAvailabilityService(
+        resolver=platform_services.enterprise_calendar_resolver,
+        resource_repo=repositories.resource_repo,
+    )
     task_service = TaskService(
         session,
         repositories.task_repo,
@@ -309,6 +316,7 @@ def build_project_management_service_bundle(
         assignment_skill_validator=assignment_skill_validator,
         tenant_context_service=platform_services.tenant_context_service,
         task_workspace_reader=SqlAlchemyTaskWorkspaceReader(session=session),
+        enterprise_resource_availability_service=enterprise_resource_availability,
     )
     # Shared by ResourceService (legacy rate-line seeding/supersession) and
     # RateCardResolver (RateSelectionSnapshot.resolved_at) — one time source,
@@ -603,25 +611,19 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
     )
     project_calendar_adapter = _pre_project_calendar_adapter  # reuse the instance wired into SchedulingEngine
-    enterprise_resource_availability = EnterpriseResourceAvailabilityService(
-        resolver=platform_services.enterprise_calendar_resolver,
-        resource_repo=repositories.resource_repo,
-    )
     resource_capacity_calculator = ResourceCapacityCalculator(
         availability_service=enterprise_resource_availability,
     )
     # Percent-based (allocation_percent vs. Resource.capacity_percent)
-    # availability check -- matches the semantics TaskValidationMixin's
-    # _check_resource_overallocation already enforces, so the assignment
-    # preview predicts what the actual enforcement will do rather than a
-    # different (calendar-hours) model. Also used for the Resources
-    # workspace's own capacity display: the calendar-based
-    # EnterpriseResourceAvailabilityService above is the intended long-term
-    # authority there, but nothing computes real assigned-hours for it yet
-    # (see ResourceCapacityCalculator's docstring), so it was always
-    # returning no data. Until that's wired, this working, real-data
-    # service is strictly better than the dead calendar path.
-    task_assignment_availability_service = ResourceAvailabilityService(
+    # multi-project availability aggregation. NO LONGER the Task Assignment
+    # capacity authority (see enterprise_resource_availability /
+    # evaluate_task_assignment_capacity above, wired into TaskService for
+    # that) -- this instance's sole remaining legitimate consumer is the
+    # Resources workspace's own multi-project "Allocation Summary" display,
+    # which asks a genuinely different question ("is this resource
+    # overloaded across every project they're on") than Task Assignment's
+    # single-project capacity check. Kept, not deleted, per docs §44 §18.
+    resource_multi_project_allocation_service = ResourceAvailabilityService(
         resource_repo=repositories.resource_repo,
         assignment_repo=repositories.assignment_repo,
         task_repo=repositories.task_repo,
@@ -685,7 +687,7 @@ def build_project_management_service_bundle(
         project_calendar_adapter=project_calendar_adapter,
         enterprise_resource_availability=enterprise_resource_availability,
         resource_capacity_calculator=resource_capacity_calculator,
-        task_assignment_availability_service=task_assignment_availability_service,
+        resource_multi_project_allocation_service=resource_multi_project_allocation_service,
         portfolio_resource_pool_service=portfolio_resource_pool_service,
     )
 

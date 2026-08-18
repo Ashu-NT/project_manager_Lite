@@ -461,6 +461,56 @@ class TaskAssignmentMixin:
             )
         return assignment, task, resource
 
+    def preview_assignment_capacity(
+        self,
+        task_id: str,
+        resource_id: str,
+        *,
+        proposed_allocation_percent: float = 100.0,
+        exclude_assignment_id: str | None = None,
+    ):
+        """Read-only authoritative capacity preview (docs §44) -- calls the
+        exact same `evaluate_task_assignment_capacity` authority
+        `_check_resource_overallocation` uses at save time, so preview and
+        enforcement cannot disagree by construction (there is only one
+        implementation). This is advisory only: it does not raise on
+        over-capacity (that is enforcement's job at save time, gated by the
+        warn/strict policy) and is always re-evaluated fresh -- nothing
+        about a preview computed moments earlier is trusted as final."""
+        require_permission(self._user_session, "task.read", operation_label="preview assignment capacity")
+        task = self._task_repo.get(task_id)
+        if task is None:
+            raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
+        require_project_permission(
+            self._user_session,
+            task.project_id,
+            "task.read",
+            operation_label="preview assignment capacity",
+        )
+        availability_service = getattr(self, "_enterprise_resource_availability_service", None)
+        if availability_service is None:
+            return None
+        task_start = getattr(task, "start_date", None)
+        task_end = getattr(task, "end_date", None)
+        if not task_start or not task_end:
+            return None
+        from src.core.modules.project_management.application.resources.task_assignment_capacity_service import (
+            evaluate_task_assignment_capacity,
+        )
+
+        return evaluate_task_assignment_capacity(
+            resource_id=resource_id,
+            project_id=task.project_id,
+            start_date=task_start,
+            end_date=task_end,
+            proposed_allocation_percent=proposed_allocation_percent,
+            task_repo=self._task_repo,
+            assignment_repo=self._assignment_repo,
+            resource_repo=self._resource_repo,
+            availability_service=availability_service,
+            exclude_assignment_id=exclude_assignment_id,
+        )
+
     def get_assignment_action_context(
         self,
         assignment_id: str,

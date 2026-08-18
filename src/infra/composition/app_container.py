@@ -269,7 +269,7 @@ class ServiceGraph:
     working_time_calculator: WorkingTimeCalculator | None
     resource_capacity_calculator: ResourceCapacityCalculator | None
     enterprise_resource_availability: EnterpriseResourceAvailabilityService | None
-    task_assignment_availability_service: ResourceAvailabilityService | None
+    resource_multi_project_allocation_service: ResourceAvailabilityService | None
     portfolio_resource_pool_service: PortfolioResourcePoolService | None
 
     def as_dict(self) -> dict[str, Any]:
@@ -385,19 +385,25 @@ class ServiceGraph:
             "enterprise_calendar_resolver": self.enterprise_calendar_resolver,
             "working_time_calculator": self.working_time_calculator,
             "resource_capacity_calculator": self.resource_capacity_calculator,
-            # The calendar-based EnterpriseResourceAvailabilityService is the
-            # intended long-term authority (see resource_capacity_calculator
-            # above), but nothing computes real assigned-hours for it yet, so
-            # it always reports "no data" today -- kept registered here,
-            # available once that's wired, but not consumed by any desktop
-            # API yet.
+            # The calendar-based capacity authority for Task Assignment
+            # availability/overallocation (docs §44) -- TaskService receives
+            # this same instance directly (see project_registry.py), and it
+            # also backs the Resources workspace's "Allocation Summary"
+            # display path via resource_capacity_calculator above. The
+            # Resources workspace's "Derived Capacity" card remains
+            # deliberately unwired (see docs §44 §17) -- it needs a
+            # different, resource-wide (not single-task) capacity query
+            # shape this key does not provide on its own.
             "resource_availability_service": self.enterprise_resource_availability,
             # Percent-based (allocation_percent vs. Resource.capacity_percent)
-            # availability check, matching TaskValidationMixin's actual
-            # enforcement -- this is what the task-assignment preview and the
-            # Resources workspace's capacity display are wired to for real,
-            # working data until the calendar-based path above is finished.
-            "task_assignment_availability_service": self.task_assignment_availability_service,
+            # multi-project availability aggregation. NOT the Task Assignment
+            # capacity authority (that migrated to the calendar-based service
+            # above in docs §44's follow-up pass) -- this remains wired only
+            # for the Resources workspace's own multi-project "Allocation
+            # Summary" display, a genuinely different question (overloaded
+            # across every project a resource is on) than Task Assignment's
+            # single-project capacity check.
+            "resource_multi_project_allocation_service": self.resource_multi_project_allocation_service,
             "portfolio_resource_pool_service": self.portfolio_resource_pool_service,
         }
 
@@ -602,7 +608,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         working_time_calculator=platform_services.working_time_calculator,
         resource_capacity_calculator=project_management_services.resource_capacity_calculator,
         enterprise_resource_availability=project_management_services.enterprise_resource_availability,
-        task_assignment_availability_service=project_management_services.task_assignment_availability_service,
+        resource_multi_project_allocation_service=project_management_services.resource_multi_project_allocation_service,
         portfolio_resource_pool_service=project_management_services.portfolio_resource_pool_service,
     )
     logger.debug(

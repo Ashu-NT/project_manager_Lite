@@ -11,9 +11,6 @@ from src.core.modules.project_management.application.resources import (
 from src.core.modules.project_management.application.resources.assignment_validation import (
     AssignmentSkillValidator,
 )
-from src.core.modules.project_management.application.resources.resource_availability_service import (
-    ResourceAvailabilityService,
-)
 from src.core.modules.project_management.application.scheduling.forecasting.schedule_change_impact_service import (
     ScheduleChangeImpactService,
 )
@@ -32,7 +29,6 @@ def build_project_management_tasks_desktop_api(
     reservation_service: TaskReservationGateway | None = None,
     assignment_skill_validator: AssignmentSkillValidator | None = None,
     schedule_change_impact_service: ScheduleChangeImpactService | None = None,
-    resource_availability_service: ResourceAvailabilityService | None = None,
 ) -> ProjectManagementTasksDesktopApi:
     return ProjectManagementTasksDesktopApi(
         project_service=project_service,
@@ -42,7 +38,6 @@ def build_project_management_tasks_desktop_api(
         reservation_service=reservation_service,
         assignment_skill_validator=assignment_skill_validator,
         schedule_change_impact_service=schedule_change_impact_service,
-        resource_availability_service=resource_availability_service,
     )
 
 

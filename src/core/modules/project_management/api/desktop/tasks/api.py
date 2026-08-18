@@ -119,9 +119,6 @@ from src.core.modules.project_management.application.resources import (
 from src.core.modules.project_management.application.resources.assignment_validation import (
     AssignmentSkillValidator,
 )
-from src.core.modules.project_management.application.resources.resource_availability_service import (
-    ResourceAvailabilityService,
-)
 from src.core.modules.project_management.application.scheduling.forecasting.schedule_change_impact_service import (
     ScheduleChangeImpactService,
 )
@@ -147,7 +144,6 @@ class ProjectManagementTasksDesktopApi:
         reservation_service: TaskReservationGateway | None = None,
         assignment_skill_validator: AssignmentSkillValidator | None = None,
         schedule_change_impact_service: ScheduleChangeImpactService | None = None,
-        resource_availability_service: ResourceAvailabilityService | None = None,
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
@@ -156,7 +152,6 @@ class ProjectManagementTasksDesktopApi:
         self._reservation_service = reservation_service
         self._assignment_skill_validator = assignment_skill_validator
         self._schedule_change_impact_service = schedule_change_impact_service
-        self._resource_availability_service = resource_availability_service
 
     def list_projects(self) -> tuple[TaskProjectOptionDescriptor, ...]:
         return build_project_options(
@@ -738,6 +733,9 @@ class ProjectManagementTasksDesktopApi:
         self,
         task_id: str,
         project_resource_id: str,
+        *,
+        proposed_allocation_percent: float = 100.0,
+        exclude_assignment_id: str | None = None,
     ) -> AssignmentPreviewDesktopDto:
         return build_assignment_preview(
             task_id,
@@ -745,7 +743,8 @@ class ProjectManagementTasksDesktopApi:
             task_service=self._task_service,
             project_resource_service=self._project_resource_service,
             assignment_skill_validator=self._assignment_skill_validator,
-            resource_availability_service=self._resource_availability_service,
+            proposed_allocation_percent=proposed_allocation_percent,
+            exclude_assignment_id=exclude_assignment_id,
             project_names=self._project_name_by_id(),
         )
 

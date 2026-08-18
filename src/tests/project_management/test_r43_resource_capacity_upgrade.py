@@ -26,6 +26,9 @@ from src.core.modules.project_management.api.desktop.resources.factories.resourc
 from src.core.modules.project_management.api.desktop.tasks.factories.tasks_api_factory import (
     build_project_management_tasks_desktop_api,
 )
+from src.core.modules.project_management.application.resources.enterprise_resource_availability import (
+    EnterpriseResourceAvailabilityService,
+)
 from src.core.modules.project_management.application.resources.resource_availability_service import (
     ResourceAvailabilityService,
 )
@@ -417,32 +420,46 @@ def test_logging_time_against_task_in_unauthorized_project_is_denied(services):
 
 
 # ---------------------------------------------------------------------------
-# Dead capacity/availability wiring -- now real (mid-pass follow-up)
+# Dead capacity/availability wiring -- now real (mid-pass follow-up), and
+# migrated onto the calendar-based capacity authority (docs §44).
 # ---------------------------------------------------------------------------
 
 
-def test_task_assignment_availability_service_is_wired_in_composition_root(services):
-    """DI-wiring proof: the real ResourceAvailabilityService must be
-    registered under the dedicated key this desktop-API factory reads --
-    previously nothing was registered there at all, so the assignment
-    preview always reported zero conflicts regardless of real data."""
+def test_resource_multi_project_allocation_service_is_wired_in_composition_root(services):
+    """DI-wiring proof: the real (percent-based, multi-project) allocation
+    service that backs the Resources workspace's own "Allocation Summary"
+    display must be registered under its own key -- previously nothing was
+    registered there at all, so that display always reported zero
+    conflicts regardless of real data."""
     assert isinstance(
-        services.get("task_assignment_availability_service"), ResourceAvailabilityService
+        services.get("resource_multi_project_allocation_service"),
+        ResourceAvailabilityService,
     )
 
 
-def test_assignment_preview_reports_real_overallocation_not_a_dead_zero(services):
-    """Proves the DI wiring fix with real data. Note on the formula itself
-    (discovered while writing this test, not fixed here -- out of scope for
-    a dead-wiring fix): `build_assignment_preview` calls
-    `is_resource_available(resource_id, p_start, p_finish)` with no
-    proposed-allocation argument, and only inspects the returned window's
-    *existing* peak load -- so it currently detects "this resource is
-    already overloaded during this window from other assignments," not
-    the marginal effect of the specific allocation being proposed for this
-    new assignment. This test exercises the former (real) behavior, since
-    that's what the code actually computes; extending the preview to also
-    weigh the proposed allocation itself is a follow-up, not a wiring fix."""
+def test_enterprise_resource_availability_service_is_wired_into_task_service_for_capacity_authority(
+    services,
+):
+    """DI-wiring proof for the calendar capacity migration (docs §44): the
+    SAME EnterpriseResourceAvailabilityService instance registered under
+    resource_availability_service must be the one TaskService itself holds
+    and uses for `preview_assignment_capacity` -- one shared authority, so
+    Task Assignment preview and save-time enforcement cannot disagree by
+    construction."""
+    ts = services["task_service"]
+    availability_service = services["resource_availability_service"]
+    assert isinstance(availability_service, EnterpriseResourceAvailabilityService)
+    assert ts._enterprise_resource_availability_service is availability_service
+
+
+def test_assignment_preview_reports_real_overallocation_via_calendar_capacity_authority(
+    services,
+):
+    """Proves the calendar-based capacity migration end to end through the
+    Tasks desktop API: preview now comes from `TaskService.
+    preview_assignment_capacity` (the same authority save-time enforcement
+    uses), not a dead always-zero fallback, and distinguishes existing
+    committed capacity from the newly-proposed allocation."""
     window_start = date.today() + timedelta(days=1)
 
     ps = services["project_service"]
@@ -452,7 +469,7 @@ def test_assignment_preview_reports_real_overallocation_not_a_dead_zero(services
 
     project = ps.create_project("Preview Wiring Project")
     resource = rs.create_resource("Preview Wiring Resource", hourly_rate=80.0)
-    project_resource = prs.add_to_project(project.id, resource.id, planned_hours=100.0)
+    project_resource = prs.add_to_project(project.id, resource.id, planned_hours=1000.0)
     task_a = ts.create_task(
         project.id, "Preview Task A", start_date=window_start, duration_days=5
     )
@@ -463,7 +480,8 @@ def test_assignment_preview_reports_real_overallocation_not_a_dead_zero(services
         project.id, "Preview Task B", start_date=window_start, duration_days=5
     )
     # 70% + 60% already committed on A and C -> resource is already at 130%
-    # during this window, before Task B is even considered.
+    # of calendar capacity during this window, before Task B is even
+    # considered.
     ts.assign_project_resource(
         task_id=task_a.id, project_resource_id=project_resource.id, allocation_percent=70.0
     )
@@ -477,10 +495,15 @@ def test_assignment_preview_reports_real_overallocation_not_a_dead_zero(services
         project_resource_service=prs,
         resource_service=rs,
         assignment_skill_validator=None,
-        resource_availability_service=services["task_assignment_availability_service"],
     )
 
-    preview = api.preview_assignment(task_b.id, project_resource.id)
+    preview = api.preview_assignment(
+        task_b.id, project_resource.id, proposed_allocation_percent=100.0
+    )
+
+    assert preview.capacity_known is True
+    assert preview.capacity_status == "OVER_CAPACITY"
+    assert preview.peak_utilization_percent > 100.0
     assert preview.overallocation_pct > 0.0
     assert preview.conflict_projects == (project.name,)
 
@@ -508,7 +531,7 @@ def test_resource_availability_display_returns_real_data_not_none(services):
 
     api = build_project_management_resources_desktop_api(
         resource_service=rs,
-        availability_service=services["task_assignment_availability_service"],
+        availability_service=services["resource_multi_project_allocation_service"],
     )
 
     availability = api.build_resource_availability(resource.id)
@@ -596,7 +619,7 @@ def test_availability_service_task_lookup_issues_one_batch_call_not_one_per_task
         )
         ts.assign_resource(task.id, resource.id, allocation_percent=20.0)
 
-    availability_service = services["task_assignment_availability_service"]
+    availability_service = services["resource_multi_project_allocation_service"]
     counts, restore = _instrument_get_and_batch(SqlAlchemyTaskRepository, "list_by_ids")
     try:
         availability_service.is_resource_available(

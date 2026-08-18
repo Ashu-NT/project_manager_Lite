@@ -29,6 +29,17 @@ class AssignmentPreviewDesktopDto:
     warning_messages: tuple[str, ...]
     is_blocked: bool
     block_messages: tuple[str, ...]
+    # Authoritative calendar-based capacity facts (docs §44) -- QML renders
+    # these, it does not calculate them.
+    capacity_known: bool = False
+    available_capacity_hours_label: str = ""
+    existing_committed_hours_label: str = ""
+    proposed_committed_hours_label: str = ""
+    resulting_committed_hours_label: str = ""
+    peak_utilization_percent: float = 0.0
+    capacity_status: str = "UNKNOWN"
+    capacity_status_label: str = "Unknown"
+    conflict_date_labels: tuple[str, ...] = ()
 
 
 __all__ = ["AssignmentPreviewDesktopDto", "AssignmentValidationDesktopDto"]
