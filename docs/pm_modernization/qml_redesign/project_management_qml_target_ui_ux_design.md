@@ -2824,7 +2824,32 @@ when queried by `parent_entity_id`.
 - Full `src/tests/project_management -k task` sweep (125 tests, up from
   124) and `test_projects_workspace_presenter.py` (36 tests) re-run green.
 
-**SHARED ACTIVITY-LOG DESIGN + TASKS ACTIVITY TAB: COMPLETE.** Not
+### Follow-up bug, found live by the user immediately after this shipped
+
+Opening a task's new Activity tab threw
+`PlatformActivityDesktopApi.list_recent() got an unexpected keyword
+argument 'parent_entity_id'`. Root cause: `ActivityService.list_recent()`
+(the application-layer service) supports `parent_entity_id`, and my real
+DB test above (`test_project_resource_activity_is_queryable_by_parent_project_id`)
+called that service directly and passed -- but `PlatformActivityDesktopApi`
+(the desktop-facing facade `fetch_entity_activity_entries()` actually calls
+in production) never forwarded that parameter at all. A drift between two
+layers' signatures, not caught because the mock-based presenter tests
+don't enforce a real method signature, and my one real-DB test happened
+to bypass the exact layer that was broken.
+
+Fixed: added `parent_entity_id` to `PlatformActivityDesktopApi.list_recent()`,
+forwarded straight through. Verified by extending the same DB test to
+*also* go through `PlatformActivityDesktopApi` directly (not just the
+service) -- confirmed this addition actually reproduces the user's exact
+error message when the fix is reverted, then confirmed it passes with the
+fix restored. Lesson applied: when a real backend capability spans more
+than one layer (service -> facade -> presenter), a test must exercise the
+outermost layer the presenter actually calls, not stop at whichever layer
+is easiest to reach directly.
+
+**SHARED ACTIVITY-LOG DESIGN + TASKS ACTIVITY TAB: COMPLETE** (including
+the `PlatformActivityDesktopApi.parent_entity_id` follow-up fix). Not
 committed.
 
 ## 42. Unplanned: real production bug found and fixed -- `task_skill_requirements.version` missing column

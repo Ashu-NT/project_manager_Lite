@@ -164,6 +164,23 @@ def test_project_resource_activity_is_queryable_by_parent_project_id(services) -
     assert len(entries_b) == 1
     assert entries_b[0].id != entries_a[0].id
 
+    # The presenter layer never talks to `activity_service` directly -- it
+    # goes through `PlatformActivityDesktopApi`, a separate facade that
+    # must forward every kwarg the service supports. It didn't forward
+    # `parent_entity_id` at all (a real, shipped bug: the two layers'
+    # signatures had drifted apart), which the assertions above -- calling
+    # the service directly -- could not have caught.
+    from src.core.platform.api.desktop.history.activity.activity import (
+        PlatformActivityDesktopApi,
+    )
+
+    activity_api = PlatformActivityDesktopApi(activity_service=activity_service)
+    result_a = activity_api.list_recent(
+        entity_type="project_resource", parent_entity_id=project_a.id,
+    )
+    assert result_a.ok, result_a.error
+    assert len(result_a.data) == 1
+
 
 def test_project_catalog_project_name_and_client_name_filters_compose(services) -> None:
     project_service = services["project_service"]
