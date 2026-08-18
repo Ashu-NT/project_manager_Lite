@@ -38,6 +38,7 @@ def update_project_resource(
     planned_hours: Decimal,
     hourly_rate: Decimal | None,
     is_active: bool,
+    expected_version: int | None = None,
 ) -> None:
     normalized_id = (project_resource_id or "").strip()
     if not normalized_id:
@@ -48,8 +49,20 @@ def update_project_resource(
             planned_hours=max(Decimal("0"), planned_hours),
             hourly_rate=hourly_rate if hourly_rate and hourly_rate > 0 else None,
             is_active=is_active,
+            expected_version=expected_version,
         )
     )
+
+
+def get_project_resource_usage(
+    desktop_api: ProjectManagementProjectsDesktopApi,
+    *,
+    project_resource_id: str,
+):
+    normalized_id = (project_resource_id or "").strip()
+    if not normalized_id:
+        return None
+    return desktop_api.get_project_resource_usage(normalized_id)
 
 
 def remove_project_resource(

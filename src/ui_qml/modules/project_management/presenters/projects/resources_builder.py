@@ -36,6 +36,7 @@ def build_project_resources_state(
                 "plannedHours": pr.planned_hours,
                 "hourlyRate": pr.hourly_rate if pr.hourly_rate is not None else "",
                 "isActive": pr.is_active,
+                "version": pr.version,
             },
         )
         for pr in resources

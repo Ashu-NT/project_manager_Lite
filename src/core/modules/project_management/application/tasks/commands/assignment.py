@@ -6,6 +6,9 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
+from src.core.modules.project_management.application.common import (
+    project_resource_envelope_policy as envelope_policy,
+)
 from src.core.modules.project_management.application.tasks.commands.assignment_activity import (
     record_assignment_action,
 )
@@ -61,6 +64,16 @@ class TaskAssignmentMixin:
         if task is None:
             raise NotFoundError("Task not found.", code="TASK_NOT_FOUND")
         self._require_manage("remove assignment", project_id=task.project_id)
+        # Historical actual work must not disappear because a planning
+        # assignment is removed -- once real hours are logged, removing the
+        # assignment would otherwise silently delete that labor history too.
+        if assignment.hours_logged and assignment.hours_logged > 0:
+            raise BusinessRuleError(
+                "This assignment has recorded actual time. Remove the resource "
+                "from future planning by declining/reassigning instead of "
+                "deleting the assignment, to preserve the historical record.",
+                code="ASSIGNMENT_HAS_HISTORICAL_ACTUALS",
+            )
         resource = self._resource_repo.get(assignment.resource_id)
         try:
             time_entry_repo = getattr(self, "_time_entry_repo", None)
@@ -270,28 +283,23 @@ class TaskAssignmentMixin:
     ) -> tuple[Decimal, Decimal]:
         """Validate a proposed ``allocated_planned_hours`` value against the
         resource's shared ``ProjectResource.planned_hours`` envelope for this
-        project. Returns ``(proposed_hours, proposed_total)`` on success."""
-        project_task_ids = {
-            t.id for t in self._task_repo.list_by_project(project_resource.project_id)
-        }
-        other_total = sum(
-            (
-                a.allocated_planned_hours
-                for a in self._assignment_repo.list_by_resource(resource_id)
-                if a.id != exclude_assignment_id and a.task_id in project_task_ids
-            ),
-            Decimal("0"),
+        project, via the single shared envelope policy. Returns
+        ``(proposed_hours, proposed_total)`` on success."""
+        other_total = envelope_policy.allocated_to_tasks_hours(
+            task_repo=self._task_repo,
+            assignment_repo=self._assignment_repo,
+            project_id=project_resource.project_id,
+            resource_id=resource_id,
+            exclude_assignment_id=exclude_assignment_id,
         )
         proposed_hours = Decimal(str(allocated_planned_hours))
         envelope_hours = Decimal(str(project_resource.planned_hours))
-        proposed_total = other_total + proposed_hours
-        if proposed_total > envelope_hours:
-            raise BusinessRuleError(
-                f"Allocating {proposed_hours} hours to this task would bring "
-                f"{resource_id}'s total allocated hours on this project to "
-                f"{proposed_total}, exceeding its planned envelope of {envelope_hours}.",
-                code="PROJECT_RESOURCE_HOURS_OVERALLOCATED",
-            )
+        proposed_total = envelope_policy.require_can_allocate_task_hours(
+            planned_hours=envelope_hours,
+            allocated_total_excluding_this_task=other_total,
+            proposed_task_hours=proposed_hours,
+            resource_id=resource_id,
+        )
         return proposed_hours, proposed_total
 
     def get_assignment(self, assignment_id: str) -> TaskAssignment | None:
@@ -343,6 +351,13 @@ class TaskAssignmentMixin:
         if not getattr(project_resource, "is_active", True):
             raise BusinessRuleError("This project resource is inactive.", code="PROJECT_RESOURCE_INACTIVE")
 
+        resource_for_check = self._resource_repo.get(project_resource.resource_id)
+        if resource_for_check is not None and not getattr(resource_for_check, "is_active", True):
+            raise BusinessRuleError(
+                "This resource is inactive and cannot be assigned to tasks.",
+                code="RESOURCE_INACTIVE",
+            )
+
         existing = self._assignment_repo.list_by_task(task_id)
         if any(a.resource_id == project_resource.resource_id for a in existing):
             raise ValidationError(
@@ -373,7 +388,7 @@ class TaskAssignmentMixin:
             new_alloc_percent=assignment.allocation_percent,
         )
         self._check_resource_skill_requirements(task=task, resource_id=project_resource.resource_id)
-        resource = self._resource_repo.get(project_resource.resource_id)
+        resource = resource_for_check
 
         try:
             self._assignment_repo.add(assignment)

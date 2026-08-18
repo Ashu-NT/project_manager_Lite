@@ -22,4 +22,12 @@ class ResourceRepository(ABC):
     def list(self) -> list[Resource]: ...
 
     @abstractmethod
+    def list_by_ids(self, resource_ids: list[str]) -> list[Resource]:
+        """Batch fetch by id -- callers needing a subset of resources
+        (a name-lookup map, a labor-cost breakdown, a leveling pass) must
+        use this instead of a per-id ``get()`` loop or a whole-tenant
+        ``list()`` filtered client-side."""
+        ...
+
+    @abstractmethod
     def list_by_employee(self, employee_id: str) -> list[Resource]: ...

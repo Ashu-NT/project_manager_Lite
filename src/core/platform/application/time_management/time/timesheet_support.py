@@ -58,6 +58,24 @@ class TimesheetSupportMixin:
             operation_label=operation_label,
         )
 
+    def _require_time_project_scope(
+        self,
+        *,
+        work_allocation: WorkAllocationRecord | None,
+        work_owner: WorkOwnerRecord | None,
+        operation_label: str,
+    ) -> None:
+        """Hook for module-specific project/site/department scoping on top
+        of the global time.*/task.* capability check above. A no-op here,
+        since this mixin is shared platform infrastructure with no concept
+        of "project" scope of its own (see e.g. maintenance's
+        MaintenanceLaborService, which has a different scoping model
+        entirely). project_management's TimesheetService overrides this to
+        additionally require project-scoped task.manage/task.read, closing
+        the gap where a user with only the global time.manage capability
+        could otherwise write time against any project's tasks."""
+        return None
+
     def _load_work_allocation_context(
         self,
         work_allocation_id: str,

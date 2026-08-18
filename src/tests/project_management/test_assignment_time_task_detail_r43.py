@@ -325,32 +325,47 @@ def test_desktop_update_assignment_planned_hours_succeeds_with_correct_versions(
 def test_desktop_update_assignment_planned_hours_stale_project_resource_version_fails_safe(
     services,
 ):
-    ps, ts, rs, prs, project, resource, project_resource, task = _setup_project_resource(services)
+    """The dual optimistic-lock guards against two sibling assignments (on
+    the same shared ProjectResource envelope) racing to redistribute planned
+    hours -- NOT against the envelope itself being resized via
+    ProjectResourceService.update(), which does not touch `version` at all
+    (a separate, pre-existing gap noted in docs §43, out of this pass's
+    scope since it lives in the ProjectResource/Planning aggregate)."""
+    ps, ts, rs, prs, project, resource, project_resource, task = _setup_project_resource(
+        services, planned_hours=40.0
+    )
+    task_b = ts.create_task(project.id, "Sibling Planned Work Task")
     api = build_project_management_tasks_desktop_api(
         project_service=ps, task_service=ts, project_resource_service=prs, resource_service=rs,
     )
-    assignment = ts.assign_project_resource(
-        task_id=task.id, project_resource_id=project_resource.id, allocation_percent=100.0
+    assignment_a = ts.assign_project_resource(
+        task_id=task.id, project_resource_id=project_resource.id, allocation_percent=50.0
     )
-    # Someone else resizes the resource's planning envelope in the meantime.
-    prs.update(
-        project_resource.id,
-        hourly_rate=project_resource.hourly_rate,
-        currency_code=project_resource.currency_code,
-        planned_hours=100.0,
-        is_active=True,
+    assignment_b = ts.assign_project_resource(
+        task_id=task_b.id, project_resource_id=project_resource.id, allocation_percent=50.0
     )
 
     from src.core.modules.project_management.api.desktop.tasks.commands.assignment_commands import (
         TaskAssignmentPlannedHoursCommand,
     )
 
+    # Assignment A allocates first -- this bumps project_resource.version.
+    api.update_assignment_planned_hours(
+        TaskAssignmentPlannedHoursCommand(
+            assignment_id=assignment_a.id,
+            allocated_planned_hours=Decimal("10"),
+            expected_assignment_version=assignment_a.version,
+            expected_project_resource_version=project_resource.version,
+        )
+    )
+
+    # Assignment B still holds the pre-A-allocation project_resource version.
     with pytest.raises(ConcurrencyError) as exc:
         api.update_assignment_planned_hours(
             TaskAssignmentPlannedHoursCommand(
-                assignment_id=assignment.id,
-                allocated_planned_hours=Decimal("20"),
-                expected_assignment_version=assignment.version,
+                assignment_id=assignment_b.id,
+                allocated_planned_hours=Decimal("10"),
+                expected_assignment_version=assignment_b.version,
                 expected_project_resource_version=project_resource.version,  # now stale
             )
         )

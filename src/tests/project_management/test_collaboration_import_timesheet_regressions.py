@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
 from src.core.platform.infrastructure.persistence.orm.time_management.time.time import TimeEntryORM
 from src.tests.temp_dirs import cleanup_test_workspace, create_test_workspace
 
@@ -178,7 +178,26 @@ def test_add_time_entry_bootstraps_legacy_hours_without_explicit_initialize(serv
     assert ts.get_assignment(assignment.id).hours_logged == pytest.approx(7.0)
 
 
-def test_unassigning_resource_removes_associated_time_entries(services):
+def test_unassigning_resource_without_actuals_still_succeeds(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+    rs = services["resource_service"]
+
+    project = ps.create_project("Unassign Timesheet Cleanup")
+    task = ts.create_task(project.id, "Cleanup Task", start_date=date(2026, 3, 13), duration_days=1)
+    resource = rs.create_resource("Cleanup Dev", hourly_rate=100.0)
+    assignment = ts.assign_resource(task.id, resource.id, allocation_percent=40.0)
+
+    ts.unassign_resource(assignment.id)
+
+    assert ts.get_assignment(assignment.id) is None
+
+
+def test_unassigning_resource_with_actuals_is_blocked_to_preserve_history(services):
+    """R4.3 resource-planning upgrade: historical actual work must not
+    disappear because a planning assignment is removed. Once real hours are
+    logged, unassign_resource must refuse rather than silently cascading
+    the time-entry deletion it used to perform unconditionally."""
     ps = services["project_service"]
     ts = services["task_service"]
     rs = services["resource_service"]
@@ -191,9 +210,13 @@ def test_unassigning_resource_removes_associated_time_entries(services):
 
     assert _time_entry_count(services) == 1
 
-    ts.unassign_resource(assignment.id)
+    with pytest.raises(BusinessRuleError) as exc:
+        ts.unassign_resource(assignment.id)
+    assert exc.value.code == "ASSIGNMENT_HAS_HISTORICAL_ACTUALS"
 
-    assert _time_entry_count(services) == 0
+    # Neither the assignment nor its time entry were touched.
+    assert ts.get_assignment(assignment.id) is not None
+    assert _time_entry_count(services) == 1
 
 
 def test_deleting_task_removes_associated_time_entries(services):

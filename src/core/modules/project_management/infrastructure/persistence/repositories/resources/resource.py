@@ -89,6 +89,13 @@ class SqlAlchemyResourceRepository(ResourceRepository):
         rows = self.session.execute(self._base_stmt()).scalars().all()
         return [resource_from_orm(row) for row in rows]
 
+    def list_by_ids(self, resource_ids: list[str]) -> list[Resource]:
+        if not resource_ids:
+            return []
+        stmt = self._base_stmt().where(ResourceORM.id.in_(set(resource_ids)))
+        rows = self.session.execute(stmt).scalars().all()
+        return [resource_from_orm(row) for row in rows]
+
     def list_by_employee(self, employee_id: str) -> list[Resource]:
         stmt = self._base_stmt().where(ResourceORM.employee_id == employee_id)
         rows = self.session.execute(stmt).scalars().all()

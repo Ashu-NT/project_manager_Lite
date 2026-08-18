@@ -20,6 +20,7 @@ from src.core.modules.project_management.api.desktop.projects.models.project imp
 from src.core.modules.project_management.api.desktop.projects.models.resources import (
     ProjectAssignableResourceOptionDescriptor,
     ProjectResourceDesktopDto,
+    ProjectResourceUsageDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.projects.commands.project_commands import (
     ProjectCreateCommand,
@@ -38,6 +39,7 @@ from src.core.modules.project_management.api.desktop.projects.builders.resource_
 from src.core.modules.project_management.api.desktop.projects.serializers.project_serializer import serialize_project
 from src.core.modules.project_management.api.desktop.projects.serializers.resource_serializer import (
     serialize_project_resource,
+    serialize_project_resource_usage,
 )
 from src.core.modules.project_management.api.desktop.projects.utils.project_utils import (
     coerce_project_status,
@@ -336,7 +338,18 @@ class ProjectManagementProjectsDesktopApi:
             currency_code=None,
             planned_hours=max(Decimal("0"), command.planned_hours),
             is_active=command.is_active,
+            expected_version=command.expected_version,
         )
+
+    def get_project_resource_usage(self, project_resource_id: str) -> ProjectResourceUsageDesktopDto | None:
+        normalized_id = str(project_resource_id or "").strip()
+        if not normalized_id or self._project_resource_service is None:
+            return None
+        get_usage = getattr(self._project_resource_service, "get_usage", None)
+        if not callable(get_usage):
+            return None
+        fact = get_usage(normalized_id)
+        return serialize_project_resource_usage(fact)
 
     def remove_project_resource(self, project_resource_id: str) -> None:
         normalized_id = str(project_resource_id or "").strip()

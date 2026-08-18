@@ -57,6 +57,7 @@ Component {
     Method { name: "selectProjectResource"; Parameter { name: "projectResourceId"; type: "QString" } }
     Method { name: "updateProjectResource"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "removeProjectResource"; type: "QVariantMap"; Parameter { name: "projectResourceId"; type: "QString" } }
+    Method { name: "getProjectResourceUsage"; type: "QVariantMap"; Parameter { name: "projectResourceId"; type: "QString" } }
     Method { name: "loadProjectFinancials" }
     Method { name: "loadProjectRisks" }
     Method { name: "loadProjectDocuments" }

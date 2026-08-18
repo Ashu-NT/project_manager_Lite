@@ -157,6 +157,8 @@ class LaborCostEngine:
             unit="HOUR",
         )
 
+        resources_by_id = {r.id: r for r in self._resource_repo.list_by_ids(list(resource_ids))}
+
         result: list[LaborResourceRow] = []
         for res_id, assigns in by_res.items():
             snapshot = batch.snapshot_for(res_id)
@@ -164,7 +166,7 @@ class LaborCostEngine:
                 # Unresolved — excluded from rows/totals, not zeroed in;
                 # recorded once in batch.unresolved below.
                 continue
-            res = self._resource_repo.get(res_id)
+            res = resources_by_id.get(res_id)
             res_name = res.name if res else "<unknown>"
             hourly_rate = float(snapshot.monetary_rate.money.amount)
             currency = snapshot.monetary_rate.money.currency.code

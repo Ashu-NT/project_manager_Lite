@@ -3034,14 +3034,40 @@ Given the evidence above, the following — and only the following — backend
 changes were made (deliberately narrow; everything else in D is documented
 and deferred rather than blindly "fixed"):
 
-- `TaskAssignmentDesktopDto` gains `allocated_planned_hours: str` and
-  `version: int` (read-only exposure — closes D1's *read* gap). Editing
-  `allocated_planned_hours` from Task Detail is explicitly **deferred** (see
-  Deferred Items) — it is a WBS-envelope-redistribution operation that also
-  needs the `ProjectResource`'s own version threaded to the client to be safe,
-  which is a Planning-shaped concern, not a Task-Detail-shaped one; adding a
-  half-considered edit path here risks exactly the kind of premature/
-  unscoped feature the brief warns against.
+- `TaskAssignmentDesktopDto` gains `allocated_planned_hours: str`, `version: int`,
+  and `project_resource_version: int` (closes D1's read gap).
+  **Revised from the original decision to defer the write path**: shipping
+  Planned/Remaining as read-only with no way to ever set Planned Work was
+  identified (correctly) as a worse, half-finished state than doing the small
+  amount of extra plumbing — so editing is now implemented on both sides:
+  - **At creation**: `assign_project_resource` accepts an optional
+    `allocated_planned_hours`, validated against the resource's shared
+    `ProjectResource.planned_hours` envelope via a new shared helper,
+    `_check_planned_hours_envelope` (extracted from the pre-existing
+    `update_assignment_planned_hours` logic so both call sites enforce the
+    identical invariant, not two hand-maintained copies of it). No version
+    check needed at creation — there is no existing assignment row to race
+    against, matching the existing convention already used for the
+    allocation-percent overallocation check at creation.
+  - **After creation**: a dedicated "Edit Planned Work" row action opens
+    `TaskAssignmentPlannedHoursDialog.qml`, which round-trips both the
+    assignment's `version` and the newly-exposed `project_resource_version`
+    into the existing, already-implemented
+    `update_assignment_planned_hours` dual-optimistic-lock command (desktop
+    API method + `TaskAssignmentPlannedHoursCommand` added this pass; the
+    application-layer command itself already existed from before this
+    session and needed no changes).
+  - **Real finding surfaced while testing this**: the dual-lock only
+    protects concurrent *allocation* changes across sibling assignments
+    sharing one envelope (every call to `update_assignment_planned_hours`
+    bumps `project_resource.version`, even though it writes no columns other
+    than a version touch). It does **not** protect against the envelope
+    itself being resized concurrently via `ProjectResourceService.update()`,
+    which never touches `version` at all. This is a genuine, pre-existing
+    inconsistency in the ProjectResource aggregate's own concurrency
+    story — logged here as deferred cross-module debt (it lives in
+    Resources/Planning's `ProjectResource.update`, not in Assignment), not
+    fixed in this pass.
 - `AssignmentRepository` gains `update_allocation_with_version_check(...)`,
   mirroring the existing `update_planned_hours_with_version_check` convention
   exactly. `TaskService.set_assignment_allocation` now takes an
@@ -3097,7 +3123,10 @@ rows/inspector now show Planned Work and Remaining in addition to Allocation
 and Logged; "Set Hours" removed from row actions; "Edit Allocation" dialog now
 round-trips `version` and surfaces a clear "this assignment was changed by
 someone else — reload and try again" error on conflict instead of silently
-overwriting.
+overwriting. The create dialog (`TaskAssignmentEditorDialog.qml`, create mode)
+gained an optional "Planned Work (h)" field; a new "Edit Planned Work" row
+action opens `TaskAssignmentPlannedHoursDialog.qml` for editing it afterwards,
+both wired through the existing dual-version-check command.
 
 **Time**: Summary tab now labels the task-scoped figure as "Logged" (with
 "This period" broken out from it) and adds "Planned"/"Remaining"; the
@@ -3151,17 +3180,29 @@ entry point (D4).
   capability check — safe today (server fail-closed) but real UX debt;
   fixing it properly means auditing every Task Detail create-button, not just
   Assignment's.
-- Editing `allocated_planned_hours` from Task Detail (a WBS-envelope
-  redistribution operation that reads as Planning-shaped) — read-only
-  exposure was added this pass; the write path is deferred.
+- `ProjectResource.update()` (envelope resize) not incrementing `version` at
+  all, unlike `touch_version_with_check` — a real inconsistency in the
+  ProjectResource aggregate's own concurrency story, discovered while testing
+  the planned-hours dual-lock. Lives in Resources/Planning, not Assignment;
+  not fixed in this pass. (Editing `allocated_planned_hours` from Task
+  Detail itself is no longer deferred — see §E/F/G — it shipped this pass.)
 - No forecast/finance-side consumption of time entries was found (only an
   actuals pipeline off `TimesheetPeriodStatus.APPROVED`) — noted for the
   record, not a defect.
 
 ### R. Test evidence
 
-See the follow-up entry immediately after this section once the backend
-changes and their targeted tests are in and the full regression suite has
-been run.
-
-committed.
+Full `src/tests/project_management` + `src/tests/pm` suite: **904 passed**,
+13 failed — the same pre-existing, unrelated set confirmed via `git stash`
+earlier in the session to exist on unmodified HEAD (`test_baseline_lifecycle.py`
+×7, `test_constraint_validator.py` ×5, `test_financial_desktop_forecast_delegation.py`
+×1). New/updated coverage for this pass:
+`test_assignment_time_task_detail_r43.py` (21 tests — version-check
+concurrency, allocation-then-envelope create/edit including planned-hours
+at creation, task-scoped vs resource-wide Time Summary regression, the
+removed "Set Hours" affordance). One real regression was found and fixed
+mid-pass (a hand-rolled QML-presenter test fake missing the 4 new
+snapshot fields, causing 5 test failures) — production code was made
+defensive (`getattr` with fallback) rather than only patching the fake,
+since a snapshot-shape mismatch should degrade gracefully, not crash, in
+any caller. Not committed.

@@ -125,6 +125,7 @@ class _FakeTaskService:
         task_id: str,
         project_resource_id: str,
         allocation_percent: float,
+        allocated_planned_hours=None,
     ) -> TaskAssignment:
         resource_id = self._project_resource_lookup.get(project_resource_id, project_resource_id)
         assignment = self.create_assignment(
@@ -133,6 +134,8 @@ class _FakeTaskService:
             allocation_percent=allocation_percent,
         )
         assignment.project_resource_id = project_resource_id
+        if allocated_planned_hours is not None:
+            assignment.allocated_planned_hours = allocated_planned_hours
         return assignment
 
     def set_assignment_allocation(

@@ -35,6 +35,7 @@ from .project_command_handler import (
 )
 from .resource_handler import (
     assign_resource_to_project,
+    get_project_resource_usage,
     remove_project_resource,
     update_project_resource,
 )
@@ -185,6 +186,7 @@ class ProjectProjectsWorkspacePresenter:
         planned_hours: Decimal,
         hourly_rate: Decimal | None,
         is_active: bool,
+        expected_version: int | None = None,
     ) -> None:
         update_project_resource(
             self._desktop_api,
@@ -192,10 +194,16 @@ class ProjectProjectsWorkspacePresenter:
             planned_hours=planned_hours,
             hourly_rate=hourly_rate,
             is_active=is_active,
+            expected_version=expected_version,
         )
 
     def remove_project_resource(self, *, project_resource_id: str) -> None:
         remove_project_resource(self._desktop_api, project_resource_id=project_resource_id)
+
+    def get_project_resource_usage(self, *, project_resource_id: str):
+        return get_project_resource_usage(
+            self._desktop_api, project_resource_id=project_resource_id
+        )
 
     def build_project_risks_state(self, *, project_id: str) -> ProjectCatalogWorkspaceViewModel:
         return build_project_risks_state(self._register_desktop_api, project_id=project_id)

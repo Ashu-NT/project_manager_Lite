@@ -18,6 +18,7 @@ from src.core.modules.project_management.api.desktop.projects.models import (
     ProjectAssignableResourceOptionDescriptor,
     ProjectDesktopDto,
     ProjectResourceDesktopDto,
+    ProjectResourceUsageDesktopDto,
     ProjectStatusDescriptor,
 )
 
@@ -29,6 +30,7 @@ __all__ = [
     "ProjectResourceAssignCommand",
     "ProjectResourceDesktopDto",
     "ProjectResourceUpdateCommand",
+    "ProjectResourceUsageDesktopDto",
     "ProjectStatusDescriptor",
     "ProjectUpdateCommand",
     "build_project_management_projects_desktop_api",

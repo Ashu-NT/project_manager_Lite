@@ -52,6 +52,7 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         / "modules/project_management/qml/workspaces/financials/dialogs"
         / "ActualLifecycleDialog.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "resources" / "ResourcesWorkspacePage.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/projects/sections/ProjectsResourcesSection.qml",
         UI_QML_ROOT
         / "modules/project_management/qml/workspaces/resources/dialogs"
         / "ResourceEditorDialog.qml",

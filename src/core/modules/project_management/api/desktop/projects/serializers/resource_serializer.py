@@ -1,6 +1,9 @@
 """Project resource and assignable resource serializers."""
 
-from src.core.modules.project_management.api.desktop.projects.models.resources import ProjectResourceDesktopDto
+from src.core.modules.project_management.api.desktop.projects.models.resources import (
+    ProjectResourceDesktopDto,
+    ProjectResourceUsageDesktopDto,
+)
 from src.core.modules.project_management.api.desktop.common.financial_formatting import (
     format_hourly_rate,
     format_hours,
@@ -46,6 +49,27 @@ def serialize_project_resource(project_resource, *, resource_by_id) -> ProjectRe
         planned_hours_label=format_hours(planned_hours),
         is_active=is_active,
         status_label="Active" if is_active else "Inactive",
+        version=int(getattr(project_resource, "version", 1) or 1),
+    )
+
+
+def serialize_project_resource_usage(fact) -> ProjectResourceUsageDesktopDto:
+    return ProjectResourceUsageDesktopDto(
+        project_resource_id=fact.project_resource_id,
+        project_id=fact.project_id,
+        resource_id=fact.resource_id,
+        planned_hours_label=format_hours(fact.planned_hours),
+        allocated_to_tasks_hours_label=format_hours(fact.allocated_to_tasks_hours),
+        unallocated_planned_hours_label=format_hours(fact.unallocated_planned_hours),
+        actual_hours_label=format_hours(fact.actual_hours),
+        remaining_project_hours_label=format_hours(fact.remaining_project_hours),
+        planned_burn_percent=fact.planned_burn_percent,
+        task_assignment_count=fact.task_assignment_count,
+        envelope_status=fact.envelope_status,
+        envelope_status_label=fact.envelope_status.replace("_", " ").title(),
+        burn_status=fact.burn_status,
+        burn_status_label=fact.burn_status.replace("_", " ").title(),
+        version=fact.version,
     )
 
 

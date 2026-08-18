@@ -18,6 +18,7 @@ class ProjectResourceUpdateCommand:
     planned_hours: Decimal = Decimal("0")
     hourly_rate: Decimal | None = None
     is_active: bool = True
+    expected_version: int | None = None
 
 
 __all__ = ["ProjectResourceAssignCommand", "ProjectResourceUpdateCommand"]
