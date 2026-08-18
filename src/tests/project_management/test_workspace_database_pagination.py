@@ -153,6 +153,56 @@ def test_project_department_id_round_trips_through_create_and_update(services) -
     assert refetched.department_id == dept_b.id
 
 
+def test_project_update_records_actor_and_field_level_activity_diff(services) -> None:
+    """Real DB proof for the ProjectLifecycleMixin diff-tracking fix: the
+    recorded activity entry must carry both who made the change (actor_id,
+    resolved from the authenticated principal) and a before/after diff for
+    every field that actually changed -- not just the final snapshot."""
+    project_service = services["project_service"]
+    department_service = services["department_service"]
+    activity_service = services["activity_service"]
+    actor_id = services["user_session"].principal.user_id
+
+    dept_a = department_service.create_department(department_code="DEPT-ACT-A", name="Engineering")
+    dept_b = department_service.create_department(department_code="DEPT-ACT-B", name="Operations")
+
+    created = project_service.create_project(
+        "Activity Diff Project", department_id=dept_a.id, status=ProjectStatus.PLANNED
+    )
+
+    project_service.update_project(
+        created.id,
+        expected_version=created.version,
+        name="Activity Diff Project Renamed",
+        status=ProjectStatus.ACTIVE,
+        department_id=dept_b.id,
+    )
+
+    entries = activity_service.list_recent(entity_type="project", entity_id=created.id)
+    update_entry = next(e for e in entries if e.action == "project.update")
+
+    assert update_entry.actor_id == actor_id
+    changes = update_entry.details["changes"]
+    assert changes["name"] == {"from": "Activity Diff Project", "to": "Activity Diff Project Renamed"}
+    assert changes["status"] == {"from": "PLANNED", "to": "ACTIVE"}
+    assert changes["department_id"] == {"from": dept_a.id, "to": dept_b.id}
+    # Unchanged fields (e.g. description) must not appear in the diff.
+    assert "description" not in changes
+
+
+def test_project_set_status_records_before_and_after_status(services) -> None:
+    project_service = services["project_service"]
+    activity_service = services["activity_service"]
+
+    created = project_service.create_project("Status Diff Project", status=ProjectStatus.PLANNED)
+    project_service.set_status(created.id, ProjectStatus.ON_HOLD)
+
+    entries = activity_service.list_recent(entity_type="project", entity_id=created.id)
+    status_entry = next(e for e in entries if e.action == "project.set_status")
+
+    assert status_entry.details["changes"]["status"] == {"from": "PLANNED", "to": "ON_HOLD"}
+
+
 def test_project_catalog_sort_is_authoritative_across_pages(services) -> None:
     project_service = services["project_service"]
     alpha = project_service.create_project("Alpha Sort")

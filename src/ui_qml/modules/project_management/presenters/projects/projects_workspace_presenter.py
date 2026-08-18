@@ -5,6 +5,7 @@ from typing import Any
 
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.core.platform.api.desktop.master_data.department.department import PlatformDepartmentDesktopApi
+from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
 from src.core.platform.api.desktop.history.activity.activity import PlatformActivityDesktopApi
 from src.core.modules.project_management.api.desktop import (
@@ -52,6 +53,7 @@ class ProjectProjectsWorkspacePresenter:
         site_api: PlatformSiteDesktopApi | None = None,
         department_api: PlatformDepartmentDesktopApi | None = None,
         user_api: PlatformUserDesktopApi | None = None,
+        employee_api: PlatformEmployeeDesktopApi | None = None,
         activity_api: PlatformActivityDesktopApi | None = None,
     ) -> None:
         self._desktop_api = desktop_api or build_project_management_projects_desktop_api()
@@ -60,6 +62,7 @@ class ProjectProjectsWorkspacePresenter:
         self._site_api = site_api
         self._department_api = department_api
         self._user_api = user_api
+        self._employee_api = employee_api
         self._activity_api = activity_api
         self._import_sessions: dict[str, object] = {}
 
@@ -190,7 +193,14 @@ class ProjectProjectsWorkspacePresenter:
         return build_project_risks_state(self._register_desktop_api, project_id=project_id)
 
     def build_project_activity_state(self, *, project_id: str) -> ProjectCatalogWorkspaceViewModel:
-        return build_project_activity_state(self._activity_api, project_id=project_id)
+        return build_project_activity_state(
+            self._activity_api,
+            project_id=project_id,
+            site_api=self._site_api,
+            department_api=self._department_api,
+            user_api=self._user_api,
+            employee_api=self._employee_api,
+        )
 
     def suggest_code(self, payload: dict[str, Any]) -> str:
         return suggest_code(self._desktop_api, payload)

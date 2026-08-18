@@ -2145,3 +2145,104 @@ must not be touched by this reopened R4.2 pass.
 
 **R4.2 REOPENED — DATA/FILTER/DETAIL-IA VERIFICATION: COMPLETE.** R4.3
 (Tasks) was not modified. Not committed.
+
+## 36. R4.2 follow-up: Activity actor/diff tracking, and two reusable patterns for later phases
+
+Follow-up to §35's Activity section, triggered by "all crud operation are
+tracked as well right??". Not committed.
+
+### Activity coverage and actor identity
+
+- Confirmed (not assumed) that all four Project mutations
+  (`create_project`/`update_project`/`set_status`/`delete_project`) and all
+  four Project Resource mutations (`add_to_project`/`update`/`set_active`/
+  `delete`) already called `record_activity()`; what was missing was
+  **field-level diffs and human-readable messages**, not the calls
+  themselves. Added `_diff_project_fields()` /
+  `_diff_project_resource_fields()` (before/after `SimpleNamespace`
+  snapshots diffed against the recorded field list) so every entry's
+  `details_json.changes` carries `{field: {from, to}}`, plus a
+  `message=` on every call.
+- Actor identity resolution now prefers the linked **Employee**'s
+  `full_name` over the `User`'s `display_name`/`username`
+  (`_build_actor_lookup()` in `activity_builder.py`) — most `User` rows in
+  this app correspond to an `Employee` via `Employee.user_id`, and the
+  employee record carries the real recorded name. Reusable for any other
+  workspace's activity feed that wants a human name rather than a login
+  handle.
+- The Activity section issues **two** `activity_api.list_recent()` calls
+  (`entity_type="project"` then `entity_type="project_resource",
+  workspace_id=<project_id>`), merged and re-sorted by timestamp — not one
+  broad `workspace_id=`-only query, because Task activity also records
+  under the same `workspace_id` convention and would otherwise leak
+  out-of-scope Task entries into a Project's feed. Any later phase adding
+  another child-entity's activity to a parent feed should follow this
+  "narrow per-`entity_type` call, merge client-side" shape rather than
+  widening the `workspace_id` filter.
+
+### Reusable pattern: `RecordListCard` real bug fix (affects every section using it)
+
+`ProjectManagement.Widgets.RecordListCard`'s row delegate set a plain
+`height: rowContent.implicitHeight` binding on an `Item` inside a
+`ColumnLayout`. `ColumnLayout` sizes children from `Layout.preferredHeight`
+or `implicitHeight`, not the plain `height` property, so every row
+collapsed to height 0 and rows rendered stacked on top of each other
+(reported by the user as overlapping "Administrator" / "project.update" /
+timestamp text in the Activity feed). Fixed by changing the delegate to
+set `implicitHeight` instead of `height`, and anchoring `rowContent` to
+`parent.top` so its top margin actually applies. This widget is shared by
+`ProjectsActivitySection.qml`, `ProjectsRisksSection.qml`, and Register's
+`RegisterUrgentSection.qml` — the fix applies to all three automatically.
+**Any future phase (R4.3 or otherwise) adopting `RecordListCard` does not
+need to re-fix this**, but should be aware plain `height:` bindings on
+`Layout`-managed delegate items are the general trap to avoid.
+
+### Reusable pattern: client-side search-filter bar over a `RecordListCard`
+
+`ProjectsActivitySection.qml` now has an `App.Controls.SearchField` above
+its `RecordListCard`, filtering the already-loaded (≤50 entries) items
+client-side by `title` (the actor name) via a `_filteredItems` computed
+property — no new backend query, since the full page is already in memory
+and small. Shape, for reuse by any other section presenting a small bounded
+list (Activity, Risks, or a future R4.3 Task-detail list):
+
+```qml
+property string _searchQuery: ""
+readonly property var _filteredItems: {
+    const query = root._searchQuery.trim().toLowerCase()
+    const items = root.someModel.items || []
+    if (query.length === 0) return items
+    return items.filter(item => String(item.title || "").toLowerCase().includes(query))
+}
+// ...
+AppControls.SearchField {
+    placeholderText: "Search by name..."
+    onTextEdited: (text) => { root._searchQuery = text }
+}
+PMWidgets.RecordListCard { items: root._filteredItems /* ... */ }
+```
+
+This is deliberately **not** the same mechanism as §35's server-side
+multi-filter architecture (Site/Department/Manager/date-range on the main
+DataTable) — that one exists because the underlying dataset is paginated
+and server-authoritative, so filtering must happen in SQL. A detail-panel
+list fetched once and capped at a small limit should stay a simple
+client-side filter; only reach for a server-side filter object (§35's
+pattern) when the list is itself paginated or unbounded. R4.3 should pick
+whichever of the two matches what it's filtering, not default to one.
+
+### Testing added
+
+- `test_projects_workspace_presenter.py`: `activity_api.list_recent` mock
+  converted from a fixed `return_value` to a `side_effect` branching on
+  `entity_type`, matching the two-call query; new tests for actor
+  resolution (Employee-preferred) and field-diff formatting (id→name
+  resolution for site/department/manager).
+- Ad hoc QML-offscreen verification (not committed as a permanent test):
+  confirmed `RecordListCard.implicitHeight` grows by a real per-row amount
+  (~69px/row) rather than collapsing to ~0 per added row, and that
+  `ProjectsActivitySection.qml` loads with no binding errors and its
+  `_filteredItems` correctly narrows/excludes by search text.
+
+**R4.2 FOLLOW-UP (ACTIVITY TRACKING + LIST-SEARCH PATTERN): COMPLETE.**
+Not committed.

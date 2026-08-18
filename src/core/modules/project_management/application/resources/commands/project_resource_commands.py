@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-
-from decimal import Decimal
+from types import SimpleNamespace
 
 from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectRepository,
@@ -22,6 +21,33 @@ from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.application.common.currency_policy import (
     resolve_pm_currency,
 )
+
+# Fields diffed for the project_resource.update/set_active activity entries,
+# in the order shown to the user.
+_PROJECT_RESOURCE_DIFF_FIELDS: tuple[str, ...] = (
+    "hourly_rate",
+    "currency_code",
+    "planned_hours",
+    "is_active",
+)
+
+
+def _diff_project_resource_fields(
+    before: ProjectResource,
+    after: ProjectResource,
+    fields: tuple[str, ...] = _PROJECT_RESOURCE_DIFF_FIELDS,
+) -> dict[str, dict[str, str | None]]:
+    changes: dict[str, dict[str, str | None]] = {}
+    for field_name in fields:
+        old_value = getattr(before, field_name, None)
+        new_value = getattr(after, field_name, None)
+        if old_value == new_value:
+            continue
+        changes[field_name] = {
+            "from": None if old_value is None else str(old_value),
+            "to": None if new_value is None else str(new_value),
+        }
+    return changes
 
 
 class ProjectResourceCommandMixin:
@@ -128,10 +154,11 @@ class ProjectResourceCommandMixin:
                 entity_id=project_resource.id,
                 module="project_management",
                 workspace_id=project_id,
+                message=f"Assigned {resource.name} to the project",
                 details={
                     "resource_name": resource.name,
-                    "planned_hours": project_resource.planned_hours,
-                    "hourly_rate": project_resource.hourly_rate,
+                    "planned_hours": str(project_resource.planned_hours),
+                    "hourly_rate": None if project_resource.hourly_rate is None else str(project_resource.hourly_rate),
                     "currency_code": project_resource.currency_code,
                     "is_active": project_resource.is_active,
                 },
@@ -187,11 +214,18 @@ class ProjectResourceCommandMixin:
             explicit=currency_code,
             project_default=self._financial_currency_code(project_resource.project_id),
         )
+        before = SimpleNamespace(
+            hourly_rate=project_resource.hourly_rate,
+            currency_code=project_resource.currency_code,
+            planned_hours=project_resource.planned_hours,
+            is_active=project_resource.is_active,
+        )
         project_resource.hourly_rate = hourly_rate
         project_resource.currency_code = resolved_currency
         project_resource.planned_hours = planned_hours
         project_resource.is_active = is_active
         resource = self._resource_repo.get(project_resource.resource_id)
+        resource_name = resource.name if resource is not None else project_resource.resource_id
 
         try:
             self._project_resource_repo.update(project_resource)
@@ -203,12 +237,10 @@ class ProjectResourceCommandMixin:
                 entity_id=project_resource.id,
                 module="project_management",
                 workspace_id=project_resource.project_id,
+                message=f"Updated {resource_name}'s assignment",
                 details={
-                    "resource_name": resource.name if resource is not None else project_resource.resource_id,
-                    "planned_hours": project_resource.planned_hours,
-                    "hourly_rate": project_resource.hourly_rate,
-                    "currency_code": project_resource.currency_code,
-                    "is_active": project_resource.is_active,
+                    "resource_name": resource_name,
+                    "changes": _diff_project_resource_fields(before, project_resource),
                 },
             )
         except Exception:
@@ -233,11 +265,13 @@ class ProjectResourceCommandMixin:
             operation_label="toggle project resource active",
         )
 
+        before = SimpleNamespace(is_active=project_resource.is_active)
         project_resource.is_active = is_active
         try:
             self._project_resource_repo.update(project_resource)
             self._session.commit()
             resource = self._resource_repo.get(project_resource.resource_id)
+            resource_name = resource.name if resource is not None else project_resource.resource_id
             record_activity(
                 self,
                 action="project_resource.set_active",
@@ -245,9 +279,15 @@ class ProjectResourceCommandMixin:
                 entity_id=project_resource.id,
                 module="project_management",
                 workspace_id=project_resource.project_id,
+                message=(
+                    f"{'Activated' if project_resource.is_active else 'Deactivated'} "
+                    f"{resource_name}'s assignment"
+                ),
                 details={
-                    "resource_name": resource.name if resource is not None else project_resource.resource_id,
-                    "is_active": project_resource.is_active,
+                    "resource_name": resource_name,
+                    "changes": _diff_project_resource_fields(
+                        before, project_resource, fields=("is_active",)
+                    ),
                 },
             )
         except Exception:
@@ -271,6 +311,7 @@ class ProjectResourceCommandMixin:
             operation_label="delete project resource",
         )
         resource = self._resource_repo.get(project_resource.resource_id)
+        resource_name = resource.name if resource is not None else project_resource.resource_id
         try:
             self._project_resource_repo.delete(pr_id)
             self._session.commit()
@@ -281,9 +322,8 @@ class ProjectResourceCommandMixin:
                 entity_id=project_resource.id,
                 module="project_management",
                 workspace_id=project_resource.project_id,
-                details={
-                    "resource_name": resource.name if resource is not None else project_resource.resource_id,
-                },
+                message=f"Removed {resource_name} from the project",
+                details={"resource_name": resource_name},
             )
         except Exception:
             self._session.rollback()
