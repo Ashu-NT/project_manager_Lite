@@ -123,6 +123,10 @@ AppLayouts.WorkspaceFrame {
         state.openTimesheetsRoute()
     }
 
+    function _openProjectResourcesRoute() {
+        state.openProjectResourcesRoute()
+    }
+
     function _openFilterPopup() {
         filterPopup.open()
     }
@@ -400,7 +404,8 @@ AppLayouts.WorkspaceFrame {
                     assignmentsTableModel: root.workspaceController ? root.workspaceController.assignmentsTableModel : null
                     selectedAssignmentId: root.workspaceController ? root.workspaceController.selectedAssignmentId : ""
                     assignmentOptions: root.workspaceController ? (root.workspaceController.assignmentOptions || []) : []
-                    assignmentPreview: root.workspaceController ? root.workspaceController.assignmentPreview : null
+                    projectResourceUsage: (root.workspaceController && root.workspaceController.assignmentsController)
+                        ? root.workspaceController.assignmentsController.projectResourceUsage : null
 
                     dependenciesModel: root.dependenciesModel
                     dependenciesTableModel: root.workspaceController ? root.workspaceController.dependenciesTableModel : null
@@ -436,11 +441,17 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
                     onAssignmentPreviewRequested: function(projectResourceId, taskId) {
+                        // Row selection only loads the Project Resource
+                        // Context (already-authoritative usage fact) --
+                        // previewAssignment() is the hypothetical "what if"
+                        // check reserved for the create/edit dialog, since
+                        // calling it here with no proposedAllocationPercent/
+                        // excludeAssignmentId would double-count this very
+                        // assignment's own existing commitment.
                         if (root.workspaceController !== null && projectResourceId.length > 0) {
-                            root.workspaceController.assignmentsController.previewAssignment({
-                                "projectResourceId": projectResourceId,
-                                "taskId": taskId
-                            })
+                            root.workspaceController.assignmentsController.loadProjectResourceUsage(
+                                projectResourceId
+                            )
                         }
                     }
                     onEditAllocationRequested: function(assignmentData) {
@@ -503,6 +514,7 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
                     onOpenTimesheetsRequested: root._openTimesheetsRoute()
+                    onManageProjectResourcesRequested: root._openProjectResourcesRoute()
 
                     onComposeRequested: dialogHostLoader.invoke("openTaskCollaborationDialog", root.selectedTaskModel)
                     onCommentReplyRequested: function(commentData) {

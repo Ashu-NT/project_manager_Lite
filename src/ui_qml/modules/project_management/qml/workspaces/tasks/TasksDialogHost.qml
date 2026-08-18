@@ -37,7 +37,14 @@ Item {
 
     function _handleResult(dialog, result) {
         if (!result || result.ok === false) {
-            dialog.errorMessage = String((result && (result.error || result.message)) || "Operation failed. Please try again.")
+            let message = String((result && (result.error || result.message)) || "Operation failed. Please try again.")
+            // Stale optimistic-concurrency writes get the same actionable
+            // trailer everywhere in Task Detail (docs §44 follow-up) --
+            // the dialog stays open with entered values intact either way.
+            if (message.indexOf("updated by another user") >= 0) {
+                message += " Refresh the latest values before saving again."
+            }
+            dialog.errorMessage = message
         } else {
             dialog.errorMessage = ""
             dialog.close()

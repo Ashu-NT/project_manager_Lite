@@ -78,30 +78,60 @@ AppWidgets.EntityDialog {
     }
 
     function runAssignmentChecks() {
-        if (root.mode !== "create" || root.workspaceController === null) {
+        if (root.workspaceController === null) {
             root._skillValidation = {}
             root._availabilityPreview = {}
             return
         }
         const taskState = root.selectedTaskState()
-        const option = (root.resourceOptions || [])[resourceCombo.currentIndex] || {}
-        const projectResourceId = String(option.value || "")
+        const assignmentState = root.selectedAssignmentState()
         const taskId = String(taskState.taskId || "")
+        let projectResourceId = ""
+        let excludeAssignmentId = ""
+        if (root.mode === "create") {
+            const option = (root.resourceOptions || [])[resourceCombo.currentIndex] || {}
+            projectResourceId = String(option.value || "")
+        } else {
+            // Edit mode previews REPLACING the current commitment, not
+            // adding a second one alongside it (§17) -- the assignment
+            // being edited is excluded from "existing" on the backend side.
+            projectResourceId = String(assignmentState.projectResourceId || "")
+            excludeAssignmentId = String(assignmentState.assignmentId || "")
+        }
         if (!taskId || !projectResourceId) {
             root._skillValidation = {}
             root._availabilityPreview = {}
             return
         }
-        const payload = {
-            "taskId": taskId,
-            "projectResourceId": projectResourceId
-        }
-        root._skillValidation = root.workspaceController.validateAssignment(payload) || {}
         const assignmentController = root.workspaceController.assignmentsController
+        const previewPayload = {
+            "taskId": taskId,
+            "projectResourceId": projectResourceId,
+            // The preview must reflect what the user actually typed, not a
+            // hardcoded 100% -- otherwise preview and enforcement (which
+            // uses this same field at submit time) can disagree.
+            "proposedAllocationPercent": parseFloat(allocationField.text) || 0,
+            "excludeAssignmentId": excludeAssignmentId
+        }
         root._availabilityPreview = assignmentController
-            ? (assignmentController.previewAssignment(payload) || {})
+            ? (assignmentController.previewAssignment(previewPayload) || {})
             : ({})
+        if (assignmentController) {
+            assignmentController.loadProjectResourceUsage(projectResourceId)
+        }
+        if (root.mode === "create") {
+            root._skillValidation = root.workspaceController.validateAssignment({
+                "taskId": taskId,
+                "projectResourceId": projectResourceId
+            }) || {}
+        } else {
+            root._skillValidation = {}
+        }
     }
+
+    readonly property var _projectResourceUsage: (root.workspaceController && root.workspaceController.assignmentsController)
+        ? (root.workspaceController.assignmentsController.projectResourceUsage || {})
+        : ({})
 
     function buildPayload() {
         const assignmentState = root.selectedAssignmentState()
@@ -180,18 +210,23 @@ AppWidgets.EntityDialog {
         readonly property bool _hasResult: Object.keys(root._availabilityPreview).length > 0
         readonly property bool _isBlocked: root._availabilityPreview.isBlocked === true
         readonly property real _overallocation: Number(root._availabilityPreview.overallocationPct || 0)
+        readonly property bool _capacityKnown: root._availabilityPreview.capacityKnown === true
+        readonly property string _capacityStatus: String(root._availabilityPreview.capacityStatus || "UNKNOWN")
+        readonly property bool _overCapacity: _capacityStatus === "OVER_CAPACITY"
+        readonly property bool _nearCapacity: _capacityStatus === "NEAR_CAPACITY"
         readonly property bool _hasWarnings: root._availabilityPreview.hasWarnings === true
-            || _overallocation > 0
+            || _overCapacity || _nearCapacity
         readonly property var _conflicts: root._availabilityPreview.conflictProjects || []
+        readonly property var _usage: root._projectResourceUsage
 
         Layout.fillWidth: true
-        visible: root.mode === "create" && _hasResult
+        visible: _hasResult
         implicitHeight: visible ? _availabilityCol.implicitHeight + 16 : 0
         radius: Theme.AppTheme.radiusSm
-        color: _isBlocked
+        color: _isBlocked || _overCapacity
             ? Theme.AppTheme.dangerSoft
             : _hasWarnings ? Theme.AppTheme.warningSoft : Theme.AppTheme.successSoft
-        border.color: _isBlocked
+        border.color: _isBlocked || _overCapacity
             ? Theme.AppTheme.dangerSoftBorder
             : _hasWarnings ? Theme.AppTheme.warningSoftBorder : Theme.AppTheme.successSoftBorder
         border.width: 1
@@ -203,17 +238,32 @@ AppWidgets.EntityDialog {
 
             AppControls.Label {
                 Layout.fillWidth: true
-                text: availabilityPanel._isBlocked
-                    ? "Availability check blocked this assignment"
-                    : availabilityPanel._overallocation > 0
-                        ? "Resource would be overallocated by " + availabilityPanel._overallocation + "%"
-                        : "Resource availability check passed"
-                color: availabilityPanel._isBlocked
+                text: !availabilityPanel._capacityKnown
+                    ? "Capacity unavailable — a calendar could not be resolved for this resource/period."
+                    : availabilityPanel._isBlocked
+                        ? "Availability check blocked this assignment"
+                        : availabilityPanel._overCapacity
+                            ? "⚠ Resource is overallocated during part of this task period."
+                            : availabilityPanel._nearCapacity
+                                ? "Resource is near capacity for this task period."
+                                : "Resource availability check passed"
+                color: availabilityPanel._isBlocked || availabilityPanel._overCapacity
                     ? Theme.AppTheme.danger
-                    : availabilityPanel._hasWarnings ? Theme.AppTheme.warning : Theme.AppTheme.success
+                    : availabilityPanel._hasWarnings ? Theme.AppTheme.warning
+                        : (!availabilityPanel._capacityKnown ? Theme.AppTheme.textMuted : Theme.AppTheme.success)
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.smallSize
                 font.bold: true
+                wrapMode: Text.WordWrap
+            }
+
+            AppControls.Label {
+                Layout.fillWidth: true
+                visible: availabilityPanel._capacityKnown && availabilityPanel._overCapacity
+                text: "Peak utilization: " + availabilityPanel._overallocation.toFixed(0) + "%"
+                color: Theme.AppTheme.danger
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.smallSize
                 wrapMode: Text.WordWrap
             }
 
@@ -225,6 +275,164 @@ AppWidgets.EntityDialog {
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.smallSize
                 wrapMode: Text.WordWrap
+            }
+
+            AppControls.Label {
+                Layout.fillWidth: true
+                visible: availabilityPanel._overCapacity && availabilityPanel._conflicts.length === 0
+                text: "Resource has another capacity conflict."
+                color: Theme.AppTheme.warning
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.smallSize
+                wrapMode: Text.WordWrap
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.topMargin: 2
+                Layout.preferredHeight: Theme.AppTheme.borderWidthThin
+                color: Theme.AppTheme.divider
+                visible: availabilityPanel._capacityKnown
+            }
+
+            GridLayout {
+                Layout.fillWidth: true
+                visible: availabilityPanel._capacityKnown
+                columns: 2
+                columnSpacing: Theme.AppTheme.spacingMd
+                rowSpacing: 2
+
+                AppControls.Label {
+                    text: "Available capacity"
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                }
+                AppControls.Label {
+                    text: String(root._availabilityPreview.availableCapacityHoursLabel || "")
+                    color: Theme.AppTheme.textPrimary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    font.bold: true
+                }
+                AppControls.Label {
+                    text: "Current commitment"
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                }
+                AppControls.Label {
+                    text: String(root._availabilityPreview.existingCommittedHoursLabel || "")
+                    color: Theme.AppTheme.textPrimary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    font.bold: true
+                }
+                AppControls.Label {
+                    text: "Proposed commitment"
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                }
+                AppControls.Label {
+                    text: String(root._availabilityPreview.proposedCommittedHoursLabel || "")
+                    color: Theme.AppTheme.textPrimary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    font.bold: true
+                }
+                AppControls.Label {
+                    text: "Resulting commitment"
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                }
+                AppControls.Label {
+                    text: String(root._availabilityPreview.resultingCommittedHoursLabel || "")
+                    color: Theme.AppTheme.textPrimary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    font.bold: true
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.topMargin: 2
+                Layout.preferredHeight: Theme.AppTheme.borderWidthThin
+                color: Theme.AppTheme.divider
+                visible: !!availabilityPanel._usage.projectResourceId
+            }
+
+            AppControls.Label {
+                Layout.fillWidth: true
+                visible: !!availabilityPanel._usage.projectResourceId
+                text: "PROJECT RESOURCE PLAN"
+                color: Theme.AppTheme.textMuted
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.captionSize
+                font.bold: true
+            }
+
+            GridLayout {
+                Layout.fillWidth: true
+                visible: !!availabilityPanel._usage.projectResourceId
+                columns: 2
+                columnSpacing: Theme.AppTheme.spacingMd
+                rowSpacing: 2
+
+                AppControls.Label {
+                    text: "Project planned hours"
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                }
+                AppControls.Label {
+                    text: String(availabilityPanel._usage.plannedHoursLabel || "")
+                    color: Theme.AppTheme.textPrimary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    font.bold: true
+                }
+                AppControls.Label {
+                    text: "Already distributed"
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                }
+                AppControls.Label {
+                    text: String(availabilityPanel._usage.allocatedToTasksHoursLabel || "")
+                    color: Theme.AppTheme.textPrimary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    font.bold: true
+                }
+                AppControls.Label {
+                    text: "Unallocated"
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                }
+                AppControls.Label {
+                    text: String(availabilityPanel._usage.unallocatedPlannedHoursLabel || "")
+                    color: Theme.AppTheme.textPrimary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    font.bold: true
+                }
+                AppControls.Label {
+                    text: "This request"
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                }
+                AppControls.Label {
+                    text: (root.mode === "create" ? (plannedHoursField.text || "0") : "—") + " h"
+                    color: Theme.AppTheme.textPrimary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    font.bold: true
+                }
             }
 
             Repeater {
@@ -310,6 +518,7 @@ AppWidgets.EntityDialog {
     AppWidgets.FormField {
         Layout.fillWidth: true
         label: "Allocation (%)"
+        helperText: "Percentage of this resource's available capacity committed to this task during the task period."
         required: true
 
         AppControls.TextField {
@@ -317,6 +526,7 @@ AppWidgets.EntityDialog {
 
             Layout.fillWidth: true
             placeholderText: "0.1 - 100.0"
+            onTextChanged: Qt.callLater(root.runAssignmentChecks)
         }
     }
 
@@ -324,6 +534,7 @@ AppWidgets.EntityDialog {
         Layout.fillWidth: true
         visible: root.mode === "create"
         label: "Planned Work (h)"
+        helperText: "Portion of this resource's project planned hours assigned to this task."
 
         AppControls.TextField {
             id: plannedHoursField

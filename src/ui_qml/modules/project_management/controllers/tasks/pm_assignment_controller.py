@@ -14,6 +14,30 @@ from src.ui_qml.modules.project_management.controllers.common import (
 from src.ui_qml.modules.project_management.presenters import (
     ProjectTasksWorkspacePresenter,
 )
+from src.ui_qml.modules.project_management.presenters.tasks.assignment_mapper import (
+    to_assignment_table_row,
+)
+
+_EMPTY_ASSIGNMENT_PREVIEW: dict[str, object] = {
+    "ok": True,
+    "overallocationPct": 0.0,
+    "conflictProjects": [],
+    "skillsMatched": True,
+    "certsValid": True,
+    "hasWarnings": False,
+    "warningMessages": [],
+    "isBlocked": False,
+    "blockMessages": [],
+    "capacityKnown": False,
+    "availableCapacityHoursLabel": "",
+    "existingCommittedHoursLabel": "",
+    "proposedCommittedHoursLabel": "",
+    "resultingCommittedHoursLabel": "",
+    "peakUtilizationPercent": 0.0,
+    "capacityStatus": "UNKNOWN",
+    "capacityStatusLabel": "Capacity unknown",
+    "conflictDateLabels": [],
+}
 
 
 class PMAssignmentController(QObject):
@@ -23,6 +47,7 @@ class PMAssignmentController(QObject):
     assignmentsChanged = Signal()
     taskSkillRequirementsChanged = Signal()
     assignmentPreviewChanged = Signal()
+    projectResourceUsageChanged = Signal()
 
     def __init__(
         self,
@@ -51,17 +76,8 @@ class PMAssignmentController(QObject):
             "emptyState": "Select a task to review skill and certification requirements.",
             "items": [],
         }
-        self._assignment_preview: dict[str, object] = {
-            "ok": True,
-            "overallocationPct": 0.0,
-            "conflictProjects": [],
-            "skillsMatched": True,
-            "certsValid": True,
-            "hasWarnings": False,
-            "warningMessages": [],
-            "isBlocked": False,
-            "blockMessages": [],
-        }
+        self._assignment_preview: dict[str, object] = dict(_EMPTY_ASSIGNMENT_PREVIEW)
+        self._project_resource_usage: dict[str, object] | None = None
 
     # ── Populate from workspace state ────────────────────────────────
 
@@ -71,6 +87,12 @@ class PMAssignmentController(QObject):
         )
         self._set_assignments(
             serialize_task_collection_view_model(workspace_state.assignments)
+        )
+        self._assignments_table_model.set_rows(
+            [
+                to_assignment_table_row(item)
+                for item in workspace_state.assignments.items
+            ]
         )
 
     # ── Properties ───────────────────────────────────────────────────
@@ -94,6 +116,10 @@ class PMAssignmentController(QObject):
     @Property("QVariantMap", notify=assignmentPreviewChanged)
     def assignmentPreview(self) -> dict[str, object]:
         return self._assignment_preview
+
+    @Property("QVariantMap", notify=projectResourceUsageChanged)
+    def projectResourceUsage(self) -> dict[str, object]:
+        return self._project_resource_usage or {}
 
     # ── Mutation slots ────────────────────────────────────────────────
 
@@ -132,17 +158,6 @@ class PMAssignmentController(QObject):
                 dict(payload)
             ),
             success_message="Planned work updated.",
-            on_success=self._facade_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def setAssignmentHours(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._presenter.set_assignment_hours(dict(payload)),
-            success_message="Assignment effort updated.",
             on_success=self._facade_refresh,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
@@ -204,33 +219,37 @@ class PMAssignmentController(QObject):
         try:
             result = self._presenter.preview_assignment(dict(payload))
         except Exception as exc:
-            result = {
+            result = dict(_EMPTY_ASSIGNMENT_PREVIEW)
+            result.update({
                 "ok": False,
-                "overallocationPct": 0.0,
-                "conflictProjects": [],
                 "skillsMatched": False,
                 "certsValid": False,
-                "hasWarnings": False,
-                "warningMessages": [],
                 "isBlocked": True,
                 "blockMessages": [str(exc)],
-            }
+            })
         self._set_assignment_preview(result)
         return result
 
     @Slot()
     def clearAssignmentPreview(self) -> None:
-        self._set_assignment_preview({
-            "ok": True,
-            "overallocationPct": 0.0,
-            "conflictProjects": [],
-            "skillsMatched": True,
-            "certsValid": True,
-            "hasWarnings": False,
-            "warningMessages": [],
-            "isBlocked": False,
-            "blockMessages": [],
-        })
+        self._set_assignment_preview(dict(_EMPTY_ASSIGNMENT_PREVIEW))
+
+    @Slot(str)
+    def loadProjectResourceUsage(self, project_resource_id: str) -> None:
+        """Project Resource Context for the inspector (docs §44 follow-up)
+        -- fetched alongside the capacity preview when a row is selected,
+        not calculated in QML."""
+        try:
+            usage = self._presenter.get_project_resource_usage(project_resource_id)
+        except Exception:
+            usage = None
+        self._project_resource_usage = usage
+        self.projectResourceUsageChanged.emit()
+
+    @Slot()
+    def clearProjectResourceUsage(self) -> None:
+        self._project_resource_usage = None
+        self.projectResourceUsageChanged.emit()
 
     # ── Skill requirements update (separate from assignments/_update) ─
 

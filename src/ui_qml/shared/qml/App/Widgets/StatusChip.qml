@@ -17,7 +17,8 @@ Rectangle {
     readonly property var _variant: {
         const s = chip._normalized
         if (s === "active" || s === "approved" || s === "closed" || s === "completed"
-                || s === "verified" || s === "issued" || s === "fully_received" || s === "accepted")
+                || s === "verified" || s === "issued" || s === "fully_received" || s === "accepted"
+                || s === "within_capacity" || s === "available")
             return "success"
         if (s === "progress" || s === "in_progress" || s === "pending" || s === "submitted"
                 || s === "planned" || s === "scheduled" || s === "released"
@@ -25,11 +26,11 @@ Rectangle {
                 || s === "low")
             return "info"
         if (s === "waiting" || s === "blocked" || s === "paused" || s === "deferred"
-                || s === "on_hold" || s === "medium")
+                || s === "on_hold" || s === "medium" || s === "near_capacity")
             return "warning"
         if (s === "rejected" || s === "cancelled" || s === "overdue" || s === "failed"
                 || s === "error" || s === "expired" || s === "danger" || s === "high"
-                || s === "critical" || s === "declined")
+                || s === "critical" || s === "declined" || s === "over_capacity")
             return "danger"
         return "neutral"
     }

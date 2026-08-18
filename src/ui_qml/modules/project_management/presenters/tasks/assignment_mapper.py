@@ -38,6 +38,29 @@ def to_assignment_record_view_model(assignment) -> TaskRecordViewModel:
         "projectResourceVersion": int(
             getattr(assignment, "project_resource_version", 1) or 1
         ),
+        # Authoritative calendar-based capacity facts for this assignment's
+        # own current commitment (docs §44) -- rendered as-is, never
+        # recalculated in QML.
+        "capacityKnown": bool(getattr(assignment, "capacity_known", False)),
+        "capacityStatus": getattr(assignment, "capacity_status", "UNKNOWN"),
+        "capacityStatusLabel": getattr(
+            assignment, "capacity_status_label", "Capacity unknown"
+        ),
+        "availableCapacityLabel": getattr(
+            assignment, "available_capacity_hours_label", ""
+        ),
+        "committedCapacityLabel": getattr(
+            assignment, "committed_capacity_hours_label", ""
+        ),
+        "capacityHeadroomLabel": getattr(
+            assignment, "capacity_headroom_hours_label", ""
+        ),
+        "peakUtilizationPercent": float(
+            getattr(assignment, "peak_utilization_percent", 0.0) or 0.0
+        ),
+        "remainingPlannedLabel": getattr(
+            assignment, "remaining_planned_hours_label", f"{remaining_label} h"
+        ),
     }
     return TaskRecordViewModel(
         id=assignment.id,
@@ -49,6 +72,26 @@ def to_assignment_record_view_model(assignment) -> TaskRecordViewModel:
         meta_text=f"{allocation_percent:.1f}%",
         state=state,
     )
+
+
+def to_assignment_table_row(view_model: TaskRecordViewModel) -> dict[str, object]:
+    """Flatten an assignment's TaskRecordViewModel.state into the top-level
+    row shape the shared DataTable/DynamicTableModel expects (columns bind
+    to top-level row keys, not nested state) -- see §5's Resource/
+    Allocation/Planned Work/Actual/Remaining/Capacity Status columns."""
+    state = view_model.state or {}
+    return {
+        "id": view_model.id,
+        "resourceName": view_model.title,
+        "responseStatusLabel": view_model.status_label,
+        "allocationLabel": f"{state.get('allocationPercent', '0')}%",
+        "plannedLabel": f"{format_decimal_amount(state.get('plannedHours', '0'), grouping=False)} h",
+        "actualLabel": f"{format_decimal_amount(state.get('hoursLogged', '0'), grouping=False)} h",
+        "remainingLabel": state.get("remainingPlannedLabel", "0 h"),
+        "capacityStatus": state.get("capacityStatus", "UNKNOWN"),
+        "capacityStatusLabel": state.get("capacityStatusLabel", "Capacity unknown"),
+        "state": state,
+    }
 
 
 def _decimal(value: object) -> Decimal:

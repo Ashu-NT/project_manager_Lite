@@ -20,7 +20,7 @@ Item {
     property var assignmentsTableModel: null
     property string selectedAssignmentId: ""
     property var assignmentOptions: []
-    property var assignmentPreview: null
+    property var projectResourceUsage: null
 
     property var dependenciesModel: AppMock.MockFactory.catalog("Dependencies", "", "Select a task.")
     property var dependenciesTableModel: null
@@ -67,6 +67,7 @@ Item {
     signal progressRequested()
     signal deleteRequested()
     signal retrySectionRequested(string sectionName)
+    signal manageProjectResourcesRequested()
 
     signal createAssignmentRequested()
     signal assignmentSelected(string assignmentId)
@@ -260,7 +261,8 @@ Item {
                     assignmentsModel: root.assignmentsModel
                     assignmentsTableModel: root.assignmentsTableModel
                     selectedAssignmentId: root.selectedAssignmentId
-                    assignmentPreview: root.assignmentPreview
+                    projectResourceUsage: root.projectResourceUsage
+                    taskDetail: root.taskDetail
                     isBusy: root.isBusy
                     canCreate: root._hasTask && !root._isSummary && root.assignmentOptions.length > 0
                     errorText: String(root.sectionErrors["assignments"] || "")
@@ -276,6 +278,7 @@ Item {
                     onDeleteRequested: function(d) { root.deleteAssignmentRequested(d) }
                     onAcceptRequested: function(d) { root.acceptAssignmentRequested(d) }
                     onDeclineRequested: function(d) { root.declineAssignmentRequested(d) }
+                    onManageProjectResourcesRequested: root.manageProjectResourcesRequested()
                 }
             }
         }

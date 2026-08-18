@@ -23,7 +23,6 @@ from .assignment_command_handler import (
     decline_assignment,
     delete_assignment,
     preview_assignment,
-    set_assignment_hours,
     update_assignment_allocation,
     update_assignment_planned_hours,
     validate_assignment,
@@ -82,6 +81,7 @@ class ProjectTasksWorkspacePresenter:
         user_api: PlatformUserDesktopApi | None = None,
         employee_api: PlatformEmployeeDesktopApi | None = None,
         activity_api: PlatformActivityDesktopApi | None = None,
+        projects_desktop_api: object | None = None,
     ) -> None:
         self._desktop_api = desktop_api or build_project_management_tasks_desktop_api()
         self._collaboration_desktop_api = (
@@ -95,6 +95,7 @@ class ProjectTasksWorkspacePresenter:
         self._user_api = user_api
         self._employee_api = employee_api
         self._activity_api = activity_api
+        self._projects_desktop_api = projects_desktop_api
 
     def build_workspace_state(
         self,
@@ -310,8 +311,39 @@ class ProjectTasksWorkspacePresenter:
     def update_assignment_planned_hours(self, payload: dict[str, Any]) -> None:
         update_assignment_planned_hours(self._desktop_api, payload)
 
-    def set_assignment_hours(self, payload: dict[str, Any]) -> None:
-        set_assignment_hours(self._desktop_api, payload)
+    def get_project_resource_usage(self, project_resource_id: str) -> dict[str, object] | None:
+        """Project Resource Context for the Assignment inspector (docs §44
+        follow-up) -- reads the same ProjectResourceUsageFact the Projects ->
+        Resources workspace already renders, via the Projects desktop API's
+        existing get_project_resource_usage. No new calculation."""
+        normalized_id = (project_resource_id or "").strip()
+        if not normalized_id or self._projects_desktop_api is None:
+            return None
+        get_usage = getattr(self._projects_desktop_api, "get_project_resource_usage", None)
+        if not callable(get_usage):
+            return None
+        try:
+            usage = get_usage(normalized_id)
+        except Exception:
+            return None
+        if usage is None:
+            return None
+        return {
+            "projectResourceId": usage.project_resource_id,
+            "projectId": usage.project_id,
+            "resourceId": usage.resource_id,
+            "plannedHoursLabel": usage.planned_hours_label,
+            "allocatedToTasksHoursLabel": usage.allocated_to_tasks_hours_label,
+            "unallocatedPlannedHoursLabel": usage.unallocated_planned_hours_label,
+            "actualHoursLabel": usage.actual_hours_label,
+            "remainingProjectHoursLabel": usage.remaining_project_hours_label,
+            "plannedBurnPercent": usage.planned_burn_percent,
+            "taskAssignmentCount": usage.task_assignment_count,
+            "envelopeStatus": usage.envelope_status,
+            "envelopeStatusLabel": usage.envelope_status_label,
+            "burnStatus": usage.burn_status,
+            "burnStatusLabel": usage.burn_status_label,
+        }
 
     def add_task_time_entry(self, payload: dict[str, Any]) -> None:
         add_task_time_entry(self._timesheets_desktop_api, payload)

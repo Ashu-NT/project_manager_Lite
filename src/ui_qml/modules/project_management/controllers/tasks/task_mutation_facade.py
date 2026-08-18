@@ -53,10 +53,6 @@ def update_assignment_planned_hours(controller, payload: dict[str, object]) -> d
     return controller._assignments_ctrl.updateAssignmentPlannedHours(payload)
 
 
-def set_assignment_hours(controller, payload: dict[str, object]) -> dict[str, object]:
-    return controller._assignments_ctrl.setAssignmentHours(payload)
-
-
 def delete_assignment(controller, assignment_id: str) -> dict[str, object]:
     return controller._assignments_ctrl.deleteAssignment(assignment_id)
 
@@ -156,7 +152,6 @@ __all__ = [
     "react_to_task_comment",
     "redo_last_task_action",
     "remove_task_comment_reaction",
-    "set_assignment_hours",
     "undo_last_task_action",
     "update_assignment_allocation",
     "update_assignment_planned_hours",

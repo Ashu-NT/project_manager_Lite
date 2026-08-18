@@ -137,21 +137,36 @@ Item {
                     spacing: 2
                     visible: Object.keys(_editPopup._usage).length > 0
 
+                    // Terminology matches Task Assignment's Project Resource
+                    // Context exactly (docs §44 follow-up §47) -- the same
+                    // backend facts must never read as different labels in
+                    // different places.
                     AppControls.Label {
-                        text: "Currently distributed to tasks: " + String(_editPopup._usage.allocatedToTasksHoursLabel || "0.0 h")
+                        text: "Project planned hours: " + String(_editPopup._usage.plannedHoursLabel || "0.0 h")
                         color: Theme.AppTheme.textSecondary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.captionSize
                     }
                     AppControls.Label {
-                        text: "Remaining unallocated: " + String(_editPopup._usage.unallocatedPlannedHoursLabel || "0.0 h")
+                        text: "Distributed to tasks: " + String(_editPopup._usage.allocatedToTasksHoursLabel || "0.0 h")
+                        color: Theme.AppTheme.textSecondary
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                    }
+                    AppControls.Label {
+                        text: "Unallocated: " + String(_editPopup._usage.unallocatedPlannedHoursLabel || "0.0 h")
                         color: Theme.AppTheme.textSecondary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.captionSize
                     }
                     AppControls.Label {
                         text: "Actual worked: " + String(_editPopup._usage.actualHoursLabel || "0.0 h")
-                            + " (" + String(_editPopup._usage.remainingProjectHoursLabel || "0.0 h") + " remaining vs. plan)"
+                        color: Theme.AppTheme.textSecondary
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                    }
+                    AppControls.Label {
+                        text: "Remaining vs plan: " + String(_editPopup._usage.remainingProjectHoursLabel || "0.0 h")
                         color: Theme.AppTheme.textSecondary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.captionSize

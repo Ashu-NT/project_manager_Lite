@@ -464,9 +464,12 @@ Component {
     accessSemantics: "reference"
     prototype: "QObject"
     Property { name: "assignmentPreview"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "projectResourceUsage"; type: "QVariantMap"; isReadonly: true }
     Method { name: "previewAssignment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "acceptAssignment"; type: "QVariantMap"; Parameter { name: "assignmentId"; type: "QString" } }
     Method { name: "declineAssignment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "loadProjectResourceUsage"; Parameter { name: "projectResourceId"; type: "QString" } }
+    Method { name: "clearProjectResourceUsage" }
 }
 
 
@@ -553,7 +556,6 @@ Component {
     Method { name: "createAssignment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "updateAssignmentAllocation"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "updateAssignmentPlannedHours"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
-    Method { name: "setAssignmentHours"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "applyBulkStatus"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "bulkDeleteTasks"; type: "QVariantMap"; Parameter { name: "taskIds"; type: "QVariantList" } }
     Method { name: "addTaskTimeEntry"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }

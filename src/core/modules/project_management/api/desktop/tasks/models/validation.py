@@ -38,7 +38,7 @@ class AssignmentPreviewDesktopDto:
     resulting_committed_hours_label: str = ""
     peak_utilization_percent: float = 0.0
     capacity_status: str = "UNKNOWN"
-    capacity_status_label: str = "Unknown"
+    capacity_status_label: str = "Capacity unknown"
     conflict_date_labels: tuple[str, ...] = ()
 
 

@@ -8,11 +8,108 @@ from src.tests.project_management._pm_task_service_helpers import build_task_con
 from src.ui_qml.modules.project_management.presenters.tasks.assignment_command_handler import (
     preview_assignment,
 )
+from src.ui_qml.modules.project_management.presenters.tasks.assignment_mapper import (
+    to_assignment_record_view_model,
+    to_assignment_table_row,
+)
+
+
+def _fake_assignment(**overrides):
+    defaults = dict(
+        id="assign-1",
+        task_id="task-1",
+        resource_id="resource-1",
+        resource_name="Alice Brown",
+        allocation_percent=50.0,
+        hours_logged="18",
+        project_resource_id="pr-1",
+        response_status="accepted",
+        response_status_label="Accepted",
+        can_manage=True,
+        can_accept=False,
+        can_decline=False,
+        allocated_planned_hours="32",
+        version=2,
+        project_resource_version=3,
+        capacity_known=True,
+        capacity_status="OVER_CAPACITY",
+        capacity_status_label="Over capacity",
+        available_capacity_hours_label="40.0 h",
+        committed_capacity_hours_label="48.0 h",
+        capacity_headroom_hours_label="-8.0 h",
+        peak_utilization_percent=120.0,
+        remaining_planned_hours_label="14.0 h",
+    )
+    defaults.update(overrides)
+    return SimpleNamespace(**defaults)
+
+
+def test_assignment_mapper_state_carries_capacity_facts_verbatim() -> None:
+    view_model = to_assignment_record_view_model(_fake_assignment())
+
+    assert view_model.state["capacityKnown"] is True
+    assert view_model.state["capacityStatus"] == "OVER_CAPACITY"
+    assert view_model.state["capacityStatusLabel"] == "Over capacity"
+    assert view_model.state["availableCapacityLabel"] == "40.0 h"
+    assert view_model.state["committedCapacityLabel"] == "48.0 h"
+    assert view_model.state["capacityHeadroomLabel"] == "-8.0 h"
+    assert view_model.state["peakUtilizationPercent"] == 120.0
+    assert view_model.state["remainingPlannedLabel"] == "14.0 h"
+
+
+def test_assignment_mapper_table_row_flattens_state_for_data_table() -> None:
+    view_model = to_assignment_record_view_model(_fake_assignment())
+    row = to_assignment_table_row(view_model)
+
+    assert row["id"] == "assign-1"
+    assert row["resourceName"] == "Alice Brown"
+    assert row["allocationLabel"] == "50.0%"
+    assert row["plannedLabel"] == "32.00 h"
+    assert row["actualLabel"] == "18.00 h"
+    assert row["remainingLabel"] == "14.0 h"
+    assert row["capacityStatus"] == "OVER_CAPACITY"
+    assert row["capacityStatusLabel"] == "Over capacity"
+    # Full state remains available on the row for inspector/action lookups.
+    assert row["state"]["projectResourceId"] == "pr-1"
+
+
+def test_assignment_mapper_defaults_capacity_fields_when_absent() -> None:
+    """An assignment DTO without the capacity fields (e.g. an older/fake
+    desktop API in other tests) must not crash the mapper -- it degrades to
+    the explicit UNKNOWN vocabulary, never a fabricated zero."""
+    bare = SimpleNamespace(
+        id="assign-2",
+        task_id="task-1",
+        resource_id="resource-2",
+        resource_name="Bob",
+        allocation_percent=20.0,
+        hours_logged="2",
+        project_resource_id="pr-2",
+        response_status="pending",
+        response_status_label="Pending",
+        can_manage=True,
+        can_accept=True,
+        can_decline=True,
+        allocated_planned_hours="8",
+    )
+
+    view_model = to_assignment_record_view_model(bare)
+    row = to_assignment_table_row(view_model)
+
+    assert view_model.state["capacityKnown"] is False
+    assert view_model.state["capacityStatus"] == "UNKNOWN"
+    assert view_model.state["capacityStatusLabel"] == "Capacity unknown"
+    assert row["capacityStatusLabel"] == "Capacity unknown"
 
 
 def test_pm_assignment_preview_maps_availability_and_policy_evidence() -> None:
-    desktop_api = SimpleNamespace(
-        preview_assignment=lambda _task_id, _project_resource_id: SimpleNamespace(
+    captured_calls = []
+
+    def _fake_preview_assignment(
+        task_id, project_resource_id, *, proposed_allocation_percent, exclude_assignment_id
+    ):
+        captured_calls.append((task_id, project_resource_id, proposed_allocation_percent, exclude_assignment_id))
+        return SimpleNamespace(
             overallocation_pct=25.0,
             conflict_projects=("Project Alpha", "Project Beta"),
             skills_matched=False,
@@ -21,14 +118,30 @@ def test_pm_assignment_preview_maps_availability_and_policy_evidence() -> None:
             warning_messages=("Missing commissioning skill",),
             is_blocked=True,
             block_messages=("Assignment policy blocked",),
+            capacity_known=True,
+            available_capacity_hours_label="40.0 h",
+            existing_committed_hours_label="20.0 h",
+            proposed_committed_hours_label="30.0 h",
+            resulting_committed_hours_label="50.0 h",
+            peak_utilization_percent=125.0,
+            capacity_status="OVER_CAPACITY",
+            capacity_status_label="Over capacity",
+            conflict_date_labels=("2026-06-01",),
         )
-    )
+
+    desktop_api = SimpleNamespace(preview_assignment=_fake_preview_assignment)
 
     result = preview_assignment(
         desktop_api,
-        {"taskId": "task-1", "projectResourceId": "project-resource-1"},
+        {
+            "taskId": "task-1",
+            "projectResourceId": "project-resource-1",
+            "proposedAllocationPercent": "60.0",
+            "excludeAssignmentId": "assign-9",
+        },
     )
 
+    assert captured_calls == [("task-1", "project-resource-1", 60.0, "assign-9")]
     assert result == {
         "ok": True,
         "overallocationPct": 25.0,
@@ -39,7 +152,53 @@ def test_pm_assignment_preview_maps_availability_and_policy_evidence() -> None:
         "warningMessages": ["Missing commissioning skill"],
         "isBlocked": True,
         "blockMessages": ["Assignment policy blocked"],
+        "capacityKnown": True,
+        "availableCapacityHoursLabel": "40.0 h",
+        "existingCommittedHoursLabel": "20.0 h",
+        "proposedCommittedHoursLabel": "30.0 h",
+        "resultingCommittedHoursLabel": "50.0 h",
+        "peakUtilizationPercent": 125.0,
+        "capacityStatus": "OVER_CAPACITY",
+        "capacityStatusLabel": "Over capacity",
+        "conflictDateLabels": ["2026-06-01"],
     }
+
+
+def test_pm_assignment_preview_defaults_proposed_allocation_to_100_and_no_exclusion() -> None:
+    captured_calls = []
+
+    def _fake_preview_assignment(
+        task_id, project_resource_id, *, proposed_allocation_percent, exclude_assignment_id
+    ):
+        captured_calls.append((task_id, project_resource_id, proposed_allocation_percent, exclude_assignment_id))
+        return SimpleNamespace(
+            overallocation_pct=0.0,
+            conflict_projects=(),
+            skills_matched=True,
+            certs_valid=True,
+            has_warnings=False,
+            warning_messages=(),
+            is_blocked=False,
+            block_messages=(),
+            capacity_known=False,
+            available_capacity_hours_label="",
+            existing_committed_hours_label="",
+            proposed_committed_hours_label="",
+            resulting_committed_hours_label="",
+            peak_utilization_percent=0.0,
+            capacity_status="UNKNOWN",
+            capacity_status_label="Capacity unknown",
+            conflict_date_labels=(),
+        )
+
+    desktop_api = SimpleNamespace(preview_assignment=_fake_preview_assignment)
+
+    preview_assignment(
+        desktop_api,
+        {"taskId": "task-1", "projectResourceId": "project-resource-1"},
+    )
+
+    assert captured_calls == [("task-1", "project-resource-1", 100.0, None)]
 
 
 def test_pm_tasks_search_filters(tmp_path: Path, qapp) -> None:

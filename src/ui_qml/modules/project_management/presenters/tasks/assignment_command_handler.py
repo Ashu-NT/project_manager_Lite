@@ -7,7 +7,6 @@ from src.core.modules.project_management.api.desktop import (
     AssignmentValidationDesktopDto,
     TaskAssignmentAllocationCommand,
     TaskAssignmentCreateCommand,
-    TaskAssignmentHoursCommand,
     TaskAssignmentPlannedHoursCommand,
 )
 
@@ -47,17 +46,6 @@ def update_assignment_allocation(desktop_api, payload: dict[str, Any]) -> None:
         expected_version=expected_version,
     )
     desktop_api.update_assignment_allocation(command)
-
-def set_assignment_hours(desktop_api, payload: dict[str, Any]) -> None:
-    command = TaskAssignmentHoursCommand(
-        assignment_id=require_text(
-            payload, "assignmentId", "Assignment ID is required for effort updates."
-        ),
-        hours_logged=require_decimal(
-            payload, "hoursLogged", "Hours logged is required."
-        ),
-    )
-    desktop_api.set_assignment_hours(command)
 
 def update_assignment_planned_hours(desktop_api, payload: dict[str, Any]) -> None:
     command = TaskAssignmentPlannedHoursCommand(
@@ -107,6 +95,28 @@ def decline_assignment(desktop_api, payload: dict[str, Any]) -> None:
     )
     desktop_api.decline_assignment(assignment_id, reason)
 
+def _empty_preview_result() -> dict[str, object]:
+    return {
+        "ok": True,
+        "overallocationPct": 0.0,
+        "conflictProjects": [],
+        "skillsMatched": True,
+        "certsValid": True,
+        "hasWarnings": False,
+        "warningMessages": [],
+        "isBlocked": False,
+        "blockMessages": [],
+        "capacityKnown": False,
+        "availableCapacityHoursLabel": "",
+        "existingCommittedHoursLabel": "",
+        "proposedCommittedHoursLabel": "",
+        "resultingCommittedHoursLabel": "",
+        "peakUtilizationPercent": 0.0,
+        "capacityStatus": "UNKNOWN",
+        "capacityStatusLabel": "Capacity unknown",
+        "conflictDateLabels": [],
+    }
+
 def preview_assignment(desktop_api, payload: dict[str, Any]) -> dict[str, object]:
     from src.core.modules.project_management.api.desktop.tasks import (
         AssignmentPreviewDesktopDto,
@@ -115,19 +125,18 @@ def preview_assignment(desktop_api, payload: dict[str, Any]) -> dict[str, object
     task_id = str(payload.get("taskId") or "").strip()
     project_resource_id = str(payload.get("projectResourceId") or "").strip()
     if not task_id or not project_resource_id:
-        return {
-            "ok": True,
-            "overallocationPct": 0.0,
-            "conflictProjects": [],
-            "skillsMatched": True,
-            "certsValid": True,
-            "hasWarnings": False,
-            "warningMessages": [],
-            "isBlocked": False,
-            "blockMessages": [],
-        }
+        return _empty_preview_result()
+    proposed_allocation_percent = optional_decimal(payload, "proposedAllocationPercent")
+    exclude_assignment_id = str(payload.get("excludeAssignmentId") or "").strip() or None
     dto: AssignmentPreviewDesktopDto = desktop_api.preview_assignment(
-        task_id, project_resource_id
+        task_id,
+        project_resource_id,
+        proposed_allocation_percent=(
+            float(proposed_allocation_percent)
+            if proposed_allocation_percent is not None
+            else 100.0
+        ),
+        exclude_assignment_id=exclude_assignment_id,
     )
     return {
         "ok": True,
@@ -139,6 +148,15 @@ def preview_assignment(desktop_api, payload: dict[str, Any]) -> dict[str, object
         "warningMessages": list(dto.warning_messages),
         "isBlocked": dto.is_blocked,
         "blockMessages": list(dto.block_messages),
+        "capacityKnown": dto.capacity_known,
+        "availableCapacityHoursLabel": dto.available_capacity_hours_label,
+        "existingCommittedHoursLabel": dto.existing_committed_hours_label,
+        "proposedCommittedHoursLabel": dto.proposed_committed_hours_label,
+        "resultingCommittedHoursLabel": dto.resulting_committed_hours_label,
+        "peakUtilizationPercent": dto.peak_utilization_percent,
+        "capacityStatus": dto.capacity_status,
+        "capacityStatusLabel": dto.capacity_status_label,
+        "conflictDateLabels": list(dto.conflict_date_labels),
     }
 
 def validate_assignment(desktop_api, payload: dict[str, Any]) -> dict[str, object]:

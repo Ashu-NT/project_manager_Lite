@@ -57,6 +57,10 @@ def reset_task_lazy_sections(controller) -> None:
     controller._skill_requirements_section_loaded_for_task_id = ""
     controller._schedule_impact_section_loaded_for_task_id = ""
     controller._set_schedule_impact({})
+    # Switching tasks must not leave the previous task's assignment capacity
+    # preview or project resource usage visible under the new task (§42).
+    controller._assignments_ctrl.clearAssignmentPreview()
+    controller._assignments_ctrl.clearProjectResourceUsage()
 
 
 __all__ = [

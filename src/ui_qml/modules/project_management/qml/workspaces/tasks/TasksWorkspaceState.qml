@@ -312,6 +312,10 @@ Item {
         root.navigateToRoute("project_management.timesheets")
     }
 
+    function openProjectResourcesRoute() {
+        root.navigateToRoute("project_management.projects")
+    }
+
     // ── Detail opening helpers ───────────────────────────────────────────
     function lazyLoadDetailSection(detailPage, sectionIndex) {
         if (root.workspaceController === null) return

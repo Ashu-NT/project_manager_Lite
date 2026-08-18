@@ -14,7 +14,8 @@ Item {
     property string selectedAssignmentId: ""
     property bool   isBusy: false
     property bool   canCreate: false
-    property var    assignmentPreview: null
+    property var    projectResourceUsage: null
+    property var    taskDetail: null
     property string errorText: ""
 
     signal createRequested()
@@ -26,39 +27,7 @@ Item {
     signal declineRequested(var assignmentData)
     signal previewRequested(string projectResourceId, string taskId)
     signal retryRequested()
-
-    readonly property bool _hasPreview: {
-        const p = root.assignmentPreview
-        if (!p) return false
-        return (p.overallocationPct > 0) || !p.skillsMatched || !p.certsValid
-            || p.isBlocked || p.hasWarnings
-    }
-    readonly property string _previewTone: {
-        const p = root.assignmentPreview
-        if (!p) return "info"
-        if (p.isBlocked) return "danger"
-        if (!p.skillsMatched || !p.certsValid || p.overallocationPct > 0) return "warning"
-        if (p.hasWarnings) return "warning"
-        return "success"
-    }
-    readonly property string _previewMessage: {
-        const p = root.assignmentPreview
-        if (!p) return ""
-        const parts = []
-        if (p.isBlocked) {
-            parts.push("Blocked: " + (p.blockMessages || []).join("; "))
-        } else {
-            if (p.overallocationPct > 0)
-                parts.push("Overallocated +" + p.overallocationPct + "% - conflicts: "
-                    + (p.conflictProjects && p.conflictProjects.length
-                        ? p.conflictProjects.join(", ") : "current project"))
-            if (!p.skillsMatched) parts.push("Missing required skills")
-            if (!p.certsValid)    parts.push("Certification expired or missing")
-            if (p.hasWarnings && !parts.length)
-                parts.push((p.warningMessages || []).join("; "))
-        }
-        return parts.join(" | ")
-    }
+    signal manageProjectResourcesRequested()
 
     readonly property var _items: root.assignmentsModel.items || []
     function _itemForId(assignmentId) {
@@ -94,6 +63,67 @@ Item {
         return parseFloat((item.state || {}).allocationPercent || "0") || 0
     }
 
+    readonly property bool _capacityKnown: !!root._selectedState.capacityKnown
+    readonly property string _capacityStatus: String(root._selectedState.capacityStatus || "UNKNOWN")
+    readonly property string _taskPeriodLabel: {
+        const fields = (root.taskDetail && root.taskDetail.fields) || []
+        let start = "", finish = ""
+        for (let i = 0; i < fields.length; i++) {
+            if (fields[i].label === "Start") start = fields[i].value
+            else if (fields[i].label === "Finish") finish = fields[i].value
+        }
+        if (!start && !finish) return "Not scheduled"
+        return start + " – " + finish
+    }
+    readonly property var _taskPlanningRows: [
+        { "label": "Task period", "value": root._taskPeriodLabel },
+        { "label": "Allocation (%)", "value": String(root._selectedState.allocationPercent || "0") + "%" },
+        { "label": "Available capacity", "value": root._capacityKnown
+            ? String(root._selectedState.availableCapacityLabel || "")
+            : "Capacity unavailable" },
+        { "label": "Capacity committed", "value": String(root._selectedState.committedCapacityLabel || "") },
+        { "label": "Planned work (h)", "value": String(root._selectedState.plannedHours || "0") + " h" },
+        { "label": "Capacity headroom", "value": root._capacityKnown
+            ? String(root._selectedState.capacityHeadroomLabel || "")
+            : "Capacity unavailable" }
+    ]
+    readonly property var _executionRows: [
+        { "label": "Actual logged", "value": String(root._selectedState.hoursLogged || "0") + " h" },
+        { "label": "Remaining planned", "value": String(root._selectedState.remainingPlannedLabel || "0 h") }
+    ]
+    readonly property var _projectResourceRows: {
+        const u = root.projectResourceUsage
+        if (!u || !u.projectResourceId) return []
+        return [
+            { "label": "Project planned hours", "value": String(u.plannedHoursLabel || "") },
+            { "label": "Distributed to tasks", "value": String(u.allocatedToTasksHoursLabel || "") },
+            { "label": "Unallocated", "value": String(u.unallocatedPlannedHoursLabel || "") },
+            { "label": "Actual worked", "value": String(u.actualHoursLabel || "") },
+            { "label": "Remaining vs plan", "value": String(u.remainingProjectHoursLabel || "") }
+        ]
+    }
+    readonly property bool _showOverCapacityWarning: root._capacityStatus === "OVER_CAPACITY"
+    readonly property string _overCapacityMessage: {
+        if (!root._showOverCapacityWarning) return ""
+        const peak = root._selectedState.peakUtilizationPercent
+        return "Resource is overallocated during part of this task period."
+            + (root._capacityKnown ? " Peak utilization: " + Number(peak).toFixed(0) + "%" : "")
+    }
+
+    readonly property var _columns: [
+        { key: "resourceName", label: "Resource", flex: 2, sortable: true },
+        { key: "allocationLabel", label: "Allocation", flex: 1, minWidth: 100 },
+        { key: "plannedLabel", label: "Planned Work", flex: 1, minWidth: 110 },
+        { key: "actualLabel", label: "Actual", flex: 1, minWidth: 90 },
+        { key: "remainingLabel", label: "Remaining", flex: 1, minWidth: 100 },
+        { key: "capacityStatusLabel", label: "Capacity Status", flex: 1, minWidth: 140, type: "status" }
+    ]
+    readonly property int _tableH: {
+        const count = root._items.length
+        const natural = Theme.AppTheme.normalRowHeight + Math.max(count, 1) * Theme.AppTheme.compactRowHeight + 24
+        return Math.max(180, Math.min(natural, 420))
+    }
+
     implicitHeight: _col.implicitHeight
 
     ColumnLayout {
@@ -111,15 +141,10 @@ Item {
                 : ""
             busy: root.isBusy
             createLabel: root.canCreate ? "Assign Resource" : ""
-            actions: root._selectedActions
+            actions: [{ "id": "refresh", "label": "Refresh", "icon": "refresh" }]
             onCreateRequested: root.createRequested()
             onActionTriggered: function(actionId) {
-                if (!root._selectedItem) return
-                if (actionId === "accept") root.acceptRequested(root._selectedItem)
-                else if (actionId === "decline") root.declineRequested(root._selectedItem)
-                else if (actionId === "allocation") root.editAllocationRequested(root._selectedItem)
-                else if (actionId === "plannedHours") root.editPlannedHoursRequested(root._selectedItem)
-                else if (actionId === "remove") root.deleteRequested(root._selectedItem)
+                if (actionId === "refresh") root.retryRequested()
             }
         }
 
@@ -132,13 +157,6 @@ Item {
             onActionClicked: root.retryRequested()
         }
 
-        AppWidgets.InlineMessage {
-            Layout.fillWidth: true
-            visible: root._hasPreview
-            message: root._previewMessage
-            tone: root._previewTone
-        }
-
         AppWidgets.EmptyState {
             Layout.fillWidth: true
             Layout.topMargin: Theme.AppTheme.spacingLg
@@ -147,105 +165,212 @@ Item {
             title: root.assignmentsModel.emptyState || "No assignments for this task."
         }
 
-        Repeater {
-            model: root._items
+        Item {
+            Layout.fillWidth: true
+            Layout.preferredHeight: root._tableH
+            visible: root._items.length > 0
 
-            delegate: Rectangle {
-                id: _row
-                required property var modelData
+            AppWidgets.DataTable {
+                anchors.fill: parent
+                columns: root._columns
+                sourceModel: root.assignmentsTableModel
+                selectedRowId: root.selectedAssignmentId
+                loading: root.isBusy
 
-                readonly property string _rowId: String(_row.modelData.id || "")
-                readonly property var _rowState: _row.modelData.state || {}
-                readonly property real _allocation: root._allocationOf(_row.modelData)
-                readonly property bool _isSelected: root.selectedAssignmentId === _row._rowId
+                onRowSelected: function(rowId) {
+                    root.assignmentSelected(rowId)
+                    const item = root._itemForId(rowId)
+                    const state = item ? (item.state || {}) : {}
+                    root.previewRequested(
+                        String(state.projectResourceId || ""),
+                        String(state.taskId || "")
+                    )
+                }
+                onRowActivated: function(rowId) {
+                    root.assignmentSelected(rowId)
+                    const item = root._itemForId(rowId)
+                    const state = item ? (item.state || {}) : {}
+                    root.previewRequested(
+                        String(state.projectResourceId || ""),
+                        String(state.taskId || "")
+                    )
+                }
+            }
+        }
 
+        AppWidgets.InspectorPanel {
+            id: _inspector
+            Layout.fillWidth: true
+            Layout.topMargin: Theme.AppTheme.spacingMd
+            implicitWidth: parent ? parent.width : Theme.AppTheme.inspectorWidth
+            visible: root._selectedItem !== null
+            title: root._selectedItem ? String(root._selectedItem.title || "") : ""
+            statusLabel: String(root._selectedState.capacityStatusLabel || "")
+            showEditAction: false
+            showSecondaryAction: false
+
+            onCloseRequested: root.assignmentSelected("")
+
+            AppWidgets.InlineMessage {
                 Layout.fillWidth: true
-                implicitHeight: 60
-                color: _row._isSelected
-                    ? Theme.AppTheme.selectedSurface
-                    : (_rowArea.containsMouse ? Theme.AppTheme.hoverSurface : "transparent")
+                visible: root._showOverCapacityWarning
+                tone: "danger"
+                message: "⚠ " + root._overCapacityMessage
+            }
 
-                Rectangle {
-                    visible: _row._isSelected
-                    anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-                    width: 3
-                    color: Theme.AppTheme.accent
-                }
+            AppControls.Label {
+                text: "TASK PLANNING"
+                color: Theme.AppTheme.textMuted
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.captionSize
+                font.bold: true
+            }
 
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.leftMargin: Theme.AppTheme.marginMd
-                    anchors.rightMargin: Theme.AppTheme.marginMd
-                    spacing: Theme.AppTheme.spacingMd
-
-                    AppWidgets.Avatar {
-                        name: String(_row.modelData.title || "")
-                        size: 36
+            Repeater {
+                model: root._taskPlanningRows
+                delegate: ColumnLayout {
+                    id: _tpRow
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: 2
+                    visible: String(_tpRow.modelData.value || "").length > 0
+                    AppControls.Label {
+                        text: String(_tpRow.modelData.label || "")
+                        color: Theme.AppTheme.textMuted
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.typeMetadataSize
                     }
-
-                    ColumnLayout {
+                    AppControls.Label {
                         Layout.fillWidth: true
-                        spacing: 3
-
-                        AppControls.Label {
-                            Layout.fillWidth: true
-                            text: String(_row.modelData.title || "")
-                            font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.bodySize
-                            font.bold: _row._isSelected
-                            color: Theme.AppTheme.textPrimary
-                            elide: Text.ElideRight
-                        }
-
-                        RowLayout {
-                            spacing: Theme.AppTheme.spacingSm
-
-                            AppWidgets.ProgressBar {
-                                implicitWidth: 70
-                                value: _row._allocation / 100.0
-                                colorHint: _row._allocation > 100 ? "danger" : "success"
-                            }
-
-                            AppControls.Label {
-                                text: _row._allocation.toFixed(0) + "% allocated"
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.captionSize
-                                color: Theme.AppTheme.textMuted
-                            }
-
-                            AppControls.Label {
-                                text: "• " + String(_row.modelData.supportingText || "")
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.captionSize
-                                color: Theme.AppTheme.textMuted
-                                elide: Text.ElideRight
-                            }
-                        }
-                    }
-
-                    AppWidgets.StatusChip {
-                        visible: String(_row.modelData.statusLabel || "").length > 0
-                        status: String(_row.modelData.statusLabel || "")
+                        text: String(_tpRow.modelData.value || "")
+                        color: Theme.AppTheme.textPrimary
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.typeSupportingTextSize
+                        font.bold: true
+                        wrapMode: Text.WrapAtWordBoundaryOrAnywhere
                     }
                 }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.topMargin: 2
+                height: Theme.AppTheme.borderWidthThin
+                color: Theme.AppTheme.divider
+            }
+
+            AppControls.Label {
+                text: "EXECUTION"
+                color: Theme.AppTheme.textMuted
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.captionSize
+                font.bold: true
+            }
+
+            Repeater {
+                model: root._executionRows
+                delegate: ColumnLayout {
+                    id: _exRow
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: 2
+                    AppControls.Label {
+                        text: String(_exRow.modelData.label || "")
+                        color: Theme.AppTheme.textMuted
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.typeMetadataSize
+                    }
+                    AppControls.Label {
+                        Layout.fillWidth: true
+                        text: String(_exRow.modelData.value || "")
+                        color: Theme.AppTheme.textPrimary
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.typeSupportingTextSize
+                        font.bold: true
+                    }
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                visible: root._projectResourceRows.length > 0
+                spacing: Theme.AppTheme.spacingSm
 
                 Rectangle {
-                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-                    height: 1
+                    Layout.fillWidth: true
+                    Layout.topMargin: 2
+                    Layout.preferredHeight: Theme.AppTheme.borderWidthThin
                     color: Theme.AppTheme.divider
                 }
 
-                MouseArea {
-                    id: _rowArea
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        root.assignmentSelected(_row._rowId)
-                        root.previewRequested(
-                            String(_row._rowState.projectResourceId || ""),
-                            String(_row._rowState.taskId || "")
-                        )
+                AppControls.Label {
+                    text: "PROJECT RESOURCE CONTEXT"
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.bold: true
+                }
+
+                Repeater {
+                    model: root._projectResourceRows
+                    delegate: ColumnLayout {
+                        id: _prRow
+                        required property var modelData
+                        Layout.fillWidth: true
+                        spacing: 2
+                        AppControls.Label {
+                            text: String(_prRow.modelData.label || "")
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.typeMetadataSize
+                        }
+                        AppControls.Label {
+                            Layout.fillWidth: true
+                            text: String(_prRow.modelData.value || "")
+                            color: Theme.AppTheme.textPrimary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.typeSupportingTextSize
+                            font.bold: true
+                        }
+                    }
+                }
+
+                AppControls.SecondaryButton {
+                    Layout.fillWidth: true
+                    text: "Manage Project Resources"
+                    iconName: "resource"
+                    onClicked: root.manageProjectResourcesRequested()
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.topMargin: 2
+                height: Theme.AppTheme.borderWidthThin
+                color: Theme.AppTheme.divider
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Theme.AppTheme.spacingXs
+
+                Repeater {
+                    model: root._selectedActions
+                    delegate: AppControls.SecondaryButton {
+                        id: _actionBtn
+                        required property var modelData
+                        Layout.fillWidth: true
+                        text: String(_actionBtn.modelData.label || "")
+                        iconName: String(_actionBtn.modelData.icon || "")
+                        danger: !!_actionBtn.modelData.danger
+                        onClicked: {
+                            const actionId = _actionBtn.modelData.id
+                            if (actionId === "accept") root.acceptRequested(root._selectedItem)
+                            else if (actionId === "decline") root.declineRequested(root._selectedItem)
+                            else if (actionId === "allocation") root.editAllocationRequested(root._selectedItem)
+                            else if (actionId === "plannedHours") root.editPlannedHoursRequested(root._selectedItem)
+                            else if (actionId === "remove") root.deleteRequested(root._selectedItem)
+                        }
                     }
                 }
             }

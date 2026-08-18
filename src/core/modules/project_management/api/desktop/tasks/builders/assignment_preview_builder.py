@@ -6,6 +6,9 @@ from src.core.modules.project_management.api.desktop.common.financial_formatting
 from src.core.modules.project_management.api.desktop.tasks.models.validation import (
     AssignmentPreviewDesktopDto,
 )
+from src.core.modules.project_management.api.desktop.tasks.services.capacity_status_labels import (
+    capacity_status_label,
+)
 
 
 def build_assignment_preview(
@@ -135,7 +138,7 @@ def build_assignment_preview(
         resulting_committed_hours_label=resulting_label,
         peak_utilization_percent=peak_utilization_percent,
         capacity_status=capacity_status,
-        capacity_status_label=capacity_status.replace("_", " ").title(),
+        capacity_status_label=capacity_status_label(capacity_status),
         conflict_date_labels=conflict_date_labels,
     )
 

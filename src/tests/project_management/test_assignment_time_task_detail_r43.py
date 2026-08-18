@@ -8,7 +8,7 @@ resource-wide) Time Summary fix, and removal of the "Set Hours" UI affordance.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 
@@ -370,3 +370,71 @@ def test_desktop_update_assignment_planned_hours_stale_project_resource_version_
             )
         )
     assert exc.value.code == "STALE_WRITE"
+
+
+# ---------------------------------------------------------------------------
+# list_assignments exposes per-row calendar capacity facts (Task Detail QML
+# redesign follow-up, docs §44) -- the table's Capacity Status column and the
+# inspector's Available/Committed/Headroom rows read these directly; QML
+# performs no calculation of its own.
+# ---------------------------------------------------------------------------
+
+
+def test_list_assignments_exposes_within_capacity_for_a_lightly_loaded_resource(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+    rs = services["resource_service"]
+
+    project = ps.create_project("List Assignments Capacity Project")
+    resource = rs.create_resource("List Assignments Capacity Resource", hourly_rate=50.0)
+    window_start = date.today() + timedelta(days=1)
+    task = ts.create_task(
+        project.id, "List Assignments Capacity Task", start_date=window_start, duration_days=3
+    )
+    ts.assign_resource(task.id, resource.id, allocation_percent=20.0)
+
+    api = build_project_management_tasks_desktop_api(
+        project_service=ps, task_service=ts, resource_service=rs,
+    )
+    dtos = api.list_assignments(task.id)
+
+    assert len(dtos) == 1
+    assert dtos[0].capacity_known is True
+    assert dtos[0].capacity_status == "AVAILABLE"
+    assert dtos[0].capacity_status_label == "Within capacity"
+    assert dtos[0].available_capacity_hours_label != ""
+    assert dtos[0].committed_capacity_hours_label != ""
+    assert dtos[0].remaining_planned_hours_label != ""
+
+
+def test_list_assignments_exposes_over_capacity_for_a_double_booked_resource(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+    rs = services["resource_service"]
+
+    project = ps.create_project("List Assignments Over Capacity Project")
+    resource = rs.create_resource("List Assignments Over Capacity Resource", hourly_rate=50.0)
+    window_start = date.today() + timedelta(days=1)
+    task_a = ts.create_task(
+        project.id, "Over Capacity Task A", start_date=window_start, duration_days=3
+    )
+    task_b = ts.create_task(
+        project.id, "Over Capacity Task B", start_date=window_start, duration_days=3
+    )
+    ts.assign_resource(task_a.id, resource.id, allocation_percent=70.0)
+    ts.assign_resource(task_b.id, resource.id, allocation_percent=60.0)
+
+    api = build_project_management_tasks_desktop_api(
+        project_service=ps, task_service=ts, resource_service=rs,
+    )
+    dtos_a = api.list_assignments(task_a.id)
+    dtos_b = api.list_assignments(task_b.id)
+
+    # Each task's own row must reflect the resource's TOTAL same-project
+    # commitment (70% + 60% = 130%), not just that one task's own share.
+    assert len(dtos_a) == 1 and len(dtos_b) == 1
+    assert dtos_a[0].capacity_status == "OVER_CAPACITY"
+    assert dtos_b[0].capacity_status == "OVER_CAPACITY"
+    assert dtos_a[0].capacity_status_label == "Over capacity"
+    assert dtos_a[0].peak_utilization_percent > 100.0
+    assert dtos_b[0].peak_utilization_percent > 100.0

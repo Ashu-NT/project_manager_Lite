@@ -410,6 +410,7 @@ class ProjectManagementTasksDesktopApi:
             ),
         )
         action_context_method = getattr(service, "get_assignment_action_context", None)
+        preview_capacity_method = getattr(service, "preview_assignment_capacity", None)
         rows: list[TaskAssignmentDesktopDto] = []
         for assignment in assignments:
             action_context = None
@@ -423,6 +424,30 @@ class ProjectManagementTasksDesktopApi:
                         exc_info=True,
                     )
                     action_context = None
+            capacity_fact = None
+            if callable(preview_capacity_method):
+                try:
+                    # This assignment's own allocation_percent stands in as
+                    # "proposed" against every OTHER assignment already
+                    # committed (exclude_assignment_id) -- i.e. the real
+                    # capacity fact for this assignment's current commitment,
+                    # from the same authority the create/edit preview uses
+                    # (docs §44), not a second calculation.
+                    capacity_fact = preview_capacity_method(
+                        task_id,
+                        assignment.resource_id,
+                        proposed_allocation_percent=float(
+                            getattr(assignment, "allocation_percent", 0.0) or 0.0
+                        ),
+                        exclude_assignment_id=assignment.id,
+                    )
+                except Exception:
+                    logger.warning(
+                        "Assignment capacity could not be resolved assignment_id=%s",
+                        assignment.id,
+                        exc_info=True,
+                    )
+                    capacity_fact = None
             rows.append(
                 serialize_assignment(
                     assignment,
@@ -431,6 +456,7 @@ class ProjectManagementTasksDesktopApi:
                     can_accept=bool(getattr(action_context, "can_accept", False)),
                     can_decline=bool(getattr(action_context, "can_decline", False)),
                     project_resource_version=self._project_resource_version_for(assignment),
+                    capacity_fact=capacity_fact,
                 )
             )
         return tuple(rows)
