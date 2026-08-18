@@ -84,9 +84,7 @@ Item {
     signal timeAddRequested(var payload)
     signal timeUpdateRequested(var payload)
     signal timeDeleteRequested(string entryId)
-    signal timeSubmitRequested(var payload)
-    signal timeLockRequested(var payload)
-    signal timeUnlockRequested(var payload)
+    signal openTimesheetsRequested()
 
     signal composeRequested()
     signal commentReplyRequested(var commentData)
@@ -326,9 +324,7 @@ Item {
                     onAddRequested: function(pl) { root.timeAddRequested(pl) }
                     onUpdateRequested: function(pl) { root.timeUpdateRequested(pl) }
                     onDeleteRequested: function(id) { root.timeDeleteRequested(id) }
-                    onSubmitRequested: function(pl) { root.timeSubmitRequested(pl) }
-                    onLockRequested: function(pl) { root.timeLockRequested(pl) }
-                    onUnlockRequested: function(pl) { root.timeUnlockRequested(pl) }
+                    onOpenTimesheetsRequested: root.openTimesheetsRequested()
                 }
             }
         }

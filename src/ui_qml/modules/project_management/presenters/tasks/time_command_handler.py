@@ -34,27 +34,3 @@ def delete_task_time_entry(timesheets_desktop_api, entry_id: str) -> None:
     if not normalized_entry_id:
         raise ValueError("Choose an entry to delete.")
     timesheets_desktop_api.delete_time_entry(normalized_entry_id)
-
-def submit_task_period(timesheets_desktop_api, payload: dict[str, Any]) -> None:
-    timesheets_desktop_api.submit_period(
-        resource_id=require_text(
-            payload, "resourceId", "Choose a resource period to submit."
-        ),
-        period_start=require_date(payload, "periodStart", "Period start is required."),
-        note=optional_text(payload, "note") or "",
-    )
-
-def lock_task_period(timesheets_desktop_api, payload: dict[str, Any]) -> None:
-    timesheets_desktop_api.lock_period(
-        resource_id=require_text(
-            payload, "resourceId", "Choose a resource period to lock."
-        ),
-        period_start=require_date(payload, "periodStart", "Period start is required."),
-        note=optional_text(payload, "note") or "",
-    )
-
-def unlock_task_period(timesheets_desktop_api, payload: dict[str, Any]) -> None:
-    timesheets_desktop_api.unlock_period(
-        require_text(payload, "periodId", "Choose a period to unlock."),
-        note=optional_text(payload, "note") or "",
-    )

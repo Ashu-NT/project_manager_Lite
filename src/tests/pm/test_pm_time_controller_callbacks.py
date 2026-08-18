@@ -1,5 +1,7 @@
 """Phase 5 verification: PMTimeController routes entry mutations through
-_refresh_entry_cb (scoped) and period mutations through _facade_refresh.
+_refresh_entry_cb (scoped). Period-level submit/lock/unlock is not
+task-scoped and was removed from this controller entirely -- see the
+Timesheets workspace (My Time / Review Queue) for that instead.
 """
 from __future__ import annotations
 
@@ -131,45 +133,12 @@ class TestEntryMutationsUseScoped:
         assert kw["on_success"] is not facade
 
 
-# ── Period-level mutations always use facade ───────────────────────────────────
-
-class TestPeriodMutationsUseFacade:
-    def test_submit_period_passes_facade_as_on_success(self):
-        scoped = MagicMock()
-        facade = MagicMock()
-        ctrl = _build_controller(facade_refresh=facade, entry_refresh=scoped)
-        patcher, mock_run = _stub_run_mutation()
-        with patcher:
-            ctrl.submitTaskPeriod({"periodId": "pd-1"})
-        _, kw = mock_run.call_args
-        assert kw["on_success"] is facade
-
-    def test_lock_period_passes_facade_as_on_success(self):
-        scoped = MagicMock()
-        facade = MagicMock()
-        ctrl = _build_controller(facade_refresh=facade, entry_refresh=scoped)
-        patcher, mock_run = _stub_run_mutation()
-        with patcher:
-            ctrl.lockTaskPeriod({"periodId": "pd-1"})
-        _, kw = mock_run.call_args
-        assert kw["on_success"] is facade
-
-    def test_unlock_period_passes_facade_as_on_success(self):
-        scoped = MagicMock()
-        facade = MagicMock()
-        ctrl = _build_controller(facade_refresh=facade, entry_refresh=scoped)
-        patcher, mock_run = _stub_run_mutation()
-        with patcher:
-            ctrl.unlockTaskPeriod({"periodId": "pd-1"})
-        _, kw = mock_run.call_args
-        assert kw["on_success"] is facade
-
-    def test_period_mutations_do_not_use_scoped_refresh(self):
-        scoped = MagicMock()
-        facade = MagicMock()
-        ctrl = _build_controller(facade_refresh=facade, entry_refresh=scoped)
-        patcher, mock_run = _stub_run_mutation()
-        with patcher:
-            ctrl.submitTaskPeriod({"periodId": "pd-1"})
-        _, kw = mock_run.call_args
-        assert kw["on_success"] is not scoped
+def test_period_level_mutations_were_removed_from_this_controller():
+    ctrl = _build_controller()
+    for removed in ("submitTaskPeriod", "lockTaskPeriod", "unlockTaskPeriod"):
+        assert not hasattr(ctrl, removed), (
+            f"{removed} should no longer exist on PMTimeController -- "
+            "period submit/lock/unlock belongs to the Timesheets workspace "
+            "(a period can span other tasks' assignments, so it was never "
+            "correctly task-scoped)."
+        )

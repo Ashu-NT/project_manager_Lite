@@ -62,9 +62,6 @@ from .time_builder import (
 from .time_command_handler import (
     add_task_time_entry,
     delete_task_time_entry,
-    lock_task_period,
-    submit_task_period,
-    unlock_task_period,
     update_task_time_entry,
 )
 from .workspace_builder import build_workspace_state
@@ -298,15 +295,6 @@ class ProjectTasksWorkspacePresenter:
 
     def delete_task_time_entry(self, entry_id: str) -> None:
         delete_task_time_entry(self._timesheets_desktop_api, entry_id)
-
-    def submit_task_period(self, payload: dict[str, Any]) -> None:
-        submit_task_period(self._timesheets_desktop_api, payload)
-
-    def lock_task_period(self, payload: dict[str, Any]) -> None:
-        lock_task_period(self._timesheets_desktop_api, payload)
-
-    def unlock_task_period(self, payload: dict[str, Any]) -> None:
-        unlock_task_period(self._timesheets_desktop_api, payload)
 
     def delete_assignment(self, assignment_id: str) -> None:
         delete_assignment(self._desktop_api, assignment_id)

@@ -118,6 +118,10 @@ AppLayouts.WorkspaceFrame {
         state.openTaskProcurementRoute()
     }
 
+    function _openTimesheetsRoute() {
+        state.openTimesheetsRoute()
+    }
+
     function _openFilterPopup() {
         filterPopup.open()
     }
@@ -358,16 +362,6 @@ AppLayouts.WorkspaceFrame {
                             dialogHostLoader.invoke("openDeleteDialog", root.selectedTaskModel)
                         } else if (actionId === "reserve_material") {
                             root._openTaskReservationsRoute()
-                        } else if (actionId === "edit_allocation" && root._selectedAssignmentItem) {
-                            dialogHostLoader.invoke(
-                                "openEditAssignmentAllocationDialog",
-                                root._selectedAssignmentItem,
-                                root.selectedTaskModel
-                            )
-                        } else if (actionId === "set_assignment_hours" && root._selectedAssignmentItem) {
-                            dialogHostLoader.invoke("openAssignmentHoursDialog", root._selectedAssignmentItem)
-                        } else if (actionId === "remove_assignment" && root._selectedAssignmentItem) {
-                            dialogHostLoader.invoke("openDeleteAssignmentDialog", root._selectedAssignmentItem)
                         } else if (actionId === "edit_dependency" && tasksDetailPanel) {
                             tasksDetailPanel.openSelectedDependencyEditor()
                         } else if (actionId === "remove_dependency" && root._selectedDependencyItem) {
@@ -506,21 +500,7 @@ AppLayouts.WorkspaceFrame {
                             root.workspaceController.deleteTaskTimeEntry(entryId)
                         }
                     }
-                    onTimeSubmitRequested: function(payload) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.submitTaskPeriod(payload)
-                        }
-                    }
-                    onTimeLockRequested: function(payload) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.lockTaskPeriod(payload)
-                        }
-                    }
-                    onTimeUnlockRequested: function(payload) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.unlockTaskPeriod(payload)
-                        }
-                    }
+                    onOpenTimesheetsRequested: root._openTimesheetsRoute()
 
                     onComposeRequested: dialogHostLoader.invoke("openTaskCollaborationDialog", root.selectedTaskModel)
                     onCommentReplyRequested: function(commentData) {

@@ -93,18 +93,6 @@ def delete_task_time_entry(controller, entry_id: str) -> dict[str, object]:
     return controller._time_ctrl.deleteTaskTimeEntry(entry_id)
 
 
-def submit_task_period(controller, payload: dict[str, object]) -> dict[str, object]:
-    return controller._time_ctrl.submitTaskPeriod(payload)
-
-
-def lock_task_period(controller, payload: dict[str, object]) -> dict[str, object]:
-    return controller._time_ctrl.lockTaskPeriod(payload)
-
-
-def unlock_task_period(controller, payload: dict[str, object]) -> dict[str, object]:
-    return controller._time_ctrl.unlockTaskPeriod(payload)
-
-
 def post_task_comment(controller, payload: dict[str, object]) -> dict[str, object]:
     return controller._collab_ctrl.postTaskComment(payload)
 
@@ -158,7 +146,6 @@ __all__ = [
     "end_task_presence",
     "edit_task_comment",
     "generate_entity_code",
-    "lock_task_period",
     "mark_task_collaboration_read",
     "move_task_in_wbs",
     "post_task_comment",
@@ -166,9 +153,7 @@ __all__ = [
     "redo_last_task_action",
     "remove_task_comment_reaction",
     "set_assignment_hours",
-    "submit_task_period",
     "undo_last_task_action",
-    "unlock_task_period",
     "update_assignment_allocation",
     "update_dependency",
     "update_progress",

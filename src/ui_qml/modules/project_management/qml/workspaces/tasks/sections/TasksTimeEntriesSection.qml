@@ -27,28 +27,23 @@ Item {
     signal addRequested(var payload)
     signal updateRequested(var payload)
     signal deleteRequested(string entryId)
-    signal submitRequested(var payload)
-    signal lockRequested(var payload)
-    signal unlockRequested(var payload)
+    signal openTimesheetsRequested()
 
     property int _activeTabIndex: 0
 
     readonly property var _items: root.entriesModel.items || []
     readonly property var _state: root.assignmentSummary.state || {}
-    readonly property bool _canSubmit: Boolean(root._state.resourceId) && Boolean(root._state.periodStart)
-    readonly property bool _canUnlock: Boolean(root._state.periodId)
-    readonly property bool _showWorkflowTab: root._canSubmit || root._canUnlock
     readonly property string _assignmentStatus: String(root.assignmentSummary.statusLabel || "")
-    readonly property var _detailTabs: {
-        const tabs = [
-            { "id": "assignment", "label": "Assignment" },
-            { "id": "capture", "label": "Capture" },
-            { "id": "ledger", "label": "Ledger" }
-        ]
-        if (root._showWorkflowTab)
-            tabs.push({ "id": "workflow", "label": "Workflow" })
-        return tabs
-    }
+    // Submitting/locking/unlocking a *period* (which can span other tasks'
+    // assignments too, not just this one) is handled exclusively by the
+    // Timesheets workspace now -- see openTimesheetsRequested below. This
+    // section only ever covers what's genuinely task-scoped: which
+    // assignment, quick entry capture, and this task's own logged entries.
+    readonly property var _detailTabs: [
+        { "id": "assignment", "label": "Assignment" },
+        { "id": "capture", "label": "Capture" },
+        { "id": "ledger", "label": "Ledger" }
+    ]
     readonly property int _resolvedTabIndex: {
         const tabs = root._detailTabs
         if (!tabs.length)
@@ -60,8 +55,6 @@ Item {
             return _capturePanel.implicitHeight
         if (root._resolvedTabIndex === 2)
             return _ledgerPanel.implicitHeight
-        if (root._resolvedTabIndex === 3)
-            return _workflowPanel.implicitHeight
         return _assignmentPanel.implicitHeight
     }
 
@@ -87,10 +80,15 @@ Item {
             title: "Time"
             subtitle: root._assignmentStatus.length > 0
                 ? root._assignmentStatus
-                : (root._items.length > 0 ? root._items.length + " entries" : "Capture and approve task time")
+                : (root._items.length > 0 ? root._items.length + " entries" : "Capture task time")
             busy: root.isBusy
             createLabel: ""
-            actions: []
+            actions: [
+                { "id": "open_timesheets", "label": "Open in Timesheets", "icon": "time", "enabled": true, "danger": false }
+            ]
+            onActionTriggered: function(actionId) {
+                if (actionId === "open_timesheets") root.openTimesheetsRequested()
+            }
         }
 
         AppWidgets.InlineMessage {
@@ -180,23 +178,6 @@ Item {
                 isBusy: root.isBusy
                 onEntrySelected: function(entryId) {
                     root.entrySelected(entryId)
-                }
-            }
-
-            TaskTimePeriodWorkflow {
-                id: _workflowPanel
-                Layout.fillWidth: true
-                assignmentSummary: root.assignmentSummary
-                selectedPeriodStart: root.selectedPeriodStart
-                isBusy: root.isBusy
-                onSubmitRequested: function(payload) {
-                    root.submitRequested(payload)
-                }
-                onLockRequested: function(payload) {
-                    root.lockRequested(payload)
-                }
-                onUnlockRequested: function(payload) {
-                    root.unlockRequested(payload)
                 }
             }
         }

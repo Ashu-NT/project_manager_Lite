@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
+import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Mock 1.0 as AppMock
 import App.Theme 1.0 as Theme
@@ -89,20 +90,9 @@ Item {
         return actions
     }
 
-    readonly property int _tableH: {
-        const n = root._items.length
-        const rH = Theme.AppTheme.compactRowHeight
-        const hH = Theme.AppTheme.normalRowHeight
-        const natural = hH + Math.max(n, 1) * rH + 12
-        return Math.max(200, Math.min(natural, 360))
+    function _allocationOf(item) {
+        return parseFloat((item.state || {}).allocationPercent || "0") || 0
     }
-
-    readonly property var _columns: [
-        { key: "title",          label: "Resource",   flex: 2,   sortable: false },
-        { key: "metaText",       label: "Allocation", flex: 1,   sortable: false },
-        { key: "supportingText", label: "Effort",     flex: 1.2, sortable: false },
-        { key: "statusLabel",    label: "Response",   flex: 0,   minWidth: 100, type: "status" }
-    ]
 
     implicitHeight: _col.implicitHeight
 
@@ -116,7 +106,9 @@ Item {
         AppWidgets.ContextualActionToolbar {
             Layout.fillWidth: true
             title: "Assignments"
-            subtitle: root._items.length > 0 ? String(root._items.length) : ""
+            subtitle: root._items.length > 0
+                ? (root._items.length === 1 ? "1 resource" : root._items.length + " resources")
+                : ""
             busy: root.isBusy
             createLabel: root.canCreate ? "Assign Resource" : ""
             actions: root._selectedActions
@@ -147,30 +139,115 @@ Item {
             tone: root._previewTone
         }
 
-        Item {
+        AppWidgets.EmptyState {
             Layout.fillWidth: true
-            Layout.preferredHeight: root._tableH
+            Layout.topMargin: Theme.AppTheme.spacingLg
+            Layout.bottomMargin: Theme.AppTheme.spacingLg
+            visible: !root.isBusy && root._items.length === 0
+            title: root.assignmentsModel.emptyState || "No assignments for this task."
+        }
 
-            AppWidgets.DataTable {
-                anchors.fill: parent
-                columns: root._columns
-                sourceModel: root.assignmentsTableModel
-                selectedRowId: root.selectedAssignmentId
-                loading: root.isBusy
-                emptyText: root.assignmentsModel.emptyState || "No assignments for this task."
+        Repeater {
+            model: root._items
 
-                onRowSelected: function(rowId) {
-                    root.assignmentSelected(rowId)
-                    const item = root._itemForId(rowId)
-                    if (item) {
-                        const state = item.state || {}
+            delegate: Rectangle {
+                id: _row
+                required property var modelData
+
+                readonly property string _rowId: String(_row.modelData.id || "")
+                readonly property var _rowState: _row.modelData.state || {}
+                readonly property real _allocation: root._allocationOf(_row.modelData)
+                readonly property bool _isSelected: root.selectedAssignmentId === _row._rowId
+
+                Layout.fillWidth: true
+                implicitHeight: 60
+                color: _row._isSelected
+                    ? Theme.AppTheme.selectedSurface
+                    : (_rowArea.containsMouse ? Theme.AppTheme.hoverSurface : "transparent")
+
+                Rectangle {
+                    visible: _row._isSelected
+                    anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                    width: 3
+                    color: Theme.AppTheme.accent
+                }
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: Theme.AppTheme.marginMd
+                    anchors.rightMargin: Theme.AppTheme.marginMd
+                    spacing: Theme.AppTheme.spacingMd
+
+                    AppWidgets.Avatar {
+                        name: String(_row.modelData.title || "")
+                        size: 36
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 3
+
+                        AppControls.Label {
+                            Layout.fillWidth: true
+                            text: String(_row.modelData.title || "")
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.bodySize
+                            font.bold: _row._isSelected
+                            color: Theme.AppTheme.textPrimary
+                            elide: Text.ElideRight
+                        }
+
+                        RowLayout {
+                            spacing: Theme.AppTheme.spacingSm
+
+                            AppWidgets.ProgressBar {
+                                implicitWidth: 70
+                                value: _row._allocation / 100.0
+                                colorHint: _row._allocation > 100 ? "danger" : "success"
+                            }
+
+                            AppControls.Label {
+                                text: _row._allocation.toFixed(0) + "% allocated"
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                color: Theme.AppTheme.textMuted
+                            }
+
+                            AppControls.Label {
+                                text: "• " + String(_row.modelData.supportingText || "")
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                color: Theme.AppTheme.textMuted
+                                elide: Text.ElideRight
+                            }
+                        }
+                    }
+
+                    AppWidgets.StatusChip {
+                        visible: String(_row.modelData.statusLabel || "").length > 0
+                        status: String(_row.modelData.statusLabel || "")
+                    }
+                }
+
+                Rectangle {
+                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                    height: 1
+                    color: Theme.AppTheme.divider
+                }
+
+                MouseArea {
+                    id: _rowArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        root.assignmentSelected(_row._rowId)
                         root.previewRequested(
-                            String(state.projectResourceId || ""),
-                            String(state.taskId || "")
+                            String(_row._rowState.projectResourceId || ""),
+                            String(_row._rowState.taskId || "")
                         )
                     }
                 }
-                onRowActivated: function(rowId) { root.assignmentSelected(rowId) }
             }
         }
     }

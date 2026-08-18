@@ -2534,6 +2534,35 @@ sections for purpose and overlap:
 Section count: 10 -> 8 (Details, Assignments, Skills, Dependencies, Time,
 Material Demand, Schedule Impact, Activity).
 
+### Gateway-wiring check, done on user request before trusting the merge
+
+PM's `gateway/` packages deliberately declare Protocols whose concrete
+implementation is left to Inventory/Procurement (injected at the
+composition root), so "no code in PM" does not mean "no real backend" --
+worth checking explicitly before deleting anything that looks like a thin
+CTA. Checked both gateways this merge touches:
+
+- **`gateway/task/reservation.py` (`TaskReservationGateway`) is real and
+  wired**, not a stub: `app_container.py` populates a live
+  `inventory_reservation_service: ReservationService` from the actual
+  Inventory module and threads it through to this gateway. This doesn't
+  change the merge decision, though -- neither the deleted "Reservations"
+  section nor the surviving "Material Demand" section ever rendered the
+  individual reservation records this gateway can return; both only ever
+  showed the same derived summary counts. No capability was hidden by
+  removing the duplicate tile; the one surviving "Open Reservations"
+  button is wired to the identical capability check either way.
+- **No task-level Procurement gateway exists at all** -- `gateway/task/`
+  has only `reservation.py`. A different gateway,
+  `gateway/procurement/financial_source.py`
+  (`ProcurementFinancialSourceProvider`), does exist, but its own
+  docstring states it explicitly: "this one currently has zero
+  implementations anywhere in the codebase ... not wired into any runtime
+  composition today." It's also a different concern entirely (a
+  project-level Finance commitment/receipt-accrual pull contract), not
+  connected to the task detail page. The removed "Procurement" section's
+  only backend action was always plain route navigation.
+
 ### Testing added
 
 - QML-offscreen verification (ad hoc): `detailSections` no longer contains
@@ -2545,3 +2574,163 @@ Material Demand, Schedule Impact, Activity).
 
 **R4.3 FOLLOW-UP (COMBOBOX BORDER FIX + DETAIL-PAGE IA CONSOLIDATION):
 COMPLETE.** Not committed.
+
+## 40. R4.3 follow-up: per-section button-duplication audit, and the Assignments redesign
+
+At explicit user request: checked every detail section (not just backend
+wiring, as in §38, but the actual on-screen buttons) for the
+"toolbar-and-another-one-below-it" duplication pattern, and for actions
+that should be selection-gated but weren't.
+
+### Button-duplication audit result: one real case, in Assignments
+
+There are two toolbar layers in the Tasks detail page: a page-level
+"pinned" `ContextualActionToolbar` (task title, back button, and
+`TasksWorkspaceState.qml`'s `detailActionsForSection()`), and each
+section's *own* internal `ContextualActionToolbar`
+("sits below the DataTable toolbar; visible while a record is selected,"
+per that shared widget's own doc comment). Checked all 8:
+
+- **Assignments: real duplicate, now fixed.** The page-level toolbar
+  computed a *second*, independent copy of Allocation/Set Hours/Remove for
+  the selected assignment -- and did it *wrong*: it always showed those
+  three regardless of the assignment's state, while the section's own
+  toolbar already correctly branches (Accept/Decline for a still-pending
+  assignment, Allocation/Set Hours/Remove only once accepted) and was
+  already fully wired end to end, including the Accept/Decline case the
+  page-level copy never handled at all. Removed the "Assignments" branch
+  from `detailActionsForSection()` and the now-dead
+  `edit_allocation`/`set_assignment_hours`/`remove_assignment` handling in
+  `TasksWorkspacePage.qml` -- the section's own toolbar is now the single,
+  correct source for these actions.
+- **Details, Dependencies, Skills, Time, Schedule Impact, Material Demand,
+  Activity: no duplication.** Each has its selected-row/task actions
+  living in exactly one place -- either the page-level toolbar
+  (Details, Dependencies) or its own section toolbar (Activity's
+  Mark-Read/Refresh, Material Demand's Open Reservations/Procurement) --
+  never both.
+- **Selection-gating: already correct everywhere checked.** Both the
+  page-level and every section-local toolbar's `actions` array is already
+  computed as `[]` when nothing is selected (`ContextualActionToolbar`
+  renders zero buttons for an empty array, not disabled placeholders), so
+  no action button was ever visible without a valid target row.
+
+### Assignments section: professional redesign
+
+Replaced the plain `AppWidgets.DataTable` grid (Resource/Allocation/
+Effort/Response as generic text columns) with a person-list row design,
+following common resource-assignment UI conventions (name+avatar+status
+at a glance, allocation shown as a visual bar not just a number, real-time
+overallocation/skill/certification warnings already present in this app's
+backend -- the redesign surfaces what was already computed, it doesn't add
+new backend capability):
+
+- New shared widget `App.Widgets.Avatar`: a colored initials circle,
+  color picked deterministically from the resource's name (same name ->
+  same color every time) from a fixed, theme-independent decorative
+  palette -- reusable anywhere a list identifies a person (comment
+  authors, other resource lists), not just here.
+- Each assignment now renders as a full-width row: avatar, resource name,
+  an `App.Widgets.ProgressBar` for allocation % (green up to 100%, red
+  once overallocated -- using the existing `colorHint` override rather
+  than the bar's default "low value = red" completion-progress semantics,
+  which would have been backwards for an allocation percentage), hours
+  logged, and a response-status chip -- selection highlight and hover
+  state on the row itself (matching the divider/selection-bar convention
+  already used by `RecordListCard`/`DataTable`), replacing "select a grid
+  row, then look up at a toolbar far above" with the status/identity
+  visible directly on the row.
+- Fixed two more `StatusChip` dead tokens found while wiring the response
+  chip: `accepted`/`declined` (assignment response status) weren't in its
+  known-word list either -- same bug class as §38's `high`/`medium`/`low`/
+  `critical` fix, now also covering this case.
+
+External research done before designing (avatar+name+status row
+conventions; allocation/workload visibility and conflict-warning
+practices already implemented in this app's backend, confirming the
+redesign direction rather than motivating new backend work):
+
+Sources:
+- [Data table UI design reference guide for 2026](https://www.setproduct.com/blog/data-table-ui-design)
+- [Avatar UI design: What to show when there's no photo](https://www.setproduct.com/blog/avatar-ui-design)
+- [Manage user or role allocation percentage on tasks (Adobe Workfront)](https://experienceleague.adobe.com/en/docs/workfront/using/manage-work/tasks/assign-tasks/manage-allocation-percentage-on-tasks)
+- [Effectively Manage Team Workload: 5 Steps to Balance (Asana)](https://asana.com/resources/effectively-manage-team-workload)
+- [Workload planning: A complete guide](https://resourceguruapp.com/blog/project-management/workload-planning-guide)
+
+### Resolved finding: Task Time section duplicated the planned Timesheets destination
+
+Flagged by the user, confirmed real, and removed on explicit user
+decision: §2.1's target IA already plans "Workload Management -> My Time
+/ Review Queue" as dedicated destinations for personal time capture and
+manager review (R1.5 "Timesheet Review" is already closed per §14 -- the
+Review Queue is real and live today, with `submitPeriod`/`approvePeriod`/
+`lockPeriod`/`unlockPeriod`/`bulkApprovePeriods`). The Tasks detail page's
+own "Time" section had a "Workflow" tab (`TaskTimePeriodWorkflow.qml`)
+duplicating the same period-level submit/lock/unlock actions, embedded
+inside every single task -- confirmed not just visually duplicated but the
+*exact same backend call*: `time_command_handler.py`'s
+`submit_task_period`/`lock_task_period`/`unlock_task_period` were thin
+pass-throughs to `timesheets_desktop_api.submit_period`/`lock_period`/
+`unlock_period` -- the identical desktop API the real Timesheets workspace
+controller calls directly. No unique logic existed behind the embedded
+tab. Also a real UX/IA correctness concern, not just duplication: a
+*period* can span multiple tasks/assignments, so "submit this period" from
+inside one task's detail view was conceptually narrower than what the
+action actually does.
+
+Removed per the user's explicit decision (option 3: replace with a
+contextual link-out, no second workflow implementation, no deep-link
+state invention): `TaskTimePeriodWorkflow.qml` deleted outright; the
+"Workflow" tab removed from `TasksTimeEntriesSection.qml`'s `_detailTabs`
+(now just Assignment/Capture/Ledger -- what's genuinely task-scoped);
+replaced with an "Open in Timesheets" toolbar action that navigates to
+the single existing `project_management.timesheets` route (there is only
+one Timesheets route -- My Time vs. Review Queue is an internal view
+choice the Timesheets workspace makes for itself, not two separate routes
+-- so no role/capability duplication was needed on the Tasks side to pick
+between them). `navigateToRoute()` only ever accepts a bare route id (no
+deep-link parameter contract exists), so the CTA stays a plain route
+hand-off, matching the existing Reservations/Procurement CTA precedent,
+per the instruction not to invent a parallel state system for context
+that isn't actually supported.
+
+Backend cleanup (obsolete once the only caller was gone): removed
+`submitTaskPeriod`/`lockTaskPeriod`/`unlockTaskPeriod` from
+`PMTimeController`; `submit_task_period`/`lock_task_period`/
+`unlock_task_period` from `ProjectTasksWorkspacePresenter` and
+`time_command_handler.py`; the matching facade functions and controller
+slots in `task_mutation_facade.py`/`tasks_workspace_controller.py`; and
+three now-stale entries left behind in `task_mutation_facade.py`'s
+`__all__` (a real latent bug -- `submit_task_period`/`lock_task_period`/
+`unlock_task_period` stayed listed in `__all__` for functions that no
+longer existed in the module). Signal chain
+(`submitRequested`/`lockRequested`/`unlockRequested` ->
+`timeSubmitRequested`/`timeLockRequested`/`timeUnlockRequested`) collapsed
+to a single `openTimesheetsRequested()` forwarded the same way as every
+other cross-workspace CTA in this file.
+
+### Testing added
+
+- QML-offscreen verification (ad hoc): Assignments' selected-action set
+  correctly switches between Accept/Decline and Allocation/Set Hours/
+  Remove depending on the selected row's state; overallocation math;
+  `Avatar` initials for one-word and multi-word names; Time section's
+  tabs are exactly Assignment/Capture/Ledger with an `openTimesheetsRequested`
+  signal; `TasksDetailPanel.qml` no longer exposes the old
+  `timeSubmitRequested`/etc. signals.
+- `test_qml_tasks_time_entries_section_contract.py` (a pre-existing
+  characterization test that intentionally pinned the *old* contract,
+  including the Workflow tab) rewritten to assert the new one instead,
+  plus an explicit assertion that `TaskTimePeriodWorkflow.qml` no longer
+  exists.
+- `test_pm_time_controller_callbacks.py`'s `TestPeriodMutationsUseFacade`
+  class (tested only the removed slots) replaced with a single assertion
+  that `submitTaskPeriod`/`lockTaskPeriod`/`unlockTaskPeriod` are gone from
+  `PMTimeController`; its entry-mutation routing tests (unaffected) kept
+  as-is.
+- Full `src/tests/project_management -k task` sweep (124 tests) and the
+  broader `project_management`/`pm` suite re-run green after every change
+  in this section.
+
+**R4.3 FOLLOW-UP (BUTTON-DUPLICATION AUDIT + ASSIGNMENTS REDESIGN +
+TIMESHEETS WORKFLOW-TAB REMOVAL): COMPLETE.** Not committed.

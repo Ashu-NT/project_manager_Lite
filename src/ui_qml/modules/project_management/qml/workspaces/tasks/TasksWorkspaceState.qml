@@ -254,19 +254,18 @@ Item {
             }
             return actions
         }
-        if (sectionName === "Assignments") {
-            const assignmentItem = selection.assignmentItem
-                || root._itemById(
-                    root.assignmentsModel ? (root.assignmentsModel.items || []) : [],
-                    root.workspaceController ? root.workspaceController.selectedAssignmentId : ""
-                )
-            if (!assignmentItem) return []
-            return [
-                { "id": "edit_allocation", "label": "Allocation", "icon": "edit", "enabled": true, "danger": false },
-                { "id": "set_assignment_hours", "label": "Set Hours", "icon": "time", "enabled": true, "danger": false },
-                { "id": "remove_assignment", "label": "Remove", "icon": "delete", "enabled": true, "danger": true }
-            ]
-        }
+        // Assignments deliberately has no page-level action set: its own
+        // section toolbar (TasksAssignmentsSection.qml) already renders the
+        // correct, complete, selection-gated action set for the selected
+        // row (Accept/Decline for a pending response, or Allocation/Set
+        // Hours/Remove once accepted) and is already wired end to end
+        // (see TasksWorkspacePage.qml's onEditAllocationRequested/
+        // onSetHoursRequested/onAcceptAssignmentRequested/etc handlers).
+        // A second, page-level copy of Allocation/Set Hours/Remove used to
+        // render here too -- always, even for a still-pending assignment
+        // that should only offer Accept/Decline -- duplicating buttons the
+        // user could already see and act on right next to the row, and
+        // showing the wrong actions for a pending assignment besides.
         if (sectionName === "Dependencies") {
             if (!selection.dependencyItem) return []
             return [
@@ -317,6 +316,15 @@ Item {
 
     function openTaskProcurementRoute() {
         root.navigateToRoute("inventory_procurement.procurement")
+    }
+
+    // Period submit/lock/unlock is not task-scoped (a period can span
+    // multiple tasks/assignments), so it isn't reimplemented here -- this
+    // just hands off to the one real Timesheets workspace, which already
+    // presents the right view (personal capture vs. reviewer queue) for
+    // whoever opens it.
+    function openTimesheetsRoute() {
+        root.navigateToRoute("project_management.timesheets")
     }
 
     // ── Detail opening helpers ───────────────────────────────────────────

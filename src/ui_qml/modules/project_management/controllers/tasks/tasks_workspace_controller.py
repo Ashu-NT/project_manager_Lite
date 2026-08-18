@@ -625,18 +625,6 @@ class ProjectManagementTasksWorkspaceController(
         return _mut.delete_task_time_entry(self, entry_id)
 
     @Slot("QVariantMap", result="QVariantMap")
-    def submitTaskPeriod(self, payload: dict[str, object]) -> dict[str, object]:
-        return _mut.submit_task_period(self, payload)
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def lockTaskPeriod(self, payload: dict[str, object]) -> dict[str, object]:
-        return _mut.lock_task_period(self, payload)
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def unlockTaskPeriod(self, payload: dict[str, object]) -> dict[str, object]:
-        return _mut.unlock_task_period(self, payload)
-
-    @Slot("QVariantMap", result="QVariantMap")
     def postTaskComment(self, payload: dict[str, object]) -> dict[str, object]:
         return _mut.post_task_comment(self, payload)
 

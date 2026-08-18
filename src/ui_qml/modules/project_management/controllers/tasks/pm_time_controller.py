@@ -156,38 +156,10 @@ class PMTimeController(QObject):
             set_feedback_message=self._set_feedback_message,
         )
 
-    @Slot("QVariantMap", result="QVariantMap")
-    def submitTaskPeriod(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._presenter.submit_task_period(dict(payload)),
-            success_message="Task period submitted.",
-            on_success=self._facade_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def lockTaskPeriod(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._presenter.lock_task_period(dict(payload)),
-            success_message="Task period locked.",
-            on_success=self._facade_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def unlockTaskPeriod(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._presenter.unlock_task_period(dict(payload)),
-            success_message="Task period unlocked.",
-            on_success=self._facade_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+    # Period submit/lock/unlock is deliberately not exposed here -- a
+    # period can span other tasks' assignments too, so it's not task-scoped.
+    # Users go through the Timesheets workspace (My Time / Review Queue)
+    # for that; see TasksWorkspaceState.qml's openTimesheetsRoute().
 
     # ── Private setters ───────────────────────────────────────────────
 

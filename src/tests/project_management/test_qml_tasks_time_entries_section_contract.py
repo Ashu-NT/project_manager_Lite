@@ -18,7 +18,6 @@ PRIVATE_COMPONENTS = (
     "TaskTimeSummary.qml",
     "TaskTimeEntryEditor.qml",
     "TaskTimeEntriesTable.qml",
-    "TaskTimePeriodWorkflow.qml",
     "TaskTimeEntryDetail.qml",
 )
 DETAIL_PANEL = (
@@ -45,6 +44,15 @@ def _ensure_qgui_application() -> QGuiApplication:
     return QGuiApplication(["pm-task-time-contract-test"])
 
 
+def test_task_time_period_workflow_component_was_removed() -> None:
+    # Period submit/lock/unlock is not task-scoped -- a period can span
+    # other tasks' assignments too -- so it now lives exclusively in the
+    # Timesheets workspace (My Time / Review Queue). This section only
+    # keeps what's genuinely task-scoped: assignment/period selection,
+    # quick entry capture, and this task's own logged entries.
+    assert not (SECTION_ROOT / "TaskTimePeriodWorkflow.qml").exists()
+
+
 def test_task_time_root_public_contract_is_stable() -> None:
     source = ROOT_COMPONENT.read_text(encoding="utf-8")
 
@@ -65,11 +73,12 @@ def test_task_time_root_public_contract_is_stable() -> None:
         "signal addRequested(var payload)",
         "signal updateRequested(var payload)",
         "signal deleteRequested(string entryId)",
-        "signal submitRequested(var payload)",
-        "signal lockRequested(var payload)",
-        "signal unlockRequested(var payload)",
+        "signal openTimesheetsRequested()",
     ):
         assert declaration in source
+
+    for removed_signal in ("submitRequested(", "lockRequested(", "unlockRequested("):
+        assert removed_signal not in source
 
     assert "property alias" not in source
 
@@ -84,9 +93,7 @@ def test_task_time_interactions_and_payload_contract_are_preserved() -> None:
         "addRequested(",
         "updateRequested(",
         "deleteRequested(",
-        "submitRequested(",
-        "lockRequested(",
-        "unlockRequested(",
+        "openTimesheetsRequested(",
     ):
         assert interaction in source
 
@@ -96,31 +103,22 @@ def test_task_time_interactions_and_payload_contract_are_preserved() -> None:
         '"entryDate"',
         '"hours"',
         '"note"',
-        '"resourceId"',
-        '"periodStart"',
-        '"periodId"',
     ):
         assert payload_key in source
 
 
-def test_task_time_summary_workflow_and_state_presentation_are_preserved() -> None:
+def test_task_time_summary_and_state_presentation_are_preserved() -> None:
     source = _implementation_source()
 
     for text in (
         '"Assignment"',
         '"Capture"',
         '"Ledger"',
-        '"Workflow"',
         '"Resource"',
         '"Hours"',
-        '"Submitted by"',
-        '"Decision"',
         'text: "Add Entry"',
         'text: "Update"',
         'text: "Delete"',
-        'text: "Submit Period"',
-        'text: "Lock"',
-        'text: "Unlock"',
         "root.errorText",
         "root.isBusy",
         "root.selectedEntryId",
@@ -141,11 +139,12 @@ def test_task_detail_panel_forwards_the_complete_task_time_contract() -> None:
         "onAddRequested",
         "onUpdateRequested",
         "onDeleteRequested",
-        "onSubmitRequested",
-        "onLockRequested",
-        "onUnlockRequested",
+        "onOpenTimesheetsRequested",
     ):
         assert forwarding_handler in source
+
+    for removed_handler in ("onSubmitRequested", "onLockRequested", "onUnlockRequested"):
+        assert removed_handler not in source
 
 
 def test_task_time_section_and_private_children_load_offscreen() -> None:
@@ -178,8 +177,6 @@ def test_task_time_section_and_private_children_load_offscreen() -> None:
         "addRequested(QVariant)",
         "updateRequested(QVariant)",
         "deleteRequested(QString)",
-        "submitRequested(QVariant)",
-        "lockRequested(QVariant)",
-        "unlockRequested(QVariant)",
+        "openTimesheetsRequested()",
     ):
         assert meta_object.indexOfSignal(signal_signature) >= 0
