@@ -12,4 +12,4 @@ def format_date(value: date | None) -> str:
 def format_date_label(value: date | None) -> str:
     if value is None:
         return "Not scheduled"
-    return value.isoformat()
+    return value.strftime("%d %b %Y")

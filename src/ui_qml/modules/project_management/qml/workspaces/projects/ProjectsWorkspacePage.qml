@@ -66,7 +66,7 @@ AppLayouts.WorkspaceFrame {
         if (!item) return []
         const s = item.state || {}
         return [
-            { "label": "Client", "value": String(s.clientName || "") },
+            { "label": "Client", "value": String(s.clientLabel || "") },
             { "label": "Site", "value": String(s.siteLabel || "") },
             { "label": "Start", "value": String(s.startDateLabel || "") },
             { "label": "Finish", "value": String(s.endDateLabel || "") },

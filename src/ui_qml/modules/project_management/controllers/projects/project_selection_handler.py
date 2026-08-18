@@ -52,6 +52,84 @@ def set_status_filter(controller, status_filter: str) -> None:
     controller.refresh()
 
 
+def set_site_filter(controller, site_filter: str) -> None:
+    normalized = (site_filter or "").strip().lower() or "all"
+    if normalized == controller._selected_site_filter.lower():
+        return
+    controller._set_selected_site_filter(normalized)
+    controller._set_project_page(1)
+    controller.refresh()
+
+
+def set_manager_filter(controller, manager_filter: str) -> None:
+    normalized = (manager_filter or "").strip().lower() or "all"
+    if normalized == controller._selected_manager_filter.lower():
+        return
+    controller._set_selected_manager_filter(normalized)
+    controller._set_project_page(1)
+    controller.refresh()
+
+
+def set_start_date_from(controller, value: str) -> None:
+    normalized = (value or "").strip()
+    if normalized == controller._start_date_from:
+        return
+    controller._set_start_date_from(normalized)
+    controller._set_project_page(1)
+    controller.refresh()
+
+
+def set_start_date_to(controller, value: str) -> None:
+    normalized = (value or "").strip()
+    if normalized == controller._start_date_to:
+        return
+    controller._set_start_date_to(normalized)
+    controller._set_project_page(1)
+    controller.refresh()
+
+
+def set_end_date_from(controller, value: str) -> None:
+    normalized = (value or "").strip()
+    if normalized == controller._end_date_from:
+        return
+    controller._set_end_date_from(normalized)
+    controller._set_project_page(1)
+    controller.refresh()
+
+
+def set_end_date_to(controller, value: str) -> None:
+    normalized = (value or "").strip()
+    if normalized == controller._end_date_to:
+        return
+    controller._set_end_date_to(normalized)
+    controller._set_project_page(1)
+    controller.refresh()
+
+
+def clear_filters(controller) -> None:
+    if (
+        not controller._search_text
+        and controller._selected_status_filter == "all"
+        and controller._selected_site_filter == "all"
+        and controller._selected_manager_filter == "all"
+        and not controller._start_date_from
+        and not controller._start_date_to
+        and not controller._end_date_from
+        and not controller._end_date_to
+    ):
+        return
+    controller._set_search_text("")
+    controller._set_selected_status_filter("all")
+    controller._set_selected_site_filter("all")
+    controller._set_selected_manager_filter("all")
+    controller._set_start_date_from("")
+    controller._set_start_date_to("")
+    controller._set_end_date_from("")
+    controller._set_end_date_to("")
+    controller._set_project_page(1)
+    controller.refresh()
+
+
 def set_project_page(controller, page: int) -> None:
     p = max(1, page)
     if p == controller._project_page:
@@ -95,11 +173,18 @@ def reset_project_lazy_sections(controller) -> None:
 
 __all__ = [
     "activate_project",
+    "clear_filters",
     "reset_project_lazy_sections",
     "select_project",
+    "set_end_date_from",
+    "set_end_date_to",
+    "set_manager_filter",
     "set_project_page",
     "set_project_page_size",
     "set_project_sort",
     "set_search_text",
+    "set_site_filter",
+    "set_start_date_from",
+    "set_start_date_to",
     "set_status_filter",
 ]

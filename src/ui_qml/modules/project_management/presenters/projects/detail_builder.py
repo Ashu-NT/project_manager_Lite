@@ -16,7 +16,7 @@ def build_detail_view_model(project: Any) -> ProjectDetailViewModel:
             empty_state="Select a project from the catalog to review details or edit its setup.",
         )
     state = build_project_state(project)
-    client_label = state["clientName"] or "No client assigned"
+    client_label = state["clientLabel"] or "No client assigned"
     site_label = state["siteLabel"] or "No site assigned"
     return ProjectDetailViewModel(
         id=project.id,

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 from src.core.modules.project_management.access.scope_permissions import (
     filter_project_rows,
     require_project_permission,
@@ -43,6 +45,12 @@ class ProjectQueryMixin:
         *,
         search_text: str = "",
         status: ProjectStatus | None = None,
+        site_id: str | None = None,
+        manager_user_id: str | None = None,
+        start_date_from: date | None = None,
+        start_date_to: date | None = None,
+        end_date_from: date | None = None,
+        end_date_to: date | None = None,
         page: int = 1,
         page_size: int = 25,
         sort_key: str = "title",
@@ -63,7 +71,7 @@ class ProjectQueryMixin:
                 "title",
                 "projectCode",
                 "statusLabel",
-                "clientName",
+                "clientLabel",
                 "siteLabel",
                 "clientContact",
                 "startDateLabel",
@@ -86,6 +94,12 @@ class ProjectQueryMixin:
             allowed_project_ids=allowed_project_ids,
             search_text=str(search_text or "").strip(),
             status=status,
+            site_id=site_id,
+            manager_user_id=manager_user_id,
+            start_date_from=start_date_from,
+            start_date_to=start_date_to,
+            end_date_from=end_date_from,
+            end_date_to=end_date_to,
             page=page_request.page,
             page_size=page_request.page_size,
             sort=sort,

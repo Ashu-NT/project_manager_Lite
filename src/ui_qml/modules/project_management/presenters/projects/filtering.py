@@ -13,11 +13,27 @@ def build_empty_state(
     filtered_total: int,
     search_text: str,
     status_filter: str,
+    site_filter: str = "all",
+    manager_filter: str = "all",
+    start_date_from: str = "",
+    start_date_to: str = "",
+    end_date_from: str = "",
+    end_date_to: str = "",
 ) -> str:
     if filtered_total:
         return ""
     if not total:
         return "No projects are available yet. Create the first project to start planning."
-    if search_text or status_filter != "all":
+    any_filter_active = (
+        bool(search_text)
+        or status_filter != "all"
+        or site_filter != "all"
+        or manager_filter != "all"
+        or bool(start_date_from)
+        or bool(start_date_to)
+        or bool(end_date_from)
+        or bool(end_date_to)
+    )
+    if any_filter_active:
         return "No projects match the current filters."
     return "No projects are available yet."

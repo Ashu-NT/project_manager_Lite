@@ -127,7 +127,7 @@ class TestBuildProjectTasksState:
         assert item.title == "Implement feature"
         assert item.status_label == "Active"
         assert item.subtitle == "75% complete"
-        assert item.supporting_text == "2025-02-01 → 2025-04-30"
+        assert item.supporting_text == "01 Feb 2025 → 30 Apr 2025"
         assert item.meta_text == "Core work"
         tasks_api.list_tasks.assert_called_once_with("proj-1")
 

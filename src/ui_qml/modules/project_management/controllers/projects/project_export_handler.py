@@ -13,6 +13,12 @@ def export_projects(controller, columns: list, file_path: str) -> dict[str, obje
         records = controller._projects_workspace_presenter.list_export_records(
             search_text=controller._search_text,
             status_filter=controller._selected_status_filter,
+            site_filter=controller._selected_site_filter,
+            manager_filter=controller._selected_manager_filter,
+            start_date_from=controller._start_date_from,
+            start_date_to=controller._start_date_to,
+            end_date_from=controller._end_date_from,
+            end_date_to=controller._end_date_to,
             sort_key=controller._project_sort_key,
             sort_direction=(
                 "desc" if controller._project_sort_direction else "asc"

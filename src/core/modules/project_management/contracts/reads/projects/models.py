@@ -13,6 +13,7 @@ class ProjectCatalogReadItem:
     site_label: str = ""
     financial_currency_code: str = ""
     approved_budget: Decimal | None = None
+    client_label: str = ""
 
 
 @dataclass(frozen=True, slots=True)

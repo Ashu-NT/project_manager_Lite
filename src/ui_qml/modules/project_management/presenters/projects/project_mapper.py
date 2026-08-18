@@ -16,6 +16,7 @@ def build_project_state(project: Any) -> dict[str, object]:
         "status": project.status,
         "statusLabel": project.status_label,
         "clientName": project.client_name or "",
+        "clientLabel": getattr(project, "client_label", "") or project.client_name or "",
         "clientContact": project.client_contact or "",
         "startDate": format_date(project.start_date),
         "startDateLabel": format_date_label(project.start_date),
@@ -33,7 +34,7 @@ def build_project_state(project: Any) -> dict[str, object]:
 
 def to_project_record(project: Any) -> ProjectRecordViewModel:
     state = build_project_state(project)
-    client_text = state["clientName"] or "No client assigned"
+    client_text = state["clientLabel"] or "No client assigned"
     contact_text = state["clientContact"] or "No client contact recorded"
     site_text = state["siteLabel"] or "No site assigned"
     return ProjectRecordViewModel(

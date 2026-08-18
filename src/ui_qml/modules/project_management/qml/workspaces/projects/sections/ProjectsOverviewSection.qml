@@ -69,7 +69,7 @@ Item {
                         }
                         AppControls.Label {
                             Layout.fillWidth: true
-                            text: root._sv("clientName") || "-"
+                            text: root._sv("clientLabel") || "-"
                             color: Theme.AppTheme.textPrimary
                             font.family: Theme.AppTheme.fontFamily
                             font.pixelSize: Theme.AppTheme.smallSize

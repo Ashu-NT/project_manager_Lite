@@ -40,6 +40,7 @@ from src.core.modules.project_management.api.desktop.projects.serializers.resour
 )
 from src.core.modules.project_management.api.desktop.projects.utils.project_utils import (
     coerce_project_status,
+    optional_date,
 )
 
 
@@ -79,6 +80,12 @@ class ProjectManagementProjectsDesktopApi:
         *,
         search_text: str = "",
         status: str = "all",
+        site_id: str = "all",
+        manager_user_id: str = "all",
+        start_date_from: str = "",
+        start_date_to: str = "",
+        end_date_from: str = "",
+        end_date_to: str = "",
         page: int = 1,
         page_size: int = 25,
         sort_key: str = "title",
@@ -91,9 +98,17 @@ class ProjectManagementProjectsDesktopApi:
             if normalized_status == "all"
             else coerce_project_status(normalized_status)
         )
+        normalized_site_id = str(site_id or "all").strip()
+        normalized_manager_id = str(manager_user_id or "all").strip()
         result = service.query_catalog_page(
             search_text=search_text,
             status=status_value,
+            site_id=None if normalized_site_id in ("", "all") else normalized_site_id,
+            manager_user_id=None if normalized_manager_id in ("", "all") else normalized_manager_id,
+            start_date_from=optional_date(start_date_from),
+            start_date_to=optional_date(start_date_to),
+            end_date_from=optional_date(end_date_from),
+            end_date_to=optional_date(end_date_to),
             page=page,
             page_size=page_size,
             sort_key=sort_key,
@@ -106,6 +121,7 @@ class ProjectManagementProjectsDesktopApi:
                     site_lookup={str(item.project.site_id or ""): item.site_label},
                     financial_currency_code=item.financial_currency_code,
                     approved_budget=item.approved_budget,
+                    client_label=item.client_label,
                 )
                 for item in result.items
             ),

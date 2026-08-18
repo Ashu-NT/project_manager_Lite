@@ -62,6 +62,12 @@ class ProjectCatalogWorkspaceViewModel:
     overview: ProjectCatalogOverviewViewModel
     status_options: tuple[ProjectStatusOptionViewModel, ...] = field(default_factory=tuple)
     selected_status_filter: str = "all"
+    selected_site_filter: str = "all"
+    selected_manager_filter: str = "all"
+    start_date_from: str = ""
+    start_date_to: str = ""
+    end_date_from: str = ""
+    end_date_to: str = ""
     search_text: str = ""
     projects: tuple[ProjectRecordViewModel, ...] = field(default_factory=tuple)
     selected_project_id: str = ""

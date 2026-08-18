@@ -14,6 +14,7 @@ def serialize_project(
     site_lookup: Mapping[str, str] | None = None,
     financial_currency_code: str = "",
     approved_budget: Decimal | None = None,
+    client_label: str = "",
 ) -> ProjectDesktopDto:
     resolved_currency = str(financial_currency_code or "").strip().upper()
     normalized_site_id = str(getattr(project, "site_id", "") or "").strip() or None
@@ -22,6 +23,11 @@ def serialize_project(
         if normalized_site_id
         else ""
     )
+    # client_label is the authoritative DISPLAY value (resolved party name when
+    # client_party_id is linked, otherwise the free-text client_name); it is
+    # kept separate from client_name, which stays the raw editable field so the
+    # edit dialog never round-trips a resolved party name into free text.
+    resolved_client_label = str(client_label or "").strip() or str(project.client_name or "")
     return ProjectDesktopDto(
         id=project.id,
         name=project.name,
@@ -44,6 +50,7 @@ def serialize_project(
         client_party_id=getattr(project, "client_party_id", None),
         manager_user_id=getattr(project, "manager_user_id", None),
         version=project.version,
+        client_label=resolved_client_label,
     )
 
 

@@ -30,6 +30,7 @@ class ProjectDesktopDto:
     client_party_id: str | None
     manager_user_id: str | None
     version: int
+    client_label: str = ""
 
 
 @dataclass(frozen=True)
