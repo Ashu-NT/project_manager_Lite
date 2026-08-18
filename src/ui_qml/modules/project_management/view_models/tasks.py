@@ -128,6 +128,9 @@ class TaskCatalogWorkspaceViewModel:
     task_skill_requirements: TaskExecutionCollectionViewModel = field(
         default_factory=lambda: TaskExecutionCollectionViewModel(title="", subtitle="")
     )
+    task_activity: TaskExecutionCollectionViewModel = field(
+        default_factory=lambda: TaskExecutionCollectionViewModel(title="", subtitle="")
+    )
     empty_state: str = ""
     total_count: int = 0
     page: int = 1

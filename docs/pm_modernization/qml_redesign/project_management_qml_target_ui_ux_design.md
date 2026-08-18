@@ -2734,3 +2734,137 @@ other cross-workspace CTA in this file.
 
 **R4.3 FOLLOW-UP (BUTTON-DUPLICATION AUDIT + ASSIGNMENTS REDESIGN +
 TIMESHEETS WORKFLOW-TAB REMOVAL): COMPLETE.** Not committed.
+
+## 41. Shared Activity-log design, extracted and reused for Tasks
+
+User request: make Projects' Activity section design (§35/§36/§37) a
+genuinely shared, reusable base rather than a Projects-only
+implementation, and give Tasks its own real Activity (audit trail) tab
+using it -- Tasks previously had no such feed at all, despite already
+recording rich real activity (`task.create`/`update`/`delete`/
+`set_status`/`update_progress`/`wbs_move`, plus `task_assignment.*`) that
+had zero UI surface anywhere.
+
+### Extraction
+
+- **Python**: `presenters/common/activity_log_builder.py` (new, shared
+  across PM workspaces) -- generalizes what was Projects-only logic in
+  `presenters/projects/activity_builder.py`: action-word status
+  classification, actor lookup (Employee-preferred), diff-summary
+  formatting, and `fetch_entity_activity_entries()` (queries one primary
+  entity plus optional child entity types, each via `parent_entity_id` --
+  a real, indexed column on the activity record, tighter than
+  `workspace_id`, which every entity recorded against the same workspace
+  shares and would leak). `build_activity_records()` takes a
+  `record_factory` callable so each workspace still gets its own typed
+  view model (`ProjectRecordViewModel`/`TaskRecordViewModel`) without the
+  shared code needing to know about either.
+- **QML**: `ProjectManagement.Widgets.ActivityLogSection` (new, alongside
+  the existing `RecordListCard` in the same module) -- the exact search +
+  `RecordListCard` design from `ProjectsActivitySection.qml`, generalized
+  (`label`, `errorKey`, `activityModel` instead of Projects-specific prop
+  names). `ProjectsActivitySection.qml` is now a five-line wrapper
+  extending it directly (inherits `sectionErrors`/`label`/`errorKey` as-is;
+  only `projectActivityModel` -> `activityModel` needs a name translation,
+  kept so `ProjectsDetailPanel.qml` didn't need to change).
+
+### A real bug found while wiring the shared query into Projects
+
+Refactoring Projects onto `fetch_entity_activity_entries()` surfaced that
+its `project_resource` child query used `workspace_id`, not
+`parent_entity_id` (the safer filter this section's own design argues
+for) -- because `project_resource_commands.py`'s four `record_activity()`
+calls never set `parent_entity_id` at all, only `workspace_id`. Fixed by
+adding `parent_entity_id=project_id` to all four
+(add/update/set_active/delete), alongside the existing `workspace_id`
+(kept, since removing it would be an unrelated, unnecessary change).
+Proven with a real DB test
+(`test_project_resource_activity_is_queryable_by_parent_project_id`)
+showing two different projects' resource activity no longer cross-leaks
+when queried by `parent_entity_id`.
+
+### Tasks' new Activity tab
+
+- `presenters/tasks/task_activity_builder.py` (new): `entity_type="task"`
+  (the task's own lifecycle) plus a `task_assignment` child query scoped
+  by `parent_entity_id=task_id` (already set correctly by the existing
+  `assignment_activity.py` -- no backend gap there, unlike project_resource
+  above). Task lifecycle commands don't record a field-level `changes`
+  diff the way Projects' `_diff_project_fields()` does, so entries show
+  actor/action/timestamp without a diff-summary line -- a real, documented
+  gap (not required for the feed to be real and useful; adding that
+  diff-tracking is a natural, separate follow-up).
+- Wired the same way every other lazy Tasks section is: `TaskCatalogWorkspaceViewModel.task_activity`
+  field, `tasks_workspace_presenter.build_task_activity_state()`,
+  `taskActivity` property + `loadSelectedTaskActivity` slot directly on
+  the main `tasks_workspace_controller.py` (matching `scheduleImpact`'s
+  placement, not a sub-controller -- Activity doesn't belong to any single
+  existing sub-domain).
+- **The pre-existing "Activity" tab (comments/mentions/presence) is
+  renamed "Discussion".** Same component (`TasksCollaborationSection.qml`,
+  whose own toolbar was already titled "Discussion"), same data, just no
+  longer sharing a name with the new, unrelated audit-trail tab. Its
+  section-error key renamed `"activity"` -> `"discussion"` to match,
+  freeing `"activity"` for the new tab's own error key.
+- New section order: Details, Assignments, Skills, Dependencies, Time,
+  [Material Demand], Schedule Impact, **Activity**, **Discussion** (10 ->
+  10, since one tab split into two distinctly-purposed ones rather than
+  net-adding).
+
+### Testing added
+
+- QML-offscreen verification (ad hoc): `ActivityLogSection` loads and
+  filters standalone; `ProjectsActivitySection`'s wrapper still delegates
+  correctly; `detailSections` contains both "Activity" and "Discussion"
+  with no duplicate; `TasksDetailPanel.qml` loads with the new section.
+- `test_projects_workspace_presenter.py`'s one query-shape assertion
+  updated (`workspace_id=` -> `parent_entity_id=` for the
+  `project_resource` child query) -- confirmed intentional, not a
+  regression, since the new filter is strictly more precise.
+- Full `src/tests/project_management -k task` sweep (125 tests, up from
+  124) and `test_projects_workspace_presenter.py` (36 tests) re-run green.
+
+**SHARED ACTIVITY-LOG DESIGN + TASKS ACTIVITY TAB: COMPLETE.** Not
+committed.
+
+## 42. Unplanned: real production bug found and fixed -- `task_skill_requirements.version` missing column
+
+While the R4.3 work above was running, the user hit a live error in the
+"Assign Resource" dialog: `sqlite3.OperationalError: no such column:
+task_skill_requirements.version`, breaking the availability/skill/
+certification validation check entirely. Investigated and fixed; unrelated
+to any change in this session.
+
+**Root cause**: `TaskSkillRequirementORM` has always declared
+`version: Mapped[int]`, and the migration that created this table
+(`i2j3k4l5m6n7_pm_enterprise_upgrade.py`) correctly included `version` on
+the *other* two tables it created in the same migration
+(`resource_skills`, `resource_certifications`) -- only
+`task_skill_requirements`'s own `create_table()` omitted it. A one-off
+authoring mistake in that migration, not a systemic pattern (confirmed by
+checking the sibling tables), and invisible to the existing test suite
+because tests build their schema via `Base.metadata.create_all()` from
+the current ORM models (always complete) rather than by replaying migration
+history the way a real persisted database does.
+
+**Fix**: new migration `a9f3e7c2b8d1_add_task_skill_requirements_version.py`
+(head, following `q7r8s9t0u1v2`) adds the column with the same
+`_has_column` idempotency guard used elsewhere, plus `server_default="1"`
+matching the ORM default. Could not edit the original migration in place
+(it's already been applied to real databases; Alembic migrations are
+additive history, not editable after the fact).
+
+**Verification**: ran the *entire* migration chain from scratch against a
+throwaway SQLite file (`alembic upgrade head` via `Config`/`command`, not
+the ORM-driven test-fixture path) and confirmed `task_skill_requirements`
+now has the column; reproduced the exact failing ORM query
+(`select(TaskSkillRequirementORM).where(...)`) and confirmed it now
+succeeds; verified downgrade removes the column and re-upgrade restores it
+(idempotency guard proven, not just a one-shot fix). Added a permanent
+regression test,
+`test_task_skill_requirements_version_migration.py`, exercising exactly
+this (the kind of test that would have caught the original bug, since it
+replays real migration history rather than `create_all()`).
+
+**PRODUCTION BUG FIX (task_skill_requirements.version): COMPLETE.** Not
+committed.

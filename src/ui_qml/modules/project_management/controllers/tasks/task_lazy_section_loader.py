@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from src.ui_qml.modules.project_management.controllers.common import (
+    serialize_task_collection_view_model,
+)
+
 
 def load_task_assignments_and_dependencies(controller) -> None:
     load_selected_task_assignments(controller)
@@ -81,14 +85,17 @@ def load_selected_task_collaboration(controller) -> None:
         return
     controller._set_is_loading(True)
     try:
-        controller._clear_section_error("activity")
+        # "activity" (now the audit trail's own key) used to double as this
+        # section's error key too, from when this was still labeled
+        # "Activity" -- now "Discussion", so its own key follows.
+        controller._clear_section_error("discussion")
         ws = controller._tasks_workspace_presenter.build_task_collaboration_state(
             task_id=controller._selected_task_id,
         )
         controller._collab_ctrl._update(ws)
         controller._set_collaboration_section_loaded_for_task_id(controller._selected_task_id)
     except Exception as exc:
-        controller._set_section_error("activity", str(exc))
+        controller._set_section_error("discussion", str(exc))
     finally:
         controller._set_is_loading(False)
 
@@ -132,6 +139,27 @@ def load_selected_task_schedule_impact(controller) -> None:
         controller._set_is_loading(False)
 
 
+def load_selected_task_activity(controller) -> None:
+    if not controller._selected_task_id:
+        return
+    if controller._task_activity_section_loaded_for_task_id == controller._selected_task_id:
+        return
+    controller._set_is_loading(True)
+    try:
+        controller._clear_section_error("activity")
+        ws = controller._tasks_workspace_presenter.build_task_activity_state(
+            task_id=controller._selected_task_id,
+        )
+        controller._set_task_activity(
+            serialize_task_collection_view_model(ws.task_activity)
+        )
+        controller._task_activity_section_loaded_for_task_id = controller._selected_task_id
+    except Exception as exc:
+        controller._set_section_error("activity", str(exc))
+    finally:
+        controller._set_is_loading(False)
+
+
 def refresh_time_entries_only(controller) -> None:
     """Rebuild only the time-entries section after an entry-level mutation.
 
@@ -152,6 +180,7 @@ def refresh_time_entries_only(controller) -> None:
 
 
 __all__ = [
+    "load_selected_task_activity",
     "load_selected_task_assignments",
     "load_selected_task_collaboration",
     "load_selected_task_dependencies",

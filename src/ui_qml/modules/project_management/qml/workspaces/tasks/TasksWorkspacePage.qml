@@ -40,6 +40,7 @@ AppLayouts.WorkspaceFrame {
     readonly property var collaborationPresenceModel: state.collaborationPresenceModel
     readonly property var skillRequirementsModel: state.skillRequirementsModel
     readonly property var scheduleImpactModel: state.scheduleImpactModel
+    readonly property var taskActivityModel: state.taskActivityModel
 
     // ── RBAC capabilities ─────────────────────────────────────────────────
     readonly property bool _hasInvStockCap: state.hasInvStockCapability
@@ -422,6 +423,7 @@ AppLayouts.WorkspaceFrame {
                     canOpenProcurement: root._hasProcReqCap
                     skillRequirementsModel: root.skillRequirementsModel
                     scheduleImpactModel: root.scheduleImpactModel
+                    taskActivityModel: root.taskActivityModel
 
                     onRetrySectionRequested: function(sectionName) {
                         const idx = (root._detailSections || []).indexOf(sectionName)

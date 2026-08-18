@@ -1,2 +1,3 @@
 module ProjectManagement.Widgets
+ActivityLogSection 1.0 ActivityLogSection.qml
 RecordListCard 1.0 RecordListCard.qml

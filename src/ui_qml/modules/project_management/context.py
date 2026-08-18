@@ -229,6 +229,9 @@ class ProjectManagementWorkspaceCatalog(QObject):
                     desktop_api=self._tasks_api,
                     collaboration_desktop_api=self._collaboration_api,
                     timesheets_desktop_api=self._timesheets_api,
+                    user_api=getattr(self._desktop_api_registry, "platform_user", None),
+                    employee_api=getattr(self._desktop_api_registry, "platform_employee", None),
+                    activity_api=getattr(self._desktop_api_registry, "platform_activity", None),
                 ),
                 parent=self,
             )

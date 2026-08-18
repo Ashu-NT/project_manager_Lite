@@ -131,6 +131,40 @@ def test_project_catalog_site_department_manager_and_date_filters_compose(servic
     assert all(row.project.start_date.year == 2026 for row in date_ranged.items)
 
 
+def test_project_resource_activity_is_queryable_by_parent_project_id(services) -> None:
+    project_service = services["project_service"]
+    resource_service = services["resource_service"]
+    project_resource_service = services["project_resource_service"]
+    activity_service = services["activity_service"]
+
+    project_a = project_service.create_project("Parent Entity Activity A")
+    project_b = project_service.create_project("Parent Entity Activity B")
+    resource = resource_service.create_resource("Parent Entity Test Resource", "Planner")
+
+    project_resource_service.add_to_project(
+        project_id=project_a.id, resource_id=resource.id, planned_hours=10,
+    )
+    project_resource_service.add_to_project(
+        project_id=project_b.id, resource_id=resource.id, planned_hours=5,
+    )
+
+    # Scoping by parent_entity_id must return only project_a's resource
+    # activity, not project_b's -- proves the real column-backed filter
+    # (not the shared workspace_id, which every entity in that project
+    # uses) actually narrows correctly.
+    entries_a = activity_service.list_recent(
+        entity_type="project_resource", parent_entity_id=project_a.id,
+    )
+    assert len(entries_a) == 1
+    assert entries_a[0].action == "project_resource.add"
+
+    entries_b = activity_service.list_recent(
+        entity_type="project_resource", parent_entity_id=project_b.id,
+    )
+    assert len(entries_b) == 1
+    assert entries_b[0].id != entries_a[0].id
+
+
 def test_project_catalog_project_name_and_client_name_filters_compose(services) -> None:
     project_service = services["project_service"]
     site_service = services["site_service"]

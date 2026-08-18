@@ -111,5 +111,12 @@ class TaskStateSettersMixin:
         self.scheduleImpactChanged.emit()
         self.scheduleImpactSectionLoadedChanged.emit()
 
+    def _set_task_activity(self, v: dict[str, object]) -> None:
+        if v == self._task_activity:
+            return
+        self._task_activity = v
+        self.taskActivityChanged.emit()
+        self.taskActivitySectionLoadedChanged.emit()
+
 
 __all__ = ["TaskStateSettersMixin"]

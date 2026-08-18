@@ -151,6 +151,15 @@ Item {
             "noLongerCriticalCount": 0
         })
 
+    readonly property var taskActivityModel: root.workspaceController
+        ? root.workspaceController.taskActivity
+        : ({
+            "title": "Activity",
+            "subtitle": "",
+            "emptyState": "Select a task to review its activity.",
+            "items": []
+        })
+
     // ── Pagination state ─────────────────────────────────────────────────
     readonly property int currentPage: root.workspaceController
         ? root.workspaceController.taskPage
@@ -214,7 +223,13 @@ Item {
         if (root.hasInvStockCapability || root.hasInvReservationsCapability || root.hasProcurementCapability)
             secs.push("Material Demand")
         secs.push("Schedule Impact")
+        // "Activity" is the real audit trail (task.create/update/delete/...,
+        // via the same PMWidgets.ActivityLogSection design Projects uses).
+        // The comments/mentions/presence feed that used to be labeled
+        // "Activity" is "Discussion" now -- same section, same data,
+        // clearer name now that there are two distinct feeds.
         secs.push("Activity")
+        secs.push("Discussion")
         return secs
     }
 
@@ -339,7 +354,8 @@ Item {
         else if (label === "Dependencies")    root.workspaceController.loadSelectedTaskDependencies()
         else if (label === "Time")            root.workspaceController.loadSelectedTaskTime()
         else if (label === "Schedule Impact") root.workspaceController.loadSelectedTaskScheduleImpact()
-        else if (label === "Activity")        root.workspaceController.loadSelectedTaskCollaboration()
+        else if (label === "Activity")        root.workspaceController.loadSelectedTaskActivity()
+        else if (label === "Discussion")      root.workspaceController.loadSelectedTaskCollaboration()
     }
 
     // ── Initialization ───────────────────────────────────────────────────

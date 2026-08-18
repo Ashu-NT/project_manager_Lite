@@ -6,6 +6,7 @@ import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import App.Controls 1.0 as AppControls
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
+import ProjectManagement.Widgets 1.0 as PMWidgets
 import workspaces.tasks.sections 1.0
 
 Item {
@@ -43,6 +44,9 @@ Item {
     property bool canOpenProcurement: false
 
     property var skillRequirementsModel: AppMock.MockFactory.catalog("Skill Requirements", "", "Select a task.")
+    property var taskActivityModel: ({
+        "title": "Activity", "subtitle": "", "emptyState": "No activity has been recorded for this task yet.", "items": []
+    })
     property var sectionErrors: ({})
     property var scheduleImpactModel: ({
         "available": false,
@@ -156,10 +160,11 @@ Item {
         if (name === "Assignments")     return _sec1.implicitHeight
         if (name === "Dependencies")    return _sec2.implicitHeight
         if (name === "Time")            return _sec3.implicitHeight
-        if (name === "Activity")        return _sec4.implicitHeight
+        if (name === "Discussion")      return _sec4.implicitHeight
         if (name === "Material Demand") return _sec5.implicitHeight
         if (name === "Skills")          return _sec6.implicitHeight
         if (name === "Schedule Impact") return _sec7.implicitHeight
+        if (name === "Activity")        return _sec8.implicitHeight
         return 0
     }
 
@@ -331,8 +336,8 @@ Item {
 
         AppWidgets.LazySectionLoader {
             id: _sec4
-            active: root._idx === root._secIdx("Activity")
-            loadingMessage: "Loading activity..."
+            active: root._idx === root._secIdx("Discussion")
+            loadingMessage: "Loading discussion..."
             sourceComponent: Component {
                 TasksCollaborationSection {
                     width: parent ? parent.width : 0
@@ -341,7 +346,7 @@ Item {
                     selectedTaskId: root.selectedTaskId
                     isBusy: root.isBusy
                     canCompose: root._hasTask
-                    errorText: String(root.sectionErrors["activity"] || "")
+                    errorText: String(root.sectionErrors["discussion"] || "")
 
                     onComposeRequested: root.composeRequested()
                     onReplyRequested: function(item) { root.commentReplyRequested(item) }
@@ -400,6 +405,21 @@ Item {
                     scheduleImpactModel: root.scheduleImpactModel
                     sectionErrors: root.sectionErrors
                     isBusy: root.isBusy
+                }
+            }
+        }
+
+        AppWidgets.LazySectionLoader {
+            id: _sec8
+            active: root._idx === root._secIdx("Activity")
+            loadingMessage: "Loading activity..."
+            sourceComponent: Component {
+                PMWidgets.ActivityLogSection {
+                    width: parent ? parent.width : 0
+                    label: "Activity"
+                    errorKey: "activity"
+                    sectionErrors: root.sectionErrors
+                    activityModel: root.taskActivityModel
                 }
             }
         }

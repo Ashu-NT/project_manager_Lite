@@ -5,6 +5,7 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
+    serialize_task_collection_view_model,
 )
 from src.ui_qml.modules.project_management.controllers.tasks.pm_assignment_controller import (
     PMAssignmentController,
@@ -34,6 +35,7 @@ from . import task_time_selection_actions as _time_sel
 from .task_domain_event_binder import bind_task_domain_events
 from .task_export_handler import export_tasks
 from .task_lazy_section_loader import (
+    load_selected_task_activity,
     load_selected_task_assignments,
     load_selected_task_collaboration,
     load_selected_task_dependencies,
@@ -111,6 +113,8 @@ class ProjectManagementTasksWorkspaceController(
     skillRequirementsSectionLoadedChanged = Signal()
     scheduleImpactChanged = Signal()
     scheduleImpactSectionLoadedChanged = Signal()
+    taskActivityChanged = Signal()
+    taskActivitySectionLoadedChanged = Signal()
 
     def __init__(
         self,
@@ -149,6 +153,8 @@ class ProjectManagementTasksWorkspaceController(
         self._skill_requirements_section_loaded_for_task_id = ""
         self._schedule_impact_section_loaded_for_task_id = ""
         self._schedule_impact: dict[str, object] = {}
+        self._task_activity_section_loaded_for_task_id = ""
+        self._task_activity: dict[str, object] = {}
         # ── Sub-controllers ────────────────────────────────────────────
         create_subcontrollers(self)
         bind_task_domain_events(self)
@@ -390,6 +396,17 @@ class ProjectManagementTasksWorkspaceController(
             and self._schedule_impact_section_loaded_for_task_id == self._selected_task_id
         )
 
+    @Property("QVariantMap", notify=taskActivityChanged)
+    def taskActivity(self) -> dict[str, object]:
+        return self._task_activity
+
+    @Property(bool, notify=taskActivitySectionLoadedChanged)
+    def isTaskActivitySectionLoaded(self) -> bool:
+        return (
+            bool(self._selected_task_id)
+            and self._task_activity_section_loaded_for_task_id == self._selected_task_id
+        )
+
     @Property(int, notify=taskPageChanged)
     def taskPage(self) -> int:
         return self._task_page
@@ -491,6 +508,10 @@ class ProjectManagementTasksWorkspaceController(
     @Slot()
     def loadSelectedTaskScheduleImpact(self) -> None:
         load_selected_task_schedule_impact(self)
+
+    @Slot()
+    def loadSelectedTaskActivity(self) -> None:
+        load_selected_task_activity(self)
 
     # ── Task review / bulk selection slots ────────────────────────────
 

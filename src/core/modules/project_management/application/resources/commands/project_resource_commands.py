@@ -154,6 +154,7 @@ class ProjectResourceCommandMixin:
                 entity_id=project_resource.id,
                 module="project_management",
                 workspace_id=project_id,
+                parent_entity_id=project_id,
                 message=f"Assigned {resource.name} to the project",
                 details={
                     "resource_name": resource.name,
@@ -237,6 +238,7 @@ class ProjectResourceCommandMixin:
                 entity_id=project_resource.id,
                 module="project_management",
                 workspace_id=project_resource.project_id,
+                parent_entity_id=project_resource.project_id,
                 message=f"Updated {resource_name}'s assignment",
                 details={
                     "resource_name": resource_name,
@@ -279,6 +281,7 @@ class ProjectResourceCommandMixin:
                 entity_id=project_resource.id,
                 module="project_management",
                 workspace_id=project_resource.project_id,
+                parent_entity_id=project_resource.project_id,
                 message=(
                     f"{'Activated' if project_resource.is_active else 'Deactivated'} "
                     f"{resource_name}'s assignment"
@@ -322,6 +325,7 @@ class ProjectResourceCommandMixin:
                 entity_id=project_resource.id,
                 module="project_management",
                 workspace_id=project_resource.project_id,
+                parent_entity_id=project_resource.project_id,
                 message=f"Removed {resource_name} from the project",
                 details={"resource_name": resource_name},
             )
