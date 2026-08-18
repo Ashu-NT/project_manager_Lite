@@ -602,6 +602,10 @@ class ProjectManagementTasksWorkspaceController(
         return _mut.update_assignment_allocation(self, payload)
 
     @Slot("QVariantMap", result="QVariantMap")
+    def updateAssignmentPlannedHours(self, payload: dict[str, object]) -> dict[str, object]:
+        return _mut.update_assignment_planned_hours(self, payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
     def setAssignmentHours(self, payload: dict[str, object]) -> dict[str, object]:
         return _mut.set_assignment_hours(self, payload)
 

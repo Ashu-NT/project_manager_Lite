@@ -124,6 +124,21 @@ class PMAssignmentController(QObject):
         )
 
     @Slot("QVariantMap", result="QVariantMap")
+    def updateAssignmentPlannedHours(
+        self, payload: dict[str, object]
+    ) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._presenter.update_assignment_planned_hours(
+                dict(payload)
+            ),
+            success_message="Planned work updated.",
+            on_success=self._facade_refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
     def setAssignmentHours(self, payload: dict[str, object]) -> dict[str, object]:
         return run_mutation(
             operation=lambda: self._presenter.set_assignment_hours(dict(payload)),

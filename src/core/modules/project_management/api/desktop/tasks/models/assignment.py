@@ -17,6 +17,9 @@ class TaskAssignmentDesktopDto:
     can_manage: bool = False
     can_accept: bool = False
     can_decline: bool = False
+    allocated_planned_hours: str = "0"
+    version: int = 1
+    project_resource_version: int = 1
 
 
 __all__ = ["TaskAssignmentDesktopDto"]

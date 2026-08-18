@@ -277,6 +277,21 @@ class SqlAlchemyAssignmentRepository(AssignmentRepository):
         )
         return assignment
 
+    def update_allocation_with_version_check(
+        self, assignment: TaskAssignment, *, expected_version: int
+    ) -> TaskAssignment:
+        self._ensure_task_in_scope(assignment.task_id)
+        assignment.version = update_with_version_check(
+            self.session,
+            TaskAssignmentORM,
+            assignment.id,
+            expected_version,
+            {"allocation_percent": assignment.allocation_percent},
+            not_found_message="Assignment not found.",
+            stale_message="Assignment was updated by another user.",
+        )
+        return assignment
+
     def delete(self, assignment_id: str) -> None:
         self.session.execute(
             delete(TaskAssignmentORM).where(

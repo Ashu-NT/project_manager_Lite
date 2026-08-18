@@ -68,6 +68,13 @@ class AssignmentRepository(ABC):
         ...
 
     @abstractmethod
+    def update_allocation_with_version_check(
+        self, assignment: TaskAssignment, *, expected_version: int
+    ) -> TaskAssignment:
+        """Dedicated, versioned write path for ``allocation_percent``."""
+        ...
+
+    @abstractmethod
     def delete(self, assignment_id: str) -> None: ...
 
     @abstractmethod

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import date
+from decimal import Decimal
 
 from src.core.modules.project_management.api.desktop.scheduling.models.change_impact import (
     ScheduleImpactReportDto,
@@ -31,6 +32,7 @@ from src.core.modules.project_management.api.desktop.tasks.commands.assignment_c
     TaskAssignmentAllocationCommand,
     TaskAssignmentCreateCommand,
     TaskAssignmentHoursCommand,
+    TaskAssignmentPlannedHoursCommand,
 )
 from src.core.modules.project_management.api.desktop.tasks.commands.bulk_commands import (
     TaskBulkStatusCommand,
@@ -377,6 +379,16 @@ class ProjectManagementTasksDesktopApi:
             project_name=self._project_name_by_id().get(task.project_id, ""),
         )
 
+    def _project_resource_version_for(self, assignment) -> int:
+        project_resource_id = str(getattr(assignment, "project_resource_id", "") or "")
+        if not project_resource_id or self._project_resource_service is None:
+            return 1
+        try:
+            project_resource = self._project_resource_service.get(project_resource_id)
+        except Exception:
+            return 1
+        return int(getattr(project_resource, "version", 1) or 1)
+
     def list_assignments(self, task_id: str) -> tuple[TaskAssignmentDesktopDto, ...]:
         if not task_id:
             return ()
@@ -423,6 +435,7 @@ class ProjectManagementTasksDesktopApi:
                     can_manage=bool(getattr(action_context, "can_manage", False)),
                     can_accept=bool(getattr(action_context, "can_accept", False)),
                     can_decline=bool(getattr(action_context, "can_decline", False)),
+                    project_resource_version=self._project_resource_version_for(assignment),
                 )
             )
         return tuple(rows)
@@ -435,6 +448,7 @@ class ProjectManagementTasksDesktopApi:
             task_id=command.task_id,
             project_resource_id=command.project_resource_id,
             allocation_percent=command.allocation_percent,
+            allocated_planned_hours=getattr(command, "allocated_planned_hours", None) or Decimal("0"),
         )
         return serialize_assignment(
             assignment,
@@ -442,6 +456,7 @@ class ProjectManagementTasksDesktopApi:
                 resource_service=self._resource_service,
                 resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
             ),
+            project_resource_version=self._project_resource_version_for(assignment),
         )
 
     def update_assignment_allocation(
@@ -451,6 +466,7 @@ class ProjectManagementTasksDesktopApi:
         assignment = self._require_task_method("set_assignment_allocation")(
             assignment_id=command.assignment_id,
             allocation_percent=command.allocation_percent,
+            expected_version=getattr(command, "expected_version", None),
         )
         return serialize_assignment(
             assignment,
@@ -458,6 +474,26 @@ class ProjectManagementTasksDesktopApi:
                 resource_service=self._resource_service,
                 resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
             ),
+            project_resource_version=self._project_resource_version_for(assignment),
+        )
+
+    def update_assignment_planned_hours(
+        self,
+        command: TaskAssignmentPlannedHoursCommand,
+    ) -> TaskAssignmentDesktopDto:
+        assignment = self._require_task_method("update_assignment_planned_hours")(
+            assignment_id=command.assignment_id,
+            allocated_planned_hours=command.allocated_planned_hours,
+            expected_assignment_version=command.expected_assignment_version,
+            expected_project_resource_version=command.expected_project_resource_version,
+        )
+        return serialize_assignment(
+            assignment,
+            resources_by_id=resource_by_id(
+                resource_service=self._resource_service,
+                resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
+            ),
+            project_resource_version=self._project_resource_version_for(assignment),
         )
 
     def set_assignment_hours(
@@ -474,6 +510,7 @@ class ProjectManagementTasksDesktopApi:
                 resource_service=self._resource_service,
                 resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
             ),
+            project_resource_version=self._project_resource_version_for(assignment),
         )
 
     def delete_assignment(self, assignment_id: str) -> None:
@@ -487,6 +524,7 @@ class ProjectManagementTasksDesktopApi:
                 resource_service=self._resource_service,
                 resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
             ),
+            project_resource_version=self._project_resource_version_for(assignment),
         )
 
     def decline_assignment(self, assignment_id: str, reason: str = "") -> TaskAssignmentDesktopDto:
@@ -497,6 +535,7 @@ class ProjectManagementTasksDesktopApi:
                 resource_service=self._resource_service,
                 resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
             ),
+            project_resource_version=self._project_resource_version_for(assignment),
         )
 
     def list_dependencies(self, task_id: str) -> tuple[TaskDependencyDesktopDto, ...]:

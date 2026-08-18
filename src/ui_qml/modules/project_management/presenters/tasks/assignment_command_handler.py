@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
@@ -7,9 +8,10 @@ from src.core.modules.project_management.api.desktop import (
     TaskAssignmentAllocationCommand,
     TaskAssignmentCreateCommand,
     TaskAssignmentHoursCommand,
+    TaskAssignmentPlannedHoursCommand,
 )
 
-from .validation import require_decimal, require_float, require_text
+from .validation import optional_decimal, require_decimal, require_float, require_text
 
 def create_assignment(desktop_api, payload: dict[str, Any]) -> None:
     command = TaskAssignmentCreateCommand(
@@ -22,10 +24,17 @@ def create_assignment(desktop_api, payload: dict[str, Any]) -> None:
         allocation_percent=require_float(
             payload, "allocationPercent", "Allocation percent is required."
         ),
+        allocated_planned_hours=optional_decimal(payload, "plannedHours") or Decimal("0"),
     )
     desktop_api.create_assignment(command)
 
 def update_assignment_allocation(desktop_api, payload: dict[str, Any]) -> None:
+    raw_version = payload.get("version")
+    expected_version = (
+        int(raw_version)
+        if raw_version is not None and str(raw_version).strip() != ""
+        else None
+    )
     command = TaskAssignmentAllocationCommand(
         assignment_id=require_text(
             payload,
@@ -35,6 +44,7 @@ def update_assignment_allocation(desktop_api, payload: dict[str, Any]) -> None:
         allocation_percent=require_float(
             payload, "allocationPercent", "Allocation percent is required."
         ),
+        expected_version=expected_version,
     )
     desktop_api.update_assignment_allocation(command)
 
@@ -48,6 +58,29 @@ def set_assignment_hours(desktop_api, payload: dict[str, Any]) -> None:
         ),
     )
     desktop_api.set_assignment_hours(command)
+
+def update_assignment_planned_hours(desktop_api, payload: dict[str, Any]) -> None:
+    command = TaskAssignmentPlannedHoursCommand(
+        assignment_id=require_text(
+            payload,
+            "assignmentId",
+            "Assignment ID is required for planned-hours updates.",
+        ),
+        allocated_planned_hours=require_decimal(
+            payload, "plannedHours", "Planned work is required."
+        ),
+        expected_assignment_version=int(
+            require_text(payload, "version", "Assignment version is required.")
+        ),
+        expected_project_resource_version=int(
+            require_text(
+                payload,
+                "projectResourceVersion",
+                "Project resource version is required.",
+            )
+        ),
+    )
+    desktop_api.update_assignment_planned_hours(command)
 
 def delete_assignment(desktop_api, assignment_id: str) -> None:
     normalized_assignment_id = (assignment_id or "").strip()

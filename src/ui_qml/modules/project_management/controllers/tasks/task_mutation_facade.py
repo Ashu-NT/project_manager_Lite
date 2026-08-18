@@ -49,6 +49,10 @@ def update_assignment_allocation(controller, payload: dict[str, object]) -> dict
     return controller._assignments_ctrl.updateAssignmentAllocation(payload)
 
 
+def update_assignment_planned_hours(controller, payload: dict[str, object]) -> dict[str, object]:
+    return controller._assignments_ctrl.updateAssignmentPlannedHours(payload)
+
+
 def set_assignment_hours(controller, payload: dict[str, object]) -> dict[str, object]:
     return controller._assignments_ctrl.setAssignmentHours(payload)
 
@@ -155,6 +159,7 @@ __all__ = [
     "set_assignment_hours",
     "undo_last_task_action",
     "update_assignment_allocation",
+    "update_assignment_planned_hours",
     "update_dependency",
     "update_progress",
     "update_task",

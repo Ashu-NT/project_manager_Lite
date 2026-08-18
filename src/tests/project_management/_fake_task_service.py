@@ -135,9 +135,13 @@ class _FakeTaskService:
         assignment.project_resource_id = project_resource_id
         return assignment
 
-    def set_assignment_allocation(self, *, assignment_id: str, allocation_percent: float) -> TaskAssignment:
+    def set_assignment_allocation(
+        self, *, assignment_id: str, allocation_percent: float, expected_version: int | None = None
+    ) -> TaskAssignment:
         assignment = self._assignments[assignment_id]
         assignment.allocation_percent = allocation_percent
+        if expected_version is not None:
+            assignment.version = expected_version + 1
         return assignment
 
     def set_assignment_hours(self, *, assignment_id: str, hours_logged: float) -> TaskAssignment:

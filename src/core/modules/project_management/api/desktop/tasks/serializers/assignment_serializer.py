@@ -16,6 +16,7 @@ def serialize_assignment(
     can_manage: bool = False,
     can_accept: bool = False,
     can_decline: bool = False,
+    project_resource_version: int = 1,
 ) -> TaskAssignmentDesktopDto:
     return TaskAssignmentDesktopDto(
         id=assignment.id,
@@ -33,6 +34,11 @@ def serialize_assignment(
         can_manage=bool(can_manage),
         can_accept=bool(can_accept),
         can_decline=bool(can_decline),
+        allocated_planned_hours=canonical_decimal_text(
+            getattr(assignment, "allocated_planned_hours", 0) or 0
+        ),
+        version=int(getattr(assignment, "version", 1) or 1),
+        project_resource_version=int(project_resource_version or 1),
     )
 
 

@@ -72,7 +72,7 @@ Item {
     signal assignmentSelected(string assignmentId)
     signal assignmentPreviewRequested(string projectResourceId, string taskId)
     signal editAllocationRequested(var assignmentData)
-    signal setHoursRequested(var assignmentData)
+    signal editPlannedHoursRequested(var assignmentData)
     signal deleteAssignmentRequested(var assignmentData)
     signal acceptAssignmentRequested(var assignmentData)
     signal declineAssignmentRequested(var assignmentData)
@@ -272,7 +272,7 @@ Item {
                     }
                     onRetryRequested: root.retrySectionRequested("Assignments")
                     onEditAllocationRequested: function(d) { root.editAllocationRequested(d) }
-                    onSetHoursRequested: function(d) { root.setHoursRequested(d) }
+                    onEditPlannedHoursRequested: function(d) { root.editPlannedHoursRequested(d) }
                     onDeleteRequested: function(d) { root.deleteAssignmentRequested(d) }
                     onAcceptRequested: function(d) { root.acceptAssignmentRequested(d) }
                     onDeclineRequested: function(d) { root.declineAssignmentRequested(d) }

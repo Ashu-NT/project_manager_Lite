@@ -39,10 +39,34 @@ def build_time_assignment_summary(snapshot) -> TimesheetDetailViewModel:
                 value=summary.resource_name,
             ),
             TimesheetDetailFieldViewModel(
-                label="Hours",
+                label="Logged (this period)",
+                value=getattr(snapshot, "task_period_hours_label", "0.00h"),
+                supporting_text=(
+                    f"{len(snapshot.entries)} entry or entries logged against "
+                    "this task in the selected period."
+                ),
+            ),
+            TimesheetDetailFieldViewModel(
+                label="Planned",
+                value=getattr(snapshot, "planned_hours_label", "0.00h"),
+                supporting_text="Planned work allocated to this assignment.",
+            ),
+            TimesheetDetailFieldViewModel(
+                label="Logged (all time)",
+                value=getattr(snapshot, "logged_hours_label", "0.00h"),
+                supporting_text="Total hours ever logged against this assignment.",
+            ),
+            TimesheetDetailFieldViewModel(
+                label="Remaining",
+                value=getattr(snapshot, "remaining_hours_label", "0.00h"),
+                supporting_text="Planned minus logged (all time).",
+            ),
+            TimesheetDetailFieldViewModel(
+                label="Resource total this period",
                 value=summary.total_hours_label,
                 supporting_text=(
-                    f"{summary.entry_count} entry or entries in the selected resource month."
+                    f"{summary.entry_count} entry or entries across all of this "
+                    "resource's tasks/projects in the selected period."
                 ),
             ),
             TimesheetDetailFieldViewModel(

@@ -20,7 +20,7 @@ Item {
     signal createRequested()
     signal assignmentSelected(string assignmentId)
     signal editAllocationRequested(var assignmentData)
-    signal setHoursRequested(var assignmentData)
+    signal editPlannedHoursRequested(var assignmentData)
     signal deleteRequested(var assignmentData)
     signal acceptRequested(var assignmentData)
     signal declineRequested(var assignmentData)
@@ -84,7 +84,7 @@ Item {
             actions.push({ "id": "decline", "label": "Decline", "icon": "close", "danger": true })
         if (actions.length === 0 && root._selectedState.canManage) {
             actions.push({ "id": "allocation", "label": "Edit Allocation", "icon": "edit" })
-            actions.push({ "id": "hours", "label": "Set Hours", "icon": "time" })
+            actions.push({ "id": "plannedHours", "label": "Edit Planned Work", "icon": "time" })
             actions.push({ "id": "remove", "label": "Remove", "icon": "delete", "danger": true })
         }
         return actions
@@ -118,7 +118,7 @@ Item {
                 if (actionId === "accept") root.acceptRequested(root._selectedItem)
                 else if (actionId === "decline") root.declineRequested(root._selectedItem)
                 else if (actionId === "allocation") root.editAllocationRequested(root._selectedItem)
-                else if (actionId === "hours") root.setHoursRequested(root._selectedItem)
+                else if (actionId === "plannedHours") root.editPlannedHoursRequested(root._selectedItem)
                 else if (actionId === "remove") root.deleteRequested(root._selectedItem)
             }
         }

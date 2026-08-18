@@ -116,11 +116,11 @@ Item {
         assignmentEditorDialog.open()
     }
 
-    function openAssignmentHoursDialog(assignmentData) {
+    function openEditAssignmentPlannedHoursDialog(assignmentData) {
         root.assignmentTarget = assignmentData || ({})
-        assignmentHoursDialog.assignmentData = root.assignmentTarget
-        assignmentHoursDialog.errorMessage = ""
-        assignmentHoursDialog.open()
+        assignmentPlannedHoursDialog.assignmentData = root.assignmentTarget
+        assignmentPlannedHoursDialog.errorMessage = ""
+        assignmentPlannedHoursDialog.open()
     }
 
     function openDeleteAssignmentDialog(assignmentData) {
@@ -287,16 +287,16 @@ Item {
         }
     }
 
-    TaskDialogs.TaskAssignmentHoursDialog {
-        id: assignmentHoursDialog
-        objectName: "taskAssignmentHoursDialog"
+    TaskDialogs.TaskAssignmentPlannedHoursDialog {
+        id: assignmentPlannedHoursDialog
+        objectName: "taskAssignmentPlannedHoursDialog"
 
         busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
             if (root.workspaceController === null) return
-            const result = root.workspaceController.setAssignmentHours(payload)
-            root._handleResult(assignmentHoursDialog, result)
+            const result = root.workspaceController.updateAssignmentPlannedHours(payload)
+            root._handleResult(assignmentPlannedHoursDialog, result)
         }
     }
 

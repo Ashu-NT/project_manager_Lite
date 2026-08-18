@@ -88,6 +88,14 @@ def build_assignment_snapshot(
         entries=resource_entries,
     )
     resource_period_total_hours_label = format_hours(period_aggregate.total_hours)
+    task_period_hours = sum((float(entry.hours or 0.0) for entry in task_entries), 0.0)
+    task_period_hours_label = format_hours(task_period_hours)
+
+    assignment = task_service.get_assignment(context.assignment_id)
+    planned_hours = float(getattr(assignment, "allocated_planned_hours", 0) or 0) if assignment else 0.0
+    logged_hours = float(getattr(assignment, "hours_logged", 0) or 0) if assignment else 0.0
+    remaining_hours = planned_hours - logged_hours
+
     return TimesheetAssignmentSnapshotDesktopDto(
         assignment=assignment_option,
         period_options=period_options,
@@ -106,6 +114,10 @@ def build_assignment_snapshot(
             f"Task period entries: {len(task_entries)} | Resource month total: "
             f"{resource_period_total_hours_label}"
         ),
+        task_period_hours_label=task_period_hours_label,
+        planned_hours_label=format_hours(planned_hours),
+        logged_hours_label=format_hours(logged_hours),
+        remaining_hours_label=format_hours(remaining_hours),
     )
 
 

@@ -25,6 +25,7 @@ from .assignment_command_handler import (
     preview_assignment,
     set_assignment_hours,
     update_assignment_allocation,
+    update_assignment_planned_hours,
     validate_assignment,
 )
 from .assignments_builder import build_task_assignments_state
@@ -305,6 +306,9 @@ class ProjectTasksWorkspacePresenter:
 
     def update_assignment_allocation(self, payload: dict[str, Any]) -> None:
         update_assignment_allocation(self._desktop_api, payload)
+
+    def update_assignment_planned_hours(self, payload: dict[str, Any]) -> None:
+        update_assignment_planned_hours(self._desktop_api, payload)
 
     def set_assignment_hours(self, payload: dict[str, Any]) -> None:
         set_assignment_hours(self._desktop_api, payload)

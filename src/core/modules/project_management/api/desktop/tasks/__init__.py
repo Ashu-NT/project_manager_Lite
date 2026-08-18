@@ -7,6 +7,7 @@ from src.core.modules.project_management.api.desktop.tasks.commands.assignment_c
     TaskAssignmentAllocationCommand,
     TaskAssignmentCreateCommand,
     TaskAssignmentHoursCommand,
+    TaskAssignmentPlannedHoursCommand,
 )
 from src.core.modules.project_management.api.desktop.tasks.commands.bulk_commands import (
     TaskBulkStatusCommand,
@@ -63,6 +64,7 @@ __all__ = [
     "TaskAssignmentCreateCommand",
     "TaskAssignmentDesktopDto",
     "TaskAssignmentHoursCommand",
+    "TaskAssignmentPlannedHoursCommand",
     "TaskBulkStatusCommand",
     "TaskCreateCommand",
     "TaskDependencyCreateCommand",

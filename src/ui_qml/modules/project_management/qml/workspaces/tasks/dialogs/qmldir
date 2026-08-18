@@ -1,6 +1,6 @@
 module ProjectManagement.TasksDialogs
 TaskAssignmentEditorDialog 1.0 TaskAssignmentEditorDialog.qml
-TaskAssignmentHoursDialog 1.0 TaskAssignmentHoursDialog.qml
+TaskAssignmentPlannedHoursDialog 1.0 TaskAssignmentPlannedHoursDialog.qml
 TaskAssignmentResponseDialog 1.0 TaskAssignmentResponseDialog.qml
 TaskCollaborationComposerDialog 1.0 TaskCollaborationComposerDialog.qml
 TaskCommentDeleteDialog 1.0 TaskCommentDeleteDialog.qml

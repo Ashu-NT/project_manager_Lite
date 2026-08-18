@@ -58,17 +58,26 @@ def require_float(payload: dict[str, Any], key: str, message: str) -> float:
     return value
 
 
-def require_decimal(payload: dict[str, Any], key: str, message: str) -> Decimal:
+def optional_decimal(payload: dict[str, Any], key: str) -> Decimal | None:
     value = str(payload.get(key, "") or "").strip()
     if not value:
-        raise ValueError(message)
+        return None
     try:
         resolved = Decimal(value)
     except InvalidOperation as exc:
-        raise ValueError(message) from exc
+        raise ValueError(
+            f"{key.replace('_', ' ').title()} must be a valid number."
+        ) from exc
     if not resolved.is_finite():
-        raise ValueError(message)
+        raise ValueError(f"{key.replace('_', ' ').title()} must be a valid number.")
     return resolved
+
+
+def require_decimal(payload: dict[str, Any], key: str, message: str) -> Decimal:
+    value = optional_decimal(payload, key)
+    if value is None:
+        raise ValueError(message)
+    return value
 
 def optional_date(payload: dict[str, Any], key: str) -> date | None:
     value = str(payload.get(key, "") or "").strip()

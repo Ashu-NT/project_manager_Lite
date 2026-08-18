@@ -446,8 +446,8 @@ AppLayouts.WorkspaceFrame {
                     onEditAllocationRequested: function(assignmentData) {
                         dialogHostLoader.invoke("openEditAssignmentAllocationDialog", assignmentData, root.selectedTaskModel)
                     }
-                    onSetHoursRequested: function(assignmentData) {
-                        dialogHostLoader.invoke("openAssignmentHoursDialog", assignmentData)
+                    onEditPlannedHoursRequested: function(assignmentData) {
+                        dialogHostLoader.invoke("openEditAssignmentPlannedHoursDialog", assignmentData)
                     }
                     onDeleteAssignmentRequested: function(assignmentData) {
                         dialogHostLoader.invoke("openDeleteAssignmentDialog", assignmentData)

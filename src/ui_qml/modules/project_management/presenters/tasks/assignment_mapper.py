@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
 from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskRecordViewModel,
     TaskSelectorOptionViewModel,
@@ -13,6 +15,10 @@ def to_assignment_record_view_model(assignment) -> TaskRecordViewModel:
     allocation_percent = float(assignment.allocation_percent or 0.0)
     hours_logged = assignment.hours_logged or "0"
     hours_label = format_decimal_amount(hours_logged, grouping=False)
+    planned_hours = getattr(assignment, "allocated_planned_hours", None) or "0"
+    planned_label = format_decimal_amount(planned_hours, grouping=False)
+    remaining = _decimal(planned_hours) - _decimal(hours_logged)
+    remaining_label = format_decimal_amount(str(remaining), grouping=False)
     state = {
         "assignmentId": assignment.id,
         "taskId": assignment.task_id,
@@ -20,22 +26,36 @@ def to_assignment_record_view_model(assignment) -> TaskRecordViewModel:
         "resourceName": assignment.resource_name,
         "allocationPercent": f"{allocation_percent:.1f}",
         "hoursLogged": hours_logged,
+        "plannedHours": planned_hours,
+        "remainingHours": str(remaining),
         "projectResourceId": assignment.project_resource_id or "",
         "responseStatus": assignment.response_status,
         "responseStatusLabel": assignment.response_status_label,
         "canManage": bool(assignment.can_manage),
         "canAccept": bool(assignment.can_accept),
         "canDecline": bool(assignment.can_decline),
+        "version": int(getattr(assignment, "version", 1) or 1),
+        "projectResourceVersion": int(
+            getattr(assignment, "project_resource_version", 1) or 1
+        ),
     }
     return TaskRecordViewModel(
         id=assignment.id,
         title=assignment.resource_name,
         status_label=assignment.response_status_label,
         subtitle="Resource assignment",
-        supporting_text=f"{hours_label} h logged",
+        supporting_text=f"{hours_label} h logged of {planned_label} h planned "
+        f"({remaining_label} h remaining)",
         meta_text=f"{allocation_percent:.1f}%",
         state=state,
     )
+
+
+def _decimal(value: object) -> Decimal:
+    try:
+        return Decimal(str(value))
+    except Exception:
+        return Decimal("0")
 
 
 def build_assignment_options(

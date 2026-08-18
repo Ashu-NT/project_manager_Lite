@@ -133,6 +133,8 @@ class TaskAssignmentMixin:
         self,
         assignment_id: str,
         allocation_percent: float,
+        *,
+        expected_version: int | None = None,
     ) -> TaskAssignment:
         assignment = self._assignment_repo.get(assignment_id)
         if not assignment:
@@ -154,24 +156,30 @@ class TaskAssignmentMixin:
 
         resource = self._resource_repo.get(assignment.resource_id)
         try:
-            self._assignment_repo.update(candidate)
+            if expected_version is not None:
+                updated = self._assignment_repo.update_allocation_with_version_check(
+                    candidate, expected_version=expected_version
+                )
+            else:
+                self._assignment_repo.update(candidate)
+                updated = candidate
             self._session.commit()
             record_assignment_action(
                 self,
                 action="assignment.set_allocation",
-                assignment_id=candidate.id,
+                assignment_id=updated.id,
                 project_id=task.project_id,
                 task_id=task.id,
                 task_name=task.name,
-                resource_name=resource.name if resource is not None else candidate.resource_id,
-                extra={"allocation_percent": candidate.allocation_percent},
+                resource_name=resource.name if resource is not None else updated.resource_id,
+                extra={"allocation_percent": updated.allocation_percent},
             )
         except Exception as exc:
             self._session.rollback()
             raise exc
 
         domain_events.tasks_changed.emit(task.project_id)
-        return candidate
+        return updated
 
     def update_assignment_planned_hours(
         self,
@@ -214,25 +222,12 @@ class TaskAssignmentMixin:
                 code="PROJECT_RESOURCE_MISMATCH",
             )
 
-        project_task_ids = {t.id for t in self._task_repo.list_by_project(task.project_id)}
-        other_total = sum(
-            (
-                a.allocated_planned_hours
-                for a in self._assignment_repo.list_by_resource(assignment.resource_id)
-                if a.id != assignment.id and a.task_id in project_task_ids
-            ),
-            Decimal("0"),
+        proposed_hours, proposed_total = self._check_planned_hours_envelope(
+            project_resource=project_resource,
+            resource_id=assignment.resource_id,
+            allocated_planned_hours=allocated_planned_hours,
+            exclude_assignment_id=assignment.id,
         )
-        proposed_hours = Decimal(str(allocated_planned_hours))
-        envelope_hours = Decimal(str(project_resource.planned_hours))
-        proposed_total = other_total + proposed_hours
-        if proposed_total > envelope_hours:
-            raise BusinessRuleError(
-                f"Allocating {proposed_hours} hours to this task would bring "
-                f"{assignment.resource_id}'s total allocated hours on this project to "
-                f"{proposed_total}, exceeding its planned envelope of {envelope_hours}.",
-                code="PROJECT_RESOURCE_HOURS_OVERALLOCATED",
-            )
 
         candidate = replace(assignment, allocated_planned_hours=proposed_hours)
         resource = self._resource_repo.get(assignment.resource_id)
@@ -265,6 +260,40 @@ class TaskAssignmentMixin:
         domain_events.tasks_changed.emit(task.project_id)
         return updated
 
+    def _check_planned_hours_envelope(
+        self,
+        *,
+        project_resource,
+        resource_id: str,
+        allocated_planned_hours: Decimal,
+        exclude_assignment_id: str | None = None,
+    ) -> tuple[Decimal, Decimal]:
+        """Validate a proposed ``allocated_planned_hours`` value against the
+        resource's shared ``ProjectResource.planned_hours`` envelope for this
+        project. Returns ``(proposed_hours, proposed_total)`` on success."""
+        project_task_ids = {
+            t.id for t in self._task_repo.list_by_project(project_resource.project_id)
+        }
+        other_total = sum(
+            (
+                a.allocated_planned_hours
+                for a in self._assignment_repo.list_by_resource(resource_id)
+                if a.id != exclude_assignment_id and a.task_id in project_task_ids
+            ),
+            Decimal("0"),
+        )
+        proposed_hours = Decimal(str(allocated_planned_hours))
+        envelope_hours = Decimal(str(project_resource.planned_hours))
+        proposed_total = other_total + proposed_hours
+        if proposed_total > envelope_hours:
+            raise BusinessRuleError(
+                f"Allocating {proposed_hours} hours to this task would bring "
+                f"{resource_id}'s total allocated hours on this project to "
+                f"{proposed_total}, exceeding its planned envelope of {envelope_hours}.",
+                code="PROJECT_RESOURCE_HOURS_OVERALLOCATED",
+            )
+        return proposed_hours, proposed_total
+
     def get_assignment(self, assignment_id: str) -> TaskAssignment | None:
         require_permission(self._user_session, "task.read", operation_label="view assignment")
         assignment = self._assignment_repo.get(assignment_id)
@@ -282,7 +311,12 @@ class TaskAssignmentMixin:
         return assignment
 
     def assign_project_resource(
-        self, task_id: str, project_resource_id: str, allocation_percent: float
+        self,
+        task_id: str,
+        project_resource_id: str,
+        allocation_percent: float,
+        *,
+        allocated_planned_hours: Decimal = Decimal("0"),
     ) -> TaskAssignment:
         if not self._project_resource_repo:
             raise BusinessRuleError(
@@ -316,10 +350,19 @@ class TaskAssignmentMixin:
                 code="ASSIGNMENT_DUPLICATE",
             )
 
+        proposed_planned_hours = Decimal(str(allocated_planned_hours or 0))
+        if proposed_planned_hours > 0:
+            proposed_planned_hours, _ = self._check_planned_hours_envelope(
+                project_resource=project_resource,
+                resource_id=project_resource.resource_id,
+                allocated_planned_hours=proposed_planned_hours,
+            )
+
         assignment = TaskAssignment.create(
             task_id,
             project_resource.resource_id,
             allocation_percent,
+            allocated_planned_hours=proposed_planned_hours,
         )
         assignment.project_resource_id = project_resource.id
 
@@ -343,7 +386,10 @@ class TaskAssignmentMixin:
                 task_id=task.id,
                 task_name=task.name,
                 resource_name=resource.name if resource is not None else project_resource.resource_id,
-                extra={"allocation_percent": assignment.allocation_percent},
+                extra={
+                    "allocation_percent": assignment.allocation_percent,
+                    "allocated_planned_hours": str(assignment.allocated_planned_hours),
+                },
             )
         except Exception:
             self._session.rollback()

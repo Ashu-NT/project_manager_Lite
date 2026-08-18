@@ -91,6 +91,7 @@ Component {
     Method { name: "deleteTask"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } }
     Method { name: "createAssignment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "updateAssignmentAllocation"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateAssignmentPlannedHours"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "setAssignmentHours"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "applyBulkStatus"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "bulkDeleteTasks"; type: "QVariantMap"; Parameter { name: "taskIds"; type: "QVariantList" } }

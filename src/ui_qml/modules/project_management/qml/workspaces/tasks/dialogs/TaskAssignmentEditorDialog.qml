@@ -70,6 +70,7 @@ AppWidgets.EntityDialog {
                 ? assignmentState.allocationPercent
                 : "100.0"
         )
+        plannedHoursField.text = ""
         root.errorMessage = ""
         root._skillValidation = {}
         root._availabilityPreview = {}
@@ -105,12 +106,19 @@ AppWidgets.EntityDialog {
     function buildPayload() {
         const assignmentState = root.selectedAssignmentState()
         const option = root.resourceOptions[resourceCombo.currentIndex] || {}
-        return {
+        const payload = {
             "taskId": String(root.selectedTaskState().taskId || ""),
             "assignmentId": String(assignmentState.assignmentId || ""),
             "projectResourceId": String(option.value || ""),
-            "allocationPercent": allocationField.text
+            "allocationPercent": allocationField.text,
+            "version": assignmentState.version !== undefined ? String(assignmentState.version) : ""
         }
+        if (root.mode === "create") {
+            payload["plannedHours"] = plannedHoursField.text.trim().length > 0
+                ? plannedHoursField.text
+                : "0"
+        }
+        return payload
     }
 
     function submitDialog() {
@@ -309,6 +317,20 @@ AppWidgets.EntityDialog {
 
             Layout.fillWidth: true
             placeholderText: "0.1 - 100.0"
+        }
+    }
+
+    AppWidgets.FormField {
+        Layout.fillWidth: true
+        visible: root.mode === "create"
+        label: "Planned Work (h)"
+
+        AppControls.TextField {
+            id: plannedHoursField
+
+            Layout.fillWidth: true
+            visible: root.mode === "create"
+            placeholderText: "0.00 (optional)"
         }
     }
 

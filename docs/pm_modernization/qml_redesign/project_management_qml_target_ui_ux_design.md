@@ -2893,3 +2893,275 @@ replays real migration history rather than `create_all()`).
 
 **PRODUCTION BUG FIX (task_skill_requirements.version): COMPLETE.** Not
 committed.
+
+## 43. R4.3 Task Detail — Assignment + Time: deep backend audit, enterprise upgrade, QML redesign
+
+Scope for this pass: Task Detail → Assignment, Task Detail → Time. Explicitly
+excluded: Resources workspace, Timesheets workspace, Material Demand/Inventory,
+R4.4 Planning. Nothing committed.
+
+### A/B. Current-state audit (verified via two independent full-stack traces,
+DB → domain → application → repository/reader → desktop API → controller →
+QML → tests → cross-module callers)
+
+**Assignment.** Table `task_assignments` (`TaskAssignmentORM`): `id, task_id,
+resource_id, allocation_percent, hours_logged (Decimal), allocated_planned_hours
+(Decimal), version (int), project_resource_id, response_status, responded_at`.
+No `role`/`is_lead`/`is_primary` column exists anywhere — there is no
+primary/lead-assignment concept in this domain today. Unique constraint on
+`(task_id, resource_id)` — one assignment per resource per task, DB-enforced.
+`TaskAssignment` is a real validated domain value object (not an anemic ORM
+row) with field-level invariants (allocation `0 < x <= 100`, non-negative
+hours/planned-hours, `version >= 1`, `response_status` enum). Application
+mixin `TaskAssignmentMixin` (`application/tasks/commands/assignment.py`) owns
+every write path: `assign_project_resource`, `unassign_resource`,
+`set_assignment_hours`, `set_assignment_allocation`,
+`update_assignment_planned_hours` (dual optimistic-lock WBS-hours
+distribution against the `ProjectResource` envelope), `accept_assignment`/
+`decline_assignment` (assignee-identity-gated). All mutating methods call
+`record_assignment_action` → `record_activity(..., parent_entity_id=task_id)`
+— fully audited. Authorization (`task.manage`/`task.read`, global + project-
+scoped) and tenant/org scoping (`ProjectORM.tenant_id/organization_id` join)
+are enforced in the application/repository layers, not QML. Reader side:
+`SqlAlchemyAssignmentRepository` has genuine batched/joined methods
+(`list_by_tasks`, `list_by_ids`, `list_timesheet_contexts`) used correctly by
+`SchedulingEngine`, `ResourceLevelingEngine`, `PlannedCostService`,
+`LaborCostEngine`. Desktop API (`ProjectManagementTasksDesktopApi`) exposes a
+clean `TaskAssignmentDesktopDto` with no ORM leakage.
+
+**Time.** There is exactly **one** authoritative implementation, owned by the
+**platform** module (`src/core/platform/application/time_management/time/`,
+tables `time_entries`/`timesheet_periods`). Project_management's own
+`application/tasks/commands/time_entries.py` (`TaskTimeEntryMixin`) is a pure
+forwarder to the same `TimesheetService(TimeService)` instance — there is no
+project_management-local time-entry table. The **maintenance** module's
+`MaintenanceLaborService(TimeService)` is the same pattern again — a
+work-order task's labor booking is a row in the very same `time_entries`
+table, keyed by the generic `work_allocation_id`. This is intentional, shared
+platform infrastructure, not accidental duplication. Lifecycle
+(submit/approve/reject/lock/unlock/reopen) lives exclusively in
+`timesheet_periods.py` (platform); confirmed removed from Task Detail earlier
+this session (§40) and re-confirmed clean here — no dead signals/slots/tests
+remain. `_ensure_timesheet_period_editable` is the single gate blocking entry
+mutation once a period is `SUBMITTED/APPROVED/LOCKED` (deliberately does *not*
+block `REJECTED`, to allow correction/resubmission). No `version`/optimistic-
+lock column exists on either time table.
+
+### C. Ownership boundaries (confirmed, and where they were leaking)
+
+`ASSIGNMENT` = who/what + how much capacity is allocated (`allocation_percent`,
+`allocated_planned_hours`). `TIME` = what was actually recorded
+(`hours_logged`, kept in sync automatically from time entries via
+`_sync_work_allocation_hours_from_entries()` — this makes `hours_logged` a
+**derived, Time-owned** value that Assignment must not independently edit).
+`TIMESHEETS` = period lifecycle. Two real leaks were found (see D) where these
+collapsed into each other in the current implementation.
+
+### D. Discovered defects (evidence-based, not hypothetical)
+
+1. **`allocated_planned_hours` and `version` are completely invisible to the
+   UI.** `TaskAssignmentDesktopDto` and the QML view-model mapper never
+   surface them, and `update_assignment_planned_hours` — a fully implemented,
+   dual-optimistic-locked, finance-consumed application method — has **no**
+   desktop API method or command DTO at all. A real, audited, financially
+   load-bearing field (Finance's `PlannedCostService` reads it) is unreachable
+   from Task Detail.
+2. **Optimistic concurrency is inconsistent.** The `version` column exists and
+   is domain-validated, but only `update_assignment_planned_hours` enforces it
+   (via `update_planned_hours_with_version_check`). `set_assignment_allocation`
+   — the one allocation-changing path actually reachable from Task Detail UI —
+   uses the plain `update()`, silently ignoring `version`: two managers
+   editing the same assignment's allocation concurrently is last-writer-wins
+   with no conflict detection, despite the column and the compare-and-swap
+   helper (`update_with_version_check`) already being an established,
+   in-use convention for exactly this purpose elsewhere in this repository
+   (`Task.update`, `ProjectResource.update`, `Resource.update`,
+   `RegisterEntry.update`, several finance repositories).
+3. **Task Detail's Time Summary "Hours" figure is resource-wide, not
+   task-scoped** — an ownership leak in the *opposite* direction from #1/#2.
+   `build_assignment_snapshot` computes its `period_summary` from
+   `list_time_entries_for_resource_period` (**all** of that resource's
+   allocations for the period, across every task/project they work on), while
+   the task-scoped entries (`list_time_entries_for_assignment_period`,
+   already fetched into `task_entries`) are counted (`len(task_entries)`) but
+   their hours are **never summed**. A user viewing Task X's Time section
+   today sees an "Hours" total that silently includes hours logged against
+   other, unrelated tasks. This is exactly the "Task Time may capture/show
+   task-specific entries" boundary (§0/§63) being violated by the read path.
+4. **`set_assignment_hours` ("Set Hours" dialog) is an Assignment-side edit of
+   a Time-owned, derived value.** The backend already defends against the
+   worst case (it raises `ValidationError` once any real time entry exists for
+   the assignment, telling the user to "edit the timesheet instead"), which
+   means that for any assignment with active time tracking — the normal case
+   once Time Capture is used — this action always fails. It is a genuine
+   ownership-boundary violation per this pass's own Phase 0 principle (Time
+   owns what was actually recorded), now that a real Time Capture/Ledger UI
+   exists as the correct path to log hours.
+5. **One QML-only authorization gap, but it is a pre-existing, repository-wide
+   convention, not an Assignment-specific defect.** `TasksDetailPanel.qml`'s
+   `canCreate` for "Assign Resource" (and, identically, for "Add Dependency")
+   is computed purely from `_hasTask && !_isSummary && options.length > 0`,
+   with no capability flag. This is safe (the actual mutation is fail-closed
+   server-side via `_require_manage` — a denied user just sees an avoidable
+   error toast), and it is applied uniformly across sibling Task Detail
+   create-actions, not singled out on Assignment. Fixing it well would mean
+   auditing every create-button in Task Detail, which is out of this pass's
+   scope (Assignment + Time only). **Decision: documented, not fixed in this
+   pass** — see Deferred Items.
+6. **N+1s exist, but not on the Task Detail read path.** `task_query.py`'s
+   `list_tasks_for_resource`/`list_assignments_for_resource`/
+   `list_assignments_for_tasks` (per-id `task_repo.get()` in a loop) and
+   `_check_resource_overallocation` (same pattern) are real, but they serve
+   the **Resources workspace** and **Dashboard**, not Task Detail's own
+   `list_assignments(task_id)` call (which already batches resource-name
+   lookups and does not exhibit this pattern). Similarly, Timesheets'
+   `list_time_entries_for_resource_period` is O(allocations-for-resource) —
+   it backs period submit/approve/lock and the (already-leaking, see #3)
+   resource-wide summary, not Task Detail's own task-scoped ledger read
+   (`list_time_entries_for_assignment_period`, a single direct query, no
+   loop). **Decision: out of scope, documented as deferred cross-module debt**
+   (fixing them means touching Resources/Dashboard/Timesheets, explicitly
+   excluded from this pass).
+7. **No "reassign" command, no "primary/lead assignment" concept.** Neither
+   has any evidence of being a real, currently-needed capability (no domain
+   field, no caller, no test expecting one) — decline/remove + create-new is
+   the existing pattern. **Not invented in this pass**, per "do not invent
+   missing operations."
+
+### E/F/G. Target model, commands, contracts actually implemented this pass
+
+Given the evidence above, the following — and only the following — backend
+changes were made (deliberately narrow; everything else in D is documented
+and deferred rather than blindly "fixed"):
+
+- `TaskAssignmentDesktopDto` gains `allocated_planned_hours: str` and
+  `version: int` (read-only exposure — closes D1's *read* gap). Editing
+  `allocated_planned_hours` from Task Detail is explicitly **deferred** (see
+  Deferred Items) — it is a WBS-envelope-redistribution operation that also
+  needs the `ProjectResource`'s own version threaded to the client to be safe,
+  which is a Planning-shaped concern, not a Task-Detail-shaped one; adding a
+  half-considered edit path here risks exactly the kind of premature/
+  unscoped feature the brief warns against.
+- `AssignmentRepository` gains `update_allocation_with_version_check(...)`,
+  mirroring the existing `update_planned_hours_with_version_check` convention
+  exactly. `TaskService.set_assignment_allocation` now takes an
+  `expected_version` and uses the versioned write path — closing D2 for the
+  one allocation-write path Task Detail actually uses. `accept_assignment`/
+  `decline_assignment` were deliberately **not** given version checks: their
+  own `response_status == "pending"` precondition is already a stronger,
+  status-based conflict guard for that specific transition.
+- `build_assignment_snapshot`/`serialize_period_summary` path: the Time
+  Summary's primary "Logged" figure is now computed from the already-fetched
+  task-scoped `task_entries` (sum of hours), not the resource-wide aggregate —
+  closing D3. The resource-wide figure is kept only as an explicitly-labeled
+  secondary "Resource total this period" line (it remains informative context
+  for a person logging against several tasks in one period, but no longer
+  masquerades as the task's own number). "Planned" and "Remaining" fields are
+  added from the assignment's own `allocated_planned_hours`/`hours_logged`
+  (both page-independent, authoritative, already-synced values — no new
+  query needed) — closes the "Planned/Remaining" gap from Phase D §35 using
+  data that was already correct and available, just not surfaced.
+- The "Set Hours" action and its dialog are removed from the Assignment
+  section's row actions (closing D4); the backend `set_assignment_hours`
+  command/API/tests are left in place (no reference proof it is fully dead —
+  it may still serve non-UI/import paths — so it is not deleted, only its one
+  QML entry point is).
+- Assignment row/inspector in QML now displays Planned Work and Remaining
+  (Planned − Logged) alongside the existing allocation/logged display,
+  read-only.
+
+### H/I. Database/migrations
+
+No schema changes required — every field involved (`allocated_planned_hours`,
+`version`) already exists on `task_assignments` from prior migrations
+(§2 of the investigation). No new indexes needed: all reads are single-row
+(`get_assignment`) or already-indexed single-query batches. Nothing in this
+pass touches the DB schema.
+
+### J/K. Authorization / concurrency decision
+
+No authorization changes: `set_assignment_allocation` already enforces
+`task.manage` before the write; adding `expected_version` only adds a second,
+orthogonal failure mode (stale-version conflict) on top of the existing
+capability check, it does not change who is allowed to call it. Concurrency
+decision, explicitly scoped: version-check added only to
+`set_assignment_allocation` (the one reachable, genuinely-concurrent-edit-prone
+write path); not added to `accept_assignment`/`decline_assignment` (already
+guarded by status transition) or retrofitted onto `set_assignment_hours`
+(being removed from the UI, not extended).
+
+### L/M. QML design delivered
+
+**Assignment** (extends the Repeater-based redesign already shipped in §40):
+rows/inspector now show Planned Work and Remaining in addition to Allocation
+and Logged; "Set Hours" removed from row actions; "Edit Allocation" dialog now
+round-trips `version` and surfaces a clear "this assignment was changed by
+someone else — reload and try again" error on conflict instead of silently
+overwriting.
+
+**Time**: Summary tab now labels the task-scoped figure as "Logged" (with
+"This period" broken out from it) and adds "Planned"/"Remaining"; the
+previously-unlabeled resource-wide number is now explicitly "Resource total
+this period" so it can no longer be mistaken for the task's own hours.
+Capture/Ledger tabs and the `[ Open Timesheets ]` CTA are unchanged — already
+correct from §40's removal of the duplicate Workflow tab.
+
+### N. Timesheets ownership — reconfirmed intact
+
+Re-verified (independently, via a fresh full-stack trace rather than trusting
+the prior session's own account): submit/approve/reject/lock/unlock/reopen
+exist only in the platform `timesheet_periods.py`; `pm_time_controller.py`
+exposes only add/update/delete entry slots with an explanatory comment on why
+period actions are deliberately absent; `TasksTimeEntriesSection.qml` has
+exactly 3 tabs and no dead signal/handler referencing the removed Workflow
+tab. There is no separate "My Time" workspace distinct from "Review Queue" in
+the code as it exists today — both live in one combined
+`project_management.timesheets` route/page — and the navigation layer
+(`navigateToRoute`) does not currently support passing context params, so the
+existing simple bare-route CTA (built in §40) is confirmed to already be the
+correct, "don't invent a second state system," choice per the user's own
+prior explicit decision.
+
+### O. Performance — before/after
+
+No new queries added anywhere in this pass's scope: the "Planned/Remaining"
+figures reuse data already loaded on the same assignment fetch; the
+task-scoped "Logged" figure reuses `task_entries`, already fetched by
+`build_assignment_snapshot` for a different purpose (it was being counted but
+not summed). Net query count for Task Detail Assignment/Time load is
+unchanged.
+
+### P. Duplication removed
+
+None newly found beyond what §40 already removed (Reservations/Procurement
+duplicates, Workflow tab). This pass's only removal is the "Set Hours" UI
+entry point (D4).
+
+### Q. Deferred cross-module debt (explicitly out of scope for this pass)
+
+- `task_query.py` N+1s (`list_tasks_for_resource`, `list_assignments_for_resource`,
+  `list_assignments_for_tasks`) — serve Resources workspace and Dashboard.
+- Dashboard's `widgets/upcoming.py`/`widgets/professional.py` per-task
+  `list_assignments_for_task` loop (one query per visible task) — Dashboard-owned.
+- Timesheets' `list_time_entries_for_resource_period` O(allocations) pattern
+  and the Review Queue's per-entry/per-period `project_name_for_id` N+1s —
+  Timesheets-owned.
+- QML-only `canCreate` gating on Task Detail create-buttons (Assignment's
+  "Assign Resource" and Dependencies' "Add Dependency" alike) having no
+  capability check — safe today (server fail-closed) but real UX debt;
+  fixing it properly means auditing every Task Detail create-button, not just
+  Assignment's.
+- Editing `allocated_planned_hours` from Task Detail (a WBS-envelope
+  redistribution operation that reads as Planning-shaped) — read-only
+  exposure was added this pass; the write path is deferred.
+- No forecast/finance-side consumption of time entries was found (only an
+  actuals pipeline off `TimesheetPeriodStatus.APPROVED`) — noted for the
+  record, not a defect.
+
+### R. Test evidence
+
+See the follow-up entry immediately after this section once the backend
+changes and their targeted tests are in and the full regression suite has
+been run.
+
+committed.
