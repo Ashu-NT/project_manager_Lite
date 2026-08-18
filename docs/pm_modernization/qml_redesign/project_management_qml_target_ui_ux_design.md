@@ -4104,7 +4104,7 @@ terminology). Logging beyond planned hours is never blocked or capped
 client-side; it saves and shows as an overrun, matching §16's explicit
 "actual work is historical truth" requirement.
 
-**Time Entries tab** (renamed from Ledger): server-side paginated via
+**Time Entries tab** (renamed from Ledger): paginated via
 `AppWidgets.TablePaginationBar` (existing shared primitive) bound to the
 authoritative `total`/`page`/`pageSize` from the backend, plus a resource
 filter dropdown built from the task's own resource breakdown. Columns:
@@ -4115,6 +4115,53 @@ Log Time in edit mode (pre-filled, with a "Recorded by" line and a
 draft of this component's Cancel button accidentally called
 `deleteRequested("")`, caught before being wired up, replaced with a
 dedicated `cancelEditRequested()` signal).
+
+**Pagination semantics — precise, not aspirational** (closure pass):
+`total`/`page`/`pageSize` are real and authoritative, but the
+mechanism is deliberately *not* SQL-pushdown pagination, and this section
+previously risked implying otherwise by calling it "server-side
+paginated." What actually happens in `list_time_entries_for_task_page`:
+one authoritative, task-scoped backend fetch (`TimeEntryRepository.
+list_by_work_allocations()`, a real SQL `IN (...)` over every assignment
+on the task, no per-assignment N+1 loop) pulls the complete entry set for
+this task; resource/date filtering, sorting, and paging then happen in
+the application layer over that one bounded, in-memory list; only the
+requested page's rows are serialized and sent to QML. There is no
+arbitrary hidden cap anywhere in this path — `total` always reflects the
+filtered set's true size. This is a considered choice, not an oversight:
+a single task's own logged time realistically stays small enough that
+paying for a dedicated SQL reader (with pushed-down `COUNT`/`ORDER
+BY`/`LIMIT`/`OFFSET`, the way the Timesheets Review Queue's
+`SqlAlchemyTimesheetReviewReader` does) isn't justified yet. The
+threshold to revisit: if a single task's entry volume grows large enough
+that fetching its full set becomes measurably expensive (a scale nothing
+in this codebase's usage patterns suggests today), the natural next step
+is a dedicated task-time `Reader`/`Criteria`/`ReadPage` trio following
+that exact Review Queue precedent — not a rewrite of this method's
+contract, since `TaskTimeEntriesPage`'s shape (`items`/`total`/`page`/
+`page_size`) would stay the same either way.
+
+**Query placement — reviewed, kept as-is** (closure pass): `get_task_time_summary`
+and `list_time_entries_for_task_page` live in `application/tasks/
+commands/assignment.py` and `commands/time_entries.py` respectively,
+alongside mutation methods, which raised the question of whether they
+belong in `application/tasks/queries/` instead. Checked against the
+module's actual established convention (not aesthetics): `application/
+tasks/queries/*` is reserved for catalog-level and cross-cutting reads
+with no single owning domain mixin (`get_task`, `list_tasks_for_project`,
+`query_workspace_page`, `list_assignments_for_resource` — resource-scoped
+across every task, not task-scoped). Each `commands/*.py` mixin, by
+contrast, already colocates its mutations with its own directly-scoped
+reads — `commands/assignment.py` already had `list_assignments_for_task`,
+`get_assignment`, and `preview_assignment_capacity` before this pass;
+`commands/time_entries.py` already had `list_time_entries_for_assignment`,
+`list_time_entries_for_assignment_period`, and `get_time_entry`. The two
+new methods are task-scoped reads built directly on sibling methods in
+those same mixins (`self.list_assignments_for_task(...)`, `self.
+_require_timesheet_service()...`), matching that established local-read
+convention exactly. Moving them to `queries/` would separate them from
+the domain logic they're built on and break precedent rather than follow
+it — so they stay where they are.
 
 **Timesheets boundary**: unchanged and reverified — no Submit/Approve/
 Reject/Lock/Unlock control exists anywhere in Task Detail → Time; the only
@@ -4157,12 +4204,68 @@ assertions verify graceful degradation to empty defaults rather than
 duplicating the real backend coverage above — a known, documented fidelity
 gap in that test harness, not a product gap.
 
-**Responsive/QML validation**: `pyside6-qmllint` clean (zero new warnings)
-across every touched file. A full interactive 1024×640/1280×720 sweep was
-not performed in this pass (same documented gap as §46) — the redesigned
-Overview table and KPI strip reuse the same `RowLayout`/`Layout.fillWidth`
-patterns already proven responsive elsewhere, but this remains a
-should-verify-visually item before shipping, not a verified pass.
+**Responsive/QML validation — actually rendered, not just linted**
+(closure pass): the gap flagged at the end of this section previously (no
+real render, qmllint-only) is closed. `TasksTimeEntriesSection.qml` was
+rendered offscreen via a real `QQuickView` (not just parsed) at all five
+required breakpoints — 1024×640, 1280×720, 1366×768, 1440×900, 1920×1080
+— across four data states: Overview with an overrun and long
+(45+ character) resource names, Log Time in edit mode with a long
+multi-paragraph description, Time Entries populated with five long-
+description rows on page 2 of 8, and the no-assignments empty state. 20
+renders total, all visually inspected. Result: no clipping, collision, or
+overflow at any size or state. The Overview breakdown table's fixed
+90/90/140/16px column scheme (the fix from the "view button" bug above)
+holds at the narrowest tested width. Log Time's Date/Hours row is itself
+already responsive (`GridLayout { columns: width >= 760 ? 2 : 1 }`) and
+stays two-column at every tested size, since the panel's available width
+never drops below 760px in Task Detail's layout. The Time Entries
+Description column (`flex: 3`) absorbs long text via truncation/wrap
+within its cell at every size, never spilling into Hours. `pyside6-qmllint`
+run against every touched file with the same import-path set used
+elsewhere in this codebase (`test_qml_architecture_guardrails_runtime.py`)
+is clean — the one warning it reports (`wbsParentOptions` missing on
+`ProjectManagementTasksWorkspaceController`) is on an unrelated WBS-parent
+property in `TasksWorkspacePage.qml`, pre-existing and untouched by this
+or the Time work, not a new warning from this pass.
+
+**A second real bug found during this closure pass, fixed**: `build_
+task_time_entries_page_dict` (`time_builder.py`) omitted `"id"` on each
+row dict, carrying only `"entryId"`. `DynamicTableModel.rowId()` (the
+shared table model backing `TaskTimeEntriesTable.qml`'s `DataTable`) falls
+back to the row's *index* when a row dict has no `"id"` key — and
+`resolve_time_entry_id()` falls back to the *first* entry in the page
+whenever the id it's given doesn't match any real entry id. Together this
+meant clicking any Time Entries row selected the row-index string, which
+never matched a real entry id, which silently resolved to the *first*
+entry on the page regardless of which row was actually clicked — a real
+selection bug, not a cosmetic one, caught only by re-deriving the
+row-click path end-to-end (`DataTable.qml` → `DynamicTableModel.rowId()`
+→ `resolve_time_entry_id()`) while re-verifying the "Time Entry row → Log
+Time edit state" interaction per this pass's exit gate, not by re-running
+existing tests (none of them exercised the table model's real `rowId()`
+fallback). Fixed by adding `"id": item.entry_id` alongside the existing
+`"entryId"` key, matching the convention already used by `assignment_
+mapper.py`'s row dicts.
+
+**Test evidence, updated**: the 17 Time-specific tests (6 backend + 3 QML
+smoke + 8 QML contract) and the 17 previously-updated presenter/controller
+tests across the 5 touched files all still pass after the row-id fix. The
+full `src/tests/project_management` suite run standalone: 826 passed, 1
+failed — the 1 failure (`test_financial_desktop_forecast_delegation.py
+::test_financial_desktop_maps_paged_canonical_commitment_lines`) is
+unrelated to Time or Assignment (a commitment-lines pagination-offset
+assertion last touched by an unrelated "server side pagination and
+sorting" commit) and pre-existing, confirmed via `git log` on the
+affected files. A separate full-suite run spanning `src/tests/pm` and
+`src/tests/architecture` alongside `project_management` had reported 30
+failures, 19 of which are in those two unrelated suites (baseline
+lifecycle, constraint validator, architecture size/layer guardrails —
+none of it touched by this work) and are pre-existing there; the
+remaining 10 (Time/Assignment presenter tests plus the QML contract test)
+did **not** reproduce when `project_management` was run standalone,
+confirming they were a test-order/pollution artifact of combining with
+those other suites, not a real regression in this work.
 
 **Not started**: R4.4 leveling migration, R5 Workload Management — per
-explicit instruction, unchanged from §45/§46.
+explicit instruction, unchanged from §45/§46/§47.

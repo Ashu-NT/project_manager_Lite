@@ -60,6 +60,7 @@ def build_task_time_entries_page_dict(page_dto) -> dict[str, object] | None:
     return {
         "items": [
             {
+                "id": item.entry_id,
                 "entryId": item.entry_id,
                 "assignmentId": item.assignment_id,
                 "resourceId": item.resource_id,
