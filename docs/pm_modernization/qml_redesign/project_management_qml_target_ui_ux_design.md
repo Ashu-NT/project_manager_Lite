@@ -4006,3 +4006,163 @@ Assignment/Time-related.
 onto the calendar capacity authority from §45 — still not started, per
 both this and the prior pass's explicit instruction. R5 Workload
 Management: not started.
+
+## 47. R4.3 — Task Detail Time UX Redesign
+
+Old: `Time → Assignment / Capture / Ledger`. New:
+`Time → Overview / Log Time / Time Entries`. "Assignment" was removed as a
+Time tab specifically because it duplicated Task Detail → Assignment's own
+name while actually being a time-summary/breakdown view, not assignment
+management — the two sections now have a clean real-world split: Assignment
+answers who is planned, at what allocation and capacity; Time answers how
+that plan is actually being consumed.
+
+**Ownership boundaries** (unchanged from §43/§44, reaffirmed here): Time
+owns actual recorded work only. It does not own resource/capacity planning
+(Assignment's job), project-resource envelope planning (Project Resources'
+job), or period submission/approval/locking (Timesheets' job). The Overview
+tab's resource rows are informational only — no Edit Allocation/Edit Planned
+Work/Reassign/Remove live there; a click on a row (see below) navigates to
+Assignment instead.
+
+**A structural gap closed, not just a naming change**: the old Time tab was
+built entirely on `TimesheetsDesktopApi.build_assignment_snapshot`, which is
+inherently *period*-scoped and *single-assignment*-scoped — it could never
+answer "how much has been logged for this task, across every resource,
+all-time," which is exactly what Overview's target design requires. Two new
+backend read paths were added (reusing existing authoritative fields, not
+new business logic):
+- `TaskService.get_task_time_summary(task_id) -> TaskTimeSummaryFact`
+  (`application/tasks/commands/assignment.py`) — sums `allocated_planned_
+  hours`/`hours_logged` across every `TaskAssignment` on the task, and
+  reuses the *existing* `project_resource_envelope_policy.burn_status`/
+  `planned_burn_percent` authority (previously ProjectResource-scoped
+  only) for the WITHIN_PLAN/NEAR_PLAN/OVERRUN classification — one
+  vocabulary for "actual vs. plan," not a second one invented for Time.
+  Remaining/overrun are `max(planned - actual, 0)` /
+  `max(actual - planned, 0)`, computed once in the application layer, never
+  in QML.
+- `TaskService.list_time_entries_for_task_page(task_id, ...) ->
+  TaskTimeEntriesPage` (`application/tasks/commands/time_entries.py`) —
+  task-scoped (every assignment on the task) and all-time (not
+  period-bound) entries, filterable by resource, paginated. Built on a new
+  batched repository primitive, `TimeEntryRepository.list_by_work_
+  allocations()` (real `WHERE work_allocation_id IN (...)`, added to both
+  the platform contract and `SqlAlchemyTimeEntryRepository`), plus a new
+  platform-level `TimesheetQueryMixin.list_time_entries_for_work_
+  allocations()`. Filtering/sorting/pagination happen in the application
+  layer over that one bounded, accurate fetch — deliberately NOT a
+  dedicated SQL-pushdown reader (unlike the Timesheets Review Queue's
+  `SqlAlchemyTimesheetReviewReader`), since one task's own logged time
+  realistically stays small; migrating to a dedicated reader if that ever
+  stops holding is noted as the natural follow-up, not silently assumed
+  away. `total`/`page`/`page_size` are always the true, authoritative
+  values — never an arbitrary hidden cap.
+
+New desktop DTOs: `TaskTimeSummaryDesktopDto`/`TaskResourceTimeBreakdownDesktopDto`/
+`TaskTimeEntriesPageDesktopDto`/`TaskTimeEntryDesktopDto`
+(`api/desktop/tasks/models/time_summary.py`), exposed via two new Tasks
+desktop API methods, `get_task_time_summary()` and `list_task_time_entries()`.
+
+**Always-visible summary strip**: `AppWidgets.KpiStrip` (existing shared
+primitive, not a new one) renders Planned Work / Actual Logged /
+Remaining-or-Overrun / Status above the tab bar, visible regardless of
+which tab is active — no need to open Overview just to see the core
+numbers. Overrun and near/over-plan status get semantic color via the
+already-established `colorHint` convention.
+
+**Overview tab**: a genuine execution summary, not the old Assignment tab
+renamed — Resource / Planned / Actual / Remaining-or-Overrun rows plus a
+TOTAL row, explicitly scoped to planned-vs-actual (no allocation %,
+available capacity, or capacity commitment figures, which stay in
+Assignment). Each row is fully clickable (hover-highlighted, pointing-hand
+cursor, trailing "›" affordance) and navigates to Task Detail → Assignment
+via `SectionDetailPage.scrollToSection()` — deliberately not a per-row
+button: an earlier iteration placed a `SecondaryButton` in a `Layout.
+preferredWidth: 90` cell while the numeric columns used `Layout.
+preferredWidth: 1`/`2` alongside `Layout.fillWidth: true`; QtQuick Layouts
+does not treat those as flex-ratio weights, so the "Remaining / Overrun"
+text (e.g. "20.0 h over") could grow into the button's reserved cell and
+visually collide with it. Fixed by removing the per-row button entirely
+(whole-row click instead) and switching every column to fixed pixel
+`Layout.preferredWidth` values (90/90/140) with no competing `fillWidth`
+except on the Resource name column, which is the only one meant to absorb
+extra space.
+
+**Log Time tab** (renamed from Capture): the assignment selector is now
+entirely local to this component (`TaskTimeEntryEditor.qml`'s own
+`_selectedAssignmentId`), fully decoupled from Task Detail → Assignment's
+own selection state — selecting a row in Assignment no longer triggers a
+Time reload, and Log Time's default-assignment logic (§14: exactly one
+valid assignment → preselect it; more than one → require explicit choice)
+never guesses employee identity. Selecting an assignment shows its
+Planned/Logged/Remaining-or-Overrun context, read from the same
+`taskTimeSummary.resourceBreakdown` the Overview tab already has — no
+second backend call. Fields: Assignment, Date (shared `DateField`), Hours,
+Description (renamed from "Labor Note" — implementation-flavored
+terminology). Logging beyond planned hours is never blocked or capped
+client-side; it saves and shows as an overrun, matching §16's explicit
+"actual work is historical truth" requirement.
+
+**Time Entries tab** (renamed from Ledger): server-side paginated via
+`AppWidgets.TablePaginationBar` (existing shared primitive) bound to the
+authoritative `total`/`page`/`pageSize` from the backend, plus a resource
+filter dropdown built from the task's own resource breakdown. Columns:
+Date, Resource, Hours, Description — no fabricated "Approved" status,
+since `TimeEntry` itself carries no such field. Selecting a row switches to
+Log Time in edit mode (pre-filled, with a "Recorded by" line and a
+"Cancel" button that deselects without deleting anything — an earlier
+draft of this component's Cancel button accidentally called
+`deleteRequested("")`, caught before being wired up, replaced with a
+dedicated `cancelEditRequested()` signal).
+
+**Timesheets boundary**: unchanged and reverified — no Submit/Approve/
+Reject/Lock/Unlock control exists anywhere in Task Detail → Time; the only
+cross-link is "Open in Timesheets" in the toolbar. `PMTimeController`'s
+docstring and the existing code comments in `pm_time_controller.py`/
+`task_time_selection_actions.py` restate this boundary explicitly.
+
+**Task switching / stale state**: `reset_task_lazy_sections()` and
+`select_project()` now immediately clear `taskTimeSummary`/
+`taskTimeEntriesPage`/`selectedTimeEntry` on the Time controller (not just
+reset the lazy-load guard) — needed because, unlike Assignment/Dependencies/
+Skills, the Time tab can remain the *active* tab across a task switch, so
+without an immediate clear the previous task's KPI strip and table would
+stay visible until the lazy reloader re-fires.
+
+**Lazy loading**: unchanged pattern from §43 — `TasksTimeEntriesSection.qml`
+still loads inside a `LazySectionLoader`, and `load_selected_task_time()`
+still only fetches when the Time tab is (or becomes) active.
+
+**Test evidence**: new backend file `test_task_detail_time_redesign_backend.py`
+(6 tests: multi-resource aggregation, overrun semantics, the exact §9
+task-scope-isolation scenario — same resource on two tasks, each task's
+figures must reflect only its own hours — pagination correctness across
+page boundaries, resource filtering, and graceful blank-task-id handling).
+New QML contract file rewrite, `test_qml_tasks_time_entries_section_contract.py`
+(8 tests: old tab labels/signals/properties proven absent, new ones proven
+present, Description-not-Labor-Note, no client-side overrun capping,
+detail-panel forwarding, offscreen meta-object introspection). New offscreen
+smoke test `test_qml_tasks_time_section_smoke.py` (3 tests: empty/no-
+assignments state, populated state with a two-resource breakdown, overrun
+state). Six pre-existing test files that referenced the old period-scoped
+controller surface (`test_qml_pm_presenters_tasks_actions.py`,
+`test_qml_project_management_presenters_tasks_initial_state.py`,
+`test_qml_project_management_presenters_tasks_views.py`,
+`test_qml_pm_presenters_tasks_state.py`, `test_qml_pm_presenters_tasks_core.py`)
+were updated to assert against the new `taskTimeSummary`/
+`taskTimeEntriesPage` properties; their underlying fake `TaskService`
+doubles don't implement the two new query methods, so those specific
+assertions verify graceful degradation to empty defaults rather than
+duplicating the real backend coverage above — a known, documented fidelity
+gap in that test harness, not a product gap.
+
+**Responsive/QML validation**: `pyside6-qmllint` clean (zero new warnings)
+across every touched file. A full interactive 1024×640/1280×720 sweep was
+not performed in this pass (same documented gap as §46) — the redesigned
+Overview table and KPI strip reuse the same `RowLayout`/`Layout.fillWidth`
+patterns already proven responsive elsewhere, but this remains a
+should-verify-visually item before shipping, not a verified pass.
+
+**Not started**: R4.4 leveling migration, R5 Workload Management — per
+explicit instruction, unchanged from §45/§46.

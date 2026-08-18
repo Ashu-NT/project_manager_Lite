@@ -86,10 +86,10 @@ Item {
                     RowLayout {
                         Layout.fillWidth: true
                         Layout.bottomMargin: Theme.AppTheme.spacingSm
+                        spacing: Theme.AppTheme.spacingMd
 
                         AppControls.Label {
                             Layout.fillWidth: true
-                            Layout.preferredWidth: 2
                             text: "Resource"
                             color: Theme.AppTheme.textMuted
                             font.family: Theme.AppTheme.fontFamily
@@ -97,8 +97,7 @@ Item {
                             font.bold: true
                         }
                         AppControls.Label {
-                            Layout.preferredWidth: 1
-                            Layout.fillWidth: true
+                            Layout.preferredWidth: 90
                             horizontalAlignment: Text.AlignRight
                             text: "Planned"
                             color: Theme.AppTheme.textMuted
@@ -107,8 +106,7 @@ Item {
                             font.bold: true
                         }
                         AppControls.Label {
-                            Layout.preferredWidth: 1
-                            Layout.fillWidth: true
+                            Layout.preferredWidth: 90
                             horizontalAlignment: Text.AlignRight
                             text: "Actual"
                             color: Theme.AppTheme.textMuted
@@ -117,8 +115,7 @@ Item {
                             font.bold: true
                         }
                         AppControls.Label {
-                            Layout.preferredWidth: 1
-                            Layout.fillWidth: true
+                            Layout.preferredWidth: 140
                             horizontalAlignment: Text.AlignRight
                             text: "Remaining / Overrun"
                             color: Theme.AppTheme.textMuted
@@ -126,7 +123,7 @@ Item {
                             font.pixelSize: Theme.AppTheme.captionSize
                             font.bold: true
                         }
-                        Item { Layout.preferredWidth: 90 }
+                        Item { Layout.preferredWidth: 16 }
                     }
 
                     Rectangle {
@@ -145,62 +142,72 @@ Item {
                             Layout.fillWidth: true
                             spacing: 0
 
-                            RowLayout {
+                            Rectangle {
                                 Layout.fillWidth: true
-                                Layout.topMargin: Theme.AppTheme.spacingSm
-                                Layout.bottomMargin: Theme.AppTheme.spacingSm
+                                implicitHeight: _rowLayout.implicitHeight + Theme.AppTheme.spacingSm * 2
+                                color: _rowArea.containsMouse ? Theme.AppTheme.hoverSurface : "transparent"
 
-                                AppControls.Label {
-                                    Layout.fillWidth: true
-                                    Layout.preferredWidth: 2
-                                    text: String(_rowRoot.modelData.resourceName || "")
-                                    color: Theme.AppTheme.textPrimary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    elide: Text.ElideRight
-                                }
-                                AppControls.Label {
-                                    Layout.preferredWidth: 1
-                                    Layout.fillWidth: true
-                                    horizontalAlignment: Text.AlignRight
-                                    text: String(_rowRoot.modelData.plannedHoursLabel || "")
-                                    color: Theme.AppTheme.textSecondary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                }
-                                AppControls.Label {
-                                    Layout.preferredWidth: 1
-                                    Layout.fillWidth: true
-                                    horizontalAlignment: Text.AlignRight
-                                    text: String(_rowRoot.modelData.actualHoursLabel || "")
-                                    color: Theme.AppTheme.textSecondary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                }
-                                AppControls.Label {
-                                    Layout.preferredWidth: 1
-                                    Layout.fillWidth: true
-                                    horizontalAlignment: Text.AlignRight
-                                    text: _rowRoot.modelData.hasOverrun
-                                        ? String(_rowRoot.modelData.overrunHoursLabel || "") + " over"
-                                        : String(_rowRoot.modelData.remainingHoursLabel || "")
-                                    color: _rowRoot.modelData.hasOverrun ? Theme.AppTheme.danger : Theme.AppTheme.textSecondary
-                                    font.family: Theme.AppTheme.fontFamily
-                                    font.pixelSize: Theme.AppTheme.smallSize
-                                    font.bold: _rowRoot.modelData.hasOverrun
-                                }
-                                Item {
-                                    Layout.preferredWidth: 90
-                                    implicitHeight: _viewAssignmentBtn.implicitHeight
+                                RowLayout {
+                                    id: _rowLayout
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: Theme.AppTheme.spacingMd
 
-                                    AppControls.SecondaryButton {
-                                        id: _viewAssignmentBtn
-                                        anchors.right: parent.right
-                                        text: "View"
-                                        onClicked: root.viewAssignmentRequested(
-                                            String(_rowRoot.modelData.assignmentId || "")
-                                        )
+                                    AppControls.Label {
+                                        Layout.fillWidth: true
+                                        text: String(_rowRoot.modelData.resourceName || "")
+                                        color: Theme.AppTheme.textPrimary
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.smallSize
+                                        elide: Text.ElideRight
                                     }
+                                    AppControls.Label {
+                                        Layout.preferredWidth: 90
+                                        horizontalAlignment: Text.AlignRight
+                                        text: String(_rowRoot.modelData.plannedHoursLabel || "")
+                                        color: Theme.AppTheme.textSecondary
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.smallSize
+                                    }
+                                    AppControls.Label {
+                                        Layout.preferredWidth: 90
+                                        horizontalAlignment: Text.AlignRight
+                                        text: String(_rowRoot.modelData.actualHoursLabel || "")
+                                        color: Theme.AppTheme.textSecondary
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.smallSize
+                                    }
+                                    AppControls.Label {
+                                        Layout.preferredWidth: 140
+                                        horizontalAlignment: Text.AlignRight
+                                        text: _rowRoot.modelData.hasOverrun
+                                            ? String(_rowRoot.modelData.overrunHoursLabel || "") + " over"
+                                            : String(_rowRoot.modelData.remainingHoursLabel || "")
+                                        color: _rowRoot.modelData.hasOverrun ? Theme.AppTheme.danger : Theme.AppTheme.textSecondary
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.smallSize
+                                        font.bold: _rowRoot.modelData.hasOverrun
+                                    }
+                                    AppControls.Label {
+                                        Layout.preferredWidth: 16
+                                        horizontalAlignment: Text.AlignRight
+                                        text: "›"
+                                        color: Theme.AppTheme.textMuted
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.bodySize
+                                        font.bold: true
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: _rowArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.viewAssignmentRequested(
+                                        String(_rowRoot.modelData.assignmentId || "")
+                                    )
                                 }
                             }
 
@@ -215,10 +222,10 @@ Item {
                     RowLayout {
                         Layout.fillWidth: true
                         Layout.topMargin: Theme.AppTheme.spacingSm
+                        spacing: Theme.AppTheme.spacingMd
 
                         AppControls.Label {
                             Layout.fillWidth: true
-                            Layout.preferredWidth: 2
                             text: "TOTAL"
                             color: Theme.AppTheme.textPrimary
                             font.family: Theme.AppTheme.fontFamily
@@ -226,8 +233,7 @@ Item {
                             font.bold: true
                         }
                         AppControls.Label {
-                            Layout.preferredWidth: 1
-                            Layout.fillWidth: true
+                            Layout.preferredWidth: 90
                             horizontalAlignment: Text.AlignRight
                             text: String(root._summary.plannedHoursLabel || "")
                             color: Theme.AppTheme.textPrimary
@@ -236,8 +242,7 @@ Item {
                             font.bold: true
                         }
                         AppControls.Label {
-                            Layout.preferredWidth: 1
-                            Layout.fillWidth: true
+                            Layout.preferredWidth: 90
                             horizontalAlignment: Text.AlignRight
                             text: String(root._summary.actualHoursLabel || "")
                             color: Theme.AppTheme.textPrimary
@@ -246,8 +251,7 @@ Item {
                             font.bold: true
                         }
                         AppControls.Label {
-                            Layout.preferredWidth: 1
-                            Layout.fillWidth: true
+                            Layout.preferredWidth: 140
                             horizontalAlignment: Text.AlignRight
                             text: root._summary.hasOverrun
                                 ? String(root._summary.overrunHoursLabel || "") + " over"
@@ -257,7 +261,7 @@ Item {
                             font.pixelSize: Theme.AppTheme.smallSize
                             font.bold: true
                         }
-                        Item { Layout.preferredWidth: 90 }
+                        Item { Layout.preferredWidth: 16 }
                     }
                 }
             }
