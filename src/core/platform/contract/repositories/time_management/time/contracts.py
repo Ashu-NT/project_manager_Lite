@@ -49,6 +49,16 @@ class TimeEntryRepository(ABC):
     @abstractmethod
     def delete_by_work_allocation(self, work_allocation_id: str) -> None: ...
 
+    def list_by_work_allocations(self, work_allocation_ids: list[str]) -> list[TimeEntry]:
+        """Batched multi-assignment lookup -- default falls back to one call
+        per id; concrete repositories should override with a real IN(...)
+        query. Used by task-scoped time views that span every TaskAssignment
+        on a task, never just one (docs §44 Time redesign)."""
+        entries: list[TimeEntry] = []
+        for work_allocation_id in work_allocation_ids:
+            entries.extend(self.list_by_work_allocation(work_allocation_id))
+        return entries
+
     def list_by_assignment(self, assignment_id: str) -> list[TimeEntry]:
         return self.list_by_work_allocation(assignment_id)
 

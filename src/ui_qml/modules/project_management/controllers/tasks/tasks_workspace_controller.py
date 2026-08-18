@@ -97,10 +97,10 @@ class ProjectManagementTasksWorkspaceController(
     assignmentPreviewChanged = Signal()
     dependenciesChanged = Signal()
     timeAssignmentOptionsChanged = Signal()
-    timePeriodOptionsChanged = Signal()
-    selectedTimePeriodStartChanged = Signal()
-    timeAssignmentSummaryChanged = Signal()
-    timeEntriesChanged = Signal()
+    timeResourceFilterChanged = Signal()
+    timePageChanged = Signal()
+    taskTimeSummaryChanged = Signal()
+    taskTimeEntriesPageChanged = Signal()
     timeSectionLoadedChanged = Signal()
     selectedTimeEntryIdChanged = Signal()
     selectedTimeEntryChanged = Signal()
@@ -143,7 +143,8 @@ class ProjectManagementTasksWorkspaceController(
         self._search_text = ""
         self._selected_task_id = ""
         self._selected_assignment_id = ""
-        self._selected_time_period_start = ""
+        self._time_resource_filter = ""
+        self._time_page = 1
         self._selected_time_entry_id = ""
         self._task_review_active = False
         self._time_section_loaded_for_task_id = ""
@@ -316,21 +317,21 @@ class ProjectManagementTasksWorkspaceController(
     def timeAssignmentOptions(self) -> list[dict[str, str]]:
         return self._time_ctrl.timeAssignmentOptions
 
-    @Property("QVariantList", notify=timePeriodOptionsChanged)
-    def timePeriodOptions(self) -> list[dict[str, str]]:
-        return self._time_ctrl.timePeriodOptions
+    @Property(str, notify=timeResourceFilterChanged)
+    def timeResourceFilter(self) -> str:
+        return self._time_resource_filter
 
-    @Property(str, notify=selectedTimePeriodStartChanged)
-    def selectedTimePeriodStart(self) -> str:
-        return self._selected_time_period_start
+    @Property(int, notify=timePageChanged)
+    def timePage(self) -> int:
+        return self._time_page
 
-    @Property("QVariantMap", notify=timeAssignmentSummaryChanged)
-    def timeAssignmentSummary(self) -> dict[str, object]:
-        return self._time_ctrl.timeAssignmentSummary
+    @Property("QVariantMap", notify=taskTimeSummaryChanged)
+    def taskTimeSummary(self) -> dict[str, object]:
+        return self._time_ctrl.taskTimeSummary
 
-    @Property("QVariantMap", notify=timeEntriesChanged)
-    def timeEntries(self) -> dict[str, object]:
-        return self._time_ctrl.timeEntries
+    @Property("QVariantMap", notify=taskTimeEntriesPageChanged)
+    def taskTimeEntriesPage(self) -> dict[str, object]:
+        return self._time_ctrl.taskTimeEntriesPage
 
     @Property(QObject, constant=True)
     def timeEntriesTableModel(self) -> QObject:
@@ -538,8 +539,12 @@ class ProjectManagementTasksWorkspaceController(
         _time_sel.select_assignment(self, assignment_id)
 
     @Slot(str)
-    def selectTimePeriod(self, period_start: str) -> None:
-        _time_sel.select_time_period(self, period_start)
+    def filterTaskTimeEntriesByResource(self, resource_id: str) -> None:
+        _time_sel.filter_task_time_entries_by_resource(self, resource_id)
+
+    @Slot(int)
+    def setTaskTimeEntriesPage(self, page: int) -> None:
+        _time_sel.set_task_time_entries_page(self, page)
 
     @Slot(str)
     def selectTimeEntry(self, entry_id: str) -> None:

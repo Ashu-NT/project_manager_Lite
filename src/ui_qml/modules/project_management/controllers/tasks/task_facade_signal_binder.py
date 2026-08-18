@@ -34,9 +34,8 @@ def bind_task_facade_signals(
     dependencies_ctrl.dependenciesChanged.connect(facade.dependenciesChanged)
 
     time_ctrl.timeAssignmentOptionsChanged.connect(facade.timeAssignmentOptionsChanged)
-    time_ctrl.timePeriodOptionsChanged.connect(facade.timePeriodOptionsChanged)
-    time_ctrl.timeAssignmentSummaryChanged.connect(facade.timeAssignmentSummaryChanged)
-    time_ctrl.timeEntriesChanged.connect(facade.timeEntriesChanged)
+    time_ctrl.taskTimeSummaryChanged.connect(facade.taskTimeSummaryChanged)
+    time_ctrl.taskTimeEntriesPageChanged.connect(facade.taskTimeEntriesPageChanged)
     time_ctrl.selectedTimeEntryChanged.connect(facade.selectedTimeEntryChanged)
 
     collab_ctrl.collaborationMentionOptionsChanged.connect(facade.collaborationMentionOptionsChanged)

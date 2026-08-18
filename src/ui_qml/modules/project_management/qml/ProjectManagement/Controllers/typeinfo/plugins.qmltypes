@@ -512,10 +512,10 @@ Component {
     Property { name: "dependencies"; type: "QVariantMap"; isReadonly: true }
     Property { name: "dependenciesTableModel"; type: "QObject"; isReadonly: true }
     Property { name: "timeAssignmentOptions"; type: "QVariantList"; isReadonly: true }
-    Property { name: "timePeriodOptions"; type: "QVariantList"; isReadonly: true }
-    Property { name: "selectedTimePeriodStart"; type: "QString"; isReadonly: true }
-    Property { name: "timeAssignmentSummary"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "timeEntries"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "timeResourceFilter"; type: "QString"; isReadonly: true }
+    Property { name: "timePage"; type: "int"; isReadonly: true }
+    Property { name: "taskTimeSummary"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "taskTimeEntriesPage"; type: "QVariantMap"; isReadonly: true }
     Property { name: "timeEntriesTableModel"; type: "QObject"; isReadonly: true }
     Property { name: "selectedTimeEntryId"; type: "QString"; isReadonly: true }
     Property { name: "selectedTimeEntry"; type: "QVariantMap"; isReadonly: true }
@@ -547,7 +547,8 @@ Component {
     Method { name: "undoLastTaskAction"; type: "QVariantMap" }
     Method { name: "redoLastTaskAction"; type: "QVariantMap" }
     Method { name: "selectAssignment"; Parameter { name: "assignmentId"; type: "QString" } }
-    Method { name: "selectTimePeriod"; Parameter { name: "periodStart"; type: "QString" } }
+    Method { name: "filterTaskTimeEntriesByResource"; Parameter { name: "resourceId"; type: "QString" } }
+    Method { name: "setTaskTimeEntriesPage"; Parameter { name: "page"; type: "int" } }
     Method { name: "selectTimeEntry"; Parameter { name: "entryId"; type: "QString" } }
     Method { name: "createTask"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "updateTask"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }

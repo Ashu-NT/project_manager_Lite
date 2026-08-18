@@ -12,6 +12,10 @@ from src.core.modules.project_management.application.common import (
 from src.core.modules.project_management.application.tasks.commands.assignment_activity import (
     record_assignment_action,
 )
+from src.core.modules.project_management.contracts.reads.tasks.models import (
+    TaskResourceTimeBreakdownRow,
+    TaskTimeSummaryFact,
+)
 from src.core.modules.project_management.contracts.repositories.projects.project import ProjectResourceRepository
 from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
@@ -107,6 +111,58 @@ class TaskAssignmentMixin:
             operation_label="list task assignments",
         )
         return self._assignment_repo.list_by_task(task_id)
+
+    def get_task_time_summary(self, task_id: str) -> TaskTimeSummaryFact:
+        """Task-scoped (never resource-wide) planned/actual/remaining/
+        overrun totals for Task Detail -> Time -> Overview (docs §44 Time
+        redesign), plus the per-resource breakdown that explains them.
+        Reuses the existing envelope_policy.burn_status authority -- one
+        vocabulary for "how does actual compare to plan" across
+        ProjectResource and Task scopes."""
+        assignments = self.list_assignments_for_task(task_id)
+        resources_by_id = {
+            r.id: r
+            for r in self._resource_repo.list_by_ids(
+                list({a.resource_id for a in assignments})
+            )
+        } if assignments else {}
+
+        rows: list[TaskResourceTimeBreakdownRow] = []
+        planned_total = Decimal("0")
+        actual_total = Decimal("0")
+        for assignment in assignments:
+            planned = Decimal(str(assignment.allocated_planned_hours or 0))
+            actual = Decimal(str(assignment.hours_logged or 0))
+            planned_total += planned
+            actual_total += actual
+            resource = resources_by_id.get(assignment.resource_id)
+            rows.append(
+                TaskResourceTimeBreakdownRow(
+                    assignment_id=assignment.id,
+                    resource_id=assignment.resource_id,
+                    resource_name=getattr(resource, "name", "") or assignment.resource_id,
+                    planned_hours=planned,
+                    actual_hours=actual,
+                    remaining_hours=max(planned - actual, Decimal("0")),
+                    overrun_hours=max(actual - planned, Decimal("0")),
+                    burn_status=envelope_policy.burn_status(
+                        planned_hours=planned, actual_hours=actual
+                    ),
+                )
+            )
+
+        return TaskTimeSummaryFact(
+            task_id=task_id,
+            planned_hours=planned_total,
+            actual_hours=actual_total,
+            remaining_hours=max(planned_total - actual_total, Decimal("0")),
+            overrun_hours=max(actual_total - planned_total, Decimal("0")),
+            burn_status=envelope_policy.burn_status(
+                planned_hours=planned_total, actual_hours=actual_total
+            ),
+            assignment_count=len(assignments),
+            resource_breakdown=tuple(rows),
+        )
 
     def set_assignment_hours(self, assignment_id: str, hours_logged: Decimal) -> TaskAssignment:
         assignment = self._assignment_repo.get(assignment_id)

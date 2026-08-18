@@ -5,144 +5,109 @@ from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskSelectorOptionViewModel,
 )
 from src.ui_qml.modules.project_management.view_models.timesheets import (
-    TimesheetCollectionViewModel,
     TimesheetDetailFieldViewModel,
     TimesheetDetailViewModel,
 )
 
 from .assignment_mapper import build_time_assignment_options
 from .overview_builder import build_empty_overview
-from .selection import resolve_assignment_id, resolve_time_entry_id
-from .time_mapper import to_time_entry_record_view_model
-from .validation import optional_iso_date
+from .selection import resolve_time_entry_id
 
 
-def build_time_assignment_summary(snapshot) -> TimesheetDetailViewModel:
-    if snapshot is None:
-        return TimesheetDetailViewModel(
-            title="No assignment selected",
-            empty_state=(
-                "Select a task assignment to review detailed time entries, "
-                "period status, and labor totals."
-            ),
-        )
-    summary = snapshot.period_summary
-    return TimesheetDetailViewModel(
-        id=snapshot.assignment.value,
-        title=snapshot.assignment.label,
-        status_label=summary.status_label,
-        subtitle=f"{summary.period_start_label} -> {summary.period_end_label}",
-        description=snapshot.scope_summary,
-        fields=(
-            TimesheetDetailFieldViewModel(
-                label="Resource",
-                value=summary.resource_name,
-            ),
-            TimesheetDetailFieldViewModel(
-                label="Logged (this period)",
-                value=getattr(snapshot, "task_period_hours_label", "0.00h"),
-                supporting_text=(
-                    f"{len(snapshot.entries)} entry or entries logged against "
-                    "this task in the selected period."
-                ),
-            ),
-            TimesheetDetailFieldViewModel(
-                label="Planned",
-                value=getattr(snapshot, "planned_hours_label", "0.00h"),
-                supporting_text="Planned work allocated to this assignment.",
-            ),
-            TimesheetDetailFieldViewModel(
-                label="Logged (all time)",
-                value=getattr(snapshot, "logged_hours_label", "0.00h"),
-                supporting_text="Total hours ever logged against this assignment.",
-            ),
-            TimesheetDetailFieldViewModel(
-                label="Remaining",
-                value=getattr(snapshot, "remaining_hours_label", "0.00h"),
-                supporting_text="Planned minus logged (all time).",
-            ),
-            TimesheetDetailFieldViewModel(
-                label="Resource total this period",
-                value=summary.total_hours_label,
-                supporting_text=(
-                    f"{summary.entry_count} entry or entries across all of this "
-                    "resource's tasks/projects in the selected period."
-                ),
-            ),
-            TimesheetDetailFieldViewModel(
-                label="Submitted by",
-                value=summary.submitted_by_username,
-                supporting_text=summary.submitted_at_label,
-            ),
-            TimesheetDetailFieldViewModel(
-                label="Decision",
-                value=summary.decided_by_username,
-                supporting_text=summary.decided_at_label,
-            ),
-            TimesheetDetailFieldViewModel(
-                label="Decision note",
-                value=summary.decision_note or "No review note recorded.",
-            ),
-        ),
-        state={
-            "assignmentId": snapshot.assignment.value,
-            "resourceId": summary.resource_id,
-            "periodStart": snapshot.selected_period_start,
-            "periodId": summary.period_id,
-            "projectId": snapshot.assignment.project_id,
-        },
-    )
+def build_task_time_summary_dict(summary_dto) -> dict[str, object] | None:
+    """Task-scoped (never resource-wide) planned/actual/remaining/overrun
+    totals plus the per-resource breakdown, straight from
+    TaskTimeSummaryDesktopDto (docs §44 Time redesign) -- rendered as-is,
+    never recalculated in QML."""
+    if summary_dto is None:
+        return None
+    return {
+        "hasSummary": True,
+        "taskId": summary_dto.task_id,
+        "plannedHoursLabel": summary_dto.planned_hours_label,
+        "actualHoursLabel": summary_dto.actual_hours_label,
+        "remainingHoursLabel": summary_dto.remaining_hours_label,
+        "overrunHoursLabel": summary_dto.overrun_hours_label,
+        "hasOverrun": summary_dto.has_overrun,
+        "burnStatus": summary_dto.burn_status,
+        "burnStatusLabel": summary_dto.burn_status_label,
+        "assignmentCount": summary_dto.assignment_count,
+        "resourceBreakdown": [
+            {
+                "assignmentId": row.assignment_id,
+                "resourceId": row.resource_id,
+                "resourceName": row.resource_name,
+                "plannedHoursLabel": row.planned_hours_label,
+                "actualHoursLabel": row.actual_hours_label,
+                "remainingHoursLabel": row.remaining_hours_label,
+                "overrunHoursLabel": row.overrun_hours_label,
+                "hasOverrun": row.has_overrun,
+                "burnStatus": row.burn_status,
+                "burnStatusLabel": row.burn_status_label,
+            }
+            for row in summary_dto.resource_breakdown
+        ],
+    }
 
 
-def build_time_entries_collection(snapshot) -> TimesheetCollectionViewModel:
-    if snapshot is None:
-        return TimesheetCollectionViewModel(
-            title="Time Entries",
-            subtitle="Detailed labor entries for the selected task assignment.",
-            empty_state="Select a task assignment to review or capture labor entries.",
-        )
-    return TimesheetCollectionViewModel(
-        title="Time Entries",
-        subtitle="Detailed labor entries for the selected task assignment.",
-        empty_state="No time entries are available yet for the selected period.",
-        items=tuple(
-            to_time_entry_record_view_model(entry)
-            for entry in snapshot.entries
-        ),
-    )
+def build_task_time_entries_page_dict(page_dto) -> dict[str, object] | None:
+    """Task-scoped (every assignment on this task), all-time Time Entries
+    page straight from TaskTimeEntriesPageDesktopDto (docs §44 Time
+    redesign) -- authoritative paging, not a locally-filtered slice of a
+    truncated dataset."""
+    if page_dto is None:
+        return None
+    return {
+        "items": [
+            {
+                "entryId": item.entry_id,
+                "assignmentId": item.assignment_id,
+                "resourceId": item.resource_id,
+                "resourceName": item.resource_name,
+                "entryDateLabel": item.entry_date_label,
+                "hours": item.hours,
+                "hoursLabel": item.hours_label,
+                "note": item.note,
+                "authorUsername": item.author_username,
+            }
+            for item in page_dto.items
+        ],
+        "total": page_dto.total,
+        "page": page_dto.page,
+        "pageSize": page_dto.page_size,
+    }
 
 
-def build_selected_time_entry_detail(selected_entry) -> TimesheetDetailViewModel:
-    if selected_entry is None:
+def build_selected_time_entry_detail(entry_dto) -> TimesheetDetailViewModel:
+    if entry_dto is None:
         return TimesheetDetailViewModel(
             title="No entry selected",
             empty_state=(
-                "Select an entry from the period list to review or edit "
-                "its captured labor note."
+                "Select an entry from Time Entries to review or edit its "
+                "captured note."
             ),
         )
     return TimesheetDetailViewModel(
-        id=selected_entry.entry_id,
-        title=selected_entry.entry_date_label,
-        status_label=selected_entry.hours_label,
-        subtitle=selected_entry.author_username,
-        description=selected_entry.note or "No labor note recorded.",
+        id=entry_dto.entry_id,
+        title=entry_dto.entry_date_label,
+        status_label=entry_dto.hours_label,
+        subtitle=entry_dto.resource_name,
+        description=entry_dto.note or "No description recorded.",
         fields=(
+            TimesheetDetailFieldViewModel(label="Date", value=entry_dto.entry_date_label),
+            TimesheetDetailFieldViewModel(label="Resource", value=entry_dto.resource_name),
+            TimesheetDetailFieldViewModel(label="Hours", value=entry_dto.hours_label),
             TimesheetDetailFieldViewModel(
-                label="Date", value=selected_entry.entry_date_label
-            ),
-            TimesheetDetailFieldViewModel(
-                label="Hours", value=selected_entry.hours_label
-            ),
-            TimesheetDetailFieldViewModel(
-                label="Author", value=selected_entry.author_username
+                label="Recorded by", value=entry_dto.author_username or "unknown"
             ),
         ),
         state={
-            "entryId": selected_entry.entry_id,
-            "entryDate": selected_entry.entry_date_label,
-            "hours": str(selected_entry.hours),
-            "note": selected_entry.note,
+            "entryId": entry_dto.entry_id,
+            "assignmentId": entry_dto.assignment_id,
+            "entryDate": entry_dto.entry_date_label,
+            "hours": str(entry_dto.hours),
+            "note": entry_dto.note,
+            "authorUsername": entry_dto.author_username or "",
         },
     )
 
@@ -152,113 +117,108 @@ def build_task_time_state(
     timesheets_desktop_api,
     *,
     task_id: str,
-    selected_assignment_id: str | None = None,
-    selected_time_period_start: str = "",
+    resource_filter: str = "",
+    page: int = 1,
+    page_size: int = 25,
     selected_time_entry_id: str | None = None,
 ) -> TaskCatalogWorkspaceViewModel:
     normalized_task_id = (task_id or "").strip()
     assignments = tuple(
-        desktop_api.list_assignments(normalized_task_id)
-        if normalized_task_id
-        else ()
+        desktop_api.list_assignments(normalized_task_id) if normalized_task_id else ()
     )
     assignment_options = build_time_assignment_options(assignments)
-    resolved_assignment_id = resolve_assignment_id(selected_assignment_id, assignments)
 
-    timesheet_snapshot = (
-        timesheets_desktop_api.build_assignment_snapshot(
-            resolved_assignment_id,
-            period_start=optional_iso_date(selected_time_period_start),
-        )
-        if resolved_assignment_id
+    summary_dto = (
+        desktop_api.get_task_time_summary(normalized_task_id)
+        if normalized_task_id
         else None
     )
-
-    time_period_options = tuple(
-        TaskSelectorOptionViewModel(value=option.value, label=option.label)
-        for option in (
-            timesheet_snapshot.period_options
-            if timesheet_snapshot is not None
-            else ()
+    entries_page_dto = (
+        desktop_api.list_task_time_entries(
+            normalized_task_id,
+            resource_id=resource_filter or None,
+            page=page,
+            page_size=page_size,
         )
+        if normalized_task_id
+        else None
     )
-    resolved_time_period_start = (
-        timesheet_snapshot.selected_period_start
-        if timesheet_snapshot is not None
-        else ""
-    )
-    resolved_time_entry_id = resolve_time_entry_id(
-        selected_time_entry_id,
-        timesheet_snapshot.entries if timesheet_snapshot is not None else (),
-    )
-    selected_time_entry = next(
-        (
-            entry
-            for entry in (
-                timesheet_snapshot.entries if timesheet_snapshot is not None else ()
-            )
-            if entry.entry_id == resolved_time_entry_id
-        ),
+    entry_items = entries_page_dto.items if entries_page_dto is not None else ()
+    resolved_time_entry_id = resolve_time_entry_id(selected_time_entry_id, entry_items)
+    selected_entry_dto = next(
+        (item for item in entry_items if item.entry_id == resolved_time_entry_id),
         None,
     )
+
     return TaskCatalogWorkspaceViewModel(
         overview=build_empty_overview(),
         selected_task_id=normalized_task_id,
         assignment_options=assignment_options,
-        selected_assignment_id=resolved_assignment_id,
-        time_period_options=time_period_options,
-        selected_time_period_start=resolved_time_period_start,
-        time_assignment_summary=build_time_assignment_summary(timesheet_snapshot),
-        time_entries=build_time_entries_collection(timesheet_snapshot),
+        task_time_summary=build_task_time_summary_dict(summary_dto),
+        task_time_entries_page=build_task_time_entries_page_dict(entries_page_dto),
+        task_time_entries_resource_filter=resource_filter,
+        task_time_entries_page_number=page,
         selected_time_entry_id=resolved_time_entry_id,
-        selected_time_entry_detail=build_selected_time_entry_detail(selected_time_entry),
+        selected_time_entry_detail=build_selected_time_entry_detail(selected_entry_dto),
     )
 
 
 def build_empty_task_time_state() -> TaskCatalogWorkspaceViewModel:
     return TaskCatalogWorkspaceViewModel(
         overview=build_empty_overview(),
-        selected_assignment_id="",
-        selected_time_period_start="",
+        task_time_summary=None,
+        task_time_entries_page=None,
         selected_time_entry_id="",
-        time_period_options=(),
-        time_assignment_summary=build_time_assignment_summary(None),
-        time_entries=build_time_entries_collection(None),
         selected_time_entry_detail=build_selected_time_entry_detail(None),
     )
 
 
 def build_task_time_entries_refresh(
-    timesheets_desktop_api,
+    desktop_api,
     *,
-    assignment_id: str | None,
-    period_start: str = "",
+    task_id: str,
+    resource_filter: str = "",
+    page: int = 1,
+    page_size: int = 25,
     selected_time_entry_id: str | None = None,
 ) -> TaskCatalogWorkspaceViewModel | None:
-    if not assignment_id:
+    """Fast path after an entry-level mutation: re-fetch the task-scoped
+    summary + entries page only, skip assignment-options rebuild."""
+    if not task_id:
         return None
     try:
-        timesheet_snapshot = timesheets_desktop_api.build_assignment_snapshot(
-            assignment_id,
-            period_start=optional_iso_date(period_start),
+        summary_dto = desktop_api.get_task_time_summary(task_id)
+        entries_page_dto = desktop_api.list_task_time_entries(
+            task_id,
+            resource_id=resource_filter or None,
+            page=page,
+            page_size=page_size,
         )
     except Exception:
         return None
-    resolved_time_entry_id = resolve_time_entry_id(
-        selected_time_entry_id,
-        timesheet_snapshot.entries,
-    )
-    selected_time_entry = next(
-        (e for e in timesheet_snapshot.entries if e.entry_id == resolved_time_entry_id),
+    entry_items = entries_page_dto.items if entries_page_dto is not None else ()
+    resolved_time_entry_id = resolve_time_entry_id(selected_time_entry_id, entry_items)
+    selected_entry_dto = next(
+        (item for item in entry_items if item.entry_id == resolved_time_entry_id),
         None,
     )
     return TaskCatalogWorkspaceViewModel(
         overview=build_empty_overview(),
-        selected_assignment_id=assignment_id,
-        selected_time_period_start=timesheet_snapshot.selected_period_start or period_start,
+        selected_task_id=task_id,
+        task_time_summary=build_task_time_summary_dict(summary_dto),
+        task_time_entries_page=build_task_time_entries_page_dict(entries_page_dto),
+        task_time_entries_resource_filter=resource_filter,
+        task_time_entries_page_number=page,
         selected_time_entry_id=resolved_time_entry_id or "",
-        time_period_options=(),
-        time_assignment_summary=build_time_assignment_summary(timesheet_snapshot),
-        time_entries=build_time_entries_collection(timesheet_snapshot),
-        selected_time_entry_detail=build_selected_time_entry_detail(selected_time_entry),
+        selected_time_entry_detail=build_selected_time_entry_detail(selected_entry_dto),
     )
+
+
+__all__ = [
+    "build_empty_task_time_state",
+    "build_selected_time_entry_detail",
+    "build_task_time_entries_page_dict",
+    "build_task_time_entries_refresh",
+    "build_task_time_state",
+    "build_task_time_summary_dict",
+]

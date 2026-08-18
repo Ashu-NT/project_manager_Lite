@@ -50,6 +50,12 @@ from src.core.modules.project_management.api.desktop.tasks.models.skill import (
 from src.core.modules.project_management.api.desktop.tasks.models.task import (
     TaskDesktopDto,
 )
+from src.core.modules.project_management.api.desktop.tasks.models.time_summary import (
+    TaskResourceTimeBreakdownDesktopDto,
+    TaskTimeEntriesPageDesktopDto,
+    TaskTimeEntryDesktopDto,
+    TaskTimeSummaryDesktopDto,
+)
 from src.core.modules.project_management.api.desktop.tasks.models.validation import (
     AssignmentPreviewDesktopDto,
     AssignmentValidationDesktopDto,
@@ -78,8 +84,12 @@ __all__ = [
     "TaskProjectResourceOptionDescriptor",
     "TaskReservationCreateCommand",
     "TaskReservationDesktopDto",
+    "TaskResourceTimeBreakdownDesktopDto",
     "TaskSkillRequirementDesktopDto",
     "TaskStatusDescriptor",
+    "TaskTimeEntriesPageDesktopDto",
+    "TaskTimeEntryDesktopDto",
+    "TaskTimeSummaryDesktopDto",
     "TaskUpdateCommand",
     "TaskWbsMoveCommand",
     "build_project_management_tasks_desktop_api",

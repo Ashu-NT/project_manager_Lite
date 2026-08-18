@@ -33,8 +33,8 @@ AppLayouts.WorkspaceFrame {
     readonly property var selectedTaskModel: state.selectedTaskModel
     readonly property var assignmentsModel: state.assignmentsModel
     readonly property var dependenciesModel: state.dependenciesModel
-    readonly property var timeAssignmentSummaryModel: state.timeAssignmentSummaryModel
-    readonly property var timeEntriesModel: state.timeEntriesModel
+    readonly property var taskTimeSummaryModel: state.taskTimeSummaryModel
+    readonly property var taskTimeEntriesPageModel: state.taskTimeEntriesPageModel
     readonly property var selectedTimeEntryModel: state.selectedTimeEntryModel
     readonly property var collaborationCommentsModel: state.collaborationCommentsModel
     readonly property var collaborationPresenceModel: state.collaborationPresenceModel
@@ -412,14 +412,13 @@ AppLayouts.WorkspaceFrame {
                     dependencyTaskOptions: root.workspaceController ? (root.workspaceController.dependencyTaskOptions || []) : []
                     dependencyTypeOptions: root.workspaceController ? (root.workspaceController.dependencyTypeOptions || []) : []
 
-                    timeAssignmentSummaryModel: root.timeAssignmentSummaryModel
-                    timeEntriesModel: root.timeEntriesModel
+                    taskTimeSummary: root.taskTimeSummaryModel
+                    taskTimeEntriesPage: root.taskTimeEntriesPageModel
                     timeEntriesTableModel: root.workspaceController ? root.workspaceController.timeEntriesTableModel : null
                     selectedTimeEntryModel: root.selectedTimeEntryModel
                     selectedEntryId: root.workspaceController ? root.workspaceController.selectedTimeEntryId : ""
                     timeAssignmentOptions: root.workspaceController ? (root.workspaceController.timeAssignmentOptions || []) : []
-                    periodOptions: root.workspaceController ? (root.workspaceController.timePeriodOptions || []) : []
-                    selectedPeriodStart: root.workspaceController ? root.workspaceController.selectedTimePeriodStart : ""
+                    timeResourceFilter: root.workspaceController ? root.workspaceController.timeResourceFilter : ""
 
                     collaborationCommentsModel: root.collaborationCommentsModel
                     collaborationPresenceModel: root.collaborationPresenceModel
@@ -483,14 +482,24 @@ AppLayouts.WorkspaceFrame {
                         dialogHostLoader.invoke("openDeleteDependencyDialog", dependencyData)
                     }
 
-                    onTimeAssignmentSelected: function(assignmentId) {
+                    onTimeResourceFilterRequested: function(resourceId) {
                         if (root.workspaceController !== null) {
-                            root.workspaceController.selectAssignment(assignmentId)
+                            root.workspaceController.filterTaskTimeEntriesByResource(resourceId)
                         }
                     }
-                    onPeriodChanged: function(periodStart) {
+                    onTimePageRequested: function(page) {
                         if (root.workspaceController !== null) {
-                            root.workspaceController.selectTimePeriod(periodStart)
+                            root.workspaceController.setTaskTimeEntriesPage(page)
+                        }
+                    }
+                    onGoToAssignmentRequested: function(assignmentId) {
+                        if (root.workspaceController !== null && assignmentId.length > 0) {
+                            root.workspaceController.selectAssignment(assignmentId)
+                        }
+                        const idx = (root._detailSections || []).indexOf("Assignments")
+                        if (idx >= 0 && root.detailPage) {
+                            root.detailPage.scrollToSection(idx)
+                            root._loadLazyDetailSection(idx)
                         }
                     }
                     onEntrySelected: function(entryId) {

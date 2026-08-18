@@ -28,14 +28,13 @@ Item {
     property var selectedDependencyItem: null
     property var dependencyTaskOptions: []
 
-    property var timeAssignmentSummaryModel: AppMock.MockFactory.fieldRecord("", "", "Select a task assignment.")
-    property var timeEntriesModel: AppMock.MockFactory.catalog("Time Entries", "", "Select a task assignment.")
+    property var taskTimeSummary: ({ "hasSummary": false })
+    property var taskTimeEntriesPage: ({ "items": [], "total": 0, "page": 1, "pageSize": 25 })
     property var timeEntriesTableModel: null
     property var selectedTimeEntryModel: AppMock.MockFactory.detail()
     property string selectedEntryId: ""
     property var timeAssignmentOptions: []
-    property var periodOptions: []
-    property string selectedPeriodStart: ""
+    property string timeResourceFilter: ""
 
     property var collaborationCommentsModel: AppMock.MockFactory.catalog("Collaboration", "", "Select a task.")
     property var collaborationPresenceModel: AppMock.MockFactory.catalog("Active Presence", "", "Select a task.")
@@ -83,12 +82,13 @@ Item {
     signal deleteDependencyRequested(var dependencyData)
     signal dependencySelectionChanged(var dependencyData)
 
-    signal periodChanged(string periodStart)
-    signal timeAssignmentSelected(string assignmentId)
+    signal timeResourceFilterRequested(string resourceId)
+    signal timePageRequested(int page)
     signal entrySelected(string entryId)
     signal timeAddRequested(var payload)
     signal timeUpdateRequested(var payload)
     signal timeDeleteRequested(string entryId)
+    signal goToAssignmentRequested(string assignmentId)
     signal openTimesheetsRequested()
 
     signal composeRequested()
@@ -315,24 +315,24 @@ Item {
             sourceComponent: Component {
                 TasksTimeEntriesSection {
                     width: parent ? parent.width : 0
-                    assignmentSummary: root.timeAssignmentSummaryModel
+                    taskTimeSummary: root.taskTimeSummary
                     assignmentOptions: root.timeAssignmentOptions
-                    periodOptions: root.periodOptions
-                    selectedPeriodStart: root.selectedPeriodStart
-                    entriesModel: root.timeEntriesModel
+                    taskTimeEntriesPage: root.taskTimeEntriesPage
                     entriesTableModel: root.timeEntriesTableModel
+                    timeResourceFilter: root.timeResourceFilter
                     selectedEntryDetail: root.selectedTimeEntryModel
                     selectedEntryId: root.selectedEntryId
                     isBusy: root.isBusy
                     errorText: String(root.sectionErrors["time"] || "")
 
-                    onAssignmentChanged: function(assignmentId) { root.timeAssignmentSelected(assignmentId) }
-                    onPeriodChanged: function(p) { root.periodChanged(p) }
+                    onResourceFilterRequested: function(resourceId) { root.timeResourceFilterRequested(resourceId) }
+                    onPageRequested: function(page) { root.timePageRequested(page) }
                     onEntrySelected: function(id) { root.entrySelected(id) }
                     onAddRequested: function(pl) { root.timeAddRequested(pl) }
                     onUpdateRequested: function(pl) { root.timeUpdateRequested(pl) }
                     onDeleteRequested: function(id) { root.timeDeleteRequested(id) }
                     onOpenTimesheetsRequested: root.openTimesheetsRequested()
+                    onGoToAssignmentRequested: function(assignmentId) { root.goToAssignmentRequested(assignmentId) }
                 }
             }
         }

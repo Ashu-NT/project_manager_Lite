@@ -78,11 +78,17 @@ class TaskStateSettersMixin:
         self._selected_assignment_id = v
         self.selectedAssignmentIdChanged.emit()
 
-    def _set_selected_time_period_start(self, v: str) -> None:
-        if v == self._selected_time_period_start:
+    def _set_time_resource_filter(self, v: str) -> None:
+        if v == self._time_resource_filter:
             return
-        self._selected_time_period_start = v
-        self.selectedTimePeriodStartChanged.emit()
+        self._time_resource_filter = v
+        self.timeResourceFilterChanged.emit()
+
+    def _set_time_page(self, v: int) -> None:
+        if v == self._time_page:
+            return
+        self._time_page = v
+        self.timePageChanged.emit()
 
     def _set_selected_time_entry_id(self, v: str) -> None:
         if v == self._selected_time_entry_id:

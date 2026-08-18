@@ -28,6 +28,14 @@ from src.core.modules.project_management.api.desktop.tasks.builders.resource_opt
 from src.core.modules.project_management.api.desktop.tasks.builders.status_options_builder import (
     build_status_options,
 )
+from src.core.modules.project_management.api.desktop.tasks.serializers.time_summary_serializer import (
+    serialize_task_time_entries_page,
+    serialize_task_time_summary,
+)
+from src.core.modules.project_management.api.desktop.tasks.models.time_summary import (
+    TaskTimeEntriesPageDesktopDto,
+    TaskTimeSummaryDesktopDto,
+)
 from src.core.modules.project_management.api.desktop.tasks.commands.assignment_commands import (
     TaskAssignmentAllocationCommand,
     TaskAssignmentCreateCommand,
@@ -460,6 +468,50 @@ class ProjectManagementTasksDesktopApi:
                 )
             )
         return tuple(rows)
+
+    def get_task_time_summary(self, task_id: str) -> TaskTimeSummaryDesktopDto | None:
+        """Task-scoped planned/actual/remaining/overrun totals plus the
+        per-resource breakdown for Task Detail -> Time -> Overview (docs
+        §44 Time redesign). None when the task can't be resolved."""
+        if not task_id:
+            return None
+        service = self._require_task_service()
+        get_summary = getattr(service, "get_task_time_summary", None)
+        if not callable(get_summary):
+            return None
+        fact = get_summary(task_id)
+        return serialize_task_time_summary(fact)
+
+    def list_task_time_entries(
+        self,
+        task_id: str,
+        *,
+        resource_id: str | None = None,
+        page: int = 1,
+        page_size: int = 25,
+        sort_direction: str = "desc",
+    ) -> TaskTimeEntriesPageDesktopDto | None:
+        """Task-scoped (every assignment on this task), all-time Time
+        Entries listing for Task Detail -> Time -> Time Entries (docs §44
+        Time redesign). None when the task can't be resolved."""
+        if not task_id:
+            return None
+        service = self._require_task_service()
+        list_page = getattr(service, "list_time_entries_for_task_page", None)
+        if not callable(list_page):
+            return None
+        page_result = list_page(
+            task_id,
+            resource_id=resource_id or None,
+            page=page,
+            page_size=page_size,
+            sort_direction=sort_direction,
+        )
+        resources_by_id = resource_by_id(
+            resource_service=self._resource_service,
+            resource_ids=tuple({row.resource_id for row in page_result.items}),
+        )
+        return serialize_task_time_entries_page(page_result, resources_by_id=resources_by_id)
 
     def create_assignment(
         self,

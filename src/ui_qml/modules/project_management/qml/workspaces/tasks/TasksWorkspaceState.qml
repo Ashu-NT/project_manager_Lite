@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import App.Mock 1.0 as AppMock
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "TasksColumnConfig.js" as ColumnConfig
 
@@ -77,24 +76,13 @@ Item {
             "items": []
         })
 
-    readonly property var timeAssignmentSummaryModel: root.workspaceController
-        ? root.workspaceController.timeAssignmentSummary
-        : ({
-            "title": "",
-            "subtitle": "",
-            "emptyState": "Select a task assignment to review detailed time entries, period status, and labor totals.",
-            "fields": [],
-            "state": {}
-        })
+    readonly property var taskTimeSummaryModel: root.workspaceController
+        ? root.workspaceController.taskTimeSummary
+        : ({ "hasSummary": false })
 
-    readonly property var timeEntriesModel: root.workspaceController
-        ? root.workspaceController.timeEntries
-        : ({
-            "title": "Time Entries",
-            "subtitle": "Detailed labor entries for the selected task assignment.",
-            "emptyState": "Select a task assignment to review or capture labor entries.",
-            "items": []
-        })
+    readonly property var taskTimeEntriesPageModel: root.workspaceController
+        ? root.workspaceController.taskTimeEntriesPage
+        : ({ "items": [], "total": 0, "page": 1, "pageSize": 25 })
 
     readonly property var selectedTimeEntryModel: root.workspaceController
         ? root.workspaceController.selectedTimeEntry

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 
 
@@ -68,7 +69,73 @@ class TaskWorkspaceReadPage:
     sort: ReadSort = ReadSort("wbsCode")
 
 
+@dataclass(frozen=True, slots=True)
+class TaskResourceTimeBreakdownRow:
+    """One TaskAssignment's planned-vs-actual row for the Task Detail ->
+    Time -> Overview resource breakdown (docs §44 Time redesign). Every
+    figure here is the SAME authoritative TaskAssignment field the
+    Assignment section already renders -- this is a read-model
+    aggregation, not a new calculation."""
+
+    assignment_id: str
+    resource_id: str
+    resource_name: str
+    planned_hours: Decimal
+    actual_hours: Decimal
+    remaining_hours: Decimal
+    overrun_hours: Decimal
+    burn_status: str
+
+
+@dataclass(frozen=True, slots=True)
+class TaskTimeSummaryFact:
+    """Task-scoped (never resource-wide) planned/actual/remaining/overrun
+    totals across every TaskAssignment on this task, plus the per-resource
+    breakdown that explains where those totals come from. Reuses the same
+    `burn_status`/`planned_burn_percent` authority already established for
+    the ProjectResource envelope (application/common/
+    project_resource_envelope_policy.py) -- one vocabulary for "how does
+    actual compare to plan," not two."""
+
+    task_id: str
+    planned_hours: Decimal
+    actual_hours: Decimal
+    remaining_hours: Decimal
+    overrun_hours: Decimal
+    burn_status: str
+    assignment_count: int
+    resource_breakdown: tuple[TaskResourceTimeBreakdownRow, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class TaskTimeEntryRow:
+    """One TimeEntry plus the resource it was logged against -- TimeEntry
+    itself carries only `work_allocation_id`, so this pairs it with the
+    resource_id resolved from that TaskAssignment (docs §44 Time
+    redesign's task-scoped, all-assignments Time Entries list)."""
+
+    entry_id: str
+    work_allocation_id: str
+    resource_id: str
+    entry_date: date
+    hours: float
+    note: str
+    author_username: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class TaskTimeEntriesPage:
+    items: tuple[TaskTimeEntryRow, ...] = ()
+    total: int = 0
+    page: int = 1
+    page_size: int = 25
+
+
 __all__ = [
+    "TaskResourceTimeBreakdownRow",
+    "TaskTimeEntriesPage",
+    "TaskTimeEntryRow",
+    "TaskTimeSummaryFact",
     "TaskWorkspaceCondition",
     "TaskWorkspaceCriteria",
     "TaskWorkspaceReadItem",

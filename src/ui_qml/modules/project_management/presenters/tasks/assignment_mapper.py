@@ -118,6 +118,10 @@ def build_assignment_options(
 def build_time_assignment_options(
     assignments,
 ) -> tuple[TaskSelectorOptionViewModel, ...]:
+    """Log Time's assignment selector (docs §44 Time redesign §13) --
+    labeled by planned work, not allocation percent, since Time is about
+    execution against the plan, not the capacity commitment itself (that
+    belongs to Task Detail -> Assignment)."""
     options: list[TaskSelectorOptionViewModel] = []
     for assignment in assignments:
         resource_name = str(
@@ -125,10 +129,10 @@ def build_time_assignment_options(
             or getattr(assignment, "resource_id", "")
             or "Assignment"
         )
-        allocation_percent = float(getattr(assignment, "allocation_percent", 0.0) or 0.0)
+        planned_hours = _decimal(getattr(assignment, "allocated_planned_hours", 0) or 0)
         label = (
-            f"{resource_name} | {allocation_percent:g}% allocation"
-            if allocation_percent > 0
+            f"{resource_name} — {planned_hours:g}h planned"
+            if planned_hours > 0
             else resource_name
         )
         options.append(

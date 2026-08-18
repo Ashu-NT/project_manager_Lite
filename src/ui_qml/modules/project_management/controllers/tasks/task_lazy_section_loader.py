@@ -63,13 +63,11 @@ def load_selected_task_time(controller) -> None:
         controller._clear_section_error("time")
         ws = controller._tasks_workspace_presenter.build_task_time_state(
             task_id=controller._selected_task_id,
-            selected_assignment_id=controller._selected_assignment_id or None,
-            selected_time_period_start=controller._selected_time_period_start,
+            resource_filter=controller._time_resource_filter,
+            page=controller._time_page,
             selected_time_entry_id=controller._selected_time_entry_id or None,
         )
         controller._time_ctrl._update(ws)
-        controller._set_selected_assignment_id(ws.selected_assignment_id)
-        controller._set_selected_time_period_start(ws.selected_time_period_start)
         controller._set_selected_time_entry_id(ws.selected_time_entry_id)
         controller._set_time_section_loaded_for_task_id(controller._selected_task_id)
     except Exception as exc:
@@ -161,20 +159,22 @@ def load_selected_task_activity(controller) -> None:
 
 
 def refresh_time_entries_only(controller) -> None:
-    """Rebuild only the time-entries section after an entry-level mutation.
-
-    Uses the fast path (build_task_time_entries_refresh) which skips
-    list_assignments() and directly rebuilds from the known assignment snapshot.
-    Period-level mutations (submit/lock/unlock) still call _request_domain_refresh.
-    """
+    """Rebuild only the task-scoped time summary + entries page after an
+    entry-level mutation (docs §44 Time redesign) -- the fast path skips
+    rebuilding assignment_options, since adding/editing/deleting a time
+    entry never changes which assignments exist on this task."""
+    if not controller._selected_task_id:
+        return
     try:
         ws = controller._tasks_workspace_presenter.build_task_time_entries_refresh(
-            assignment_id=controller._selected_assignment_id or None,
-            period_start=controller._selected_time_period_start,
+            task_id=controller._selected_task_id,
+            resource_filter=controller._time_resource_filter,
+            page=controller._time_page,
             selected_time_entry_id=controller._selected_time_entry_id or None,
         )
         if ws is not None:
             controller._time_ctrl._update_entries_only(ws)
+            controller._set_selected_time_entry_id(ws.selected_time_entry_id)
     except Exception:  # noqa: BLE001 — scoped refresh failure must not mask user success
         pass
 

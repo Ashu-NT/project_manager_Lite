@@ -106,9 +106,6 @@ class ProjectTasksWorkspacePresenter:
         priority_filter: str = "all",
         schedule_filter: str = "all",
         selected_task_id: str | None = None,
-        selected_assignment_id: str | None = None,
-        selected_time_period_start: str = "",
-        selected_time_entry_id: str | None = None,
         page: int = 1,
         page_size: int = 25,
         sort_key: str = "wbsCode",
@@ -212,16 +209,18 @@ class ProjectTasksWorkspacePresenter:
         self,
         *,
         task_id: str,
-        selected_assignment_id: str | None = None,
-        selected_time_period_start: str = "",
+        resource_filter: str = "",
+        page: int = 1,
+        page_size: int = 25,
         selected_time_entry_id: str | None = None,
     ) -> TaskCatalogWorkspaceViewModel:
         return build_task_time_state(
             self._desktop_api,
             self._timesheets_desktop_api,
             task_id=task_id,
-            selected_assignment_id=selected_assignment_id,
-            selected_time_period_start=selected_time_period_start,
+            resource_filter=resource_filter,
+            page=page,
+            page_size=page_size,
             selected_time_entry_id=selected_time_entry_id,
         )
 
@@ -231,14 +230,18 @@ class ProjectTasksWorkspacePresenter:
     def build_task_time_entries_refresh(
         self,
         *,
-        assignment_id: str | None,
-        period_start: str = "",
+        task_id: str,
+        resource_filter: str = "",
+        page: int = 1,
+        page_size: int = 25,
         selected_time_entry_id: str | None = None,
     ) -> TaskCatalogWorkspaceViewModel | None:
         return build_task_time_entries_refresh(
-            self._timesheets_desktop_api,
-            assignment_id=assignment_id,
-            period_start=period_start,
+            self._desktop_api,
+            task_id=task_id,
+            resource_filter=resource_filter,
+            page=page,
+            page_size=page_size,
             selected_time_entry_id=selected_time_entry_id,
         )
 
