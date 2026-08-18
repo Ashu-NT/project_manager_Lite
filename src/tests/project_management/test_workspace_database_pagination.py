@@ -41,6 +41,201 @@ def test_project_catalog_filters_counts_and_pages_in_database(services) -> None:
     assert search_page.items[0].project.id == alpha.id
 
 
+def test_project_catalog_site_department_manager_and_date_filters_compose(services) -> None:
+    project_service = services["project_service"]
+    site_service = services["site_service"]
+    department_service = services["department_service"]
+    # A real FK-valid user id (manager_user_id references users.id) -- the
+    # admin principal authenticated by the `services` fixture.
+    manager_id = services["user_session"].principal.user_id
+
+    site_a = site_service.create_site(site_code="SITE-A", name="Hamburg Yard")
+    site_b = site_service.create_site(site_code="SITE-B", name="Rotterdam Yard")
+    dept_a = department_service.create_department(department_code="DEPT-A", name="Engineering")
+    dept_b = department_service.create_department(department_code="DEPT-B", name="Operations")
+
+    match = project_service.create_project(
+        "Hamburg Refit",
+        site_id=site_a.id,
+        department_id=dept_a.id,
+        manager_user_id=manager_id,
+        start_date=date(2026, 1, 10),
+        end_date=date(2026, 6, 30),
+    )
+    project_service.create_project(
+        "Rotterdam Refit",
+        site_id=site_b.id,
+        department_id=dept_a.id,
+        manager_user_id=manager_id,
+        start_date=date(2026, 1, 10),
+        end_date=date(2026, 6, 30),
+    )
+    project_service.create_project(
+        "Hamburg Other Dept No Manager",
+        site_id=site_a.id,
+        department_id=dept_b.id,
+        start_date=date(2026, 1, 10),
+        end_date=date(2026, 6, 30),
+    )
+    project_service.create_project(
+        "Hamburg Out Of Range",
+        site_id=site_a.id,
+        department_id=dept_a.id,
+        manager_user_id=manager_id,
+        start_date=date(2027, 1, 10),
+        end_date=date(2027, 6, 30),
+    )
+
+    # Site alone narrows to the three Hamburg-site projects (excludes Rotterdam).
+    site_only = project_service.query_catalog_page(site_id=site_a.id, page=1, page_size=25)
+    assert site_only.filtered_total == 3
+    assert {row.project.site_id for row in site_only.items} == {site_a.id}
+
+    # Manager alone excludes the unassigned "Other Dept" project.
+    manager_only = project_service.query_catalog_page(
+        manager_user_id=manager_id, page=1, page_size=25
+    )
+    assert manager_only.filtered_total == 3
+    assert all(row.project.manager_user_id == manager_id for row in manager_only.items)
+
+    # Site + department + manager + start-date range together return exactly
+    # the single project matching the full intersection.
+    composed = project_service.query_catalog_page(
+        site_id=site_a.id,
+        department_id=dept_a.id,
+        manager_user_id=manager_id,
+        start_date_from=date(2026, 1, 1),
+        start_date_to=date(2026, 12, 31),
+        page=1,
+        page_size=25,
+    )
+    assert composed.filtered_total == 1
+    assert composed.items[0].project.id == match.id
+
+    # Department alone still returns both dept_a projects across sites.
+    department_only = project_service.query_catalog_page(
+        department_id=dept_a.id, page=1, page_size=25
+    )
+    assert department_only.filtered_total == 3
+
+    # A start-date range excluding the out-of-range project proves the range
+    # predicate is applied, not merely accepted and ignored.
+    date_ranged = project_service.query_catalog_page(
+        department_id=dept_a.id,
+        start_date_from=date(2026, 1, 1),
+        start_date_to=date(2026, 12, 31),
+        page=1,
+        page_size=25,
+    )
+    assert date_ranged.filtered_total == 2
+    assert all(row.project.start_date.year == 2026 for row in date_ranged.items)
+
+
+def test_project_catalog_project_name_and_client_name_filters_compose(services) -> None:
+    project_service = services["project_service"]
+    site_service = services["site_service"]
+    site_a = site_service.create_site(site_code="SITE-N1", name="Name Filter Site")
+
+    hamburg = project_service.create_project(
+        "Hamburg Refit", client_name="Northwind Shipping", site_id=site_a.id
+    )
+    project_service.create_project("Hamburg Overhaul", client_name="Contoso Freight")
+    project_service.create_project("Rotterdam Refit", client_name="Northwind Shipping")
+
+    # Project name alone narrows to both "Hamburg" projects regardless of client.
+    by_name = project_service.query_catalog_page(project_name="hamburg", page=1, page_size=25)
+    assert by_name.filtered_total == 2
+    assert all("hamburg" in row.project.name.lower() for row in by_name.items)
+
+    # Client name alone narrows to both Northwind projects regardless of site/name.
+    by_client = project_service.query_catalog_page(client_name="northwind", page=1, page_size=25)
+    assert by_client.filtered_total == 2
+    assert all((row.project.client_name or "").lower() == "northwind shipping" for row in by_client.items)
+
+    # Composed AND: only the single project matching both narrows to it.
+    composed = project_service.query_catalog_page(
+        project_name="hamburg", client_name="northwind", page=1, page_size=25
+    )
+    assert composed.filtered_total == 1
+    assert composed.items[0].project.id == hamburg.id
+
+    # No match anywhere -> zero results, not an error.
+    no_match = project_service.query_catalog_page(project_name="nonexistent-xyz", page=1, page_size=25)
+    assert no_match.filtered_total == 0
+
+
+def test_project_department_id_round_trips_through_create_and_update(services) -> None:
+    project_service = services["project_service"]
+    department_service = services["department_service"]
+
+    dept_a = department_service.create_department(department_code="DEPT-RT-A", name="Engineering")
+    dept_b = department_service.create_department(department_code="DEPT-RT-B", name="Operations")
+
+    created = project_service.create_project("Round Trip Project", department_id=dept_a.id)
+    assert created.department_id == dept_a.id
+    fetched = project_service.get_project(created.id)
+    assert fetched.department_id == dept_a.id
+
+    updated = project_service.update_project(
+        created.id,
+        expected_version=fetched.version,
+        department_id=dept_b.id,
+    )
+    assert updated.department_id == dept_b.id
+    refetched = project_service.get_project(created.id)
+    assert refetched.department_id == dept_b.id
+
+
+def test_project_update_records_actor_and_field_level_activity_diff(services) -> None:
+    """Real DB proof for the ProjectLifecycleMixin diff-tracking fix: the
+    recorded activity entry must carry both who made the change (actor_id,
+    resolved from the authenticated principal) and a before/after diff for
+    every field that actually changed -- not just the final snapshot."""
+    project_service = services["project_service"]
+    department_service = services["department_service"]
+    activity_service = services["activity_service"]
+    actor_id = services["user_session"].principal.user_id
+
+    dept_a = department_service.create_department(department_code="DEPT-ACT-A", name="Engineering")
+    dept_b = department_service.create_department(department_code="DEPT-ACT-B", name="Operations")
+
+    created = project_service.create_project(
+        "Activity Diff Project", department_id=dept_a.id, status=ProjectStatus.PLANNED
+    )
+
+    project_service.update_project(
+        created.id,
+        expected_version=created.version,
+        name="Activity Diff Project Renamed",
+        status=ProjectStatus.ACTIVE,
+        department_id=dept_b.id,
+    )
+
+    entries = activity_service.list_recent(entity_type="project", entity_id=created.id)
+    update_entry = next(e for e in entries if e.action == "project.update")
+
+    assert update_entry.actor_id == actor_id
+    changes = update_entry.details["changes"]
+    assert changes["name"] == {"from": "Activity Diff Project", "to": "Activity Diff Project Renamed"}
+    assert changes["status"] == {"from": "PLANNED", "to": "ACTIVE"}
+    assert changes["department_id"] == {"from": dept_a.id, "to": dept_b.id}
+    # Unchanged fields (e.g. description) must not appear in the diff.
+    assert "description" not in changes
+
+
+def test_project_set_status_records_before_and_after_status(services) -> None:
+    project_service = services["project_service"]
+    activity_service = services["activity_service"]
+
+    created = project_service.create_project("Status Diff Project", status=ProjectStatus.PLANNED)
+    project_service.set_status(created.id, ProjectStatus.ON_HOLD)
+
+    entries = activity_service.list_recent(entity_type="project", entity_id=created.id)
+    status_entry = next(e for e in entries if e.action == "project.set_status")
+
+    assert status_entry.details["changes"]["status"] == {"from": "PLANNED", "to": "ON_HOLD"}
+
+
 def test_project_catalog_sort_is_authoritative_across_pages(services) -> None:
     project_service = services["project_service"]
     alpha = project_service.create_project("Alpha Sort")

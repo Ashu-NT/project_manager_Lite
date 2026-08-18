@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Qt, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.core.platform.finance.money.currency import ISO_4217_MINOR_UNITS
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
@@ -29,17 +30,25 @@ from .project_state_setters import ProjectStateSettersMixin
 from .project_domain_event_binder import bind_project_domain_events
 from .project_selection_handler import (
     activate_project,
+    clear_filters,
     select_project,
+    set_client_name_filter,
+    set_department_filter,
+    set_end_date_from,
+    set_end_date_to,
+    set_manager_filter,
+    set_project_name_filter,
     set_project_page,
     set_project_page_size,
     set_project_sort,
     set_search_text,
+    set_site_filter,
+    set_start_date_from,
+    set_start_date_to,
     set_status_filter,
 )
 from .project_lazy_section_loader import (
     load_project_activity,
-    load_project_documents,
-    load_project_financials,
     load_project_resources,
     load_project_risks,
     load_project_tasks,
@@ -64,6 +73,14 @@ from .project_import_handler import cancel_import, execute_import, preview_impor
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
 
+_CURRENCY_OPTIONS: list[dict[str, str]] = [
+    {"value": code, "label": code}
+    for code in sorted(
+        code for code, minor_units in ISO_4217_MINOR_UNITS.items() if minor_units is not None
+    )
+]
+DEFAULT_CURRENCY_CODE = "XAF"
+
 
 @QmlElement
 @QmlUncreatable("Project management workspace controllers are provided by the shell runtime.")
@@ -73,7 +90,18 @@ class ProjectManagementProjectsWorkspaceController(
     overviewChanged = Signal()
     statusOptionsChanged = Signal()
     siteOptionsChanged = Signal()
+    departmentOptionsChanged = Signal()
+    managerOptionsChanged = Signal()
     selectedStatusFilterChanged = Signal()
+    projectNameFilterChanged = Signal()
+    clientNameFilterChanged = Signal()
+    selectedSiteFilterChanged = Signal()
+    selectedDepartmentFilterChanged = Signal()
+    selectedManagerFilterChanged = Signal()
+    startDateFromChanged = Signal()
+    startDateToChanged = Signal()
+    endDateFromChanged = Signal()
+    endDateToChanged = Signal()
     searchTextChanged = Signal()
     projectsChanged = Signal()
     selectedProjectChanged = Signal()
@@ -88,16 +116,12 @@ class ProjectManagementProjectsWorkspaceController(
 
     projectTasksChanged = Signal()
     projectResourcesChanged = Signal()
-    projectFinancialsChanged = Signal()
     projectRisksChanged = Signal()
-    projectDocumentsChanged = Signal()
     projectActivityChanged = Signal()
 
     projectTasksLoadedChanged = Signal()
     projectResourcesLoadedChanged = Signal()
-    projectFinancialsLoadedChanged = Signal()
     projectRisksLoadedChanged = Signal()
-    projectDocumentsLoadedChanged = Signal()
     projectActivityLoadedChanged = Signal()
 
     importPreviewChanged = Signal()
@@ -124,7 +148,18 @@ class ProjectManagementProjectsWorkspaceController(
         self._overview: dict[str, object] = default_overview()
         self._status_options: list[dict[str, str]] = []
         self._site_options: list[dict[str, str]] = []
+        self._department_options: list[dict[str, str]] = []
+        self._manager_options: list[dict[str, str]] = []
         self._selected_status_filter = "all"
+        self._project_name_filter = ""
+        self._client_name_filter = ""
+        self._selected_site_filter = "all"
+        self._selected_department_filter = "all"
+        self._selected_manager_filter = "all"
+        self._start_date_from = ""
+        self._start_date_to = ""
+        self._end_date_from = ""
+        self._end_date_to = ""
         self._search_text = ""
         self._table_models: ProjectTableModels = create_project_table_models(self)
         self._projects: dict[str, object] = default_projects()
@@ -140,16 +175,12 @@ class ProjectManagementProjectsWorkspaceController(
 
         self._project_tasks: dict[str, object] = default_lazy_section("Tasks", "tasks")
         self._project_resources: dict[str, object] = default_lazy_section("Resources", "resources")
-        self._project_financials: dict[str, object] = default_lazy_section("Financials", "financials")
         self._project_risks: dict[str, object] = default_lazy_section("Risks", "risks")
-        self._project_documents: dict[str, object] = default_lazy_section("Documents", "documents")
         self._project_activity: dict[str, object] = default_lazy_section("Activity", "activity")
 
         self._project_tasks_loaded_for_project_id = ""
         self._project_resources_loaded_for_project_id = ""
-        self._project_financials_loaded_for_project_id = ""
         self._project_risks_loaded_for_project_id = ""
-        self._project_documents_loaded_for_project_id = ""
         self._project_activity_loaded_for_project_id = ""
 
         self._import_preview: dict[str, object] = {}
@@ -179,9 +210,61 @@ class ProjectManagementProjectsWorkspaceController(
     def siteOptions(self) -> list[dict[str, str]]:
         return self._site_options
 
+    @Property("QVariantList", notify=managerOptionsChanged)
+    def managerOptions(self) -> list[dict[str, str]]:
+        return self._manager_options
+
+    @Property("QVariantList", notify=departmentOptionsChanged)
+    def departmentOptions(self) -> list[dict[str, str]]:
+        return self._department_options
+
+    @Property("QVariantList", constant=True)
+    def currencyOptions(self) -> list[dict[str, str]]:
+        return _CURRENCY_OPTIONS
+
+    @Property(str, constant=True)
+    def defaultCurrencyCode(self) -> str:
+        return DEFAULT_CURRENCY_CODE
+
     @Property(str, notify=selectedStatusFilterChanged)
     def selectedStatusFilter(self) -> str:
         return self._selected_status_filter
+
+    @Property(str, notify=projectNameFilterChanged)
+    def projectNameFilter(self) -> str:
+        return self._project_name_filter
+
+    @Property(str, notify=clientNameFilterChanged)
+    def clientNameFilter(self) -> str:
+        return self._client_name_filter
+
+    @Property(str, notify=selectedSiteFilterChanged)
+    def selectedSiteFilter(self) -> str:
+        return self._selected_site_filter
+
+    @Property(str, notify=selectedDepartmentFilterChanged)
+    def selectedDepartmentFilter(self) -> str:
+        return self._selected_department_filter
+
+    @Property(str, notify=selectedManagerFilterChanged)
+    def selectedManagerFilter(self) -> str:
+        return self._selected_manager_filter
+
+    @Property(str, notify=startDateFromChanged)
+    def startDateFrom(self) -> str:
+        return self._start_date_from
+
+    @Property(str, notify=startDateToChanged)
+    def startDateTo(self) -> str:
+        return self._start_date_to
+
+    @Property(str, notify=endDateFromChanged)
+    def endDateFrom(self) -> str:
+        return self._end_date_from
+
+    @Property(str, notify=endDateToChanged)
+    def endDateTo(self) -> str:
+        return self._end_date_to
 
     @Property(str, notify=searchTextChanged)
     def searchText(self) -> str:
@@ -247,17 +330,9 @@ class ProjectManagementProjectsWorkspaceController(
     def projectResourcesTableModel(self) -> DynamicTableModel:
         return self._table_models.project_resources
 
-    @Property("QVariantMap", notify=projectFinancialsChanged)
-    def projectFinancials(self) -> dict[str, object]:
-        return self._project_financials
-
     @Property("QVariantMap", notify=projectRisksChanged)
     def projectRisks(self) -> dict[str, object]:
         return self._project_risks
-
-    @Property("QVariantMap", notify=projectDocumentsChanged)
-    def projectDocuments(self) -> dict[str, object]:
-        return self._project_documents
 
     @Property("QVariantMap", notify=projectActivityChanged)
     def projectActivity(self) -> dict[str, object]:
@@ -299,6 +374,15 @@ class ProjectManagementProjectsWorkspaceController(
             workspace_state = self._projects_workspace_presenter.build_workspace_state(
                 search_text=self._search_text,
                 status_filter=self._selected_status_filter,
+                project_name_filter=self._project_name_filter,
+                client_name_filter=self._client_name_filter,
+                site_filter=self._selected_site_filter,
+                department_filter=self._selected_department_filter,
+                manager_filter=self._selected_manager_filter,
+                start_date_from=self._start_date_from,
+                start_date_to=self._start_date_to,
+                end_date_from=self._end_date_from,
+                end_date_to=self._end_date_to,
                 selected_project_id=self._selected_project_id or None,
                 page=self._project_page,
                 page_size=self._project_page_size,
@@ -318,7 +402,22 @@ class ProjectManagementProjectsWorkspaceController(
             self._set_site_options(
                 list(self._projects_workspace_presenter.build_site_options())
             )
+            self._set_manager_options(
+                list(self._projects_workspace_presenter.build_manager_options())
+            )
+            self._set_department_options(
+                list(self._projects_workspace_presenter.build_department_options())
+            )
             self._set_selected_status_filter(workspace_state.selected_status_filter)
+            self._set_project_name_filter(workspace_state.selected_project_name_filter)
+            self._set_client_name_filter(workspace_state.selected_client_name_filter)
+            self._set_selected_site_filter(workspace_state.selected_site_filter)
+            self._set_selected_department_filter(workspace_state.selected_department_filter)
+            self._set_selected_manager_filter(workspace_state.selected_manager_filter)
+            self._set_start_date_from(workspace_state.start_date_from)
+            self._set_start_date_to(workspace_state.start_date_to)
+            self._set_end_date_from(workspace_state.end_date_from)
+            self._set_end_date_to(workspace_state.end_date_to)
             self._set_search_text(workspace_state.search_text)
             self._set_projects(
                 {
@@ -360,6 +459,46 @@ class ProjectManagementProjectsWorkspaceController(
     @Slot(str)
     def setStatusFilter(self, status_filter: str) -> None:
         set_status_filter(self, status_filter)
+
+    @Slot(str)
+    def setProjectNameFilter(self, project_name_filter: str) -> None:
+        set_project_name_filter(self, project_name_filter)
+
+    @Slot(str)
+    def setClientNameFilter(self, client_name_filter: str) -> None:
+        set_client_name_filter(self, client_name_filter)
+
+    @Slot(str)
+    def setSiteFilter(self, site_filter: str) -> None:
+        set_site_filter(self, site_filter)
+
+    @Slot(str)
+    def setDepartmentFilter(self, department_filter: str) -> None:
+        set_department_filter(self, department_filter)
+
+    @Slot(str)
+    def setManagerFilter(self, manager_filter: str) -> None:
+        set_manager_filter(self, manager_filter)
+
+    @Slot(str)
+    def setStartDateFrom(self, value: str) -> None:
+        set_start_date_from(self, value)
+
+    @Slot(str)
+    def setStartDateTo(self, value: str) -> None:
+        set_start_date_to(self, value)
+
+    @Slot(str)
+    def setEndDateFrom(self, value: str) -> None:
+        set_end_date_from(self, value)
+
+    @Slot(str)
+    def setEndDateTo(self, value: str) -> None:
+        set_end_date_to(self, value)
+
+    @Slot()
+    def clearFilters(self) -> None:
+        clear_filters(self)
 
     @Slot(str)
     def selectProject(self, project_id: str) -> None:
@@ -488,16 +627,8 @@ class ProjectManagementProjectsWorkspaceController(
         load_project_resources(self)
 
     @Slot()
-    def loadProjectFinancials(self) -> None:
-        load_project_financials(self)
-
-    @Slot()
     def loadProjectRisks(self) -> None:
         load_project_risks(self)
-
-    @Slot()
-    def loadProjectDocuments(self) -> None:
-        load_project_documents(self)
 
     @Slot()
     def loadProjectActivity(self) -> None:

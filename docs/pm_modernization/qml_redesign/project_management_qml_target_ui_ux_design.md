@@ -1900,3 +1900,349 @@ related to it"):
 
 R4.3 (Tasks redesign) remains paused pending further user-directed fixes;
 resume from here when instructed.
+
+## 35. R4.2 reopened: deep data/filter/detail-IA verification and fix pass
+
+R4.2 was reopened at explicit user request ("do not assume R4.2 is correct
+because the redesign is visually complete") for a field-by-field DataTable
+audit, a professional multi-filter upgrade, and a full Project Detail IA
+audit. R4.3 (Tasks) was **not** touched. Not committed as part of this
+phase.
+
+### DataTable column audit and fixes
+
+Traced every column DB → reader → DTO → controller → QML. Findings and
+fixes:
+
+- **`approved_budget` INNER JOIN to `ProjectFinancialProfileORM` could
+  silently drop rows.** `filtered_total`/summary counts are computed
+  without that join, but the paged row-fetch used an INNER join to it for
+  currency code -- any project missing a finance profile would vanish from
+  the page while still being counted in the total (count says N, rows
+  returned < N). Changed to LEFT OUTER JOIN.
+- **`approved_budget` SQL `coalesce(SUM(...), 0)` defeated the "Not set" vs
+  "$0 approved" distinction** in `format_budget()` -- a project with zero
+  approved budget lines was indistinguishable from one with a genuine
+  $0.00 approval. Removed the SQL-side coalesce; `None` now passes through
+  correctly.
+- **`clientName` was free text only, disconnected from `client_party_id`.**
+  The FK existed on domain/ORM/DTO already but was never joined or
+  resolved. Added a LEFT OUTER JOIN to `PartyORM`
+  (`COALESCE(party.party_name, project.client_name, "")`) and a new
+  `client_label` field (authoritative *display* value) kept separate from
+  `client_name` (the raw, still-freely-editable dialog field) -- so the
+  edit dialog never round-trips a resolved party name back into free text.
+  Column key renamed `clientName` → `clientLabel`; sort key
+  `clientName` → `clientLabel` (server-sort allowlist and reader
+  `sort_expressions` updated together).
+- **Date columns rendered raw ISO strings** (`2026-05-01`) instead of a
+  human format. `format_date_label()` now uses `%d %b %Y` (matches the
+  format already used elsewhere in PM, e.g. Register's `due_date_label`).
+- **Real repository bug found and fixed while verifying the above with a
+  real DB round-trip test**: `SqlAlchemyProjectRepository.update()`'s
+  column-value dict omitted `site_id`, `department_id`, `client_party_id`,
+  and `manager_user_id` entirely -- meaning **no update to any of these
+  four fields was ever persisted**, regardless of what the domain object
+  carried, silently reverting them on every `update_project()` call. This
+  was latent and undetected because nothing previously round-tripped these
+  fields through an update path in a test. Fixed by adding all four to the
+  update statement's value dict. `organization_id` deliberately left out
+  of this fix (it doubles as a `WHERE` scope filter in the same statement;
+  changing it correctly would require a separate, more careful operation
+  and is outside this audit's scope).
+
+Column disposition: all 9 pre-existing columns **KEEP** (none removed);
+`clientName` → `clientLabel` (**FIX DATA MAPPING** + **RENAME**),
+`approvedBudgetLabel` (**FIX DATA MAPPING**, join + null handling),
+`startDateLabel`/`endDateLabel` (**FIX FORMAT**). No column was backed by a
+fake/hardcoded value; `clientContact` remains correctly `HIDE BY DEFAULT`.
+
+### Filter architecture: Site, Department, Project Manager, date ranges
+
+Previous state: exactly one filter (Status), no typed filter object, and no
+`clearFilters()`. Domain-real fields available but unfiltered: `site_id`
+(already joined for the column), `manager_user_id` (FK to `users`, unused),
+`client_party_id` (FK to `parties`, now resolved for display). No
+`department_id` existed on `Project` at all -- **added as a real column**
+(domain field + ORM column + `q7r8s9t0u1v2` migration), matching Site's
+existing pattern, per explicit user direction to build it as a real field
+rather than skip the filter or fake it.
+
+New server-side, composable filters, all pushed to SQL `WHERE` before
+`LIMIT`/`OFFSET` (verified with a real DB test asserting the full
+intersection of Site + Department + Manager + start-date-range returns
+exactly the one matching project, and that a date range excluding an
+out-of-range project actually excludes it):
+
+- **Site** (`site_id`, equality on already-`site_id`-scoped column).
+- **Department** (`department_id`, equality; new column, no join needed).
+- **Project Manager** (`manager_user_id`, equality on existing FK column).
+- **Start date range** / **End date range** (`>=`/`<=` predicates).
+
+Threaded through every layer with named, typed parameters (no
+untyped/loose dict): `SqlAlchemyProjectCatalogReader.read_page()` →
+`ProjectCatalogReader` protocol → `ProjectQueryMixin.query_catalog_page()`
+→ `ProjectManagementProjectsDesktopApi.list_project_page()` (string
+`"all"` sentinel / ISO date strings at the desktop-API boundary, matching
+the existing `status="all"` convention) → `build_workspace_state()` →
+`ProjectProjectsWorkspacePresenter` → `ProjectManagementProjectsWorkspaceController`
+(new properties `selectedSiteFilter`, `selectedDepartmentFilter`,
+`selectedManagerFilter`, `startDateFrom/To`, `endDateFrom/To`, `siteOptions`
+(pre-existing) + new `departmentOptions`, `managerOptions`). Export
+(`list_export_records()`) threads the identical filter set through the
+same `build_workspace_state()` call, so exported rows always match the
+visible filtered query with zero extra wiring. A new `clearFilters()`
+resets every filter (search, status, site, department, manager, both date
+ranges) and refreshes once.
+
+Option sources follow the existing site-picker convention exactly (inject
+a `Platform*DesktopApi`, call `list_*`, map `DesktopApiResult.data` to
+`{value, label}`): `PlatformDepartmentDesktopApi.list_departments()`
+(already existed, just not wired into Projects) and
+`PlatformUserDesktopApi.list_users()` (new wiring) via
+`build_department_options()` / `build_manager_options()` on the presenter,
+injected in `context.py` from the existing `platform_department` /
+`platform_user` registry entries. Tenant/organization scoping is
+unaffected -- new filters are appended to the same `filtered` predicate
+list the existing scope filters seed, never around it.
+
+### Filter UX
+
+`ProjectsFilterPopup.qml` rebuilt as a single modal surface (Status, Site,
+Department, Project Manager, Start/End date ranges) in a responsive
+2-column `GridLayout`, all fields staged as drafts and committed together
+by one **Apply** (the existing R4.2 draft/Apply/Clear/Close pattern, now
+covering seven fields instead of one). `ProjectsListPage.qml` gained a
+concise active-filter-chip row beneath the toolbar (`Status: Active ×`,
+`Site: Hamburg ×`, ...) with per-chip clear, so applied filters stay
+visible without permanently consuming toolbar width. Toolbar itself is
+unchanged (Search / Filters / Customize / Refresh / Import / Export).
+
+### Project Detail information architecture: consolidation
+
+Full section-by-section audit (purpose / data source / wiring status /
+duplication / recommendation) found the same pattern the R4.1
+characterization had already flagged for other capabilities: sections that
+looked equally "real" from the tab list were, underneath, a mix of fully
+wired, decoratively stubbed, and backend-real-but-UI-disconnected. Ten
+sections reduced to five:
+
+| Section | Disposition | Why |
+|---|---|---|
+| Overview | **KEPT, extended** | Merged in Schedule's two fields (100% duplicate of Overview's own Start/Finish); added Site and Department rows (both now real, previously shown nowhere in Detail despite being real editable fields) |
+| Schedule | **REMOVED** | Every field it showed (Start Date, Finish Date) was already shown identically in Overview |
+| Tasks | **KEPT unchanged** | Real, fully-wired data (`list_tasks`, unbounded but naturally bounded to one project's task count); a genuine "Open in Tasks" navigation link was investigated and deliberately *not* added -- see below |
+| Resources | **KEPT unchanged** | Real, fully-wired data plus project-scoped assign/edit/remove mutations that exist only here, not duplicated by any dedicated workspace |
+| Financials | **REMOVED** | Its two real fields (Approved Budget, Currency) were already shown identically in Overview; the rest of the section was a static "open Financials workspace" message with no unique data |
+| Risks | **FIXED — was dead-backend-real, UI-disconnected** | `risks_builder.py` already queried the real Register (`list_entries(project_id, entry_type="RISK")`) and populated `controller.projectRisks`, but the QML section never read it, showing a static "open Register" message instead. Rewired to a real bounded `RecordListCard` bound to `projectRisksModel.items` |
+| Documents | **REMOVED** | Stub backend (`items=()` hardcoded) and unbound UI; no real document capability exists anywhere in this app for projects |
+| Activity | **FIXED — was fully fake, now fully real** | Previously: stub backend (`items=()`) fetched into a property (`projectActivity`) the QML never read, AND the QML separately read a key (`state.activityItems`) the real detail projection never populated -- two independent dead paths that happened to both resolve to an always-empty feed. Rewired end-to-end onto the existing, already-real `ActivityService`/`PlatformActivityDesktopApi.list_recent(entity_type="project", entity_id=..., limit=50)` (the same real audit-log CQRS read already used by Inventory/Procurement's per-entity activity feeds) -- no new backend needed, just real wiring. A small keyword-based status classifier (success/warning/danger) was written locally in `activity_builder.py` rather than imported from Inventory's private serializer, since PM must not import Inventory/Procurement packages directly |
+| Material Demand | **REMOVED** | Capability-gated (`inventory.reservations.create`) but zero backend wiring regardless of capability; pure placeholder text |
+| Procurement | **REMOVED** | Capability-gated (`procurement.purchase_orders.read`) but zero backend wiring regardless of capability; pure placeholder text |
+
+Final IA: **Overview, Tasks, Resources, Risks, Activity** — five sections,
+all fully real, none placeholder, none duplicating another section's data.
+
+**Cross-workspace "Open in Tasks/Register" navigation was investigated and
+deliberately not built.** Tracing the only existing precedent
+(`TasksWorkspaceState.navigateToRoute()` / `openTaskReservationsRoute()`,
+which calls `shellModel.selectRoute(...)`) found that `shellModel` is
+**never actually assigned** on any capability page loaded through the
+canonical shell: `ProjectManagementWorkspacePage.qml`'s per-destination
+`Loader.onLoaded` binds only `pmCatalog` to the loaded page, never
+`shellModel`, so `TasksWorkspacePage`'s own `shellModel` property -- and
+therefore its route-navigation functions -- are provably dead when loaded
+through the canonical shell (the `if (root.shellModel && ...)` guard
+never passes). Grepping the entire `workspaces/` tree found no other
+capability page or section that successfully performs cross-workspace
+navigation this way. Building a second, equally-dead "Open in Tasks"
+button on top of the same broken mechanism would not satisfy the "detail
+actions are real and wired" gate; the Tasks and Risks sections were
+therefore designed as bounded real-data displays without a fabricated
+navigation action. This dead `shellModel` wiring is a genuine finding
+worth fixing in its own right, but is out of scope here since it lives in
+`TasksWorkspacePage`/`ProjectManagementWorkspacePage.qml`, and R4.3 (Tasks)
+must not be touched by this reopened R4.2 pass.
+
+### Detail header, Create/Edit consistency, performance
+
+- Detail header (title + status only) vs. Overview's first row: unchanged,
+  pre-existing single-field (status) overlap judged too minor to warrant
+  restructuring, consistent with the original R4.2 closure's finding.
+- `ProjectEditorDialog.qml` gained a **Department** selector, populated from
+  the same `departmentOptions` controller property the filter popup uses
+  (one option source, not two) -- mirrors the existing Site selector
+  exactly, including the same pre-existing quirk (no "unassigned" option
+  in `build_site_options()`/`build_department_options()`, so a brand-new
+  project's selector defaults to index 0 -- i.e. the first real site or
+  department -- rather than "none"). Documented here as a known systemic
+  quirk shared by both pickers, not newly introduced, and not fixed in
+  this pass (fixing it would change Site's already-established behavior
+  app-wide, which is out of scope for a Department addition).
+  Dialog widened 560px → 680px and its `GridLayout` gained a 3-column tier
+  at width > 640 so the added field grows the dialog wider, not taller
+  (verified: edit-mode row count is unchanged at 4 rows; create-mode gains
+  no extra row either, versus a 2-column layout which would have added a
+  5th row).
+- Detail-load performance: confirmed no new N+1. The real DB SQL-statement
+  budget test (`test_workspace_page_query_budgets_are_constant`) asserts
+  `query_catalog_page()` costs exactly 4 SQL statements regardless of which
+  filters are set; verified unchanged after adding the `PartyORM` join,
+  the `department_id` predicate, and three more equality/range predicates
+  (joins and additional `WHERE` terms are folded into the same existing
+  statements, not new round trips). Lazy detail sections (Tasks/Resources/
+  Risks/Activity) each fire exactly one query on first open, same as
+  before; Activity's new real query follows the identical one-call
+  lazy-load pattern already used by the other three.
+
+### Testing added
+
+- Real DB tests (`test_workspace_database_pagination.py`): Site + Department
+  + Manager + start-date-range composition returns the exact intersection;
+  Department alone and date-range-alone tested independently to prove each
+  predicate is actually applied, not merely accepted; `department_id`
+  round-trips through `create_project`/`update_project`/`get_project`
+  (this is the test that caught the repository `update()` bug above); SQL
+  statement budget unchanged.
+- Presenter unit tests (`test_projects_workspace_presenter.py`): full
+  `TestBuildProjectActivityState` class replacing the old dead-stub
+  `TestBuildProjectDocumentsState` (field mapping, status classification
+  for create/delete-style actions, empty-project-id short-circuit with no
+  API call, no-`activity_api` fallback).
+- Existing QML offscreen-loading, route, and dialog tests re-run green
+  after every structural QML change (section deletions, `qmldir` update,
+  `ProjectsDetailPanel.qml` rewrite).
+- Architecture guardrail suite re-run; the 6 pre-existing failures
+  (`ScenariosTab.qml` parent-relative import, stale Platform-admin
+  directory assertion, module-size budgets, legacy-ORM import check)
+  reproduce byte-for-byte identically with all R4.2-reopened changes fully
+  stashed out -- confirmed unrelated, none newly introduced.
+
+### Deferred / unsupported (explicitly out of scope)
+
+- Client picker as a selector (party-linked, not free text) in
+  `ProjectEditorDialog.qml` -- `client_label` now resolves and *displays*
+  the linked party name authoritatively when `client_party_id` is set, but
+  no UI exists to *set* `client_party_id` via a picker; the dialog still
+  only offers the free-text `clientName`/`clientContact` fields.
+- Fixing the Site/Department "defaults to first option, not none" dialog
+  quirk (see above) -- pre-existing, shared by both pickers, not
+  introduced or worsened here.
+- Fixing `TasksWorkspacePage`'s dead `shellModel` cross-workspace
+  navigation -- real finding, out of scope because R4.3 (Tasks) must not
+  be touched in this pass.
+- Project type/category, calendar, progress/health/risk-state filters or
+  columns -- none of these fields exist anywhere in the `Project` domain
+  model; adding any would require new domain/schema work with no existing
+  product decision backing it, matching this design's own "do not invent
+  capabilities that don't exist" rule.
+- Detail-page pixel-level responsive verification at all five acceptance
+  sizes (1024x640 through 1920x1080) -- structural/binding correctness
+  verified (2-/3-column `GridLayout` reflow thresholds, `RecordListCard`'s
+  existing responsive text elision), but no rendered screenshot capture
+  tooling exists in this environment (same standing deferral already
+  recorded for R2/R3).
+
+**R4.2 REOPENED — DATA/FILTER/DETAIL-IA VERIFICATION: COMPLETE.** R4.3
+(Tasks) was not modified. Not committed.
+
+## 36. R4.2 follow-up: Activity actor/diff tracking, and two reusable patterns for later phases
+
+Follow-up to §35's Activity section, triggered by "all crud operation are
+tracked as well right??". Not committed.
+
+### Activity coverage and actor identity
+
+- Confirmed (not assumed) that all four Project mutations
+  (`create_project`/`update_project`/`set_status`/`delete_project`) and all
+  four Project Resource mutations (`add_to_project`/`update`/`set_active`/
+  `delete`) already called `record_activity()`; what was missing was
+  **field-level diffs and human-readable messages**, not the calls
+  themselves. Added `_diff_project_fields()` /
+  `_diff_project_resource_fields()` (before/after `SimpleNamespace`
+  snapshots diffed against the recorded field list) so every entry's
+  `details_json.changes` carries `{field: {from, to}}`, plus a
+  `message=` on every call.
+- Actor identity resolution now prefers the linked **Employee**'s
+  `full_name` over the `User`'s `display_name`/`username`
+  (`_build_actor_lookup()` in `activity_builder.py`) — most `User` rows in
+  this app correspond to an `Employee` via `Employee.user_id`, and the
+  employee record carries the real recorded name. Reusable for any other
+  workspace's activity feed that wants a human name rather than a login
+  handle.
+- The Activity section issues **two** `activity_api.list_recent()` calls
+  (`entity_type="project"` then `entity_type="project_resource",
+  workspace_id=<project_id>`), merged and re-sorted by timestamp — not one
+  broad `workspace_id=`-only query, because Task activity also records
+  under the same `workspace_id` convention and would otherwise leak
+  out-of-scope Task entries into a Project's feed. Any later phase adding
+  another child-entity's activity to a parent feed should follow this
+  "narrow per-`entity_type` call, merge client-side" shape rather than
+  widening the `workspace_id` filter.
+
+### Reusable pattern: `RecordListCard` real bug fix (affects every section using it)
+
+`ProjectManagement.Widgets.RecordListCard`'s row delegate set a plain
+`height: rowContent.implicitHeight` binding on an `Item` inside a
+`ColumnLayout`. `ColumnLayout` sizes children from `Layout.preferredHeight`
+or `implicitHeight`, not the plain `height` property, so every row
+collapsed to height 0 and rows rendered stacked on top of each other
+(reported by the user as overlapping "Administrator" / "project.update" /
+timestamp text in the Activity feed). Fixed by changing the delegate to
+set `implicitHeight` instead of `height`, and anchoring `rowContent` to
+`parent.top` so its top margin actually applies. This widget is shared by
+`ProjectsActivitySection.qml`, `ProjectsRisksSection.qml`, and Register's
+`RegisterUrgentSection.qml` — the fix applies to all three automatically.
+**Any future phase (R4.3 or otherwise) adopting `RecordListCard` does not
+need to re-fix this**, but should be aware plain `height:` bindings on
+`Layout`-managed delegate items are the general trap to avoid.
+
+### Reusable pattern: client-side search-filter bar over a `RecordListCard`
+
+`ProjectsActivitySection.qml` now has an `App.Controls.SearchField` above
+its `RecordListCard`, filtering the already-loaded (≤50 entries) items
+client-side by `title` (the actor name) via a `_filteredItems` computed
+property — no new backend query, since the full page is already in memory
+and small. Shape, for reuse by any other section presenting a small bounded
+list (Activity, Risks, or a future R4.3 Task-detail list):
+
+```qml
+property string _searchQuery: ""
+readonly property var _filteredItems: {
+    const query = root._searchQuery.trim().toLowerCase()
+    const items = root.someModel.items || []
+    if (query.length === 0) return items
+    return items.filter(item => String(item.title || "").toLowerCase().includes(query))
+}
+// ...
+AppControls.SearchField {
+    placeholderText: "Search by name..."
+    onTextEdited: (text) => { root._searchQuery = text }
+}
+PMWidgets.RecordListCard { items: root._filteredItems /* ... */ }
+```
+
+This is deliberately **not** the same mechanism as §35's server-side
+multi-filter architecture (Site/Department/Manager/date-range on the main
+DataTable) — that one exists because the underlying dataset is paginated
+and server-authoritative, so filtering must happen in SQL. A detail-panel
+list fetched once and capped at a small limit should stay a simple
+client-side filter; only reach for a server-side filter object (§35's
+pattern) when the list is itself paginated or unbounded. R4.3 should pick
+whichever of the two matches what it's filtering, not default to one.
+
+### Testing added
+
+- `test_projects_workspace_presenter.py`: `activity_api.list_recent` mock
+  converted from a fixed `return_value` to a `side_effect` branching on
+  `entity_type`, matching the two-call query; new tests for actor
+  resolution (Employee-preferred) and field-diff formatting (id→name
+  resolution for site/department/manager).
+- Ad hoc QML-offscreen verification (not committed as a permanent test):
+  confirmed `RecordListCard.implicitHeight` grows by a real per-row amount
+  (~69px/row) rather than collapsing to ~0 per added row, and that
+  `ProjectsActivitySection.qml` loads with no binding errors and its
+  `_filteredItems` correctly narrows/excludes by search text.
+
+**R4.2 FOLLOW-UP (ACTIVITY TRACKING + LIST-SEARCH PATTERN): COMPLETE.**
+Not committed.

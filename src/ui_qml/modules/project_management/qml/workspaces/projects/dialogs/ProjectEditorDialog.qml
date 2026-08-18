@@ -10,12 +10,15 @@ AppWidgets.EntityDialog {
     property string modeTitle: "Create Project"
     property var statusOptions: []
     property var siteOptions: []
+    property var departmentOptions: []
     property var projectData: ({})
     property var workspaceController: null
     property string projectCode: ""
     readonly property var workflowStatusOptions: (root.statusOptions || []).filter(function(option) {
         return String(option.value || "").toLowerCase() !== "all"
     })
+    readonly property var currencyOptions: root.workspaceController ? (root.workspaceController.currencyOptions || []) : []
+    readonly property string defaultCurrencyCode: root.workspaceController ? String(root.workspaceController.defaultCurrencyCode || "XAF") : "XAF"
 
     signal submitted(var payload)
 
@@ -25,7 +28,7 @@ AppWidgets.EntityDialog {
         : "Update the project profile, schedule dates, or status."
     primaryText:  root.modeTitle === "Create Project" ? "Create Project" : "Save Changes"
     primaryIcon:  root.modeTitle === "Create Project" ? "add" : "save"
-    width: 560
+    width: 680
 
     onOpened:   root.populateFromProject()
     onAccepted: root.submitDialog()
@@ -50,35 +53,55 @@ AppWidgets.EntityDialog {
         return 0
     }
 
+    function currencyIndexForValue(currencyValue) {
+        const wanted = String(currencyValue || "").length > 0 ? String(currencyValue) : root.defaultCurrencyCode
+        const list = root.currencyOptions || []
+        for (let index = 0; index < list.length; index += 1) {
+            if (String(list[index].value || "") === wanted) {
+                return index
+            }
+        }
+        for (let index = 0; index < list.length; index += 1) {
+            if (String(list[index].value || "") === root.defaultCurrencyCode) {
+                return index
+            }
+        }
+        return 0
+    }
+
     function populateFromProject() {
         var state = root.projectData && root.projectData.state ? root.projectData.state : (root.projectData || {})
         root.projectCode = String(state.projectCode || "")
         nameField.text = String(state.name || "")
         clientNameField.text = String(state.clientName || "")
         clientContactField.text = String(state.clientContact || "")
-        currencyField.text = String(state.financialCurrencyCode || "")
+        currencyCombo.currentIndex = root.currencyIndexForValue(state.financialCurrencyCode || "")
         startDateField.text = String(state.startDate || "")
         endDateField.text = String(state.endDate || "")
         descriptionField.text = String(state.description || "")
         statusCombo.currentIndex = root.statusIndexForValue(state.status || "PLANNED")
         siteCombo.currentIndex = root.optionIndexForValue(root.siteOptions, state.siteId || "")
+        departmentCombo.currentIndex = root.optionIndexForValue(root.departmentOptions, state.departmentId || "")
         root.errorMessage = ""
     }
 
     function buildPayload() {
         var statusOption = root.workflowStatusOptions[statusCombo.currentIndex] || { "value": "PLANNED" }
         var siteOption = root.siteOptions[siteCombo.currentIndex] || { "value": "" }
+        var departmentOption = root.departmentOptions[departmentCombo.currentIndex] || { "value": "" }
+        var currencyOption = root.currencyOptions[currencyCombo.currentIndex] || { "value": root.defaultCurrencyCode }
         return {
             "name": nameField.text,
             "projectCode": root.projectCode,
             "clientName": clientNameField.text,
             "clientContact": clientContactField.text,
-            "financialCurrencyCode": currencyField.text,
+            "financialCurrencyCode": currencyOption.value || root.defaultCurrencyCode,
             "startDate": startDateField.text,
             "endDate": endDateField.text,
             "description": descriptionField.text,
             "status": statusOption.value || "PLANNED",
-            "siteId": String(siteOption.value || "")
+            "siteId": String(siteOption.value || ""),
+            "departmentId": String(departmentOption.value || "")
         }
     }
 
@@ -96,7 +119,10 @@ AppWidgets.EntityDialog {
     GridLayout {
         id: projectFormGrid
         Layout.fillWidth: true
-        columns: root.width > 520 ? 2 : 1
+        // Landscape-first: at the dialog's own (clamped) width, prefer 3
+        // columns over letting fields stack into extra rows, so adding a
+        // field grows the dialog wider rather than taller.
+        columns: root.width > 640 ? 3 : root.width > 420 ? 2 : 1
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
@@ -141,6 +167,12 @@ AppWidgets.EntityDialog {
 
         AppWidgets.FormField {
             Layout.fillWidth: true
+            label: "Department"
+            AppControls.ComboBox { id: departmentCombo; Layout.fillWidth: true; model: root.departmentOptions; textRole: "label" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
             label: "Client"
             AppControls.TextField { id: clientNameField; Layout.fillWidth: true; placeholderText: "Contoso Manufacturing" }
         }
@@ -155,7 +187,7 @@ AppWidgets.EntityDialog {
             Layout.fillWidth: true
             visible: root.modeTitle === "Create Project"
             label: "Financial currency"
-            AppControls.TextField { id: currencyField; Layout.fillWidth: true; placeholderText: "EUR" }
+            AppControls.ComboBox { id: currencyCombo; Layout.fillWidth: true; model: root.currencyOptions; textRole: "label" }
         }
 
         AppWidgets.FormField {

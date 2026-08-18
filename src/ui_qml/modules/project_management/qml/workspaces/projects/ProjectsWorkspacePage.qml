@@ -66,8 +66,9 @@ AppLayouts.WorkspaceFrame {
         if (!item) return []
         const s = item.state || {}
         return [
-            { "label": "Client", "value": String(s.clientName || "") },
+            { "label": "Client", "value": String(s.clientLabel || "") },
             { "label": "Site", "value": String(s.siteLabel || "") },
+            { "label": "Department", "value": String(s.departmentLabel || "") },
             { "label": "Start", "value": String(s.startDateLabel || "") },
             { "label": "Finish", "value": String(s.endDateLabel || "") },
             { "label": "Approved Budget", "value": String(s.approvedBudgetLabel || "") },
@@ -108,6 +109,7 @@ AppLayouts.WorkspaceFrame {
             Dialogs.ProjectsDialogHost {
                 statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
                 siteOptions: root.workspaceController ? (root.workspaceController.siteOptions || []) : []
+                departmentOptions: root.workspaceController ? (root.workspaceController.departmentOptions || []) : []
                 workspaceController: root.workspaceController
 
                 onDeleteRequested: function(projectId) {
@@ -248,7 +250,6 @@ AppLayouts.WorkspaceFrame {
                 id: filterPopup
                 workspaceController: root.workspaceController
                 state: state
-                anchorItem: listPage.filterButtonItem
             }
 
             AppWidgets.BulkChangePropertyPopup {
@@ -370,6 +371,8 @@ AppLayouts.WorkspaceFrame {
                     projectTasksTableModel: root.workspaceController ? root.workspaceController.projectTasksTableModel : null
                     projectResourcesModel: root.projectResourcesModel
                     projectResourcesTableModel: root.workspaceController ? root.workspaceController.projectResourcesTableModel : null
+                    projectRisksModel: root.workspaceController ? root.workspaceController.projectRisks : ({})
+                    projectActivityModel: root.workspaceController ? root.workspaceController.projectActivity : ({})
                     assignableResourceOptions: root.workspaceController ? (root.workspaceController.assignableResourceOptions || []) : []
                     selectedProjectResourceId: root.workspaceController ? root.workspaceController.selectedProjectResourceId : ""
                     onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedProjectModel)

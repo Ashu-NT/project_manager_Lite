@@ -38,12 +38,29 @@ def test_project_management_workspace_catalog_exposes_typed_projects_controller(
     ]
 
     def query_catalog_page(
-        *, search_text, status, page, page_size, sort_key, sort_direction
+        *,
+        search_text,
+        status,
+        page,
+        page_size,
+        sort_key,
+        sort_direction,
+        project_name=None,
+        client_name=None,
+        site_id=None,
+        department_id=None,
+        manager_user_id=None,
+        start_date_from=None,
+        start_date_to=None,
+        end_date_from=None,
+        end_date_to=None,
     ):
         filtered = [
             project
             for project in projects
             if (status is None or project.status == status)
+            and (not project_name or project_name.casefold() in project.name.casefold())
+            and (not client_name or client_name.casefold() in (project.client_name or "").casefold())
             and (
                 not search_text
                 or search_text.casefold()
@@ -65,6 +82,7 @@ def test_project_management_workspace_catalog_exposes_typed_projects_controller(
                     site_label="",
                     financial_currency_code=("EUR" if project.id == "proj-1" else ""),
                     approved_budget=(Decimal("250000") if project.id == "proj-1" else None),
+                    client_label=project.client_name or "",
                 )
                 for project in filtered[offset : offset + page_size]
             ),
@@ -96,7 +114,10 @@ def test_project_management_workspace_catalog_exposes_typed_projects_controller(
     assert controller.overview["title"] == "Projects"
     assert controller.overview["metrics"][0]["value"] == "2"
     assert controller.projects["items"][0]["title"] == "Plant Upgrade"
-    assert controller.selectedProject["title"] == "Plant Upgrade"
+    # Selection is explicit-only (R4.2 fix): nothing is auto-selected on load,
+    # and selectedProject (full detail) only populates via activateProject(),
+    # which this fake project_service does not stub (no get_project).
+    assert controller.selectedProject["title"] == "No project selected"
 
     controller.setStatusFilter("ON_HOLD")
 

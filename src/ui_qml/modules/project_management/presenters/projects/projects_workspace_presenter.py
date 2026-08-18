@@ -4,6 +4,10 @@ from decimal import Decimal
 from typing import Any
 
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
+from src.core.platform.api.desktop.master_data.department.department import PlatformDepartmentDesktopApi
+from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
+from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
+from src.core.platform.api.desktop.history.activity.activity import PlatformActivityDesktopApi
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementProjectsDesktopApi,
     build_project_management_projects_desktop_api,
@@ -21,8 +25,6 @@ from src.ui_qml.modules.project_management.view_models.projects import (
 )
 
 from .activity_builder import build_project_activity_state
-from .documents_builder import build_project_documents_state
-from .financials_builder import build_project_financials_state
 from .import_handler import execute_import, preview_import
 from .project_command_handler import (
     create_project,
@@ -49,11 +51,19 @@ class ProjectProjectsWorkspacePresenter:
         tasks_desktop_api: ProjectManagementTasksDesktopApi | None = None,
         register_desktop_api: ProjectManagementRegisterDesktopApi | None = None,
         site_api: PlatformSiteDesktopApi | None = None,
+        department_api: PlatformDepartmentDesktopApi | None = None,
+        user_api: PlatformUserDesktopApi | None = None,
+        employee_api: PlatformEmployeeDesktopApi | None = None,
+        activity_api: PlatformActivityDesktopApi | None = None,
     ) -> None:
         self._desktop_api = desktop_api or build_project_management_projects_desktop_api()
         self._tasks_desktop_api = tasks_desktop_api or build_project_management_tasks_desktop_api()
         self._register_desktop_api = register_desktop_api or build_project_management_register_desktop_api()
         self._site_api = site_api
+        self._department_api = department_api
+        self._user_api = user_api
+        self._employee_api = employee_api
+        self._activity_api = activity_api
         self._import_sessions: dict[str, object] = {}
 
     def build_workspace_state(
@@ -61,6 +71,15 @@ class ProjectProjectsWorkspacePresenter:
         *,
         search_text: str = "",
         status_filter: str = "all",
+        project_name_filter: str = "",
+        client_name_filter: str = "",
+        site_filter: str = "all",
+        department_filter: str = "all",
+        manager_filter: str = "all",
+        start_date_from: str = "",
+        start_date_to: str = "",
+        end_date_from: str = "",
+        end_date_to: str = "",
         selected_project_id: str | None = None,
         page: int = 1,
         page_size: int = 25,
@@ -71,6 +90,15 @@ class ProjectProjectsWorkspacePresenter:
             self._desktop_api,
             search_text=search_text,
             status_filter=status_filter,
+            project_name_filter=project_name_filter,
+            client_name_filter=client_name_filter,
+            site_filter=site_filter,
+            department_filter=department_filter,
+            manager_filter=manager_filter,
+            start_date_from=start_date_from,
+            start_date_to=start_date_to,
+            end_date_from=end_date_from,
+            end_date_to=end_date_to,
             selected_project_id=selected_project_id,
             page=page,
             page_size=page_size,
@@ -83,6 +111,15 @@ class ProjectProjectsWorkspacePresenter:
         *,
         search_text: str = "",
         status_filter: str = "all",
+        project_name_filter: str = "",
+        client_name_filter: str = "",
+        site_filter: str = "all",
+        department_filter: str = "all",
+        manager_filter: str = "all",
+        start_date_from: str = "",
+        start_date_to: str = "",
+        end_date_from: str = "",
+        end_date_to: str = "",
         sort_key: str = "title",
         sort_direction: str = "asc",
         batch_size: int = 500,
@@ -93,6 +130,15 @@ class ProjectProjectsWorkspacePresenter:
             state = self.build_workspace_state(
                 search_text=search_text,
                 status_filter=status_filter,
+                project_name_filter=project_name_filter,
+                client_name_filter=client_name_filter,
+                site_filter=site_filter,
+                department_filter=department_filter,
+                manager_filter=manager_filter,
+                start_date_from=start_date_from,
+                start_date_to=start_date_to,
+                end_date_from=end_date_from,
+                end_date_to=end_date_to,
                 selected_project_id=None,
                 page=page,
                 page_size=batch_size,
@@ -151,17 +197,18 @@ class ProjectProjectsWorkspacePresenter:
     def remove_project_resource(self, *, project_resource_id: str) -> None:
         remove_project_resource(self._desktop_api, project_resource_id=project_resource_id)
 
-    def build_project_financials_state(self, *, project_id: str) -> ProjectCatalogWorkspaceViewModel:
-        return build_project_financials_state(project_id=project_id)
-
     def build_project_risks_state(self, *, project_id: str) -> ProjectCatalogWorkspaceViewModel:
         return build_project_risks_state(self._register_desktop_api, project_id=project_id)
 
-    def build_project_documents_state(self, *, project_id: str) -> ProjectCatalogWorkspaceViewModel:
-        return build_project_documents_state(project_id=project_id)
-
     def build_project_activity_state(self, *, project_id: str) -> ProjectCatalogWorkspaceViewModel:
-        return build_project_activity_state(project_id=project_id)
+        return build_project_activity_state(
+            self._activity_api,
+            project_id=project_id,
+            site_api=self._site_api,
+            department_api=self._department_api,
+            user_api=self._user_api,
+            employee_api=self._employee_api,
+        )
 
     def suggest_code(self, payload: dict[str, Any]) -> str:
         return suggest_code(self._desktop_api, payload)
@@ -181,6 +228,26 @@ class ProjectProjectsWorkspacePresenter:
                 ),
             }
             for row in result.data
+        ]
+
+    def build_department_options(self) -> list[dict[str, str]]:
+        if self._department_api is None:
+            return []
+        result = self._department_api.list_departments(active_only=True)
+        if not result.ok or result.data is None:
+            return []
+        return [{"value": row.id, "label": row.name} for row in result.data]
+
+    def build_manager_options(self) -> list[dict[str, str]]:
+        if self._user_api is None:
+            return []
+        result = self._user_api.list_users()
+        if not result.ok or result.data is None:
+            return []
+        return [
+            {"value": row.id, "label": row.display_name or row.username}
+            for row in result.data
+            if row.is_active
         ]
 
     def create_project(self, payload: dict[str, Any]) -> None:

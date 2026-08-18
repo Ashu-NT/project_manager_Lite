@@ -17,6 +17,7 @@ class ProjectCreateCommand:
     end_date: date | None = None
     organization_id: str | None = None
     site_id: str | None = None
+    department_id: str | None = None
     client_party_id: str | None = None
     manager_user_id: str | None = None
 
@@ -34,6 +35,7 @@ class ProjectUpdateCommand:
     end_date: date | None = None
     organization_id: str | None = None
     site_id: str | None = None
+    department_id: str | None = None
     client_party_id: str | None = None
     manager_user_id: str | None = None
     expected_version: int | None = None

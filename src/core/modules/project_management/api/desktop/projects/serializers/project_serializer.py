@@ -12,8 +12,10 @@ def serialize_project(
     project,
     *,
     site_lookup: Mapping[str, str] | None = None,
+    department_lookup: Mapping[str, str] | None = None,
     financial_currency_code: str = "",
     approved_budget: Decimal | None = None,
+    client_label: str = "",
 ) -> ProjectDesktopDto:
     resolved_currency = str(financial_currency_code or "").strip().upper()
     normalized_site_id = str(getattr(project, "site_id", "") or "").strip() or None
@@ -22,6 +24,17 @@ def serialize_project(
         if normalized_site_id
         else ""
     )
+    normalized_department_id = str(getattr(project, "department_id", "") or "").strip() or None
+    resolved_department_label = (
+        (department_lookup or {}).get(normalized_department_id or "", "")
+        if normalized_department_id
+        else ""
+    )
+    # client_label is the authoritative DISPLAY value (resolved party name when
+    # client_party_id is linked, otherwise the free-text client_name); it is
+    # kept separate from client_name, which stays the raw editable field so the
+    # edit dialog never round-trips a resolved party name into free text.
+    resolved_client_label = str(client_label or "").strip() or str(project.client_name or "")
     return ProjectDesktopDto(
         id=project.id,
         name=project.name,
@@ -41,9 +54,12 @@ def serialize_project(
         organization_id=getattr(project, "organization_id", None),
         site_id=normalized_site_id,
         site_label=resolved_site_label,
+        department_id=normalized_department_id,
+        department_label=resolved_department_label,
         client_party_id=getattr(project, "client_party_id", None),
         manager_user_id=getattr(project, "manager_user_id", None),
         version=project.version,
+        client_label=resolved_client_label,
     )
 
 

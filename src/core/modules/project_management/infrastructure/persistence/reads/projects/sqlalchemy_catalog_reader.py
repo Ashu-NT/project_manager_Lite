@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
@@ -25,6 +27,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.financia
     ProjectFinancialProfileORM,
 )
 from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
+from src.core.platform.infrastructure.persistence.orm.master_data.party.party import PartyORM
 
 
 def _contains_pattern(value: str) -> str:
@@ -44,6 +47,15 @@ class SqlAlchemyProjectCatalogReader:
         allowed_project_ids: tuple[str, ...] | None,
         search_text: str,
         status: ProjectStatus | None,
+        project_name: str | None = None,
+        client_name: str | None = None,
+        site_id: str | None = None,
+        department_id: str | None = None,
+        manager_user_id: str | None = None,
+        start_date_from: date | None = None,
+        start_date_to: date | None = None,
+        end_date_from: date | None = None,
+        end_date_to: date | None = None,
         page: int,
         page_size: int,
         sort: ReadSort,
@@ -75,6 +87,39 @@ class SqlAlchemyProjectCatalogReader:
         filtered = list(scope_filters)
         if status is not None:
             filtered.append(ProjectORM.status == status)
+        if site_id:
+            filtered.append(ProjectORM.site_id == site_id)
+        if department_id:
+            filtered.append(ProjectORM.department_id == department_id)
+        if manager_user_id:
+            filtered.append(ProjectORM.manager_user_id == manager_user_id)
+        normalized_project_name = str(project_name or "").strip()
+        if normalized_project_name:
+            filtered.append(
+                func.lower(ProjectORM.name).like(
+                    _contains_pattern(normalized_project_name), escape="\\"
+                )
+            )
+        normalized_client_name = str(client_name or "").strip()
+        if normalized_client_name:
+            # Filters the raw stored `client_name` free-text field -- the
+            # resolved-via-party `client_label` used for display would need
+            # the PartyORM outerjoin also present in the bare filtered_total
+            # count query below, which it deliberately is not (to avoid an
+            # unjoined-table cross-join inflating that count).
+            filtered.append(
+                func.lower(func.coalesce(ProjectORM.client_name, "")).like(
+                    _contains_pattern(normalized_client_name), escape="\\"
+                )
+            )
+        if start_date_from is not None:
+            filtered.append(ProjectORM.start_date >= start_date_from)
+        if start_date_to is not None:
+            filtered.append(ProjectORM.start_date <= start_date_to)
+        if end_date_from is not None:
+            filtered.append(ProjectORM.end_date >= end_date_from)
+        if end_date_to is not None:
+            filtered.append(ProjectORM.end_date <= end_date_to)
         normalized_search = str(search_text or "").strip()
         if normalized_search:
             pattern = _contains_pattern(normalized_search)
@@ -91,7 +136,7 @@ class SqlAlchemyProjectCatalogReader:
             self._session.scalar(select(func.count(ProjectORM.id)).where(*filtered)) or 0
         )
         approved_budget = (
-            select(func.coalesce(func.sum(BudgetLineORM.amount), 0))
+            select(func.sum(BudgetLineORM.amount))
             .join(
                 ProjectBudgetORM,
                 (ProjectBudgetORM.id == BudgetLineORM.budget_id)
@@ -108,12 +153,14 @@ class SqlAlchemyProjectCatalogReader:
             .correlate(ProjectORM)
             .scalar_subquery()
         )
+        resolved_client_name = func.coalesce(PartyORM.party_name, ProjectORM.client_name, "")
         rows_stmt = (
             select(
                 ProjectORM,
                 SiteORM.name,
                 ProjectFinancialProfileORM.currency_code,
                 approved_budget.label("approved_budget"),
+                resolved_client_name.label("client_label"),
             )
             .outerjoin(
                 SiteORM,
@@ -121,11 +168,20 @@ class SqlAlchemyProjectCatalogReader:
                 & (SiteORM.tenant_id == ProjectORM.tenant_id)
                 & (SiteORM.organization_id == ProjectORM.organization_id),
             )
-            .join(
+            # LEFT OUTER: a project without a finance profile must still appear in
+            # the page (filtered_total above is computed without this join at all,
+            # so an INNER join here would silently drop such rows while the total
+            # still counted them).
+            .outerjoin(
                 ProjectFinancialProfileORM,
                 (ProjectFinancialProfileORM.project_id == ProjectORM.id)
                 & (ProjectFinancialProfileORM.tenant_id == ProjectORM.tenant_id)
                 & (ProjectFinancialProfileORM.organization_id == ProjectORM.organization_id),
+            )
+            .outerjoin(
+                PartyORM,
+                (PartyORM.id == ProjectORM.client_party_id)
+                & (PartyORM.organization_id == ProjectORM.organization_id),
             )
             .where(*filtered)
         )
@@ -133,7 +189,7 @@ class SqlAlchemyProjectCatalogReader:
             "title": (func.lower(ProjectORM.name),),
             "projectCode": (func.lower(func.coalesce(ProjectORM.project_code, "")),),
             "statusLabel": (ProjectORM.status,),
-            "clientName": (func.lower(func.coalesce(ProjectORM.client_name, "")),),
+            "clientLabel": (func.lower(resolved_client_name),),
             "siteLabel": (func.lower(func.coalesce(SiteORM.name, "")),),
             "clientContact": (func.lower(func.coalesce(ProjectORM.client_contact, "")),),
             "startDateLabel": (ProjectORM.start_date,),
@@ -159,8 +215,9 @@ class SqlAlchemyProjectCatalogReader:
                     site_label=str(site_name or ""),
                     financial_currency_code=str(currency_code or ""),
                     approved_budget=approved_budget_value,
+                    client_label=str(client_label_value or ""),
                 )
-                for project_row, site_name, currency_code, approved_budget_value in rows
+                for project_row, site_name, currency_code, approved_budget_value, client_label_value in rows
             ),
             filtered_total=filtered_total,
             page=page,

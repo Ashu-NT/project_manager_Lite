@@ -84,7 +84,8 @@ Item {
                     required property var modelData
 
                     Layout.fillWidth: true
-                    height: rowContent.implicitHeight
+                    implicitHeight: rowContent.implicitHeight
+                        + rowContent.anchors.topMargin + rowContent.anchors.bottomMargin
 
                     readonly property bool isSelected: root.selectedItemId === String(rowDelegate.modelData.id || "")
                     readonly property string statusText: String(rowDelegate.modelData.statusLabel || "")
@@ -115,6 +116,7 @@ Item {
 
                     ColumnLayout {
                         id: rowContent
+                        anchors.top: parent.top
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.leftMargin: rowDelegate.isSelected

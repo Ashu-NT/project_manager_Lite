@@ -31,8 +31,6 @@ from src.ui_qml.modules.project_management.controllers.projects.project_selectio
 )
 from src.ui_qml.modules.project_management.controllers.projects.project_lazy_section_loader import (
     load_project_activity,
-    load_project_documents,
-    load_project_financials,
     load_project_resources,
     load_project_risks,
     load_project_tasks,
@@ -83,8 +81,6 @@ __all__ = [
     "export_projects",
     "load_assignable_resources",
     "load_project_activity",
-    "load_project_documents",
-    "load_project_financials",
     "load_project_resources",
     "load_project_risks",
     "load_project_tasks",

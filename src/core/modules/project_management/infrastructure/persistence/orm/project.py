@@ -57,6 +57,11 @@ class ProjectORM(Base):
         ForeignKey("sites.id", ondelete="SET NULL"),
         nullable=True,
     )
+    department_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        ForeignKey("departments.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     client_party_id: Mapped[Optional[str]] = mapped_column(
         String,
         ForeignKey("parties.id", ondelete="SET NULL"),

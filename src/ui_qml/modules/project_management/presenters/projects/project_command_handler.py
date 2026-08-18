@@ -48,6 +48,7 @@ def create_project(
         start_date=optional_date(payload, "startDate"),
         end_date=optional_date(payload, "endDate"),
         site_id=optional_text(payload, "siteId"),
+        department_id=optional_text(payload, "departmentId"),
     )
     desktop_api.create_project(command)
 
@@ -66,6 +67,7 @@ def update_project(
         start_date=optional_date(payload, "startDate"),
         end_date=optional_date(payload, "endDate"),
         site_id=optional_text(payload, "siteId"),
+        department_id=optional_text(payload, "departmentId"),
         expected_version=optional_int(payload, "expectedVersion"),
     )
     desktop_api.update_project(command)

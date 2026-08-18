@@ -62,6 +62,15 @@ class ProjectCatalogWorkspaceViewModel:
     overview: ProjectCatalogOverviewViewModel
     status_options: tuple[ProjectStatusOptionViewModel, ...] = field(default_factory=tuple)
     selected_status_filter: str = "all"
+    selected_project_name_filter: str = ""
+    selected_client_name_filter: str = ""
+    selected_site_filter: str = "all"
+    selected_department_filter: str = "all"
+    selected_manager_filter: str = "all"
+    start_date_from: str = ""
+    start_date_to: str = ""
+    end_date_from: str = ""
+    end_date_to: str = ""
     search_text: str = ""
     projects: tuple[ProjectRecordViewModel, ...] = field(default_factory=tuple)
     selected_project_id: str = ""
@@ -91,27 +100,11 @@ class ProjectCatalogWorkspaceViewModel:
         )
     )
 
-    project_financials: ProjectSectionCollectionViewModel = field(
-        default_factory=lambda: ProjectSectionCollectionViewModel(
-            title="Financials",
-            subtitle="Budget, cost, and financial tracking.",
-            empty_state="Open this section to load project financials.",
-        )
-    )
-
     project_risks: ProjectSectionCollectionViewModel = field(
         default_factory=lambda: ProjectSectionCollectionViewModel(
             title="Risks",
             subtitle="Risks and mitigation records.",
             empty_state="Open this section to load project risks.",
-        )
-    )
-
-    project_documents: ProjectSectionCollectionViewModel = field(
-        default_factory=lambda: ProjectSectionCollectionViewModel(
-            title="Documents",
-            subtitle="Project documents and references.",
-            empty_state="Open this section to load project documents.",
         )
     )
 

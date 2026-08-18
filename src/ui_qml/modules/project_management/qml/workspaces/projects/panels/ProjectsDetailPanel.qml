@@ -24,6 +24,12 @@ Item {
         "title": "Resources", "subtitle": "", "emptyState": "Open this section to load project resources.", "items": []
     })
     property var projectResourcesTableModel: null
+    property var projectRisksModel: ({
+        "title": "Risks", "subtitle": "", "emptyState": "Open this section to load project risks.", "items": []
+    })
+    property var projectActivityModel: ({
+        "title": "Activity", "subtitle": "", "emptyState": "Open this section to load project activity.", "items": []
+    })
     property var assignableResourceOptions: []
     property string selectedProjectResourceId: ""
 
@@ -37,14 +43,14 @@ Item {
     function _secIdx(name) { return root._sections.indexOf(name) }
 
     function openSelectedProjectResourceEditDialog() {
-        const section = _sec3.item
+        const section = _secResources.item
         if (section) {
             section.openEditSelected()
         }
     }
 
     function confirmSelectedProjectResourceRemoval() {
-        const section = _sec3.item
+        const section = _secResources.item
         if (section) {
             section.confirmRemoveSelected()
         }
@@ -52,16 +58,11 @@ Item {
 
     readonly property int _activeSectionH: {
         const name = root._sections[root._idx] || ""
-        if (name === "Overview")        return _sec0.implicitHeight
-        if (name === "Schedule")        return _sec1.implicitHeight
-        if (name === "Tasks")           return _sec2.implicitHeight
-        if (name === "Resources")       return _sec3.implicitHeight
-        if (name === "Financials")      return _sec4.implicitHeight
-        if (name === "Risks")           return _sec5.implicitHeight
-        if (name === "Documents")       return _sec6.implicitHeight
-        if (name === "Activity")        return _sec7.implicitHeight
-        if (name === "Material Demand") return _sec8.implicitHeight
-        if (name === "Procurement")     return _sec9.implicitHeight
+        if (name === "Overview")   return _secOverview.implicitHeight
+        if (name === "Tasks")      return _secTasks.implicitHeight
+        if (name === "Resources")  return _secResources.implicitHeight
+        if (name === "Risks")      return _secRisks.implicitHeight
+        if (name === "Activity")   return _secActivity.implicitHeight
         return 0
     }
 
@@ -69,7 +70,7 @@ Item {
     height: implicitHeight
 
     AppWidgets.LazySectionLoader {
-        id: _sec0
+        id: _secOverview
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Overview")
@@ -83,22 +84,7 @@ Item {
     }
 
     AppWidgets.LazySectionLoader {
-        id: _sec1
-        anchors.left: parent.left
-        anchors.right: parent.right
-        active: root._idx === root._secIdx("Schedule")
-        loadingMessage: "Loading schedule..."
-        sourceComponent: Component {
-            ProjectsScheduleSection {
-                width: parent ? parent.width : 0
-                projectDetail: root.projectDetail
-                sectionErrors: root.sectionErrors
-            }
-        }
-    }
-
-    AppWidgets.LazySectionLoader {
-        id: _sec2
+        id: _secTasks
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Tasks")
@@ -115,7 +101,7 @@ Item {
     }
 
     AppWidgets.LazySectionLoader {
-        id: _sec3
+        id: _secResources
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Resources")
@@ -136,22 +122,7 @@ Item {
     }
 
     AppWidgets.LazySectionLoader {
-        id: _sec4
-        anchors.left: parent.left
-        anchors.right: parent.right
-        active: root._idx === root._secIdx("Financials")
-        loadingMessage: "Loading financials..."
-        sourceComponent: Component {
-            ProjectsFinancialsSection {
-                width: parent ? parent.width : 0
-                projectDetail: root.projectDetail
-                sectionErrors: root.sectionErrors
-            }
-        }
-    }
-
-    AppWidgets.LazySectionLoader {
-        id: _sec5
+        id: _secRisks
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Risks")
@@ -160,26 +131,13 @@ Item {
             ProjectsRisksSection {
                 width: parent ? parent.width : 0
                 sectionErrors: root.sectionErrors
+                projectRisksModel: root.projectRisksModel
             }
         }
     }
 
     AppWidgets.LazySectionLoader {
-        id: _sec6
-        anchors.left: parent.left
-        anchors.right: parent.right
-        active: root._idx === root._secIdx("Documents")
-        loadingMessage: "Loading documents..."
-        sourceComponent: Component {
-            ProjectsDocumentsSection {
-                width: parent ? parent.width : 0
-                sectionErrors: root.sectionErrors
-            }
-        }
-    }
-
-    AppWidgets.LazySectionLoader {
-        id: _sec7
+        id: _secActivity
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === root._secIdx("Activity")
@@ -187,38 +145,8 @@ Item {
         sourceComponent: Component {
             ProjectsActivitySection {
                 width: parent ? parent.width : 0
-                projectDetail: root.projectDetail
                 sectionErrors: root.sectionErrors
-            }
-        }
-    }
-
-    AppWidgets.LazySectionLoader {
-        id: _sec8
-        anchors.left: parent.left
-        anchors.right: parent.right
-        active: root._idx === root._secIdx("Material Demand")
-        loadingMessage: "Loading..."
-        sourceComponent: Component {
-            ProjectsMaterialDemandSection {
-                width: parent ? parent.width : 0
-                projectDetail: root.projectDetail
-                sectionErrors: root.sectionErrors
-            }
-        }
-    }
-
-    AppWidgets.LazySectionLoader {
-        id: _sec9
-        anchors.left: parent.left
-        anchors.right: parent.right
-        active: root._idx === root._secIdx("Procurement")
-        loadingMessage: "Loading..."
-        sourceComponent: Component {
-            ProjectsProcurementSection {
-                width: parent ? parent.width : 0
-                projectDetail: root.projectDetail
-                sectionErrors: root.sectionErrors
+                projectActivityModel: root.projectActivityModel
             }
         }
     }

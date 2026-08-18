@@ -40,6 +40,54 @@ from src.core.platform.domain.security.auth.session import UserSessionContext
 
 logger = logging.getLogger(__name__)
 
+# Fields diffed for the project.update activity entry -- kept in the same
+# order they're shown to the user, not dataclass declaration order.
+_PROJECT_UPDATE_DIFF_FIELDS: tuple[str, ...] = (
+    "name",
+    "code",
+    "status",
+    "description",
+    "start_date",
+    "end_date",
+    "client_name",
+    "client_contact",
+    "site_id",
+    "department_id",
+    "client_party_id",
+    "manager_user_id",
+)
+
+
+def _format_activity_diff_value(value: object) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, ProjectStatus):
+        return value.value
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
+def _diff_project_fields(
+    before: Project, after: Project, fields: tuple[str, ...] = _PROJECT_UPDATE_DIFF_FIELDS
+) -> dict[str, dict[str, str | None]]:
+    """Field-level before/after diff for the project activity log.
+
+    Only fields that actually changed are included, so a status-only update
+    doesn't log a wall of unchanged fields alongside it.
+    """
+    changes: dict[str, dict[str, str | None]] = {}
+    for field_name in fields:
+        old_value = getattr(before, field_name, None)
+        new_value = getattr(after, field_name, None)
+        if old_value == new_value:
+            continue
+        changes[field_name] = {
+            "from": _format_activity_diff_value(old_value),
+            "to": _format_activity_diff_value(new_value),
+        }
+    return changes
+
 
 class ProjectLifecycleMixin:
     _session: Session
@@ -138,6 +186,7 @@ class ProjectLifecycleMixin:
         end_date: date | None = None,
         organization_id: str | None = None,
         site_id: str | None = None,
+        department_id: str | None = None,
         client_party_id: str | None = None,
         manager_user_id: str | None = None,
         code: str = "",
@@ -162,6 +211,7 @@ class ProjectLifecycleMixin:
             end_date=end_date,
             organization_id=resolved_organization_id,
             site_id=site_id,
+            department_id=department_id,
             client_party_id=client_party_id,
             manager_user_id=manager_user_id,
         )
@@ -196,6 +246,7 @@ class ProjectLifecycleMixin:
                 entity_id=project.id,
                 module="project_management",
                 workspace_id=project.id,
+                message=f"Created project {project.name}",
                 details={"name": project.name},
             )
             logger.info("Created project %s - %s", project.id, project.name)
@@ -224,6 +275,7 @@ class ProjectLifecycleMixin:
             operation_label="set project status",
         )
 
+        old_status = project.status
         project.status = status
         try:
             self._project_repo.update(project)
@@ -235,7 +287,20 @@ class ProjectLifecycleMixin:
                 entity_id=project.id,
                 module="project_management",
                 workspace_id=project.id,
-                details={"status": project.status.value},
+                message=(
+                    f"Changed project status from "
+                    f"{old_status.value.replace('_', ' ').title()} to "
+                    f"{project.status.value.replace('_', ' ').title()}"
+                ),
+                details={
+                    "status": project.status.value,
+                    "changes": {
+                        "status": {
+                            "from": old_status.value,
+                            "to": project.status.value,
+                        }
+                    },
+                },
             )
         except Exception:
             self._session.rollback()
@@ -273,6 +338,7 @@ class ProjectLifecycleMixin:
         client_contact: str | None = None,
         organization_id: str | None = None,
         site_id: str | None = None,
+        department_id: str | None = None,
         client_party_id: str | None = None,
         manager_user_id: str | None = None,
         code: str | None = None,
@@ -292,6 +358,7 @@ class ProjectLifecycleMixin:
                 "Project changed since you opened it. Refresh and try again.",
                 code="STALE_WRITE",
             )
+        original_project = project
         resolved_organization_id = (
             self._resolve_project_organization_id(
                 organization_id,
@@ -311,6 +378,7 @@ class ProjectLifecycleMixin:
             client_contact=project.client_contact if client_contact is None else client_contact,
             organization_id=resolved_organization_id,
             site_id=project.site_id if site_id is None else site_id,
+            department_id=project.department_id if department_id is None else department_id,
             client_party_id=project.client_party_id if client_party_id is None else client_party_id,
             manager_user_id=project.manager_user_id if manager_user_id is None else manager_user_id,
         )
@@ -339,7 +407,12 @@ class ProjectLifecycleMixin:
                 entity_id=project.id,
                 module="project_management",
                 workspace_id=project.id,
-                details={"name": project.name, "status": project.status.value},
+                message=f"Updated project {project.name}",
+                details={
+                    "name": project.name,
+                    "status": project.status.value,
+                    "changes": _diff_project_fields(original_project, project),
+                },
             )
         except IntegrityError as exc:
             self._session.rollback()
@@ -425,6 +498,7 @@ class ProjectLifecycleMixin:
                 entity_id=project.id,
                 module="project_management",
                 workspace_id=project.id,
+                message=f"Deleted project {project.name}",
                 details={"name": project.name},
             )
         except Exception:

@@ -7,6 +7,7 @@ Item {
 
     property var statusOptions: []
     property var siteOptions: []
+    property var departmentOptions: []
     property var workspaceController: null
     property var editTarget: ({})
     property var statusTarget: ({})
@@ -72,6 +73,7 @@ Item {
         id: editorDialog
         statusOptions: root.statusOptions
         siteOptions: root.siteOptions
+        departmentOptions: root.departmentOptions
         workspaceController: root.workspaceController
         busy: root.workspaceController ? root.workspaceController.isBusy : false
 

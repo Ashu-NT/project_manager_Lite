@@ -21,11 +21,77 @@ class ProjectStateSettersMixin:
         self._site_options = site_options
         self.siteOptionsChanged.emit()
 
+    def _set_manager_options(self, manager_options: list[dict[str, str]]) -> None:
+        if manager_options == self._manager_options:
+            return
+        self._manager_options = manager_options
+        self.managerOptionsChanged.emit()
+
+    def _set_department_options(self, department_options: list[dict[str, str]]) -> None:
+        if department_options == self._department_options:
+            return
+        self._department_options = department_options
+        self.departmentOptionsChanged.emit()
+
     def _set_selected_status_filter(self, selected_status_filter: str) -> None:
         if selected_status_filter == self._selected_status_filter:
             return
         self._selected_status_filter = selected_status_filter
         self.selectedStatusFilterChanged.emit()
+
+    def _set_project_name_filter(self, value: str) -> None:
+        if value == self._project_name_filter:
+            return
+        self._project_name_filter = value
+        self.projectNameFilterChanged.emit()
+
+    def _set_client_name_filter(self, value: str) -> None:
+        if value == self._client_name_filter:
+            return
+        self._client_name_filter = value
+        self.clientNameFilterChanged.emit()
+
+    def _set_selected_site_filter(self, value: str) -> None:
+        if value == self._selected_site_filter:
+            return
+        self._selected_site_filter = value
+        self.selectedSiteFilterChanged.emit()
+
+    def _set_selected_department_filter(self, value: str) -> None:
+        if value == self._selected_department_filter:
+            return
+        self._selected_department_filter = value
+        self.selectedDepartmentFilterChanged.emit()
+
+    def _set_selected_manager_filter(self, value: str) -> None:
+        if value == self._selected_manager_filter:
+            return
+        self._selected_manager_filter = value
+        self.selectedManagerFilterChanged.emit()
+
+    def _set_start_date_from(self, value: str) -> None:
+        if value == self._start_date_from:
+            return
+        self._start_date_from = value
+        self.startDateFromChanged.emit()
+
+    def _set_start_date_to(self, value: str) -> None:
+        if value == self._start_date_to:
+            return
+        self._start_date_to = value
+        self.startDateToChanged.emit()
+
+    def _set_end_date_from(self, value: str) -> None:
+        if value == self._end_date_from:
+            return
+        self._end_date_from = value
+        self.endDateFromChanged.emit()
+
+    def _set_end_date_to(self, value: str) -> None:
+        if value == self._end_date_to:
+            return
+        self._end_date_to = value
+        self.endDateToChanged.emit()
 
     def _set_search_text(self, search_text: str) -> None:
         if search_text == self._search_text:
@@ -106,23 +172,11 @@ class ProjectStateSettersMixin:
         self._table_models.project_resources.set_rows(value.get("items", []))
         self.projectResourcesChanged.emit()
 
-    def _set_project_financials(self, value: dict[str, object]) -> None:
-        if value == self._project_financials:
-            return
-        self._project_financials = value
-        self.projectFinancialsChanged.emit()
-
     def _set_project_risks(self, value: dict[str, object]) -> None:
         if value == self._project_risks:
             return
         self._project_risks = value
         self.projectRisksChanged.emit()
-
-    def _set_project_documents(self, value: dict[str, object]) -> None:
-        if value == self._project_documents:
-            return
-        self._project_documents = value
-        self.projectDocumentsChanged.emit()
 
     def _set_project_activity(self, value: dict[str, object]) -> None:
         if value == self._project_activity:

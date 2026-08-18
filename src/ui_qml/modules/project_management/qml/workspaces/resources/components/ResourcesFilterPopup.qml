@@ -4,89 +4,104 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
-import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
-AppWidgets.AnchoredPopup {
+AppControls.CenteredDialog {
     id: root
 
     property var workspaceController: null
     property var state: null
-    width: 280
-    padding: Theme.AppTheme.marginMd
+
+    // Draft selections, staged until Apply commits them to the controller.
+    property string _draftActive: "all"
+    property string _draftCategory: "all"
+
+    title: "Filter Resources"
+    width: 340
+    padding: 0
+    modal: true
+    focus: true
     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
 
-    background: Rectangle {
-        radius: Theme.AppTheme.radiusLg
-        color: Theme.AppTheme.surfaceRaised
-        border.color: Theme.AppTheme.divider
-        border.width: 1
+    onAboutToShow: {
+        root._draftActive = root.workspaceController ? root.workspaceController.selectedActiveFilter : "all"
+        root._draftCategory = root.workspaceController ? root.workspaceController.selectedCategoryFilter : "all"
     }
 
     contentItem: ColumnLayout {
-        spacing: Theme.AppTheme.spacingSm
+        spacing: Theme.AppTheme.spacingMd
 
-        AppControls.Label {
-            text: "Active Status"
-            font.bold: true
-            font.pixelSize: Theme.AppTheme.captionSize
-            font.family: Theme.AppTheme.fontFamily
-            color: Theme.AppTheme.textMuted
-        }
-        AppControls.ComboBox {
+        Item { Layout.preferredHeight: Theme.AppTheme.spacingXs }
+
+        ColumnLayout {
             Layout.fillWidth: true
-            model: [
-                { "label": "All",      "value": "all"      },
-                { "label": "Active",   "value": "active"   },
-                { "label": "Inactive", "value": "inactive" }
-            ]
-            textRole: "label"
-            enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-            currentIndex: {
-                const v = root.workspaceController
-                    ? root.workspaceController.selectedActiveFilter : "all"
-                return v === "active" ? 1 : v === "inactive" ? 2 : 0
+            Layout.leftMargin: Theme.AppTheme.dialogPadding
+            Layout.rightMargin: Theme.AppTheme.dialogPadding
+            spacing: Theme.AppTheme.spacingSm
+
+            AppControls.Label {
+                text: "Active Status"
+                font.bold: true
+                font.pixelSize: Theme.AppTheme.captionSize
+                font.family: Theme.AppTheme.fontFamily
+                color: Theme.AppTheme.textMuted
             }
-            onActivated: function(index) {
-                const vals = ["all", "active", "inactive"]
-                if (root.workspaceController !== null)
-                    root.workspaceController.setActiveFilter(vals[index] || "all")
+            AppControls.ComboBox {
+                Layout.fillWidth: true
+                model: [
+                    { "label": "All",      "value": "all"      },
+                    { "label": "Active",   "value": "active"   },
+                    { "label": "Inactive", "value": "inactive" }
+                ]
+                textRole: "label"
+                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                currentIndex: root._draftActive === "active" ? 1 : root._draftActive === "inactive" ? 2 : 0
+                onActivated: function(index) {
+                    const vals = ["all", "active", "inactive"]
+                    root._draftActive = vals[index] || "all"
+                }
+            }
+
+            AppControls.Label {
+                text: "Category"
+                font.bold: true
+                font.pixelSize: Theme.AppTheme.captionSize
+                font.family: Theme.AppTheme.fontFamily
+                color: Theme.AppTheme.textMuted
+            }
+            AppControls.ComboBox {
+                Layout.fillWidth: true
+                model: root.workspaceController ? (root.workspaceController.categoryOptions || []) : []
+                textRole: "label"
+                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                currentIndex: root.state
+                    ? root.state.categoryIndexForValue(root._draftCategory)
+                    : 0
+                onActivated: function(index) {
+                    const opt = root.workspaceController
+                        ? (root.workspaceController.categoryOptions || [])[index]
+                        : null
+                    root._draftCategory = String((opt && opt.value) || "all")
+                }
             }
         }
 
-        AppControls.Label {
-            text: "Category"
-            font.bold: true
-            font.pixelSize: Theme.AppTheme.captionSize
-            font.family: Theme.AppTheme.fontFamily
-            color: Theme.AppTheme.textMuted
-        }
-        AppControls.ComboBox {
+        Rectangle {
             Layout.fillWidth: true
-            model: root.workspaceController ? (root.workspaceController.categoryOptions || []) : []
-            textRole: "label"
-            enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
-            currentIndex: root.state
-                ? root.state.categoryIndexForValue(
-                    root.workspaceController ? root.workspaceController.selectedCategoryFilter : "all")
-                : 0
-            onActivated: function(index) {
-                const opt = root.workspaceController
-                    ? (root.workspaceController.categoryOptions || [])[index]
-                    : null
-                if (opt && root.workspaceController)
-                    root.workspaceController.setCategoryFilter(String(opt.value || "all"))
-            }
+            Layout.preferredHeight: 1
+            color: Theme.AppTheme.divider
         }
 
         RowLayout {
             Layout.fillWidth: true
+            Layout.leftMargin: Theme.AppTheme.dialogPadding
+            Layout.rightMargin: Theme.AppTheme.dialogPadding
+            Layout.bottomMargin: Theme.AppTheme.spacingSm
             spacing: Theme.AppTheme.spacingSm
 
             AppControls.SecondaryButton {
-                Layout.fillWidth: true
                 text: "Clear"
-                iconName: "close"
+                iconName: "refresh"
                 onClicked: {
                     if (root.workspaceController !== null) {
                         root.workspaceController.setActiveFilter("all")
@@ -95,11 +110,22 @@ AppWidgets.AnchoredPopup {
                     root.close()
                 }
             }
+            Item { Layout.fillWidth: true }
             AppControls.SecondaryButton {
-                Layout.fillWidth: true
                 text: "Close"
                 iconName: "close"
                 onClicked: root.close()
+            }
+            AppControls.PrimaryButton {
+                text: "Apply"
+                iconName: "approve"
+                onClicked: {
+                    if (root.workspaceController !== null) {
+                        root.workspaceController.setActiveFilter(root._draftActive)
+                        root.workspaceController.setCategoryFilter(root._draftCategory)
+                    }
+                    root.close()
+                }
             }
         }
     }
