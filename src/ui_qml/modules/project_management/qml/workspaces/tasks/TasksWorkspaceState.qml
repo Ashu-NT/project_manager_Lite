@@ -212,22 +212,9 @@ Item {
     // ── Detail sections list ─────────────────────────────────────────────
     readonly property var detailSections: {
         const secs = ["Details", "Assignments", "Skills", "Dependencies", "Time"]
-        // "Reservations" and "Procurement" used to be their own tabs, each
-        // showing nothing but the same summary counts (from taskDetail.state)
-        // plus a single "Open <X>" navigation button already duplicated on
-        // Material Demand's own toolbar -- pure duplicates, removed. Material
-        // Demand's two action buttons (canOpenReservations/canOpenProcurement
-        // below) already gate themselves per-capability independently, so the
-        // tab itself just needs any one of the three related capabilities to
-        // be worth showing at all.
         if (root.hasInvStockCapability || root.hasInvReservationsCapability || root.hasProcurementCapability)
             secs.push("Material Demand")
         secs.push("Schedule Impact")
-        // "Activity" is the real audit trail (task.create/update/delete/...,
-        // via the same PMWidgets.ActivityLogSection design Projects uses).
-        // The comments/mentions/presence feed that used to be labeled
-        // "Activity" is "Discussion" now -- same section, same data,
-        // clearer name now that there are two distinct feeds.
         secs.push("Activity")
         secs.push("Discussion")
         return secs
@@ -269,18 +256,6 @@ Item {
             }
             return actions
         }
-        // Assignments deliberately has no page-level action set: its own
-        // section toolbar (TasksAssignmentsSection.qml) already renders the
-        // correct, complete, selection-gated action set for the selected
-        // row (Accept/Decline for a pending response, or Allocation/Set
-        // Hours/Remove once accepted) and is already wired end to end
-        // (see TasksWorkspacePage.qml's onEditAllocationRequested/
-        // onSetHoursRequested/onAcceptAssignmentRequested/etc handlers).
-        // A second, page-level copy of Allocation/Set Hours/Remove used to
-        // render here too -- always, even for a still-pending assignment
-        // that should only offer Accept/Decline -- duplicating buttons the
-        // user could already see and act on right next to the row, and
-        // showing the wrong actions for a pending assignment besides.
         if (sectionName === "Dependencies") {
             if (!selection.dependencyItem) return []
             return [
@@ -333,11 +308,6 @@ Item {
         root.navigateToRoute("inventory_procurement.procurement")
     }
 
-    // Period submit/lock/unlock is not task-scoped (a period can span
-    // multiple tasks/assignments), so it isn't reimplemented here -- this
-    // just hands off to the one real Timesheets workspace, which already
-    // presents the right view (personal capture vs. reviewer queue) for
-    // whoever opens it.
     function openTimesheetsRoute() {
         root.navigateToRoute("project_management.timesheets")
     }
