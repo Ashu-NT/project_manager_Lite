@@ -136,6 +136,55 @@ Item {
                     }
                 }
 
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: root._hasProject
+                    spacing: Theme.AppTheme.spacingMd
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+                        AppControls.Label {
+                            text: "Site"
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            font.bold: true
+                        }
+                        AppControls.Label {
+                            Layout.fillWidth: true
+                            text: root._sv("siteLabel") || "No site assigned"
+                            color: Theme.AppTheme.textPrimary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.smallSize
+                            elide: Text.ElideRight
+                        }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+                        AppControls.Label {
+                            text: "Department"
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            font.bold: true
+                        }
+                        AppControls.Label {
+                            Layout.fillWidth: true
+                            text: root._sv("departmentLabel") || "No department assigned"
+                            color: Theme.AppTheme.textPrimary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.smallSize
+                            elide: Text.ElideRight
+                        }
+                    }
+
+                    Item { Layout.fillWidth: true }
+                    Item { Layout.fillWidth: true }
+                }
+
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 1

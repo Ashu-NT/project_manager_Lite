@@ -46,8 +46,6 @@ from .project_selection_handler import (
 )
 from .project_lazy_section_loader import (
     load_project_activity,
-    load_project_documents,
-    load_project_financials,
     load_project_resources,
     load_project_risks,
     load_project_tasks,
@@ -105,16 +103,12 @@ class ProjectManagementProjectsWorkspaceController(
 
     projectTasksChanged = Signal()
     projectResourcesChanged = Signal()
-    projectFinancialsChanged = Signal()
     projectRisksChanged = Signal()
-    projectDocumentsChanged = Signal()
     projectActivityChanged = Signal()
 
     projectTasksLoadedChanged = Signal()
     projectResourcesLoadedChanged = Signal()
-    projectFinancialsLoadedChanged = Signal()
     projectRisksLoadedChanged = Signal()
-    projectDocumentsLoadedChanged = Signal()
     projectActivityLoadedChanged = Signal()
 
     importPreviewChanged = Signal()
@@ -166,16 +160,12 @@ class ProjectManagementProjectsWorkspaceController(
 
         self._project_tasks: dict[str, object] = default_lazy_section("Tasks", "tasks")
         self._project_resources: dict[str, object] = default_lazy_section("Resources", "resources")
-        self._project_financials: dict[str, object] = default_lazy_section("Financials", "financials")
         self._project_risks: dict[str, object] = default_lazy_section("Risks", "risks")
-        self._project_documents: dict[str, object] = default_lazy_section("Documents", "documents")
         self._project_activity: dict[str, object] = default_lazy_section("Activity", "activity")
 
         self._project_tasks_loaded_for_project_id = ""
         self._project_resources_loaded_for_project_id = ""
-        self._project_financials_loaded_for_project_id = ""
         self._project_risks_loaded_for_project_id = ""
-        self._project_documents_loaded_for_project_id = ""
         self._project_activity_loaded_for_project_id = ""
 
         self._import_preview: dict[str, object] = {}
@@ -309,17 +299,9 @@ class ProjectManagementProjectsWorkspaceController(
     def projectResourcesTableModel(self) -> DynamicTableModel:
         return self._table_models.project_resources
 
-    @Property("QVariantMap", notify=projectFinancialsChanged)
-    def projectFinancials(self) -> dict[str, object]:
-        return self._project_financials
-
     @Property("QVariantMap", notify=projectRisksChanged)
     def projectRisks(self) -> dict[str, object]:
         return self._project_risks
-
-    @Property("QVariantMap", notify=projectDocumentsChanged)
-    def projectDocuments(self) -> dict[str, object]:
-        return self._project_documents
 
     @Property("QVariantMap", notify=projectActivityChanged)
     def projectActivity(self) -> dict[str, object]:
@@ -602,16 +584,8 @@ class ProjectManagementProjectsWorkspaceController(
         load_project_resources(self)
 
     @Slot()
-    def loadProjectFinancials(self) -> None:
-        load_project_financials(self)
-
-    @Slot()
     def loadProjectRisks(self) -> None:
         load_project_risks(self)
-
-    @Slot()
-    def loadProjectDocuments(self) -> None:
-        load_project_documents(self)
 
     @Slot()
     def loadProjectActivity(self) -> None:

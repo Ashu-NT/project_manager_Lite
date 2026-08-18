@@ -6,6 +6,7 @@ from typing import Any
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
 from src.core.platform.api.desktop.master_data.department.department import PlatformDepartmentDesktopApi
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
+from src.core.platform.api.desktop.history.activity.activity import PlatformActivityDesktopApi
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementProjectsDesktopApi,
     build_project_management_projects_desktop_api,
@@ -23,8 +24,6 @@ from src.ui_qml.modules.project_management.view_models.projects import (
 )
 
 from .activity_builder import build_project_activity_state
-from .documents_builder import build_project_documents_state
-from .financials_builder import build_project_financials_state
 from .import_handler import execute_import, preview_import
 from .project_command_handler import (
     create_project,
@@ -53,6 +52,7 @@ class ProjectProjectsWorkspacePresenter:
         site_api: PlatformSiteDesktopApi | None = None,
         department_api: PlatformDepartmentDesktopApi | None = None,
         user_api: PlatformUserDesktopApi | None = None,
+        activity_api: PlatformActivityDesktopApi | None = None,
     ) -> None:
         self._desktop_api = desktop_api or build_project_management_projects_desktop_api()
         self._tasks_desktop_api = tasks_desktop_api or build_project_management_tasks_desktop_api()
@@ -60,6 +60,7 @@ class ProjectProjectsWorkspacePresenter:
         self._site_api = site_api
         self._department_api = department_api
         self._user_api = user_api
+        self._activity_api = activity_api
         self._import_sessions: dict[str, object] = {}
 
     def build_workspace_state(
@@ -185,17 +186,11 @@ class ProjectProjectsWorkspacePresenter:
     def remove_project_resource(self, *, project_resource_id: str) -> None:
         remove_project_resource(self._desktop_api, project_resource_id=project_resource_id)
 
-    def build_project_financials_state(self, *, project_id: str) -> ProjectCatalogWorkspaceViewModel:
-        return build_project_financials_state(project_id=project_id)
-
     def build_project_risks_state(self, *, project_id: str) -> ProjectCatalogWorkspaceViewModel:
         return build_project_risks_state(self._register_desktop_api, project_id=project_id)
 
-    def build_project_documents_state(self, *, project_id: str) -> ProjectCatalogWorkspaceViewModel:
-        return build_project_documents_state(project_id=project_id)
-
     def build_project_activity_state(self, *, project_id: str) -> ProjectCatalogWorkspaceViewModel:
-        return build_project_activity_state(project_id=project_id)
+        return build_project_activity_state(self._activity_api, project_id=project_id)
 
     def suggest_code(self, payload: dict[str, Any]) -> str:
         return suggest_code(self._desktop_api, payload)

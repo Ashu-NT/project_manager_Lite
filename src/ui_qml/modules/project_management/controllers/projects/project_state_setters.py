@@ -160,23 +160,11 @@ class ProjectStateSettersMixin:
         self._table_models.project_resources.set_rows(value.get("items", []))
         self.projectResourcesChanged.emit()
 
-    def _set_project_financials(self, value: dict[str, object]) -> None:
-        if value == self._project_financials:
-            return
-        self._project_financials = value
-        self.projectFinancialsChanged.emit()
-
     def _set_project_risks(self, value: dict[str, object]) -> None:
         if value == self._project_risks:
             return
         self._project_risks = value
         self.projectRisksChanged.emit()
-
-    def _set_project_documents(self, value: dict[str, object]) -> None:
-        if value == self._project_documents:
-            return
-        self._project_documents = value
-        self.projectDocumentsChanged.emit()
 
     def _set_project_activity(self, value: dict[str, object]) -> None:
         if value == self._project_activity:

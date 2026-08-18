@@ -58,22 +58,14 @@ Item {
         ? root.workspaceController.projectResources
         : ({ "title": "Resources", "subtitle": "", "emptyState": "Open this section to load project resources.", "items": [] })
 
-    readonly property bool hasInvCap: root.pmCatalog
-        ? root.pmCatalog.hasCapability("inventory.reservations.create")
-        : false
-
-    readonly property bool hasProcCap: root.pmCatalog
-        ? root.pmCatalog.hasCapability("procurement.purchase_orders.read")
-        : false
-
-    readonly property var detailSections: {
-        const secs = ["Overview", "Schedule", "Tasks", "Resources", "Financials", "Risks"]
-        if (root.hasInvCap) secs.push("Material Demand")
-        if (root.hasProcCap) secs.push("Procurement")
-        secs.push("Documents")
-        secs.push("Activity")
-        return secs
-    }
+    // Schedule (100% duplicate of Overview's Start/Finish), Financials (its
+    // two real fields already shown in Overview; the rest was a static
+    // "go to Financials workspace" message), Documents, Material Demand, and
+    // Procurement (zero real backend wiring, pure placeholder text) were
+    // removed as part of the R4.2 detail-IA consolidation. Risks and
+    // Activity are real, project-scoped data (register entries / activity
+    // log respectively).
+    readonly property var detailSections: ["Overview", "Tasks", "Resources", "Risks", "Activity"]
 
     function detailActionsForSection(sectionIndex, selectionContext) {
         const sectionName = detailSections[sectionIndex] || ""
@@ -140,9 +132,7 @@ Item {
         const secName = root.detailSections[sectionIndex] || ""
         if (secName === "Tasks") root.workspaceController.loadProjectTasks()
         else if (secName === "Resources") root.workspaceController.loadProjectResources()
-        else if (secName === "Financials") root.workspaceController.loadProjectFinancials()
         else if (secName === "Risks") root.workspaceController.loadProjectRisks()
-        else if (secName === "Documents") root.workspaceController.loadProjectDocuments()
         else if (secName === "Activity") root.workspaceController.loadProjectActivity()
     }
 

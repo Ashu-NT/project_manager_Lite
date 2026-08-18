@@ -176,9 +176,7 @@ def set_project_sort(controller, sort_key: str, sort_direction: int) -> None:
 def reset_project_lazy_sections(controller) -> None:
     controller._project_tasks_loaded_for_project_id = ""
     controller._project_resources_loaded_for_project_id = ""
-    controller._project_financials_loaded_for_project_id = ""
     controller._project_risks_loaded_for_project_id = ""
-    controller._project_documents_loaded_for_project_id = ""
     controller._project_activity_loaded_for_project_id = ""
 
 

@@ -161,6 +161,7 @@ class ProjectManagementWorkspaceCatalog(QObject):
                     site_api=getattr(self._desktop_api_registry, "platform_site", None),
                     department_api=getattr(self._desktop_api_registry, "platform_department", None),
                     user_api=getattr(self._desktop_api_registry, "platform_user", None),
+                    activity_api=getattr(self._desktop_api_registry, "platform_activity", None),
                 ),
                 parent=self,
             )

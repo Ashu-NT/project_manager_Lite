@@ -41,25 +41,6 @@ def load_project_resources(controller) -> None:
         controller._set_is_loading(False)
 
 
-def load_project_financials(controller) -> None:
-    if not controller._selected_project_id:
-        return
-    if controller._project_financials_loaded_for_project_id == controller._selected_project_id:
-        return
-    controller._set_is_loading(True)
-    try:
-        controller._clear_section_error("financials")
-        ws = controller._projects_workspace_presenter.build_project_financials_state(
-            project_id=controller._selected_project_id
-        )
-        controller._set_project_financials(serialize_project_section(ws.project_financials))
-        controller._project_financials_loaded_for_project_id = controller._selected_project_id
-    except Exception as exc:
-        controller._set_section_error("financials", str(exc))
-    finally:
-        controller._set_is_loading(False)
-
-
 def load_project_risks(controller) -> None:
     if not controller._selected_project_id:
         return
@@ -75,25 +56,6 @@ def load_project_risks(controller) -> None:
         controller._project_risks_loaded_for_project_id = controller._selected_project_id
     except Exception as exc:
         controller._set_section_error("risks", str(exc))
-    finally:
-        controller._set_is_loading(False)
-
-
-def load_project_documents(controller) -> None:
-    if not controller._selected_project_id:
-        return
-    if controller._project_documents_loaded_for_project_id == controller._selected_project_id:
-        return
-    controller._set_is_loading(True)
-    try:
-        controller._clear_section_error("documents")
-        ws = controller._projects_workspace_presenter.build_project_documents_state(
-            project_id=controller._selected_project_id
-        )
-        controller._set_project_documents(serialize_project_section(ws.project_documents))
-        controller._project_documents_loaded_for_project_id = controller._selected_project_id
-    except Exception as exc:
-        controller._set_section_error("documents", str(exc))
     finally:
         controller._set_is_loading(False)
 
@@ -119,8 +81,6 @@ def load_project_activity(controller) -> None:
 
 __all__ = [
     "load_project_activity",
-    "load_project_documents",
-    "load_project_financials",
     "load_project_resources",
     "load_project_risks",
     "load_project_tasks",

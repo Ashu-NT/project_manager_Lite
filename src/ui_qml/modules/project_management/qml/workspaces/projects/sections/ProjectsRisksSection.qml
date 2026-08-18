@@ -2,11 +2,15 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
+import ProjectManagement.Widgets 1.0 as PMWidgets
 
 Item {
     id: root
 
     property var sectionErrors: ({})
+    property var projectRisksModel: ({
+        "title": "Risks", "subtitle": "", "emptyState": "No risks have been logged for this project yet.", "items": []
+    })
 
     implicitHeight: _col.implicitHeight
 
@@ -26,17 +30,20 @@ Item {
 
         Item {
             width: parent.width
-            implicitHeight: _risksEmpty.implicitHeight + Theme.AppTheme.spacingMd * 2
+            implicitHeight: _risksCard.implicitHeight + Theme.AppTheme.spacingMd * 2
             height: implicitHeight
 
-            AppWidgets.EmptyState {
-                id: _risksEmpty
+            PMWidgets.RecordListCard {
+                id: _risksCard
                 anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
                 anchors.topMargin: Theme.AppTheme.spacingMd
-                anchors.horizontalCenter: parent.horizontalCenter
-                width: Math.min(parent.width - Theme.AppTheme.marginMd * 2, 400)
-                title: "Risk register"
-                message: "Open the Register workspace to view risks, issues, and change requests tracked against this project."
+                anchors.leftMargin: Theme.AppTheme.spacingMd
+                anchors.rightMargin: Theme.AppTheme.spacingMd
+                subtitle: root.projectRisksModel.subtitle || ""
+                emptyState: root.projectRisksModel.emptyState || "No risks have been logged for this project yet."
+                items: root.projectRisksModel.items || []
             }
         }
     }

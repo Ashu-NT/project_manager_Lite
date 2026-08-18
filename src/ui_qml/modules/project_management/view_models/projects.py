@@ -98,27 +98,11 @@ class ProjectCatalogWorkspaceViewModel:
         )
     )
 
-    project_financials: ProjectSectionCollectionViewModel = field(
-        default_factory=lambda: ProjectSectionCollectionViewModel(
-            title="Financials",
-            subtitle="Budget, cost, and financial tracking.",
-            empty_state="Open this section to load project financials.",
-        )
-    )
-
     project_risks: ProjectSectionCollectionViewModel = field(
         default_factory=lambda: ProjectSectionCollectionViewModel(
             title="Risks",
             subtitle="Risks and mitigation records.",
             empty_state="Open this section to load project risks.",
-        )
-    )
-
-    project_documents: ProjectSectionCollectionViewModel = field(
-        default_factory=lambda: ProjectSectionCollectionViewModel(
-            title="Documents",
-            subtitle="Project documents and references.",
-            empty_state="Open this section to load project documents.",
         )
     )
 

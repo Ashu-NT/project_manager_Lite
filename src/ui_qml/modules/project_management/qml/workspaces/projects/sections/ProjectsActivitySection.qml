@@ -6,8 +6,10 @@ import App.Theme 1.0 as Theme
 Item {
     id: root
 
-    property var projectDetail: ({ "state": {} })
     property var sectionErrors: ({})
+    property var projectActivityModel: ({
+        "title": "Activity", "subtitle": "", "emptyState": "No activity has been recorded for this project yet.", "items": []
+    })
 
     implicitHeight: _col.implicitHeight
 
@@ -38,11 +40,8 @@ Item {
                 anchors.topMargin: Theme.AppTheme.spacingMd
                 anchors.leftMargin: Theme.AppTheme.spacingMd
                 anchors.rightMargin: Theme.AppTheme.spacingMd
-                items: {
-                    const s = root.projectDetail.state || {}
-                    return s.activityItems || []
-                }
-                emptyText: "No project activity recorded"
+                items: root.projectActivityModel.items || []
+                emptyText: root.projectActivityModel.emptyState || "No project activity recorded"
             }
         }
     }
