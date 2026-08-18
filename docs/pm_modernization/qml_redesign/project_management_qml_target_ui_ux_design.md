@@ -3701,5 +3701,308 @@ gained one test and had one updated to match the corrected conflict-name
 resolution; `test_collaboration_import_timesheet_regressions.py`'s resource-
 deletion test was rewritten the same way the assignment/project-resource
 ones already were. Full file passes: 21/21 and 32/32 respectively. Full
-`src/tests/project_management` + `src/tests/pm` regression re-run in
-progress at time of writing — see the following entry. Not committed.
+`src/tests/project_management` + `src/tests/pm` regression re-run in this
+pass showed only the pre-existing, unrelated baseline failures already on
+record (platform enterprise-calendar-resolver tests and others verified via
+`git stash` against unmodified `HEAD` earlier in this workstream) — nothing
+newly broken by this follow-up.
+
+## 45. R4.3 — Calendar Capacity Authority Migration
+
+Picking up the deferred item from §44 (§17/§21 there): Task Assignment's
+availability preview and overallocation validation moved onto ONE calendar-
+derived authority, chosen from the platform's existing calendar/capacity
+stack rather than inventing a fifth: `EnterpriseCalendarResolver` (platform
+org→site→department→employee/resource precedence chain) wrapped by
+`EnterpriseResourceAvailabilityService` (PM layer). The other three existing
+calculators — `ResourceCapacityCalculator` (Resources-workspace calendar
+display), `ResourceAvailabilityService` (percent-based, multi-project
+Resources "Allocation Summary"), `ResourceLoadEngine`/
+`PortfolioResourcePoolService` (Dashboard/Scheduling KPIs, portfolio) — were
+deliberately left alone; they serve genuinely different, still-legitimate
+questions and were not made to "agree" with the new authority in this pass.
+
+**New authority module**: `application/resources/task_assignment_capacity_service.py`
+(`evaluate_task_assignment_capacity` / `TaskAssignmentCapacityFact` /
+`DailyCapacityCommitment`). Confirmed by direct code reading (not assumed)
+that neither `EnterpriseResourceAvailabilityService` nor
+`ResourceCapacityCalculator` ever multiplied in the stored
+`Resource.capacity_percent` field — this module is the first place
+`effective_available_capacity = calendar_available_hours * capacity_percent
+/ 100` is actually applied. It also builds real per-day existing/proposed
+committed-hours facts from actual `TaskAssignment` rows (batched:
+`TaskRepository.list_by_ids` / `AssignmentRepository.list_by_resource`, never
+a per-assignment lookup loop), which none of the other four calculators do
+for this specific question. `allocation_percent` now has real per-day
+calendar-hours meaning (percent of that day's resolved capacity, not a flat
+Mon-Fri assumption). Missing-calendar days resolve to an explicit `UNKNOWN`
+status (`effective_available_capacity_hours=None`, signaled by an empty
+`source_chain` from the resolver) — never a false zero-driven overload.
+
+**A real formula bug the new tests caught and fixed**: the first
+implementation applied the `capacity_percent` modifier to BOTH the
+available-hours denominator AND the committed-hours numerator, which made
+the resulting utilization ratio mathematically invariant to
+`capacity_percent` — silently defeating the exact gap this migration exists
+to close. Caught by `test_resource_capacity_profile.py::
+test_assignment_overallocation_uses_resource_capacity` (a pre-existing test
+whose scenario — 60%+30% allocation against an 80%-capacity resource —
+should be over capacity, and wasn't, once wired to the new authority).
+Fixed by tracking a separate `raw_available_by_date` (unscaled calendar
+hours, the base for allocation_percent × hours arithmetic) alongside
+`effective_by_date` (the capacity_percent-scaled ceiling) — capacity_percent
+now narrows only the ceiling, never the demand.
+
+**Call sites migrated together, in the same pass**, so preview and
+enforcement cannot disagree by design: `TaskService.preview_assignment_capacity`
+(new; used by the create/edit dialog's preview) and
+`TaskValidationMixin._check_resource_overallocation` (save-time enforcement,
+rewritten to delegate to the same `evaluate_task_assignment_capacity` call).
+Both take the SAME `enterprise_resource_availability_service` instance,
+injected once into `TaskService.__init__` and constructed once in
+`project_registry.py` — verified by
+`test_enterprise_resource_availability_service_is_wired_into_task_service_for_capacity_authority`,
+which asserts identity (`is`), not just type, between the instance
+`TaskService` holds and the one registered under the
+`resource_availability_service` DI key.
+
+**DI cleanup, done as part of the same pass** (not deferred): the OLD
+percent-based `ResourceAvailabilityService` DI key/field/variable was
+renamed from `task_assignment_availability_service` to
+`resource_multi_project_allocation_service` throughout
+`project_registry.py`, `app_container.py`, `service_resolver.py`, and
+`desktop_api_builder.py` — its name now honestly describes its ONE
+remaining consumer (Resources workspace's multi-project "Allocation
+Summary"), since Task Assignment no longer touches it at all. The Tasks
+desktop API's now-unused `resource_availability_service` constructor
+param/import was removed entirely (not just left unused) from
+`ProjectManagementTasksDesktopApi`, `tasks_api_factory.py`, and the
+composition root's Tasks-API construction call.
+
+**Warn/strict policy re-proven under the new model** (not assumed to still
+hold just because it held under the old formula): warn-mode sets a warning
+and proceeds; strict-mode rejects with `RESOURCE_OVERALLOCATED` and creates
+nothing; strict-mode still allows a genuinely non-conflicting allocation.
+Envelope violations (`PROJECT_RESOURCE_HOURS_OVERALLOCATED`) remain a
+distinct error code from capacity overload (`RESOURCE_OVERALLOCATED`) — two
+deliberately separate business rules, never merged.
+
+**Explicitly not touched this pass**: resource leveling
+(`ResourceLoadEngine`/leveling engine still use their own percent/weekday
+capacity math) and CPM — both noted as an explicit R4.4 backlog item
+("migrate resource leveling from percent/weekday capacity calculations to
+the authoritative calendar capacity service"), not started here. QML got
+minimal wiring only in this pass (the `AssignmentPreviewDesktopDto` gained
+calendar-capacity fields consumed by the existing preview panel); the full
+Task Detail Assignment/Time QML redesign was explicitly deferred to the
+next pass (§46).
+
+**Test evidence**: `test_r43_resource_capacity_upgrade.py` (46 tests after
+this pass, including the three rewritten wiring-proof tests and the new
+calendar-based over-allocation proof),
+`test_pm_desktop_adapter_da0_characterization.py` (rewrote the two
+characterization tests that mocked the OLD `is_resource_available`/window
+shape to instead mock `TaskService.preview_assignment_capacity`'s
+`TaskAssignmentCapacityFact` shape), `test_resource_capacity_profile.py`
+(fixed the message-format assertion to match the new
+"peak N% of effective capacity" wording). Full
+`src/tests/project_management` + `src/tests/pm` regression: 929 passed;
+remaining 13 failures verified via `git stash` against unmodified `HEAD` as
+pre-existing and unrelated (`test_baseline_lifecycle.py`,
+`test_constraint_validator.py`, one `test_financial_desktop_forecast_delegation.py`
+pagination test).
+
+## 46. R4.3 — Task Detail Assignment + Time: final QML redesign
+
+Backend read-contract verification, then controller/presenter wiring, then
+QML. The backend from §44/§45 was NOT re-touched for its calculation
+semantics — the one real gap found and closed this pass was that
+`list_assignments` had no PER-ROW capacity fact at all (only the create/edit
+preview did), which the redesigned table/inspector genuinely needed.
+
+**Final read-contract mapping** (backend fact → desktop DTO → controller →
+QML):
+- `TaskAssignmentDesktopDto` (`api/desktop/tasks/models/assignment.py`)
+  gained `capacity_known`, `capacity_status`, `capacity_status_label`,
+  `available_capacity_hours_label`, `committed_capacity_hours_label`,
+  `capacity_headroom_hours_label`, `peak_utilization_percent`,
+  `remaining_planned_hours_label` — computed in `serialize_assignment()`
+  from a `TaskAssignmentCapacityFact` that `list_assignments()` now
+  obtains per row via `TaskService.preview_assignment_capacity(task_id,
+  resource_id, proposed_allocation_percent=<this assignment's own
+  allocation_percent>, exclude_assignment_id=<this assignment's own id>)`
+  — i.e. "this assignment's own allocation treated as the proposal against
+  everything else already committed," the SAME authority §45 built, not a
+  second calculation. `allocation_percent`/`hours_logged`/
+  `allocated_planned_hours`/`version`/`project_resource_version` were
+  already exposed (§44).
+- `AssignmentPreviewDesktopDto` (create/edit dialog preview, §45) —
+  unchanged shape; the dialog now threads the user's live
+  `proposedAllocationPercent` and (in edit mode) `excludeAssignmentId`
+  through to it, which it never did before (previously always defaulted to
+  a hardcoded 100%, silently disagreeing with whatever the user actually
+  typed).
+- `ProjectResourceUsageDesktopDto` (`get_project_resource_usage`, §43) —
+  unchanged; newly wired into Task Detail via a new
+  `ProjectTasksWorkspacePresenter.get_project_resource_usage()` that calls
+  through to the Projects desktop API (threaded into the presenter's
+  constructor from `context.py`'s existing `self._projects_api`).
+- A shared `capacity_status_label()` helper
+  (`api/desktop/tasks/services/capacity_status_labels.py`) is now the ONE
+  place `AVAILABLE→"Within capacity"`, `NEAR_CAPACITY→"Near capacity"`,
+  `OVER_CAPACITY→"Over capacity"`, `UNKNOWN→"Capacity unknown"` is decided,
+  reused by both the per-row serializer and the create/edit preview builder
+  — one backend status never reads as two different words in two places.
+- `TimesheetAssignmentSnapshotDesktopDto`/`TimesheetEntryDesktopDto` (Time
+  section) — already task-scoped, already Summary+Capture+Ledger, already
+  free of period-lifecycle controls; verified unchanged and left alone.
+
+**Assignment table**: `TasksAssignmentsSection.qml` rebuilt on the shared
+`AppWidgets.DataTable` (previously a hand-rolled `Repeater`). Columns:
+Resource, Allocation, Planned Work, Actual, Remaining, Capacity Status
+(status-chip typed). A dedicated row-flattening function,
+`to_assignment_table_row()` (`assignment_mapper.py`), maps the existing
+per-assignment `state` dict onto the flat top-level keys `DynamicTableModel`
+requires — the generic `TaskRecordViewModel` serializer other Task Detail
+collections use couldn't carry these assignment-specific columns without
+polluting every other collection, so this stays assignment-local.
+`StatusChip.qml` (shared, used well beyond Task Detail) gained three new
+keyword mappings — `within_capacity`→success, `near_capacity`→warning,
+`over_capacity`→danger — so the capacity vocabulary renders with the right
+semantic color everywhere it appears, not just here.
+
+**Assignment inspector**: built on `AppWidgets.InspectorPanel` (previously
+unused in Task Detail — the old "inspector" was just toolbar actions plus
+an inline banner), placed full-width below the table per the section's
+existing vertical flow rather than as a side panel. Three groups exactly
+matching the target hierarchy: TASK PLANNING (task period — read from the
+already-loaded task detail's Start/Finish fields, no new backend call;
+Allocation (%); Available capacity; Capacity committed; Planned work (h);
+Capacity headroom), EXECUTION (Actual logged; Remaining planned), PROJECT
+RESOURCE CONTEXT (Project planned hours; Distributed to tasks; Unallocated;
+Actual worked; Remaining vs plan — fetched on row-select via
+`loadProjectResourceUsage()`, alongside the existing per-row capacity
+facts already on the selected row's `state`). Terminology matches §47's
+canonical wording exactly on both the Task Assignment inspector and the
+Projects → Resources edit popup (`ProjectsResourcesSection.qml`, whose
+prose-style "Currently distributed to tasks: X (Y remaining vs. plan)"
+became the same five labeled rows). Row/inspector actions (Accept, Decline,
+Edit Allocation, Edit Planned Work, Remove) moved from the toolbar into the
+inspector's own action row — the toolbar now carries only "Assign Resource"
+and "Refresh," per the "actions live near the selected entity" rule.
+
+**A real, previously-existing wiring gap the redesign surfaced and closed**:
+row selection was calling `previewAssignment()` with no
+`proposedAllocationPercent`/`excludeAssignmentId` — for an EXISTING
+assignment, that silently double-counted the assignment's own commitment
+against itself. Row selection no longer calls `previewAssignment()` at all
+(the row's own per-assignment capacity fact, from the new read-contract
+above, is already correct and already loaded); the hypothetical preview
+call is now reserved for the create/edit dialog, which is the only place a
+"what if" calculation is actually meaningful. The now-dead row-level
+preview banner (`_hasPreview`/`_previewTone`/`_previewMessage` and the
+`assignmentPreview` prop threaded through `TasksDetailPanel.qml`/
+`TasksWorkspacePage.qml`) was removed accordingly.
+
+**Create/edit dialog** (`TaskAssignmentEditorDialog.qml`): preview now runs
+in BOTH create and allocation-edit modes (previously create-only), re-fires
+live on every allocation-field keystroke, and — in edit mode — excludes the
+assignment being edited from "existing," so the preview represents
+replacing the current commitment, not adding a second one (§17). Renders
+the full authoritative preview: Available capacity / Current commitment /
+Proposed commitment / Resulting commitment, peak utilization when over
+capacity, an explicit "Capacity unavailable" state when the calendar
+couldn't resolve (never a fabricated 0h), and — separately — the Project
+Resource Context facts (Project planned hours / Distributed to tasks /
+Unallocated / this request) so an envelope rejection's context is visible
+without QML computing "remaining after this change" itself (§46 forbids
+that; the raw facts are shown side by side instead, matching §20's own
+worked example). Allocation (%) and Planned Work (h) fields gained the
+required helper text explaining what each percentage/hours figure means.
+
+**Warn/strict/envelope/concurrency UX**: `TasksDialogHost.qml`'s shared
+`_handleResult()` (used by every Task Detail dialog, not just assignment
+ones) already kept the dialog open with entered values intact on any
+failure and only closed on success — verified, not changed. It gained one
+generic improvement: any error message containing "updated by another
+user" (the universal `stale_message` convention across this codebase's
+`update_with_version_check` call sites) gets an appended "Refresh the
+latest values before saving again." trailer, satisfying §21's exact copy
+requirement for every versioned Task Detail entity, not just assignments.
+Envelope errors (`PROJECT_RESOURCE_HOURS_OVERALLOCATED`) and capacity
+overload (`RESOURCE_OVERALLOCATED`) already produce naturally distinct
+backend message text (confirmed by reading `project_resource_envelope_policy.py`
+and `validation.py` directly) — no QML-side rewording was needed to keep
+them apart.
+
+**"Set Hours" removal**: the QML dialog (`TaskAssignmentHoursDialog.qml`)
+was already removed in an earlier pass (documented and protected by
+`test_task_assignment_hours_dialog_qml_file_was_removed`). This pass found
+and removed the remaining dead QML-facing plumbing that dialog left behind
+— `PMAssignmentController.setAssignmentHours`,
+`ProjectManagementTasksWorkspaceController.setAssignmentHours`,
+`task_mutation_facade.set_assignment_hours`,
+`tasks_workspace_presenter.set_assignment_hours`,
+`assignment_command_handler.set_assignment_hours`, and the matching
+`plugins.qmltypes`/`tasks.fragment` typeinfo entries — confirmed
+proven-dead first (zero `.qml` callers via grep). The backend
+`TaskService.set_assignment_hours`/desktop API method were left untouched
+(still used by tests and non-UI paths;
+`test_backend_set_assignment_hours_command_is_intentionally_retained`
+documents why).
+
+**Historical-actual removal failures**: unchanged from §43/§44 — the
+`PROJECT_RESOURCE_HAS_HISTORICAL_ACTUALS`/`ASSIGNMENT_HAS_HISTORICAL_ACTUALS`/
+`RESOURCE_HAS_HISTORICAL_ACTUALS` guards already surface through the same
+`_handleResult()` error path as any other mutation failure; no silent-
+success path exists. A future "Deactivate / close assignment" UX (§32) is
+noted here as a documented future decision, not implemented in this pass.
+
+**Time section**: inspected in full and found ALREADY compliant with
+every requirement in this pass's spec — Summary/Capture/Ledger structure,
+task-scoped (not resource-wide) actual, no period-lifecycle controls
+duplicated, "Open in Timesheets" as the only cross-link. Left unchanged;
+no redesign was needed or performed.
+
+**Dead code found and removed incidentally during this pass** (proven
+globally dead, not merely unused in the file being edited):
+`AppWidgets.Avatar` (`shared/qml/App/Widgets/Avatar.qml` + its `qmldir`
+entry) — its only caller anywhere in `src/ui_qml` was the old
+Repeater-based assignment row this pass replaced; confirmed zero remaining
+references before deleting. The dialog's stale local `_allocationOf()`
+helper, orphaned by the same table rewrite, was also removed.
+
+**Responsive/QML validation**: `pyside6-qmllint` run clean (zero new
+warnings) across every touched file. Offscreen QML load smoke tests added
+(`test_qml_tasks_assignments_section_smoke.py`) covering both the empty
+state and a fully-populated over-capacity selection (exercising the
+Inspector's Task Planning/Execution/Project Resource Context render paths
+end to end); the existing dialog offscreen-load suite
+(`test_qml_project_management_dialogs.py`) continues to pass unchanged.
+Full manual responsive sweep across all listed breakpoints (1024×640
+through 1920×1080) was not performed interactively in this pass — the
+table/inspector layout reuses the same `DataTable`/`InspectorPanel`
+primitives and `Layout.fillWidth`/`GridLayout` patterns already proven
+responsive elsewhere in Task Detail, but this is a documented gap, not a
+verified pass, and should be exercised visually before shipping.
+
+**Test evidence**: new/updated — `test_assignment_time_task_detail_r43.py`
+(+2 capacity-per-row tests), `test_qml_pm_presenters_tasks_actions.py`
+(+5: preview forwarding of proposed-allocation/exclude-assignment-id, two
+mapper tests, one degrade-gracefully-without-capacity-fields test),
+`test_pm_presenter_project_resource_usage.py` (new file, 5 tests),
+`test_qml_tasks_assignments_section_smoke.py` (new file, 2 tests). Full
+`src/tests/project_management` + `src/tests/pm` + `src/tests/architecture`
+regression: 1095 passed; the same 13 pre-existing/unrelated failures from
+§45 persist, plus 6 pre-existing `src/tests/architecture` guardrail
+failures (missing/relocated files this pass never touched — `cost.py`,
+`access_workspace_controller.py`, a stale admin controller directory,
+`ScenariosTab.qml`'s relative import, and three module line-budget
+overruns) that predate this session's Task Detail work and are not
+Assignment/Time-related.
+
+**R4.4 backlog reaffirmed, not started**: migrate resource leveling
+(`ResourceLoadEngine`/leveling engine) from percent/weekday capacity math
+onto the calendar capacity authority from §45 — still not started, per
+both this and the prior pass's explicit instruction. R5 Workload
+Management: not started.

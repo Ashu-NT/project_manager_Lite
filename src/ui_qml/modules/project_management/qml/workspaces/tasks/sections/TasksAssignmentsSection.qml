@@ -59,10 +59,6 @@ Item {
         return actions
     }
 
-    function _allocationOf(item) {
-        return parseFloat((item.state || {}).allocationPercent || "0") || 0
-    }
-
     readonly property bool _capacityKnown: !!root._selectedState.capacityKnown
     readonly property string _capacityStatus: String(root._selectedState.capacityStatus || "UNKNOWN")
     readonly property string _taskPeriodLabel: {
