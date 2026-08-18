@@ -45,6 +45,8 @@ def test_project_management_workspace_catalog_exposes_typed_projects_controller(
         page_size,
         sort_key,
         sort_direction,
+        project_name=None,
+        client_name=None,
         site_id=None,
         department_id=None,
         manager_user_id=None,
@@ -57,6 +59,8 @@ def test_project_management_workspace_catalog_exposes_typed_projects_controller(
             project
             for project in projects
             if (status is None or project.status == status)
+            and (not project_name or project_name.casefold() in project.name.casefold())
+            and (not client_name or client_name.casefold() in (project.client_name or "").casefold())
             and (
                 not search_text
                 or search_text.casefold()

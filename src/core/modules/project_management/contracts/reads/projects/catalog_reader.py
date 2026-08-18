@@ -18,6 +18,8 @@ class ProjectCatalogReader(Protocol):
         allowed_project_ids: tuple[str, ...] | None,
         search_text: str,
         status: ProjectStatus | None,
+        project_name: str | None = None,
+        client_name: str | None = None,
         site_id: str | None = None,
         department_id: str | None = None,
         manager_user_id: str | None = None,

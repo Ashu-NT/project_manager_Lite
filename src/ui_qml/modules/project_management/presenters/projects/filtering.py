@@ -13,6 +13,8 @@ def build_empty_state(
     filtered_total: int,
     search_text: str,
     status_filter: str,
+    project_name_filter: str = "",
+    client_name_filter: str = "",
     site_filter: str = "all",
     department_filter: str = "all",
     manager_filter: str = "all",
@@ -28,6 +30,8 @@ def build_empty_state(
     any_filter_active = (
         bool(search_text)
         or status_filter != "all"
+        or bool(project_name_filter)
+        or bool(client_name_filter)
         or site_filter != "all"
         or department_filter != "all"
         or manager_filter != "all"

@@ -38,6 +38,12 @@ Item {
         if (c.selectedStatusFilter && c.selectedStatusFilter !== "all") {
             chips.push({ "key": "status", "label": "Status: " + root._optionLabelForValue(c.statusOptions, c.selectedStatusFilter) })
         }
+        if (c.projectNameFilter) {
+            chips.push({ "key": "projectName", "label": "Project: " + c.projectNameFilter })
+        }
+        if (c.clientNameFilter) {
+            chips.push({ "key": "clientName", "label": "Client: " + c.clientNameFilter })
+        }
         if (c.selectedSiteFilter && c.selectedSiteFilter !== "all") {
             chips.push({ "key": "site", "label": "Site: " + root._optionLabelForValue(c.siteOptions, c.selectedSiteFilter) })
         }
@@ -60,6 +66,8 @@ Item {
         const c = root.workspaceController
         if (!c) return
         if (key === "status") c.setStatusFilter("all")
+        else if (key === "projectName") c.setProjectNameFilter("")
+        else if (key === "clientName") c.setClientNameFilter("")
         else if (key === "site") c.setSiteFilter("all")
         else if (key === "department") c.setDepartmentFilter("all")
         else if (key === "manager") c.setManagerFilter("all")

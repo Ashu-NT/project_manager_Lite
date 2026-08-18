@@ -21,6 +21,8 @@ def build_workspace_state(
     *,
     search_text: str = "",
     status_filter: str = "all",
+    project_name_filter: str = "",
+    client_name_filter: str = "",
     site_filter: str = "all",
     department_filter: str = "all",
     manager_filter: str = "all",
@@ -43,6 +45,8 @@ def build_workspace_state(
     )
     normalized_search = (search_text or "").strip()
     normalized_status_filter = normalize_status_filter(status_filter, status_options)
+    normalized_project_name_filter = (project_name_filter or "").strip()
+    normalized_client_name_filter = (client_name_filter or "").strip()
     normalized_site_filter = (site_filter or "all").strip() or "all"
     normalized_department_filter = (department_filter or "all").strip() or "all"
     normalized_manager_filter = (manager_filter or "all").strip() or "all"
@@ -53,6 +57,8 @@ def build_workspace_state(
     project_page = desktop_api.list_project_page(
         search_text=normalized_search,
         status=normalized_status_filter,
+        project_name=normalized_project_name_filter,
+        client_name=normalized_client_name_filter,
         site_id=normalized_site_filter,
         department_id=normalized_department_filter,
         manager_user_id=normalized_manager_filter,
@@ -84,6 +90,8 @@ def build_workspace_state(
         ),
         status_options=status_options,
         selected_status_filter=normalized_status_filter,
+        selected_project_name_filter=normalized_project_name_filter,
+        selected_client_name_filter=normalized_client_name_filter,
         selected_site_filter=normalized_site_filter,
         selected_department_filter=normalized_department_filter,
         selected_manager_filter=normalized_manager_filter,
@@ -100,6 +108,8 @@ def build_workspace_state(
             filtered_total=project_page.filtered_total,
             search_text=normalized_search,
             status_filter=normalized_status_filter,
+            project_name_filter=normalized_project_name_filter,
+            client_name_filter=normalized_client_name_filter,
             site_filter=normalized_site_filter,
             department_filter=normalized_department_filter,
             manager_filter=normalized_manager_filter,

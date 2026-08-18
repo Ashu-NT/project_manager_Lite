@@ -131,6 +131,39 @@ def test_project_catalog_site_department_manager_and_date_filters_compose(servic
     assert all(row.project.start_date.year == 2026 for row in date_ranged.items)
 
 
+def test_project_catalog_project_name_and_client_name_filters_compose(services) -> None:
+    project_service = services["project_service"]
+    site_service = services["site_service"]
+    site_a = site_service.create_site(site_code="SITE-N1", name="Name Filter Site")
+
+    hamburg = project_service.create_project(
+        "Hamburg Refit", client_name="Northwind Shipping", site_id=site_a.id
+    )
+    project_service.create_project("Hamburg Overhaul", client_name="Contoso Freight")
+    project_service.create_project("Rotterdam Refit", client_name="Northwind Shipping")
+
+    # Project name alone narrows to both "Hamburg" projects regardless of client.
+    by_name = project_service.query_catalog_page(project_name="hamburg", page=1, page_size=25)
+    assert by_name.filtered_total == 2
+    assert all("hamburg" in row.project.name.lower() for row in by_name.items)
+
+    # Client name alone narrows to both Northwind projects regardless of site/name.
+    by_client = project_service.query_catalog_page(client_name="northwind", page=1, page_size=25)
+    assert by_client.filtered_total == 2
+    assert all((row.project.client_name or "").lower() == "northwind shipping" for row in by_client.items)
+
+    # Composed AND: only the single project matching both narrows to it.
+    composed = project_service.query_catalog_page(
+        project_name="hamburg", client_name="northwind", page=1, page_size=25
+    )
+    assert composed.filtered_total == 1
+    assert composed.items[0].project.id == hamburg.id
+
+    # No match anywhere -> zero results, not an error.
+    no_match = project_service.query_catalog_page(project_name="nonexistent-xyz", page=1, page_size=25)
+    assert no_match.filtered_total == 0
+
+
 def test_project_department_id_round_trips_through_create_and_update(services) -> None:
     project_service = services["project_service"]
     department_service = services["department_service"]

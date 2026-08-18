@@ -17,6 +17,8 @@ AppWidgets.EntityDialog {
     readonly property var workflowStatusOptions: (root.statusOptions || []).filter(function(option) {
         return String(option.value || "").toLowerCase() !== "all"
     })
+    readonly property var currencyOptions: root.workspaceController ? (root.workspaceController.currencyOptions || []) : []
+    readonly property string defaultCurrencyCode: root.workspaceController ? String(root.workspaceController.defaultCurrencyCode || "XAF") : "XAF"
 
     signal submitted(var payload)
 
@@ -51,13 +53,29 @@ AppWidgets.EntityDialog {
         return 0
     }
 
+    function currencyIndexForValue(currencyValue) {
+        const wanted = String(currencyValue || "").length > 0 ? String(currencyValue) : root.defaultCurrencyCode
+        const list = root.currencyOptions || []
+        for (let index = 0; index < list.length; index += 1) {
+            if (String(list[index].value || "") === wanted) {
+                return index
+            }
+        }
+        for (let index = 0; index < list.length; index += 1) {
+            if (String(list[index].value || "") === root.defaultCurrencyCode) {
+                return index
+            }
+        }
+        return 0
+    }
+
     function populateFromProject() {
         var state = root.projectData && root.projectData.state ? root.projectData.state : (root.projectData || {})
         root.projectCode = String(state.projectCode || "")
         nameField.text = String(state.name || "")
         clientNameField.text = String(state.clientName || "")
         clientContactField.text = String(state.clientContact || "")
-        currencyField.text = String(state.financialCurrencyCode || "")
+        currencyCombo.currentIndex = root.currencyIndexForValue(state.financialCurrencyCode || "")
         startDateField.text = String(state.startDate || "")
         endDateField.text = String(state.endDate || "")
         descriptionField.text = String(state.description || "")
@@ -71,12 +89,13 @@ AppWidgets.EntityDialog {
         var statusOption = root.workflowStatusOptions[statusCombo.currentIndex] || { "value": "PLANNED" }
         var siteOption = root.siteOptions[siteCombo.currentIndex] || { "value": "" }
         var departmentOption = root.departmentOptions[departmentCombo.currentIndex] || { "value": "" }
+        var currencyOption = root.currencyOptions[currencyCombo.currentIndex] || { "value": root.defaultCurrencyCode }
         return {
             "name": nameField.text,
             "projectCode": root.projectCode,
             "clientName": clientNameField.text,
             "clientContact": clientContactField.text,
-            "financialCurrencyCode": currencyField.text,
+            "financialCurrencyCode": currencyOption.value || root.defaultCurrencyCode,
             "startDate": startDateField.text,
             "endDate": endDateField.text,
             "description": descriptionField.text,
@@ -168,7 +187,7 @@ AppWidgets.EntityDialog {
             Layout.fillWidth: true
             visible: root.modeTitle === "Create Project"
             label: "Financial currency"
-            AppControls.TextField { id: currencyField; Layout.fillWidth: true; placeholderText: "EUR" }
+            AppControls.ComboBox { id: currencyCombo; Layout.fillWidth: true; model: root.currencyOptions; textRole: "label" }
         }
 
         AppWidgets.FormField {

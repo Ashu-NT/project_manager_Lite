@@ -3,10 +3,31 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from PySide6.QtCore import Q_ARG, QObject, QMetaObject
+from PySide6.QtCore import Property, Q_ARG, QObject, QMetaObject
 from PySide6.QtGui import QGuiApplication
 
 from src.ui_qml.shell.qml_engine import create_qml_engine, load_qml
+
+
+class _FakeProjectsWorkspaceController(QObject):
+    """Minimal stand-in for the real controller's constant currency options,
+    matching what `ProjectEditorDialog.qml`'s currency dropdown now reads."""
+
+    @Property(bool, constant=True)
+    def isBusy(self) -> bool:
+        return False
+
+    @Property("QVariantList", constant=True)
+    def currencyOptions(self) -> list:
+        return [
+            {"value": "EUR", "label": "EUR"},
+            {"value": "USD", "label": "USD"},
+            {"value": "XAF", "label": "XAF"},
+        ]
+
+    @Property(str, constant=True)
+    def defaultCurrencyCode(self) -> str:
+        return "XAF"
 
 
 PROJECT_EDITOR_DIALOG = Path(
@@ -56,10 +77,12 @@ def _variant(value):
 
 
 def test_project_editor_dialog_submit_button_emits_payload() -> None:
+    controller = _FakeProjectsWorkspaceController()
     _, root = _load_dialog(
         PROJECT_EDITOR_DIALOG,
         {
             "modeTitle": "Edit Project",
+            "workspaceController": controller,
             "statusOptions": [{"value": "IN_PROGRESS", "label": "In Progress"}],
             "projectData": {
                 "state": {

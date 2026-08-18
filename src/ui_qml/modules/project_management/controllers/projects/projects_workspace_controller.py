@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Qt, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
+from src.core.platform.finance.money.currency import ISO_4217_MINOR_UNITS
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
@@ -31,10 +32,12 @@ from .project_selection_handler import (
     activate_project,
     clear_filters,
     select_project,
+    set_client_name_filter,
     set_department_filter,
     set_end_date_from,
     set_end_date_to,
     set_manager_filter,
+    set_project_name_filter,
     set_project_page,
     set_project_page_size,
     set_project_sort,
@@ -70,6 +73,14 @@ from .project_import_handler import cancel_import, execute_import, preview_impor
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
 
+_CURRENCY_OPTIONS: list[dict[str, str]] = [
+    {"value": code, "label": code}
+    for code in sorted(
+        code for code, minor_units in ISO_4217_MINOR_UNITS.items() if minor_units is not None
+    )
+]
+DEFAULT_CURRENCY_CODE = "XAF"
+
 
 @QmlElement
 @QmlUncreatable("Project management workspace controllers are provided by the shell runtime.")
@@ -82,6 +93,8 @@ class ProjectManagementProjectsWorkspaceController(
     departmentOptionsChanged = Signal()
     managerOptionsChanged = Signal()
     selectedStatusFilterChanged = Signal()
+    projectNameFilterChanged = Signal()
+    clientNameFilterChanged = Signal()
     selectedSiteFilterChanged = Signal()
     selectedDepartmentFilterChanged = Signal()
     selectedManagerFilterChanged = Signal()
@@ -138,6 +151,8 @@ class ProjectManagementProjectsWorkspaceController(
         self._department_options: list[dict[str, str]] = []
         self._manager_options: list[dict[str, str]] = []
         self._selected_status_filter = "all"
+        self._project_name_filter = ""
+        self._client_name_filter = ""
         self._selected_site_filter = "all"
         self._selected_department_filter = "all"
         self._selected_manager_filter = "all"
@@ -203,9 +218,25 @@ class ProjectManagementProjectsWorkspaceController(
     def departmentOptions(self) -> list[dict[str, str]]:
         return self._department_options
 
+    @Property("QVariantList", constant=True)
+    def currencyOptions(self) -> list[dict[str, str]]:
+        return _CURRENCY_OPTIONS
+
+    @Property(str, constant=True)
+    def defaultCurrencyCode(self) -> str:
+        return DEFAULT_CURRENCY_CODE
+
     @Property(str, notify=selectedStatusFilterChanged)
     def selectedStatusFilter(self) -> str:
         return self._selected_status_filter
+
+    @Property(str, notify=projectNameFilterChanged)
+    def projectNameFilter(self) -> str:
+        return self._project_name_filter
+
+    @Property(str, notify=clientNameFilterChanged)
+    def clientNameFilter(self) -> str:
+        return self._client_name_filter
 
     @Property(str, notify=selectedSiteFilterChanged)
     def selectedSiteFilter(self) -> str:
@@ -343,6 +374,8 @@ class ProjectManagementProjectsWorkspaceController(
             workspace_state = self._projects_workspace_presenter.build_workspace_state(
                 search_text=self._search_text,
                 status_filter=self._selected_status_filter,
+                project_name_filter=self._project_name_filter,
+                client_name_filter=self._client_name_filter,
                 site_filter=self._selected_site_filter,
                 department_filter=self._selected_department_filter,
                 manager_filter=self._selected_manager_filter,
@@ -376,6 +409,8 @@ class ProjectManagementProjectsWorkspaceController(
                 list(self._projects_workspace_presenter.build_department_options())
             )
             self._set_selected_status_filter(workspace_state.selected_status_filter)
+            self._set_project_name_filter(workspace_state.selected_project_name_filter)
+            self._set_client_name_filter(workspace_state.selected_client_name_filter)
             self._set_selected_site_filter(workspace_state.selected_site_filter)
             self._set_selected_department_filter(workspace_state.selected_department_filter)
             self._set_selected_manager_filter(workspace_state.selected_manager_filter)
@@ -424,6 +459,14 @@ class ProjectManagementProjectsWorkspaceController(
     @Slot(str)
     def setStatusFilter(self, status_filter: str) -> None:
         set_status_filter(self, status_filter)
+
+    @Slot(str)
+    def setProjectNameFilter(self, project_name_filter: str) -> None:
+        set_project_name_filter(self, project_name_filter)
+
+    @Slot(str)
+    def setClientNameFilter(self, client_name_filter: str) -> None:
+        set_client_name_filter(self, client_name_filter)
 
     @Slot(str)
     def setSiteFilter(self, site_filter: str) -> None:

@@ -16,11 +16,16 @@ AppControls.CenteredDialog {
     // Date fields are read directly from their own `id.text` at Apply time
     // (matching TimesheetsFilterPopup's pattern) rather than round-tripped
     // through a JS property, which would risk a binding loop against the
-    // field's own `text:` binding.
+    // field's own `text:` binding. Project/Client name fields use
+    // `onTextEdited` (fires only on user input, not on the field's own
+    // programmatic `text:` binding) to mirror the draft property safely --
+    // same idiom App.Controls.SearchField already uses.
     property string _draftStatus: "all"
     property string _draftSite: "all"
     property string _draftDepartment: "all"
     property string _draftManager: "all"
+    property string _draftProjectName: ""
+    property string _draftClientName: ""
 
     readonly property var _siteOptions: [{ "value": "all", "label": "All Sites" }].concat(
         root.workspaceController ? (root.workspaceController.siteOptions || []) : [])
@@ -30,7 +35,11 @@ AppControls.CenteredDialog {
         root.workspaceController ? (root.workspaceController.managerOptions || []) : [])
 
     title: "Filter Projects"
-    width: 380
+    // Wider than the single-column filter popups elsewhere (Tasks/Timesheets
+    // use 360): this one carries nine fields in a 2-column grid, and two of
+    // them are now free-text (Project/Client name) rather than short-code
+    // dropdowns, which need more breathing room than 380 gave them.
+    width: 440
     padding: 0
     modal: true
     focus: true
@@ -47,6 +56,8 @@ AppControls.CenteredDialog {
     onAboutToShow: {
         const c = root.workspaceController
         root._draftStatus = c ? c.selectedStatusFilter : "all"
+        root._draftProjectName = c ? c.projectNameFilter : ""
+        root._draftClientName = c ? c.clientNameFilter : ""
         root._draftSite = c ? c.selectedSiteFilter : "all"
         root._draftDepartment = c ? c.selectedDepartmentFilter : "all"
         root._draftManager = c ? c.selectedManagerFilter : "all"
@@ -62,7 +73,7 @@ AppControls.CenteredDialog {
         Item { Layout.preferredHeight: Theme.AppTheme.spacingXs }
 
         // Two-column layout at the dialog's own width keeps this filter
-        // surface landscape (wide, not tall) despite carrying seven fields.
+        // surface landscape (wide, not tall) despite carrying nine fields.
         GridLayout {
             Layout.fillWidth: true
             Layout.leftMargin: Theme.AppTheme.dialogPadding
@@ -94,6 +105,48 @@ AppControls.CenteredDialog {
                             : null
                         root._draftStatus = String((opt && opt.value) || "all")
                     }
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Theme.AppTheme.spacingXs
+
+                AppControls.Label {
+                    text: "Project Name"
+                    font.bold: true
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.family: Theme.AppTheme.fontFamily
+                    color: Theme.AppTheme.textMuted
+                }
+                AppControls.TextField {
+                    id: projectNameField
+                    objectName: "projectNameField"
+                    Layout.fillWidth: true
+                    placeholderText: "Contains..."
+                    text: root._draftProjectName
+                    onTextEdited: root._draftProjectName = text
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Theme.AppTheme.spacingXs
+
+                AppControls.Label {
+                    text: "Client Name"
+                    font.bold: true
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.family: Theme.AppTheme.fontFamily
+                    color: Theme.AppTheme.textMuted
+                }
+                AppControls.TextField {
+                    id: clientNameField
+                    objectName: "clientNameField"
+                    Layout.fillWidth: true
+                    placeholderText: "Contains..."
+                    text: root._draftClientName
+                    onTextEdited: root._draftClientName = text
                 }
             }
 
@@ -258,11 +311,14 @@ AppControls.CenteredDialog {
                 onClicked: root.close()
             }
             AppControls.PrimaryButton {
+                objectName: "projectsFilterApplyButton"
                 text: "Apply"
                 iconName: "approve"
                 onClicked: {
                     if (root.workspaceController !== null) {
                         root.workspaceController.setStatusFilter(root._draftStatus)
+                        root.workspaceController.setProjectNameFilter(projectNameField.text)
+                        root.workspaceController.setClientNameFilter(clientNameField.text)
                         root.workspaceController.setSiteFilter(root._draftSite)
                         root.workspaceController.setDepartmentFilter(root._draftDepartment)
                         root.workspaceController.setManagerFilter(root._draftManager)

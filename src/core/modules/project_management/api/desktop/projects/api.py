@@ -87,6 +87,8 @@ class ProjectManagementProjectsDesktopApi:
         *,
         search_text: str = "",
         status: str = "all",
+        project_name: str = "",
+        client_name: str = "",
         site_id: str = "all",
         department_id: str = "all",
         manager_user_id: str = "all",
@@ -112,6 +114,8 @@ class ProjectManagementProjectsDesktopApi:
         result = service.query_catalog_page(
             search_text=search_text,
             status=status_value,
+            project_name=str(project_name or "").strip() or None,
+            client_name=str(client_name or "").strip() or None,
             site_id=None if normalized_site_id in ("", "all") else normalized_site_id,
             department_id=None if normalized_department_id in ("", "all") else normalized_department_id,
             manager_user_id=None if normalized_manager_id in ("", "all") else normalized_manager_id,

@@ -62,6 +62,8 @@ class ProjectCatalogWorkspaceViewModel:
     overview: ProjectCatalogOverviewViewModel
     status_options: tuple[ProjectStatusOptionViewModel, ...] = field(default_factory=tuple)
     selected_status_filter: str = "all"
+    selected_project_name_filter: str = ""
+    selected_client_name_filter: str = ""
     selected_site_filter: str = "all"
     selected_department_filter: str = "all"
     selected_manager_filter: str = "all"

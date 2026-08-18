@@ -13,6 +13,8 @@ def export_projects(controller, columns: list, file_path: str) -> dict[str, obje
         records = controller._projects_workspace_presenter.list_export_records(
             search_text=controller._search_text,
             status_filter=controller._selected_status_filter,
+            project_name_filter=controller._project_name_filter,
+            client_name_filter=controller._client_name_filter,
             site_filter=controller._selected_site_filter,
             department_filter=controller._selected_department_filter,
             manager_filter=controller._selected_manager_filter,

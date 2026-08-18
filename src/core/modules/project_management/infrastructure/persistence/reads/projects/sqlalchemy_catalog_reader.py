@@ -47,6 +47,8 @@ class SqlAlchemyProjectCatalogReader:
         allowed_project_ids: tuple[str, ...] | None,
         search_text: str,
         status: ProjectStatus | None,
+        project_name: str | None = None,
+        client_name: str | None = None,
         site_id: str | None = None,
         department_id: str | None = None,
         manager_user_id: str | None = None,
@@ -91,6 +93,25 @@ class SqlAlchemyProjectCatalogReader:
             filtered.append(ProjectORM.department_id == department_id)
         if manager_user_id:
             filtered.append(ProjectORM.manager_user_id == manager_user_id)
+        normalized_project_name = str(project_name or "").strip()
+        if normalized_project_name:
+            filtered.append(
+                func.lower(ProjectORM.name).like(
+                    _contains_pattern(normalized_project_name), escape="\\"
+                )
+            )
+        normalized_client_name = str(client_name or "").strip()
+        if normalized_client_name:
+            # Filters the raw stored `client_name` free-text field -- the
+            # resolved-via-party `client_label` used for display would need
+            # the PartyORM outerjoin also present in the bare filtered_total
+            # count query below, which it deliberately is not (to avoid an
+            # unjoined-table cross-join inflating that count).
+            filtered.append(
+                func.lower(func.coalesce(ProjectORM.client_name, "")).like(
+                    _contains_pattern(normalized_client_name), escape="\\"
+                )
+            )
         if start_date_from is not None:
             filtered.append(ProjectORM.start_date >= start_date_from)
         if start_date_to is not None:

@@ -39,6 +39,18 @@ class ProjectStateSettersMixin:
         self._selected_status_filter = selected_status_filter
         self.selectedStatusFilterChanged.emit()
 
+    def _set_project_name_filter(self, value: str) -> None:
+        if value == self._project_name_filter:
+            return
+        self._project_name_filter = value
+        self.projectNameFilterChanged.emit()
+
+    def _set_client_name_filter(self, value: str) -> None:
+        if value == self._client_name_filter:
+            return
+        self._client_name_filter = value
+        self.clientNameFilterChanged.emit()
+
     def _set_selected_site_filter(self, value: str) -> None:
         if value == self._selected_site_filter:
             return

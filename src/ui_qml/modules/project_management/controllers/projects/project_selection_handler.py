@@ -52,6 +52,24 @@ def set_status_filter(controller, status_filter: str) -> None:
     controller.refresh()
 
 
+def set_project_name_filter(controller, project_name_filter: str) -> None:
+    normalized = (project_name_filter or "").strip()
+    if normalized == controller._project_name_filter:
+        return
+    controller._set_project_name_filter(normalized)
+    controller._set_project_page(1)
+    controller.refresh()
+
+
+def set_client_name_filter(controller, client_name_filter: str) -> None:
+    normalized = (client_name_filter or "").strip()
+    if normalized == controller._client_name_filter:
+        return
+    controller._set_client_name_filter(normalized)
+    controller._set_project_page(1)
+    controller.refresh()
+
+
 def set_site_filter(controller, site_filter: str) -> None:
     normalized = (site_filter or "").strip().lower() or "all"
     if normalized == controller._selected_site_filter.lower():
@@ -119,6 +137,8 @@ def clear_filters(controller) -> None:
     if (
         not controller._search_text
         and controller._selected_status_filter == "all"
+        and not controller._project_name_filter
+        and not controller._client_name_filter
         and controller._selected_site_filter == "all"
         and controller._selected_department_filter == "all"
         and controller._selected_manager_filter == "all"
@@ -130,6 +150,8 @@ def clear_filters(controller) -> None:
         return
     controller._set_search_text("")
     controller._set_selected_status_filter("all")
+    controller._set_project_name_filter("")
+    controller._set_client_name_filter("")
     controller._set_selected_site_filter("all")
     controller._set_selected_department_filter("all")
     controller._set_selected_manager_filter("all")
@@ -189,6 +211,8 @@ __all__ = [
     "set_end_date_to",
     "set_department_filter",
     "set_manager_filter",
+    "set_project_name_filter",
+    "set_client_name_filter",
     "set_project_page",
     "set_project_page_size",
     "set_project_sort",
