@@ -181,7 +181,7 @@ Item {
     property var columns: []
 
     function initializeColumns() {
-        const base = ColumnConfig.baseColumns(root.hasInvStockCapability)
+        const base = ColumnConfig.baseColumns()
         if (root.workspaceController !== null) {
             const saved = root.workspaceController.loadTableColumnState(root.tableId)
             root.columns = ColumnConfig.applyColumnState(base, saved)
@@ -203,9 +203,16 @@ Item {
     // ── Detail sections list ─────────────────────────────────────────────
     readonly property var detailSections: {
         const secs = ["Details", "Assignments", "Skills", "Dependencies", "Time"]
-        if (root.hasInvStockCapability)       secs.push("Material Demand")
-        if (root.hasInvReservationsCapability) secs.push("Reservations")
-        if (root.hasProcurementCapability)    secs.push("Procurement")
+        // "Reservations" and "Procurement" used to be their own tabs, each
+        // showing nothing but the same summary counts (from taskDetail.state)
+        // plus a single "Open <X>" navigation button already duplicated on
+        // Material Demand's own toolbar -- pure duplicates, removed. Material
+        // Demand's two action buttons (canOpenReservations/canOpenProcurement
+        // below) already gate themselves per-capability independently, so the
+        // tab itself just needs any one of the three related capabilities to
+        // be worth showing at all.
+        if (root.hasInvStockCapability || root.hasInvReservationsCapability || root.hasProcurementCapability)
+            secs.push("Material Demand")
         secs.push("Schedule Impact")
         secs.push("Activity")
         return secs
@@ -313,13 +320,6 @@ Item {
     }
 
     // ── Detail opening helpers ───────────────────────────────────────────
-    function canViewDetailSection(sectionName) {
-        if (sectionName === "Material Demand") return root.hasInvStockCapability
-        if (sectionName === "Reservations") return root.hasInvReservationsCapability
-        if (sectionName === "Procurement") return root.hasProcurementCapability
-        return true
-    }
-
     function lazyLoadDetailSection(detailPage, sectionIndex) {
         if (root.workspaceController === null) return
         const page = detailPage

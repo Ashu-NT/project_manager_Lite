@@ -160,10 +160,8 @@ Item {
         if (name === "Time")            return _sec3.implicitHeight
         if (name === "Activity")        return _sec4.implicitHeight
         if (name === "Material Demand") return _sec5.implicitHeight
-        if (name === "Reservations")    return _sec6.implicitHeight
-        if (name === "Procurement")     return _sec7.implicitHeight
-        if (name === "Skills")          return _sec8.implicitHeight
-        if (name === "Schedule Impact") return _sec9.implicitHeight
+        if (name === "Skills")          return _sec6.implicitHeight
+        if (name === "Schedule Impact") return _sec7.implicitHeight
         return 0
     }
 
@@ -384,35 +382,6 @@ Item {
 
         AppWidgets.LazySectionLoader {
             id: _sec6
-            active: root._idx === root._secIdx("Reservations")
-            loadingMessage: "Loading..."
-            sourceComponent: Component {
-                TasksReservationsSection {
-                    width: parent ? parent.width : 0
-                    taskDetail: root.taskDetail
-                    canOpenReservations: root.canOpenReservations
-                    isBusy: root.isBusy
-                    onOpenReservationsRequested: root.openReservationsRequested()
-                }
-            }
-        }
-
-        AppWidgets.LazySectionLoader {
-            id: _sec7
-            active: root._idx === root._secIdx("Procurement")
-            loadingMessage: "Loading..."
-            sourceComponent: Component {
-                TasksProcurementSection {
-                    width: parent ? parent.width : 0
-                    canOpenProcurement: root.canOpenProcurement
-                    isBusy: root.isBusy
-                    onOpenProcurementRequested: root.openProcurementRequested()
-                }
-            }
-        }
-
-        AppWidgets.LazySectionLoader {
-            id: _sec8
             active: root._idx === root._secIdx("Skills")
             loadingMessage: "Loading..."
             sourceComponent: Component {
@@ -426,7 +395,7 @@ Item {
         }
 
         AppWidgets.LazySectionLoader {
-            id: _sec9
+            id: _sec7
             active: root._idx === root._secIdx("Schedule Impact")
             loadingMessage: "Loading..."
             sourceComponent: Component {

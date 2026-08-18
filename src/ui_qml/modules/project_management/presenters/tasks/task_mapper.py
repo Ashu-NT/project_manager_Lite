@@ -6,6 +6,20 @@ from src.ui_qml.modules.project_management.view_models.tasks import TaskRecordVi
 
 from .formatting import format_date, format_date_label
 
+# Bucket boundaries kept identical to the Priority filter's own buckets
+# (`build_task_priority_options`) and the SQL reader's predicate
+# (`sqlalchemy_workspace_reader.py`: >=70 high, 30-69 medium, <30 low) --
+# the displayed label must agree with what the filter actually selects.
+def _priority_bucket_label(priority_value: object) -> str:
+    if priority_value == "" or priority_value is None:
+        return "Not set"
+    value = int(priority_value)
+    if value >= 70:
+        return "High"
+    if value >= 30:
+        return "Medium"
+    return "Low"
+
 def build_task_state(task: Any) -> dict[str, object]:
     duration_value = task.duration_days if task.duration_days is not None else ""
     priority_value = task.priority if task.priority is not None else ""
@@ -35,9 +49,7 @@ def build_task_state(task: Any) -> dict[str, object]:
         "deadline": format_date(task.deadline),
         "deadlineLabel": format_date_label(task.deadline),
         "priority": str(priority_value),
-        "priorityLabel": (
-            str(priority_value) if priority_value != "" else "Not set"
-        ),
+        "priorityLabel": _priority_bucket_label(priority_value),
         "percentComplete": f"{float(task.percent_complete or 0.0):.1f}",
         "percentCompleteLabel": f"{float(task.percent_complete or 0.0):.1f}%",
         "actualStart": format_date(task.actual_start),

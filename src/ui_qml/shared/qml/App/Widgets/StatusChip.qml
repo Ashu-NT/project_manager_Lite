@@ -21,13 +21,15 @@ Rectangle {
             return "success"
         if (s === "progress" || s === "in_progress" || s === "pending" || s === "submitted"
                 || s === "planned" || s === "scheduled" || s === "released"
-                || s === "partial" || s === "partially_received" || s === "sent")
+                || s === "partial" || s === "partially_received" || s === "sent"
+                || s === "low")
             return "info"
         if (s === "waiting" || s === "blocked" || s === "paused" || s === "deferred"
-                || s === "on_hold")
+                || s === "on_hold" || s === "medium")
             return "warning"
         if (s === "rejected" || s === "cancelled" || s === "overdue" || s === "failed"
-                || s === "error" || s === "expired" || s === "danger")
+                || s === "error" || s === "expired" || s === "danger" || s === "high"
+                || s === "critical")
             return "danger"
         return "neutral"
     }

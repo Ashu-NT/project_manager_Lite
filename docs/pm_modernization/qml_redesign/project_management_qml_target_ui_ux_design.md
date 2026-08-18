@@ -2246,3 +2246,302 @@ whichever of the two matches what it's filtering, not default to one.
 
 **R4.2 FOLLOW-UP (ACTIVITY TRACKING + LIST-SEARCH PATTERN): COMPLETE.**
 Not committed.
+
+## 37. R4.2 follow-up: currency dropdown, searchable ComboBox, Project/Client name filters
+
+Three more user-driven fixes to the Projects workspace, layered onto §35/§36.
+
+- **Currency field is now a dropdown, not free text.** `ProjectEditorDialog.qml`'s
+  "Financial currency" field was `AppControls.TextField` with a placeholder
+  hint; it's now `AppControls.ComboBox` sourced from
+  `projects_workspace_controller.py`'s new `currencyOptions` property (165
+  codes, read directly from the backend's own `ISO_4217_MINOR_UNITS` --
+  the same table `resolve_currency_code()` already validates against, filtered
+  to codes with a real minor-unit definition). Defaults to **XAF** via a new
+  `defaultCurrencyCode` property when no value is set yet; an existing
+  project's stored currency still resolves to its own position in the list.
+- **`RecordListCard` row-overlap bug, found via user screenshot.** Its
+  delegate set a plain `height:` binding inside a `ColumnLayout`; `ColumnLayout`
+  only respects `implicitHeight`/`Layout.preferredHeight`, so every row
+  collapsed to ~0 height and rows rendered stacked on top of each other
+  (reported as "Activity" rows superimposing "Administrator" / "project.update"
+  / the timestamp). Fixed by switching to `implicitHeight` and anchoring the
+  row content to `parent.top` so its top margin actually applies. Shared
+  widget -- also fixes the identical latent bug in Risks and Register's
+  Urgent section.
+- **Client-side search added to the Activity section.** A small
+  `AppControls.SearchField` above `RecordListCard`, filtering the
+  already-loaded (<=50) items by actor name -- see §36 for the pattern
+  writeup distinguishing this from server-side filtering.
+- **`App.Controls.ComboBox` is now a reusable searchable dropdown.** Any
+  option list longer than 8 entries (`searchThreshold`, overridable per
+  instance) automatically gets an in-popup search box that live-filters by
+  label; short lists (Status) are unaffected. Selecting a filtered result
+  still resolves to the option's *original* unfiltered index and fires
+  `activated(index)` with that index, so every existing caller's
+  `onActivated` handler (there are ~15 across the app) works unchanged --
+  no caller needed to change. Also fixed: opening a popup whose current
+  selection sits far down a long list (e.g. XAF near the end of an
+  alphabetical currency list) used to visibly glide/scroll down to it
+  (`ListView`'s default `highlightMoveVelocity`); `highlightMoveDuration: 0`
+  on the full-list `ListView` makes it land there instantly instead.
+- **Project Name / Client Name filters added to `ProjectsFilterPopup.qml`.**
+  Two new independent, AND-composable server-side filters (not folded into
+  the existing combined `search_text` OR-box), threaded through the full
+  stack: reader (`func.lower(name/client_name).like(...)`, deliberately
+  filtering the raw `client_name` column rather than the party-resolved
+  `client_label`, since joining `PartyORM` into the bare `filtered_total`
+  count query -- which has no join at all -- would silently cross-join and
+  inflate the count) -> contracts -> `query_catalog_page` -> desktop API ->
+  controller (`projectNameFilter`/`clientNameFilter` properties +
+  `setProjectNameFilter`/`setClientNameFilter` slots) -> presenter -> QML
+  popup fields + removable chips. Popup widened 380px -> 440px to give the
+  now free-text fields (vs. short-code dropdowns) more room; margin/padding
+  audited against the sibling Tasks/Timesheets filter popups and found
+  already consistent (`dialogPadding`-based margins, `padding: 0` on the
+  dialog itself) -- no fix needed there.
+
+### Testing added
+
+- Real DB test (`test_workspace_database_pagination.py`): Project Name and
+  Client Name filters proven independently and composed (AND), plus a
+  zero-match case.
+- QML-offscreen verification (ComboBox search/instant-scroll, filter popup
+  width/field-wiring/chips, currency dropdown default-to-XAF/preserve-existing):
+  all ad hoc, not committed as permanent tests except where noted.
+
+**R4.2 FOLLOW-UP (CURRENCY DROPDOWN + SEARCHABLE COMBOBOX + NAME FILTERS):
+COMPLETE.** Not committed.
+
+## 38. R4.3 (Tasks) opened: deep data/filter/dialog/detail verification pass
+
+At explicit user request ("we move to the next, follow as project
+workspace, verify from fields in datatable, dialogs, filters, detail pages
+all backend all"), the same field-by-field verification discipline used for
+R4.2-reopened (§35) was applied to Tasks -- the next workspace in the R4
+roadmap (§28's R4.1 characterization already covered Tasks at a high level;
+this is the detailed field-level pass). Read-only recon first (via a
+sub-agent trace of the full call chain per surface), then fixes.
+
+Tasks starts from a materially stronger position than Projects did pre-R4.2:
+it already has a real multi-section lazy-loaded detail inspector (10
+sections) and five genuinely composable server-side filters (Project,
+Status, Priority, Schedule, plus a tokenized advanced-search syntax e.g.
+`priority>=70`) -- there was no catalog/filter architecture to build, only
+correctness to verify.
+
+### DataTable column audit and fixes
+
+Traced every column: QML key -> `serialize_task_record_view_models` ->
+`TaskDesktopDto` -> `TaskService.query_workspace_page` ->
+`SqlAlchemyTaskWorkspaceReader` (a recursive CTE rolling up summary-task
+status/progress/dates from leaf descendants). Findings and fixes:
+
+- **`wbsCode` (a `required`, always-visible, leftmost column) rendered
+  blank for every single row.** `serialize_task_record_view_models` never
+  emitted a top-level `wbsCode` key -- only nested under `row["state"]` --
+  and `DynamicTableModel.data()` does a flat `row_dict.get(key)` lookup with
+  no fallback into `state`. The value was real and correctly computed all
+  the way through the reader; it just never reached the row root. Fixed by
+  adding `"wbsCode": str(view_model.state.get("wbsCode", "") or "")` to the
+  serializer.
+- **`materialDemandLabel` ("Material" column, shown only with
+  `inventory.stock.read`) had no data source anywhere in the list-row
+  pipeline** -- `TaskDesktopDto`/`TaskWorkspacePageDesktopDto` never carried
+  it, it wasn't in the reader's allowed sort keys, and `sortable: false` was
+  already set (a tell that whoever wrote it knew it wasn't server-backed).
+  Building it properly would need a new bulk-by-task-ids material-demand
+  query; the existing single-task lookup (`get_task_material_demand`) fetches
+  up to 500 reservations *per task* (see below), which would be an N+1
+  disaster across a page of rows. Removed the column outright (`baseColumns()`
+  no longer takes a capability param); the real, correctly-scoped Material
+  Demand detail-section data is untouched.
+- **Priority column showed the raw numeric priority (e.g. "95") in a
+  `type: "status"` chip instead of a bucketed label.** `StatusChip` maps
+  known status words to a color; an arbitrary number matches nothing and
+  silently rendered as a neutral gray chip -- visually indistinguishable
+  from "no priority" regardless of actual value. Fixed by computing a
+  bucketed label (`_priority_bucket_label` in `task_mapper.py`: High >=70,
+  Medium 30-69, Low <30 -- copied verbatim from the Priority *filter*'s own
+  buckets and the reader's predicate, so the label and the filter that
+  selects it always agree) and extending `StatusChip`'s shared token list
+  with `high`/`medium`/`low`/`critical` (danger/warning/info/danger tones).
+  This is a shared widget, so it also retroactively fixes the identical
+  dead-chip bug for Register's risk-severity chip (`LOW`/`MEDIUM`/`HIGH`/
+  `CRITICAL`), which had the exact same "text doesn't match any known
+  token -> neutral gray" problem.
+- **Start/Finish/Deadline/Actual-date columns showed raw ISO strings**
+  (`2026-05-01`) instead of the human format used everywhere else in PM.
+  Tasks had its own `formatting.py:format_date_label` that never got the
+  `%d %b %Y` fix Projects received in §35; now it does. Confirmed safe:
+  the reader sorts these columns on the underlying date *column*
+  (`rows.c.start_date`/`rows.c.end_date`), never on this display label, so
+  the format change cannot affect sort order.
+- `title`, `statusLabel`, `projectName`, `progressValue` traced and
+  confirmed correctly mapped end to end -- no fix needed. `title`'s
+  whitespace-indent hierarchy hack (`'    ' * hierarchyDepth`) is real data,
+  just UX debt already flagged in §28 (a proper WBS tree view is a
+  distinct, larger feature) -- not touched here.
+
+Column disposition: `wbsCode` **FIX DATA MAPPING**; `materialDemandLabel`
+**REMOVE**; `priorityLabel` **FIX FORMAT** (+ shared-widget fix);
+`startDateLabel`/`endDateLabel`/`deadlineLabel`/`actualStartLabel`/
+`actualEndLabel` **FIX FORMAT**; everything else **KEEP**.
+
+### Filters: verified, not changed
+
+Priority (`high`/`medium`/`low`) and Schedule (`overdue`/`due_7`/
+`no_deadline`) filter option labels (`presenters/tasks/task_filters.py`)
+checked byte-for-byte against the reader's own bucket predicates
+(`sqlalchemy_workspace_reader.py`) -- exact match, no gap. Project/Status/
+Priority/Schedule/search-text are all real, independently composable,
+server-side filters already; nothing here needed the kind of
+multi-filter-architecture build R4.2 required for Projects.
+
+### Dialogs: repository-layer sweep, no dropped fields found
+
+Checked the same class of bug §35 found in Projects (a repository
+`update()` whose column-value dict silently omits fields the domain object
+actually carries) across every Task-adjacent repository `update()`:
+`Task.update()` (all 15 domain fields present), `TaskAssignment.update()`
+(direct attribute assignment, not dict-based -- structurally immune),
+`TaskDependency.update()` (same), `TaskComment.update()` (all 16 non-PK/
+non-version fields present, including every `*_json` field). All four are
+complete. Cross-checked `TaskEditorDialog`'s editable-field set against
+`update_task()`'s parameter list (name/description/start/duration/status/
+priority/deadline/code) and the WBS-move/progress dialogs against their own
+dedicated commands (`move_task`, task-progress) -- each dialog's fields map
+onto exactly the command built for it, with WBS/progress/schedule fields
+deliberately routed through separate dedicated commands rather than the
+general `update_task()`. No dropped-field bug found; the Projects
+repository bug in §35 appears to have been a one-off, not a systemic
+pattern in this codebase.
+
+### Detail sections: verified, one real performance defect found (documented, not fixed)
+
+Assignments/Dependencies/Time/Collaboration/Skills/Schedule Impact are all
+genuinely lazy (real "loaded for task id" guards) and task-scoped at the
+query level -- confirmed real, not stubs.
+
+**Material Demand is a real PERFORMANCE DEFECT, left unfixed as
+out-of-scope cross-module work.** The "Details" section (`_sec0`, loaded
+eagerly on every task selection, *not* behind a lazy slot, and with no
+capability gate) calls `build_material_demand_state()` ->
+`get_task_material_demand()` -> `list_task_reservations()`, which fetches
+**up to 500 reservations across the entire organization** and filters them
+in Python for one task's `source_reference_id`. This fires on every single
+task row click, for every user regardless of whether they hold
+`inventory.stock.read` or will ever open the Material Demand tab. Root
+cause: `TaskReservationGateway` (the Protocol PM depends on, matching
+Inventory's real `ReservationService.list_reservations` shape exactly) has
+no `source_reference_type`/`source_reference_id` filter parameter at all --
+there is no way to ask for "reservations for this task" at the query level
+today. Fixing this properly means extending that cross-module Protocol and
+its concrete Inventory implementation, which is real backend feature work,
+not a verification-pass fix -- and PM importing Inventory internals
+directly to work around it would violate this design's own module-boundary
+rule (§15). Documented here as a **FUTURE FEATURE / PERFORMANCE DEFECT**
+for whoever picks up Inventory/Procurement-side work next; the dedicated
+Material Demand and Reservations *sections* read the same eagerly-computed
+data (they were never separately lazy despite appearing so in the section
+list), so fixing the query fixes both at once. The Procurement section
+remains a capability-gated navigation-only CTA by design (confirmed
+intentional, not dead).
+
+### Testing added
+
+- `src/tests/pm/test_tasks_serializer.py`: real DB round-trip proving
+  `wbsCode` reaches the row root (not just `state`), `materialDemandLabel`
+  is absent, priority buckets match the filter's own bucket boundaries
+  (including a same-task cross-check: filtering by `priority=high/medium/low`
+  returns exactly the tasks whose label says so), and the date-label format
+  fix.
+- `src/tests/test_qml_status_chip_priority_severity_variants.py` (new,
+  `StatusChip` had zero prior test coverage): confirms `high`/`critical` ->
+  danger, `medium` -> warning, `low` -> info, and an unrelated word still
+  falls through to neutral.
+- Full `src/tests/project_management -k task` sweep (124 tests) and the
+  broader `project_management`/`pm` suite re-run green after every change.
+
+**R4.3 (TASKS) DEEP VERIFICATION PASS: fields/filters/dialogs done,
+detail-section audit done with one documented-not-fixed performance
+finding.** Not committed.
+
+## 39. R4.3 follow-up: shared ComboBox border overflow, and the Tasks detail-page IA consolidation §38 deferred
+
+Two more user-driven fixes, both explicitly asking "did you actually check
+each detail-page section the way you did for Projects" and reporting the
+Tasks filter popup's fields visually overflowing its border.
+
+### Shared `App.Controls.ComboBox` border-overflow bug
+
+A long selected label (a long project name in the Tasks filter's Project
+combo, but this is app-wide, not Tasks-specific) inflated the control's
+`implicitWidth` (`Math.max(160, contentItem.implicitWidth + spacingXl)`).
+QtQuick Layouts uses `implicitWidth` as the effective `Layout.minimumWidth`
+whenever the latter isn't set explicitly, so `Layout.fillWidth: true` alone
+could never shrink the control below that inflated width -- it overflowed
+past its container/dialog border instead of eliding, exactly as reported.
+Fixed by adding `Layout.minimumWidth: 0` to the shared component, so
+`fillWidth` can actually shrink it down to the already-present
+`elide: Text.ElideRight` truncation. Could not be reliably reproduced in
+an offscreen automated test in this environment (`Text.implicitWidth`
+computed as `0` for synthetic inline QML in the headless test harness here,
+a font-metrics/offscreen-platform artifact, not evidence the real bug
+doesn't exist) -- the fix follows directly from documented QtQuick Layouts
+behavior and is safe/inert for every existing caller regardless. Please
+confirm visually in a real run.
+
+### Tasks detail-page section audit: the one real duplicate, found and merged
+
+§38 verified each detail section's *backend wiring* (real vs. stub) but
+did not yet do the Projects-style *IA* audit (purpose / duplication /
+merge-or-remove per section) -- this closes that gap. Reviewed all 10
+sections for purpose and overlap:
+
+- **Material Demand, Reservations, and Procurement were three sections
+  showing the same content.** All three read the identical
+  `taskDetail.state.materialDemand*` fields (from the one eager
+  `build_material_demand_state()` call §38 already flagged as a
+  performance defect); Reservations was a strict subset of Material
+  Demand's own display (same subtitle text, same counts, minus the
+  fulfilled/cancelled breakdown); Procurement showed no task-specific data
+  at all. All three ended at the same two "navigate away" actions
+  ("Open Reservations" / "Open Procurement"), both of which Material
+  Demand's own toolbar *already* exposes as independently-gated buttons
+  (`canOpenReservations`/`canOpenProcurement`). Merged: `TasksReservationsSection.qml`
+  and `TasksProcurementSection.qml` deleted outright (zero unique content,
+  same standard this design applied to Projects' dead sections in §29/§35);
+  `TasksWorkspaceState.qml`'s `detailSections` now pushes a single
+  "Material Demand" entry gated on *any* of the three related capabilities
+  (`inv.stock.read` OR `inv.reservations.create` OR
+  `procurement.requisitions.create`) rather than three separately-gated
+  tabs -- each button inside the surviving section still gates itself
+  independently, so no capability combination loses an action it used to
+  have. `TasksDetailPanel.qml`'s two now-orphaned `LazySectionLoader`s
+  removed, the remaining ones renumbered (`_sec6`/`_sec7` for Skills/
+  Schedule Impact). Also deleted: `canViewDetailSection()`, a
+  `TasksWorkspaceState.qml` function that duplicated this exact
+  capability check but was never called from anywhere -- dead code found
+  incidentally while doing this audit.
+- **Details, Assignments, Dependencies, Time, Skills, Schedule Impact,
+  Activity: reviewed, no duplication found.** Each covers a genuinely
+  distinct domain (core fields / resource allocation / task-to-task links /
+  time tracking / skill requirements / CPM delay analysis / comments) with
+  no overlapping content or redundant navigation target -- unlike Material
+  Demand's cluster, these don't collapse into each other.
+
+Section count: 10 -> 8 (Details, Assignments, Skills, Dependencies, Time,
+Material Demand, Schedule Impact, Activity).
+
+### Testing added
+
+- QML-offscreen verification (ad hoc): `detailSections` no longer contains
+  "Reservations"/"Procurement" and only includes "Material Demand" when a
+  related capability is granted; `TasksDetailPanel.qml` loads cleanly with
+  the two sections' `LazySectionLoader`s removed. Full
+  `src/tests/project_management -k task` sweep (124 tests) re-run green
+  after the merge.
+
+**R4.3 FOLLOW-UP (COMBOBOX BORDER FIX + DETAIL-PAGE IA CONSOLIDATION):
+COMPLETE.** Not committed.
