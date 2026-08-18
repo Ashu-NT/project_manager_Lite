@@ -9,7 +9,7 @@ project-scoped time authorization.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
@@ -19,6 +19,15 @@ from src.core.modules.project_management.api.desktop.projects.commands.resource_
 )
 from src.core.modules.project_management.api.desktop.projects.factories.projects_api_factory import (
     build_project_management_projects_desktop_api,
+)
+from src.core.modules.project_management.api.desktop.resources.factories.resources_api_factory import (
+    build_project_management_resources_desktop_api,
+)
+from src.core.modules.project_management.api.desktop.tasks.factories.tasks_api_factory import (
+    build_project_management_tasks_desktop_api,
+)
+from src.core.modules.project_management.application.resources.resource_availability_service import (
+    ResourceAvailabilityService,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError
 from src.tests.ui_runtime_helpers import login_as
@@ -228,6 +237,68 @@ def test_desktop_api_update_project_resource_forwards_expected_version_and_confl
 
 
 # ---------------------------------------------------------------------------
+# Overallocation policy: warn (non-blocking) vs strict (blocking) -- neither
+# branch had a test proving it actually behaves as configured.
+# ---------------------------------------------------------------------------
+
+
+def _overlapping_overallocation_setup(services):
+    ps = services["project_service"]
+    ts = services["task_service"]
+    rs = services["resource_service"]
+    project = ps.create_project("Overallocation Policy Project")
+    resource = rs.create_resource("Overallocation Policy Resource", hourly_rate=60.0)
+    task_a = ts.create_task(
+        project.id, "Overallocation Task A", start_date=date(2026, 7, 6), duration_days=5
+    )
+    task_b = ts.create_task(
+        project.id, "Overallocation Task B", start_date=date(2026, 7, 6), duration_days=5
+    )
+    # 70% on Task A leaves only 30% of capacity free for the overlapping window.
+    ts.assign_resource(task_a.id, resource.id, allocation_percent=70.0)
+    return ps, ts, rs, project, resource, task_a, task_b
+
+
+def test_overallocation_warn_policy_allows_mutation_and_sets_warning(services):
+    ts = services["task_service"]
+    _, _, _, project, resource, task_a, task_b = _overlapping_overallocation_setup(services)
+    assert ts._overallocation_policy == "warn"  # default
+
+    # 80% overlapping Task A's 70% => 150% > 100% capacity -- over the line.
+    assignment_b = ts.assign_resource(task_b.id, resource.id, allocation_percent=80.0)
+
+    assert assignment_b is not None
+    assert ts._last_overallocation_warning is not None
+    assert "over-allocated" in ts._last_overallocation_warning
+
+
+def test_overallocation_strict_policy_rejects_mutation(services):
+    ts = services["task_service"]
+    _, _, _, project, resource, task_a, task_b = _overlapping_overallocation_setup(services)
+    ts._overallocation_policy = "strict"
+
+    with pytest.raises(BusinessRuleError) as exc:
+        ts.assign_resource(task_b.id, resource.id, allocation_percent=80.0)
+    assert exc.value.code == "RESOURCE_OVERALLOCATED"
+
+    # The rejected assignment must not have been created.
+    remaining = ts.list_assignments_for_task(task_b.id)
+    assert remaining == []
+
+
+def test_overallocation_strict_policy_still_allows_non_conflicting_allocation(services):
+    """Strict mode blocks only genuine over-capacity days -- it must not
+    become a blanket rejection of every assignment."""
+    ts = services["task_service"]
+    _, _, _, project, resource, task_a, task_b = _overlapping_overallocation_setup(services)
+    ts._overallocation_policy = "strict"
+
+    # 20% overlapping Task A's 70% => 90% <= 100% capacity -- within budget.
+    assignment_b = ts.assign_resource(task_b.id, resource.id, allocation_percent=20.0)
+    assert assignment_b is not None
+
+
+# ---------------------------------------------------------------------------
 # Resource.is_active enforcement at assignment creation (Defect §37)
 # ---------------------------------------------------------------------------
 
@@ -343,3 +414,196 @@ def test_logging_time_against_task_in_unauthorized_project_is_denied(services):
     # project_alpha's "owner" scope role must not leak into project_beta.
     with pytest.raises(BusinessRuleError, match="Permission denied"):
         ts.add_time_entry(assignment_beta.id, entry_date=date(2026, 6, 2), hours=2.0, note="beta work")
+
+
+# ---------------------------------------------------------------------------
+# Dead capacity/availability wiring -- now real (mid-pass follow-up)
+# ---------------------------------------------------------------------------
+
+
+def test_task_assignment_availability_service_is_wired_in_composition_root(services):
+    """DI-wiring proof: the real ResourceAvailabilityService must be
+    registered under the dedicated key this desktop-API factory reads --
+    previously nothing was registered there at all, so the assignment
+    preview always reported zero conflicts regardless of real data."""
+    assert isinstance(
+        services.get("task_assignment_availability_service"), ResourceAvailabilityService
+    )
+
+
+def test_assignment_preview_reports_real_overallocation_not_a_dead_zero(services):
+    """Proves the DI wiring fix with real data. Note on the formula itself
+    (discovered while writing this test, not fixed here -- out of scope for
+    a dead-wiring fix): `build_assignment_preview` calls
+    `is_resource_available(resource_id, p_start, p_finish)` with no
+    proposed-allocation argument, and only inspects the returned window's
+    *existing* peak load -- so it currently detects "this resource is
+    already overloaded during this window from other assignments," not
+    the marginal effect of the specific allocation being proposed for this
+    new assignment. This test exercises the former (real) behavior, since
+    that's what the code actually computes; extending the preview to also
+    weigh the proposed allocation itself is a follow-up, not a wiring fix."""
+    window_start = date.today() + timedelta(days=1)
+
+    ps = services["project_service"]
+    ts = services["task_service"]
+    rs = services["resource_service"]
+    prs = services["project_resource_service"]
+
+    project = ps.create_project("Preview Wiring Project")
+    resource = rs.create_resource("Preview Wiring Resource", hourly_rate=80.0)
+    project_resource = prs.add_to_project(project.id, resource.id, planned_hours=100.0)
+    task_a = ts.create_task(
+        project.id, "Preview Task A", start_date=window_start, duration_days=5
+    )
+    task_c = ts.create_task(
+        project.id, "Preview Task C", start_date=window_start, duration_days=5
+    )
+    task_b = ts.create_task(
+        project.id, "Preview Task B", start_date=window_start, duration_days=5
+    )
+    # 70% + 60% already committed on A and C -> resource is already at 130%
+    # during this window, before Task B is even considered.
+    ts.assign_project_resource(
+        task_id=task_a.id, project_resource_id=project_resource.id, allocation_percent=70.0
+    )
+    ts.assign_project_resource(
+        task_id=task_c.id, project_resource_id=project_resource.id, allocation_percent=60.0
+    )
+
+    api = build_project_management_tasks_desktop_api(
+        project_service=ps,
+        task_service=ts,
+        project_resource_service=prs,
+        resource_service=rs,
+        assignment_skill_validator=None,
+        resource_availability_service=services["task_assignment_availability_service"],
+    )
+
+    preview = api.preview_assignment(task_b.id, project_resource.id)
+    assert preview.overallocation_pct > 0.0
+    assert preview.conflict_projects == (project.name,)
+
+
+def test_resource_availability_display_returns_real_data_not_none(services):
+    """Resources workspace's capacity display previously always resolved
+    to None (and therefore the all-zero "Allocation Summary" fallback in
+    QML), because the calendar-based service it was wired to didn't
+    implement the method being called on it."""
+    ps = services["project_service"]
+    ts = services["task_service"]
+    rs = services["resource_service"]
+
+    project = ps.create_project("Availability Display Project")
+    resource = rs.create_resource("Availability Display Resource", hourly_rate=65.0)
+    # build_resource_availability windows from date.today() forward -- the
+    # task must fall inside that window to be picked up.
+    task = ts.create_task(
+        project.id,
+        "Availability Display Task",
+        start_date=date.today() + timedelta(days=1),
+        duration_days=3,
+    )
+    ts.assign_resource(task.id, resource.id, allocation_percent=60.0)
+
+    api = build_project_management_resources_desktop_api(
+        resource_service=rs,
+        availability_service=services["task_assignment_availability_service"],
+    )
+
+    availability = api.build_resource_availability(resource.id)
+    assert availability is not None
+    assert availability.peak_load_percent > 0.0
+
+
+# ---------------------------------------------------------------------------
+# Query-count evidence for the changed N+1 paths (Defect §38/§D)
+# ---------------------------------------------------------------------------
+
+
+def _instrument_get_and_batch(cls, batch_method_name: str):
+    """Wrap get()/<batch_method_name>() on a repository CLASS with call
+    counters. Returns (counts, restore) -- mirrors the established pattern
+    in test_approved_time_work_allocation_n_plus_one.py."""
+    counts = {"get": 0, batch_method_name: 0}
+    real_get = cls.get
+    real_batch = getattr(cls, batch_method_name)
+
+    def counting_get(self, *args, **kwargs):
+        counts["get"] += 1
+        return real_get(self, *args, **kwargs)
+
+    def counting_batch(self, *args, **kwargs):
+        counts[batch_method_name] += 1
+        return real_batch(self, *args, **kwargs)
+
+    cls.get = counting_get
+    setattr(cls, batch_method_name, counting_batch)
+
+    def restore():
+        cls.get = real_get
+        setattr(cls, batch_method_name, real_batch)
+
+    return counts, restore
+
+
+def test_leveling_resource_name_map_issues_one_batch_call_not_one_per_assignment(services):
+    from src.core.modules.project_management.infrastructure.persistence.repositories.resources.resource import (
+        SqlAlchemyResourceRepository,
+    )
+
+    ps = services["project_service"]
+    ts = services["task_service"]
+    rs = services["resource_service"]
+
+    project = ps.create_project("Leveling Query Count Project")
+    resources = [rs.create_resource(f"Leveling Resource {i}", hourly_rate=50.0) for i in range(4)]
+    window_start = date.today() + timedelta(days=1)
+    for i, resource in enumerate(resources):
+        task = ts.create_task(
+            project.id, f"Leveling Task {i}", start_date=window_start, duration_days=3
+        )
+        ts.assign_resource(task.id, resource.id, allocation_percent=100.0)
+
+    sched = services["scheduling_engine"]
+    counts, restore = _instrument_get_and_batch(SqlAlchemyResourceRepository, "list_by_ids")
+    try:
+        sched.preview_resource_conflicts(project.id)
+    finally:
+        restore()
+
+    # One batched call for however many distinct resources are involved,
+    # never a per-resource get() loop.
+    assert counts["list_by_ids"] >= 1
+    assert counts["get"] == 0
+
+
+def test_availability_service_task_lookup_issues_one_batch_call_not_one_per_task(services):
+    from src.core.modules.project_management.infrastructure.persistence.repositories.tasks.task import (
+        SqlAlchemyTaskRepository,
+    )
+
+    ps = services["project_service"]
+    ts = services["task_service"]
+    rs = services["resource_service"]
+
+    project = ps.create_project("Availability Query Count Project")
+    resource = rs.create_resource("Availability Query Count Resource", hourly_rate=55.0)
+    window_start = date.today() + timedelta(days=1)
+    for i in range(4):
+        task = ts.create_task(
+            project.id, f"Availability Task {i}", start_date=window_start, duration_days=2
+        )
+        ts.assign_resource(task.id, resource.id, allocation_percent=20.0)
+
+    availability_service = services["task_assignment_availability_service"]
+    counts, restore = _instrument_get_and_batch(SqlAlchemyTaskRepository, "list_by_ids")
+    try:
+        availability_service.is_resource_available(
+            resource.id, window_start, window_start + timedelta(days=2)
+        )
+    finally:
+        restore()
+
+    assert counts["list_by_ids"] >= 1
+    assert counts["get"] == 0

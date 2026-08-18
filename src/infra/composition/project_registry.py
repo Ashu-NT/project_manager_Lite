@@ -74,6 +74,7 @@ from src.core.modules.project_management.application.resources.assignment_valida
 )
 from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import ProjectCalendarAdapter
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
+from src.core.modules.project_management.application.resources.resource_availability_service import ResourceAvailabilityService
 from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
 from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import PortfolioResourcePoolService
 from src.core.modules.project_management.infrastructure.persistence.reads.portfolio import (
@@ -149,6 +150,7 @@ class ProjectManagementServiceBundle:
     project_calendar_adapter: ProjectCalendarAdapter
     enterprise_resource_availability: EnterpriseResourceAvailabilityService
     resource_capacity_calculator: ResourceCapacityCalculator
+    task_assignment_availability_service: ResourceAvailabilityService
     portfolio_resource_pool_service: PortfolioResourcePoolService
 
 
@@ -608,6 +610,23 @@ def build_project_management_service_bundle(
     resource_capacity_calculator = ResourceCapacityCalculator(
         availability_service=enterprise_resource_availability,
     )
+    # Percent-based (allocation_percent vs. Resource.capacity_percent)
+    # availability check -- matches the semantics TaskValidationMixin's
+    # _check_resource_overallocation already enforces, so the assignment
+    # preview predicts what the actual enforcement will do rather than a
+    # different (calendar-hours) model. Also used for the Resources
+    # workspace's own capacity display: the calendar-based
+    # EnterpriseResourceAvailabilityService above is the intended long-term
+    # authority there, but nothing computes real assigned-hours for it yet
+    # (see ResourceCapacityCalculator's docstring), so it was always
+    # returning no data. Until that's wired, this working, real-data
+    # service is strictly better than the dead calendar path.
+    task_assignment_availability_service = ResourceAvailabilityService(
+        resource_repo=repositories.resource_repo,
+        assignment_repo=repositories.assignment_repo,
+        task_repo=repositories.task_repo,
+        calendar=work_calendar_engine,
+    )
     portfolio_resource_pool_service = PortfolioResourcePoolService(
         reader=SqlAlchemyPortfolioResourcePoolReader(session=session),
         calendar=platform_services.global_calendar_shim,
@@ -666,6 +685,7 @@ def build_project_management_service_bundle(
         project_calendar_adapter=project_calendar_adapter,
         enterprise_resource_availability=enterprise_resource_availability,
         resource_capacity_calculator=resource_capacity_calculator,
+        task_assignment_availability_service=task_assignment_availability_service,
         portfolio_resource_pool_service=portfolio_resource_pool_service,
     )
 

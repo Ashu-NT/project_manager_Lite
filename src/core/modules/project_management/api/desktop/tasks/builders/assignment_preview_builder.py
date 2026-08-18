@@ -13,6 +13,7 @@ def build_assignment_preview(
     project_resource_service: object | None,
     assignment_skill_validator: object | None,
     resource_availability_service: object | None,
+    project_names: dict[str, str] | None = None,
 ) -> AssignmentPreviewDesktopDto:
     """Return combined availability + skill/cert check for an assignment candidate."""
     empty_preview = _empty_assignment_preview(task_id)
@@ -54,11 +55,22 @@ def build_assignment_preview(
                         if day.overloaded:
                             conflict_task_ids.update(day.contributing_tasks)
                     conflict_task_ids.discard(task_id)
+                    # Resolve names via the caller's pre-scoped, batched
+                    # lookup rather than a per-conflict task_service.get_task
+                    # + a `project_name` attribute Task doesn't actually
+                    # have (that attribute lookup always silently failed).
+                    # Using the scoped lookup also means a project the
+                    # current user isn't authorized to see simply won't
+                    # resolve a name -- the conflict is still surfaced
+                    # (capacity result), but not the other project's
+                    # identity, without a second, separate authorization
+                    # check duplicating what the lookup already enforces.
+                    names = project_names or {}
                     for conflict_task_id in conflict_task_ids:
                         conflict_task = task_service.get_task(conflict_task_id)
                         if conflict_task is not None:
                             project_name = str(
-                                getattr(conflict_task, "project_name", "") or ""
+                                names.get(getattr(conflict_task, "project_id", ""), "") or ""
                             )
                             if project_name and project_name not in conflict_projects:
                                 conflict_projects.append(project_name)

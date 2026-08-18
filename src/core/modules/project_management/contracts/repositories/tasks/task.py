@@ -34,6 +34,13 @@ class TaskRepository(ABC):
     def list_by_project(self, project_id: str) -> list[Task]: ...
 
     @abstractmethod
+    def list_by_ids(self, task_ids: list[str]) -> list[Task]:
+        """Batch fetch by id -- callers resolving a set of tasks referenced
+        by a resource's assignments (capacity/availability calculations,
+        leveling) must use this instead of a per-id `get()` loop."""
+        ...
+
+    @abstractmethod
     def list_children(self, project_id: str, parent_task_id: str | None) -> list[Task]: ...
 
 

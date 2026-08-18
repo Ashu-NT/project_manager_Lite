@@ -155,13 +155,10 @@ class ResourceAvailabilityService:
                 available_days=working_days,
             )
 
-        # Build task map for all assigned tasks
+        # Build task map for all assigned tasks (one batched fetch, not a
+        # per-task-id loop).
         task_ids = list({a.task_id for a in assignments})
-        tasks_by_id: dict[str, Task] = {}
-        for tid in task_ids:
-            task = self._tasks.get(tid)
-            if task:
-                tasks_by_id[tid] = task
+        tasks_by_id: dict[str, Task] = {t.id: t for t in self._tasks.list_by_ids(task_ids)}
 
         # Compute daily load across the window
         daily_loads: list[ResourceDateLoad] = []

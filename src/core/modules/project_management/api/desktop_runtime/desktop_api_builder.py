@@ -94,7 +94,7 @@ def build_project_management_desktop_runtime_apis(
         project_management_resources=build_project_management_resources_desktop_api(
             resource_service=resolved.resource_service,
             employee_service=platform_dependencies.employee_service,
-            availability_service=resolved.availability_service,
+            availability_service=resolved.task_assignment_availability_service,
             task_service=resolved.task_service,
             project_service=resolved.project_service,
         ),
@@ -118,6 +118,7 @@ def build_project_management_desktop_runtime_apis(
             reservation_service=platform_dependencies.reservation_service,
             assignment_skill_validator=resolved.assignment_skill_validator,
             schedule_change_impact_service=change_impact_service,
+            resource_availability_service=resolved.task_assignment_availability_service,
         ),
         project_management_timesheets=build_project_management_timesheets_desktop_api(
             project_service=resolved.project_service,

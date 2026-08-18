@@ -3206,3 +3206,500 @@ snapshot fields, causing 5 test failures) — production code was made
 defensive (`getattr` with fallback) rather than only patching the fake,
 since a snapshot-shape mismatch should degrade gracefully, not crash, in
 any caller. Not committed.
+
+## 44. R4.3 Resource → ProjectResource → TaskAssignment → Time — enterprise planning/capacity upgrade
+
+Baseline for this pass was the current-state audit already on record (three
+independent deep-dive traces of Resource/calendar/capacity,
+ProjectResource/TaskAssignment/planned-hours/allocation-percent, and
+Time/Finance/Scheduling/Workload/Authorization/QML — findings folded into
+this section rather than repeated). Nothing was re-audited from scratch;
+every change below was verified against the exact current code before being
+made. Not committed.
+
+**Scope decision, stated up front**: this pass delivered the ProjectResource/
+TaskAssignment/Time backend hardening and reconciliation work in full, plus a
+light, real (not placeholder) QML wiring pass for the Projects → Resources
+surface. It explicitly did **not** deliver the single largest, riskiest item
+in the brief — consolidating onto one calendar-based capacity authority and
+migrating the assignment-preview/overallocation/leveling calculation off the
+flat `capacity_percent` + naive Mon–Fri model. That item is real, well-
+scoped by the audit, and deliberately deferred to its own pass — see §15/§20
+below for why and what the concrete next steps are. Exit-gate items #1
+("one authoritative capacity source") and #2 ("calendar resolution wired in
+production") are therefore **not met** by this pass; every other applicable
+item is.
+
+### 1. Final capacity authority — NOT consolidated this pass (deferred)
+
+The audit found four independent, non-integrated capacity/utilization
+calculators (`ResourceCapacityCalculator`/`EnterpriseResourceAvailabilityService`
+— calendar-derived, correct semantics, but no production caller feeds it real
+assignment data; `ResourceAvailabilityService` — allocation_percent vs. flat
+`capacity_percent`, never constructed in production; `ResourceLoadEngine` —
+peak-concurrent allocation_percent, feeds a real Dashboard/Scheduling KPI;
+`PortfolioResourcePoolService` — portfolio-wide, own SQL read model). None of
+these were consolidated, deleted, or rewired this pass. The two confirmed
+dead-wiring bugs found by the audit (the assignment-preview's
+`resource_availability_service` never being passed by
+`desktop_api_builder.py`, and `ResourcesCalendarSection.qml`'s
+`enterpriseCapacity` binding never being populated because the wired
+`EnterpriseResourceAvailabilityService` has no `check_availability` method)
+are both **still present** — deliberately not patched in isolation, since a
+narrow fix would either (a) wire the wrong calculator in for a quick win, or
+(b) require redesigning the assignment-preview/overallocation call path
+anyway once the right calculator is chosen — better done once, correctly, as
+its own pass. See §15/§20.
+
+### 2. Resource.capacity_percent semantics — unchanged, already correctly defined
+
+Confirmed the audit's finding still holds and needed no code change: the ORM
+comment on this column (`orm/resource.py`) already states the intended
+"macro capacity modifier" semantics precisely as this brief's §5 describes —
+`effective_capacity = calendar_capacity × capacity_percent / 100` — the
+definition already exists in a comment; what's missing is the calendar side
+of that formula actually being computed anywhere real (see §1).
+
+### 3. Calendar precedence — unchanged, real, but still disconnected from assignment/overallocation
+
+`EnterpriseCalendarResolver`'s org→site→department→employee/resource
+precedence chain is real, tested, and untouched by this pass. It remains
+unconnected to `_check_resource_overallocation`, the assignment-preview
+formula, and both leveling engines, all three of which still compute
+capacity from `Resource.capacity_percent` alone plus a plain Mon–Fri day
+model. Not migrated this pass (see §15).
+
+### 4. ProjectResource.planned_hours semantics — reconfirmed, formalized in code
+
+Reconfirmed as the project-level control envelope (not a work estimate, not a
+capacity reservation in the calendar sense). Its three real consumers
+(the WBS-distribution ceiling, the envelope-shrink guard, and Finance's
+`LaborCostEngine` whole-envelope planned-cost row) are unchanged in meaning;
+what changed is that the ceiling/shrink-guard arithmetic that used to be
+written out independently in two files is now one shared, tested policy
+module (see §9).
+
+### 5. TaskAssignment.allocated_planned_hours semantics — reconfirmed, unchanged
+
+Reconfirmed as the task/WBS share of the ProjectResource envelope; no
+semantic or field change this pass beyond what §43 already shipped (create-
+time + edit-time UI, version-checked edit).
+
+### 6. allocation_percent semantics — reconfirmed, unchanged, NOT tied to hours this pass
+
+Reconfirmed as a bare percentage with no calendar-hours meaning anywhere in
+the codebase (`_check_resource_overallocation` compares it against
+`Resource.capacity_percent`, another bare percentage — never multiplied by
+real hours). Not changed this pass; doing so is exactly the deferred §1/§15
+work.
+
+### 7/8. Actual-hours authority and ProjectResource reconciliation — NEW this pass
+
+The audit's clearest, single most concrete gap — "how much of this resource's
+project envelope has actually been burned" had no code answer at all — is now
+answered authoritatively:
+
+- New shared policy module,
+  `application/common/project_resource_envelope_policy.py`: 
+  `allocated_to_tasks_hours`, `actual_hours_total`,
+  `resource_assignments_in_project` (the one bounded query — via the
+  already-batched `AssignmentRepository.list_by_tasks`, never a per-row loop
+  or a "currently loaded page" sum), `envelope_status` (`UNALLOCATED` /
+  `PARTIALLY_ALLOCATED` / `FULLY_ALLOCATED` / `OVERALLOCATED`), `burn_status`
+  (`NOT_STARTED` / `WITHIN_PLAN` / `NEAR_PLAN` / `OVERRUN`, reusing the
+  already-established 90%-near-capacity threshold from
+  `resource_load_engine.py`'s utilization bands rather than inventing a new
+  one), `planned_burn_percent`, and the two invariant-enforcing functions
+  `require_can_allocate_task_hours`/`require_can_reduce_envelope`.
+- `ProjectResourceQueryMixin.get_usage(project_resource_id)` (application
+  layer) returns a new `ProjectResourceUsageFact`
+  (`contracts/reads/projects/models.py`): `planned_hours,
+  allocated_to_tasks_hours, unallocated_planned_hours, actual_hours,
+  remaining_project_hours, planned_burn_percent, task_assignment_count,
+  envelope_status, burn_status, version`. `actual_hours` sums
+  `TaskAssignment.hours_logged` — itself already the TimeEntry-derived,
+  all-time-synced authoritative total per assignment — across every
+  assignment for that resource in that project, so this is the real
+  `TimeEntry → TaskAssignment → ProjectResource` rollup the audit found
+  missing, in one step, with no new mutable counter persisted anywhere
+  (matches the "query aggregate, not a second stored truth" instruction).
+  `remaining_project_hours`/`unallocated_planned_hours` are signed, not
+  clamped — an overrun or an over-allocation shows as a real negative
+  number, not a silent zero.
+- Desktop-facing: `ProjectResourceUsageDesktopDto` +
+  `serialize_project_resource_usage` + new desktop API method
+  `get_project_resource_usage(project_resource_id)`.
+
+### 9. Envelope invariant — centralized to one semantic authority
+
+Both independent implementations of "SUM(TaskAssignment.allocated_planned_hours)
+≤ ProjectResource.planned_hours" — the assignment-side check in
+`application/tasks/commands/assignment.py` and the ProjectResource-side
+shrink guard in `application/resources/commands/project_resource_commands.py`
+— now delegate to the shared `project_resource_envelope_policy` module
+instead of each recomputing the sum independently. The assignment-side
+query was also upgraded in the process: it used to sum via
+`AssignmentRepository.list_by_resource(resource_id)` filtered by
+task-id-in-project (a wider, less-scoped query pulling a resource's
+assignments across every project them're on before filtering), now uses the
+same batched, project-scoped `list_by_tasks` the ProjectResource side
+already used — one less query shape for the same invariant, and a
+marginally tighter one.
+
+### 10. Capacity-overload invariant — NOT migrated to calendar capacity this pass
+
+`_check_resource_overallocation` (the assignment-creation/edit-time
+warn/strict check) is unchanged: still flat `capacity_percent` + naive
+Mon–Fri. Deliberately not touched — see §1/§15. It remains correctly
+*distinct* from the envelope invariant in §9 (this was already true before
+this pass and stays true — a project-envelope violation and a resource-
+capacity overload are still two different error codes,
+`PROJECT_RESOURCE_HOURS_OVERALLOCATED` vs `RESOURCE_OVERALLOCATED`/the warn
+path, never collapsed into one generic result).
+
+### 11. Concurrency — ProjectResource is now version-checked; TaskAssignment unchanged (already done in §43)
+
+`ProjectResourceRepository` gains `update_with_version_check(pr, *,
+expected_version)`, implemented exactly like `TaskAssignment`'s established
+convention (a single atomic `UPDATE ... WHERE id=? AND version=?` via the
+shared `update_with_version_check` helper). `ProjectResourceCommandMixin.update`
+takes an optional `expected_version` (defaults to `None` → falls back to the
+old plain-overwrite `update()`, so no existing caller breaks); when supplied,
+a stale write raises `ConcurrencyError(code="STALE_WRITE")` — the same
+structured-conflict contract already used everywhere else in this module,
+not a generic failure. Desktop DTO/command both carry `version`/
+`expected_version` now. `TaskAssignment` concurrency is unchanged (already
+version-checked for both allocation and planned-hours edits per §43).
+
+### 12. Deletion / history policy — application-layer guards added, no schema change
+
+Chosen model, per the audit's own framing: **guard before touching the
+cascade, not instead of eventually revisiting it**. Two new, symmetric
+guards, both raising a structured `BusinessRuleError` rather than silently
+proceeding:
+- `ProjectResourceCommandMixin.delete` now checks whether any of that
+  resource's assignments on the project have `hours_logged > 0`; if so,
+  raises `PROJECT_RESOURCE_HAS_HISTORICAL_ACTUALS` and does not delete.
+  Unused/no-actuals ProjectResources still hard-delete exactly as before
+  (matches "unused → hard delete may be allowed").
+- `TaskAssignmentMixin.unassign_resource` now checks the assignment's own
+  `hours_logged`; if `> 0`, raises `ASSIGNMENT_HAS_HISTORICAL_ACTUALS` and
+  does not delete (previously it unconditionally deleted the assignment
+  *and* cascade-deleted its time entries — this is a real, deliberate
+  behavior change, confirmed via the one existing test that asserted the old
+  behavior, which has been rewritten into two tests: one proving the
+  no-actuals case still succeeds, one proving the with-actuals case is now
+  blocked and nothing is touched).
+
+**Explicitly not done this pass**: the underlying DB `ON DELETE CASCADE` on
+`task_assignments.project_resource_id` (and `time_entries.assignment_id`) is
+unchanged. The guards above make it unreachable through the two mutation
+paths audited, but a determined lower-level deletion (e.g. deleting the
+`Resource` itself, or a future new code path) would still cascade. Migrating
+the FK behavior itself (`CASCADE` → `RESTRICT`/soft-lifecycle) needs a
+dedicated forward migration plus a decision on `ProjectResource`/
+`TaskAssignment` deactivation UX first — flagged as a deferred follow-up,
+not attempted here given no schema change was required to close the actual
+gap this pass targeted (both audited mutation entry points).
+
+### 13. Authorization changes — Time gains project scoping
+
+Added a template-method hook, `_require_time_project_scope(*, work_allocation,
+work_owner, operation_label)`, to the **shared platform**
+`TimesheetSupportMixin` (default no-op — this mixin also serves
+`maintenance`'s `MaintenanceLaborService`, which has no "project" scoping
+concept at all, so the base implementation must stay a safe no-op). Called
+from the three real mutation entry points
+(`add_work_entry`/`update_time_entry`/`delete_time_entry` in the platform's
+`timesheet_entries.py`) right after the work-allocation context is resolved.
+`project_management`'s `TimesheetService` overrides the hook to resolve the
+project via the already-existing `_resolve_entry_project_id` helper and
+enforce `require_any_project_permission(..., ("time.manage", "task.manage"))`
+— closing exactly the gap the audit found (a user with only the *global*
+time.manage/task.manage capability could write time against any project's
+tasks, unlike every other Task/ProjectResource mutation in this module,
+which already double-checks global + project scope). Read paths
+(list/query) were deliberately left global-only: the Review Queue is
+correctly cross-project-by-design for reviewers (it already restricts to
+`allowed_project_ids` when the session is project-restricted), so adding
+project-scoping to the shared read helpers would have been wrong, not just
+unnecessary. Full Maintenance suite (all its tests) re-run after this change
+with zero failures, confirming the hook is a genuine no-op for that module.
+
+### 14. Finance control-total semantics — verified, no double-counting, no code change needed
+
+Audited both Finance paths side by side: `LaborCostEngine`'s planned-row
+reads `ProjectResource.planned_hours` (the whole envelope) directly;
+`PlannedCostService` reads `TaskAssignment.allocated_planned_hours` (the
+WBS-distributed share) for its per-line output plus a separate, explicitly-
+labeled `PROJECT_RESOURCE_ENVELOPE_MISSING`/`_OVERALLOCATED`/etc. diagnostic
+comparing the two. Neither path adds envelope + distribution together
+anywhere; they are presented as two different rows/diagnostics, never summed.
+No change was needed to prevent the double-counting the brief warns about —
+it wasn't happening — but this is now explicitly documented (here, and in
+the module docstrings already present) rather than left as tacit knowledge.
+
+### 15. Scheduling integration status — deferred, documented as an R4.4-blocking item
+
+Per the brief's own explicit allowance (§21 of the request): the leveling
+engines' capacity input (`Resource.capacity_percent` + plain working-day
+iteration, read directly from `TaskAssignment.allocation_percent`) was
+**not** migrated to a calendar-based capacity service this pass. Reasoning:
+- Both leveling engines (`leveling_mixin.py`, `resource_leveling_engine.py`)
+  don't just *read* capacity, they **actively reschedule real task dates**
+  in an iterative loop (up to `max_iterations`). Changing their capacity
+  source changes real scheduling outcomes, not just a displayed number —
+  this needs its own dedicated before/after test matrix (§44 of the
+  request: normal/non-working/holiday/exception/part-time/employee/
+  project/resource-calendar/capacity_percent<100/overlapping-tasks), which
+  doesn't exist yet for either engine against calendar data.
+  Attempting it inside an already-large mixed pass risked a low-confidence,
+  under-tested change to behavior with real scheduling consequences.
+- CPM itself remains confirmed fully resource-independent (unchanged,
+  verified again by grep — zero references to allocation/hours/
+  ProjectResource in `scheduling_engine.py`).
+- What *was* done to unblock this without touching Scheduling: the shared
+  envelope/reconciliation policy module (§9) and the `ProjectResourceUsageFact`
+  reader (§7/8) are the "shared capacity abstraction" building blocks a
+  future calendar migration would compose with — they're already
+  application-layer, already tested, and don't need to change shape when
+  the leveling engines eventually move onto real calendar capacity.
+
+**Concrete next-step plan for the deferred capacity-authority migration**
+(§1/§3/§6/§10/§15, to be done as its own pass): (1) pick
+`ResourceCapacityCalculator`/`EnterpriseResourceAvailabilityService` as the
+one authority (it already has the correct "never stored, computed on
+demand from resolved calendar contexts" semantics — the other three
+calculators are display/reporting consumers, not competing sources of
+truth); (2) wire real `assigned_hours_by_date` into it from
+`TaskAssignment` data (currently no caller supplies this); (3) fix the two
+confirmed dead-wiring bugs (`desktop_api_builder.py` never passing
+`resource_availability_service`; `EnterpriseResourceAvailabilityService`
+missing the `check_availability` method `availability_builder.py` calls);
+(4) migrate `_check_resource_overallocation` to call it, preserving the
+existing warn/strict policy toggle exactly (§18 of the request); (5) only
+then migrate the leveling engines, with the full calendar test matrix in
+place first; (6) leave `ResourceLoadEngine`/`PortfolioResourcePoolService`
+as downstream aggregation consumers of the same authority rather than
+deleting them (§22/§23 of the request already permits this).
+
+### 16. QML — Projects → Resources: real, light wiring (not a placeholder)
+
+`ProjectsResourcesSection.qml`'s existing edit dialog (no new
+inspector/redesign — see scope decision) now: labels the field "Project
+planned hours" with the exact helper text the brief specifies ("Total
+planned work for this resource across this project"); on open, calls the
+new `getProjectResourceUsage` controller slot and shows read-only
+"Currently distributed to tasks / Remaining unallocated / Actual worked
+(... remaining vs. plan)" context sourced from the real
+`ProjectResourceUsageFact`, not computed in QML; round-trips `version` on
+save and shows the exact required conflict copy ("This resource plan was
+updated by another user. Refresh the latest values before saving again.")
+with a Refresh action instead of silently overwriting or showing a generic
+error; the delete-confirmation dialog now actually checks the mutation
+result (previously ignored it entirely) and surfaces
+`PROJECT_RESOURCE_HAS_HISTORICAL_ACTUALS` as a real section error instead of
+appearing to silently no-op. `qmllint` clean (added to the guardrail
+enumeration); no new business-rule computation in QML — every number shown
+comes from the desktop API.
+
+### 17/18. QML Task Assignment / Time — unchanged this pass
+
+No changes beyond what §43 already shipped. The Assignment/Time inspector
+redesign described in the brief's §54-70 (capacity preview cards,
+project-context reconciliation block inside Task Detail, tooltips,
+responsive table/inspector layout) is explicitly deferred to a follow-up
+QML-focused pass, per the brief's own §47 sequencing ("only after backend
+is sound, update QML") — the backend facts that pass would consume
+(`ProjectResourceUsageFact`, the centralized envelope policy) are now in
+place and tested, so that follow-up isn't blocked on anything backend-side.
+
+### 19. Performance results
+
+Fixed, with `list_by_ids` added to `ResourceRepository` (contract + impl,
+mirroring the existing `AssignmentRepository.list_by_ids` convention):
+`ResourceQueryMixin.list_for_project_workspace`/`list_for_task_workspace`
+(were: whole-tenant `.list()` + Python filter); `LaborCostEngine
+.calculate_project_labor_details`'s per-resource `.get()` loop; both leveling
+engines' `_build_resource_name_map` per-assignment `.get()` loop (previously
+recomputed, with the N+1, on **every** leveling iteration — up to 60 per
+run). **Explicitly not fixed this pass** (documented, not silently
+dropped): the Resources-workspace assignment builder's per-distinct-project
+`project_service.get_project()` loop, and the Financials workspace query's
+whole-tenant `resource_repo.list()` call for a name-lookup map — both real,
+both bounded by a small N (distinct projects a resource has tasks in;
+resources on one project's finance view) relative to the ones fixed, and
+lower priority than finishing the backend/QML/authorization work with the
+remaining pass budget.
+
+### 20. Deferred R5 Workload Management features
+
+Nothing in R5 Workload Management UI was started (exit-gate #30 honored).
+Explicitly noted as now-unblocked-when-picked-up: `ProjectResourceUsageFact`
+and the envelope policy module are the right building blocks for a future
+resource-workload view; they were designed as reusable application-layer
+facts/policy, not Projects-workspace-specific, for exactly that reason.
+
+### Test evidence
+
+New test file `test_r43_resource_capacity_upgrade.py` (24 tests): ProjectResource
+version-checked update success/stale-conflict/backward-compatible-without-version;
+`ProjectResourceUsageFact` reconciliation across 3 tasks with mixed
+planned/actual (including a page-independence check and a not-found check);
+`Resource.is_active` rejection at assignment creation; both deletion guards
+(blocked-with-actuals, allowed-without); the dead-bridge-path removal now
+failing closed; project-scoped time-authorization allow/deny via the real
+auth stack (`login_as` + `access.assign_scope_grant`, not a mocked
+permission check); desktop-API-level coverage for both the usage-fact
+endpoint and `expected_version` forwarding/conflict. One existing test
+(`test_unassigning_resource_removes_associated_time_entries`) was rewritten
+into two tests reflecting the intentional behavior change in §12. Full
+`src/tests/project_management` + `src/tests/pm` + `src/tests/platform` +
+`src/tests/maintenance` regression run: **1911 passed, 23 failed, 12 errors**.
+None of the failures/errors touch anything this pass changed — verified by
+sampling (`test_enterprise_calendar_resolver.py`, the most calendar-adjacent
+and therefore most suspicious-looking failure set, since this pass edits
+calendar-adjacent code) via `git stash`: the exact same 3 errors reproduce
+against unmodified HEAD with every change from this pass stashed out. The
+remainder (site/org desktop API, RLS bootstrap classification, calendar
+shift-pattern/exception fixture tests) are unrelated subsystems this pass
+never touched; this was simply the first time this session the full
+`src/tests/platform` suite was run end-to-end, so no prior-session baseline
+existed for it the way one already did for `project_management`/`pm`. Not
+committed.
+
+### Mid-pass follow-up (A–D): the two dead capacity paths, warn/strict proof, the Resource-deletion gap, and query-count evidence
+
+While the above was being written up, four additional explicit requirements
+arrived responding directly to the current-state audit. All four are now
+done — this supersedes §1/§12/§15/§19's earlier "deferred" framing for the
+specific items listed below (the larger calendar-authority-consolidation
+deferral in §1/§3/§6/§10/§15 still stands; what changed is that the two
+*dead-wiring* bugs specifically are no longer dead).
+
+**A. Both dead capacity/availability paths fixed, not just one.** Root-caused
+both properly before touching either:
+- **Task assignment preview**: `desktop_api_builder.py` never passed a
+  `resource_availability_service` into the Tasks desktop API factory at all
+  — the param existed, nothing was wired to it. Fixed by constructing a real
+  `ResourceAvailabilityService` (percent-based: `allocation_percent` vs.
+  `Resource.capacity_percent` — deliberately the *same* model
+  `TaskValidationMixin._check_resource_overallocation` already enforces, so
+  the preview predicts what the real enforcement will do, rather than
+  showing a different, calendar-based number while enforcement itself
+  stays percent-based per the still-standing §1/§15 deferral) in the
+  composition root and threading it through
+  (`project_registry.py` → `ProjectManagementServiceBundle` →
+  `app_container.py`'s services dict, under a new
+  `"task_assignment_availability_service"` key, deliberately *not*
+  overwriting the existing `"resource_availability_service"` key that
+  already (correctly, per its own comment) points at the calendar-based
+  `EnterpriseResourceAvailabilityService` for whenever that migration
+  happens → `service_resolver.py` → `desktop_api_builder.py`). Its own
+  confirmed N+1 (`_compute_window`'s per-task `task_repo.get()` loop) was
+  fixed in the same change, via a new `TaskRepository.list_by_ids()`
+  (contract + impl, mirroring the existing `AssignmentRepository`
+  convention).
+- **`ResourcesCalendarSection.qml`'s "Derived Capacity" card**: re-examined
+  the actual QML rather than assuming — this card is already correctly
+  gated (`visible: root._hasEnterpriseData`) and was never the thing
+  rendering fake zeros; since `enterpriseCapacity` was always `{}`, it
+  stayed correctly hidden. The thing actually rendering misleading zeros in
+  production was the **fallback** "Allocation Summary" card
+  (`visible: !root._hasEnterpriseData`), because `build_resource_availability`
+  called `availability_service.check_availability(...)` on whatever service
+  is registered at `resolved.availability_service` — the calendar-based
+  `EnterpriseResourceAvailabilityService`, which has no such method,
+  silently swallowed by a blanket `except Exception: return None`. Fixed
+  the same way as the Tasks side: `build_project_management_resources_desktop_api`
+  now receives the new real `ResourceAvailabilityService` too (which does
+  have `check_availability`), so the "Allocation Summary" card now renders
+  genuine allocation data instead of a None-triggered all-zero fallback.
+  Wiring the calendar-based "Derived Capacity" card itself with real
+  assigned-hours data remains deferred (a new
+  `compute_resource_capacity_from_assignments` helper was written and is
+  ready for that follow-up — see below — but completing that card's full
+  property chain, which doesn't exist at all today, not even a broken one,
+  is closer to a small new feature than a wiring fix, and is left for the
+  dedicated capacity-authority pass in §15).
+- **A real, independent bug surfaced by actually exercising the
+  now-live preview end to end** (not caught by the existing
+  characterization test, which fed the formula whatever window data it
+  wanted directly): `build_assignment_preview`'s conflict-project-name
+  resolution read a `project_name` attribute that `Task` domain objects
+  don't have, so `conflict_projects` was *always* empty regardless of real
+  data — a second, independent reason the preview looked "dead." Fixed by
+  passing the API's already-existing, already-scoped, already-batched
+  `_project_name_by_id()` lookup into the builder and resolving by
+  `project_id` instead. This also directly answers the audit's privacy
+  question (§20 of the request: separate the capacity result from
+  conflict-detail disclosure) — the lookup is scoped to what the current
+  API instance's `project_service` calls resolve, so a conflict in a
+  project the batched lookup doesn't include simply omits that project's
+  name (the overallocation percentage still surfaces) rather than needing
+  a second, separate authorization check bolted on top. Added a test
+  (`test_da0_assignment_preview_omits_conflict_names_outside_authorized_project_scope`)
+  proving exactly that omission behavior, alongside updating the one
+  existing characterization test that had been asserting the broken
+  attribute-based lookup.
+
+**B. Warn vs. strict overallocation policy, both branches now proven.**
+`_check_resource_overallocation`'s policy is a plain instance attribute
+(`self._overallocation_policy`, set once from `PM_OVERALLOCATION_POLICY` at
+service construction) — no env-var gymnastics needed in tests, just set it
+directly on the constructed service. Three new tests:
+warn-mode-sets-a-warning-and-proceeds, strict-mode-rejects-with-
+`RESOURCE_OVERALLOCATED`-and-creates-nothing, and — to prove strict isn't a
+blanket rejection — strict-mode-still-allows-a-genuinely-non-conflicting
+allocation.
+
+**C. Historical-actuals guard extended to a third, more dangerous silent
+path.** The audit's framing ("Establish the domain lifecycle first, then
+align: commands; repository behavior; FK delete behavior; QML actions;
+tests") prompted re-checking every deletion path, not just the two already
+guarded (§12) — and found `ResourceCommandMixin.delete_resource` **explicitly,
+unconditionally** looped its assignments calling
+`time_entry_repo.delete_by_assignment()` before deleting each assignment,
+completely bypassing the invariant just established on the more targeted
+ProjectResource/TaskAssignment paths. This is arguably the more dangerous
+of the three, since deleting a Resource is a much more casual-looking
+action than either of the other two. Added the identical guard
+(`hours_logged > 0` on any of the resource's assignments →
+`RESOURCE_HAS_HISTORICAL_ACTUALS`, deletion refused) and rewrote the one
+existing test that asserted the old unconditional-cascade behavior into the
+same allowed/blocked pair used for the other two guards. On the DB
+FK-cascade question itself (`ON DELETE CASCADE` on `task_assignments
+.project_resource_id`/`time_entries.assignment_id`): confirmed, and still
+deliberately not changed at the schema level — a blanket `RESTRICT` would
+incorrectly also block the legitimate "assignments exist but none have
+actuals" case all three guards already allow, since a database FK
+constraint cannot conditionally inspect `hours_logged`. That distinction is
+inherently an application-layer invariant; the three guards are now the
+complete, aligned set of application-layer entry points that could
+otherwise reach the cascade, which is the enforceable form of "align
+commands/repository behavior" the request asked for. Not treated as
+optional — all three now share the same reasoning, the same error-code
+pattern, and the same test shape.
+
+**D. Query-count evidence added for the paths this pass actually touched.**
+Not a general repository-optimization sweep (explicitly out of scope, per
+the request's own instruction) — two targeted regression tests, reusing the
+established class-method-patching counter pattern from
+`test_approved_time_work_allocation_n_plus_one.py`: leveling's
+`_build_resource_name_map` now issues one `ResourceRepository.list_by_ids()`
+call and zero `.get()` calls for N distinct resources (previously one
+`.get()` per distinct resource, recomputed every leveling iteration); the
+availability service's task lookup now issues one `TaskRepository.list_by_ids()`
+call and zero `.get()` calls. The two remaining, smaller, already-documented
+N+1s from §19 (Resources-workspace per-project `get_project()` loop;
+Financials' whole-tenant resource list for a name map) were not touched by
+anything in this follow-up and remain deferred as originally scoped.
+
+**Test evidence for this follow-up**: `test_r43_resource_capacity_upgrade.py`
+grew from 13 to 21 tests; `test_pm_desktop_adapter_da0_characterization.py`
+gained one test and had one updated to match the corrected conflict-name
+resolution; `test_collaboration_import_timesheet_regressions.py`'s resource-
+deletion test was rewritten the same way the assignment/project-resource
+ones already were. Full file passes: 21/21 and 32/32 respectively. Full
+`src/tests/project_management` + `src/tests/pm` regression re-run in
+progress at time of writing — see the following entry. Not committed.

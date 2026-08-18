@@ -746,6 +746,7 @@ class ProjectManagementTasksDesktopApi:
             project_resource_service=self._project_resource_service,
             assignment_skill_validator=self._assignment_skill_validator,
             resource_availability_service=self._resource_availability_service,
+            project_names=self._project_name_by_id(),
         )
 
     def get_schedule_impact(

@@ -367,8 +367,8 @@ def test_da0_characterizes_assignment_preview_formula_and_per_conflict_lookup() 
         end_date=date(2026, 8, 12),
     )
     conflict_tasks = {
-        "task-2": SimpleNamespace(id="task-2", project_name="Project Two"),
-        "task-3": SimpleNamespace(id="task-3", project_name="Project Three"),
+        "task-2": SimpleNamespace(id="task-2", project_id="project-2"),
+        "task-3": SimpleNamespace(id="task-3", project_id="project-3"),
     }
     task_calls: list[str] = []
 
@@ -396,11 +396,59 @@ def test_da0_characterizes_assignment_preview_formula_and_per_conflict_lookup() 
         resource_availability_service=SimpleNamespace(
             is_resource_available=lambda *_args: (False, window)
         ),
+        project_names={"project-2": "Project Two", "project-3": "Project Three"},
     )
 
     assert preview.overallocation_pct == 60.0
     assert set(preview.conflict_projects) == {"Project Two", "Project Three"}
     assert set(task_calls) == {"task-1", "task-2", "task-3"}
+
+
+def test_da0_assignment_preview_omits_conflict_names_outside_authorized_project_scope() -> None:
+    """A conflicting task in a project the caller's scoped project_names
+    lookup doesn't include (i.e. not authorized/visible) must not leak that
+    project's name -- the capacity result (overallocation_pct) still
+    surfaces, but the identity of the other project does not."""
+    target = SimpleNamespace(
+        id="task-1",
+        start_date=date(2026, 8, 10),
+        end_date=date(2026, 8, 12),
+    )
+    conflict_tasks = {
+        "task-2": SimpleNamespace(id="task-2", project_id="project-visible"),
+        "task-3": SimpleNamespace(id="task-3", project_id="project-hidden"),
+    }
+
+    def _get_task(task_id: str):
+        return target if task_id == target.id else conflict_tasks.get(task_id)
+
+    window = SimpleNamespace(
+        peak_load_percent=160.0,
+        capacity_percent=100.0,
+        daily_loads=(
+            SimpleNamespace(overloaded=True, contributing_tasks=("task-1", "task-2")),
+            SimpleNamespace(overloaded=True, contributing_tasks=("task-3",)),
+        ),
+    )
+
+    preview = build_assignment_preview(
+        "task-1",
+        "project-resource-1",
+        task_service=SimpleNamespace(get_task=_get_task),
+        project_resource_service=SimpleNamespace(
+            get=lambda _project_resource_id: SimpleNamespace(resource_id="resource-1")
+        ),
+        assignment_skill_validator=None,
+        resource_availability_service=SimpleNamespace(
+            is_resource_available=lambda *_args: (False, window)
+        ),
+        # Only the caller's scoped lookup -- "project-hidden" deliberately
+        # not included, standing in for a project the current user cannot see.
+        project_names={"project-visible": "Visible Project"},
+    )
+
+    assert preview.overallocation_pct == 60.0
+    assert preview.conflict_projects == ("Visible Project",)
 
 
 def test_da0_characterizes_shared_overload_boundary_across_desktop_views() -> None:

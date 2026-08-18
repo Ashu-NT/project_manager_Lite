@@ -128,6 +128,13 @@ class SqlAlchemyTaskRepository(TaskRepository):
         rows = self.session.execute(stmt).scalars().all()
         return [task_from_orm(row) for row in rows]
 
+    def list_by_ids(self, task_ids: list[str]) -> list[Task]:
+        if not task_ids:
+            return []
+        stmt = self._project_scoped_stmt().where(TaskORM.id.in_(set(task_ids)))
+        rows = self.session.execute(stmt).scalars().all()
+        return [task_from_orm(row) for row in rows]
+
     def list_children(self, project_id: str, parent_task_id: str | None) -> list[Task]:
         stmt = (
             self._project_scoped_stmt()

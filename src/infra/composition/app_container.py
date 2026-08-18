@@ -140,6 +140,7 @@ from src.core.platform.application.time_management.calendar.capacity.enterprise_
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import WorkingTimeCalculator
 from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
+from src.core.modules.project_management.application.resources.resource_availability_service import ResourceAvailabilityService
 from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import PortfolioResourcePoolService
 from src.infra.composition.inventory_registry import build_inventory_procurement_service_bundle
 from src.infra.composition.maintenance_registry import build_maintenance_service_bundle
@@ -268,6 +269,7 @@ class ServiceGraph:
     working_time_calculator: WorkingTimeCalculator | None
     resource_capacity_calculator: ResourceCapacityCalculator | None
     enterprise_resource_availability: EnterpriseResourceAvailabilityService | None
+    task_assignment_availability_service: ResourceAvailabilityService | None
     portfolio_resource_pool_service: PortfolioResourcePoolService | None
 
     def as_dict(self) -> dict[str, Any]:
@@ -383,9 +385,19 @@ class ServiceGraph:
             "enterprise_calendar_resolver": self.enterprise_calendar_resolver,
             "working_time_calculator": self.working_time_calculator,
             "resource_capacity_calculator": self.resource_capacity_calculator,
-            # Registered as "resource_availability_service" so build_desktop_api_registry picks it up.
-            # The old ResourceAvailabilityService (uses WorkCalendarEngine) is no longer the default.
+            # The calendar-based EnterpriseResourceAvailabilityService is the
+            # intended long-term authority (see resource_capacity_calculator
+            # above), but nothing computes real assigned-hours for it yet, so
+            # it always reports "no data" today -- kept registered here,
+            # available once that's wired, but not consumed by any desktop
+            # API yet.
             "resource_availability_service": self.enterprise_resource_availability,
+            # Percent-based (allocation_percent vs. Resource.capacity_percent)
+            # availability check, matching TaskValidationMixin's actual
+            # enforcement -- this is what the task-assignment preview and the
+            # Resources workspace's capacity display are wired to for real,
+            # working data until the calendar-based path above is finished.
+            "task_assignment_availability_service": self.task_assignment_availability_service,
             "portfolio_resource_pool_service": self.portfolio_resource_pool_service,
         }
 
@@ -590,6 +602,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         working_time_calculator=platform_services.working_time_calculator,
         resource_capacity_calculator=project_management_services.resource_capacity_calculator,
         enterprise_resource_availability=project_management_services.enterprise_resource_availability,
+        task_assignment_availability_service=project_management_services.task_assignment_availability_service,
         portfolio_resource_pool_service=project_management_services.portfolio_resource_pool_service,
     )
     logger.debug(
