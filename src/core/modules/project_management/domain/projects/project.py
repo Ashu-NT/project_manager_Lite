@@ -30,6 +30,7 @@ class Project:
     client_contact: str | None = None
     organization_id: str | None = None
     site_id: str | None = None
+    department_id: str | None = None
     client_party_id: str | None = None
     manager_user_id: str | None = None
     version: int = 1
@@ -59,6 +60,7 @@ class Project:
         "client_contact",
         "organization_id",
         "site_id",
+        "department_id",
         "client_party_id",
         "manager_user_id",
         mode="before",

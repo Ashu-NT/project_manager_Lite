@@ -27,6 +27,8 @@ class ProjectDesktopDto:
     organization_id: str | None
     site_id: str | None
     site_label: str
+    department_id: str | None
+    department_label: str
     client_party_id: str | None
     manager_user_id: str | None
     version: int

@@ -138,6 +138,7 @@ class ProjectLifecycleMixin:
         end_date: date | None = None,
         organization_id: str | None = None,
         site_id: str | None = None,
+        department_id: str | None = None,
         client_party_id: str | None = None,
         manager_user_id: str | None = None,
         code: str = "",
@@ -162,6 +163,7 @@ class ProjectLifecycleMixin:
             end_date=end_date,
             organization_id=resolved_organization_id,
             site_id=site_id,
+            department_id=department_id,
             client_party_id=client_party_id,
             manager_user_id=manager_user_id,
         )
@@ -273,6 +275,7 @@ class ProjectLifecycleMixin:
         client_contact: str | None = None,
         organization_id: str | None = None,
         site_id: str | None = None,
+        department_id: str | None = None,
         client_party_id: str | None = None,
         manager_user_id: str | None = None,
         code: str | None = None,
@@ -311,6 +314,7 @@ class ProjectLifecycleMixin:
             client_contact=project.client_contact if client_contact is None else client_contact,
             organization_id=resolved_organization_id,
             site_id=project.site_id if site_id is None else site_id,
+            department_id=project.department_id if department_id is None else department_id,
             client_party_id=project.client_party_id if client_party_id is None else client_party_id,
             manager_user_id=project.manager_user_id if manager_user_id is None else manager_user_id,
         )

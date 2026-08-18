@@ -14,6 +14,7 @@ def build_empty_state(
     search_text: str,
     status_filter: str,
     site_filter: str = "all",
+    department_filter: str = "all",
     manager_filter: str = "all",
     start_date_from: str = "",
     start_date_to: str = "",
@@ -28,6 +29,7 @@ def build_empty_state(
         bool(search_text)
         or status_filter != "all"
         or site_filter != "all"
+        or department_filter != "all"
         or manager_filter != "all"
         or bool(start_date_from)
         or bool(start_date_to)

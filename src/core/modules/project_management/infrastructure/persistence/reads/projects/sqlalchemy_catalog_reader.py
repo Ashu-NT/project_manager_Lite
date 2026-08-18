@@ -48,6 +48,7 @@ class SqlAlchemyProjectCatalogReader:
         search_text: str,
         status: ProjectStatus | None,
         site_id: str | None = None,
+        department_id: str | None = None,
         manager_user_id: str | None = None,
         start_date_from: date | None = None,
         start_date_to: date | None = None,
@@ -86,6 +87,8 @@ class SqlAlchemyProjectCatalogReader:
             filtered.append(ProjectORM.status == status)
         if site_id:
             filtered.append(ProjectORM.site_id == site_id)
+        if department_id:
+            filtered.append(ProjectORM.department_id == department_id)
         if manager_user_id:
             filtered.append(ProjectORM.manager_user_id == manager_user_id)
         if start_date_from is not None:

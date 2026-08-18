@@ -71,6 +71,10 @@ class SqlAlchemyProjectRepository(ProjectRepository):
                 "status": project.status,
                 "client_name": project.client_name,
                 "client_contact": project.client_contact,
+                "site_id": project.site_id,
+                "department_id": project.department_id,
+                "client_party_id": project.client_party_id,
+                "manager_user_id": project.manager_user_id,
             },
             extra_filters={
                 "tenant_id": ctx.tenant_id,

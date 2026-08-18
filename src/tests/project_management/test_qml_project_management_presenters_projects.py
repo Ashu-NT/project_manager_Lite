@@ -46,6 +46,7 @@ def test_project_management_workspace_catalog_exposes_typed_projects_controller(
         sort_key,
         sort_direction,
         site_id=None,
+        department_id=None,
         manager_user_id=None,
         start_date_from=None,
         start_date_to=None,

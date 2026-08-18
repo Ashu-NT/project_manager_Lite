@@ -41,6 +41,118 @@ def test_project_catalog_filters_counts_and_pages_in_database(services) -> None:
     assert search_page.items[0].project.id == alpha.id
 
 
+def test_project_catalog_site_department_manager_and_date_filters_compose(services) -> None:
+    project_service = services["project_service"]
+    site_service = services["site_service"]
+    department_service = services["department_service"]
+    # A real FK-valid user id (manager_user_id references users.id) -- the
+    # admin principal authenticated by the `services` fixture.
+    manager_id = services["user_session"].principal.user_id
+
+    site_a = site_service.create_site(site_code="SITE-A", name="Hamburg Yard")
+    site_b = site_service.create_site(site_code="SITE-B", name="Rotterdam Yard")
+    dept_a = department_service.create_department(department_code="DEPT-A", name="Engineering")
+    dept_b = department_service.create_department(department_code="DEPT-B", name="Operations")
+
+    match = project_service.create_project(
+        "Hamburg Refit",
+        site_id=site_a.id,
+        department_id=dept_a.id,
+        manager_user_id=manager_id,
+        start_date=date(2026, 1, 10),
+        end_date=date(2026, 6, 30),
+    )
+    project_service.create_project(
+        "Rotterdam Refit",
+        site_id=site_b.id,
+        department_id=dept_a.id,
+        manager_user_id=manager_id,
+        start_date=date(2026, 1, 10),
+        end_date=date(2026, 6, 30),
+    )
+    project_service.create_project(
+        "Hamburg Other Dept No Manager",
+        site_id=site_a.id,
+        department_id=dept_b.id,
+        start_date=date(2026, 1, 10),
+        end_date=date(2026, 6, 30),
+    )
+    project_service.create_project(
+        "Hamburg Out Of Range",
+        site_id=site_a.id,
+        department_id=dept_a.id,
+        manager_user_id=manager_id,
+        start_date=date(2027, 1, 10),
+        end_date=date(2027, 6, 30),
+    )
+
+    # Site alone narrows to the three Hamburg-site projects (excludes Rotterdam).
+    site_only = project_service.query_catalog_page(site_id=site_a.id, page=1, page_size=25)
+    assert site_only.filtered_total == 3
+    assert {row.project.site_id for row in site_only.items} == {site_a.id}
+
+    # Manager alone excludes the unassigned "Other Dept" project.
+    manager_only = project_service.query_catalog_page(
+        manager_user_id=manager_id, page=1, page_size=25
+    )
+    assert manager_only.filtered_total == 3
+    assert all(row.project.manager_user_id == manager_id for row in manager_only.items)
+
+    # Site + department + manager + start-date range together return exactly
+    # the single project matching the full intersection.
+    composed = project_service.query_catalog_page(
+        site_id=site_a.id,
+        department_id=dept_a.id,
+        manager_user_id=manager_id,
+        start_date_from=date(2026, 1, 1),
+        start_date_to=date(2026, 12, 31),
+        page=1,
+        page_size=25,
+    )
+    assert composed.filtered_total == 1
+    assert composed.items[0].project.id == match.id
+
+    # Department alone still returns both dept_a projects across sites.
+    department_only = project_service.query_catalog_page(
+        department_id=dept_a.id, page=1, page_size=25
+    )
+    assert department_only.filtered_total == 3
+
+    # A start-date range excluding the out-of-range project proves the range
+    # predicate is applied, not merely accepted and ignored.
+    date_ranged = project_service.query_catalog_page(
+        department_id=dept_a.id,
+        start_date_from=date(2026, 1, 1),
+        start_date_to=date(2026, 12, 31),
+        page=1,
+        page_size=25,
+    )
+    assert date_ranged.filtered_total == 2
+    assert all(row.project.start_date.year == 2026 for row in date_ranged.items)
+
+
+def test_project_department_id_round_trips_through_create_and_update(services) -> None:
+    project_service = services["project_service"]
+    department_service = services["department_service"]
+
+    dept_a = department_service.create_department(department_code="DEPT-RT-A", name="Engineering")
+    dept_b = department_service.create_department(department_code="DEPT-RT-B", name="Operations")
+
+    created = project_service.create_project("Round Trip Project", department_id=dept_a.id)
+    assert created.department_id == dept_a.id
+    fetched = project_service.get_project(created.id)
+    assert fetched.department_id == dept_a.id
+
+    updated = project_service.update_project(
+        created.id,
+        expected_version=fetched.version,
+        department_id=dept_b.id,
+    )
+    assert updated.department_id == dept_b.id
+    refetched = project_service.get_project(created.id)
+    assert refetched.department_id == dept_b.id
+
+
 def test_project_catalog_sort_is_authoritative_across_pages(services) -> None:
     project_service = services["project_service"]
     alpha = project_service.create_project("Alpha Sort")

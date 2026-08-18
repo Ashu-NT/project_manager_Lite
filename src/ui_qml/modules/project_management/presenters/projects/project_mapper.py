@@ -28,6 +28,8 @@ def build_project_state(project: Any) -> dict[str, object]:
         "organizationId": getattr(project, "organization_id", None) or "",
         "siteId": getattr(project, "site_id", None) or "",
         "siteLabel": getattr(project, "site_label", "") or "",
+        "departmentId": getattr(project, "department_id", None) or "",
+        "departmentLabel": getattr(project, "department_label", "") or "",
         "description": project.description or "",
         "version": project.version,
     }

@@ -31,6 +31,7 @@ from .project_selection_handler import (
     activate_project,
     clear_filters,
     select_project,
+    set_department_filter,
     set_end_date_from,
     set_end_date_to,
     set_manager_filter,
@@ -80,9 +81,11 @@ class ProjectManagementProjectsWorkspaceController(
     overviewChanged = Signal()
     statusOptionsChanged = Signal()
     siteOptionsChanged = Signal()
+    departmentOptionsChanged = Signal()
     managerOptionsChanged = Signal()
     selectedStatusFilterChanged = Signal()
     selectedSiteFilterChanged = Signal()
+    selectedDepartmentFilterChanged = Signal()
     selectedManagerFilterChanged = Signal()
     startDateFromChanged = Signal()
     startDateToChanged = Signal()
@@ -138,9 +141,11 @@ class ProjectManagementProjectsWorkspaceController(
         self._overview: dict[str, object] = default_overview()
         self._status_options: list[dict[str, str]] = []
         self._site_options: list[dict[str, str]] = []
+        self._department_options: list[dict[str, str]] = []
         self._manager_options: list[dict[str, str]] = []
         self._selected_status_filter = "all"
         self._selected_site_filter = "all"
+        self._selected_department_filter = "all"
         self._selected_manager_filter = "all"
         self._start_date_from = ""
         self._start_date_to = ""
@@ -204,6 +209,10 @@ class ProjectManagementProjectsWorkspaceController(
     def managerOptions(self) -> list[dict[str, str]]:
         return self._manager_options
 
+    @Property("QVariantList", notify=departmentOptionsChanged)
+    def departmentOptions(self) -> list[dict[str, str]]:
+        return self._department_options
+
     @Property(str, notify=selectedStatusFilterChanged)
     def selectedStatusFilter(self) -> str:
         return self._selected_status_filter
@@ -211,6 +220,10 @@ class ProjectManagementProjectsWorkspaceController(
     @Property(str, notify=selectedSiteFilterChanged)
     def selectedSiteFilter(self) -> str:
         return self._selected_site_filter
+
+    @Property(str, notify=selectedDepartmentFilterChanged)
+    def selectedDepartmentFilter(self) -> str:
+        return self._selected_department_filter
 
     @Property(str, notify=selectedManagerFilterChanged)
     def selectedManagerFilter(self) -> str:
@@ -349,6 +362,7 @@ class ProjectManagementProjectsWorkspaceController(
                 search_text=self._search_text,
                 status_filter=self._selected_status_filter,
                 site_filter=self._selected_site_filter,
+                department_filter=self._selected_department_filter,
                 manager_filter=self._selected_manager_filter,
                 start_date_from=self._start_date_from,
                 start_date_to=self._start_date_to,
@@ -376,8 +390,12 @@ class ProjectManagementProjectsWorkspaceController(
             self._set_manager_options(
                 list(self._projects_workspace_presenter.build_manager_options())
             )
+            self._set_department_options(
+                list(self._projects_workspace_presenter.build_department_options())
+            )
             self._set_selected_status_filter(workspace_state.selected_status_filter)
             self._set_selected_site_filter(workspace_state.selected_site_filter)
+            self._set_selected_department_filter(workspace_state.selected_department_filter)
             self._set_selected_manager_filter(workspace_state.selected_manager_filter)
             self._set_start_date_from(workspace_state.start_date_from)
             self._set_start_date_to(workspace_state.start_date_to)
@@ -428,6 +446,10 @@ class ProjectManagementProjectsWorkspaceController(
     @Slot(str)
     def setSiteFilter(self, site_filter: str) -> None:
         set_site_filter(self, site_filter)
+
+    @Slot(str)
+    def setDepartmentFilter(self, department_filter: str) -> None:
+        set_department_filter(self, department_filter)
 
     @Slot(str)
     def setManagerFilter(self, manager_filter: str) -> None:

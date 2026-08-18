@@ -19,6 +19,7 @@ class ProjectCatalogReader(Protocol):
         search_text: str,
         status: ProjectStatus | None,
         site_id: str | None = None,
+        department_id: str | None = None,
         manager_user_id: str | None = None,
         start_date_from: date | None = None,
         start_date_to: date | None = None,

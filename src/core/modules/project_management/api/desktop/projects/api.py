@@ -10,6 +10,7 @@ from src.core.modules.project_management.application.resources import (
     ResourceService,
 )
 from src.core.platform.application.master_data.site.site_service import SiteService
+from src.core.platform.application.master_data.department.department_service import DepartmentService
 
 from src.core.modules.project_management.api.desktop.projects.models.project import (
     ProjectCatalogPageDesktopDto,
@@ -52,11 +53,13 @@ class ProjectManagementProjectsDesktopApi:
         project_resource_service: ProjectResourceService | None = None,
         resource_service: ResourceService | None = None,
         site_service: SiteService | None = None,
+        department_service: DepartmentService | None = None,
     ) -> None:
         self._project_service = project_service
         self._project_resource_service = project_resource_service
         self._resource_service = resource_service
         self._site_service = site_service
+        self._department_service = department_service
 
     # ── Status options ────────────────────────────────────────────────────────
 
@@ -69,11 +72,15 @@ class ProjectManagementProjectsDesktopApi:
         if self._project_service is None:
             return ()
         site_lookup = self._site_lookup()
+        department_lookup = self._department_lookup()
         projects = sorted(
             self._project_service.list_projects(),
             key=lambda p: (p.name or "").casefold(),
         )
-        return tuple(serialize_project(p, site_lookup=site_lookup) for p in projects)
+        return tuple(
+            serialize_project(p, site_lookup=site_lookup, department_lookup=department_lookup)
+            for p in projects
+        )
 
     def list_project_page(
         self,
@@ -81,6 +88,7 @@ class ProjectManagementProjectsDesktopApi:
         search_text: str = "",
         status: str = "all",
         site_id: str = "all",
+        department_id: str = "all",
         manager_user_id: str = "all",
         start_date_from: str = "",
         start_date_to: str = "",
@@ -99,11 +107,13 @@ class ProjectManagementProjectsDesktopApi:
             else coerce_project_status(normalized_status)
         )
         normalized_site_id = str(site_id or "all").strip()
+        normalized_department_id = str(department_id or "all").strip()
         normalized_manager_id = str(manager_user_id or "all").strip()
         result = service.query_catalog_page(
             search_text=search_text,
             status=status_value,
             site_id=None if normalized_site_id in ("", "all") else normalized_site_id,
+            department_id=None if normalized_department_id in ("", "all") else normalized_department_id,
             manager_user_id=None if normalized_manager_id in ("", "all") else normalized_manager_id,
             start_date_from=optional_date(start_date_from),
             start_date_to=optional_date(start_date_to),
@@ -114,11 +124,13 @@ class ProjectManagementProjectsDesktopApi:
             sort_key=sort_key,
             sort_direction=sort_direction,
         )
+        department_lookup = self._department_lookup()
         return ProjectCatalogPageDesktopDto(
             items=tuple(
                 serialize_project(
                     item.project,
                     site_lookup={str(item.project.site_id or ""): item.site_label},
+                    department_lookup=department_lookup,
                     financial_currency_code=item.financial_currency_code,
                     approved_budget=item.approved_budget,
                     client_label=item.client_label,
@@ -144,27 +156,39 @@ class ProjectManagementProjectsDesktopApi:
         project = self._project_service.get_project(normalized_id)
         if project is None:
             return None
-        return serialize_project(project, site_lookup=self._site_lookup())
+        return serialize_project(
+            project,
+            site_lookup=self._site_lookup(),
+            department_lookup=self._department_lookup(),
+        )
 
     def list_projects_by_status(self, status: str) -> tuple[ProjectDesktopDto, ...]:
         if self._project_service is None:
             return ()
         site_lookup = self._site_lookup()
+        department_lookup = self._department_lookup()
         projects = sorted(
             self._project_service.list_projects_by_status(coerce_project_status(status)),
             key=lambda p: (p.name or "").casefold(),
         )
-        return tuple(serialize_project(p, site_lookup=site_lookup) for p in projects)
+        return tuple(
+            serialize_project(p, site_lookup=site_lookup, department_lookup=department_lookup)
+            for p in projects
+        )
 
     def search_projects(self, query: str) -> tuple[ProjectDesktopDto, ...]:
         if self._project_service is None or not query:
             return ()
         site_lookup = self._site_lookup()
+        department_lookup = self._department_lookup()
         projects = sorted(
             self._project_service.search_projects_by_name(query),
             key=lambda p: (p.name or "").casefold(),
         )
-        return tuple(serialize_project(p, site_lookup=site_lookup) for p in projects)
+        return tuple(
+            serialize_project(p, site_lookup=site_lookup, department_lookup=department_lookup)
+            for p in projects
+        )
 
     def create_project(self, command: ProjectCreateCommand) -> ProjectDesktopDto:
         service = self._require_project_service()
@@ -180,10 +204,15 @@ class ProjectManagementProjectsDesktopApi:
             end_date=command.end_date,
             organization_id=command.organization_id,
             site_id=command.site_id,
+            department_id=command.department_id,
             client_party_id=command.client_party_id,
             manager_user_id=command.manager_user_id,
         )
-        return serialize_project(project, site_lookup=self._site_lookup())
+        return serialize_project(
+            project,
+            site_lookup=self._site_lookup(),
+            department_lookup=self._department_lookup(),
+        )
 
     def update_project(self, command: ProjectUpdateCommand) -> ProjectDesktopDto:
         service = self._require_project_service()
@@ -200,10 +229,15 @@ class ProjectManagementProjectsDesktopApi:
             client_contact=command.client_contact,
             organization_id=command.organization_id,
             site_id=command.site_id,
+            department_id=command.department_id,
             client_party_id=command.client_party_id,
             manager_user_id=command.manager_user_id,
         )
-        return serialize_project(project, site_lookup=self._site_lookup())
+        return serialize_project(
+            project,
+            site_lookup=self._site_lookup(),
+            department_lookup=self._department_lookup(),
+        )
 
     def set_project_status(self, project_id: str, status: str) -> ProjectDesktopDto:
         service = self._require_project_service()
@@ -211,7 +245,11 @@ class ProjectManagementProjectsDesktopApi:
         project = service.get_project(project_id)
         if project is None:
             raise RuntimeError("Project status updated but the project could not be reloaded.")
-        return serialize_project(project, site_lookup=self._site_lookup())
+        return serialize_project(
+            project,
+            site_lookup=self._site_lookup(),
+            department_lookup=self._department_lookup(),
+        )
 
     def delete_project(self, project_id: str) -> None:
         self._require_project_service().delete_project(project_id)
@@ -326,6 +364,18 @@ class ProjectManagementProjectsDesktopApi:
                 str(site.id): str(getattr(site, "name", "") or "").strip()
                 for site in self._site_service.list_sites(active_only=None)
                 if getattr(site, "id", None)
+            }
+        except Exception:
+            return {}
+
+    def _department_lookup(self) -> dict[str, str]:
+        if self._department_service is None:
+            return {}
+        try:
+            return {
+                str(department.id): str(getattr(department, "name", "") or "").strip()
+                for department in self._department_service.list_departments(active_only=None)
+                if getattr(department, "id", None)
             }
         except Exception:
             return {}

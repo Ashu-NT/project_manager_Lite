@@ -12,6 +12,7 @@ def serialize_project(
     project,
     *,
     site_lookup: Mapping[str, str] | None = None,
+    department_lookup: Mapping[str, str] | None = None,
     financial_currency_code: str = "",
     approved_budget: Decimal | None = None,
     client_label: str = "",
@@ -21,6 +22,12 @@ def serialize_project(
     resolved_site_label = (
         (site_lookup or {}).get(normalized_site_id or "", "")
         if normalized_site_id
+        else ""
+    )
+    normalized_department_id = str(getattr(project, "department_id", "") or "").strip() or None
+    resolved_department_label = (
+        (department_lookup or {}).get(normalized_department_id or "", "")
+        if normalized_department_id
         else ""
     )
     # client_label is the authoritative DISPLAY value (resolved party name when
@@ -47,6 +54,8 @@ def serialize_project(
         organization_id=getattr(project, "organization_id", None),
         site_id=normalized_site_id,
         site_label=resolved_site_label,
+        department_id=normalized_department_id,
+        department_label=resolved_department_label,
         client_party_id=getattr(project, "client_party_id", None),
         manager_user_id=getattr(project, "manager_user_id", None),
         version=project.version,

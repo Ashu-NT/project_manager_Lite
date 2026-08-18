@@ -22,6 +22,7 @@ def build_workspace_state(
     search_text: str = "",
     status_filter: str = "all",
     site_filter: str = "all",
+    department_filter: str = "all",
     manager_filter: str = "all",
     start_date_from: str = "",
     start_date_to: str = "",
@@ -43,6 +44,7 @@ def build_workspace_state(
     normalized_search = (search_text or "").strip()
     normalized_status_filter = normalize_status_filter(status_filter, status_options)
     normalized_site_filter = (site_filter or "all").strip() or "all"
+    normalized_department_filter = (department_filter or "all").strip() or "all"
     normalized_manager_filter = (manager_filter or "all").strip() or "all"
     normalized_start_from = (start_date_from or "").strip()
     normalized_start_to = (start_date_to or "").strip()
@@ -52,6 +54,7 @@ def build_workspace_state(
         search_text=normalized_search,
         status=normalized_status_filter,
         site_id=normalized_site_filter,
+        department_id=normalized_department_filter,
         manager_user_id=normalized_manager_filter,
         start_date_from=normalized_start_from,
         start_date_to=normalized_start_to,
@@ -82,6 +85,7 @@ def build_workspace_state(
         status_options=status_options,
         selected_status_filter=normalized_status_filter,
         selected_site_filter=normalized_site_filter,
+        selected_department_filter=normalized_department_filter,
         selected_manager_filter=normalized_manager_filter,
         start_date_from=normalized_start_from,
         start_date_to=normalized_start_to,
@@ -97,6 +101,7 @@ def build_workspace_state(
             search_text=normalized_search,
             status_filter=normalized_status_filter,
             site_filter=normalized_site_filter,
+            department_filter=normalized_department_filter,
             manager_filter=normalized_manager_filter,
             start_date_from=normalized_start_from,
             start_date_to=normalized_start_to,

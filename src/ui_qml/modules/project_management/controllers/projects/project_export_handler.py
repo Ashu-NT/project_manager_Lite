@@ -14,6 +14,7 @@ def export_projects(controller, columns: list, file_path: str) -> dict[str, obje
             search_text=controller._search_text,
             status_filter=controller._selected_status_filter,
             site_filter=controller._selected_site_filter,
+            department_filter=controller._selected_department_filter,
             manager_filter=controller._selected_manager_filter,
             start_date_from=controller._start_date_from,
             start_date_to=controller._start_date_to,

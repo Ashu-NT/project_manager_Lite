@@ -27,6 +27,12 @@ class ProjectStateSettersMixin:
         self._manager_options = manager_options
         self.managerOptionsChanged.emit()
 
+    def _set_department_options(self, department_options: list[dict[str, str]]) -> None:
+        if department_options == self._department_options:
+            return
+        self._department_options = department_options
+        self.departmentOptionsChanged.emit()
+
     def _set_selected_status_filter(self, selected_status_filter: str) -> None:
         if selected_status_filter == self._selected_status_filter:
             return
@@ -38,6 +44,12 @@ class ProjectStateSettersMixin:
             return
         self._selected_site_filter = value
         self.selectedSiteFilterChanged.emit()
+
+    def _set_selected_department_filter(self, value: str) -> None:
+        if value == self._selected_department_filter:
+            return
+        self._selected_department_filter = value
+        self.selectedDepartmentFilterChanged.emit()
 
     def _set_selected_manager_filter(self, value: str) -> None:
         if value == self._selected_manager_filter:

@@ -108,6 +108,7 @@ AppLayouts.WorkspaceFrame {
             Dialogs.ProjectsDialogHost {
                 statusOptions: root.workspaceController ? (root.workspaceController.statusOptions || []) : []
                 siteOptions: root.workspaceController ? (root.workspaceController.siteOptions || []) : []
+                departmentOptions: root.workspaceController ? (root.workspaceController.departmentOptions || []) : []
                 workspaceController: root.workspaceController
 
                 onDeleteRequested: function(projectId) {

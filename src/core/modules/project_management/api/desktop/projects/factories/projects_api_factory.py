@@ -11,12 +11,14 @@ def build_project_management_projects_desktop_api(
     project_resource_service=None,
     resource_service=None,
     site_service=None,
+    department_service=None,
 ) -> ProjectManagementProjectsDesktopApi:
     return ProjectManagementProjectsDesktopApi(
         project_service=project_service,
         project_resource_service=project_resource_service,
         resource_service=resource_service,
         site_service=site_service,
+        department_service=department_service,
     )
 
 

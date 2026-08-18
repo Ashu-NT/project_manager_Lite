@@ -10,6 +10,7 @@ AppWidgets.EntityDialog {
     property string modeTitle: "Create Project"
     property var statusOptions: []
     property var siteOptions: []
+    property var departmentOptions: []
     property var projectData: ({})
     property var workspaceController: null
     property string projectCode: ""
@@ -25,7 +26,7 @@ AppWidgets.EntityDialog {
         : "Update the project profile, schedule dates, or status."
     primaryText:  root.modeTitle === "Create Project" ? "Create Project" : "Save Changes"
     primaryIcon:  root.modeTitle === "Create Project" ? "add" : "save"
-    width: 560
+    width: 680
 
     onOpened:   root.populateFromProject()
     onAccepted: root.submitDialog()
@@ -62,12 +63,14 @@ AppWidgets.EntityDialog {
         descriptionField.text = String(state.description || "")
         statusCombo.currentIndex = root.statusIndexForValue(state.status || "PLANNED")
         siteCombo.currentIndex = root.optionIndexForValue(root.siteOptions, state.siteId || "")
+        departmentCombo.currentIndex = root.optionIndexForValue(root.departmentOptions, state.departmentId || "")
         root.errorMessage = ""
     }
 
     function buildPayload() {
         var statusOption = root.workflowStatusOptions[statusCombo.currentIndex] || { "value": "PLANNED" }
         var siteOption = root.siteOptions[siteCombo.currentIndex] || { "value": "" }
+        var departmentOption = root.departmentOptions[departmentCombo.currentIndex] || { "value": "" }
         return {
             "name": nameField.text,
             "projectCode": root.projectCode,
@@ -78,7 +81,8 @@ AppWidgets.EntityDialog {
             "endDate": endDateField.text,
             "description": descriptionField.text,
             "status": statusOption.value || "PLANNED",
-            "siteId": String(siteOption.value || "")
+            "siteId": String(siteOption.value || ""),
+            "departmentId": String(departmentOption.value || "")
         }
     }
 
@@ -96,7 +100,10 @@ AppWidgets.EntityDialog {
     GridLayout {
         id: projectFormGrid
         Layout.fillWidth: true
-        columns: root.width > 520 ? 2 : 1
+        // Landscape-first: at the dialog's own (clamped) width, prefer 3
+        // columns over letting fields stack into extra rows, so adding a
+        // field grows the dialog wider rather than taller.
+        columns: root.width > 640 ? 3 : root.width > 420 ? 2 : 1
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
@@ -137,6 +144,12 @@ AppWidgets.EntityDialog {
             Layout.fillWidth: true
             label: "Site"
             AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
+            label: "Department"
+            AppControls.ComboBox { id: departmentCombo; Layout.fillWidth: true; model: root.departmentOptions; textRole: "label" }
         }
 
         AppWidgets.FormField {

@@ -61,6 +61,15 @@ def set_site_filter(controller, site_filter: str) -> None:
     controller.refresh()
 
 
+def set_department_filter(controller, department_filter: str) -> None:
+    normalized = (department_filter or "").strip().lower() or "all"
+    if normalized == controller._selected_department_filter.lower():
+        return
+    controller._set_selected_department_filter(normalized)
+    controller._set_project_page(1)
+    controller.refresh()
+
+
 def set_manager_filter(controller, manager_filter: str) -> None:
     normalized = (manager_filter or "").strip().lower() or "all"
     if normalized == controller._selected_manager_filter.lower():
@@ -111,6 +120,7 @@ def clear_filters(controller) -> None:
         not controller._search_text
         and controller._selected_status_filter == "all"
         and controller._selected_site_filter == "all"
+        and controller._selected_department_filter == "all"
         and controller._selected_manager_filter == "all"
         and not controller._start_date_from
         and not controller._start_date_to
@@ -121,6 +131,7 @@ def clear_filters(controller) -> None:
     controller._set_search_text("")
     controller._set_selected_status_filter("all")
     controller._set_selected_site_filter("all")
+    controller._set_selected_department_filter("all")
     controller._set_selected_manager_filter("all")
     controller._set_start_date_from("")
     controller._set_start_date_to("")
@@ -178,6 +189,7 @@ __all__ = [
     "select_project",
     "set_end_date_from",
     "set_end_date_to",
+    "set_department_filter",
     "set_manager_filter",
     "set_project_page",
     "set_project_page_size",

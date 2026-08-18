@@ -4,6 +4,7 @@ from decimal import Decimal
 from typing import Any
 
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
+from src.core.platform.api.desktop.master_data.department.department import PlatformDepartmentDesktopApi
 from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementProjectsDesktopApi,
@@ -50,12 +51,14 @@ class ProjectProjectsWorkspacePresenter:
         tasks_desktop_api: ProjectManagementTasksDesktopApi | None = None,
         register_desktop_api: ProjectManagementRegisterDesktopApi | None = None,
         site_api: PlatformSiteDesktopApi | None = None,
+        department_api: PlatformDepartmentDesktopApi | None = None,
         user_api: PlatformUserDesktopApi | None = None,
     ) -> None:
         self._desktop_api = desktop_api or build_project_management_projects_desktop_api()
         self._tasks_desktop_api = tasks_desktop_api or build_project_management_tasks_desktop_api()
         self._register_desktop_api = register_desktop_api or build_project_management_register_desktop_api()
         self._site_api = site_api
+        self._department_api = department_api
         self._user_api = user_api
         self._import_sessions: dict[str, object] = {}
 
@@ -65,6 +68,7 @@ class ProjectProjectsWorkspacePresenter:
         search_text: str = "",
         status_filter: str = "all",
         site_filter: str = "all",
+        department_filter: str = "all",
         manager_filter: str = "all",
         start_date_from: str = "",
         start_date_to: str = "",
@@ -81,6 +85,7 @@ class ProjectProjectsWorkspacePresenter:
             search_text=search_text,
             status_filter=status_filter,
             site_filter=site_filter,
+            department_filter=department_filter,
             manager_filter=manager_filter,
             start_date_from=start_date_from,
             start_date_to=start_date_to,
@@ -99,6 +104,7 @@ class ProjectProjectsWorkspacePresenter:
         search_text: str = "",
         status_filter: str = "all",
         site_filter: str = "all",
+        department_filter: str = "all",
         manager_filter: str = "all",
         start_date_from: str = "",
         start_date_to: str = "",
@@ -115,6 +121,7 @@ class ProjectProjectsWorkspacePresenter:
                 search_text=search_text,
                 status_filter=status_filter,
                 site_filter=site_filter,
+                department_filter=department_filter,
                 manager_filter=manager_filter,
                 start_date_from=start_date_from,
                 start_date_to=start_date_to,
@@ -209,6 +216,14 @@ class ProjectProjectsWorkspacePresenter:
             }
             for row in result.data
         ]
+
+    def build_department_options(self) -> list[dict[str, str]]:
+        if self._department_api is None:
+            return []
+        result = self._department_api.list_departments(active_only=True)
+        if not result.ok or result.data is None:
+            return []
+        return [{"value": row.id, "label": row.name} for row in result.data]
 
     def build_manager_options(self) -> list[dict[str, str]]:
         if self._user_api is None:
