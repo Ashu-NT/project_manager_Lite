@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
@@ -53,6 +55,8 @@ from .task_selection_handler import (
 from .task_state_setters import TaskStateSettersMixin
 from .task_subcontroller_factory import create_subcontrollers
 from .task_workspace_state_loader import do_refresh
+
+logger = logging.getLogger(__name__)
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -529,8 +533,22 @@ class ProjectManagementTasksWorkspaceController(
                 delay_working_days=delay_working_days,
             )
         except Exception as exc:
+            logger.exception(
+                "previewTaskScheduleImpact failed task_id=%s project_id=%s delay_working_days=%s",
+                self._selected_task_id,
+                self._selected_project_id,
+                delay_working_days,
+            )
             self._set_section_error("scheduleImpact", str(exc))
             preview = {}
+        else:
+            logger.info(
+                "previewTaskScheduleImpact result task_id=%s delay_working_days=%s isAvailable=%s affectedCount=%s",
+                self._selected_task_id,
+                delay_working_days,
+                preview.get("isAvailable"),
+                preview.get("affectedCount"),
+            )
         self._set_schedule_impact_preview(preview)
         return preview
 

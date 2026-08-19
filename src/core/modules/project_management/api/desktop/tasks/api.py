@@ -910,18 +910,41 @@ class ProjectManagementTasksDesktopApi:
         automatically on task selection (§26)."""
         normalized_task_id = str(task_id or "").strip()
         normalized_project_id = str(project_id or "").strip()
-        if (
-            not normalized_task_id
-            or not normalized_project_id
-            or self._schedule_change_impact_service is None
-        ):
-            return serialize_task_schedule_overview(normalized_task_id)
+        if not normalized_task_id or not normalized_project_id:
+            return serialize_task_schedule_overview(
+                normalized_task_id, unavailable_reason="missing_task_or_project_id"
+            )
+        if self._schedule_change_impact_service is None:
+            logger.warning(
+                "Schedule impact requested but no ScheduleChangeImpactService is wired "
+                "(task_id=%s, project_id=%s) -- check that task_service/work_calendar_engine/"
+                "baseline_service are all non-None at desktop_api_builder composition time.",
+                normalized_task_id,
+                normalized_project_id,
+            )
+            return serialize_task_schedule_overview(
+                normalized_task_id, unavailable_reason="service_not_configured"
+            )
         try:
             overview = self._schedule_change_impact_service.get_task_schedule_overview(
                 normalized_project_id, normalized_task_id
             )
         except Exception:
-            return serialize_task_schedule_overview(normalized_task_id)
+            logger.exception(
+                "get_task_schedule_overview failed (task_id=%s, project_id=%s)",
+                normalized_task_id,
+                normalized_project_id,
+            )
+            return serialize_task_schedule_overview(
+                normalized_task_id, unavailable_reason="error"
+            )
+        logger.info(
+            "get_task_schedule_overview result task_id=%s project_id=%s is_available=%s unavailable_reason=%s",
+            normalized_task_id,
+            normalized_project_id,
+            overview.is_available,
+            overview.unavailable_reason,
+        )
         return serialize_task_schedule_overview(normalized_task_id, overview)
 
     def preview_task_schedule_impact(
@@ -951,6 +974,11 @@ class ProjectManagementTasksDesktopApi:
         try:
             task = self._task_service.get_task(normalized_task_id)
             if task is None or task.start_date is None:
+                logger.info(
+                    "preview_task_schedule_impact unavailable: task=%s start_date=%s",
+                    normalized_task_id,
+                    task.start_date if task is not None else None,
+                )
                 return unavailable
             report = self._schedule_change_impact_service.analyse_working_day_delay(
                 project_id=normalized_project_id,
@@ -959,6 +987,12 @@ class ProjectManagementTasksDesktopApi:
                 delay_working_days=delay_working_days,
             )
         except Exception:
+            logger.exception(
+                "preview_task_schedule_impact failed (task_id=%s, project_id=%s, delay_working_days=%s)",
+                normalized_task_id,
+                normalized_project_id,
+                delay_working_days,
+            )
             return unavailable
         return serialize_schedule_impact_report(
             task_id=normalized_task_id,

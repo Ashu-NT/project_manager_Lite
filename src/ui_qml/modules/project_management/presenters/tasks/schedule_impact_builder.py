@@ -1,6 +1,25 @@
 from __future__ import annotations
 
+import logging
+
 from .formatting import shift_days_label
+
+logger = logging.getLogger(__name__)
+
+
+def _resolve_project_id(desktop_api, *, task_id: str, project_id: str) -> str:
+    """The controller's project_id is the workspace-level project FILTER,
+    which is legitimately blank when viewing "All Projects" -- not the
+    selected task's own project. Falls back to the task's actual
+    project_id via desktop_api.get_task, mirroring task_lookup.py's
+    resolve_selected_task fallback used by the Dependencies section."""
+    if project_id:
+        return project_id
+    try:
+        task = desktop_api.get_task(task_id)
+    except Exception:
+        return ""
+    return str(getattr(task, "project_id", "") or "") if task is not None else ""
 
 _EMPTY_OVERVIEW = {
     "isAvailable": False,
@@ -36,7 +55,9 @@ def build_task_schedule_overview_state(
     facts. Auto-loaded on task selection -- cheap (one CPM pass, no
     hypothetical), never a simulation (see build_task_schedule_impact_preview_state)."""
     normalized_task_id = (task_id or "").strip()
-    normalized_project_id = (project_id or "").strip()
+    normalized_project_id = _resolve_project_id(
+        desktop_api, task_id=normalized_task_id, project_id=(project_id or "").strip()
+    )
     if not normalized_task_id or not normalized_project_id:
         return dict(_EMPTY_OVERVIEW)
     try:
@@ -128,7 +149,9 @@ def build_task_schedule_impact_preview_state(
     dependency dialogs use, applied to a task-level date change instead
     of a dependency change."""
     normalized_task_id = (task_id or "").strip()
-    normalized_project_id = (project_id or "").strip()
+    normalized_project_id = _resolve_project_id(
+        desktop_api, task_id=normalized_task_id, project_id=(project_id or "").strip()
+    )
     if not normalized_task_id or not normalized_project_id:
         return dict(_EMPTY_PREVIEW)
     try:
@@ -138,6 +161,12 @@ def build_task_schedule_impact_preview_state(
             delay_working_days=delay_working_days,
         )
     except Exception:
+        logger.exception(
+            "build_task_schedule_impact_preview_state failed task_id=%s project_id=%s delay_working_days=%s",
+            normalized_task_id,
+            normalized_project_id,
+            delay_working_days,
+        )
         return dict(_EMPTY_PREVIEW)
     if not dto.is_available:
         state = dict(_EMPTY_PREVIEW)

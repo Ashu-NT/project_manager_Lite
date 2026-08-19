@@ -169,3 +169,89 @@ class TestDependencyMutationRefresh:
         controller = SimpleNamespace(_selected_task_id="")
 
         refresh_after_dependency_mutation(controller)  # must not raise
+
+
+class TestScheduleOverviewProjectIdFallback:
+    """The reported live-app bug: every task showed the generic
+    "needs a computed start date and a connected scheduling service"
+    message regardless of its actual dates. Root cause -- the Tasks
+    workspace's project_id is a project FILTER ("All Projects" leaves
+    it blank), not the selected task's own project, but
+    build_task_schedule_overview_state/build_task_schedule_impact_preview_state
+    both bailed straight to the empty state whenever that filter was
+    blank, so the backend call never even ran. Fixed by falling back
+    to desktop_api.get_task(task_id).project_id, mirroring
+    task_lookup.py's resolve_selected_task used by Dependencies."""
+
+    def test_overview_resolves_task_project_id_when_filter_is_blank(self):
+        from types import SimpleNamespace
+        from src.ui_qml.modules.project_management.presenters.tasks.schedule_impact_builder import (
+            build_task_schedule_overview_state,
+        )
+
+        calls: list[tuple[str, str]] = []
+
+        class _DesktopApi:
+            def get_task(self, task_id):
+                return SimpleNamespace(id=task_id, project_id="project-real")
+
+            def get_task_schedule_overview(self, task_id, project_id):
+                calls.append((task_id, project_id))
+                return SimpleNamespace(
+                    is_available=False,
+                    task_id=task_id,
+                    unavailable_reason="no_computed_date",
+                )
+
+        state = build_task_schedule_overview_state(
+            _DesktopApi(), task_id="task-1", project_id=""
+        )
+
+        assert calls == [("task-1", "project-real")]
+        assert state["unavailableReason"] == "no_computed_date"
+
+    def test_overview_uses_filter_project_id_when_present(self):
+        from types import SimpleNamespace
+        from src.ui_qml.modules.project_management.presenters.tasks.schedule_impact_builder import (
+            build_task_schedule_overview_state,
+        )
+
+        calls: list[tuple[str, str]] = []
+
+        class _DesktopApi:
+            def get_task(self, task_id):
+                raise AssertionError("must not resolve via get_task when filter is already set")
+
+            def get_task_schedule_overview(self, task_id, project_id):
+                calls.append((task_id, project_id))
+                return SimpleNamespace(
+                    is_available=False, task_id=task_id, unavailable_reason="not_found"
+                )
+
+        build_task_schedule_overview_state(
+            _DesktopApi(), task_id="task-1", project_id="project-filter"
+        )
+
+        assert calls == [("task-1", "project-filter")]
+
+    def test_preview_resolves_task_project_id_when_filter_is_blank(self):
+        from types import SimpleNamespace
+        from src.ui_qml.modules.project_management.presenters.tasks.schedule_impact_builder import (
+            build_task_schedule_impact_preview_state,
+        )
+
+        calls: list[tuple[str, str]] = []
+
+        class _DesktopApi:
+            def get_task(self, task_id):
+                return SimpleNamespace(id=task_id, project_id="project-real")
+
+            def preview_task_schedule_impact(self, task_id, project_id, *, delay_working_days):
+                calls.append((task_id, project_id))
+                return SimpleNamespace(is_available=False, task_id=task_id)
+
+        build_task_schedule_impact_preview_state(
+            _DesktopApi(), task_id="task-1", project_id="", delay_working_days=1
+        )
+
+        assert calls == [("task-1", "project-real")]

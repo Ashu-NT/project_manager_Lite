@@ -43,6 +43,12 @@ Item {
             return "This task could not be found in the current project schedule."
         if (reason === "no_computed_date")
             return "This task needs a start date, or an incoming dependency, before a schedule position can be computed."
+        if (reason === "service_not_configured")
+            return "Schedule impact analysis is not connected in this app session (the scheduling service was not wired at startup). This affects every task, not just this one -- restart the app, and if it persists, this needs backend investigation."
+        if (reason === "error")
+            return "Schedule impact analysis failed unexpectedly for this task. Check the application log for details."
+        if (reason === "missing_task_or_project_id")
+            return "No task is selected."
         return "This task needs a computed start date and a connected scheduling service."
     }
     readonly property bool _hasPreview: root._preview.isAvailable === true
