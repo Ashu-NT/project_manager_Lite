@@ -92,10 +92,18 @@ def serialize_schedule_impact_report(
     )
 
 
-def serialize_task_schedule_overview(overview) -> TaskScheduleImpactOverviewDesktopDto:
-    if not overview.is_available:
+def serialize_task_schedule_overview(
+    task_id: str = "",
+    overview=None,
+) -> TaskScheduleImpactOverviewDesktopDto:
+    """Mirrors serialize_schedule_impact_report's ``report=None`` unavailable
+    convention -- the desktop API passes ``None`` (never constructs the
+    application-layer TaskScheduleOverview itself) when the service isn't
+    wired or a lookup fails; this module owns the sole application-object
+    construction for the "unavailable" case."""
+    if overview is None or not overview.is_available:
         return TaskScheduleImpactOverviewDesktopDto(
-            task_id=overview.task_id,
+            task_id=(overview.task_id if overview is not None else task_id),
             is_available=False,
             current_start_label="--",
             current_finish_label="--",

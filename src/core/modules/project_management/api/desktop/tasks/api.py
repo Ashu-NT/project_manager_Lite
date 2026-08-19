@@ -12,9 +12,6 @@ from src.core.modules.project_management.api.desktop.scheduling.serializers.chan
     serialize_schedule_impact_report,
     serialize_task_schedule_overview,
 )
-from src.core.modules.project_management.application.scheduling.forecasting.task_schedule_overview import (
-    TaskScheduleOverview,
-)
 from src.core.modules.project_management.api.desktop.tasks.builders.assignment_preview_builder import (
     build_assignment_preview,
 )
@@ -918,18 +915,14 @@ class ProjectManagementTasksDesktopApi:
             or not normalized_project_id
             or self._schedule_change_impact_service is None
         ):
-            return serialize_task_schedule_overview(
-                TaskScheduleOverview(task_id=normalized_task_id, is_available=False)
-            )
+            return serialize_task_schedule_overview(normalized_task_id)
         try:
             overview = self._schedule_change_impact_service.get_task_schedule_overview(
                 normalized_project_id, normalized_task_id
             )
         except Exception:
-            return serialize_task_schedule_overview(
-                TaskScheduleOverview(task_id=normalized_task_id, is_available=False)
-            )
-        return serialize_task_schedule_overview(overview)
+            return serialize_task_schedule_overview(normalized_task_id)
+        return serialize_task_schedule_overview(normalized_task_id, overview)
 
     def preview_task_schedule_impact(
         self,
