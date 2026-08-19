@@ -11,8 +11,8 @@ from src.core.modules.project_management.application.scheduling.calendars import
     ProjectCalendarAdapter,
 )
 from src.core.modules.project_management.application.scheduling.cpm import (
-    CPMCalculator,
     CPMResult,
+    run_cpm,
     ConstraintType,
     ConstraintValidationResult,
     ConstraintValidator,
@@ -21,10 +21,6 @@ from src.core.modules.project_management.application.scheduling.cpm import (
     build_schedule_result,
     run_backward_pass,
     run_forward_pass,
-)
-from src.core.modules.project_management.application.scheduling.dependencies import (
-    DependencyDateResult,
-    DependencyResolver,
 )
 from src.core.modules.project_management.application.scheduling.forecasting import (
     ScheduleChangeImpactReport,
@@ -54,8 +50,8 @@ __all__ = [
     "ResourceLevelingAction",
     "ResourceLevelingResult",
     # CPM
-    "CPMCalculator",
     "CPMResult",
+    "run_cpm",
     "ConstraintType",
     "ConstraintValidationResult",
     "ConstraintValidator",
@@ -64,9 +60,6 @@ __all__ = [
     "build_schedule_result",
     "run_backward_pass",
     "run_forward_pass",
-    # Dependencies
-    "DependencyDateResult",
-    "DependencyResolver",
     # Leveling
     "ResourceLevelingEngine",
     "ResourceLevelingMixin",

@@ -3,7 +3,7 @@ from __future__ import annotations
 from src.core.modules.project_management.api.desktop.tasks.models.dependency import (
     TaskDependencyDesktopDto,
 )
-from src.core.modules.project_management.api.desktop.tasks.utils.dependency_utils import (
+from src.core.modules.project_management.api.desktop.common.dependency_presentation import (
     dependency_direction,
     dependency_type_label,
 )

@@ -1,7 +1,7 @@
 """Critical Path Method (CPM) logic."""
-from src.core.modules.project_management.application.scheduling.cpm.cpm_calculator import (
-    CPMCalculator,
+from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import (
     CPMResult,
+    run_cpm,
 )
 from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
     ConstraintType,
@@ -21,8 +21,8 @@ from src.core.modules.project_management.application.scheduling.cpm.results impo
 )
 
 __all__ = [
-    "CPMCalculator",
     "CPMResult",
+    "run_cpm",
     "ConstraintType",
     "ConstraintValidationResult",
     "ConstraintValidator",

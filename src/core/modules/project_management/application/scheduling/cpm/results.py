@@ -16,8 +16,10 @@ def build_schedule_result(
     ls: dict[str, date | None],
     lf: dict[str, date | None],
     calendar: CalendarProtocol,
+    dependency_implied: dict[str, tuple[date | None, date | None]] | None = None,
 ) -> dict[str, CPMTaskInfo]:
     result: dict[str, CPMTaskInfo] = {}
+    dependency_implied = dependency_implied or {}
 
     for task_id, task in tasks_by_id.items():
         est = es[task_id]
@@ -51,6 +53,8 @@ def build_schedule_result(
                 eft,
             )
 
+        implied_start, implied_finish = dependency_implied.get(task_id, (None, None))
+
         result[task_id] = CPMTaskInfo(
             task=task,
             earliest_start=est,
@@ -61,6 +65,8 @@ def build_schedule_result(
             is_critical=is_critical,
             deadline=task.deadline,
             late_by_days=late_by,
+            dependency_implied_start=implied_start,
+            dependency_implied_finish=implied_finish,
         )
 
     return result

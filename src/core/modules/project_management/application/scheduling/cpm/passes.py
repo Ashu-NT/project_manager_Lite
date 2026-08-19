@@ -6,8 +6,11 @@ from datetime import date
 from typing import Callable
 
 from src.core.platform.common.exceptions import ValidationError
-from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
+from src.core.modules.project_management.application.scheduling.cpm.dependency_schedule_math import (
+    predecessor_late_boundary,
+    shift_working_days,
+)
 
 
 ForwardComputeFn = Callable[
@@ -109,45 +112,37 @@ def run_backward_pass(
                 lf[task_id] = ef[task_id]
             continue
 
-        cand_ls_dates: list[date] = []
-        cand_lf_dates: list[date] = []
         duration = tasks_by_id[task_id].duration_days or 0
 
+        # Every outgoing edge -- whatever its type -- is normalized into a
+        # single LATEST-START bound before taking the minimum. This is the
+        # fix for the old shadowing bug: previously, FS/FF-derived bounds
+        # (grouped as "cand_lf_dates") were preferred outright over
+        # SS/SF-derived bounds ("cand_ls_dates") whenever both existed on the
+        # same predecessor, silently discarding the SS/SF constraints. See
+        # docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md §11.
+        candidate_ls_bounds: list[date] = []
         for dep in outgoing:
             succ_id = dep.successor_task_id
-            succ_ls = ls[succ_id]
-            succ_lf = lf[succ_id]
-            if succ_ls is None and succ_lf is None:
-                continue
+            late = predecessor_late_boundary(
+                calendar,
+                dependency_type=dep.dependency_type,
+                lag_days=dep.lag_days,
+                successor_latest_start=ls[succ_id],
+                successor_latest_finish=lf[succ_id],
+                predecessor_duration_days=duration,
+            )
+            if late is not None:
+                candidate_ls_bounds.append(late.latest_start)
 
-            if dep.dependency_type == DependencyType.FINISH_TO_START:
-                if succ_ls is not None:
-                    # Inverse of forward FS rule with inclusive-day calendar arithmetic.
-                    cand_lf_dates.append(calendar.add_working_days(succ_ls, -(dep.lag_days + 1)))
-            elif dep.dependency_type == DependencyType.FINISH_TO_FINISH:
-                if succ_lf is not None:
-                    cand_lf_dates.append(calendar.add_working_days(succ_lf, -dep.lag_days))
-            elif dep.dependency_type == DependencyType.START_TO_START:
-                if succ_ls is not None:
-                    cand_ls_dates.append(calendar.add_working_days(succ_ls, -dep.lag_days))
-            elif dep.dependency_type == DependencyType.START_TO_FINISH:
-                if succ_lf is not None:
-                    cand_ls_dates.append(calendar.add_working_days(succ_lf, -dep.lag_days))
-
-        if cand_lf_dates:
-            lf_candidate = min(cand_lf_dates)
-            lf[task_id] = lf_candidate
-            if duration > 0:
-                ls[task_id] = calendar.add_working_days(lf_candidate, -(duration - 1))
-            else:
-                ls[task_id] = lf_candidate
-        elif cand_ls_dates:
-            ls_candidate = min(cand_ls_dates)
+        if candidate_ls_bounds:
+            ls_candidate = min(candidate_ls_bounds)
             ls[task_id] = ls_candidate
-            if duration > 0:
-                lf[task_id] = calendar.add_working_days(ls_candidate, duration - 1)
-            else:
-                lf[task_id] = ls_candidate
+            lf[task_id] = (
+                shift_working_days(calendar, ls_candidate, duration - 1)
+                if duration > 0
+                else ls_candidate
+            )
         elif es[task_id] is not None:
             ls[task_id] = es[task_id]
             lf[task_id] = ef[task_id]

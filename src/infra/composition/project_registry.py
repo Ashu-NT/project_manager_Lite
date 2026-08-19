@@ -736,6 +736,15 @@ def _register_project_management_approval_handlers(
         )
         return _result("tasks_changed", req.project_id or "")
 
+    def _apply_dependency_update(req) -> ApprovalHandlerResult:
+        task_service._apply_dependency_update_decision(
+            dependency_id=req.payload["dependency_id"],
+            dependency_type=_as_dependency_type(req.payload.get("dependency_type", "FS")),
+            lag_days=int(req.payload.get("lag_days", 0) or 0),
+            commit=False,
+        )
+        return _result("tasks_changed", req.project_id or "")
+
     def _require_financial_decision_actor() -> str:
         principal = user_session.principal if user_session else None
         if principal is None:
@@ -842,6 +851,10 @@ def _register_project_management_approval_handlers(
     approval_service.register_apply_handler(
         "dependency.remove",
         _apply_dependency_remove,
+    )
+    approval_service.register_apply_handler(
+        "dependency.update",
+        _apply_dependency_update,
     )
     approval_service.register_apply_handler(
         "budget.approve",

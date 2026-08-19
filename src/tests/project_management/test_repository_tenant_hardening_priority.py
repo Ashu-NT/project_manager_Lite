@@ -115,7 +115,13 @@ def test_priority_pm_repositories_scope_mutations_to_active_organization(service
 
     assignment_repo.delete(seeded["assignment_b"])
     assignment_repo.delete_by_task(seeded["task_b1"])
-    dependency_repo.delete(seeded["dependency_b"])
+    # dependency_b belongs to the OTHER org, not the currently-active
+    # default_org -- SqlAlchemyDependencyRepository.delete() now raises
+    # NotFoundError for an out-of-scope id (Phase G: truthful not-found,
+    # rather than the old silent no-op that made this indistinguishable
+    # from "already deleted"). The row must still be untouched afterward.
+    with pytest.raises(NotFoundError):
+        dependency_repo.delete(seeded["dependency_b"], expected_version=1)
     dependency_repo.delete_for_task(seeded["task_b1"])
     register_repo.delete(seeded["register_b"])
     baseline_repo.delete_tasks(seeded["baseline_b"])

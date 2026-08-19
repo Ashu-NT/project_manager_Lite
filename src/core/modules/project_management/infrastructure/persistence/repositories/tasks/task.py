@@ -15,7 +15,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.resource
 from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskAssignmentORM, TaskDependencyORM, TaskORM
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.application.tenant.tenancy.tenant_context import ActiveScopeIds, TenantContextService
-from src.infra.persistence.db.optimistic import update_with_version_check
+from src.infra.persistence.db.optimistic import delete_with_version_check, update_with_version_check
 from src.core.modules.project_management.infrastructure.persistence.mappers.task import (
     assignment_from_orm,
     assignment_to_orm,
@@ -421,9 +421,37 @@ class SqlAlchemyDependencyRepository(DependencyRepository):
         if task is None:
             raise NotFoundError("Task not found.")
 
+    def _ensure_same_project(self, predecessor_task_id: str, successor_task_id: str) -> None:
+        """Defense-in-depth (§9/§G5 of the R4.4 dependency audit): the
+        schema cannot express "both endpoints in the same project" --
+        task_dependencies has no project_id column and its FKs target
+        tasks.id alone, not the (project_id, id) composite tasks carries
+        for its own self-referential FK. A caller that reaches this
+        repository directly (bypassing TaskDependencyMixin's
+        DEPENDENCY_CROSS_PROJECT diagnostics check) would otherwise be able
+        to persist a cross-project edge as long as both tasks share a
+        tenant/org."""
+        ctx = self._context()
+        rows = self.session.execute(
+            select(TaskORM.id, TaskORM.project_id)
+            .join(ProjectORM, TaskORM.project_id == ProjectORM.id)
+            .where(
+                TaskORM.id.in_((predecessor_task_id, successor_task_id)),
+                ProjectORM.tenant_id == ctx.tenant_id,
+                ProjectORM.organization_id == ctx.organization_id,
+            )
+        ).all()
+        project_ids = {row[1] for row in rows}
+        if len(project_ids) > 1:
+            raise BusinessRuleError(
+                "Dependencies are allowed only between tasks in the same project.",
+                code="DEPENDENCY_CROSS_PROJECT",
+            )
+
     def add(self, dependency: TaskDependency) -> None:
         self._ensure_task_in_scope(dependency.predecessor_task_id)
         self._ensure_task_in_scope(dependency.successor_task_id)
+        self._ensure_same_project(dependency.predecessor_task_id, dependency.successor_task_id)
         self.session.add(dependency_to_orm(dependency))
 
     def get(self, dependency_id: str) -> TaskDependency | None:
@@ -449,10 +477,25 @@ class SqlAlchemyDependencyRepository(DependencyRepository):
             raise NotFoundError("Dependency not found.")
         self._ensure_task_in_scope(dependency.predecessor_task_id)
         self._ensure_task_in_scope(dependency.successor_task_id)
-        row.predecessor_task_id = dependency.predecessor_task_id
-        row.successor_task_id = dependency.successor_task_id
-        row.dependency_type = dependency.dependency_type
-        row.lag_days = dependency.lag_days
+        # Defense-in-depth (§G5): both endpoints must belong to the same
+        # project. The DB schema cannot express this (task_dependencies has
+        # no project_id column, and the FKs target tasks.id alone), so it
+        # is enforced here and in the application-layer diagnostics check.
+        self._ensure_same_project(dependency.predecessor_task_id, dependency.successor_task_id)
+        dependency.version = update_with_version_check(
+            self.session,
+            TaskDependencyORM,
+            dependency.id,
+            getattr(dependency, "version", 1),
+            {
+                "predecessor_task_id": dependency.predecessor_task_id,
+                "successor_task_id": dependency.successor_task_id,
+                "dependency_type": dependency.dependency_type,
+                "lag_days": dependency.lag_days,
+            },
+            not_found_message="Dependency not found.",
+            stale_message="Dependency was updated by another user.",
+        )
 
     def list_by_project(self, project_id: str) -> list[TaskDependency]:
         task_ids_subq = self._scoped_task_ids(project_id=project_id)
@@ -463,13 +506,26 @@ class SqlAlchemyDependencyRepository(DependencyRepository):
         rows = self.session.execute(stmt).scalars().all()
         return [dependency_from_orm(row) for row in rows]
 
-    def delete(self, dependency_id: str) -> None:
-        self.session.execute(
-            delete(TaskDependencyORM).where(
+    def delete(self, dependency_id: str, *, expected_version: int) -> None:
+        # Scope-check first (tenant/org), same as every other method here,
+        # so an out-of-scope id reports NotFoundError rather than leaking
+        # through as a stale-version conflict.
+        in_scope = self.session.execute(
+            select(TaskDependencyORM.id).where(
                 TaskDependencyORM.id == dependency_id,
                 TaskDependencyORM.predecessor_task_id.in_(self._scoped_task_ids()),
                 TaskDependencyORM.successor_task_id.in_(self._scoped_task_ids()),
             )
+        ).scalar_one_or_none()
+        if in_scope is None:
+            raise NotFoundError("Dependency not found.")
+        delete_with_version_check(
+            self.session,
+            TaskDependencyORM,
+            dependency_id,
+            expected_version,
+            not_found_message="Dependency not found.",
+            stale_message="Dependency was updated by another user.",
         )
 
     def delete_for_task(self, task_id: str) -> None:

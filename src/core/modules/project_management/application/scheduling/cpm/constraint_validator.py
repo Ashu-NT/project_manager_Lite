@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
 
@@ -32,8 +32,33 @@ class ConstraintViolation:
 
 
 @dataclass
+class DependencyConstraintConflict:
+    """A hard scheduling constraint (Must Start On / Must Finish On)
+    silently overrode what the task's incoming TaskDependency edges
+    required. Non-blocking -- this is a reported fact, not a raised error;
+    the schedule still uses the constraint-driven date (see
+    SchedulingEngine._apply_scheduling_constraints), but the conflict is no
+    longer invisible. 
+    """
+
+    task_id: str
+    task_name: str
+    constraint_type: ConstraintType
+    constraint_date: date
+    dependency_required_date: date
+    direction: str  # "start" or "finish"
+    # Positive: the constraint pulled the task EARLIER than the dependency
+    # required (dependency_required_date is later than constraint_date).
+    # Negative: the constraint pushed the task LATER than the dependency
+    # required.
+    difference_working_days: int
+    code: str = "DEPENDENCY_CONSTRAINT_CONFLICT"
+
+
+@dataclass
 class ConstraintValidationResult:
     violations: list[ConstraintViolation]
+    dependency_conflicts: list[DependencyConstraintConflict] = field(default_factory=list)
 
     @property
     def is_valid(self) -> bool:
@@ -83,14 +108,68 @@ class ConstraintValidator:
         cpm_result: dict[str, CPMTaskInfo],
     ) -> ConstraintValidationResult:
         violations: list[ConstraintViolation] = []
+        dependency_conflicts: list[DependencyConstraintConflict] = []
         for task_id, task in tasks_by_id.items():
             info = cpm_result.get(task_id)
             if info is None:
                 continue
             violations.extend(self._check_task(task, info))
-        return ConstraintValidationResult(violations=violations)
+            dependency_conflicts.extend(self._check_dependency_conflict(task, info))
+        return ConstraintValidationResult(violations=violations, dependency_conflicts=dependency_conflicts)
 
     # ── per-task checks ─────────────────────────────────────────────────────
+
+    def _check_dependency_conflict(
+        self, task: Task, info: CPMTaskInfo
+    ) -> list[DependencyConstraintConflict]:
+        """Report when a hard MUST_START_ON/MUST_FINISH_ON constraint
+        overrode what the task's incoming dependencies alone required.
+
+        Reads ``CPMTaskInfo.dependency_implied_start/finish``, captured by
+        the scheduling engine BEFORE constraints were applied (Phase F) --
+        this is what makes the comparison possible; comparing against the
+        already-overridden ``earliest_start``/``earliest_finish`` (as the
+        MSO/MFO violation check above does) can never detect this, because
+        by the time this validator runs, the override has already happened.
+        """
+        ct = self._constraint_type(task)
+        cd = self._constraint_date(task)
+        if ct is None or cd is None:
+            return []
+
+        if ct == ConstraintType.MUST_START_ON and info.dependency_implied_start is not None:
+            required = info.dependency_implied_start
+            if required != cd:
+                return [self._dependency_conflict(task, ct, cd, required, "start")]
+
+        if ct == ConstraintType.MUST_FINISH_ON and info.dependency_implied_finish is not None:
+            required = info.dependency_implied_finish
+            if required != cd:
+                return [self._dependency_conflict(task, ct, cd, required, "finish")]
+
+        return []
+
+    def _dependency_conflict(
+        self,
+        task: Task,
+        ct: ConstraintType,
+        constraint_date: date,
+        dependency_required_date: date,
+        direction: str,
+    ) -> DependencyConstraintConflict:
+        if dependency_required_date > constraint_date:
+            diff = self._calendar.working_days_between(constraint_date, dependency_required_date) - 1
+        else:
+            diff = -(self._calendar.working_days_between(dependency_required_date, constraint_date) - 1)
+        return DependencyConstraintConflict(
+            task_id=task.id,
+            task_name=task.name,
+            constraint_type=ct,
+            constraint_date=constraint_date,
+            dependency_required_date=dependency_required_date,
+            direction=direction,
+            difference_working_days=diff,
+        )
 
     def _check_task(self, task: Task, info: CPMTaskInfo) -> list[ConstraintViolation]:
         violations: list[ConstraintViolation] = []
@@ -171,4 +250,5 @@ __all__ = [
     "ConstraintViolation",
     "ConstraintValidationResult",
     "ConstraintValidator",
+    "DependencyConstraintConflict",
 ]

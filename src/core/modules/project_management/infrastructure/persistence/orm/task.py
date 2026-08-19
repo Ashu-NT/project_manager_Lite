@@ -142,6 +142,12 @@ Index(
 
 class TaskDependencyORM(Base):
     __tablename__ = "task_dependencies"
+    __table_args__ = (
+        CheckConstraint(
+            "predecessor_task_id <> successor_task_id",
+            name="ck_task_dependencies_not_self",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     predecessor_task_id: Mapped[str] = mapped_column(
@@ -160,6 +166,7 @@ class TaskDependencyORM(Base):
         nullable=False,
     )
     lag_days: Mapped[int] = mapped_column(nullable=False, default=0)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
 Index("idx_dep_predecessor", TaskDependencyORM.predecessor_task_id)

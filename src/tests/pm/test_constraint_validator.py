@@ -21,7 +21,15 @@ def _task(constraint_type=None, constraint_date=None, deadline=None, **kwargs) -
         name="Test Task",
         duration_days=5,
     )
-    t.constraint_type = constraint_type
+    # Task.constraint_type is a plain `str | None` field (not ConstraintType),
+    # normalized via normalize_optional_text -> str(value or "").strip().
+    # Assigning the Enum member directly (rather than its .value) triggers
+    # Python's Enum.__str__, which stringifies to "ConstraintType.MEMBER"
+    # instead of the underlying value -- silently breaking every downstream
+    # `ConstraintType(str(raw))` lookup. Pre-existing test bug, unrelated to
+    # the R4.4 dependency work; fixed here since it was directly localized
+    # while extending ConstraintValidator for Phase F.
+    t.constraint_type = getattr(constraint_type, "value", constraint_type)
     t.constraint_date = constraint_date
     t.deadline = deadline
     for k, v in kwargs.items():
@@ -29,10 +37,17 @@ def _task(constraint_type=None, constraint_date=None, deadline=None, **kwargs) -
     return t
 
 
-def _info(es: date, ef: date) -> CPMTaskInfo:
+def _info(es: date, ef: date, *, dependency_implied_start=None, dependency_implied_finish=None) -> CPMTaskInfo:
     m = MagicMock(spec=CPMTaskInfo)
     m.earliest_start = es
     m.earliest_finish = ef
+    # MagicMock(spec=...) does not honor dataclass field defaults --
+    # dependency_implied_start/finish must be explicitly set to None,
+    # otherwise accessing them returns a truthy child mock and
+    # ConstraintValidator._check_dependency_conflict (Phase F) would treat
+    # that as a real implied date.
+    m.dependency_implied_start = dependency_implied_start
+    m.dependency_implied_finish = dependency_implied_finish
     return m
 
 

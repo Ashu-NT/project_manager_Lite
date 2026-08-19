@@ -32,6 +32,12 @@ from src.core.modules.project_management.api.desktop.tasks.serializers.time_summ
     serialize_task_time_entries_page,
     serialize_task_time_summary,
 )
+from src.core.modules.project_management.api.desktop.tasks.serializers.dependency_impact_preview_serializer import (
+    serialize_dependency_impact_preview,
+)
+from src.core.modules.project_management.api.desktop.tasks.models.dependency import (
+    TaskDependencyImpactPreviewDesktopDto,
+)
 from src.core.modules.project_management.api.desktop.tasks.models.time_summary import (
     TaskTimeEntriesPageDesktopDto,
     TaskTimeSummaryDesktopDto,
@@ -107,7 +113,7 @@ from src.core.modules.project_management.api.desktop.tasks.services.resource_loo
     resource_by_id,
     resource_name_for_assignment,
 )
-from src.core.modules.project_management.api.desktop.tasks.utils.dependency_utils import (
+from src.core.modules.project_management.api.desktop.common.dependency_presentation import (
     coerce_dependency_direction,
     coerce_dependency_type,
     dependency_direction,
@@ -702,6 +708,70 @@ class ProjectManagementTasksDesktopApi:
 
     def delete_dependency(self, dependency_id: str) -> None:
         self._require_task_method("remove_dependency")(dependency_id)
+
+    def preview_create_dependency(
+        self,
+        command: TaskDependencyCreateCommand,
+    ) -> TaskDependencyImpactPreviewDesktopDto | None:
+        """Non-persisting impact preview for a proposed CREATE (Phase K).
+        Uses the same canonical, non-persisting engine the committed
+        schedule uses -- never a second formula, never QML-side math."""
+        service = self._require_task_service()
+        get_diagnostics = getattr(service, "get_dependency_diagnostics", None)
+        if not callable(get_diagnostics):
+            return None
+        relationship_direction = coerce_dependency_direction(command.relationship_direction)
+        predecessor_id = (
+            command.linked_task_id if relationship_direction == "PREDECESSOR" else command.task_id
+        )
+        successor_id = (
+            command.task_id if relationship_direction == "PREDECESSOR" else command.linked_task_id
+        )
+        diagnostic = get_diagnostics(
+            predecessor_id=predecessor_id,
+            successor_id=successor_id,
+            dependency_type=coerce_dependency_type(command.dependency_type),
+            lag_days=command.lag_days,
+            include_impact=True,
+        )
+        return serialize_dependency_impact_preview(diagnostic)
+
+    def preview_update_dependency(
+        self,
+        command: TaskDependencyUpdateCommand,
+    ) -> TaskDependencyImpactPreviewDesktopDto | None:
+        """Non-persisting impact preview for a proposed UPDATE (Phase K)."""
+        service = self._require_task_service()
+        get_diagnostics = getattr(service, "get_dependency_diagnostics", None)
+        get_dependency = getattr(service, "get_dependency", None)
+        if not callable(get_diagnostics) or not callable(get_dependency):
+            return None
+        normalized_id = (command.dependency_id or "").strip()
+        if not normalized_id:
+            return None
+        existing = get_dependency(normalized_id)
+        if existing is None:
+            return None
+        diagnostic = get_diagnostics(
+            predecessor_id=existing.predecessor_task_id,
+            successor_id=existing.successor_task_id,
+            dependency_type=coerce_dependency_type(command.dependency_type),
+            lag_days=command.lag_days,
+            include_impact=True,
+            exclude_dependency_id=normalized_id,
+        )
+        return serialize_dependency_impact_preview(diagnostic)
+
+    def preview_delete_dependency(
+        self, dependency_id: str
+    ) -> TaskDependencyImpactPreviewDesktopDto | None:
+        """Non-persisting impact preview for a proposed DELETE (Phase K)."""
+        service = self._require_task_service()
+        preview = getattr(service, "preview_dependency_removal", None)
+        if not callable(preview):
+            return None
+        diagnostic = preview(dependency_id)
+        return serialize_dependency_impact_preview(diagnostic)
 
     def delete_task(self, task_id: str) -> None:
         self._require_task_service().delete_task(task_id)

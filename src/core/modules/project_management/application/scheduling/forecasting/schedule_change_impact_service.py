@@ -15,9 +15,9 @@ from src.core.modules.project_management.domain.tasks.hierarchy import (
     select_leaf_dependencies,
     select_leaf_tasks,
 )
-from src.core.modules.project_management.application.scheduling.cpm.cpm_calculator import (
-    CPMCalculator,
+from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import (
     CPMResult,
+    run_cpm,
 )
 
 
@@ -85,7 +85,10 @@ class ScheduleChangeImpactService:
         self._calendar = calendar
         self._baseline_lookup = baseline_lookup
         self._approval_threshold_days = approval_threshold_days
-        self._cpm = CPMCalculator(calendar)
+        # Injectable seam so tests can isolate baseline/threshold logic from
+        # real CPM date math without needing a second CPM implementation to
+        # stub against -- defaults to the one canonical implementation.
+        self._run_cpm = run_cpm
 
     def analyse(
         self,
@@ -110,7 +113,7 @@ class ScheduleChangeImpactService:
         tasks_by_id: dict[str, Task] = {t.id: t for t in tasks}
 
         # ── original pass ────────────────────────────────────────────────
-        original: CPMResult = self._cpm.calculate(tasks_by_id, deps)
+        original: CPMResult = self._run_cpm(self._calendar, tasks_by_id, deps)
 
         # ── proposed pass (copy with the change applied) ─────────────────
         from dataclasses import replace
@@ -135,7 +138,7 @@ class ScheduleChangeImpactService:
         if proposed_duration_days is not None:
             changed.duration_days = proposed_duration_days
 
-        proposed: CPMResult = self._cpm.calculate(proposed_tasks, deps)
+        proposed: CPMResult = self._run_cpm(self._calendar, proposed_tasks, deps)
 
         # ── diff ─────────────────────────────────────────────────────────
         affected: list[TaskImpact] = []

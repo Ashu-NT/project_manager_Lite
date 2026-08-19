@@ -312,6 +312,7 @@ class TaskDependency:
     successor_task_id: str
     dependency_type: DependencyType = DependencyType.FINISH_TO_START
     lag_days: int = 0
+    version: int = 1
 
     @field_validator("predecessor_task_id", mode="before")
     @classmethod

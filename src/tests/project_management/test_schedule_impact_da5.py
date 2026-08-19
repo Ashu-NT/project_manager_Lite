@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from src.core.modules.project_management.application.scheduling.cpm.cpm_calculator import (
+from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import (
     CPMResult,
 )
 from src.core.modules.project_management.application.scheduling.forecasting.schedule_change_impact_service import (
@@ -51,7 +51,7 @@ class _CpmSequence:
             )
         )
 
-    def calculate(self, _tasks_by_id, _dependencies) -> CPMResult:
+    def __call__(self, _calendar, _tasks_by_id, _dependencies) -> CPMResult:
         return next(self._results)
 
 
@@ -73,7 +73,7 @@ def test_schedule_impact_service_owns_baseline_resolution_for_all_scenarios() ->
         baseline_lookup=baseline_lookup,
         approval_threshold_days=1,
     )
-    service._cpm = _CpmSequence()
+    service._run_cpm = _CpmSequence()
 
     explicit = service.analyse(
         project_id=task.project_id,

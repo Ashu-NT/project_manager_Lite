@@ -6,7 +6,7 @@ from src.core.modules.project_management.api.desktop.portfolio.models.options im
     PortfolioOptionDescriptor,
     PortfolioProjectOptionDescriptor,
 )
-from src.core.modules.project_management.api.desktop.portfolio.utils.dependency_type_utils import dependency_type_label
+from src.core.modules.project_management.api.desktop.common.dependency_presentation import dependency_type_label
 
 
 def build_project_options(project_service=None) -> tuple[PortfolioProjectOptionDescriptor, ...]:

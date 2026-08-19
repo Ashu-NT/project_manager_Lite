@@ -33,6 +33,8 @@ from src.core.modules.project_management.api.desktop.tasks.models.assignment imp
 )
 from src.core.modules.project_management.api.desktop.tasks.models.dependency import (
     TaskDependencyDesktopDto,
+    TaskDependencyImpactPreviewDesktopDto,
+    TaskDependencyImpactRowDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.tasks.models.options import (
     TaskDependencyTypeDescriptor,
@@ -75,6 +77,8 @@ __all__ = [
     "TaskCreateCommand",
     "TaskDependencyCreateCommand",
     "TaskDependencyDesktopDto",
+    "TaskDependencyImpactPreviewDesktopDto",
+    "TaskDependencyImpactRowDesktopDto",
     "TaskDependencyTypeDescriptor",
     "TaskDependencyUpdateCommand",
     "TaskDesktopDto",

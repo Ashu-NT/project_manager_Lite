@@ -15,14 +15,38 @@ from src.core.modules.project_management.domain.enums import DependencyType
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from src.core.modules.project_management.application.tasks.queries.dependency_diagnostics import (
+        DependencyDiagnostic,
+    )
     from src.core.modules.project_management.contracts.repositories.tasks.task import (
         DependencyRepository,
         TaskRepository,
     )
 
 
+def _raise_for_invalid_diagnostic(diagnostic: "DependencyDiagnostic") -> None:
+    """Shared error-mapping for a failed DependencyDiagnostic, used by both
+    the request-time check (add/update) and the apply-time re-check
+    (Phase H1) so the two can never map codes to exception types
+    differently."""
+    message = diagnostic.summary
+    if diagnostic.detail:
+        message = f"{diagnostic.summary}\n{diagnostic.detail}"
+    if diagnostic.code == "TASK_NOT_FOUND":
+        raise NotFoundError(message, code=diagnostic.code)
+    if diagnostic.code == "DEPENDENCY_CYCLE":
+        raise BusinessRuleError(message, code=diagnostic.code)
+    raise ValidationError(message, code=diagnostic.code)
+
+
 class TaskDependencyMixin:
-    """Governed dependency lifecycle for ``add``/``remove``; ``update`` has no governed path (dead, unwired)."""
+    """Governed dependency lifecycle for add/remove/update. All three go
+    through matching authorization/project-scope/governance/transaction
+    machinery -- see docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
+    Phase H. Approved requests for any of the three are applied via
+    ``_apply_dependency_*_decision``, each of which re-validates against the
+    CURRENT graph at apply time rather than trusting request-time
+    validation (Phase H1's TOCTOU fix)."""
 
     _session: Session
     _task_repo: TaskRepository
@@ -81,6 +105,20 @@ class TaskDependencyMixin:
                 "task.manage",
                 operation_label="add dependency",
             )
+        # Also scope-check the successor's project explicitly (not just the
+        # predecessor's) -- the cross-project rule below still prevents any
+        # SUCCESSFUL cross-project write, but omitting this check let an
+        # authorized-on-predecessor-only caller distinguish "successor id
+        # exists in a project I can't see" (DEPENDENCY_CROSS_PROJECT) from
+        # "successor id doesn't exist" (TASK_NOT_FOUND) -- an information
+        # disclosure oracle within a tenant. See §15 finding 4b.
+        if successor.project_id != predecessor.project_id:
+            require_project_permission(
+                self._user_session,
+                successor.project_id,
+                "approval.request" if governed else "task.manage",
+                operation_label="request dependency change" if governed else "add dependency",
+            )
         diagnostic = self.get_dependency_diagnostics(
             predecessor_id=predecessor_id,
             successor_id=successor_id,
@@ -89,14 +127,7 @@ class TaskDependencyMixin:
             include_impact=False,
         )
         if not diagnostic.is_valid:
-            message = diagnostic.summary
-            if diagnostic.detail:
-                message = f"{diagnostic.summary}\n{diagnostic.detail}"
-            if diagnostic.code == "TASK_NOT_FOUND":
-                raise NotFoundError(message, code=diagnostic.code)
-            if diagnostic.code == "DEPENDENCY_CYCLE":
-                raise BusinessRuleError(message, code=diagnostic.code)
-            raise ValidationError(message, code=diagnostic.code)
+            _raise_for_invalid_diagnostic(diagnostic)
         if governed:
             request = self._approval_service.request_change(
                 request_type="dependency.add",
@@ -133,8 +164,32 @@ class TaskDependencyMixin:
         lag_days: int,
         commit: bool,
     ) -> TaskDependency:
+        """Apply an add — either immediately (ungoverned path) or when an
+        approved ``dependency.add`` request is finally applied. In the
+        governed case, real time may have passed since the original
+        request was validated, so this re-runs the full validation against
+        the CURRENT graph rather than trusting the request-time diagnostic
+        (Phase H1: closes the TOCTOU hole where two concurrently-approved
+        requests could otherwise both apply and persist a cycle, or an
+        endpoint could have become a summary task, moved project, etc. in
+        the meantime)."""
         predecessor = self._task_repo.get(predecessor_id)
+        if predecessor is None:
+            raise NotFoundError("Predecessor task not found", code="TASK_NOT_FOUND")
         successor = self._task_repo.get(successor_id)
+        if successor is None:
+            raise NotFoundError("Successor task not found", code="TASK_NOT_FOUND")
+        self._require_leaf_task(predecessor, operation_label="participate in dependencies")
+        self._require_leaf_task(successor, operation_label="participate in dependencies")
+        diagnostic = self.get_dependency_diagnostics(
+            predecessor_id=predecessor_id,
+            successor_id=successor_id,
+            dependency_type=dependency_type,
+            lag_days=lag_days,
+            include_impact=False,
+        )
+        if not diagnostic.is_valid:
+            _raise_for_invalid_diagnostic(diagnostic)
         dependency = TaskDependency.create(predecessor_id, successor_id, dependency_type, lag_days)
         try:
             self._dependency_repo.add(dependency)
@@ -210,6 +265,10 @@ class TaskDependencyMixin:
         self._apply_dependency_remove_decision(dependency_id=dep_id, commit=True)
 
     def _apply_dependency_remove_decision(self, *, dependency_id: str, commit: bool) -> None:
+        # Fresh re-fetch: this may run immediately (ungoverned path) or much
+        # later when an approved request is applied, so `dependency.version`
+        # here is always the CURRENT version at apply time, not whatever it
+        # was when the request was made.
         dependency = self._dependency_repo.get(dependency_id)
         if not dependency:
             raise NotFoundError("Dependency not found.", code="DEPENDENCY_NOT_FOUND")
@@ -217,7 +276,7 @@ class TaskDependencyMixin:
         successor = self._task_repo.get(dependency.successor_task_id)
         project_id = predecessor.project_id if predecessor else (successor.project_id if successor else None)
         try:
-            self._dependency_repo.delete(dependency_id)
+            self._dependency_repo.delete(dependency_id, expected_version=dependency.version)
             self._sync_project_schedule(project_id, commit=False)
             record_activity(
                 self,
@@ -256,6 +315,24 @@ class TaskDependencyMixin:
         )
         return self._dependency_repo.list_by_task(task_id)
 
+    def list_dependencies_for_project(self, project_id: str) -> list[TaskDependency]:
+        """One-query project-wide dependency read, backed directly by
+        ``DependencyRepository.list_by_project`` (Phase L). Exists because
+        the Scheduling desktop API's project-wide dependency read used to
+        loop ``list_dependencies_for_task`` once per task -- a confirmed
+        ``2N+1`` query pattern for an N-task project, despite this
+        single-query repository method already existing one layer down.
+        See docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
+        §17/Phase L."""
+        require_permission(self._user_session, "task.read", operation_label="list project dependencies")
+        require_project_permission(
+            self._user_session,
+            project_id,
+            "task.read",
+            operation_label="list project dependencies",
+        )
+        return self._dependency_repo.list_by_project(project_id)
+
     def update_dependency(
         self,
         dep_id: str,
@@ -270,40 +347,113 @@ class TaskDependencyMixin:
         predecessor = self._task_repo.get(dependency.predecessor_task_id)
         successor = self._task_repo.get(dependency.successor_task_id)
         project_id = predecessor.project_id if predecessor else (successor.project_id if successor else None)
-        require_permission(self._user_session, "task.manage", operation_label="update dependency")
+
+        governed = (
+            self._approval_service is not None
+            and is_governance_required("dependency.update")
+            and not is_admin_session(self._user_session)
+        )
+        if governed:
+            require_permission(self._user_session, "approval.request", operation_label="request dependency change")
+        else:
+            require_permission(self._user_session, "task.manage", operation_label="update dependency")
         if project_id:
             require_project_permission(
                 self._user_session,
                 project_id,
-                "task.manage",
-                operation_label="update dependency",
+                "approval.request" if governed else "task.manage",
+                operation_label="request dependency change" if governed else "update dependency",
             )
 
-        candidate = replace(
-            dependency,
-            dependency_type=dependency.dependency_type if dependency_type is None else dependency_type,
-            lag_days=dependency.lag_days if lag_days is None else lag_days,
-        )
+        resolved_type = dependency.dependency_type if dependency_type is None else dependency_type
+        resolved_lag = dependency.lag_days if lag_days is None else lag_days
+
+        # Validate the CANDIDATE relationship, excluding this dependency's
+        # own existing row from the duplicate check (Phase H4) -- the old
+        # code instead blindly whitelisted DEPENDENCY_DUPLICATE for every
+        # update, which also silently made the cycle check unreachable
+        # (the duplicate check short-circuits before it in
+        # get_dependency_diagnostics). Excluding by id keeps both checks
+        # live.
         diagnostic = self.get_dependency_diagnostics(
             predecessor_id=dependency.predecessor_task_id,
             successor_id=dependency.successor_task_id,
-            dependency_type=candidate.dependency_type,
-            lag_days=candidate.lag_days,
+            dependency_type=resolved_type,
+            lag_days=resolved_lag,
             include_impact=False,
+            exclude_dependency_id=dep_id,
         )
-        if not diagnostic.is_valid and diagnostic.code not in {"DEPENDENCY_DUPLICATE"}:
-            message = diagnostic.summary
-            if diagnostic.detail:
-                message = f"{diagnostic.summary}\n{diagnostic.detail}"
-            if diagnostic.code == "DEPENDENCY_CYCLE":
-                raise BusinessRuleError(message, code=diagnostic.code)
-            raise ValidationError(message, code=diagnostic.code)
+        if not diagnostic.is_valid:
+            _raise_for_invalid_diagnostic(diagnostic)
 
+        if governed:
+            request = self._approval_service.request_change(
+                request_type="dependency.update",
+                entity_type="task_dependency",
+                entity_id=dependency.id,
+                project_id=project_id,
+                payload={
+                    "dependency_id": dep_id,
+                    "predecessor_name": predecessor.name if predecessor else None,
+                    "successor_name": successor.name if successor else None,
+                    "dependency_type": resolved_type.value,
+                    "lag_days": resolved_lag,
+                },
+            )
+            raise BusinessRuleError(
+                f"Approval required for dependency change. Request {request.id} created.",
+                code="APPROVAL_REQUIRED",
+            )
+
+        return self._apply_dependency_update_decision(
+            dependency_id=dep_id,
+            dependency_type=resolved_type,
+            lag_days=resolved_lag,
+            commit=True,
+        )
+
+    def _apply_dependency_update_decision(
+        self,
+        *,
+        dependency_id: str,
+        dependency_type: DependencyType,
+        lag_days: int,
+        commit: bool,
+    ) -> TaskDependency:
+        """Apply an update -- either immediately (ungoverned path) or when
+        an approved ``dependency.update`` request is finally applied.
+        Always re-fetches and re-validates against the CURRENT row/graph at
+        apply time (Phase H1), and is fully atomic: repository update,
+        schedule recalculation, and activity recording all happen with
+        ``commit=False`` and share exactly one final commit (Phase H2) --
+        unlike the old code, which committed the dependency row change
+        BEFORE running the schedule recalculation and activity write, so a
+        failure in either of those left a committed dependency edit with a
+        stale project schedule and no audit record.
+        """
+        dependency = self._dependency_repo.get(dependency_id)
+        if not dependency:
+            raise NotFoundError("Dependency not found.", code="DEPENDENCY_NOT_FOUND")
+        predecessor = self._task_repo.get(dependency.predecessor_task_id)
+        successor = self._task_repo.get(dependency.successor_task_id)
+        project_id = predecessor.project_id if predecessor else (successor.project_id if successor else None)
+
+        diagnostic = self.get_dependency_diagnostics(
+            predecessor_id=dependency.predecessor_task_id,
+            successor_id=dependency.successor_task_id,
+            dependency_type=dependency_type,
+            lag_days=lag_days,
+            include_impact=False,
+            exclude_dependency_id=dependency_id,
+        )
+        if not diagnostic.is_valid:
+            _raise_for_invalid_diagnostic(diagnostic)
+
+        candidate = replace(dependency, dependency_type=dependency_type, lag_days=lag_days)
         try:
             self._dependency_repo.update(candidate)
-            self._session.commit()
             if project_id:
-                self._sync_project_schedule(project_id)
+                self._sync_project_schedule(project_id, commit=False)
             record_activity(
                 self,
                 action="dependency.update",
@@ -317,11 +467,17 @@ class TaskDependencyMixin:
                     "type": candidate.dependency_type.value,
                     "lag_days": candidate.lag_days,
                 },
+                commit=False,
             )
+            if commit:
+                self._session.commit()
+            else:
+                self._session.flush()
         except Exception as exc:
-            self._session.rollback()
+            if commit:
+                self._session.rollback()
             raise exc
-        if project_id:
+        if commit and project_id:
             domain_events.tasks_changed.emit(project_id)
         return candidate
 

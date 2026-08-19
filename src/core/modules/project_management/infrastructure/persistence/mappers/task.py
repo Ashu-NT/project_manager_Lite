@@ -89,6 +89,7 @@ def dependency_to_orm(dependency: TaskDependency) -> TaskDependencyORM:
         successor_task_id=dependency.successor_task_id,
         dependency_type=dependency.dependency_type,
         lag_days=dependency.lag_days,
+        version=getattr(dependency, "version", 1),
     )
 
 
@@ -99,6 +100,7 @@ def dependency_from_orm(obj: TaskDependencyORM) -> TaskDependency:
         successor_task_id=obj.successor_task_id,
         dependency_type=obj.dependency_type,
         lag_days=obj.lag_days,
+        version=getattr(obj, "version", 1),
     )
 
 
