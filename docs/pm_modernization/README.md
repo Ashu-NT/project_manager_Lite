@@ -1170,6 +1170,17 @@ Legend: ✅ done  🔄 partial foundation  ⬜ pending
      ResourceLevelingEngine (proper standalone service replacing the mixin pattern),
      BaselineComparisonService (schedule vs baseline variance), ScheduleChangeImpactService (downstream impact analysis)
    - SchedulingEngine retained as orchestration layer; new services are additive
+   - **Correction (R4.4 dependency audit, see
+     `R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md`):**
+     `CPMCalculator` and `DependencyResolver`, as listed above, never
+     actually reached most call sites and diverged from `SchedulingEngine`'s
+     own CPM math; both are now **deleted** — `CPMCalculator`'s one caller
+     was migrated to the canonical `pure_cpm.run_cpm`, and
+     `dependency_schedule_math.py` is the canonical replacement for what
+     `DependencyResolver` claimed to do. `ResourceLevelingEngine` was found
+     to have zero production callers and is left in place undecided,
+     per that audit's explicit scope boundary (its fate belongs to the
+     dedicated R4.4 leveling decision, not this correction).
 3. ✅ enterprise calendar priority and constraint handling
    - added: constraint_type (Optional[str]) and constraint_date (Optional[date]) to Task domain model
    - SchedulingEngine now accepts optional CalendarResolver + resource_calendar_map for per-resource
@@ -1265,11 +1276,26 @@ Legend: ✅ implemented  ⬜ pending
 - ✅ `ResourceSkill` — `domain/resources/skills.py`
 - ✅ `ResourceCertification` — `domain/resources/skills.py`
 - ✅ `TaskSkillRequirement` — `domain/resources/skills.py`
-- ✅ `CPMCalculator` — `application/scheduling/cpm_calculator.py`
-- ✅ `ConstraintValidator` — `application/scheduling/constraint_validator.py`
-- ✅ `DependencyResolver` — `application/scheduling/dependency_resolver.py`
+- 🗑️ `CPMCalculator` — added here, then confirmed by the R4.4 dependency audit
+  (`docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md`
+  §11/§17) to be a second, drifted CPM implementation with a single Portfolio
+  caller; that caller was migrated to the canonical `pure_cpm.run_cpm`, and
+  the class was deleted. Do not re-add it.
+- ✅ `ConstraintValidator` — `application/scheduling/cpm/constraint_validator.py`
+- 🗑️ `DependencyResolver` — added here, then confirmed by the same audit
+  (§11, §17, §25) to have **zero production callers** at any point in its
+  history; it duplicated the canonical dependency date math and diverged
+  from it (off-by-one lag, non-monotonic lead). Deleted. If R4.4 needs
+  richer FS/SS/FF/SF math, extend
+  `application/scheduling/cpm/dependency_schedule_math.py`, the canonical
+  replacement, not a revived copy of this class.
 - ✅ `CalendarResolver` — `application/scheduling/calendar_resolver.py`
-- ✅ `ResourceLevelingEngine` — `application/scheduling/resource_leveling_engine.py`
+- ⬜ `ResourceLevelingEngine` — added here, but the R4.4 dependency audit
+  (§13) found **zero production callers**: the live leveling path is
+  `ResourceLevelingMixin` via `DashboardService.auto_level_overallocations`/
+  `manually_shift_task_for_leveling`. Left in place (not deleted) per that
+  audit's explicit scope boundary — its fate belongs to the dedicated R4.4
+  leveling decision, not this dependency-foundation pass.
 - ✅ `BaselineComparisonService` — `application/scheduling/baseline_comparison_service.py`
 - ✅ `ScheduleChangeImpactService` — `application/scheduling/schedule_change_impact_service.py`
 - ✅ `ReportDefinition` — `infrastructure/reporting/report_definition.py`

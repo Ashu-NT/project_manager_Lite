@@ -41,7 +41,7 @@ AppWidgets.EntityDialog {
     primaryEnabled: root.mode === "edit" || (root.taskOptions || []).length > 0
     width: 560
 
-    onOpened: {
+    function populateForm() {
         root.errorMessage = ""
         root._impactPreview = ({})
         if (root.mode === "edit") {
@@ -56,6 +56,8 @@ AppWidgets.EntityDialog {
         }
         Qt.callLater(root.runImpactPreview)
     }
+
+    onOpened: root.populateForm()
     onAccepted: root.submitDialog()
     onRejected: root.close()
 
@@ -290,8 +292,8 @@ AppWidgets.EntityDialog {
             AppControls.Label {
                 Layout.fillWidth: true
                 text: root._directionValue === "SUCCESSOR"
-                    ? root._currentTaskLabel + "  - " + root._relationshipCode + (root._lagValue !== 0 ? " " + root._lagLeadLabel : "") + " ──▶  " + root._relatedTaskLabel
-                    : root._relatedTaskLabel + "  - " + root._relationshipCode + (root._lagValue !== 0 ? " " + root._lagLeadLabel : "") + " ──▶  " + root._currentTaskLabel
+                    ? root._currentTaskLabel + "  - " + root._relationshipCode + (root._lagValue !== 0 ? " " + root._lagLeadLabel : "") + " -->  " + root._relatedTaskLabel
+                    : root._relatedTaskLabel + "  - " + root._relationshipCode + (root._lagValue !== 0 ? " " + root._lagLeadLabel : "") + " -->  " + root._currentTaskLabel
                 color: Theme.AppTheme.textPrimary
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.smallSize

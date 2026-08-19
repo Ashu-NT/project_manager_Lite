@@ -1193,6 +1193,34 @@ The shift itself is a blind forward push with no dependency awareness
    this class to the live path, finding #1's accidental safety is lost** and
    must be re-established deliberately.
 
+### Phase P — the invariant R4.4 must satisfy, and a pinned regression
+
+This pass does not fix finding 3. It preserves it as a regression test —
+`src/tests/project_management/dependency/test_leveling_dependency_boundary.py::test_auto_leveling_shift_on_a_dependency_linked_task_is_silently_reverted_by_the_next_cpm_run`
+— that asserts *today's* (broken) behavior: leveling a dependency-linked
+task, then recalculating, silently discards the leveling decision with no
+error. If R4.4 ever fixes this, that test's final assertion should flip as
+a deliberate, visible change to the test — not disappear as a side effect
+of an unrelated refactor.
+
+**The invariant R4.4 must satisfy:** after leveling modifies a task's
+planned dates, a subsequent canonical schedule recalculation must NOT
+silently erase a valid leveling decision.
+
+**What that requires, and why it can't be solved partially here:** R4.4
+must reconcile four inputs — dependency minimum dates, hard constraints,
+resource-capacity leveling, and actual dates — through *one* schedule
+model, not four independently-consulted ones (which is what today's
+`SchedulingEngine`/leveling mixin split already is, per finding 3 above and
+§11/§12 of this document). Patching leveling alone (e.g. teaching it to
+respect a task's dependency-driven earliest start) would still leave CPM
+free to silently overwrite a leveling decision that a hard constraint check
+never saw and vice versa — the same class of "two different computed
+schedules depending on which code path ran last" bug this audit already
+found between the dashboard and portfolio-executive read paths (§12). That
+reconciliation is explicitly out of scope for this dependency-foundation
+pass and belongs to the dedicated R4.4 leveling decision.
+
 ---
 
 ## 14. Actual-Date Interaction

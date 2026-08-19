@@ -45,6 +45,9 @@ TASK_PROGRESS_DIALOG = Path(
 TASK_ASSIGNMENT_EDITOR_DIALOG = Path(
     "src/ui_qml/modules/project_management/qml/workspaces/tasks/dialogs/TaskAssignmentEditorDialog.qml"
 )
+TASK_DEPENDENCY_EDITOR_DIALOG = Path(
+    "src/ui_qml/modules/project_management/qml/workspaces/tasks/dialogs/TaskDependencyEditorDialog.qml"
+)
 TASKS_DIALOG_HOST = Path(
     "src/ui_qml/modules/project_management/qml/workspaces/tasks/TasksDialogHost.qml"
 )
@@ -217,6 +220,98 @@ def test_task_assignment_editor_dialog_submit_button_emits_payload() -> None:
     assert captured[0]["taskId"] == "task-1"
     assert captured[0]["projectResourceId"] == "res-1"
     assert captured[0]["allocationPercent"] == "100.0"
+
+
+def test_task_dependency_editor_dialog_submit_button_emits_create_payload() -> None:
+    """Phase N7: the shared dependency dialog in create mode must emit a
+    payload the presenter's create_dependency() can consume unchanged."""
+    _, root = _load_dialog(
+        TASK_DEPENDENCY_EDITOR_DIALOG,
+        {
+            "mode": "create",
+            "taskOptions": [{"value": "task-2", "label": "Foundation Complete"}],
+            "dependencyTypeOptions": [
+                {"value": "FS", "label": "Finish -> Start"},
+                {"value": "SS", "label": "Start -> Start"},
+            ],
+            "taskData": {"title": "Current Task", "state": {"taskId": "task-1", "name": "Current Task"}},
+        },
+    )
+    captured: list[dict] = []
+    root.submitted.connect(lambda payload: captured.append(_variant(payload)))
+
+    submit_button = _find_child(root, "dialogSubmitButton")
+    assert QMetaObject.invokeMethod(root, "populateForm")
+    assert QMetaObject.invokeMethod(submit_button, "click")
+
+    assert len(captured) == 1
+    assert captured[0]["taskId"] == "task-1"
+    assert captured[0]["linkedTaskId"] == "task-2"
+    assert captured[0]["relationshipDirection"] == "PREDECESSOR"
+    assert captured[0]["dependencyType"] == "FS"
+    assert captured[0]["lagDays"] == "0"
+
+
+def test_task_dependency_editor_dialog_submit_button_emits_edit_payload_with_version() -> None:
+    """Phase N10: edit mode only touches relationship type/lag, and must
+    thread the loaded version through so the backend can detect a stale
+    write (the two endpoints can't be changed via edit -- remove/re-add)."""
+    _, root = _load_dialog(
+        TASK_DEPENDENCY_EDITOR_DIALOG,
+        {
+            "mode": "edit",
+            "dependencyTypeOptions": [
+                {"value": "FS", "label": "Finish -> Start"},
+                {"value": "SS", "label": "Start -> Start"},
+            ],
+            "dependencyData": {
+                "id": "dep-1",
+                "state": {
+                    "dependencyId": "dep-1",
+                    "dependencyType": "FS",
+                    "lagDays": "2",
+                    "direction": "PREDECESSOR",
+                    "linkedTaskName": "Foundation Complete",
+                    "version": "3",
+                },
+            },
+        },
+    )
+    captured: list[dict] = []
+    root.submitted.connect(lambda payload: captured.append(_variant(payload)))
+
+    submit_button = _find_child(root, "dialogSubmitButton")
+    assert QMetaObject.invokeMethod(root, "populateForm")
+    assert QMetaObject.invokeMethod(submit_button, "click")
+
+    assert len(captured) == 1
+    assert captured[0]["dependencyId"] == "dep-1"
+    assert captured[0]["dependencyType"] == "FS"
+    assert captured[0]["lagDays"] == "2"
+    assert captured[0]["version"] == "3"
+
+
+def test_tasks_dialog_host_open_edit_dependency_dialog_prepares_editor() -> None:
+    _, root = _load_dialog(
+        TASKS_DIALOG_HOST,
+        {
+            "dependencyTypeOptions": [{"value": "FS", "label": "Finish -> Start"}],
+        },
+    )
+
+    dependency_dialog = _find_child(root, "taskDependencyEditorDialog")
+
+    dependency_data = {
+        "id": "dep-1",
+        "state": {"dependencyId": "dep-1", "dependencyType": "FS", "lagDays": "1", "version": "2"},
+    }
+    assert QMetaObject.invokeMethod(
+        root, "openEditDependencyDialog", Q_ARG("QVariant", dependency_data)
+    )
+
+    assert str(dependency_dialog.property("mode")) == "edit"
+    loaded = _variant(dependency_dialog.property("dependencyData"))
+    assert loaded["state"]["dependencyId"] == "dep-1"
 
 
 def test_tasks_dialog_host_open_create_dialog_prepares_editor() -> None:
