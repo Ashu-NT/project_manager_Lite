@@ -144,6 +144,11 @@ from src.core.modules.project_management.api.desktop.register import (
 )
 from src.core.modules.project_management.api.desktop.scheduling import (
     ProjectManagementSchedulingDesktopApi,
+    ActualVarianceDto,
+    DownstreamExposureDto,
+    ScheduleConflictDto,
+    ScheduleDriverDto,
+    TaskScheduleImpactOverviewDesktopDto,
     ScheduleImpactAffectedTaskDto,
     ScheduleImpactReportDto,
     SchedulingBaselineComparisonRowDto,
@@ -383,6 +388,11 @@ __all__ = [
     "SchedulingBaselineRejectCommand",
     "build_project_management_scheduling_desktop_api",
     "AssignmentValidationDesktopDto",
+    "ActualVarianceDto",
+    "DownstreamExposureDto",
+    "ScheduleConflictDto",
+    "ScheduleDriverDto",
+    "TaskScheduleImpactOverviewDesktopDto",
     "ScheduleImpactAffectedTaskDto",
     "ScheduleImpactReportDto",
     "TaskSkillRequirementDesktopDto",

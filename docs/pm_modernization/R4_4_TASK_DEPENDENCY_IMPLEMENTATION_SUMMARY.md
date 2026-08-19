@@ -262,3 +262,186 @@ failure was observed throughout this pass's regression runs
 — a different table's migration; neither of this pass's two commits
 (`6eb43a8c`, `83d373878`) touch any `task_skill_requirements`-related file,
 confirmed via `git show --stat` on both.
+
+## 17. Task Detail — Schedule Impact
+
+A follow-up pass (PRE-R4.4 — TASK DETAIL SCHEDULE IMPACT SECTION ENTERPRISE
+WIRING + UX COMPLETION) completed the standalone Task Detail → Schedule
+Impact section, which the dependency-foundation pass above had left
+untouched. Concepts A (dependency change preview, in the Dependencies
+dialogs), B (this section, task-level schedule analysis), and C (whole-
+project leveling/planning, future R4.4 Planning) remain deliberately
+separate — this pass only builds B.
+
+### Why it was previously empty
+
+Traced end-to-end before any code changed: the wiring was live, not dead
+— `TasksDetailPanel.qml`'s lazy loader called
+`ProjectManagementTasksWorkspaceController.loadSelectedTaskScheduleImpact`
+→ `tasks_workspace_presenter.py` → the old `schedule_impact_builder.py`
+→ `ProjectManagementTasksDesktopApi.get_schedule_impact` →
+`ScheduleChangeImpactService.analyse_delay(..., delay_days=1)`. The
+defect was that `get_schedule_impact` **always** simulated a hardcoded
+1-*calendar*-day slip and returned nothing else — no current-position
+facts, no criticality/float, no drivers, no conflicts, no downstream
+exposure, no milestone awareness, and no way for the user to choose a
+delay amount. The QML rendered whatever that single hardcoded probe
+produced, which for most tasks is not useful — hence "displays no useful
+data" without the wiring itself being broken.
+
+### Final backend source and relationship to `ScheduleChangeImpactService`/`run_cpm`
+
+No second CPM implementation was introduced. `ScheduleChangeImpactService`
+gained two capabilities, both orchestration over the existing canonical
+`run_cpm`, `ConstraintValidator`, and `find_dependency_actual_variances`:
+
+- `get_task_schedule_overview(project_id, task_id)` — ONE `run_cpm` pass
+  (current, committed state; no hypothetical change) plus new pure
+  orchestration helpers in
+  `application/scheduling/forecasting/task_schedule_overview.py`
+  (`compute_free_float_days`, `compute_downstream_exposure`,
+  `build_schedule_drivers`) that read the CPM result rather than
+  recomputing anything.
+- `analyse_working_day_delay(...)` — a thin wrapper over the existing,
+  general-purpose `analyse(project_id, changed_task_id, proposed_start=...)`
+  that computes `proposed_start` via the same `shift_working_days`
+  primitive every other working-day calculation in this codebase uses
+  (unlike the pre-existing `analyse_delay`, which added raw calendar
+  days via `timedelta` — kept unchanged for its own existing caller, the
+  Scheduling workspace's separate, already-live "Change Impact" panel;
+  see below).
+- `analyse()`'s report gained `is_milestone` per affected row,
+  `critical_path_changed`, and `dependency_conflicts` (reusing
+  `ConstraintValidator` against the proposed schedule) — additive,
+  default-valued fields, so the Scheduling workspace's existing consumer
+  is unaffected.
+- Bug fix, found while wiring this: `analyse()` mutated a proposed
+  task's `start_date` and `end_date` as two sequential attribute writes;
+  `Task`'s validated-assignment enforces `end >= start` on every
+  individual write, so proposing a start date past the task's *current*
+  end (the common case for "delay by N days") could raise
+  `ValidationError` even though the two-field combination was valid.
+  Fixed as one atomic `dataclasses.replace()`, with the new end computed
+  via the same start+duration→finish formula `compute_duration_dates`
+  uses. This also benefits the Scheduling workspace's panel, which calls
+  the same `analyse()`.
+
+**A confirmed separate, already-live, untouched feature:** the Scheduling
+workspace has its own "Change Impact" panel
+(`SchedulingDetailPanel.qml`/`SchedulingWorkspacePage.qml` →
+`scheduling_calculation_actions.py` → `schedule_impact_controller.py` →
+`ProjectManagementSchedulingDesktopApi.analyse_change_impact` →
+`build_change_impact` → `ScheduleChangeImpactService.analyse()`), general
+-purpose and user-driven (explicit proposed start/finish/duration). This
+pass does not touch `change_impact_builder.py`,
+`change_impact_serializer.py`'s `serialize_change_impact`,
+`SchedulingChangeImpactDto`, or `schedule_impact_controller.py` — a
+different, correct concept (whole-project "what if" from Scheduling, not
+Task Detail's task-level analysis), left exactly as it was.
+
+### Current schedule facts (always visible, no simulation required)
+
+`TaskScheduleImpactOverviewDesktopDto` (new,
+`api/desktop/scheduling/models/change_impact.py`) carries: current
+start/finish labels, criticality, total float, free float, baseline
+finish + schedule variance (only populated when a genuinely approved
+baseline has a snapshot for this exact task — see below), schedule
+drivers, dependency/constraint conflicts, actual-vs-dependency variances,
+and downstream exposure (direct successor count, transitive downstream
+task count, downstream milestone count, critical-downstream count).
+Auto-loaded on task selection via
+`load_selected_task_schedule_impact`/`get_task_schedule_overview` — cheap
+(one CPM pass over already-loaded project data), safe to run
+automatically (§26).
+
+**Free float** is only reported when every direct successor edge is
+Finish-to-Start (the only case where "successor's earliest start minus my
+earliest finish" is unambiguous); a task with any SS/FF/SF successor
+reports free float as unavailable rather than showing a value that could
+be wrong for that relationship type — no invented values.
+
+**Milestone** uses the exact same predicate the CPM engine itself uses to
+branch into milestone-vs-duration math (`duration_days <= 0`), not a
+separately invented definition.
+
+**Baseline comparison** required one new, minimal, read-only method —
+`BaselineService.get_baseline_task(baseline_id, task_id)` — exposing the
+repository's already-existing `list_tasks(baseline_id)` (previously
+unexposed through the service layer). This is a passthrough read, not new
+baseline management capability; baseline creation/approval/lifecycle are
+unchanged.
+
+**Schedule drivers** deliberately list every incoming dependency (not
+just whichever one is currently binding, which the forward pass does not
+expose per-edge) plus any hard constraint and any recorded actual
+start/finish — explanatory summary only, not a duplicate of the
+Dependencies section.
+
+### What-if preview (explicit only, never automatic)
+
+`preview_task_schedule_impact(task_id, project_id, delay_working_days)`
+on the desktop API and `previewTaskScheduleImpact(delayWorkingDays)` on
+the QML controller are called **only** when the user clicks "Preview
+Impact" with a chosen working-day delay — `loadSelectedTaskScheduleImpact`
+never triggers it. This is a genuine two-CPM-pass simulation (original vs
+proposed) and is never persisted; the section's own copy states this
+explicitly ("This preview does not modify the project schedule.").
+Affected-task rows carry current/projected dates, shift, criticality, and
+milestone flag; the result summary surfaces affected/milestone counts,
+largest shift, critical-path-changed, and conflict count — all backend
+facts, none computed in QML.
+
+**Not implemented, deliberately:** per-row "impact path" trace (A → B →
+C) — `TaskImpact`/`ScheduleChangeImpactReport` carry no path-trace field
+today, and none was fabricated; the affected-task inspector omits an
+Impact Path row rather than inventing one. If a future pass adds path
+tracing to the backend, the QML has a natural place for it (§16 of the
+directive explicitly permits surfacing it "where backend impact facts
+contain trace/path information").
+
+### Dependencies-section boundary / Planning boundary
+
+No dependency CRUD (add/edit/remove) exists inside Schedule Impact —
+that remains exclusively Task Detail → Dependencies. No whole-project
+leveling, bulk rescheduling, calendar administration, baseline
+management, or constraint editing was added — those remain out of scope
+for R4.4 Planning/Scheduling.
+
+### Lazy loading and performance
+
+Current-state facts load automatically on task selection (cheap: one
+`run_cpm` pass over already-loaded project data, no per-task repository
+calls — `get_task_schedule_overview` loads tasks/dependencies once via
+the same `list_by_project` calls `analyse()` already used). The
+downstream-exposure traversal is an in-memory BFS over the same
+already-loaded dependency edges — no additional queries. The explicit
+"Preview Impact" simulation (two CPM passes) runs only on user action,
+never automatically, consistent with §26's "prefer explicit Preview
+Impact for expensive simulation."
+
+### Tests
+
+19 new tests: 7 in `test_task_schedule_overview.py` (free
+float/downstream-exposure/drivers orchestration), 13 in
+`test_schedule_change_impact_extensions.py` (overview facts, working-day
+delay, extended `analyse()` fields, baseline comparison,
+`get_baseline_task`), 6 in `test_task_schedule_impact_desktop_api.py`
+(desktop API surface), and 7 in
+`test_qml_tasks_schedule_impact_section_contract.py` (QML runtime-load:
+no blank default, current facts render without simulation, preview
+button emits the chosen delay, task-switch clears delay/selection state,
+no schedule math in QML source). One pre-existing characterization test
+(`test_pm_desktop_adapter_da0_characterization.py`) was updated for the
+renamed desktop API method, not for new behavior.
+
+### Known, disclosed gaps
+
+- Literal pixel verification at 1024×640/1280×720/etc. was not performed
+  (same disclosed limitation as the Dependencies redesign — this
+  environment cannot render a windowed Qt app). The layout reuses the
+  same `GridLayout`/`Layout.fillWidth`/`InspectorPanel` primitives already
+  validated at these breakpoints elsewhere.
+- Critical-path *change* is surfaced as a boolean fact ("Critical path
+  changed"), not a before/after path listing — no backend fact for the
+  latter exists, and none was invented (§18's own fallback: "'Critical
+  path changed' is sufficient").

@@ -117,6 +117,12 @@ class TaskStateSettersMixin:
         self.scheduleImpactChanged.emit()
         self.scheduleImpactSectionLoadedChanged.emit()
 
+    def _set_schedule_impact_preview(self, v: dict[str, object]) -> None:
+        if v == self._schedule_impact_preview:
+            return
+        self._schedule_impact_preview = v
+        self.scheduleImpactPreviewChanged.emit()
+
     def _set_task_activity(self, v: dict[str, object]) -> None:
         if v == self._task_activity:
             return

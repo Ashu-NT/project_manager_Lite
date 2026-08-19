@@ -15,10 +15,15 @@ from src.core.modules.project_management.api.desktop.scheduling.models.calendars
     SchedulingWorkingDayCalculationDto,
 )
 from src.core.modules.project_management.api.desktop.scheduling.models.change_impact import (
+    ActualVarianceDto,
+    DownstreamExposureDto,
+    ScheduleConflictDto,
+    ScheduleDriverDto,
     ScheduleImpactAffectedTaskDto,
     ScheduleImpactReportDto,
     SchedulingChangeImpactAffectedTaskDto,
     SchedulingChangeImpactDto,
+    TaskScheduleImpactOverviewDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.scheduling.models.constraints import (
     SchedulingConstraintViolationDto,
@@ -38,6 +43,11 @@ from src.core.modules.project_management.api.desktop.scheduling.models.schedule 
 
 __all__ = [
     "_DAY_LABELS",
+    "ActualVarianceDto",
+    "DownstreamExposureDto",
+    "ScheduleConflictDto",
+    "ScheduleDriverDto",
+    "TaskScheduleImpactOverviewDesktopDto",
     "SchedulingBaselineComparisonRowDto",
     "SchedulingBaselineOptionDescriptor",
     "SchedulingBaselineRowDto",

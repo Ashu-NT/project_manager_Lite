@@ -83,6 +83,9 @@ class _ImpactService:
     def analyse_delay(self, **kwargs):
         return self.analyse(**kwargs)
 
+    def analyse_working_day_delay(self, **kwargs):
+        return self.analyse(**kwargs)
+
 
 def test_da5_schedule_impact_entry_points_share_baseline_decision() -> None:
     impact_service = _ImpactService()
@@ -98,7 +101,7 @@ def test_da5_schedule_impact_entry_points_share_baseline_decision() -> None:
     task_result = ProjectManagementTasksDesktopApi(
         task_service=task_service,
         schedule_change_impact_service=impact_service,
-    ).get_schedule_impact("task-1", "project-1")
+    ).preview_task_schedule_impact("task-1", "project-1")
 
     assert impact_service.has_baseline_values == [True, True]
     assert scheduling_result is not None and scheduling_result.requires_approval is True

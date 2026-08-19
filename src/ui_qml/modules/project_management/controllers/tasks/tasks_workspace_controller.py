@@ -113,6 +113,7 @@ class ProjectManagementTasksWorkspaceController(
     skillRequirementsSectionLoadedChanged = Signal()
     scheduleImpactChanged = Signal()
     scheduleImpactSectionLoadedChanged = Signal()
+    scheduleImpactPreviewChanged = Signal()
     taskActivityChanged = Signal()
     taskActivitySectionLoadedChanged = Signal()
 
@@ -154,6 +155,7 @@ class ProjectManagementTasksWorkspaceController(
         self._skill_requirements_section_loaded_for_task_id = ""
         self._schedule_impact_section_loaded_for_task_id = ""
         self._schedule_impact: dict[str, object] = {}
+        self._schedule_impact_preview: dict[str, object] = {}
         self._task_activity_section_loaded_for_task_id = ""
         self._task_activity: dict[str, object] = {}
         # ── Sub-controllers ────────────────────────────────────────────
@@ -390,6 +392,10 @@ class ProjectManagementTasksWorkspaceController(
     def scheduleImpact(self) -> dict[str, object]:
         return self._schedule_impact
 
+    @Property("QVariantMap", notify=scheduleImpactPreviewChanged)
+    def scheduleImpactPreview(self) -> dict[str, object]:
+        return self._schedule_impact_preview
+
     @Property(bool, notify=scheduleImpactSectionLoadedChanged)
     def isScheduleImpactSectionLoaded(self) -> bool:
         return (
@@ -509,6 +515,28 @@ class ProjectManagementTasksWorkspaceController(
     @Slot()
     def loadSelectedTaskScheduleImpact(self) -> None:
         load_selected_task_schedule_impact(self)
+
+    @Slot(int, result="QVariantMap")
+    def previewTaskScheduleImpact(self, delay_working_days: int) -> dict[str, object]:
+        """Explicit "Preview Impact" what-if (§12/§13) -- never run
+        automatically. A genuine simulation (two CPM passes), so this is
+        deliberately a separate action from loadSelectedTaskScheduleImpact's
+        cheap current-facts auto-load (§26)."""
+        try:
+            preview = self._tasks_workspace_presenter.build_task_schedule_impact_preview_state(
+                task_id=self._selected_task_id,
+                project_id=self._selected_project_id or None,
+                delay_working_days=delay_working_days,
+            )
+        except Exception as exc:
+            self._set_section_error("scheduleImpact", str(exc))
+            preview = {}
+        self._set_schedule_impact_preview(preview)
+        return preview
+
+    @Slot()
+    def clearScheduleImpactPreview(self) -> None:
+        self._set_schedule_impact_preview({})
 
     @Slot()
     def loadSelectedTaskActivity(self) -> None:

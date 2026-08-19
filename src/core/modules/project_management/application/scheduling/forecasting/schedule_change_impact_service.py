@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Protocol
 
@@ -15,9 +15,27 @@ from src.core.modules.project_management.domain.tasks.hierarchy import (
     select_leaf_dependencies,
     select_leaf_tasks,
 )
+from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
+    ConstraintValidator,
+    DependencyConstraintConflict,
+)
+from src.core.modules.project_management.application.scheduling.cpm.dependency_schedule_math import (
+    normalize_forward,
+    shift_working_days,
+)
+from src.core.modules.project_management.application.scheduling.cpm.dependency_actual_variance import (
+    find_dependency_actual_variances,
+)
 from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import (
     CPMResult,
     run_cpm,
+)
+from src.core.modules.project_management.application.scheduling.forecasting.task_schedule_overview import (
+    TaskScheduleOverview,
+    build_schedule_drivers,
+    build_successors_by_task_id,
+    compute_downstream_exposure,
+    compute_free_float_days,
 )
 
 
@@ -32,6 +50,7 @@ class TaskImpact:
     start_shift_days: int | None   # positive = later, negative = earlier
     finish_shift_days: int | None
     is_critical: bool
+    is_milestone: bool = False
 
 
 @dataclass
@@ -51,6 +70,8 @@ class ScheduleChangeImpactReport:
     no_longer_critical_task_ids: list[str]    # tasks leaving critical path
     max_project_finish_shift_days: int        # positive = project end delayed
     requires_approval: bool                   # true if approved baseline exists and shift > threshold
+    critical_path_changed: bool = False
+    dependency_conflicts: list[DependencyConstraintConflict] = field(default_factory=list)
 
 
 class ApprovedBaselineLookup(Protocol):
@@ -131,12 +152,33 @@ class ScheduleChangeImpactService:
                 max_project_finish_shift_days=0,
                 requires_approval=False,
             )
-        if proposed_start is not None:
-            changed.start_date = proposed_start
+        # Built as one atomic replace() rather than sequential attribute
+        # assignments: Task's validated-assignment enforces end >= start on
+        # EVERY individual field write, so setting start_date alone while
+        # end_date still holds its old value can spuriously fail validation
+        # when the proposed start moves past the task's current end (the
+        # common case for a "delay by N working days" preview). duration_days
+        # is what CPM's own compute_duration_dates actually keys off for a
+        # leaf task -- end_date here is kept consistent with it using the
+        # exact same start+duration->finish formula that function uses, so
+        # this mutation can never silently disagree with what run_cpm itself
+        # would derive.
+        new_duration = (
+            proposed_duration_days if proposed_duration_days is not None else changed.duration_days
+        )
+        new_start = proposed_start if proposed_start is not None else changed.start_date
         if proposed_finish is not None:
-            changed.end_date = proposed_finish
-        if proposed_duration_days is not None:
-            changed.duration_days = proposed_duration_days
+            new_finish = proposed_finish
+        elif new_start is not None and new_duration and new_duration > 0:
+            new_finish = self._calendar.add_working_days(new_start, new_duration)
+        else:
+            new_finish = changed.end_date
+        proposed_tasks[changed_task_id] = replace(
+            changed,
+            start_date=new_start,
+            end_date=new_finish,
+            duration_days=new_duration,
+        )
 
         proposed: CPMResult = self._run_cpm(self._calendar, proposed_tasks, deps)
 
@@ -172,6 +214,7 @@ class ScheduleChangeImpactService:
                 start_shift_days=start_shift,
                 finish_shift_days=finish_shift,
                 is_critical=(task_id in prop_critical),
+                is_milestone=int(getattr(tasks_by_id[task_id], "duration_days", 0) or 0) <= 0,
             ))
 
         orig_ef = original.project_early_finish
@@ -186,6 +229,13 @@ class ScheduleChangeImpactService:
             and abs(project_finish_shift) >= self._approval_threshold_days
         )
 
+        # Dependency/constraint conflicts under the PROPOSED schedule --
+        # reuses the canonical ConstraintValidator over the already-computed
+        # proposed CPM result, no second implementation (§9/§22).
+        dependency_conflicts = ConstraintValidator(self._calendar).validate(
+            proposed_tasks, proposed.schedule
+        ).dependency_conflicts
+
         return ScheduleChangeImpactReport(
             changed_task_id=changed_task_id,
             proposed_start=proposed_start,
@@ -194,6 +244,8 @@ class ScheduleChangeImpactService:
             affected_tasks=affected,
             newly_critical_task_ids=newly_critical,
             no_longer_critical_task_ids=no_longer_critical,
+            critical_path_changed=bool(newly_critical or no_longer_critical),
+            dependency_conflicts=dependency_conflicts,
             max_project_finish_shift_days=project_finish_shift,
             requires_approval=requires_approval,
         )
@@ -211,6 +263,110 @@ class ScheduleChangeImpactService:
             changed_task_id=changed_task_id,
             proposed_start=current_start + timedelta(days=max(1, delay_days)),
         )
+
+    def analyse_working_day_delay(
+        self,
+        *,
+        project_id: str,
+        changed_task_id: str,
+        current_start: date,
+        delay_working_days: int = 1,
+    ) -> ScheduleChangeImpactReport:
+        """Task Detail -> Schedule Impact's "Delay by N working days" input
+        (§12). Unlike ``analyse_delay`` (calendar-day ``timedelta``, kept
+        unchanged for its existing caller), this uses the same
+        ``shift_working_days`` primitive every other working-day
+        calculation in this pass uses, so "2 working days" means the same
+        thing here as it does in the dependency lag/lead math -- weekends
+        and holidays are skipped, not counted through."""
+        normalized_start = normalize_forward(self._calendar, current_start)
+        proposed_start = shift_working_days(
+            self._calendar, normalized_start, max(1, delay_working_days)
+        )
+        return self.analyse(
+            project_id=project_id,
+            changed_task_id=changed_task_id,
+            proposed_start=proposed_start,
+        )
+
+    def get_task_schedule_overview(self, project_id: str, task_id: str) -> TaskScheduleOverview:
+        """Task Detail -> Schedule Impact's always-visible current-state
+        facts (§6-§11) -- ONE canonical CPM pass, no hypothetical change,
+        no persistence. Reuses the exact same in-memory task/dependency
+        load ``analyse`` uses (§25: no per-task repository calls)."""
+        tasks = select_leaf_tasks(self._task_repo.list_by_project(project_id))
+        deps = select_leaf_dependencies(
+            self._dependency_repo.list_by_project(project_id),
+            tasks,
+        )
+        tasks_by_id: dict[str, Task] = {t.id: t for t in tasks}
+        task = tasks_by_id.get(task_id)
+        if task is None:
+            return TaskScheduleOverview(task_id=task_id, is_available=False)
+
+        result: CPMResult = self._run_cpm(self._calendar, tasks_by_id, deps)
+        info = result.schedule.get(task_id)
+        if info is None:
+            return TaskScheduleOverview(task_id=task_id, is_available=False)
+
+        critical_ids = set(result.critical_path_task_ids)
+        successors = build_successors_by_task_id(deps)
+        downstream = compute_downstream_exposure(task_id, tasks_by_id, successors, critical_ids)
+        free_float = compute_free_float_days(task_id, result.schedule, deps, self._calendar)
+
+        incoming = [d for d in deps if d.successor_task_id == task_id]
+        predecessor_names = {
+            d.predecessor_task_id: tasks_by_id[d.predecessor_task_id].name
+            for d in incoming
+            if d.predecessor_task_id in tasks_by_id
+        }
+        drivers = build_schedule_drivers(task, incoming, predecessor_names)
+
+        all_conflicts = ConstraintValidator(self._calendar).validate(
+            tasks_by_id, result.schedule
+        ).dependency_conflicts
+        conflicts = tuple(c for c in all_conflicts if c.task_id == task_id)
+
+        all_variances = find_dependency_actual_variances(tasks_by_id, result.schedule, self._calendar)
+        variances = tuple(v for v in all_variances if v.task_id == task_id)
+
+        baseline_finish, schedule_variance_days = self._baseline_comparison(
+            project_id, task_id, info.earliest_finish
+        )
+
+        return TaskScheduleOverview(
+            task_id=task_id,
+            is_available=True,
+            current_start=info.earliest_start,
+            current_finish=info.earliest_finish,
+            is_critical=info.is_critical,
+            total_float_days=info.total_float_days,
+            free_float_days=free_float,
+            baseline_finish=baseline_finish,
+            schedule_variance_days=schedule_variance_days,
+            drivers=drivers,
+            dependency_conflicts=conflicts,
+            actual_variances=variances,
+            downstream=downstream,
+        )
+
+    def _baseline_comparison(
+        self, project_id: str, task_id: str, current_finish: date | None
+    ) -> tuple[date | None, int | None]:
+        """Best-effort: only produces a fact when an approved baseline
+        exists AND has a recorded snapshot for this exact task AND the
+        current schedule has a computed finish to compare against.
+        Never invents a value (§6, §20)."""
+        get_baseline_task = getattr(self._baseline_lookup, "get_baseline_task", None)
+        if not callable(get_baseline_task) or current_finish is None:
+            return None, None
+        baseline = self._baseline_lookup.get_approved_baseline(project_id)
+        if baseline is None:
+            return None, None
+        baseline_task = get_baseline_task(baseline.id, task_id)
+        if baseline_task is None or baseline_task.baseline_finish is None:
+            return None, None
+        return baseline_task.baseline_finish, self._day_shift(baseline_task.baseline_finish, current_finish)
 
     def _has_approved_baseline(self, project_id: str) -> bool:
         return self._baseline_lookup.get_approved_baseline(project_id) is not None

@@ -18,6 +18,11 @@ from src.core.modules.project_management.api.desktop.scheduling.factories.schedu
     build_project_management_scheduling_desktop_api,
 )
 from src.core.modules.project_management.api.desktop.scheduling.models import (
+    ActualVarianceDto,
+    DownstreamExposureDto,
+    ScheduleConflictDto,
+    ScheduleDriverDto,
+    TaskScheduleImpactOverviewDesktopDto,
     ScheduleImpactAffectedTaskDto,
     ScheduleImpactReportDto,
     SchedulingBaselineComparisonRowDto,
@@ -42,6 +47,11 @@ from src.core.modules.project_management.api.desktop.scheduling.models import (
 
 __all__ = [
     "ProjectManagementSchedulingDesktopApi",
+    "ActualVarianceDto",
+    "DownstreamExposureDto",
+    "ScheduleConflictDto",
+    "ScheduleDriverDto",
+    "TaskScheduleImpactOverviewDesktopDto",
     "ScheduleImpactAffectedTaskDto",
     "ScheduleImpactReportDto",
     "SchedulingBaselineApproveCommand",

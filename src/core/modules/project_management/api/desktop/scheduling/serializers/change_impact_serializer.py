@@ -1,11 +1,20 @@
 """Change impact serializer."""
 
 from src.core.modules.project_management.api.desktop.scheduling.models.change_impact import (
+    ActualVarianceDto,
+    DownstreamExposureDto,
+    ScheduleConflictDto,
+    ScheduleDriverDto,
     ScheduleImpactAffectedTaskDto,
     ScheduleImpactReportDto,
     SchedulingChangeImpactAffectedTaskDto,
     SchedulingChangeImpactDto,
+    TaskScheduleImpactOverviewDesktopDto,
 )
+
+
+def _date_label(value) -> str:
+    return value.isoformat() if value is not None else "--"
 
 
 def serialize_change_impact(task_id: str, report) -> SchedulingChangeImpactDto:
@@ -68,6 +77,7 @@ def serialize_schedule_impact_report(
                 start_shift_days=int(impact.start_shift_days or 0),
                 finish_shift_days=int(impact.finish_shift_days or 0),
                 is_critical=bool(impact.is_critical),
+                is_milestone=bool(getattr(impact, "is_milestone", False)),
             )
             for impact in report.affected_tasks
         ),
@@ -77,7 +87,76 @@ def serialize_schedule_impact_report(
         no_longer_critical_task_ids=tuple(
             str(task_id) for task_id in report.no_longer_critical_task_ids
         ),
+        critical_path_changed=bool(getattr(report, "critical_path_changed", False)),
+        conflict_count=len(getattr(report, "dependency_conflicts", None) or []),
     )
 
 
-__all__ = ["serialize_change_impact", "serialize_schedule_impact_report"]
+def serialize_task_schedule_overview(overview) -> TaskScheduleImpactOverviewDesktopDto:
+    if not overview.is_available:
+        return TaskScheduleImpactOverviewDesktopDto(
+            task_id=overview.task_id,
+            is_available=False,
+            current_start_label="--",
+            current_finish_label="--",
+            is_critical=False,
+            total_float_days=None,
+            free_float_days=None,
+            baseline_finish_label="--",
+            schedule_variance_days=None,
+            drivers=(),
+            conflicts=(),
+            actual_variances=(),
+            downstream=DownstreamExposureDto(0, 0, 0, 0),
+        )
+    return TaskScheduleImpactOverviewDesktopDto(
+        task_id=overview.task_id,
+        is_available=True,
+        current_start_label=_date_label(overview.current_start),
+        current_finish_label=_date_label(overview.current_finish),
+        is_critical=bool(overview.is_critical),
+        total_float_days=overview.total_float_days,
+        free_float_days=overview.free_float_days,
+        baseline_finish_label=_date_label(overview.baseline_finish),
+        schedule_variance_days=overview.schedule_variance_days,
+        drivers=tuple(
+            ScheduleDriverDto(kind=d.kind, label=d.label, detail=d.detail)
+            for d in overview.drivers
+        ),
+        conflicts=tuple(
+            ScheduleConflictDto(
+                task_id=c.task_id,
+                task_name=c.task_name,
+                constraint_type=c.constraint_type.value,
+                constraint_date=c.constraint_date,
+                dependency_required_date=c.dependency_required_date,
+                direction=c.direction,
+                difference_working_days=c.difference_working_days,
+            )
+            for c in overview.dependency_conflicts
+        ),
+        actual_variances=tuple(
+            ActualVarianceDto(
+                task_id=v.task_id,
+                task_name=v.task_name,
+                direction=v.direction,
+                actual_date=v.actual_date,
+                dependency_required_date=v.dependency_required_date,
+                difference_working_days=v.difference_working_days,
+            )
+            for v in overview.actual_variances
+        ),
+        downstream=DownstreamExposureDto(
+            direct_successor_count=overview.downstream.direct_successor_count,
+            downstream_task_count=overview.downstream.downstream_task_count,
+            downstream_milestone_count=overview.downstream.downstream_milestone_count,
+            critical_downstream_count=overview.downstream.critical_downstream_count,
+        ),
+    )
+
+
+__all__ = [
+    "serialize_change_impact",
+    "serialize_schedule_impact_report",
+    "serialize_task_schedule_overview",
+]

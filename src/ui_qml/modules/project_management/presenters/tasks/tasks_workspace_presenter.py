@@ -49,7 +49,10 @@ from .dependency_command_handler import (
 )
 from .dependencies_builder import build_task_dependencies_state
 from .detail_builder import build_task_basic_detail_state, build_task_detail_state
-from .schedule_impact_builder import build_schedule_impact_state
+from .schedule_impact_builder import (
+    build_task_schedule_impact_preview_state,
+    build_task_schedule_overview_state,
+)
 from .skill_requirements_builder import build_task_skill_requirements_state
 from .task_activity_builder import build_task_activity_state
 from .task_command_handler import (
@@ -259,16 +262,30 @@ class ProjectTasksWorkspacePresenter:
             task_id=task_id,
         )
 
-    def build_task_schedule_impact_state(
+    def build_task_schedule_overview_state(
         self,
         *,
         task_id: str,
         project_id: str | None = None,
     ) -> dict[str, object]:
-        return build_schedule_impact_state(
+        return build_task_schedule_overview_state(
             self._desktop_api,
             task_id=task_id,
             project_id=project_id,
+        )
+
+    def build_task_schedule_impact_preview_state(
+        self,
+        *,
+        task_id: str,
+        project_id: str | None,
+        delay_working_days: int,
+    ) -> dict[str, object]:
+        return build_task_schedule_impact_preview_state(
+            self._desktop_api,
+            task_id=task_id,
+            project_id=project_id,
+            delay_working_days=delay_working_days,
         )
 
     def build_task_skill_requirements_state(

@@ -127,17 +127,30 @@ Item {
     readonly property var scheduleImpactModel: root.workspaceController
         ? root.workspaceController.scheduleImpact
         : ({
-            "available": false,
+            "isAvailable": false,
             "taskId": "",
-            "summary": "Select a task to view schedule impact analysis.",
-            "rows": [],
-            "affectedCount": 0,
-            "maxProjectFinishShiftDays": 0,
-            "requiresApproval": false,
-            "approvalLabel": "",
-            "newlyCriticalCount": 0,
-            "noLongerCriticalCount": 0
+            "currentStartLabel": "--",
+            "currentFinishLabel": "--",
+            "isCritical": false,
+            "totalFloatDays": null,
+            "freeFloatDays": null,
+            "baselineFinishLabel": "--",
+            "scheduleVarianceDays": null,
+            "scheduleVarianceLabel": "",
+            "drivers": [],
+            "conflicts": [],
+            "actualVariances": [],
+            "downstream": {
+                "directSuccessorCount": 0,
+                "downstreamTaskCount": 0,
+                "downstreamMilestoneCount": 0,
+                "criticalDownstreamCount": 0
+            }
         })
+
+    readonly property var scheduleImpactPreviewModel: root.workspaceController
+        ? root.workspaceController.scheduleImpactPreview
+        : ({})
 
     readonly property var taskActivityModel: root.workspaceController
         ? root.workspaceController.taskActivity

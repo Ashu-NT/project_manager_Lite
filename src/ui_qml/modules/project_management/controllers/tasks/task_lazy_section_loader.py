@@ -118,6 +118,10 @@ def load_selected_task_skill_requirements(controller) -> None:
 
 
 def load_selected_task_schedule_impact(controller) -> None:
+    """Auto-loaded on section activation -- current-state facts only
+    (one CPM pass, no hypothetical). The "Preview Impact" what-if is a
+    separate, EXPLICIT action (see PMScheduleImpactController.previewImpact)
+    never run automatically (§26)."""
     if not controller._selected_task_id:
         return
     if controller._schedule_impact_section_loaded_for_task_id == controller._selected_task_id:
@@ -125,11 +129,11 @@ def load_selected_task_schedule_impact(controller) -> None:
     controller._set_is_loading(True)
     try:
         controller._clear_section_error("scheduleImpact")
-        impact = controller._tasks_workspace_presenter.build_task_schedule_impact_state(
+        overview = controller._tasks_workspace_presenter.build_task_schedule_overview_state(
             task_id=controller._selected_task_id,
             project_id=controller._selected_project_id or None,
         )
-        controller._set_schedule_impact(impact)
+        controller._set_schedule_impact(overview)
         controller._schedule_impact_section_loaded_for_task_id = controller._selected_task_id
     except Exception as exc:
         controller._set_section_error("scheduleImpact", str(exc))

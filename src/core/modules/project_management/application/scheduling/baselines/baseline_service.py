@@ -462,6 +462,29 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         )
         return self._baselines.list_variance_records(baseline_id)
 
+    def get_baseline_task(self, baseline_id: str, task_id: str) -> BaselineTask | None:
+        """Return one task's snapshot from a baseline, or None if the
+        baseline has no snapshot for that task. Read-only passthrough over
+        the repository's existing ``list_tasks`` -- added for Task Detail
+        -> Schedule Impact's baseline-finish/variance display; does not
+        expand baseline management (creation/approval remain unchanged)."""
+        require_permission(
+            self._user_session, "project.read", operation_label="view baseline task snapshot"
+        )
+        baseline = self._baselines.get_baseline(baseline_id)
+        if not baseline:
+            return None
+        require_project_permission(
+            self._user_session,
+            baseline.project_id,
+            "project.read",
+            operation_label="view baseline task snapshot",
+        )
+        for baseline_task in self._baselines.list_tasks(baseline_id):
+            if baseline_task.task_id == task_id:
+                return baseline_task
+        return None
+
     # ── internal helpers ────────────────────────────────────────────────────
 
     def _build_variance_records(

@@ -80,6 +80,7 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/sections/TasksDependenciesSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "tasks" / "TasksDialogHost.qml",
         UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/sections/TasksTimeEntriesSection.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/sections/TasksScheduleImpactSection.qml",
         UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskAssignmentEditorDialog.qml",
         UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskAssignmentPlannedHoursDialog.qml",
         UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskAssignmentResponseDialog.qml",

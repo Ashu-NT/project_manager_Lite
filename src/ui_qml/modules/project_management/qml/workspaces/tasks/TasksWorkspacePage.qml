@@ -40,6 +40,7 @@ AppLayouts.WorkspaceFrame {
     readonly property var collaborationPresenceModel: state.collaborationPresenceModel
     readonly property var skillRequirementsModel: state.skillRequirementsModel
     readonly property var scheduleImpactModel: state.scheduleImpactModel
+    readonly property var scheduleImpactPreviewModel: state.scheduleImpactPreviewModel
     readonly property var taskActivityModel: state.taskActivityModel
 
     // ── RBAC capabilities ─────────────────────────────────────────────────
@@ -429,6 +430,7 @@ AppLayouts.WorkspaceFrame {
                     canOpenProcurement: root._hasProcReqCap
                     skillRequirementsModel: root.skillRequirementsModel
                     scheduleImpactModel: root.scheduleImpactModel
+                    scheduleImpactPreviewModel: root.scheduleImpactPreviewModel
                     taskActivityModel: root.taskActivityModel
 
                     onRetrySectionRequested: function(sectionName) {
@@ -494,6 +496,11 @@ AppLayouts.WorkspaceFrame {
                             root.workspaceController.activateTask(taskId)
                         }
                         root._openDetail(0)
+                    }
+                    onScheduleImpactPreviewRequested: function(delayWorkingDays) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.previewTaskScheduleImpact(delayWorkingDays)
+                        }
                     }
 
                     onTimeResourceFilterRequested: function(resourceId) {

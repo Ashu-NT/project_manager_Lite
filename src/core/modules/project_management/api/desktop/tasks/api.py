@@ -6,9 +6,14 @@ from decimal import Decimal
 
 from src.core.modules.project_management.api.desktop.scheduling.models.change_impact import (
     ScheduleImpactReportDto,
+    TaskScheduleImpactOverviewDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.scheduling.serializers.change_impact_serializer import (
     serialize_schedule_impact_report,
+    serialize_task_schedule_overview,
+)
+from src.core.modules.project_management.application.scheduling.forecasting.task_schedule_overview import (
+    TaskScheduleOverview,
 )
 from src.core.modules.project_management.api.desktop.tasks.builders.assignment_preview_builder import (
     build_assignment_preview,
@@ -897,17 +902,51 @@ class ProjectManagementTasksDesktopApi:
             project_names=self._project_name_by_id(),
         )
 
-    def get_schedule_impact(
+    def get_task_schedule_overview(
         self,
         task_id: str,
         project_id: str,
+    ) -> TaskScheduleImpactOverviewDesktopDto:
+        """Task Detail -> Schedule Impact's always-visible current-state
+        facts (position, criticality, float, drivers, conflicts,
+        downstream exposure) -- no hypothetical simulation, safe to load
+        automatically on task selection (§26)."""
+        normalized_task_id = str(task_id or "").strip()
+        normalized_project_id = str(project_id or "").strip()
+        if (
+            not normalized_task_id
+            or not normalized_project_id
+            or self._schedule_change_impact_service is None
+        ):
+            return serialize_task_schedule_overview(
+                TaskScheduleOverview(task_id=normalized_task_id, is_available=False)
+            )
+        try:
+            overview = self._schedule_change_impact_service.get_task_schedule_overview(
+                normalized_project_id, normalized_task_id
+            )
+        except Exception:
+            return serialize_task_schedule_overview(
+                TaskScheduleOverview(task_id=normalized_task_id, is_available=False)
+            )
+        return serialize_task_schedule_overview(overview)
+
+    def preview_task_schedule_impact(
+        self,
+        task_id: str,
+        project_id: str,
+        *,
+        delay_working_days: int = 1,
     ) -> ScheduleImpactReportDto:
+        """Task Detail -> Schedule Impact's explicit "Preview Impact"
+        what-if (§12/§13) -- a non-persisting simulation, run only when
+        the user asks for it, never automatically on task selection."""
         normalized_task_id = str(task_id or "").strip()
         normalized_project_id = str(project_id or "").strip()
         unavailable = serialize_schedule_impact_report(
             task_id=normalized_task_id,
             project_id=normalized_project_id,
-            simulated_delay_days=1,
+            simulated_delay_days=delay_working_days,
         )
         if (
             not normalized_task_id
@@ -920,18 +959,18 @@ class ProjectManagementTasksDesktopApi:
             task = self._task_service.get_task(normalized_task_id)
             if task is None or task.start_date is None:
                 return unavailable
-            report = self._schedule_change_impact_service.analyse_delay(
+            report = self._schedule_change_impact_service.analyse_working_day_delay(
                 project_id=normalized_project_id,
                 changed_task_id=normalized_task_id,
                 current_start=task.start_date,
-                delay_days=1,
+                delay_working_days=delay_working_days,
             )
         except Exception:
             return unavailable
         return serialize_schedule_impact_report(
             task_id=normalized_task_id,
             project_id=normalized_project_id,
-            simulated_delay_days=1,
+            simulated_delay_days=delay_working_days,
             report=report,
         )
 

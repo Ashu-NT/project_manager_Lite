@@ -30,6 +30,11 @@ class _Calendar:
     def working_days_between(start: date, end: date) -> int:
         return abs((end - start).days) + 1
 
+    @staticmethod
+    def add_working_days(start: date, working_days: int) -> date:
+        from datetime import timedelta
+        return start + timedelta(days=working_days)
+
 
 class _BaselineLookup:
     def __init__(self) -> None:

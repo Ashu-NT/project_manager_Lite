@@ -49,17 +49,13 @@ Item {
     })
     property var sectionErrors: ({})
     property var scheduleImpactModel: ({
-        "available": false,
-        "taskId": "",
-        "summary": "Select a task to view schedule impact analysis.",
-        "rows": [],
-        "affectedCount": 0,
-        "maxProjectFinishShiftDays": 0,
-        "requiresApproval": false,
-        "approvalLabel": "",
-        "newlyCriticalCount": 0,
-        "noLongerCriticalCount": 0
+        "isAvailable": false, "taskId": "", "currentStartLabel": "--", "currentFinishLabel": "--",
+        "isCritical": false, "totalFloatDays": null, "freeFloatDays": null,
+        "baselineFinishLabel": "--", "scheduleVarianceDays": null, "scheduleVarianceLabel": "",
+        "drivers": [], "conflicts": [], "actualVariances": [],
+        "downstream": { "directSuccessorCount": 0, "downstreamTaskCount": 0, "downstreamMilestoneCount": 0, "criticalDownstreamCount": 0 }
     })
+    property var scheduleImpactPreviewModel: ({})
 
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
 
@@ -84,6 +80,7 @@ Item {
     signal dependencySelectionChanged(var dependencyData)
     signal openTaskRequested(string taskId)
     signal dependencyPreviewRequested(string dependencyId)
+    signal scheduleImpactPreviewRequested(int delayWorkingDays)
 
     signal timeResourceFilterRequested(string resourceId)
     signal timePageRequested(int page)
@@ -411,8 +408,14 @@ Item {
                 TasksScheduleImpactSection {
                     width: parent ? parent.width : 0
                     scheduleImpactModel: root.scheduleImpactModel
+                    scheduleImpactPreviewModel: root.scheduleImpactPreviewModel
                     sectionErrors: root.sectionErrors
                     isBusy: root.isBusy
+
+                    onPreviewRequested: function(delayWorkingDays) {
+                        root.scheduleImpactPreviewRequested(delayWorkingDays)
+                    }
+                    onOpenTaskRequested: function(taskId) { root.openTaskRequested(taskId) }
                 }
             }
         }
