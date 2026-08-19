@@ -37,6 +37,7 @@ def serialize_dependency(
         dependency_type_label=dependency_type_label(dependency.dependency_type),
         lag_days=int(getattr(dependency, "lag_days", 0) or 0),
         relationship_label=f"{predecessor_name} -> {successor_name}",
+        version=int(getattr(dependency, "version", 1) or 1),
     )
 
 

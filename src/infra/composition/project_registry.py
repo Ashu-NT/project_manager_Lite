@@ -741,6 +741,7 @@ def _register_project_management_approval_handlers(
             dependency_id=req.payload["dependency_id"],
             dependency_type=_as_dependency_type(req.payload.get("dependency_type", "FS")),
             lag_days=int(req.payload.get("lag_days", 0) or 0),
+            expected_version=req.payload.get("expected_version"),
             commit=False,
         )
         return _result("tasks_changed", req.project_id or "")

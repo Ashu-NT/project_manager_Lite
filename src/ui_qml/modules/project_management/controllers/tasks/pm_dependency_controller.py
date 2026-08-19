@@ -112,6 +112,39 @@ class PMDependencyController(QObject):
             set_feedback_message=self._set_feedback_message,
         )
 
+    # ── Non-persisting impact preview (Phase N/N9) ─────────────────────
+    # QML performs zero schedule calculation -- every preview here comes
+    # straight from the same canonical CPM engine the committed schedule
+    # uses. These are reads, not mutations: no busy toggling, no facade
+    # refresh, no success/error feedback message plumbing.
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def previewCreateDependency(self, payload: dict[str, object]) -> dict[str, object]:
+        try:
+            return self._presenter.preview_create_dependency(dict(payload))
+        except Exception:
+            return {"available": False, "isValid": True, "code": "", "summary": "",
+                    "detail": "", "riskLevel": "unknown", "affectedTaskCount": 0,
+                    "largestShiftDays": 0, "rows": [], "suggestions": []}
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def previewUpdateDependency(self, payload: dict[str, object]) -> dict[str, object]:
+        try:
+            return self._presenter.preview_update_dependency(dict(payload))
+        except Exception:
+            return {"available": False, "isValid": True, "code": "", "summary": "",
+                    "detail": "", "riskLevel": "unknown", "affectedTaskCount": 0,
+                    "largestShiftDays": 0, "rows": [], "suggestions": []}
+
+    @Slot(str, result="QVariantMap")
+    def previewDeleteDependency(self, dependency_id: str) -> dict[str, object]:
+        try:
+            return self._presenter.preview_delete_dependency(dependency_id)
+        except Exception:
+            return {"available": False, "isValid": True, "code": "", "summary": "",
+                    "detail": "", "riskLevel": "unknown", "affectedTaskCount": 0,
+                    "largestShiftDays": 0, "rows": [], "suggestions": []}
+
     # ── Private setters ───────────────────────────────────────────────
 
     def _set_dependency_task_options(self, v: list) -> None:

@@ -14,6 +14,7 @@ class TaskDependencyDesktopDto:
     dependency_type_label: str
     lag_days: int
     relationship_label: str
+    version: int = 1
 
 
 @dataclass(frozen=True)

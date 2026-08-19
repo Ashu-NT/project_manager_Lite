@@ -42,6 +42,9 @@ from .collaboration_command_handler import (
 from .dependency_command_handler import (
     create_dependency,
     delete_dependency,
+    preview_create_dependency,
+    preview_delete_dependency,
+    preview_update_dependency,
     update_dependency,
 )
 from .dependencies_builder import build_task_dependencies_state
@@ -380,6 +383,15 @@ class ProjectTasksWorkspacePresenter:
 
     def delete_dependency(self, dependency_id: str) -> None:
         delete_dependency(self._desktop_api, dependency_id)
+
+    def preview_create_dependency(self, payload: dict[str, Any]) -> dict[str, object]:
+        return preview_create_dependency(self._desktop_api, payload)
+
+    def preview_update_dependency(self, payload: dict[str, Any]) -> dict[str, object]:
+        return preview_update_dependency(self._desktop_api, payload)
+
+    def preview_delete_dependency(self, dependency_id: str) -> dict[str, object]:
+        return preview_delete_dependency(self._desktop_api, dependency_id)
 
     def post_task_comment(self, payload: dict[str, Any]) -> None:
         post_task_comment(self._collaboration_desktop_api, payload)

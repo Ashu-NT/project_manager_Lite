@@ -27,6 +27,7 @@ Item {
     property var dependencyTypeOptions: []
     property var selectedDependencyItem: null
     property var dependencyTaskOptions: []
+    property var dependencyImpactPreview: ({})
 
     property var taskTimeSummary: ({ "hasSummary": false })
     property var taskTimeEntriesPage: ({ "items": [], "total": 0, "page": 1, "pageSize": 25 })
@@ -81,6 +82,8 @@ Item {
     signal editDependencyRequested(var payload)
     signal deleteDependencyRequested(var dependencyData)
     signal dependencySelectionChanged(var dependencyData)
+    signal openTaskRequested(string taskId)
+    signal dependencyPreviewRequested(string dependencyId)
 
     signal timeResourceFilterRequested(string resourceId)
     signal timePageRequested(int page)
@@ -132,9 +135,8 @@ Item {
     }
 
     function openSelectedDependencyEditor() {
-        const section = _sec2.item
-        if (section) {
-            section.openEditSelected()
+        if (root.selectedDependencyItem) {
+            root.editDependencyRequested(root.selectedDependencyItem)
         }
     }
 
@@ -291,11 +293,12 @@ Item {
                 TasksDependenciesSection {
                     width: parent ? parent.width : 0
                     dependenciesModel: root.dependenciesModel
-                    dependenciesTableModel: root.dependenciesTableModel
                     isBusy: root.isBusy
                     canCreate: root._hasTask && !root._isSummary && root.dependencyTaskOptions.length > 0
                     errorText: String(root.sectionErrors["dependencies"] || "")
                     dependencyTypeOptions: root.dependencyTypeOptions || []
+                    taskDetail: root.taskDetail
+                    dependencyImpactPreview: root.dependencyImpactPreview
 
                     onCreateRequested: root.createDependencyRequested()
                     onSelectionChanged: function(dependencyData) {
@@ -304,6 +307,8 @@ Item {
                     }
                     onEditRequested: function(payload) { root.editDependencyRequested(payload) }
                     onDeleteRequested: function(d) { root.deleteDependencyRequested(d) }
+                    onOpenTaskRequested: function(taskId) { root.openTaskRequested(taskId) }
+                    onPreviewRequested: function(dependencyId) { root.dependencyPreviewRequested(dependencyId) }
                 }
             }
         }

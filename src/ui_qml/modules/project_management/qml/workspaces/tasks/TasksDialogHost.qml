@@ -137,14 +137,37 @@ Item {
 
     function openCreateDependencyDialog(taskData) {
         root.dependencyTarget = taskData || ({})
+        dependencyEditorDialog.mode = "create"
         dependencyEditorDialog.taskData = root.dependencyTarget
+        dependencyEditorDialog.dependencyData = ({})
+        dependencyEditorDialog.errorMessage = ""
+        dependencyEditorDialog.open()
+    }
+
+    function openEditDependencyDialog(dependencyData) {
+        root.dependencyTarget = dependencyData || ({})
+        dependencyEditorDialog.mode = "edit"
+        dependencyEditorDialog.taskData = root.selectedTaskData || ({})
+        dependencyEditorDialog.dependencyData = root.dependencyTarget
         dependencyEditorDialog.errorMessage = ""
         dependencyEditorDialog.open()
     }
 
     function openDeleteDependencyDialog(dependencyData) {
         root.dependencyTarget = dependencyData || ({})
+        deleteDependencyDialog.deletePreview = ({})
         deleteDependencyDialog.open()
+        if (root.workspaceController !== null) {
+            const state = root.dependencyTarget && root.dependencyTarget.state
+                ? root.dependencyTarget.state
+                : (root.dependencyTarget || {})
+            const dependenciesController = root.workspaceController.dependenciesController
+            if (state.dependencyId && dependenciesController) {
+                deleteDependencyDialog.deletePreview = dependenciesController.previewDeleteDependency(
+                    String(state.dependencyId)
+                ) || {}
+            }
+        }
     }
 
     function openTaskCollaborationDialog(taskData) {
@@ -313,11 +336,14 @@ Item {
 
         taskOptions: root.dependencyTaskOptions
         dependencyTypeOptions: root.dependencyTypeOptions
+        workspaceController: root.workspaceController
         busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
             if (root.workspaceController === null) return
-            const result = root.workspaceController.createDependency(payload)
+            const result = dependencyEditorDialog.mode === "edit"
+                ? root.workspaceController.updateDependency(payload)
+                : root.workspaceController.createDependency(payload)
             root._handleResult(dependencyEditorDialog, result)
         }
     }
@@ -463,6 +489,11 @@ Item {
     AppControls.ConfirmationDialog {
         id: deleteDependencyDialog
         objectName: "taskDeleteDependencyDialog"
+
+        property var deletePreview: ({})
+        readonly property bool _previewAvailable: deleteDependencyDialog.deletePreview.available === true
+        readonly property int _affectedCount: deleteDependencyDialog.deletePreview.affectedTaskCount || 0
+
         title: "Remove Dependency"
         closePolicy: Popup.CloseOnEscape
         confirmLabel: "Remove Dependency"
@@ -471,7 +502,11 @@ Item {
         message: root.dependencyTarget && root.dependencyTarget.title
             ? "Remove the dependency link to " + root.dependencyTarget.title + "?"
             : "Remove the selected dependency?"
-        supportingText: "This removes the predecessor or successor link from the project plan."
+        supportingText: "Removing this relationship may change the project schedule."
+            + (deleteDependencyDialog._previewAvailable && deleteDependencyDialog._affectedCount > 0
+                ? " " + deleteDependencyDialog._affectedCount
+                    + (deleteDependencyDialog._affectedCount === 1 ? " downstream task may move." : " downstream tasks may move.")
+                : "")
 
         onConfirmed: {
             const state = root.dependencyTarget && root.dependencyTarget.state

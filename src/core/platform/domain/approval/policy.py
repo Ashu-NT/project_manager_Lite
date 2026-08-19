@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 
 
-DEFAUloLT_GOVERNED_ACTIONS = {
+DEFAULT_GOVERNED_ACTIONS = {
     "baseline.create",
     "dependency.add",
     "dependency.remove",

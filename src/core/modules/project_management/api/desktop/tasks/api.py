@@ -704,6 +704,7 @@ class ProjectManagementTasksDesktopApi:
             normalized_id,
             dependency_type=coerce_dependency_type(command.dependency_type),
             lag_days=command.lag_days,
+            expected_version=command.expected_version,
         )
 
     def delete_dependency(self, dependency_id: str) -> None:

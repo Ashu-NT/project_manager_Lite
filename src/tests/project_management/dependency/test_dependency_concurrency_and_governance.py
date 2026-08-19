@@ -62,6 +62,91 @@ class TestOptimisticConcurrency:
             ts.remove_dependency(dep.id)
 
 
+class TestUpdateOptimisticConcurrency:
+    """Phase N10: the Task Detail edit dialog must detect when the
+    dependency changed underneath it between "dialog opened" and "user
+    clicked Save" -- update_dependency previously always re-fetched fresh
+    and compared against itself, so a stale client payload could never be
+    detected (unlike delete, which already threaded expected_version)."""
+
+    def test_update_with_stale_expected_version_raises_instead_of_overwriting(self, services):
+        ts = services["task_service"]
+        _project, a, b = _make_two_tasks(services)
+        dep = ts.add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
+        stale_version = ts.get_dependency(dep.id).version
+
+        # Someone else updates it first, bumping the version.
+        ts.update_dependency(dep.id, lag_days=1)
+
+        # The original caller, still holding the pre-update version, tries
+        # to save on top of it.
+        with pytest.raises(ConcurrencyError):
+            ts.update_dependency(dep.id, lag_days=9, expected_version=stale_version)
+
+        # The first writer's change must survive -- no silent overwrite.
+        assert ts.get_dependency(dep.id).lag_days == 1
+
+    def test_update_with_matching_expected_version_succeeds(self, services):
+        ts = services["task_service"]
+        _project, a, b = _make_two_tasks(services)
+        dep = ts.add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
+        current_version = ts.get_dependency(dep.id).version
+
+        ts.update_dependency(dep.id, lag_days=4, expected_version=current_version)
+
+        assert ts.get_dependency(dep.id).lag_days == 4
+
+    def test_update_without_expected_version_is_unchecked(self, services):
+        """Callers that don't supply a version (e.g. internal callers)
+        keep the pre-existing unchecked behavior -- only the QML edit
+        dialog opts into the check by supplying its loaded version."""
+        ts = services["task_service"]
+        _project, a, b = _make_two_tasks(services)
+        dep = ts.add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
+
+        ts.update_dependency(dep.id, lag_days=1)
+        ts.update_dependency(dep.id, lag_days=2)
+
+        assert ts.get_dependency(dep.id).lag_days == 2
+
+    def test_governed_update_apply_rechecks_expected_version_captured_at_request_time(self, services, monkeypatch):
+        """The requester's expected_version (captured when THEY opened the
+        dialog) must be re-checked at approval-apply time, which can be
+        much later -- if the dependency changed in the meantime, applying
+        the stale request must fail rather than silently overwrite."""
+        monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")
+        monkeypatch.setenv("PM_GOVERNANCE_ACTIONS", "dependency.update")
+        _login(services, "admin", "ChangeMe123!")
+
+        auth = services["auth_service"]
+        approvals = services["approval_service"]
+        ts = services["task_service"]
+        project, a, b = _make_two_tasks(services)
+        dep = ts.add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
+
+        auth.register_user("planner-dep-update-toctou", "StrongPass123", role_names=["planner"])
+        _login(services, "planner-dep-update-toctou", "StrongPass123")
+
+        with pytest.raises(BusinessRuleError, match="Approval required"):
+            ts.update_dependency(dep.id, lag_days=3)
+
+        req = approvals.list_pending(project_id=project.id)[0]
+        assert req.payload["expected_version"] == 1
+
+        # The graph changes while the request is pending: an admin edits
+        # the same dependency directly, bumping its version.
+        _login(services, "admin", "ChangeMe123!")
+        ts.update_dependency(dep.id, lag_days=7)
+        assert ts.get_dependency(dep.id).version == 2
+
+        with pytest.raises(ConcurrencyError):
+            approvals.approve_and_apply(req.id)
+
+        # The admin's direct edit must survive -- the stale pending
+        # request must not silently overwrite it.
+        assert ts.get_dependency(dep.id).lag_days == 7
+
+
 class TestUpdateGovernanceParity:
     def test_update_requires_approval_when_governed(self, services, monkeypatch):
         monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")

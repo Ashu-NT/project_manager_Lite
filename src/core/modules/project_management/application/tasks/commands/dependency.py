@@ -8,7 +8,12 @@ from src.core.modules.project_management.access.scope_permissions import require
 from src.core.platform.domain.approval.policy import is_governance_required
 from src.core.shared.activity import record_activity
 from src.core.platform.application.security.authorization.enforcement.permission_checks import is_admin_session, require_permission
-from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError, ValidationError
+from src.core.platform.common.exceptions import (
+    BusinessRuleError,
+    ConcurrencyError,
+    NotFoundError,
+    ValidationError,
+)
 from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.domain.enums import DependencyType
 
@@ -339,10 +344,19 @@ class TaskDependencyMixin:
         *,
         dependency_type: DependencyType | None = None,
         lag_days: int | None = None,
+        expected_version: int | None = None,
     ) -> TaskDependency:
         dependency = self._dependency_repo.get(dep_id)
         if not dependency:
             raise NotFoundError("Dependency not found.", code="DEPENDENCY_NOT_FOUND")
+        # Phase N10: the client's expected_version reflects what it had
+        # loaded when the edit dialog was opened, not just-now -- this is
+        # the actual concurrency window an optimistic check needs to
+        # cover. Checked before governance/diagnostics so a stale dialog
+        # never gets to file an approval request against data it never
+        # actually saw.
+        if expected_version is not None and dependency.version != expected_version:
+            raise ConcurrencyError("Dependency was updated by another user.", code="STALE_WRITE")
 
         predecessor = self._task_repo.get(dependency.predecessor_task_id)
         successor = self._task_repo.get(dependency.successor_task_id)
@@ -398,6 +412,11 @@ class TaskDependencyMixin:
                     "successor_name": successor.name if successor else None,
                     "dependency_type": resolved_type.value,
                     "lag_days": resolved_lag,
+                    # Version AT REQUEST TIME (Phase N10) -- re-checked
+                    # against whatever is current when an admin finally
+                    # applies this, since approval can land long after
+                    # the requester's dialog was open.
+                    "expected_version": dependency.version,
                 },
             )
             raise BusinessRuleError(
@@ -419,6 +438,7 @@ class TaskDependencyMixin:
         dependency_type: DependencyType,
         lag_days: int,
         commit: bool,
+        expected_version: int | None = None,
     ) -> TaskDependency:
         """Apply an update -- either immediately (ungoverned path) or when
         an approved ``dependency.update`` request is finally applied.
@@ -434,6 +454,8 @@ class TaskDependencyMixin:
         dependency = self._dependency_repo.get(dependency_id)
         if not dependency:
             raise NotFoundError("Dependency not found.", code="DEPENDENCY_NOT_FOUND")
+        if expected_version is not None and dependency.version != expected_version:
+            raise ConcurrencyError("Dependency was updated by another user.", code="STALE_WRITE")
         predecessor = self._task_repo.get(dependency.predecessor_task_id)
         successor = self._task_repo.get(dependency.successor_task_id)
         project_id = predecessor.project_id if predecessor else (successor.project_id if successor else None)

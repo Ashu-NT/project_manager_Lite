@@ -60,6 +60,7 @@ AppLayouts.WorkspaceFrame {
     readonly property var _detailSections: state.detailSections
     readonly property var _bulkChangeProperties: state.bulkChangeProperties
     property var _selectedDependencyItem: null
+    property var _dependencyImpactPreview: ({})
     readonly property var _selectedAssignmentItem: root._itemById(
         root.assignmentsModel ? (root.assignmentsModel.items || []) : [],
         root.workspaceController ? root.workspaceController.selectedAssignmentId : ""
@@ -411,6 +412,7 @@ AppLayouts.WorkspaceFrame {
                     dependenciesTableModel: root.workspaceController ? root.workspaceController.dependenciesTableModel : null
                     dependencyTaskOptions: root.workspaceController ? (root.workspaceController.dependencyTaskOptions || []) : []
                     dependencyTypeOptions: root.workspaceController ? (root.workspaceController.dependencyTypeOptions || []) : []
+                    dependencyImpactPreview: root._dependencyImpactPreview
 
                     taskTimeSummary: root.taskTimeSummaryModel
                     taskTimeEntriesPage: root.taskTimeEntriesPageModel
@@ -472,14 +474,26 @@ AppLayouts.WorkspaceFrame {
                     onCreateDependencyRequested: dialogHostLoader.invoke("openCreateDependencyDialog", root.selectedTaskModel)
                     onDependencySelectionChanged: function(dependencyData) {
                         root._selectedDependencyItem = dependencyData || null
+                        if (!dependencyData) {
+                            root._dependencyImpactPreview = ({})
+                        }
+                    }
+                    onDependencyPreviewRequested: function(dependencyId) {
+                        if (root.workspaceController !== null && dependencyId.length > 0) {
+                            root._dependencyImpactPreview = root.workspaceController.dependenciesController.previewDeleteDependency(dependencyId) || {}
+                        }
                     }
                     onEditDependencyRequested: function(payload) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.updateDependency(payload)
-                        }
+                        dialogHostLoader.invoke("openEditDependencyDialog", payload)
                     }
                     onDeleteDependencyRequested: function(dependencyData) {
                         dialogHostLoader.invoke("openDeleteDependencyDialog", dependencyData)
+                    }
+                    onOpenTaskRequested: function(taskId) {
+                        if (root.workspaceController !== null && taskId.length > 0) {
+                            root.workspaceController.activateTask(taskId)
+                        }
+                        root._openDetail(0)
                     }
 
                     onTimeResourceFilterRequested: function(resourceId) {

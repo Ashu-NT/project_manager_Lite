@@ -6,7 +6,10 @@ from src.ui_qml.modules.project_management.view_models.tasks import (
 )
 
 
-def to_dependency_record_view_model(dependency) -> TaskRecordViewModel:
+def _date_label(value) -> str:
+    return value.isoformat() if value is not None else "--"
+
+def to_dependency_record_view_model(dependency, *, linked_task=None) -> TaskRecordViewModel:
     lag_label = f"{int(dependency.lag_days):+d}d"
     state = {
         "dependencyId": dependency.id,
@@ -18,6 +21,9 @@ def to_dependency_record_view_model(dependency) -> TaskRecordViewModel:
         "dependencyTypeLabel": dependency.dependency_type_label,
         "lagDays": str(int(dependency.lag_days)),
         "relationshipLabel": dependency.relationship_label,
+        "linkedTaskStartLabel": _date_label(getattr(linked_task, "start_date", None)),
+        "linkedTaskFinishLabel": _date_label(getattr(linked_task, "end_date", None)),
+        "version": str(int(getattr(dependency, "version", 1) or 1)),
     }
     return TaskRecordViewModel(
         id=dependency.id,
@@ -25,7 +31,7 @@ def to_dependency_record_view_model(dependency) -> TaskRecordViewModel:
         status_label=dependency.direction_label,
         subtitle=f"{dependency.dependency_type_label} | Lag {lag_label}",
         supporting_text=dependency.relationship_label,
-        meta_text=f"Linked task ID: {dependency.linked_task_id}",
+        meta_text=lag_label,
         can_primary_action=False,
         can_secondary_action=False,
         state=state,
