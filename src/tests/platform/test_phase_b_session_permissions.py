@@ -174,16 +174,6 @@ def test_viewer_cannot_manage_project_resources_or_calendar_or_leveling(services
             calendar_type="standard",
         )
 
-    with pytest.raises(BusinessRuleError, match="Permission denied"):
-        ds.auto_level_overallocations(project.id, max_iterations=1)
-
-    with pytest.raises(BusinessRuleError, match="Permission denied"):
-        ds.manually_shift_task_for_leveling(
-            project_id=project.id,
-            task_id="missing-task",
-            shift_working_days=1,
-        )
-
 
 def test_governance_permissions_are_split_between_request_and_decide(services, monkeypatch):
     monkeypatch.setenv("PM_GOVERNANCE_MODE", "required")

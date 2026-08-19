@@ -1,13 +1,30 @@
-"""R4.4W -- performance characterization for ResourceLevelingPlanner at
-100/1000/5000 tasks. Pure in-memory (no DB), isolating the planner's own
-algorithmic cost (repeated run_cpm calls during candidate search) from
-persistence/ORM overhead -- the planner's public signature takes plain
-dicts/lists regardless of where they came from, so this is a faithful
-measurement of the same code path the desktop API drives.
+"""R4.4W/R4.4W.1 -- performance characterization for
+ResourceLevelingPlanner at 100/1000/5000 tasks. Pure in-memory (no DB),
+isolating the planner's own algorithmic cost from persistence/ORM
+overhead -- the planner's public signature takes plain dicts/lists
+regardless of where they came from, so this is a faithful measurement
+of the same code path the desktop API drives.
+
+R4.4W's original characterization found 111.2s at 5000 tasks (this
+same scenario). Profiling (R4.4W.1) traced it to run_cpm's canonical
+build_schedule_result calling calendar.working_days_between once per
+task, uncached -- NOT to the planner calling run_cpm too many times
+(only ~7 calls happen regardless of scale). The fix
+(calendar_cache.MemoizingCalendarWindow, wired into
+ResourceLevelingPlanner.build_proposal) bulk-resolves working-day facts
+once per Preview instead of once per task. After the fix, this exact
+scenario: 100 tasks 0.032s, 1000 tasks 0.341s, 5000 tasks 1.737s -- a
+64x speedup at 5000 tasks, and scaling is now roughly linear rather
+than quadratic. See test_zzz_profile_scratch.py (throwaway) and
+test_leveling_calendar_cache.py (permanent correctness coverage) for
+the profiling evidence and cache-correctness proof respectively; see
+R4_4_PLANNING_SCHEDULING_IMPLEMENTATION_SUMMARY.md §R4.4W.1 for the
+full before/after writeup.
 
 Not a strict pass/fail gate (machine speed varies) -- these assertions
-are generous upper bounds; the actual measured numbers are what matter
-for R4.4Z's documentation, printed via `-s`.
+are generous upper bounds (still ~5-10x the observed numbers above);
+the actual measured numbers are what matter for documentation, printed
+via `-s`.
 """
 from __future__ import annotations
 
@@ -53,6 +70,21 @@ class _MonToFriCalendar:
             current += timedelta(days=1)
         return count
 
+    def working_day_dates_between(self, start: date, end: date) -> frozenset[date]:
+        # Same day-by-day authority as working_days_between/is_working_day
+        # above -- just returning the actual dates instead of a count, so
+        # MemoizingCalendarWindow's bulk pre-fetch can build its cache from
+        # this fake the same way it would from a real production calendar.
+        if end < start:
+            return frozenset()
+        working: set[date] = set()
+        current = start
+        while current <= end:
+            if self.is_working_day(current):
+                working.add(current)
+            current += timedelta(days=1)
+        return frozenset(working)
+
 
 def _build_project(task_count: int, calendar: _MonToFriCalendar):
     """`task_count` independent, non-overlapping tasks, EXCEPT tasks 0
@@ -77,7 +109,7 @@ def _build_project(task_count: int, calendar: _MonToFriCalendar):
     return tasks_by_id, assignments, resource_name_by_id
 
 
-@pytest.mark.parametrize("task_count,max_seconds", [(100, 5.0), (1000, 30.0), (5000, 180.0)])
+@pytest.mark.parametrize("task_count,max_seconds", [(100, 1.0), (1000, 3.0), (5000, 10.0)])
 def test_leveling_planner_scales_acceptably(task_count, max_seconds):
     calendar = _MonToFriCalendar()
     tasks_by_id, assignments, resource_name_by_id = _build_project(task_count, calendar)

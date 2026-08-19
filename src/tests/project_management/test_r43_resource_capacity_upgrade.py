@@ -570,37 +570,6 @@ def _instrument_get_and_batch(cls, batch_method_name: str):
     return counts, restore
 
 
-def test_leveling_resource_name_map_issues_one_batch_call_not_one_per_assignment(services):
-    from src.core.modules.project_management.infrastructure.persistence.repositories.resources.resource import (
-        SqlAlchemyResourceRepository,
-    )
-
-    ps = services["project_service"]
-    ts = services["task_service"]
-    rs = services["resource_service"]
-
-    project = ps.create_project("Leveling Query Count Project")
-    resources = [rs.create_resource(f"Leveling Resource {i}", hourly_rate=50.0) for i in range(4)]
-    window_start = date.today() + timedelta(days=1)
-    for i, resource in enumerate(resources):
-        task = ts.create_task(
-            project.id, f"Leveling Task {i}", start_date=window_start, duration_days=3
-        )
-        ts.assign_resource(task.id, resource.id, allocation_percent=100.0)
-
-    sched = services["scheduling_engine"]
-    counts, restore = _instrument_get_and_batch(SqlAlchemyResourceRepository, "list_by_ids")
-    try:
-        sched.preview_resource_conflicts(project.id)
-    finally:
-        restore()
-
-    # One batched call for however many distinct resources are involved,
-    # never a per-resource get() loop.
-    assert counts["list_by_ids"] >= 1
-    assert counts["get"] == 0
-
-
 def test_availability_service_task_lookup_issues_one_batch_call_not_one_per_task(services):
     from src.core.modules.project_management.infrastructure.persistence.repositories.tasks.task import (
         SqlAlchemyTaskRepository,

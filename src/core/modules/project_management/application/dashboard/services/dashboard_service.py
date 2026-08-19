@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
-from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.access.scope_permissions import require_project_permission
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.modules.project_management.application.common.module_guard import ProjectManagementModuleGuardMixin
@@ -22,12 +21,7 @@ from src.core.modules.project_management.application.dashboard.widgets.upcoming 
 from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.risk import RegisterService
 from src.core.modules.project_management.application.projects import ProjectService
-from src.core.modules.project_management.application.scheduling import (
-    ResourceConflict,
-    ResourceLevelingAction,
-    ResourceLevelingResult,
-    SchedulingEngine,
-)
+from src.core.modules.project_management.application.scheduling import SchedulingEngine
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_tasks
@@ -147,64 +141,5 @@ class DashboardService(
             evm=evm_obj,
             upcoming_tasks=upcoming,
         )
-
-    def preview_resource_conflicts(
-        self,
-        project_id: str,
-        threshold_percent: float = 100.0,
-        *,
-        recalculate: bool = True,
-    ) -> list[ResourceConflict]:
-        require_permission(self._user_session, "report.view", operation_label="view resource conflicts")
-        require_project_permission(self._user_session, project_id, "report.view", operation_label="view resource conflicts")
-        if recalculate:
-            self._sched.recalculate_project_schedule(project_id)
-        return self._sched.preview_resource_conflicts(
-            project_id=project_id,
-            threshold_percent=threshold_percent,
-        )
-
-    def auto_level_overallocations(
-        self,
-        project_id: str,
-        max_iterations: int = 60,
-        threshold_percent: float = 100.0,
-        *,
-        emit_events: bool = True,
-    ) -> ResourceLevelingResult:
-        require_permission(self._user_session, "task.manage", operation_label="auto-level resource conflicts")
-        require_project_permission(self._user_session, project_id, "task.manage", operation_label="auto-level resource conflicts")
-        result = self._sched.auto_level_resources(
-            project_id=project_id,
-            max_iterations=max_iterations,
-            threshold_percent=threshold_percent,
-        )
-        self._sched.recalculate_project_schedule(project_id)
-        if emit_events and result.actions:
-            domain_events.tasks_changed.emit(project_id)
-        return result
-
-    def manually_shift_task_for_leveling(
-        self,
-        project_id: str,
-        task_id: str,
-        shift_working_days: int = 1,
-        reason: str = "Manual dashboard leveling",
-        *,
-        emit_events: bool = True,
-    ) -> ResourceLevelingAction:
-        require_permission(self._user_session, "task.manage", operation_label="manual task shift")
-        require_project_permission(self._user_session, project_id, "task.manage", operation_label="manual task shift")
-        action = self._sched.resolve_resource_conflict_manual(
-            project_id=project_id,
-            task_id=task_id,
-            shift_working_days=shift_working_days,
-            reason=reason,
-        )
-        self._sched.recalculate_project_schedule(project_id)
-        if emit_events:
-            domain_events.tasks_changed.emit(project_id)
-        return action
-
 
 __all__ = ["DashboardService"]
