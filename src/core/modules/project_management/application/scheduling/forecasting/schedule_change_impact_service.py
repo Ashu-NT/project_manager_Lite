@@ -72,6 +72,8 @@ class ScheduleChangeImpactReport:
     requires_approval: bool                   # true if approved baseline exists and shift > threshold
     critical_path_changed: bool = False
     dependency_conflicts: list[DependencyConstraintConflict] = field(default_factory=list)
+    blocked_by_deadline: bool = False
+    blocked_reason: str = ""
 
 
 class ApprovedBaselineLookup(Protocol):
@@ -173,6 +175,30 @@ class ScheduleChangeImpactService:
             new_finish = self._calendar.add_working_days(new_start, new_duration)
         else:
             new_finish = changed.end_date
+        # A task's own `deadline` is a hard domain invariant (Task raises
+        # TASK_DEADLINE_INVALID if start_date moves past it) -- checked
+        # here BEFORE replace() so a delay preview that would breach it
+        # reports that fact instead of raising ValidationError out of a
+        # dataclasses.replace() call deep inside a "preview, never
+        # persists" simulation (this proposed_tasks copy is discarded,
+        # never written back; see class docstring).
+        if changed.deadline is not None and new_start is not None and changed.deadline < new_start:
+            return ScheduleChangeImpactReport(
+                changed_task_id=changed_task_id,
+                proposed_start=proposed_start,
+                proposed_finish=proposed_finish,
+                proposed_duration_days=proposed_duration_days,
+                affected_tasks=[],
+                newly_critical_task_ids=[],
+                no_longer_critical_task_ids=[],
+                max_project_finish_shift_days=0,
+                requires_approval=False,
+                blocked_by_deadline=True,
+                blocked_reason=(
+                    f"Proposed start {new_start.isoformat()} would fall after "
+                    f"this task's deadline of {changed.deadline.isoformat()}."
+                ),
+            )
         proposed_tasks[changed_task_id] = replace(
             changed,
             start_date=new_start,

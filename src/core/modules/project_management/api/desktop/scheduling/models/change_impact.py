@@ -52,6 +52,8 @@ class ScheduleImpactReportDto:
     no_longer_critical_task_ids: tuple[str, ...]
     critical_path_changed: bool = False
     conflict_count: int = 0
+    blocked_by_deadline: bool = False
+    blocked_reason: str = ""
 
 
 @dataclass(frozen=True)

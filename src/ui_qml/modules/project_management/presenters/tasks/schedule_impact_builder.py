@@ -132,6 +132,8 @@ _EMPTY_PREVIEW = {
     "conflictCount": 0,
     "newlyCriticalCount": 0,
     "noLongerCriticalCount": 0,
+    "blockedByDeadline": False,
+    "blockedReason": "",
     "rows": [],
 }
 
@@ -180,7 +182,13 @@ def build_task_schedule_impact_preview_state(
         shift_label = f"Project finish would improve by {abs(project_shift)} working day(s)."
     else:
         shift_label = "Project finish would not change."
-    summary = f"{dto.affected_count} task(s) affected. " + shift_label
+    blocked_by_deadline = bool(getattr(dto, "blocked_by_deadline", False))
+    blocked_reason = str(getattr(dto, "blocked_reason", "") or "")
+    summary = (
+        blocked_reason
+        if blocked_by_deadline
+        else f"{dto.affected_count} task(s) affected. " + shift_label
+    )
     return {
         "isAvailable": True,
         "taskId": dto.task_id,
@@ -193,6 +201,8 @@ def build_task_schedule_impact_preview_state(
         "conflictCount": dto.conflict_count,
         "newlyCriticalCount": len(dto.newly_critical_task_ids),
         "noLongerCriticalCount": len(dto.no_longer_critical_task_ids),
+        "blockedByDeadline": blocked_by_deadline,
+        "blockedReason": blocked_reason,
         "rows": [
             {
                 "taskId": row.task_id,

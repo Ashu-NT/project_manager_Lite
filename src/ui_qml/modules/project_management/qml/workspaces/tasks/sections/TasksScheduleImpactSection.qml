@@ -52,6 +52,7 @@ Item {
         return "This task needs a computed start date and a connected scheduling service."
     }
     readonly property bool _hasPreview: root._preview.isAvailable === true
+    readonly property bool _previewBlockedByDeadline: root._preview.blockedByDeadline === true
     readonly property var _affectedRows: root._hasPreview ? (root._preview.rows || []) : []
 
     function _selectedRow() {
@@ -375,6 +376,13 @@ Item {
 
                 AppWidgets.InlineMessage {
                     Layout.fillWidth: true
+                    visible: root._previewBlockedByDeadline
+                    tone: "danger"
+                    message: String(root._preview.blockedReason || "This proposed delay would breach the task's deadline.")
+                }
+
+                AppWidgets.InlineMessage {
+                    Layout.fillWidth: true
                     visible: root._preview.requiresApproval === true
                     tone: "warning"
                     message: "A change of this magnitude would require baseline approval."
@@ -396,6 +404,7 @@ Item {
 
                 AppControls.Label {
                     Layout.fillWidth: true
+                    visible: !root._previewBlockedByDeadline
                     text: String(root._preview.summary || "")
                     color: Theme.AppTheme.textSecondary
                     font.family: Theme.AppTheme.fontFamily
@@ -405,7 +414,7 @@ Item {
 
                 AppWidgets.EmptyState {
                     Layout.fillWidth: true
-                    visible: root._affectedRows.length === 0
+                    visible: root._affectedRows.length === 0 && !root._previewBlockedByDeadline
                     title: "No downstream schedule changes were detected."
                 }
 

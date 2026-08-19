@@ -89,6 +89,8 @@ def serialize_schedule_impact_report(
         ),
         critical_path_changed=bool(getattr(report, "critical_path_changed", False)),
         conflict_count=len(getattr(report, "dependency_conflicts", None) or []),
+        blocked_by_deadline=bool(getattr(report, "blocked_by_deadline", False)),
+        blocked_reason=str(getattr(report, "blocked_reason", "") or ""),
     )
 
 

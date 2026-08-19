@@ -255,3 +255,127 @@ class TestScheduleOverviewProjectIdFallback:
         )
 
         assert calls == [("task-1", "project-real")]
+
+
+class TestPreviewDeadlineConflict:
+    """The reported bug: "Preview Impact" worked for a 1 working-day
+    delay but showed nothing at all for a 2+ day delay. Root cause --
+    the task has a hard `deadline` constraint (distinct from end_date).
+    analyse() built the proposed in-memory task copy via
+    dataclasses.replace(), which re-validates the WHOLE object,
+    including Task's TASK_DEADLINE_INVALID invariant (deadline must not
+    be before start_date). A delay large enough to push the proposed
+    start past the task's own deadline raised ValidationError deep
+    inside replace() -- silently swallowed by preview_task_schedule_impact's
+    bare except, so the UI just showed no preview with zero explanation.
+    Fixed by detecting the conflict BEFORE replace() and returning a
+    real, reportable outcome instead of crashing."""
+
+    def test_analyse_working_day_delay_reports_deadline_conflict_instead_of_raising(self, services):
+        ps = services["project_service"]
+        ts = services["task_service"]
+        project = ps.create_project("Schedule Impact Deadline Conflict", "")
+        # Friday start, 1-day duration, deadline only a few days out --
+        # a 2 working-day delay pushes the proposed start past it.
+        task = ts.create_task(
+            project.id,
+            "Task With Deadline",
+            "",
+            start_date=date(2024, 1, 5),
+            duration_days=1,
+            deadline=date(2024, 1, 8),
+        )
+        impact = _impact_service(services)
+
+        report = impact.analyse_working_day_delay(
+            project_id=project.id,
+            changed_task_id=task.id,
+            current_start=task.start_date,
+            delay_working_days=2,
+        )
+
+        assert report.blocked_by_deadline is True
+        assert "deadline" in report.blocked_reason.lower()
+        assert report.affected_tasks == []
+
+    def test_analyse_working_day_delay_within_deadline_is_not_blocked(self, services):
+        ps = services["project_service"]
+        ts = services["task_service"]
+        project = ps.create_project("Schedule Impact Deadline OK", "")
+        task = ts.create_task(
+            project.id,
+            "Task With Deadline",
+            "",
+            start_date=date(2024, 1, 5),
+            duration_days=1,
+            deadline=date(2024, 3, 1),
+        )
+        impact = _impact_service(services)
+
+        report = impact.analyse_working_day_delay(
+            project_id=project.id,
+            changed_task_id=task.id,
+            current_start=task.start_date,
+            delay_working_days=2,
+        )
+
+        assert report.blocked_by_deadline is False
+
+    def test_preview_desktop_api_surfaces_deadline_conflict_without_raising(self, services):
+        from src.core.modules.project_management.api.desktop.tasks.api import (
+            ProjectManagementTasksDesktopApi,
+        )
+
+        ps = services["project_service"]
+        ts = services["task_service"]
+        project = ps.create_project("Schedule Impact Deadline Desktop API", "")
+        task = ts.create_task(
+            project.id,
+            "Task With Deadline",
+            "",
+            start_date=date(2024, 1, 5),
+            duration_days=1,
+            deadline=date(2024, 1, 8),
+        )
+        api = ProjectManagementTasksDesktopApi(
+            task_service=ts,
+            schedule_change_impact_service=_impact_service(services),
+        )
+
+        dto = api.preview_task_schedule_impact(task.id, project.id, delay_working_days=2)
+
+        assert dto.is_available is True
+        assert dto.blocked_by_deadline is True
+        assert dto.blocked_reason != ""
+
+    def test_preview_builder_surfaces_deadline_conflict_as_blocked_state(self):
+        from types import SimpleNamespace
+        from src.ui_qml.modules.project_management.presenters.tasks.schedule_impact_builder import (
+            build_task_schedule_impact_preview_state,
+        )
+
+        class _DesktopApi:
+            def preview_task_schedule_impact(self, task_id, project_id, *, delay_working_days):
+                return SimpleNamespace(
+                    is_available=True,
+                    task_id=task_id,
+                    affected_count=0,
+                    max_project_finish_shift_days=0,
+                    requires_approval=False,
+                    critical_path_changed=False,
+                    conflict_count=0,
+                    newly_critical_task_ids=(),
+                    no_longer_critical_task_ids=(),
+                    affected_tasks=(),
+                    blocked_by_deadline=True,
+                    blocked_reason="Proposed start 2024-01-10 would fall after this task's deadline of 2024-01-08.",
+                )
+
+        state = build_task_schedule_impact_preview_state(
+            _DesktopApi(), task_id="task-1", project_id="project-1", delay_working_days=2
+        )
+
+        assert state["isAvailable"] is True
+        assert state["blockedByDeadline"] is True
+        assert "deadline" in state["blockedReason"].lower()
+        assert state["summary"] == state["blockedReason"]
