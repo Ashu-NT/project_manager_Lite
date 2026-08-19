@@ -117,6 +117,38 @@ def load_selected_task_skill_requirements(controller) -> None:
         controller._set_is_loading(False)
 
 
+def refresh_after_dependency_mutation(controller) -> None:
+    """A dependency create/update/delete changes the CURRENTLY SELECTED
+    task's own dates (via schedule recalculation) and the Dependencies/
+    Schedule Impact sections' displayed facts -- but both sections are
+    typically already active when the user makes the edit, and the lazy
+    loaders above only re-fetch on a NEW tab activation (active:
+    false->true), not on every property change. The generic
+    _request_domain_refresh() this used to share with every other
+    subcontroller only rebuilds the task LIST/workspace overview, never
+    per-section detail state -- so without this, the edit is correct on
+    the backend immediately, but the UI shows it only after the user
+    leaves and re-enters Task Detail (which resets the loaded-for-task-id
+    flags via reset_task_lazy_sections). This forces an immediate,
+    targeted reload of exactly the state a dependency edit can affect.
+    """
+    if not controller._selected_task_id:
+        return
+    controller._dependencies_section_loaded_for_task_id = ""
+    load_selected_task_dependencies(controller)
+    controller._schedule_impact_section_loaded_for_task_id = ""
+    load_selected_task_schedule_impact(controller)
+    try:
+        ws = controller._tasks_workspace_presenter.build_task_basic_detail_state(
+            task_id=controller._selected_task_id,
+            project_id=controller._selected_project_id or None,
+        )
+    except Exception:
+        pass
+    else:
+        controller._task_list.updateSelectedTaskOnly(ws)
+
+
 def load_selected_task_schedule_impact(controller) -> None:
     """Auto-loaded on section activation -- current-state facts only
     (one CPM pass, no hypothetical). The "Preview Impact" what-if is a
@@ -192,5 +224,6 @@ __all__ = [
     "load_selected_task_skill_requirements",
     "load_selected_task_time",
     "load_task_assignments_and_dependencies",
+    "refresh_after_dependency_mutation",
     "refresh_time_entries_only",
 ]

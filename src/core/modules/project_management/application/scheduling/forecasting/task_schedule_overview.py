@@ -61,6 +61,10 @@ class DownstreamExposure:
 class TaskScheduleOverview:
     task_id: str
     is_available: bool
+    # "not_found" | "summary_task" | "no_computed_date" | "" (available or
+    # not yet determined) -- lets the UI give an accurate explanation
+    # instead of one generic message for every unavailable case.
+    unavailable_reason: str = ""
     current_start: date | None = None
     current_finish: date | None = None
     is_critical: bool = False

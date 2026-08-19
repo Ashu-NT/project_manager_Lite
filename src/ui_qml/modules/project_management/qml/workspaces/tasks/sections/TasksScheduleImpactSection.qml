@@ -16,7 +16,7 @@ Item {
     id: root
 
     property var scheduleImpactModel: ({
-        "isAvailable": false, "taskId": "", "currentStartLabel": "--", "currentFinishLabel": "--",
+        "isAvailable": false, "taskId": "", "unavailableReason": "", "currentStartLabel": "--", "currentFinishLabel": "--",
         "isCritical": false, "totalFloatDays": null, "freeFloatDays": null,
         "baselineFinishLabel": "--", "scheduleVarianceDays": null, "scheduleVarianceLabel": "",
         "drivers": [], "conflicts": [], "actualVariances": [],
@@ -35,6 +35,16 @@ Item {
 
     readonly property var _m: root.scheduleImpactModel || {}
     readonly property var _preview: root.scheduleImpactPreviewModel || {}
+    readonly property string _unavailableMessage: {
+        const reason = String(root._m.unavailableReason || "")
+        if (reason === "summary_task")
+            return "This task has sub-tasks. Schedule impact analysis applies to individual (leaf) tasks, not summary tasks -- select one of its sub-tasks instead."
+        if (reason === "not_found")
+            return "This task could not be found in the current project schedule."
+        if (reason === "no_computed_date")
+            return "This task needs a start date, or an incoming dependency, before a schedule position can be computed."
+        return "This task needs a computed start date and a connected scheduling service."
+    }
     readonly property bool _hasPreview: root._preview.isAvailable === true
     readonly property var _affectedRows: root._hasPreview ? (root._preview.rows || []) : []
 
@@ -95,7 +105,7 @@ Item {
             Layout.bottomMargin: Theme.AppTheme.spacingLg
             visible: !root.isBusy && root._m.isAvailable !== true
             title: "Schedule impact analysis not available."
-            message: "This task needs a computed start date and a connected scheduling service."
+            message: root._unavailableMessage
         }
 
         ColumnLayout {

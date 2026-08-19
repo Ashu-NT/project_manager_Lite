@@ -5,6 +5,7 @@ from .formatting import shift_days_label
 _EMPTY_OVERVIEW = {
     "isAvailable": False,
     "taskId": "",
+    "unavailableReason": "",
     "currentStartLabel": "--",
     "currentFinishLabel": "--",
     "isCritical": False,
@@ -45,9 +46,11 @@ def build_task_schedule_overview_state(
     if not dto.is_available:
         state = dict(_EMPTY_OVERVIEW)
         state["taskId"] = normalized_task_id
+        state["unavailableReason"] = dto.unavailable_reason
         return state
     return {
         "isAvailable": True,
+        "unavailableReason": "",
         "taskId": dto.task_id,
         "currentStartLabel": dto.current_start_label,
         "currentFinishLabel": dto.current_finish_label,

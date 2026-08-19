@@ -294,7 +294,8 @@ class ScheduleChangeImpactService:
         facts (§6-§11) -- ONE canonical CPM pass, no hypothetical change,
         no persistence. Reuses the exact same in-memory task/dependency
         load ``analyse`` uses (§25: no per-task repository calls)."""
-        tasks = select_leaf_tasks(self._task_repo.list_by_project(project_id))
+        all_tasks = self._task_repo.list_by_project(project_id)
+        tasks = select_leaf_tasks(all_tasks)
         deps = select_leaf_dependencies(
             self._dependency_repo.list_by_project(project_id),
             tasks,
@@ -302,12 +303,25 @@ class ScheduleChangeImpactService:
         tasks_by_id: dict[str, Task] = {t.id: t for t in tasks}
         task = tasks_by_id.get(task_id)
         if task is None:
-            return TaskScheduleOverview(task_id=task_id, is_available=False)
+            # Distinguish "not found at all" from "exists, but is a
+            # summary/parent task" (select_leaf_tasks excludes any task
+            # that is another task's parent, regardless of its own dates)
+            # -- these need different user-facing explanations; the QML
+            # empty state must not say "needs a computed start date" for
+            # a task that has one but is a WBS summary.
+            reason = (
+                "summary_task"
+                if any(t.id == task_id for t in all_tasks)
+                else "not_found"
+            )
+            return TaskScheduleOverview(task_id=task_id, is_available=False, unavailable_reason=reason)
 
         result: CPMResult = self._run_cpm(self._calendar, tasks_by_id, deps)
         info = result.schedule.get(task_id)
         if info is None:
-            return TaskScheduleOverview(task_id=task_id, is_available=False)
+            return TaskScheduleOverview(
+                task_id=task_id, is_available=False, unavailable_reason="no_computed_date"
+            )
 
         critical_ids = set(result.critical_path_task_ids)
         successors = build_successors_by_task_id(deps)

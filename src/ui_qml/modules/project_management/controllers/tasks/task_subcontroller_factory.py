@@ -6,6 +6,7 @@ from .pm_dependency_controller import PMDependencyController
 from .pm_task_list_controller import PMTaskListController
 from .pm_time_controller import PMTimeController
 from .task_facade_signal_binder import bind_task_facade_signals
+from .task_lazy_section_loader import refresh_after_dependency_mutation
 
 
 def create_subcontrollers(controller) -> None:
@@ -19,7 +20,18 @@ def create_subcontrollers(controller) -> None:
     )
     controller._task_list = PMTaskListController(**_cb)
     controller._assignments_ctrl = PMAssignmentController(**_cb)
-    controller._dependencies_ctrl = PMDependencyController(**_cb)
+    controller._dependencies_ctrl = PMDependencyController(
+        **{
+            **_cb,
+            # A dependency edit changes the CURRENTLY SELECTED task's own
+            # dates and the Dependencies/Schedule Impact sections' facts;
+            # both are typically already active, so the generic
+            # list/workspace-only facade_refresh above never re-fetches
+            # them until the user leaves and re-enters Task Detail. See
+            # refresh_after_dependency_mutation's own docstring.
+            "facade_refresh": lambda: refresh_after_dependency_mutation(controller),
+        }
+    )
     controller._time_ctrl = PMTimeController(
         **_cb, refresh_time_entries=controller._refresh_time_entries_only
     )

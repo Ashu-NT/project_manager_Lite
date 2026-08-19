@@ -100,6 +100,7 @@ class TaskScheduleImpactOverviewDesktopDto:
 
     task_id: str
     is_available: bool
+    unavailable_reason: str
     current_start_label: str
     current_finish_label: str
     is_critical: bool

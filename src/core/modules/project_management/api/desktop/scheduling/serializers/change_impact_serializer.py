@@ -105,6 +105,7 @@ def serialize_task_schedule_overview(
         return TaskScheduleImpactOverviewDesktopDto(
             task_id=(overview.task_id if overview is not None else task_id),
             is_available=False,
+            unavailable_reason=(overview.unavailable_reason if overview is not None else ""),
             current_start_label="--",
             current_finish_label="--",
             is_critical=False,
@@ -120,6 +121,7 @@ def serialize_task_schedule_overview(
     return TaskScheduleImpactOverviewDesktopDto(
         task_id=overview.task_id,
         is_available=True,
+        unavailable_reason="",
         current_start_label=_date_label(overview.current_start),
         current_finish_label=_date_label(overview.current_finish),
         is_critical=bool(overview.is_critical),
