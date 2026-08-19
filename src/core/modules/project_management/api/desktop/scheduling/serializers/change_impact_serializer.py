@@ -1,5 +1,8 @@
 """Change impact serializer."""
 
+from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
+    constraint_presentation,
+)
 from src.core.modules.project_management.api.desktop.scheduling.models.change_impact import (
     ActualVarianceDto,
     DownstreamExposureDto,
@@ -139,7 +142,11 @@ def serialize_task_schedule_overview(
         baseline_finish_label=_date_label(overview.baseline_finish),
         schedule_variance_days=overview.schedule_variance_days,
         drivers=tuple(
-            ScheduleDriverDto(kind=d.kind, label=d.label, detail=d.detail)
+            ScheduleDriverDto(
+                kind=d.kind,
+                label=(constraint_presentation(d.label).label if d.kind == "constraint" else d.label),
+                detail=d.detail,
+            )
             for d in overview.drivers
         ),
         conflicts=tuple(
@@ -147,6 +154,7 @@ def serialize_task_schedule_overview(
                 task_id=c.task_id,
                 task_name=c.task_name,
                 constraint_type=c.constraint_type.value,
+                constraint_type_label=constraint_presentation(c.constraint_type).label,
                 constraint_date=c.constraint_date,
                 dependency_required_date=c.dependency_required_date,
                 direction=c.direction,

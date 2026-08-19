@@ -57,6 +57,10 @@ def build_task_state(task: Any) -> dict[str, object]:
         "actualEnd": format_date(task.actual_end),
         "actualEndLabel": format_date_label(task.actual_end),
         "isMilestone": bool(getattr(task, "is_milestone", False)),
+        "constraintType": getattr(task, "constraint_type", "") or "",
+        "constraintTypeLabel": getattr(task, "constraint_type_label", "") or "",
+        "constraintDate": format_date(getattr(task, "constraint_date", None)),
+        "constraintDateLabel": format_date_label(getattr(task, "constraint_date", None)),
         "version": task.version,
     }
 

@@ -63,6 +63,7 @@ from .task_command_handler import (
     suggest_code,
     update_progress,
     update_task,
+    update_task_scheduling_constraint,
 )
 from .time_builder import (
     build_empty_task_time_state,
@@ -102,6 +103,19 @@ class ProjectTasksWorkspacePresenter:
         self._employee_api = employee_api
         self._activity_api = activity_api
         self._projects_desktop_api = projects_desktop_api
+
+    def list_constraint_options(self) -> tuple[dict[str, object], ...]:
+        return tuple(
+            {
+                "value": option.value,
+                "code": option.code,
+                "label": option.label,
+                "description": option.description,
+                "requiresDate": option.requires_date,
+                "category": option.category,
+            }
+            for option in self._desktop_api.list_constraint_options()
+        )
 
     def build_workspace_state(
         self,
@@ -322,6 +336,9 @@ class ProjectTasksWorkspacePresenter:
 
     def update_task(self, payload: dict[str, Any]) -> None:
         update_task(self._desktop_api, payload)
+
+    def update_task_scheduling_constraint(self, payload: dict[str, Any]) -> None:
+        update_task_scheduling_constraint(self._desktop_api, payload)
 
     def move_task_in_wbs(self, payload: dict[str, Any]) -> None:
         move_task_in_wbs(self._desktop_api, payload)

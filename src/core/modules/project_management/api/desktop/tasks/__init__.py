@@ -20,6 +20,7 @@ from src.core.modules.project_management.api.desktop.tasks.commands.reservation_
     TaskReservationCreateCommand,
 )
 from src.core.modules.project_management.api.desktop.tasks.commands.task_commands import (
+    TaskConstraintUpdateCommand,
     TaskCreateCommand,
     TaskProgressCommand,
     TaskUpdateCommand,
@@ -37,6 +38,7 @@ from src.core.modules.project_management.api.desktop.tasks.models.dependency imp
     TaskDependencyImpactRowDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.tasks.models.options import (
+    TaskConstraintOptionDescriptor,
     TaskDependencyTypeDescriptor,
     TaskProjectOptionDescriptor,
     TaskProjectResourceOptionDescriptor,
@@ -74,6 +76,8 @@ __all__ = [
     "TaskAssignmentHoursCommand",
     "TaskAssignmentPlannedHoursCommand",
     "TaskBulkStatusCommand",
+    "TaskConstraintOptionDescriptor",
+    "TaskConstraintUpdateCommand",
     "TaskCreateCommand",
     "TaskDependencyCreateCommand",
     "TaskDependencyDesktopDto",

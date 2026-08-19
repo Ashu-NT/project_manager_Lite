@@ -60,7 +60,12 @@ from src.core.modules.project_management.api.desktop.tasks.commands.dependency_c
 from src.core.modules.project_management.api.desktop.tasks.commands.reservation_commands import (
     TaskReservationCreateCommand,
 )
+from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
+    EDITABLE_CONSTRAINT_OPTIONS,
+    coerce_constraint_type,
+)
 from src.core.modules.project_management.api.desktop.tasks.commands.task_commands import (
+    TaskConstraintUpdateCommand,
     TaskCreateCommand,
     TaskProgressCommand,
     TaskUpdateCommand,
@@ -73,6 +78,7 @@ from src.core.modules.project_management.api.desktop.tasks.models.dependency imp
     TaskDependencyDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.tasks.models.options import (
+    TaskConstraintOptionDescriptor,
     TaskDependencyTypeDescriptor,
     TaskProjectOptionDescriptor,
     TaskProjectResourceOptionDescriptor,
@@ -327,11 +333,41 @@ class ProjectManagementTasksDesktopApi:
             wbs_code=getattr(command, "wbs_code", "") or "",
             sort_order=getattr(command, "sort_order", None),
             is_milestone=bool(getattr(command, "is_milestone", False)),
+            constraint_type=coerce_constraint_type(getattr(command, "constraint_type", None)),
+            constraint_date=getattr(command, "constraint_date", None),
         )
         desired_status = coerce_task_status(command.status)
         if desired_status != task.status:
             service.set_status(task.id, desired_status)
             task = service.get_task(task.id) or task
+        return serialize_task(
+            task,
+            project_name=self._project_name_by_id().get(task.project_id, ""),
+        )
+
+    def list_constraint_options(self) -> tuple[TaskConstraintOptionDescriptor, ...]:
+        return tuple(
+            TaskConstraintOptionDescriptor(
+                value=option.value.value if option.value is not None else "",
+                code=option.code,
+                label=option.label,
+                description=option.description,
+                requires_date=option.requires_date,
+                category=option.category,
+            )
+            for option in EDITABLE_CONSTRAINT_OPTIONS
+        )
+
+    def update_task_scheduling_constraint(
+        self, command: TaskConstraintUpdateCommand
+    ) -> TaskDesktopDto:
+        service = self._require_task_service()
+        task = service.update_task_scheduling_constraint(
+            command.task_id,
+            constraint_type=coerce_constraint_type(command.constraint_type),
+            constraint_date=command.constraint_date,
+            expected_version=command.expected_version,
+        )
         return serialize_task(
             task,
             project_name=self._project_name_by_id().get(task.project_id, ""),

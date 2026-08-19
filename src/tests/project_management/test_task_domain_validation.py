@@ -4,6 +4,7 @@ from datetime import date
 
 import pytest
 
+from src.core.modules.project_management.domain.enums import ConstraintType
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment, TaskDependency
 from src.core.platform.common.exceptions import ValidationError
 
@@ -112,6 +113,79 @@ def test_task_is_milestone_normalizes_duration_to_zero():
 def test_task_is_milestone_coerces_truthy_values():
     task = Task.create(project_id="project-1", name="Milestone Task", is_milestone=1)
     assert task.is_milestone is True
+
+
+def test_task_defaults_to_no_scheduling_constraint():
+    task = Task.create(project_id="project-1", name="Regular Task", duration_days=5)
+    assert task.constraint_type is None
+    assert task.constraint_date is None
+
+
+def test_task_accepts_a_valid_dated_constraint():
+    task = Task.create(
+        project_id="project-1",
+        name="Constrained Task",
+        constraint_type=ConstraintType.START_NO_EARLIER_THAN,
+        constraint_date=date(2026, 9, 18),
+    )
+    assert task.constraint_type is ConstraintType.START_NO_EARLIER_THAN
+    assert task.constraint_date == date(2026, 9, 18)
+
+
+def test_task_coerces_a_valid_constraint_type_string():
+    task = Task.create(
+        project_id="project-1",
+        name="Constrained Task",
+        constraint_type="must_start_on",
+        constraint_date=date(2026, 9, 18),
+    )
+    assert task.constraint_type is ConstraintType.MUST_START_ON
+
+
+def test_task_rejects_an_invalid_constraint_type_string():
+    with pytest.raises(ValidationError) as exc_info:
+        Task.create(
+            project_id="project-1",
+            name="Constrained Task",
+            constraint_type="garbage",
+            constraint_date=date(2026, 9, 18),
+        )
+    assert exc_info.value.code == "TASK_CONSTRAINT_TYPE_INVALID"
+
+
+def test_task_rejects_deadline_as_a_selectable_constraint_type():
+    """DEADLINE exists only as ConstraintValidator's internal
+    classification for a task.deadline violation -- task.deadline is the
+    real, separate, user-facing field for that concept (see the R4.4
+    constraint audit doc, "Deadline remains separate")."""
+    with pytest.raises(ValidationError) as exc_info:
+        Task.create(
+            project_id="project-1",
+            name="Constrained Task",
+            constraint_type=ConstraintType.DEADLINE,
+            constraint_date=date(2026, 9, 18),
+        )
+    assert exc_info.value.code == "TASK_CONSTRAINT_TYPE_INVALID"
+
+
+def test_task_rejects_a_dated_constraint_type_with_no_date():
+    with pytest.raises(ValidationError) as exc_info:
+        Task.create(
+            project_id="project-1",
+            name="Constrained Task",
+            constraint_type=ConstraintType.MUST_START_ON,
+        )
+    assert exc_info.value.code == "TASK_CONSTRAINT_DATE_REQUIRED"
+
+
+def test_task_normalizes_a_stray_constraint_date_with_no_constraint_type():
+    task = Task.create(
+        project_id="project-1",
+        name="Unconstrained Task",
+        constraint_date=date(2026, 9, 18),
+    )
+    assert task.constraint_type is None
+    assert task.constraint_date is None
 
 
 def test_task_assignment_dto_validates_allocation_and_hours():

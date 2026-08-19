@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from src.core.modules.project_management.domain.enums import ConstraintType
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment, TaskDependency
 from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskAssignmentORM, TaskDependencyORM, TaskORM
 
 
 def task_to_orm(task: Task) -> TaskORM:
+    constraint_type = getattr(task, "constraint_type", None)
     return TaskORM(
         id=task.id,
         project_id=task.project_id,
@@ -25,12 +27,15 @@ def task_to_orm(task: Task) -> TaskORM:
         actual_start=task.actual_start,
         actual_end=task.actual_end,
         deadline=task.deadline,
+        constraint_type=constraint_type.value if constraint_type is not None else None,
+        constraint_date=task.constraint_date,
         is_milestone=getattr(task, "is_milestone", False),
         version=getattr(task, "version", 1),
     )
 
 
 def task_from_orm(obj: TaskORM) -> Task:
+    raw_constraint_type = getattr(obj, "constraint_type", None)
     return Task(
         id=obj.id,
         project_id=obj.project_id,
@@ -49,6 +54,12 @@ def task_from_orm(obj: TaskORM) -> Task:
         actual_start=obj.actual_start,
         actual_end=obj.actual_end,
         deadline=obj.deadline,
+        constraint_type=(
+            raw_constraint_type
+            if raw_constraint_type in (None, *ConstraintType.__members__.values())
+            else None
+        ),
+        constraint_date=getattr(obj, "constraint_date", None),
         is_milestone=getattr(obj, "is_milestone", False),
         version=getattr(obj, "version", 1),
     )

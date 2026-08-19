@@ -45,6 +45,8 @@ class TaskLifecycleMixin:
         wbs_code: str = "",
         sort_order: int | None = None,
         is_milestone: bool = False,
+        constraint_type=None,
+        constraint_date: date | None = None,
     ) -> Task:
         require_permission(self._user_session, "task.manage", operation_label="create task")
         require_project_permission(
@@ -63,7 +65,10 @@ class TaskLifecycleMixin:
             priority=priority,
             deadline=deadline,
             is_milestone=is_milestone,
+            constraint_type=constraint_type,
+            constraint_date=constraint_date,
         )
+        self._validate_constraint_date_is_working_day(task)
         task.code = self._resolve_task_code(code, project_id, task.name)
         task = self._prepare_new_task_hierarchy(
             task,

@@ -68,6 +68,7 @@ class ScheduleConflictDto:
     task_id: str
     task_name: str
     constraint_type: str
+    constraint_type_label: str
     constraint_date: date
     dependency_required_date: date
     direction: str

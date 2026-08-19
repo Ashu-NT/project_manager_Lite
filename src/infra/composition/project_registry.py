@@ -16,6 +16,9 @@ from src.core.platform.contract.models.approval.contracts import (
     ApprovalHandlerResult,
     ApprovalPostCommitEvent,
 )
+from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
+    coerce_constraint_type,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.access.policy import (
     PROJECT_SCOPE_ROLE_CHOICES,
@@ -111,6 +114,14 @@ def _as_dependency_type(value: Any) -> DependencyType:
     if isinstance(value, DependencyType):
         return value
     return DependencyType((value or DependencyType.FINISH_TO_START.value))
+
+
+def _as_optional_date(value: Any) -> date | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, date):
+        return value
+    return date.fromisoformat(value)
 
 
 @dataclass(frozen=True)
@@ -746,6 +757,16 @@ def _register_project_management_approval_handlers(
         )
         return _result("tasks_changed", req.project_id or "")
 
+    def _apply_task_constraint_update(req) -> ApprovalHandlerResult:
+        task_service._apply_task_scheduling_constraint_decision(
+            task_id=req.payload["task_id"],
+            constraint_type=coerce_constraint_type(req.payload.get("constraint_type")),
+            constraint_date=_as_optional_date(req.payload.get("constraint_date")),
+            expected_version=req.payload.get("expected_version"),
+            commit=False,
+        )
+        return _result("tasks_changed", req.project_id or "")
+
     def _require_financial_decision_actor() -> str:
         principal = user_session.principal if user_session else None
         if principal is None:
@@ -856,6 +877,10 @@ def _register_project_management_approval_handlers(
     approval_service.register_apply_handler(
         "dependency.update",
         _apply_dependency_update,
+    )
+    approval_service.register_apply_handler(
+        "task.constraint.update",
+        _apply_task_constraint_update,
     )
     approval_service.register_apply_handler(
         "budget.approve",

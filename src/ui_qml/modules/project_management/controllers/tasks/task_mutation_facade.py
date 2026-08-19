@@ -13,6 +13,10 @@ def update_task(controller, payload: dict[str, object]) -> dict[str, object]:
     return controller._task_list.updateTask(payload)
 
 
+def update_task_scheduling_constraint(controller, payload: dict[str, object]) -> dict[str, object]:
+    return controller._task_list.updateSchedulingConstraint(payload)
+
+
 def move_task_in_wbs(controller, payload: dict[str, object]) -> dict[str, object]:
     return controller._task_list.moveTaskInWbs(payload)
 

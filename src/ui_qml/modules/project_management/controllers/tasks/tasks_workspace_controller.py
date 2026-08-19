@@ -82,6 +82,7 @@ class ProjectManagementTasksWorkspaceController(
     bulkStatusOptionsChanged = Signal()
     priorityOptionsChanged = Signal()
     scheduleOptionsChanged = Signal()
+    constraintOptionsChanged = Signal()
     selectedStatusFilterChanged = Signal()
     selectedPriorityFilterChanged = Signal()
     selectedScheduleFilterChanged = Signal()
@@ -220,6 +221,13 @@ class ProjectManagementTasksWorkspaceController(
     @Property("QVariantList", notify=scheduleOptionsChanged)
     def scheduleOptions(self) -> list[dict[str, str]]:
         return self._task_list.scheduleOptions
+
+    @Property("QVariantList", notify=constraintOptionsChanged)
+    def constraintOptions(self) -> list[dict[str, object]]:
+        # Static (never changes at runtime for a given session) -- a
+        # real notify signal is declared only because QML properties
+        # need one for binding correctness; nothing ever emits it.
+        return list(self._tasks_workspace_presenter.list_constraint_options())
 
     @Property(str, notify=selectedStatusFilterChanged)
     def selectedStatusFilter(self) -> str:
@@ -625,6 +633,10 @@ class ProjectManagementTasksWorkspaceController(
     @Slot("QVariantMap", result="QVariantMap")
     def updateTask(self, payload: dict[str, object]) -> dict[str, object]:
         return _mut.update_task(self, payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateSchedulingConstraint(self, payload: dict[str, object]) -> dict[str, object]:
+        return _mut.update_task_scheduling_constraint(self, payload)
 
     @Slot("QVariantMap", result="QVariantMap")
     def moveTaskInWbs(self, payload: dict[str, object]) -> dict[str, object]:

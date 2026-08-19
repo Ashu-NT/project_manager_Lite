@@ -4,20 +4,11 @@ from src.core.platform.contract.port.time_management.calendar.calendar_protocol 
 
 from dataclasses import dataclass, field
 from datetime import date
-from enum import Enum
 
+from src.core.modules.project_management.domain.enums import ConstraintType
 from src.core.modules.project_management.domain.tasks.task import Task
 from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
 
-
-class ConstraintType(str, Enum):
-    MUST_START_ON = "must_start_on"
-    MUST_FINISH_ON = "must_finish_on"
-    START_NO_EARLIER_THAN = "start_no_earlier_than"
-    START_NO_LATER_THAN = "start_no_later_than"
-    FINISH_NO_EARLIER_THAN = "finish_no_earlier_than"
-    FINISH_NO_LATER_THAN = "finish_no_later_than"
-    DEADLINE = "deadline"
 
 
 @dataclass
@@ -33,12 +24,24 @@ class ConstraintViolation:
 
 @dataclass
 class DependencyConstraintConflict:
-    """A hard scheduling constraint (Must Start On / Must Finish On)
-    silently overrode what the task's incoming TaskDependency edges
-    required. Non-blocking -- this is a reported fact, not a raised error;
-    the schedule still uses the constraint-driven date (see
-    SchedulingEngine._apply_scheduling_constraints), but the conflict is no
-    longer invisible. 
+    """A task's constraint and its incoming TaskDependency edges cannot
+    both be satisfied. Two distinct shapes fall under this one fact:
+
+    - MUST_START_ON / MUST_FINISH_ON: the constraint silently overrode
+      what the dependency required (it drives the forward pass -- see
+      task_date_math.apply_scheduling_constraints). The schedule uses
+      the constraint-driven date; this makes the override visible.
+    - START_NO_LATER_THAN / FINISH_NO_LATER_THAN (R4.4 Phase K): these
+      never drive the forward pass, so the dependency-required date
+      flows through untouched and ALSO surfaces as a plain
+      ConstraintViolation from _check_task. This fact adds the
+      dependency context that violation alone loses: not just "the
+      computed date exceeds the ceiling" but "...because this specific
+      predecessor relationship requires a later date, and nothing can
+      satisfy both."
+
+    Always non-blocking -- a reported fact, not a raised error; the
+    schedule is never blocked from persisting because of it.
     """
 
     task_id: str
@@ -145,6 +148,28 @@ class ConstraintValidator:
         if ct == ConstraintType.MUST_FINISH_ON and info.dependency_implied_finish is not None:
             required = info.dependency_implied_finish
             if required != cd:
+                return [self._dependency_conflict(task, ct, cd, required, "finish")]
+
+        # R4.4 Phase K: SNLT/FNLT never drive the forward pass (they are
+        # validation-only, task_date_math.py), so a dependency-implied
+        # date past the ceiling isn't silently overridden the way MSO/MFO
+        # are -- it flows straight through to earliest_start/
+        # earliest_finish and is ALSO reported there as a plain
+        # ConstraintViolation by _check_task. This is a genuinely
+        # separate fact worth keeping distinct: an isolated violation row
+        # says "the computed date exceeds the ceiling"; this dependency
+        # conflict additionally says "...and here is the dependency
+        # relationship that caused it, with no way to satisfy both" --
+        # the infeasible-combination context the ceiling-only violation
+        # loses on its own.
+        if ct == ConstraintType.START_NO_LATER_THAN and info.dependency_implied_start is not None:
+            required = info.dependency_implied_start
+            if required > cd:
+                return [self._dependency_conflict(task, ct, cd, required, "start")]
+
+        if ct == ConstraintType.FINISH_NO_LATER_THAN and info.dependency_implied_finish is not None:
+            required = info.dependency_implied_finish
+            if required > cd:
                 return [self._dependency_conflict(task, ct, cd, required, "finish")]
 
         return []

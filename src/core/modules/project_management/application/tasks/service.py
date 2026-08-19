@@ -40,6 +40,9 @@ from src.core.modules.project_management.application.tasks.commands.progress imp
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
     TaskScheduleSyncMixin,
 )
+from src.core.modules.project_management.application.tasks.commands.scheduling_constraint import (
+    TaskSchedulingConstraintMixin,
+)
 from src.core.modules.project_management.application.tasks.commands.time_entries import (
     TaskTimeEntryMixin,
 )
@@ -88,6 +91,7 @@ class TaskService(
     TaskLifecycleMixin,
     TaskDependencyDiagnosticsMixin,
     TaskDependencyMixin,
+    TaskSchedulingConstraintMixin,
     TaskAssignmentMixin,
     TaskTimeEntryMixin,
     TaskAssignmentBridgeMixin,

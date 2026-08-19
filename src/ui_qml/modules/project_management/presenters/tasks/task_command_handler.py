@@ -4,6 +4,7 @@ from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
     TaskBulkStatusCommand,
+    TaskConstraintUpdateCommand,
     TaskCreateCommand,
     TaskProgressCommand,
     TaskUpdateCommand,
@@ -52,6 +53,8 @@ def create_task(desktop_api, payload: dict[str, Any]) -> None:
         wbs_code=optional_text(payload, "wbsCode"),
         sort_order=optional_int(payload, "sortOrder"),
         is_milestone=bool(payload.get("isMilestone", False)),
+        constraint_type=optional_text(payload, "constraintType"),
+        constraint_date=optional_date(payload, "constraintDate"),
     )
     desktop_api.create_task(command)
 
@@ -72,6 +75,20 @@ def update_task(desktop_api, payload: dict[str, Any]) -> None:
         ),
     )
     desktop_api.update_task(command)
+
+def update_task_scheduling_constraint(desktop_api, payload: dict[str, Any]) -> None:
+    """Deliberately separate from update_task above: this is the sole,
+    governed mutation path for CHANGING an existing task's scheduling
+    constraint (see TaskSchedulingConstraintMixin) -- not a generic
+    field edit. constraintType == "" means ASAP: clear the constraint
+    back to none."""
+    command = TaskConstraintUpdateCommand(
+        task_id=require_text(payload, "taskId", "Task ID is required for updates."),
+        constraint_type=optional_text(payload, "constraintType"),
+        constraint_date=optional_date(payload, "constraintDate"),
+        expected_version=optional_int(payload, "expectedVersion"),
+    )
+    desktop_api.update_task_scheduling_constraint(command)
 
 
 def move_task_in_wbs(desktop_api, payload: dict[str, Any]) -> None:

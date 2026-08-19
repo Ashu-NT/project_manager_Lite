@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
+    constraint_presentation,
+)
 from src.core.modules.project_management.api.desktop.tasks.models.task import TaskDesktopDto
 
 
 def serialize_task(task, *, project_name: str, hierarchy_node=None, rollup=None) -> TaskDesktopDto:
+    constraint_type = getattr(task, "constraint_type", None)
     is_summary = bool(getattr(hierarchy_node, "is_summary", False))
     status = rollup.status if is_summary and rollup is not None else task.status
     return TaskDesktopDto(
@@ -36,6 +40,9 @@ def serialize_task(task, *, project_name: str, hierarchy_node=None, rollup=None)
         child_count=int(getattr(hierarchy_node, "child_count", 0) or 0),
         ancestor_ids=tuple(getattr(hierarchy_node, "ancestor_ids", ()) or ()),
         is_milestone=bool(getattr(task, "is_milestone", False)),
+        constraint_type=constraint_type.value if constraint_type is not None else "",
+        constraint_type_label=constraint_presentation(constraint_type).label,
+        constraint_date=getattr(task, "constraint_date", None),
     )
 
 

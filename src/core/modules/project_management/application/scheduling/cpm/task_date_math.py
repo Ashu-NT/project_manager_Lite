@@ -167,16 +167,22 @@ def apply_scheduling_constraints(
         return est, eft
 
     duration = int(task.duration_days or 0)
+    start_is_locked = getattr(task, "actual_start", None) is not None
 
     if ct == ConstraintType.MUST_START_ON:
+        if start_is_locked:
+            return est, eft
         est = cd
         eft = calendar.add_working_days(cd, duration) if duration > 0 else cd
 
     elif ct == ConstraintType.MUST_FINISH_ON:
         eft = cd
-        est = calendar.add_working_days(cd, -(duration - 1)) if duration > 0 else cd
+        if not start_is_locked:
+            est = calendar.add_working_days(cd, -(duration - 1)) if duration > 0 else cd
 
     elif ct == ConstraintType.START_NO_EARLIER_THAN:
+        if start_is_locked:
+            return est, eft
         if est is None or est < cd:
             est = cd
             eft = calendar.add_working_days(cd, duration) if duration > 0 else cd
@@ -184,7 +190,8 @@ def apply_scheduling_constraints(
     elif ct == ConstraintType.FINISH_NO_EARLIER_THAN:
         if eft is None or eft < cd:
             eft = cd
-            est = calendar.add_working_days(cd, -(duration - 1)) if duration > 0 else cd
+            if not start_is_locked:
+                est = calendar.add_working_days(cd, -(duration - 1)) if duration > 0 else cd
 
     return est, eft
 

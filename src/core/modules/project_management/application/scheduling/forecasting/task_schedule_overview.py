@@ -207,10 +207,12 @@ def build_schedule_drivers(
     constraint_type = getattr(task, "constraint_type", None)
     constraint_date = getattr(task, "constraint_date", None)
     if constraint_type and constraint_date:
+
+        raw_constraint_type = getattr(constraint_type, "value", constraint_type)
         drivers.append(
             ScheduleDriver(
                 kind="constraint",
-                label=str(constraint_type),
+                label=str(raw_constraint_type),
                 detail=constraint_date.isoformat(),
             )
         )

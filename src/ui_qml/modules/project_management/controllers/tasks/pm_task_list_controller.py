@@ -264,6 +264,17 @@ class PMTaskListController(QObject):
         )
 
     @Slot("QVariantMap", result="QVariantMap")
+    def updateSchedulingConstraint(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._presenter.update_task_scheduling_constraint(dict(payload)),
+            success_message="Scheduling constraint updated.",
+            on_success=self._facade_refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
     def moveTaskInWbs(self, payload: dict[str, object]) -> dict[str, object]:
         return run_mutation(
             operation=lambda: self._presenter.move_task_in_wbs(dict(payload)),

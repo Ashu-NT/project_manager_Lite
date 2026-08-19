@@ -31,6 +31,9 @@ class TaskDesktopDto:
     child_count: int = 0
     ancestor_ids: tuple[str, ...] = ()
     is_milestone: bool = False
+    constraint_type: str = ""
+    constraint_type_label: str = ""
+    constraint_date: date | None = None
 
 
 @dataclass(frozen=True)

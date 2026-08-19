@@ -9,6 +9,7 @@ DEFAULT_GOVERNED_ACTIONS = {
     "dependency.remove",
     "dependency.update",
     "project_cost.approve",
+    "task.constraint.update",
 }
 
 
