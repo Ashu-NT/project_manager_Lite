@@ -363,7 +363,7 @@ AppWidgets.EntityDialog {
         AppControls.TextArea {
             id: descriptionField
             Layout.fillWidth: true
-            Layout.preferredHeight: 150
+            Layout.preferredHeight: 75
             placeholderText: "Execution notes, scope, and completion criteria."
             wrapMode: TextEdit.WordWrap
         }
