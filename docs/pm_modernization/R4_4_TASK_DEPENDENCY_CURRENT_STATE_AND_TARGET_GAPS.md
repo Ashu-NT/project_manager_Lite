@@ -2,6 +2,12 @@
 
 Status: read-only audit. No code was changed to produce this document. No commits were made.
 
+**Since superseded, in part:** the follow-up PRE-R4.4 ENTERPRISE FOUNDATION
+UPGRADE implementation pass acted on this audit's findings. See
+[`R4_4_TASK_DEPENDENCY_IMPLEMENTATION_SUMMARY.md`](./R4_4_TASK_DEPENDENCY_IMPLEMENTATION_SUMMARY.md)
+for what was built in response to each finding below — this document
+remains the accurate *before* snapshot and is not itself updated in place.
+
 Branch audited: `refactor/safe-start` (HEAD `7272de6d` at audit time).
 
 Method: seven independent code-reading passes, each required to cite `file:line`
