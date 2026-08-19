@@ -21,6 +21,7 @@ class TaskWorkspaceCriteria:
     status: str = "all"
     priority: str = "all"
     schedule: str = "all"
+    milestones_only: bool = False
     as_of: date | None = None
 
 
@@ -48,6 +49,7 @@ class TaskWorkspaceReadItem:
     is_summary: bool
     hierarchy_depth: int
     child_count: int
+    is_milestone: bool = False
 
 
 @dataclass(frozen=True, slots=True)

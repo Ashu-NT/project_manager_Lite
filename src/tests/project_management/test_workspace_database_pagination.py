@@ -380,6 +380,29 @@ def test_task_workspace_pages_effective_wbs_rollups_before_filtering(services) -
     assert [item.id for item in priority_page.items] == [child.id]
 
 
+def test_task_workspace_milestones_only_filter(services) -> None:
+    project_service = services["project_service"]
+    task_service = services["task_service"]
+    project = project_service.create_project("Milestone Filter Project")
+    task_service.create_task(
+        project.id, "Regular Task", start_date=date(2026, 5, 1), duration_days=5
+    )
+    milestone = task_service.create_task(
+        project.id, "Handover", start_date=date(2026, 5, 5), duration_days=5, is_milestone=True
+    )
+
+    all_page = task_service.query_workspace_page(project_id=project.id, page=1, page_size=25)
+    milestones_page = task_service.query_workspace_page(
+        project_id=project.id, milestones_only=True, page=1, page_size=25
+    )
+
+    assert all_page.filtered_total == 2
+    assert milestones_page.filtered_total == 1
+    assert [item.id for item in milestones_page.items] == [milestone.id]
+    assert milestones_page.items[0].is_milestone is True
+    assert milestones_page.items[0].duration_days == 0
+
+
 def test_task_workspace_sort_is_authoritative_across_pages(services) -> None:
     project = services["project_service"].create_project("Task Sort Project")
     task_service = services["task_service"]

@@ -77,6 +77,7 @@ class TaskCatalogWorkspaceViewModel:
     selected_status_filter: str = "all"
     selected_priority_filter: str = "all"
     selected_schedule_filter: str = "all"
+    selected_milestones_only: bool = False
     search_text: str = ""
     tasks: tuple[TaskRecordViewModel, ...] = field(default_factory=tuple)
     wbs_parent_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)

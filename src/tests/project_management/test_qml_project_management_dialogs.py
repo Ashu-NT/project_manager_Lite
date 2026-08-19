@@ -167,6 +167,62 @@ def test_task_editor_dialog_submit_button_emits_payload() -> None:
     assert captured[0]["status"] == "IN_PROGRESS"
 
 
+def test_task_editor_dialog_milestone_checkbox_zeroes_duration() -> None:
+    _, root = _load_dialog(
+        TASK_EDITOR_DIALOG,
+        {
+            "modeTitle": "Edit Task",
+            "statusOptions": [{"value": "IN_PROGRESS", "label": "In Progress"}],
+            "taskData": {
+                "state": {
+                    "taskId": "task-99",
+                    "name": "Handover",
+                    "startDate": "2026-05-10",
+                    "durationDays": "5",
+                    "status": "IN_PROGRESS",
+                }
+            },
+        },
+    )
+    captured: list[dict] = []
+    root.submitted.connect(lambda payload: captured.append(_variant(payload)))
+
+    assert QMetaObject.invokeMethod(root, "populateFromTask")
+    milestone_check = _find_child(root, "milestoneCheck")
+    assert milestone_check.property("checked") is False
+
+    milestone_check.setProperty("checked", True)
+    submit_button = _find_child(root, "dialogSubmitButton")
+    assert QMetaObject.invokeMethod(submit_button, "click")
+
+    assert len(captured) == 1
+    assert captured[0]["isMilestone"] is True
+    assert captured[0]["durationDays"] == "0"
+
+
+def test_task_editor_dialog_populates_existing_milestone_flag() -> None:
+    _, root = _load_dialog(
+        TASK_EDITOR_DIALOG,
+        {
+            "modeTitle": "Edit Task",
+            "statusOptions": [{"value": "IN_PROGRESS", "label": "In Progress"}],
+            "taskData": {
+                "state": {
+                    "taskId": "task-99",
+                    "name": "Handover",
+                    "durationDays": "0",
+                    "status": "IN_PROGRESS",
+                    "isMilestone": True,
+                }
+            },
+        },
+    )
+
+    assert QMetaObject.invokeMethod(root, "populateFromTask")
+    milestone_check = _find_child(root, "milestoneCheck")
+    assert milestone_check.property("checked") is True
+
+
 def test_task_progress_dialog_submit_button_emits_payload() -> None:
     _, root = _load_dialog(
         TASK_PROGRESS_DIALOG,

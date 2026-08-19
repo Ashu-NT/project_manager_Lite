@@ -24,6 +24,7 @@ def build_task_workspace_criteria(
     priority: str,
     schedule: str,
     as_of: date,
+    milestones_only: bool = False,
 ) -> TaskWorkspaceCriteria:
     terms: list[str] = []
     conditions: list[TaskWorkspaceCondition] = []
@@ -47,6 +48,7 @@ def build_task_workspace_criteria(
         status=str(status or "all").strip().upper(),
         priority=str(priority or "all").strip().lower(),
         schedule=str(schedule or "all").strip().lower(),
+        milestones_only=bool(milestones_only),
         as_of=as_of,
     )
 

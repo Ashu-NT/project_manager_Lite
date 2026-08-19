@@ -140,9 +140,11 @@ class DashboardProfessionalMixin:
 
     @staticmethod
     def _is_explicit_milestone(task: object) -> bool:
-        name = str(getattr(task, "name", "") or "").strip().lower()
-        duration = getattr(task, "duration_days", None)
-        return duration == 0 or "milestone" in name or "gate" in name
+        """Task.is_milestone is the single source of truth (see
+        Milestones in docs/pm_modernization/R4_4_TASK_DEPENDENCY_IMPLEMENTATION_SUMMARY.md)
+        -- previously guessed from duration_days==0 or a "milestone"/"gate"
+        name-sniff, both dropped now that a real flag exists."""
+        return bool(getattr(task, "is_milestone", False))
 
     @staticmethod
     def _milestone_target(task: object, info_by_id: dict[str, CPMTaskInfo]) -> date | None:

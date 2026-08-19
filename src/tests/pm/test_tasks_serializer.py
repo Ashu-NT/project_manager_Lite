@@ -50,6 +50,38 @@ def test_wbs_code_round_trips_from_db_to_serialized_table_row(services) -> None:
     assert rows[0]["startDateLabel"] == "01 May 2026"
 
 
+def test_milestone_task_shows_marker_in_title_and_milestones_only_filter_selects_it(services) -> None:
+    project_service = services["project_service"]
+    task_service = services["task_service"]
+    project = project_service.create_project("Milestone Marker Check")
+    task_service.create_task(
+        project.id, "Regular Task", start_date=date(2026, 5, 1), duration_days=5,
+    )
+    task_service.create_task(
+        project.id,
+        "Handover",
+        start_date=date(2026, 5, 6),
+        duration_days=5,
+        is_milestone=True,
+    )
+
+    tasks_api = build_project_management_tasks_desktop_api(task_service=task_service)
+    page = tasks_api.list_task_page(project_id=project.id, page=1, page_size=25, sort_key="title")
+    view_models = tuple(to_task_record_view_model(task) for task in page.items)
+    rows = serialize_task_record_view_models(view_models)
+    row_by_title = {row["title"].strip().lstrip("◆ "): row for row in rows}
+
+    assert row_by_title["Handover"]["title"].strip().startswith("◆")
+    assert row_by_title["Handover"]["state"]["isMilestone"] is True
+    assert not row_by_title["Regular Task"]["title"].strip().startswith("◆")
+    assert row_by_title["Regular Task"]["state"]["isMilestone"] is False
+
+    milestones_only_page = tasks_api.list_task_page(
+        project_id=project.id, milestones_only=True, page=1, page_size=25
+    )
+    assert {item.name for item in milestones_only_page.items} == {"Handover"}
+
+
 def test_priority_label_shows_the_same_bucket_the_priority_filter_selects(services) -> None:
     project_service = services["project_service"]
     task_service = services["task_service"]

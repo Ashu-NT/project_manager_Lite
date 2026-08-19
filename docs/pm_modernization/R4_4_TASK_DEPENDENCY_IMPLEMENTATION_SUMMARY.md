@@ -445,3 +445,168 @@ renamed desktop API method, not for new behavior.
   changed"), not a before/after path listing — no backend fact for the
   latter exists, and none was invented (§18's own fallback: "'Critical
   path changed' is sufficient").
+
+### Post-hoc bugfixes from live-app testing
+
+Four defects surfaced by live use of the above, all fixed and covered by
+`test_task_schedule_impact_bugfixes.py`:
+
+- A summary/parent task showing its own `start_date` still reported the
+  generic "needs a computed start date" message — indistinguishable from
+  a genuinely date-less leaf task. `select_leaf_tasks` correctly excludes
+  summary tasks from CPM regardless of their own dates; the UI just had
+  no way to say so. Fixed via `TaskScheduleOverview.unavailable_reason`
+  (`summary_task` / `not_found` / `no_computed_date` /
+  `service_not_configured` / `error`), threaded through the DTO and
+  surfaced as a distinct QML message per reason.
+- Adding/editing/removing a dependency didn't refresh the Dependencies
+  table or Schedule Impact facts for the selected task until the user
+  left and re-entered Task Detail. The generic `facade_refresh` shared by
+  every subcontroller only rebuilds the task list, never per-section
+  detail state — and QML's `LazySectionLoader.active` only (re-)loads on
+  a false→true transition, not on every property change. Fixed via
+  `refresh_after_dependency_mutation()`, a dependency-specific
+  `facade_refresh` that forces an immediate, targeted reload of
+  Dependencies + Schedule Impact + the task-list row.
+- Every task showed the generic unavailable message regardless of its
+  actual dates, and no backend log line ever fired to explain why. Root
+  cause: the Tasks workspace's project_id is a project **filter**
+  ("All Projects" leaves it blank), not the selected task's own project —
+  `schedule_impact_builder.py` bailed to the empty state whenever that
+  filter was blank, before the backend call ever ran. Fixed by resolving
+  the task's real `project_id` via `desktop_api.get_task()` when the
+  filter is blank, mirroring `task_lookup.py`'s `resolve_selected_task`
+  fallback already used by Dependencies.
+- "Preview Impact" worked for a 1 working-day delay but silently showed
+  nothing for larger delays. Root cause: the task has a hard `deadline`
+  field (distinct from `end_date`); a delay pushing the proposed start
+  past it raised `ValidationError` deep inside `analyse()`'s
+  `dataclasses.replace()` — silently swallowed by a bare
+  `except Exception`. Fixed by detecting the conflict before `replace()`
+  and returning `ScheduleChangeImpactReport.blocked_by_deadline` /
+  `blocked_reason` instead of crashing; the preview panel now shows a
+  danger-toned message explaining the conflict. The two remaining bare
+  `except Exception` blocks in this call chain now log at `warning`/
+  `exception` level instead of swallowing silently; the routine
+  diagnostic breadcrumbs added alongside them log at `debug`.
+
+## 18. Milestones
+
+A task's milestone status was previously implicit and inconsistent:
+`run_cpm`/`task_date_math.py` treat any task with `duration_days <= 0`
+as a milestone for date-math purposes (EFT == EST), while
+`dashboard/widgets/professional.py`'s `_is_explicit_milestone` separately
+guessed from `duration_days == 0` OR a `"milestone"`/`"gate"` substring
+in the task name. There was no dedicated concept a user could set, view,
+or filter on directly, and the two guesses could disagree with each
+other and with user intent.
+
+### Domain model
+
+`Task.is_milestone: bool = False` (`domain/tasks/task.py`) is now the
+single source of truth. A model validator normalizes `duration_days` to
+`0` whenever `is_milestone` is true — milestones are zero-duration by
+definition, the same convention every consumer already used, so callers
+never need to remember to zero the duration themselves. This does *not*
+touch CPM's own `duration_days <= 0` date-math branches
+(`task_date_math.py`, `passes.py`, `date_compute.py`,
+`resource_leveling_engine.py`/`leveling_mixin.py`) — those are pure
+arithmetic ("zero-or-negative duration means EFT=EST"), not a milestone
+classification, and R4.4's leveling boundary (§16) means the leveling
+files were not touched at all.
+
+Persisted via `TaskORM.is_milestone` (`Boolean`, default `False`) and
+migration `x4y5z6a7b8c9_add_task_is_milestone.py`, which backfills
+`is_milestone = true` for existing rows with `duration_days = 0` —
+already-recognized milestones (per CPM's own convention) keep displaying
+as one after the migration, with no manual re-tagging. The unreliable
+name-sniffing heuristic is deliberately not used for backfill.
+
+### Repointed consumers
+
+`task_schedule_overview.py`'s `_is_milestone()` (drives Schedule
+Impact's downstream-milestone-count) and
+`schedule_change_impact_service.py`'s `TaskImpact.is_milestone` (drives
+the Preview Impact rows' milestone flag) now read `task.is_milestone`
+directly instead of guessing from `duration_days`.
+`dashboard/widgets/professional.py`'s `_is_explicit_milestone` now reads
+`task.is_milestone` only — the name-sniff is dropped, since the real
+flag makes it both unnecessary and a source of false positives.
+
+### Application / desktop API / QML threading
+
+`TaskLifecycleMixin.create_task`/`update_task` accept `is_milestone`
+(create: `bool = False`; update: `bool | None = None`, meaning "leave
+unchanged") and keep `end_date` consistent with whatever `duration_days`
+the domain settles on — computed from the *post-normalization* value,
+not the raw caller-supplied one, so a milestone's `end_date` always
+equals its `start_date`. `TaskCreateCommand`/`TaskUpdateCommand`,
+`TaskDesktopDto`, and `task_serializer.py` all carry `is_milestone`
+through to the QML layer.
+
+`TaskEditorDialog.qml` gained a "This is a milestone (zero-duration)"
+checkbox (`milestoneCheck`): checking it disables and zeroes the
+Duration field client-side (the domain normalizes it regardless, but the
+UI shouldn't show a stale non-zero value); the payload's `durationDays`
+is forced to `"0"` when checked.
+
+### Task list badge and filter
+
+The Tasks workspace list is a generic column-driven `DataTable` (plain
+text cells via `TasksColumnConfig.js`, not per-cell rich rendering), so
+the lowest-risk way to surface milestone status in the list is a small
+glyph prefix on the title (`◆ `) in `task_mapper.py`'s
+`to_task_record_view_model` — consistent with how hierarchy indentation
+is already done there, and visible without any `DataTable.qml` changes.
+
+A server-side "Milestones only" filter was added end-to-end (query-time,
+like the existing status/priority/schedule filters, not a client-side
+filter over one already-fetched page — tasks are paginated server-side,
+so a page-local filter would silently miss milestones on other pages):
+`TaskWorkspaceCriteria.milestones_only` →
+`SqlAlchemyTaskWorkspaceReader._filtered_conditions` (a plain
+`is_milestone.is_(True)` predicate) → `TaskQueryMixin.query_workspace_page`
+→ `ProjectManagementTasksDesktopApi.list_task_page` →
+`TasksWorkspaceState`/`ProjectManagementTasksWorkspaceController`
+(`milestonesOnlyFilter` property, `setMilestonesOnlyFilter` slot,
+`task_filter_actions.set_milestones_only_filter`, folded into
+`clearFilters`) → a "Milestones only" checkbox in `TasksFilterPopup.qml`.
+Also threaded into `list_export_records`/`export_tasks` so an export
+taken while the filter is active matches what's on screen, consistent
+with the existing search/status/priority/schedule export-consistency
+guarantee.
+
+### Tests
+
+Domain: `test_task_domain_validation.py` (default false, duration
+normalization, truthy coercion). Migration:
+`test_task_is_milestone_migration.py` (backfill from zero duration,
+clean downgrade — run against a real Alembic upgrade/downgrade chain,
+not just the ORM). Application: `test_project_management_desktop_api_tasks_crud.py`
+(create/update threading end-to-end through the desktop API, including
+duration normalization). Query/filter: `test_workspace_database_pagination.py`
+(milestones-only filter against the real SQL reader). List badge:
+`test_tasks_serializer.py` (title marker + filter, through the real
+desktop API and serializer). Dialog:
+`test_qml_project_management_dialogs.py` (checkbox zeroes duration on
+check, populates correctly from an existing milestone task) — QML
+runtime-load tests via the same `create_qml_engine()`/`QMetaObject.invokeMethod`
+harness used throughout R4.4.
+
+### Known, disclosed gaps
+
+- No dedicated "Milestones" view/report (e.g. a project-wide milestone
+  timeline) was built — only list-level badge/filter, per the requested
+  scope. A milestone-focused view would be a separate, larger feature.
+- `TasksFilterPopup.qml`'s new checkbox was not given its own QML
+  runtime-load test — no QML test of any kind exists for this popup
+  (every one of its existing filters is equally untested at that layer);
+  adding one would mean building fake-controller test infrastructure for
+  the whole popup as a side effect of this feature, which was judged out
+  of proportion here. The checkbox itself is the same `AppControls.CheckBox`
+  `checked`/`onCheckedChanged` idiom already covered by
+  `TaskEditorDialog.qml`'s `milestoneCheck` test.
+- `list_export_records`/export threading covers CSV/table export;
+  baseline snapshots (`BaselineTask`) do not carry `is_milestone` — that
+  was judged a separate enhancement outside this feature's requested
+  scope (baselines snapshot schedule facts, not this flag).

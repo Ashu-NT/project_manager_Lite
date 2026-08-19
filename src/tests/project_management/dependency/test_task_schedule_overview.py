@@ -88,7 +88,7 @@ def test_downstream_exposure_counts_transitive_tasks_and_milestones(services):
     a = ts.create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
     b = ts.create_task(project.id, "Task B", "", duration_days=2)
     c = ts.create_task(project.id, "Task C", "", duration_days=2)
-    milestone = ts.create_task(project.id, "Milestone", "", duration_days=0)
+    milestone = ts.create_task(project.id, "Milestone", "", duration_days=0, is_milestone=True)
     unrelated = ts.create_task(project.id, "Unrelated", "", start_date=date(2024, 1, 1), duration_days=1)
 
     ts.add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)

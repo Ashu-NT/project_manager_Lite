@@ -35,6 +35,7 @@ def serialize_task(task, *, project_name: str, hierarchy_node=None, rollup=None)
         hierarchy_depth=int(getattr(hierarchy_node, "depth", 0) or 0),
         child_count=int(getattr(hierarchy_node, "child_count", 0) or 0),
         ancestor_ids=tuple(getattr(hierarchy_node, "ancestor_ids", ()) or ()),
+        is_milestone=bool(getattr(task, "is_milestone", False)),
     )
 
 

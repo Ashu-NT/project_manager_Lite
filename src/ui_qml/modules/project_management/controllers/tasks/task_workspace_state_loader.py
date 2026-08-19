@@ -17,6 +17,7 @@ def do_refresh(controller) -> None:
             status_filter=controller._selected_status_filter,
             priority_filter=controller._selected_priority_filter,
             schedule_filter=controller._selected_schedule_filter,
+            milestones_only=controller._milestones_only_filter,
             selected_task_id=controller._selected_task_id or None,
             page=controller._task_page,
             page_size=controller._task_page_size,
@@ -29,6 +30,7 @@ def do_refresh(controller) -> None:
         controller._set_selected_status_filter(ws.selected_status_filter)
         controller._set_selected_priority_filter(ws.selected_priority_filter)
         controller._set_selected_schedule_filter(ws.selected_schedule_filter)
+        controller._set_milestones_only_filter(ws.selected_milestones_only)
         controller._set_search_text(ws.search_text)
         controller._set_empty_state(ws.empty_state)
         controller._set_task_total_count(ws.total_count)

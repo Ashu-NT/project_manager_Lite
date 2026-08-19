@@ -85,6 +85,7 @@ class ProjectManagementTasksWorkspaceController(
     selectedStatusFilterChanged = Signal()
     selectedPriorityFilterChanged = Signal()
     selectedScheduleFilterChanged = Signal()
+    milestonesOnlyFilterChanged = Signal()
     searchTextChanged = Signal()
     tasksChanged = Signal()
     selectedTaskChanged = Signal()
@@ -145,6 +146,7 @@ class ProjectManagementTasksWorkspaceController(
         self._selected_status_filter = "all"
         self._selected_priority_filter = "all"
         self._selected_schedule_filter = "all"
+        self._milestones_only_filter = False
         self._search_text = ""
         self._selected_task_id = ""
         self._selected_assignment_id = ""
@@ -230,6 +232,10 @@ class ProjectManagementTasksWorkspaceController(
     @Property(str, notify=selectedScheduleFilterChanged)
     def selectedScheduleFilter(self) -> str:
         return self._selected_schedule_filter
+
+    @Property(bool, notify=milestonesOnlyFilterChanged)
+    def milestonesOnlyFilter(self) -> bool:
+        return self._milestones_only_filter
 
     @Property(str, notify=searchTextChanged)
     def searchText(self) -> str:
@@ -465,6 +471,10 @@ class ProjectManagementTasksWorkspaceController(
     @Slot(str)
     def setScheduleFilter(self, schedule_filter: str) -> None:
         _filter.set_schedule_filter(self, schedule_filter)
+
+    @Slot(bool)
+    def setMilestonesOnlyFilter(self, milestones_only: bool) -> None:
+        _filter.set_milestones_only_filter(self, milestones_only)
 
     @Slot()
     def clearFilters(self) -> None:

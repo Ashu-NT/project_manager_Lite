@@ -44,6 +44,7 @@ class TaskLifecycleMixin:
         parent_task_id: str | None = None,
         wbs_code: str = "",
         sort_order: int | None = None,
+        is_milestone: bool = False,
     ) -> Task:
         require_permission(self._user_session, "task.manage", operation_label="create task")
         require_project_permission(
@@ -61,6 +62,7 @@ class TaskLifecycleMixin:
             status=status,
             priority=priority,
             deadline=deadline,
+            is_milestone=is_milestone,
         )
         task.code = self._resolve_task_code(code, project_id, task.name)
         task = self._prepare_new_task_hierarchy(
@@ -69,8 +71,13 @@ class TaskLifecycleMixin:
             wbs_code=wbs_code,
             sort_order=sort_order,
         )
-        if start_date and duration_days is not None:
-            task.end_date = self._work_calendar_engine.add_working_days(start_date, int(duration_days))
+        # task.duration_days, not the raw duration_days param -- Task's own
+        # model validator normalizes it to 0 for a milestone, and end_date
+        # must stay consistent with whatever duration actually landed.
+        if start_date and task.duration_days is not None:
+            task.end_date = self._work_calendar_engine.add_working_days(
+                start_date, int(task.duration_days)
+            )
 
         self._validate_task_within_project_dates(project_id, task.start_date, task.end_date)
 
@@ -118,6 +125,7 @@ class TaskLifecycleMixin:
         deadline: date | None = None,
         expected_version: int | None = None,
         code: str | None = None,
+        is_milestone: bool | None = None,
     ) -> Task:
         require_permission(self._user_session, "task.manage", operation_label="update task")
         task = self._task_repo.get(task_id)
@@ -147,10 +155,17 @@ class TaskLifecycleMixin:
                 )
 
         next_name = task.name if name is None else name
-        next_start_date = task.start_date if start_date is None else start_date
+        next_is_milestone = task.is_milestone if is_milestone is None else is_milestone
         next_duration_days = task.duration_days if duration_days is None else duration_days
+        if next_is_milestone:
+            # Milestones are zero-duration -- normalized here (not left to
+            # Task's own model validator) because end_date below is
+            # computed from next_duration_days BEFORE replace() runs, and
+            # must already agree with what the domain will settle on.
+            next_duration_days = 0
+        next_start_date = task.start_date if start_date is None else start_date
         next_end_date = task.end_date
-        if (start_date is not None or duration_days is not None) and (
+        if (start_date is not None or duration_days is not None or is_milestone is not None) and (
             next_start_date and next_duration_days is not None
         ):
             next_end_date = self._work_calendar_engine.add_working_days(
@@ -178,6 +193,7 @@ class TaskLifecycleMixin:
             priority=task.priority if priority is None else priority,
             deadline=task.deadline if deadline is None else deadline,
             code=next_code,
+            is_milestone=next_is_milestone,
         )
 
         self._validate_task_within_project_dates(

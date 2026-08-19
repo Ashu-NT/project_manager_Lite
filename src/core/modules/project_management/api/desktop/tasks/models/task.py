@@ -30,6 +30,7 @@ class TaskDesktopDto:
     hierarchy_depth: int = 0
     child_count: int = 0
     ancestor_ids: tuple[str, ...] = ()
+    is_milestone: bool = False
 
 
 @dataclass(frozen=True)

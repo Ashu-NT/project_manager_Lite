@@ -39,6 +39,7 @@ class _FakeTaskService:
         parent_task_id: str | None = None,
         wbs_code: str = "",
         sort_order: int | None = None,
+        is_milestone: bool = False,
     ) -> Task:
         resolved_sort_order = (
             sort_order
@@ -66,6 +67,7 @@ class _FakeTaskService:
             parent_task_id=parent_task_id,
             wbs_code=wbs_code or str(self._next_id),
             sort_order=resolved_sort_order,
+            is_milestone=is_milestone,
         )
         self._next_id += 1
         self._tasks[task.id] = task
@@ -195,6 +197,7 @@ class _FakeTaskService:
         duration_days: int | None = None,
         priority: int | None = None,
         deadline: date | None = None,
+        is_milestone: bool | None = None,
     ) -> Task:
         task = self._tasks[task_id]
         if name is not None:
@@ -213,6 +216,10 @@ class _FakeTaskService:
             task.priority = priority
         if deadline is not None:
             task.deadline = deadline
+        if is_milestone is not None:
+            task.is_milestone = is_milestone
+        if task.is_milestone:
+            task.duration_days = 0
         task.end_date = _derive_end_date(task.start_date, task.duration_days)
         task.version += 1
         return task

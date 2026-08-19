@@ -110,6 +110,53 @@ def test_project_management_tasks_desktop_api_mutates_task_records() -> None:
     assert api.list_tasks(project.id) == ()
 
 
+def test_project_management_tasks_desktop_api_threads_is_milestone() -> None:
+    project_service = _FakeProjectService()
+    project = project_service.create_project(
+        name="Plant Upgrade",
+        description="Replace switchgear and commission the new line.",
+    )
+    task_service = _FakeTaskService()
+    api = build_project_management_tasks_desktop_api(
+        project_service=project_service,
+        task_service=task_service,
+    )
+
+    created = api.create_task(
+        SimpleNamespace(
+            project_id=project.id,
+            name="Handover",
+            description="",
+            start_date=date(2026, 5, 3),
+            duration_days=5,
+            status="TODO",
+            priority=0,
+            deadline=None,
+            is_milestone=True,
+        )
+    )
+
+    assert created.is_milestone is True
+    assert task_service.get_task(created.id).duration_days == 0
+
+    updated = api.update_task(
+        SimpleNamespace(
+            task_id=created.id,
+            expected_version=task_service.get_task(created.id).version,
+            name="Handover",
+            description="",
+            start_date=date(2026, 5, 3),
+            duration_days=None,
+            status="TODO",
+            priority=0,
+            deadline=None,
+            is_milestone=False,
+        )
+    )
+
+    assert updated.is_milestone is False
+
+
 def test_project_management_tasks_desktop_api_uses_task_scoped_project_query() -> None:
     class _TaskScopedProjectService:
         def __init__(self, projects):

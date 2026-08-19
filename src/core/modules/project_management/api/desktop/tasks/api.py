@@ -251,6 +251,7 @@ class ProjectManagementTasksDesktopApi:
         status: str = "all",
         priority: str = "all",
         schedule: str = "all",
+        milestones_only: bool = False,
         page: int = 1,
         page_size: int = 25,
         sort_key: str = "wbsCode",
@@ -263,6 +264,7 @@ class ProjectManagementTasksDesktopApi:
             status=status,
             priority=priority,
             schedule=schedule,
+            milestones_only=milestones_only,
             page=page,
             page_size=page_size,
             sort_key=sort_key,
@@ -294,6 +296,7 @@ class ProjectManagementTasksDesktopApi:
                     is_summary=item.is_summary,
                     hierarchy_depth=item.hierarchy_depth,
                     child_count=item.child_count,
+                    is_milestone=item.is_milestone,
                 )
                 for item in result.items
             ),
@@ -323,6 +326,7 @@ class ProjectManagementTasksDesktopApi:
             parent_task_id=getattr(command, "parent_task_id", None),
             wbs_code=getattr(command, "wbs_code", "") or "",
             sort_order=getattr(command, "sort_order", None),
+            is_milestone=bool(getattr(command, "is_milestone", False)),
         )
         desired_status = coerce_task_status(command.status)
         if desired_status != task.status:
@@ -363,6 +367,7 @@ class ProjectManagementTasksDesktopApi:
             priority=command.priority,
             deadline=command.deadline,
             expected_version=command.expected_version,
+            is_milestone=getattr(command, "is_milestone", None),
         )
         if desired_status != current_task.status:
             service.set_status(task.id, desired_status)

@@ -20,6 +20,7 @@ class TaskCreateCommand:
     parent_task_id: str | None = None
     wbs_code: str = ""
     sort_order: int | None = None
+    is_milestone: bool = False
 
 
 @dataclass(frozen=True)
@@ -43,6 +44,7 @@ class TaskUpdateCommand:
     priority: int | None = None
     deadline: date | None = None
     expected_version: int | None = None
+    is_milestone: bool | None = None
 
 
 @dataclass(frozen=True)

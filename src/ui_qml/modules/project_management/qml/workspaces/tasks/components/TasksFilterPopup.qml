@@ -18,6 +18,7 @@ AppControls.CenteredDialog {
     property string _draftStatus: "all"
     property string _draftPriority: "all"
     property string _draftSchedule: "all"
+    property bool _draftMilestonesOnly: false
 
     // ── Layout ───────────────────────────────────────────────────────────
     title: "Filter Tasks"
@@ -32,6 +33,7 @@ AppControls.CenteredDialog {
         root._draftStatus = root.workspaceController ? root.workspaceController.selectedStatusFilter : "all"
         root._draftPriority = root.workspaceController ? root.workspaceController.selectedPriorityFilter : "all"
         root._draftSchedule = root.workspaceController ? root.workspaceController.selectedScheduleFilter : "all"
+        root._draftMilestonesOnly = root.workspaceController ? root.workspaceController.milestonesOnlyFilter : false
     }
 
     contentItem: ColumnLayout {
@@ -160,6 +162,16 @@ AppControls.CenteredDialog {
                         root._draftSchedule = String(options[index].value || "all")
                 }
             }
+
+            // ── Milestone filter ─────────────────────────────────────────
+            AppControls.CheckBox {
+                objectName: "milestonesOnlyCheck"
+                Layout.fillWidth: true
+                text: "Milestones only"
+                checked: root._draftMilestonesOnly
+                enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                onCheckedChanged: root._draftMilestonesOnly = checked
+            }
         }
 
         Rectangle {
@@ -204,6 +216,7 @@ AppControls.CenteredDialog {
                         root.workspaceController.setStatusFilter(root._draftStatus)
                         root.workspaceController.setPriorityFilter(root._draftPriority)
                         root.workspaceController.setScheduleFilter(root._draftSchedule)
+                        root.workspaceController.setMilestonesOnlyFilter(root._draftMilestonesOnly)
                     }
                     root.close()
                 }

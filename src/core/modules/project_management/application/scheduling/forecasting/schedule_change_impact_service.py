@@ -240,7 +240,7 @@ class ScheduleChangeImpactService:
                 start_shift_days=start_shift,
                 finish_shift_days=finish_shift,
                 is_critical=(task_id in prop_critical),
-                is_milestone=int(getattr(tasks_by_id[task_id], "duration_days", 0) or 0) <= 0,
+                is_milestone=bool(getattr(tasks_by_id[task_id], "is_milestone", False)),
             ))
 
         orig_ef = original.project_early_finish

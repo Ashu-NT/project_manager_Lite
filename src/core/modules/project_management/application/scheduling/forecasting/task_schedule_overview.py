@@ -81,9 +81,13 @@ class TaskScheduleOverview:
 
 
 def _is_milestone(task: Task) -> bool:
-    """The same predicate the CPM engine itself uses to branch into
-    ``compute_milestone_dates`` -- not a separately-invented definition."""
-    return int(getattr(task, "duration_days", 0) or 0) <= 0
+    """Task.is_milestone is the single source of truth (see Milestones
+    in docs/pm_modernization/R4_4_TASK_DEPENDENCY_IMPLEMENTATION_SUMMARY.md)
+    -- previously guessed from duration_days<=0, the same predicate the
+    CPM engine uses for its own, unrelated "zero-duration date math"
+    branch (task_date_math.py), which stays duration-based since it is
+    pure arithmetic, not a milestone classification."""
+    return bool(getattr(task, "is_milestone", False))
 
 
 def build_successors_by_task_id(deps: list[TaskDependency]) -> dict[str, set[str]]:

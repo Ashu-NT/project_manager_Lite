@@ -192,6 +192,7 @@ class SqlAlchemyTaskWorkspaceReader:
                 is_summary.label("is_summary"),
                 func.coalesce(depths.c.hierarchy_depth, 0).label("hierarchy_depth"),
                 direct_child_count.label("child_count"),
+                TaskORM.is_milestone.label("is_milestone"),
             )
             .join(ProjectORM, ProjectORM.id == TaskORM.project_id)
             .outerjoin(child_counts, child_counts.c.task_id == TaskORM.id)
@@ -228,6 +229,9 @@ class SqlAlchemyTaskWorkspaceReader:
             )
         elif criteria.schedule == "no_deadline":
             conditions.append(rows.c.deadline.is_(None))
+
+        if criteria.milestones_only:
+            conditions.append(rows.c.is_milestone.is_(True))
 
         for term in criteria.search_terms:
             pattern = _contains_pattern(term)
@@ -378,6 +382,7 @@ class SqlAlchemyTaskWorkspaceReader:
                     is_summary=bool(row["is_summary"]),
                     hierarchy_depth=int(row["hierarchy_depth"] or 0),
                     child_count=int(row["child_count"] or 0),
+                    is_milestone=bool(row["is_milestone"]),
                 )
                 for row in page_rows
             ),

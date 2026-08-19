@@ -51,6 +51,7 @@ def create_task(desktop_api, payload: dict[str, Any]) -> None:
         parent_task_id=optional_text(payload, "parentTaskId") or None,
         wbs_code=optional_text(payload, "wbsCode"),
         sort_order=optional_int(payload, "sortOrder"),
+        is_milestone=bool(payload.get("isMilestone", False)),
     )
     desktop_api.create_task(command)
 
@@ -66,6 +67,9 @@ def update_task(desktop_api, payload: dict[str, Any]) -> None:
         priority=optional_int(payload, "priority"),
         deadline=optional_date(payload, "deadline"),
         expected_version=optional_int(payload, "expectedVersion"),
+        is_milestone=(
+            bool(payload["isMilestone"]) if "isMilestone" in payload else None
+        ),
     )
     desktop_api.update_task(command)
 

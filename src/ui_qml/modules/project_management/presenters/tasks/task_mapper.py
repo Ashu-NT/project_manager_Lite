@@ -56,14 +56,16 @@ def build_task_state(task: Any) -> dict[str, object]:
         "actualStartLabel": format_date_label(task.actual_start),
         "actualEnd": format_date(task.actual_end),
         "actualEndLabel": format_date_label(task.actual_end),
+        "isMilestone": bool(getattr(task, "is_milestone", False)),
         "version": task.version,
     }
 
 def to_task_record_view_model(task: Any) -> TaskRecordViewModel:
     state = build_task_state(task)
+    milestone_marker = "◆ " if state["isMilestone"] else ""
     return TaskRecordViewModel(
         id=task.id,
-        title=f"{'    ' * state['hierarchyDepth']}{task.name}",
+        title=f"{'    ' * state['hierarchyDepth']}{milestone_marker}{task.name}",
         status_label=task.status_label,
         subtitle=(
             f"WBS {state['wbsCode']} | {state['projectName']} | Start {state['startDateLabel']} | "

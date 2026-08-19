@@ -37,7 +37,12 @@ def test_task_skill_requirements_version_migration_downgrades_cleanly(tmp_path) 
     database_path = tmp_path / "task-skill-requirements-version-downgrade.db"
     config = _config(database_path)
     command.upgrade(config, "head")
-    command.downgrade(config, "-1")
+    # Explicit target, not the relative "-1" this used to use: "-1" means
+    # "one revision before wherever head currently is," which silently
+    # downgrades a DIFFERENT migration every time a new one is added on
+    # top of this one (as x4y5z6a7b8c9_add_task_is_milestone.py did) --
+    # this test must always exercise a9f3e7c2b8d1's own downgrade.
+    command.downgrade(config, "q7r8s9t0u1v2")
 
     engine = sa.create_engine(config.get_main_option("sqlalchemy.url"), future=True)
     inspector = sa.inspect(engine)

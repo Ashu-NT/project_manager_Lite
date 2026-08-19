@@ -41,6 +41,7 @@ class Task:
     deadline: date | None = None
     constraint_type: str | None = None
     constraint_date: date | None = None
+    is_milestone: bool = False
     version: int = 1
 
     @field_validator("project_id", mode="before")
@@ -117,6 +118,11 @@ class Task:
             )
         return resolved
 
+    @field_validator("is_milestone", mode="before")
+    @classmethod
+    def _validate_is_milestone(cls, value: object) -> bool:
+        return bool(value)
+
     @field_validator("percent_complete", mode="before")
     @classmethod
     def _validate_percent_complete(cls, value: object) -> float:
@@ -130,6 +136,13 @@ class Task:
 
     @model_validator(mode="after")
     def _validate_date_ranges(self) -> "Task":
+        if self.is_milestone and self.duration_days:
+            # Milestones are zero-duration by definition (the same
+            # convention CPM and every consumer already use to detect
+            # one) -- normalized here so is_milestone is a single
+            # source of truth callers can set without also remembering
+            # to zero duration_days themselves.
+            self.duration_days = 0
         if not self.wbs_code:
             self.wbs_code = str(self.id or "").strip().upper()
         if not self.wbs_code or not _WBS_CODE_PATTERN.fullmatch(self.wbs_code):

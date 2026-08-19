@@ -58,6 +58,12 @@ class TaskStateSettersMixin:
         self._selected_schedule_filter = v
         self.selectedScheduleFilterChanged.emit()
 
+    def _set_milestones_only_filter(self, v: bool) -> None:
+        if v == self._milestones_only_filter:
+            return
+        self._milestones_only_filter = v
+        self.milestonesOnlyFilterChanged.emit()
+
     def _set_search_text(self, v: str) -> None:
         if v == self._search_text:
             return

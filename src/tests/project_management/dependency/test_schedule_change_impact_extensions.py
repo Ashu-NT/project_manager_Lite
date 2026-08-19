@@ -35,7 +35,7 @@ def _make_chain_with_milestone(services):
     project = ps.create_project("Schedule Impact Extensions", "")
     a = ts.create_task(project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2)
     b = ts.create_task(project.id, "Task B", "", duration_days=2)
-    milestone = ts.create_task(project.id, "Handover", "", duration_days=0)
+    milestone = ts.create_task(project.id, "Handover", "", duration_days=0, is_milestone=True)
     ts.add_dependency(a.id, b.id, DependencyType.FINISH_TO_START, lag_days=0)
     ts.add_dependency(b.id, milestone.id, DependencyType.FINISH_TO_START, lag_days=0)
     return project, a, b, milestone

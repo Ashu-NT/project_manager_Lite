@@ -25,6 +25,7 @@ def task_to_orm(task: Task) -> TaskORM:
         actual_start=task.actual_start,
         actual_end=task.actual_end,
         deadline=task.deadline,
+        is_milestone=getattr(task, "is_milestone", False),
         version=getattr(task, "version", 1),
     )
 
@@ -48,6 +49,7 @@ def task_from_orm(obj: TaskORM) -> Task:
         actual_start=obj.actual_start,
         actual_end=obj.actual_end,
         deadline=obj.deadline,
+        is_milestone=getattr(obj, "is_milestone", False),
         version=getattr(obj, "version", 1),
     )
 

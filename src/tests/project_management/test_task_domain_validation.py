@@ -96,6 +96,24 @@ def test_task_owns_remaining_duration_calculation():
     )
 
 
+def test_task_defaults_to_not_a_milestone():
+    task = Task.create(project_id="project-1", name="Regular Task", duration_days=5)
+    assert task.is_milestone is False
+
+
+def test_task_is_milestone_normalizes_duration_to_zero():
+    task = Task.create(
+        project_id="project-1", name="Milestone Task", duration_days=5, is_milestone=True
+    )
+    assert task.is_milestone is True
+    assert task.duration_days == 0
+
+
+def test_task_is_milestone_coerces_truthy_values():
+    task = Task.create(project_id="project-1", name="Milestone Task", is_milestone=1)
+    assert task.is_milestone is True
+
+
 def test_task_assignment_dto_validates_allocation_and_hours():
     assignment = TaskAssignment.create(
         task_id="  task-1  ",

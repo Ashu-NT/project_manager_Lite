@@ -67,6 +67,7 @@ AppWidgets.EntityDialog {
         statusCombo.currentIndex = root.statusIndexForValue(state.status || "TODO")
         parentTaskCombo.currentIndex = root.indexForValue(root.parentTaskOptions, state.parentTaskId || "")
         wbsCodeField.text = String(state.wbsCode || "")
+        milestoneCheck.checked = Boolean(state.isMilestone)
         root.errorMessage = ""
     }
 
@@ -79,11 +80,12 @@ AppWidgets.EntityDialog {
             "parentTaskId": String((root.parentTaskOptions[parentTaskCombo.currentIndex] || { "value": "" }).value || ""),
             "wbsCode": wbsCodeField.text,
             "startDate": startDateField.text,
-            "durationDays": durationField.text,
+            "durationDays": milestoneCheck.checked ? "0" : durationField.text,
             "deadline": deadlineField.text,
             "priority": priorityField.text,
             "description": descriptionField.text,
-            "status": statusOption.value || "TODO"
+            "status": statusOption.value || "TODO",
+            "isMilestone": milestoneCheck.checked
         }
     }
 
@@ -200,7 +202,12 @@ AppWidgets.EntityDialog {
         AppWidgets.FormField {
             Layout.fillWidth: true
             label: "Duration"
-            AppControls.TextField { id: durationField; Layout.fillWidth: true; placeholderText: "Working days"; enabled: !root.editingSummaryTask }
+            AppControls.TextField {
+                id: durationField
+                Layout.fillWidth: true
+                placeholderText: "Working days"
+                enabled: !root.editingSummaryTask && !milestoneCheck.checked
+            }
         }
 
         AppWidgets.FormField {
@@ -213,6 +220,19 @@ AppWidgets.EntityDialog {
             Layout.fillWidth: true
             label: "Priority"
             AppControls.TextField { id: priorityField; Layout.fillWidth: true; placeholderText: "0-100" }
+        }
+
+        AppControls.CheckBox {
+            id: milestoneCheck
+            objectName: "milestoneCheck"
+            Layout.columnSpan: parent.columns
+            text: "This is a milestone (zero-duration)"
+            enabled: !root.editingSummaryTask
+            onCheckedChanged: {
+                if (milestoneCheck.checked) {
+                    durationField.text = "0"
+                }
+            }
         }
     }
 
