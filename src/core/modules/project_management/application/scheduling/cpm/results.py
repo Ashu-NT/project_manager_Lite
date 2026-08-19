@@ -36,15 +36,17 @@ def build_schedule_result(
             tasks_by_id[task_id] = task
 
         if est is not None and lst is not None:
-            if lst < est:
-                total_float = 0
-            else:
+            if lst >= est:
                 days = calendar.working_days_between(est, lst)
                 total_float = max(0, days - 1)
+            else:
+                shortfall = calendar.working_days_between(lst, est)
+                total_float = -max(0, shortfall - 1)
         else:
             total_float = None
 
-        is_critical = total_float == 0 if total_float is not None else False
+        is_infeasible = total_float is not None and total_float < 0
+        is_critical = total_float is not None and total_float <= 0
 
         late_by = None
         if task.deadline and eft and eft > task.deadline:
@@ -67,6 +69,7 @@ def build_schedule_result(
             late_by_days=late_by,
             dependency_implied_start=implied_start,
             dependency_implied_finish=implied_finish,
+            is_infeasible=is_infeasible,
         )
 
     return result

@@ -24,6 +24,7 @@ from src.core.modules.project_management.application.scheduling.cpm.constraint_v
     ConstraintType,
 )
 from src.core.modules.project_management.application.scheduling.cpm.dependency_schedule_math import (
+    shift_working_days,
     successor_boundary,
     successor_earliest_start_from_boundary,
 )
@@ -141,6 +142,23 @@ def apply_actual_date_constraints(
     return est, eft
 
 
+def _coerce_task_constraint(task: Task) -> tuple[ConstraintType | None, date | None]:
+    """Single shared parse of a task's (constraint_type, constraint_date)
+    pair -- used by both the forward and backward constraint application
+    so the two directions read the exact same interpretation of a task's
+    constraint and cannot silently drift apart (R4.4 backward-CPM pass,
+    §15)."""
+    raw_ct = getattr(task, "constraint_type", None)
+    cd: date | None = getattr(task, "constraint_date", None)
+    if raw_ct is None or cd is None:
+        return None, None
+    try:
+        ct = ConstraintType(str(raw_ct)) if not isinstance(raw_ct, ConstraintType) else raw_ct
+    except ValueError:
+        return None, None
+    return ct, cd
+
+
 def apply_scheduling_constraints(
     calendar: CalendarProtocol,
     task: Task,
@@ -156,14 +174,8 @@ def apply_scheduling_constraints(
     if getattr(task, "actual_end", None) is not None:
         return est, eft
 
-    raw_ct = getattr(task, "constraint_type", None)
-    cd: date | None = getattr(task, "constraint_date", None)
-    if raw_ct is None or cd is None:
-        return est, eft
-
-    try:
-        ct = ConstraintType(str(raw_ct)) if not isinstance(raw_ct, ConstraintType) else raw_ct
-    except ValueError:
+    ct, cd = _coerce_task_constraint(task)
+    if ct is None or cd is None:
         return est, eft
 
     duration = int(task.duration_days or 0)
@@ -196,9 +208,107 @@ def apply_scheduling_constraints(
     return est, eft
 
 
+def apply_backward_scheduling_constraints(
+    calendar: CalendarProtocol,
+    task: Task,
+    est: date | None,
+    eft: date | None,
+    raw_lst: date | None,
+    raw_lft: date | None,
+) -> tuple[date | None, date | None]:
+    """Adjust one task's network-derived (raw_lst, raw_lft) backward-pass
+    late dates for its own actual-date lock and/or scheduling constraint,
+    so LATEST START/FINISH -- and therefore total float and criticality --
+    reflect what the task can ACTUALLY do, not just what the dependency
+    graph alone would allow (R4.4 constraint-aware backward CPM pass).
+
+    Mirrors ``apply_scheduling_constraints``'s forward-pass semantics
+    exactly, reusing the task's own already-computed ``est``/``eft``
+    (never re-deriving a constraint date independently) so the two
+    directions cannot drift apart -- see ``_coerce_task_constraint``.
+
+    START_NO_EARLIER_THAN / FINISH_NO_EARLIER_THAN need NO adjustment
+    here and are intentionally not handled below: the floor they apply
+    already raised ``est``/``eft`` forward, which flows into every
+    downstream successor computation already -- this task's own
+    ``raw_lst``/``raw_lft`` is bounded by ITS OWN successors (or the
+    project finish), not by its own floor, so it is already correct
+    as-is once ``est``/``eft`` reflect the floor.
+
+    - actual_end set (completed): ls/lf = est/eft, unconditionally. A
+      historical fact; nothing else can move it.
+    - actual_start set, no actual_end (started, unfinished): ls = est
+      (the start already happened, so it cannot show fictitious movable
+      float) -- lf is left to the network/ceiling logic below, since the
+      remaining, not-yet-happened portion of the task can still
+      legitimately have finish-side slack or a finish-side ceiling.
+    - MUST_START_ON (and not already actual-locked): ls = est, and since
+      forward derives eft from est+duration in the very same branch,
+      lf = eft too -- an exact pin ties both dimensions to zero float
+      together.
+    - MUST_FINISH_ON: lf = eft (exact pin), active even once started,
+      matching apply_scheduling_constraints's own "always applies unless
+      actual_end is set" rule.
+    - START_NO_LATER_THAN (ceiling, pre-start only): caps ls at the
+      constraint date when the network-implied ls would be later,
+      deriving lf from the now-capped ls. Can legitimately push ls below
+      est, producing negative float -- an infeasible ceiling is not
+      clamped away (see results.py).
+    - FINISH_NO_LATER_THAN (ceiling): caps lf at the constraint date;
+      re-derives ls from the capped lf, UNLESS the start already
+      happened (actual_start set), in which case ls stays pinned to est
+      and only lf is capped -- capping ls too would fabricate a change
+      to a date that already occurred.
+    - Deadline (task.deadline, independent of constraint_type): same
+      ceiling treatment as FINISH_NO_LATER_THAN, applied on top of
+      whatever constraint_type already produced -- Deadline stays a
+      separate field/fact and never becomes a scheduling constraint in
+      its own right.
+    """
+    if est is None or eft is None:
+        return raw_lst, raw_lft
+
+    actual_start = getattr(task, "actual_start", None)
+    actual_end = getattr(task, "actual_end", None)
+    if actual_end is not None:
+        return est, eft
+
+    ct, cd = _coerce_task_constraint(task)
+    duration = int(task.duration_days or 0)
+
+    if ct == ConstraintType.MUST_START_ON and actual_start is None:
+        return est, eft
+
+    if ct == ConstraintType.MUST_FINISH_ON:
+        return est, eft
+
+    lst = est if actual_start is not None else raw_lst
+    lft = raw_lft
+
+    if ct == ConstraintType.START_NO_LATER_THAN and actual_start is None:
+        if lst is not None and cd is not None and lst > cd:
+            lst = cd
+            lft = shift_working_days(calendar, lst, duration - 1) if duration > 0 else lst
+
+    if ct == ConstraintType.FINISH_NO_LATER_THAN:
+        if lft is not None and cd is not None and lft > cd:
+            lft = cd
+            if actual_start is None:
+                lst = shift_working_days(calendar, lft, -(duration - 1)) if duration > 0 else lft
+
+    deadline = getattr(task, "deadline", None)
+    if deadline is not None and lft is not None and lft > deadline:
+        lft = deadline
+        if actual_start is None:
+            lst = shift_working_days(calendar, lft, -(duration - 1)) if duration > 0 else lft
+
+    return lst, lft
+
+
 __all__ = [
     "compute_milestone_dates",
     "compute_duration_dates",
     "apply_actual_date_constraints",
     "apply_scheduling_constraints",
+    "apply_backward_scheduling_constraints",
 ]

@@ -381,6 +381,7 @@ class ScheduleChangeImpactService:
             current_finish=info.earliest_finish,
             is_critical=info.is_critical,
             total_float_days=info.total_float_days,
+            is_infeasible=info.is_infeasible,
             free_float_days=free_float,
             baseline_finish=baseline_finish,
             schedule_variance_days=schedule_variance_days,

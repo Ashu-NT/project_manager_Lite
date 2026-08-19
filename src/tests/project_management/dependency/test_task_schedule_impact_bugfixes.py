@@ -257,16 +257,57 @@ class TestScheduleOverviewProjectIdFallback:
         assert calls == [("task-1", "project-real")]
 
 
+class TestScheduleOverviewInfeasibleFlag:
+    """R4.4 constraint-aware backward CPM pass: TaskScheduleOverview
+    must thread CPMTaskInfo.is_infeasible through end-to-end via the
+    real desktop-backed service, not just at the pure_cpm unit level
+    (see test_backward_cpm_constraint_matrix.py for that coverage)."""
+
+    def test_snlt_ceiling_infeasible_against_a_dependency_flags_overview(self, services):
+        ps = services["project_service"]
+        ts = services["task_service"]
+        project = ps.create_project("Schedule Impact Infeasible Flag", "")
+        predecessor = ts.create_task(
+            project.id, "Foundation", "", start_date=date(2026, 9, 7), duration_days=3
+        )
+        successor = ts.create_task(
+            project.id,
+            "Cable Pull",
+            "",
+            start_date=date(2026, 9, 7),
+            duration_days=2,
+            constraint_type="start_no_later_than",
+            constraint_date=date(2026, 9, 8),  # earlier than the FS-implied start
+        )
+        ts.add_dependency(
+            predecessor_id=predecessor.id,
+            successor_id=successor.id,
+            dependency_type=DependencyType.FINISH_TO_START,
+            lag_days=0,
+        )
+        impact = _impact_service(services)
+
+        overview = impact.get_task_schedule_overview(project.id, successor.id)
+
+        assert overview.is_available is True
+        assert overview.total_float_days is not None and overview.total_float_days < 0
+        assert overview.is_infeasible is True
+
+    def test_feasible_task_does_not_flag_infeasible(self, services):
+        ps = services["project_service"]
+        ts = services["task_service"]
+        project = ps.create_project("Schedule Impact Feasible Flag", "")
+        task = ts.create_task(
+            project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2
+        )
+        impact = _impact_service(services)
+
+        overview = impact.get_task_schedule_overview(project.id, task.id)
+
+        assert overview.is_infeasible is False
+
+
 class TestScheduleImpactConflictConstraintLabel:
-    """R4.4 constraint pass, Phase R: schedule_impact_builder.py's
-    conflicts list previously carried the raw ConstraintType value
-    (e.g. "must_start_on") under a "constraintType" key straight from
-    the application-layer DependencyConstraintConflict fact --
-    TasksScheduleImpactSection.qml rendered it unlabeled, verbatim, in
-    the "Hard constraint (...)" banner. Fixed by consuming the desktop
-    DTO's already-humanized constraint_type_label (constraint_presentation.py)
-    under a "constraintTypeLabel" key, matching this same dict's other
-    *Label siblings (constraintDateLabel, dependencyRequiredDateLabel)."""
 
     def test_mso_dependency_conflict_reports_a_humanized_label_not_the_raw_enum(self, services):
         from src.core.modules.project_management.api.desktop.tasks.api import (

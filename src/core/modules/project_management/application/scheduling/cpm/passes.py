@@ -11,6 +11,9 @@ from src.core.modules.project_management.application.scheduling.cpm.dependency_s
     predecessor_late_boundary,
     shift_working_days,
 )
+from src.core.modules.project_management.application.scheduling.cpm.task_date_math import (
+    apply_backward_scheduling_constraints,
+)
 
 
 ForwardComputeFn = Callable[
@@ -95,21 +98,27 @@ def run_backward_pass(
     ls: dict[str, date | None] = {task_id: None for task_id in tasks_by_id}
     lf: dict[str, date | None] = {task_id: None for task_id in tasks_by_id}
 
+    def _adjust(task_id: str, raw_ls: date | None, raw_lf: date | None) -> None:
+        task = tasks_by_id[task_id]
+        ls[task_id], lf[task_id] = apply_backward_scheduling_constraints(
+            calendar, task, es[task_id], ef[task_id], raw_ls, raw_lf
+        )
+
     end_tasks = [task_id for task_id in tasks_by_id if task_id not in deps_by_predecessor]
     for task_id in end_tasks:
         duration = tasks_by_id[task_id].duration_days or 0
-        lf[task_id] = project_early_finish
+        raw_lf = project_early_finish
         if duration <= 0:
-            ls[task_id] = project_early_finish
+            raw_ls = project_early_finish
         else:
-            ls[task_id] = calendar.add_working_days(project_early_finish, -(duration - 1))
+            raw_ls = calendar.add_working_days(project_early_finish, -(duration - 1))
+        _adjust(task_id, raw_ls, raw_lf)
 
     for task_id in reversed(topo_order):
         outgoing = deps_by_predecessor.get(task_id, [])
         if not outgoing:
             if ls[task_id] is None and es[task_id] is not None:
-                ls[task_id] = es[task_id]
-                lf[task_id] = ef[task_id]
+                _adjust(task_id, es[task_id], ef[task_id])
             continue
 
         duration = tasks_by_id[task_id].duration_days or 0
@@ -137,14 +146,13 @@ def run_backward_pass(
 
         if candidate_ls_bounds:
             ls_candidate = min(candidate_ls_bounds)
-            ls[task_id] = ls_candidate
-            lf[task_id] = (
+            raw_lf = (
                 shift_working_days(calendar, ls_candidate, duration - 1)
                 if duration > 0
                 else ls_candidate
             )
+            _adjust(task_id, ls_candidate, raw_lf)
         elif es[task_id] is not None:
-            ls[task_id] = es[task_id]
-            lf[task_id] = ef[task_id]
+            _adjust(task_id, es[task_id], ef[task_id])
 
     return ls, lf

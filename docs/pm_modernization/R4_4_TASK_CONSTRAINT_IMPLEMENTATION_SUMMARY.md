@@ -86,13 +86,18 @@ Phase B framing:
   layer's `Task` model rejects it outright if ever assigned as the
   constraint type, since `Task.deadline` is the real, separate field for
   that concept.
-- **Backward-pass CPM constraint-blindness was NOT fixed** — a deliberate,
+- **Backward-pass CPM constraint-blindness — RESOLVED in a follow-up pass.**
+  The original documented STOP (kept below for history) was reversed once
+  a dedicated pass characterized `run_backward_pass`'s exact behavior and
+  fixed it without touching forward-pass semantics. See §10,
+  "Constraint-aware backward CPM," for the full write-up.
+  ~~Backward-pass CPM constraint-blindness was NOT fixed — a deliberate,
   documented STOP (see `test_backward_pass_constraint_blindness.py`).
   `run_backward_pass` is depended on by many unaudited consumers beyond
   this pass's scope; total float and criticality can still be
   meaningless for a constrained task's own float number. This is the one
   finding from the audit's numbered list that remains open by design, not
-  by oversight.
+  by oversight.~~
 - **Actual dates take precedence over MSO/MFO.** `apply_scheduling
   _constraints` was fixed so a locked `actual_start`/`actual_end` is never
   silently overridden by a start/finish-fixing constraint — the
@@ -259,7 +264,7 @@ concrete, individually-verifiable items in the audit:
 |---|---|---|
 | Backend 1 | `constraint_type`/`constraint_date` fully unreachable in production (§36.1) | **Fixed** — full vertical slice, §1 |
 | Backend 2 | Domain field type mismatch, `None` coerced to `""` (§36.2) | **Fixed** — retyped `ConstraintType \| None`, real validator |
-| Backend 3 | Backward pass fully constraint-blind (§36.3) | **Deliberately not fixed** — documented STOP, §2 |
+| Backend 3 | Backward pass fully constraint-blind (§36.3) | **Fixed** in a follow-up pass — see §10, "Constraint-aware backward CPM" |
 | Backend 4 | Constraint dates never checked against the working calendar (§36.4) | **Fixed** — `_validate_constraint_date_is_working_day`, rejects with the nearest working day named |
 | Backend 5 | Deadline changes have no governance parity (§36.5) | **Deliberately out of scope** — deadline decision, §2 |
 | Backend 6 | Deadline edit doesn't force a targeted stale-UI refresh (§36.6) | **Still open** — pre-existing gap in `Task.deadline`'s own path, not this pass's scope. The equivalent gap for the *new* constraint mutation itself is fixed (Phase T) |
@@ -282,7 +287,177 @@ concrete, individually-verifiable items in the audit:
   there is no in-dialog "here's what this constraint would do" preview
   as the user picks a type/date. This is a UX enhancement, not a
   correctness gap; deferred given the scope already delivered.
-- **Backward-pass constraint-blindness** (see §2) — an explicit,
-  documented non-fix.
+- ~~Backward-pass constraint-blindness (see §2) — an explicit, documented
+  non-fix.~~ **Resolved — see §10.**
 - Everything explicitly out of scope per the standing constraints: R4.4
   resource leveling, ALAP, a full Scheduling workspace redesign, R5.
+
+---
+
+## 10. Constraint-aware backward CPM
+
+Follow-up pass (PRE-R4.4 — CONSTRAINT-AWARE BACKWARD CPM / FLOAT
+CORRECTNESS) that reverses §2's original "not fixed" decision.
+`run_backward_pass` (`application/scheduling/cpm/passes.py`) previously
+never read `constraint_type`/`constraint_date`/`deadline` at all — LS/LF,
+total float, and criticality were computed purely from the dependency
+graph, so a constrained task's own float number could be actively
+misleading. This section documents the fix, exactly as directive item 22
+requires: final LS/LF semantics, per-constraint treatment, the Deadline
+decision, negative-float/infeasible semantics, free-float semantics,
+criticality semantics, actual-date handling, test evidence, and the
+leveling-consumption verdict.
+
+Standing constraints honored in this follow-up pass too: no QML changes,
+no resource-leveling changes, no ALAP, no R5, no commits.
+
+### 10.1 Final LS/LF semantics — decision table
+
+| Constraint | Backward-pass treatment | Own float impact |
+|---|---|---|
+| None (ASAP) | Untouched — network-derived LS/LF exactly as before | Unchanged from pre-existing behavior |
+| `START_NO_EARLIER_THAN` (floor) | **No change** — the forward-pass floor already raised est/eft, which flows into every downstream computation; this task's own LS is bounded by its successors, not its own floor | Unchanged |
+| `FINISH_NO_EARLIER_THAN` (floor) | **No change**, same reasoning | Unchanged |
+| `MUST_START_ON` (exact pin) | LS forced to equal est (already == the pin) whenever not overridden by an actual-start lock | Own float forced to 0 (both dimensions, since duration ties them together) |
+| `MUST_FINISH_ON` (exact pin) | LF forced to equal eft (already == the pin); active even once started, matching the forward pass's own "always applies unless actual_end is set" rule | Own float forced to 0 |
+| `START_NO_LATER_THAN` (ceiling) | LS capped at the constraint date when the network-implied LS would be later; LF re-derived from the capped LS | Can legitimately go negative (infeasible) |
+| `FINISH_NO_LATER_THAN` (ceiling) | LF capped at the constraint date; LS re-derived from the capped LF, UNLESS the start already happened (actual_start set), in which case only LF is capped | Can legitimately go negative (infeasible) |
+| `task.deadline` (independent ceiling) | Same treatment as `FINISH_NO_LATER_THAN`, applied on top of whatever constraint_type already produced | Can legitimately go negative (infeasible) |
+| `actual_end` set (completed) | LS/LF forced to the task's own est/eft, unconditionally — dominates every other rule | Own float forced to 0; never re-opened by any constraint |
+| `actual_start` set only (started, unfinished) | LS forced to est (start cannot move); LF left to the ceiling/network logic above, since the not-yet-happened remainder can still legitimately have finish-side slack or a finish-side ceiling | Start-dimension float 0; finish dimension follows the ceiling rules independently |
+
+Implementation: `task_date_math.apply_backward_scheduling_constraints`,
+applied inline inside `run_backward_pass`'s existing reversed-topological
+loop (NOT as a separate post-pass — a predecessor reads its successor's
+adjusted LS/LF later in the SAME loop, so the adjustment has to land
+before that read happens, exactly like any other successor-derived
+bound). A shared `_coerce_task_constraint` helper is now used by both the
+forward (`apply_scheduling_constraints`) and backward direction, so the
+two cannot drift apart (directive item 15).
+
+### 10.2 Deadline decision
+
+`task.deadline` receives the exact same backward-pass ceiling treatment
+as `FINISH_NO_LATER_THAN`, but it is a value read independently of
+`constraint_type` and is applied as an ADDITIONAL cap on top of whatever
+`constraint_type` already produced — it never becomes a `ConstraintType`
+member, is never coerced into FNLT, and `ConstraintValidator` continues
+to report it as its own distinct `ConstraintType.DEADLINE` violation.
+Verified directly: `test_deadline_never_reported_as_fnlt_constraint_type`
+asserts `task.constraint_type is None` on a task whose only ceiling is a
+deadline that the backward pass nonetheless caps correctly.
+
+### 10.3 Negative float / infeasible semantics
+
+`results.py`'s `total_float_days` formula previously clamped ANY
+`lst < est` situation to exactly `0`. That branch was structurally
+unreachable before this pass (a plain dependency graph, with no
+constraint adjustment, can never produce `lst < est`), so the clamp was
+silently hiding the one thing that COULD now produce it: a hard ceiling
+or pin making the dependency-required schedule genuinely infeasible.
+Fixed: when `lst < est`, `total_float_days` is now a real, signed
+negative magnitude — `-(working_days_between(lst, est) - 1)` — computed
+by calling `working_days_between` in the earlier-to-later argument order
+every real `CalendarProtocol` implementation actually supports (the
+reversed order returns `0`, not a signed value, in every production
+calendar checked — `WorkingDaySnapshotCalendar`, `ProjectCalendarAdapter`,
+the global calendar shim — so relying on a signed reversed-order result,
+as some test-only fake calendars implement, would have silently produced
+`0` in production).
+
+A new `CPMTaskInfo.is_infeasible: bool` field (default `False`) is set
+whenever `total_float_days < 0`, and threaded through to
+`TaskScheduleOverview.is_infeasible` (Task Detail → Schedule Impact's
+application-layer fact model) — but deliberately NOT threaded further
+into the desktop DTO/QML layers in this pass (no QML changes; leveling,
+the only other real consumer, reads the application layer directly).
+
+**Scope boundary, stated explicitly rather than hidden**: `is_infeasible`
+is derived from the SAME single float metric this codebase already
+tracks (`total_float_days`, itself derived from EST vs. LST only) — it
+does NOT introduce a second, finish-based float dimension. A started
+task whose OWN start float is a clean `0` but whose remaining duration
+cannot fit before an active `FINISH_NO_LATER_THAN`/deadline ceiling will
+NOT flip `is_infeasible` (see
+`test_started_but_unfinished_task_start_does_not_move`) — that
+finish-side violation is, and remains, `ConstraintValidator`'s job to
+report as a `ConstraintViolation`, independent of this flag. Widening
+`is_infeasible` into a full two-dimensional (start AND finish) float
+metric was judged disproportionate to this pass's scope.
+
+### 10.4 Free-float semantics
+
+Audited, not modified. `compute_free_float_days`
+(`task_schedule_overview.py`) is computed purely from EARLIEST dates (a
+task's own ES/EF vs. its successors' ES) and never reads LS/LF at all —
+so it was already correct wherever a constraint's effect flows through
+the (unchanged) forward pass, and this pass's backward-only changes
+cannot alter it EXCEPT via its own documented fallback (a leaf task with
+no successors reports `total_float_days` as its free float), which now
+correctly inherits the fixed, possibly-negative value automatically. See
+`TestFreeFloatOnConstrainedTasks` for direct coverage of both the
+zero-float (pinned) and negative-float (infeasible ceiling) leaf cases.
+
+### 10.5 Criticality semantics
+
+`is_critical` stays `total_float_days <= 0` — a deliberate, explicit
+choice (directive item 14), not a mechanical carry-over: it means an
+infeasible task is ALSO reported critical (a strict superset), which is
+semantically defensible (infeasible is at least as urgent as merely
+critical) while `is_infeasible` remains the sharper, more severe fact a
+future consumer (leveling) can check independently when "zero slack but
+achievable" must be told apart from "cannot be satisfied as specified."
+
+### 10.6 Actual-date handling
+
+- **Completed** (`actual_end` set): LS/LF forced to the task's own
+  historical est/eft, unconditionally — no constraint, ceiling, or
+  network slack can reopen it. `test_completed_task_ignores_ceiling_
+  entirely` proves an active `FINISH_NO_LATER_THAN` that would otherwise
+  be violated has zero effect on a completed task's reported float.
+- **Started, unfinished** (`actual_start` set only): the start dimension
+  is pinned to history (LS = actual_start); the finish dimension remains
+  governed by whatever ceiling is active, since the not-yet-executed
+  remainder of the task can still legitimately be tight or loose. See
+  §10.3's scope boundary for exactly what this does and does not surface
+  as `is_infeasible`.
+
+### 10.7 Test evidence
+
+- `test_backward_pass_constraint_blindness.py` — rewritten from a
+  decision record documenting the gap into a regression suite proving
+  the fix (6 tests), including a corrected 3-task propagation case: the
+  original 2-task fixture could not distinguish "the pin was honored"
+  from "the pinned task happened to be last in the chain," which give
+  the same number by coincidence.
+- `test_backward_cpm_constraint_matrix.py` — the full matrix (18 tests):
+  unconstrained baseline (byte-verified unchanged against the pre-fix
+  code), SNET/FNET floors (verified no-op), Deadline-vs-FNLT distinction,
+  all four dependency types (FS/SS/FF/SF) combined with a ceiling/pin,
+  multiple predecessors, actual-date handling, a non-weekend-only
+  (holiday-aware) calendar, and free-float on constrained tasks.
+- `test_task_schedule_impact_bugfixes.py` —
+  `TestScheduleOverviewInfeasibleFlag` (2 tests) proves the
+  `is_infeasible` flag threads end-to-end through the real, DB-backed
+  `ScheduleChangeImpactService`, not just at the pure `run_cpm` unit
+  level.
+- Full `src/tests/project_management` + `src/tests/pm` regression run:
+  only the same 7 pre-existing, unrelated `test_baseline_lifecycle.py`
+  failures observed before this pass (confirmed identical with this
+  pass's changes stashed out) — zero regressions attributable to this
+  work.
+
+### 10.8 Leveling consumption verdict (directive item 20)
+
+**`total_float_days`, `free_float_days`, and `is_critical` are now safe
+for R4.4 leveling to consume on constrained tasks, WITH one explicit
+caveat**: leveling must also check `is_infeasible` (or, for a
+finer-grained finish-side check, consult `ConstraintValidator`'s
+violations directly) rather than treating `total_float_days <= 0` as a
+uniform "tight but movable" signal — a `False` `is_infeasible` value
+does NOT guarantee the finish dimension is free of a ceiling violation
+for a started-but-unfinished task (§10.3). Every other constrained
+scenario in the test matrix (§10.7) reports a float number leveling can
+trust as the REAL constraint-adjusted bound, including genuine
+negative-float infeasibility, which is never silently clamped to zero
+or otherwise disguised.

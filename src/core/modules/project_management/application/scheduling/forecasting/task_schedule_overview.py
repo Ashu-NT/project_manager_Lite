@@ -69,6 +69,12 @@ class TaskScheduleOverview:
     current_finish: date | None = None
     is_critical: bool = False
     total_float_days: int | None = None
+    # R4.4 constraint-aware backward CPM pass: True when total_float_days
+    # is genuinely negative (a hard ceiling/pin makes this task's own
+    # dependency-required schedule infeasible, not merely tight). See
+    # CPMTaskInfo.is_infeasible -- the leveling-consumption contract this
+    # pass documents depends on callers checking this, not just float<=0.
+    is_infeasible: bool = False
     free_float_days: int | None = None
     baseline_finish: date | None = None
     schedule_variance_days: int | None = None
