@@ -17,7 +17,8 @@ Item {
 
     property var scheduleImpactModel: ({
         "isAvailable": false, "taskId": "", "unavailableReason": "", "currentStartLabel": "--", "currentFinishLabel": "--",
-        "isCritical": false, "totalFloatDays": null, "freeFloatDays": null,
+        "isCritical": false, "isInfeasible": false, "scheduleStatusLabel": "",
+        "totalFloatDays": null, "freeFloatDays": null,
         "baselineFinishLabel": "--", "scheduleVarianceDays": null, "scheduleVarianceLabel": "",
         "drivers": [], "conflicts": [], "actualVariances": [],
         "downstream": { "directSuccessorCount": 0, "downstreamTaskCount": 0, "downstreamMilestoneCount": 0, "criticalDownstreamCount": 0 }
@@ -146,13 +147,17 @@ Item {
                 ColumnLayout {
                     spacing: 2
                     AppControls.Label {
-                        text: "Critical Path"
+                        text: "Schedule Status"
                         color: Theme.AppTheme.textMuted
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.captionSize
                     }
                     AppWidgets.StatusChip {
-                        status: root._m.isCritical === true ? "Critical" : "Not critical"
+                        objectName: "scheduleStatusChip"
+                        // Backend-owned precedence (Infeasible > Critical >
+                        // Flexible) rendered verbatim -- never re-derived
+                        // here from totalFloatDays.
+                        status: String(root._m.scheduleStatusLabel || "Flexible")
                     }
                 }
                 ColumnLayout {
@@ -164,10 +169,11 @@ Item {
                         font.pixelSize: Theme.AppTheme.captionSize
                     }
                     AppControls.Label {
+                        objectName: "totalFloatLabel"
                         text: root._m.totalFloatDays !== null && root._m.totalFloatDays !== undefined
-                            ? (String(root._m.totalFloatDays) + " working day" + (root._m.totalFloatDays === 1 ? "" : "s"))
+                            ? (String(root._m.totalFloatDays) + " working day" + (Math.abs(root._m.totalFloatDays) === 1 ? "" : "s"))
                             : "--"
-                        color: Theme.AppTheme.textPrimary
+                        color: root._m.isInfeasible === true ? Theme.AppTheme.error : Theme.AppTheme.textPrimary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.bodySize
                         font.bold: true
@@ -189,6 +195,22 @@ Item {
                         font.bold: true
                     }
                 }
+            }
+
+            AppWidgets.InlineMessage {
+                objectName: "infeasibleGenericWarning"
+                Layout.fillWidth: true
+                // Generic fallback explanation only -- when a structured
+                // dependency conflict or actual-date variance already
+                // exists (rendered below, under SCHEDULE DRIVERS), that
+                // specific cause is shown instead of this generic notice,
+                // per directive: "do not calculate the reason in QML,"
+                // reuse the existing structured facts when available.
+                visible: root._m.isInfeasible === true
+                    && (root._m.conflicts || []).length === 0
+                    && (root._m.actualVariances || []).length === 0
+                tone: "danger"
+                message: "Current scheduling constraints, dependencies, or fixed execution facts cannot all be satisfied simultaneously."
             }
 
             RowLayout {

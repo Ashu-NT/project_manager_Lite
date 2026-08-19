@@ -26,6 +26,7 @@ class SchedulingTaskDto:
     remaining_duration_days: int | None
     total_float_days: int | None
     is_critical: bool
+    is_infeasible: bool
     deadline: date | None
     late_by_days: int | None
     percent_complete: float

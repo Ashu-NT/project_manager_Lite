@@ -17,9 +17,10 @@ def build_diagnostics_collection(
     resource_load: Any,
 ) -> SchedulingCollectionViewModel:
     open_ends = count_open_ends(schedule_items, dependency_rows)
-    negative_float = sum(
-        1 for item in schedule_items if (item.total_float_days or 0) < 0
-    )
+    # R4.4 constraint-aware backward CPM: reads the backend-owned
+    # is_infeasible flag directly, never re-derives it from
+    # total_float_days < 0 -- see SchedulingTaskDto.is_infeasible.
+    infeasible_count = sum(1 for item in schedule_items if item.is_infeasible)
     delayed = sum(1 for item in filtered_schedule if (item.late_by_days or 0) > 0)
     constraints = sum(
         1
@@ -47,11 +48,11 @@ def build_diagnostics_collection(
             meta_text="Network quality",
         ),
         SchedulingRecordViewModel(
-            id="negative-float",
-            title="Negative Float",
-            status_label="Danger" if negative_float else "Stable",
-            subtitle=str(negative_float),
-            supporting_text="Activities with float below zero.",
+            id="infeasible",
+            title="Infeasible Activities",
+            status_label="Danger" if infeasible_count else "Stable",
+            subtitle=str(infeasible_count),
+            supporting_text="Activities whose dependencies and scheduling constraints cannot all be satisfied.",
             meta_text="Schedule pressure",
         ),
         SchedulingRecordViewModel(

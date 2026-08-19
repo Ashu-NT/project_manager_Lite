@@ -6,6 +6,18 @@ from .formatting import shift_days_label
 
 logger = logging.getLogger(__name__)
 
+_SCHEDULE_STATUS_INFEASIBLE = "Infeasible"
+_SCHEDULE_STATUS_CRITICAL = "Critical"
+_SCHEDULE_STATUS_FLEXIBLE = "Flexible"
+
+
+def _schedule_status_label(*, is_infeasible: bool, is_critical: bool) -> str:
+    if is_infeasible:
+        return _SCHEDULE_STATUS_INFEASIBLE
+    if is_critical:
+        return _SCHEDULE_STATUS_CRITICAL
+    return _SCHEDULE_STATUS_FLEXIBLE
+
 
 def _resolve_project_id(desktop_api, *, task_id: str, project_id: str) -> str:
     """The controller's project_id is the workspace-level project FILTER,
@@ -28,6 +40,8 @@ _EMPTY_OVERVIEW = {
     "currentStartLabel": "--",
     "currentFinishLabel": "--",
     "isCritical": False,
+    "isInfeasible": False,
+    "scheduleStatusLabel": "",
     "totalFloatDays": None,
     "freeFloatDays": None,
     "baselineFinishLabel": "--",
@@ -76,6 +90,10 @@ def build_task_schedule_overview_state(
         "currentStartLabel": dto.current_start_label,
         "currentFinishLabel": dto.current_finish_label,
         "isCritical": dto.is_critical,
+        "isInfeasible": dto.is_infeasible,
+        "scheduleStatusLabel": _schedule_status_label(
+            is_infeasible=dto.is_infeasible, is_critical=dto.is_critical
+        ),
         "totalFloatDays": dto.total_float_days,
         "freeFloatDays": dto.free_float_days,
         "baselineFinishLabel": dto.baseline_finish_label,

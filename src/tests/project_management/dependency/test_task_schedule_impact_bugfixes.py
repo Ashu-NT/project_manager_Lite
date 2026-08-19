@@ -307,6 +307,83 @@ class TestScheduleOverviewInfeasibleFlag:
         assert overview.is_infeasible is False
 
 
+class TestTaskScheduleImpactOverviewDesktopDtoInfeasibleRoundTrip:
+    """PRE-R4.4 wiring pass: is_infeasible must reach the actual DESKTOP
+    DTO (TaskScheduleImpactOverviewDesktopDto), not just the application-
+    layer TaskScheduleOverview the class above verifies -- this is the
+    object QML's presenter (schedule_impact_builder.py) actually reads."""
+
+    def _desktop_api(self, services, task_service):
+        from src.core.modules.project_management.api.desktop.tasks.api import (
+            ProjectManagementTasksDesktopApi,
+        )
+
+        return ProjectManagementTasksDesktopApi(
+            task_service=task_service,
+            schedule_change_impact_service=_impact_service(services),
+        )
+
+    def test_is_infeasible_true_round_trip_through_desktop_dto(self, services):
+        ps = services["project_service"]
+        ts = services["task_service"]
+        project = ps.create_project("Desktop DTO Infeasible True", "")
+        predecessor = ts.create_task(
+            project.id, "Foundation", "", start_date=date(2026, 9, 7), duration_days=3
+        )
+        successor = ts.create_task(
+            project.id,
+            "Cable Pull",
+            "",
+            start_date=date(2026, 9, 7),
+            duration_days=2,
+            constraint_type="start_no_later_than",
+            constraint_date=date(2026, 9, 8),
+        )
+        ts.add_dependency(
+            predecessor_id=predecessor.id,
+            successor_id=successor.id,
+            dependency_type=DependencyType.FINISH_TO_START,
+            lag_days=0,
+        )
+        api = self._desktop_api(services, ts)
+
+        dto = api.get_task_schedule_overview(successor.id, project.id)
+
+        assert dto.is_available is True
+        assert dto.total_float_days is not None and dto.total_float_days < 0
+        assert dto.is_infeasible is True
+
+    def test_is_infeasible_false_round_trip_through_desktop_dto(self, services):
+        ps = services["project_service"]
+        ts = services["task_service"]
+        project = ps.create_project("Desktop DTO Infeasible False", "")
+        task = ts.create_task(
+            project.id, "Task A", "", start_date=date(2024, 1, 1), duration_days=2
+        )
+        api = self._desktop_api(services, ts)
+
+        dto = api.get_task_schedule_overview(task.id, project.id)
+
+        assert dto.is_available is True
+        assert dto.is_infeasible is False
+
+    def test_unavailable_overview_reports_is_infeasible_false_not_missing(self, services):
+        """The unavailable-branch DTO construction (task not found / no
+        computed date) must still populate is_infeasible=False rather
+        than raising or defaulting to some other value -- confirmed by
+        actually reading the field, not just by the DTO construction not
+        crashing."""
+        ps = services["project_service"]
+        ts = services["task_service"]
+        project = ps.create_project("Desktop DTO Infeasible Unavailable", "")
+        api = self._desktop_api(services, ts)
+
+        dto = api.get_task_schedule_overview("does-not-exist", project.id)
+
+        assert dto.is_available is False
+        assert dto.is_infeasible is False
+
+
 class TestScheduleImpactConflictConstraintLabel:
 
     def test_mso_dependency_conflict_reports_a_humanized_label_not_the_raw_enum(self, services):

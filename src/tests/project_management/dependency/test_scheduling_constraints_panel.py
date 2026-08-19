@@ -21,6 +21,7 @@ from __future__ import annotations
 from datetime import date
 from types import SimpleNamespace
 
+from src.core.modules.project_management.domain.enums import DependencyType
 from src.ui_qml.modules.project_management.presenters.scheduling.detail_builder import (
     build_constraints_collection,
 )
@@ -169,3 +170,118 @@ class TestSchedulingTaskDtoConstraintThreading:
         item = next(i for i in items if i.id == task.id)
 
         assert item.constraint_type == ""
+
+
+class TestSchedulingTaskDtoInfeasibleThreading:
+    """Wiring pass (PRE-R4.4 -- WIRE CPM INFEASIBILITY STATE TO DESKTOP/
+    QML): SchedulingTaskDto.is_infeasible must thread the real, backend-
+    computed CPMTaskInfo.is_infeasible flag through build_schedule_from_
+    engine -> serialize_schedule_item, never a value re-derived by the
+    test or a QML consumer from total_float_days."""
+
+    def test_infeasible_ceiling_against_a_dependency_threads_true(self, services):
+        from src.core.modules.project_management.api.desktop.scheduling.services.scheduling_facade_service import (
+            build_schedule_from_engine,
+        )
+
+        ps = services["project_service"]
+        ts = services["task_service"]
+        sched = services["scheduling_engine"]
+        project = ps.create_project("Scheduling Panel Infeasible Threading", "")
+        predecessor = ts.create_task(
+            project.id, "Foundation", "", start_date=date(2026, 9, 7), duration_days=3
+        )
+        successor = ts.create_task(
+            project.id,
+            "Cable Pull",
+            "",
+            start_date=date(2026, 9, 7),
+            duration_days=2,
+            constraint_type="start_no_later_than",
+            constraint_date=date(2026, 9, 8),  # earlier than the FS-implied start
+        )
+        ts.add_dependency(
+            predecessor_id=predecessor.id,
+            successor_id=successor.id,
+            dependency_type=DependencyType.FINISH_TO_START,
+            lag_days=0,
+        )
+
+        items = build_schedule_from_engine(project.id, sched, persist=False)
+        item = next(i for i in items if i.id == successor.id)
+
+        assert item.total_float_days is not None and item.total_float_days < 0
+        assert item.is_infeasible is True
+
+    def test_feasible_task_threads_false(self, services):
+        from src.core.modules.project_management.api.desktop.scheduling.services.scheduling_facade_service import (
+            build_schedule_from_engine,
+        )
+
+        ps = services["project_service"]
+        ts = services["task_service"]
+        sched = services["scheduling_engine"]
+        project = ps.create_project("Scheduling Panel Feasible Threading", "")
+        task = ts.create_task(
+            project.id, "Untouched", "", start_date=date(2026, 9, 7), duration_days=2
+        )
+
+        items = build_schedule_from_engine(project.id, sched, persist=False)
+        item = next(i for i in items if i.id == task.id)
+
+        assert item.is_infeasible is False
+
+    def test_zero_float_critical_task_is_not_automatically_infeasible(self, services):
+        """A lone chain where every task sits exactly on the critical path
+        (total_float_days == 0) must report is_infeasible=False -- zero
+        float alone must never imply infeasibility."""
+        from src.core.modules.project_management.api.desktop.scheduling.services.scheduling_facade_service import (
+            build_schedule_from_engine,
+        )
+
+        ps = services["project_service"]
+        ts = services["task_service"]
+        sched = services["scheduling_engine"]
+        project = ps.create_project("Scheduling Panel Zero Float Not Infeasible", "")
+        a = ts.create_task(project.id, "Task A", "", start_date=date(2026, 9, 7), duration_days=2)
+        b = ts.create_task(project.id, "Task B", "", duration_days=2)
+        ts.add_dependency(
+            predecessor_id=a.id,
+            successor_id=b.id,
+            dependency_type=DependencyType.FINISH_TO_START,
+            lag_days=0,
+        )
+
+        items = build_schedule_from_engine(project.id, sched, persist=False)
+        item_a = next(i for i in items if i.id == a.id)
+        item_b = next(i for i in items if i.id == b.id)
+
+        assert item_a.total_float_days == 0
+        assert item_b.total_float_days == 0
+        assert item_a.is_infeasible is False
+        assert item_b.is_infeasible is False
+
+    def test_positive_float_task_is_not_infeasible(self, services):
+        """Two INDEPENDENT tasks (no dependency between them) -- the
+        short one has genuine slack, since the project finish is driven
+        by the long one, not by when the short one finishes."""
+        from src.core.modules.project_management.api.desktop.scheduling.services.scheduling_facade_service import (
+            build_schedule_from_engine,
+        )
+
+        ps = services["project_service"]
+        ts = services["task_service"]
+        sched = services["scheduling_engine"]
+        project = ps.create_project("Scheduling Panel Positive Float Not Infeasible", "")
+        long_task = ts.create_task(
+            project.id, "Long Task", "", start_date=date(2026, 9, 7), duration_days=10
+        )
+        short_task = ts.create_task(
+            project.id, "Short Task", "", start_date=date(2026, 9, 7), duration_days=1
+        )
+
+        items = build_schedule_from_engine(project.id, sched, persist=False)
+        item = next(i for i in items if i.id == short_task.id)
+
+        assert item.total_float_days is not None and item.total_float_days > 0
+        assert item.is_infeasible is False

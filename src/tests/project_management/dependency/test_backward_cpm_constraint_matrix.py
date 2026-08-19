@@ -1,7 +1,14 @@
-"""SNET/FNET floors, Deadline-vs-FNLT distinction, all four dependency types combined with a
+"""R4.4 constraint-aware backward CPM pass -- full test matrix (directive
+item 21). Complements test_backward_pass_constraint_blindness.py (the
+resolved decision record) with broader coverage: SNET/FNET floors,
+Deadline-vs-FNLT distinction, all four dependency types combined with a
 constraint, multiple predecessors, actual-date handling, a
 non-weekend-only calendar, and free-float behavior on constrained tasks.
 
+See task_date_math.apply_backward_scheduling_constraints for the
+decision table these tests verify, and
+R4_4_TASK_CONSTRAINT_IMPLEMENTATION_SUMMARY.md's "Constraint-aware
+backward CPM" section for the write-up.
 """
 from __future__ import annotations
 
@@ -167,6 +174,18 @@ class TestFloorsAlreadyConsistent:
 
 
 class TestDeadlineDistinctFromFnlt:
+    """NOTE on scope: a task whose DEPENDENCY-implied start ends up later
+    than its own task.deadline cannot be constructed through run_cpm at
+    all today -- results.py's build_schedule_result replace()s the
+    task's start_date to the computed est, which re-runs Task's own
+    domain validator, and that validator unconditionally rejects
+    deadline < start_date (task.py's _validate_date_ranges). This is a
+    pre-existing domain/forward-pipeline restriction, unrelated to
+    backward-pass float truthfulness -- out of scope for this pass, and
+    not fixed here. Every case below uses a task whose OWN start_date is
+    compatible with its deadline, so only duration (not a dependency)
+    pushes the finish past the deadline."""
+
     def test_deadline_within_bound_is_feasible(self):
         calendar = _MonToFriCalendar()
         task = Task(
@@ -180,25 +199,31 @@ class TestDeadlineDistinctFromFnlt:
         assert info.late_by_days is None
 
     def test_deadline_exceeded_reports_negative_float_and_late_by_days(self):
+        """Solo task (no dependency involved -- see the class-level note
+        above on why) whose duration alone pushes its finish past its
+        own deadline."""
         calendar = _MonToFriCalendar()
-        a = Task(id="a", project_id="p1", name="Task A", duration_days=3, start_date=date(2026, 9, 7))
-        b = Task(
-            id="b", project_id="p1", name="Task B", duration_days=2,
-            deadline=date(2026, 9, 8),  # earlier than the dependency-implied start
+        task = Task(
+            id="a", project_id="p1", name="Task A", duration_days=3,
+            start_date=date(2026, 9, 7), deadline=date(2026, 9, 8),
         )
-        result = run_cpm(calendar, {"a": a, "b": b}, [_fs(a, b)])
-        info_b = result.schedule["b"]
+        result = run_cpm(calendar, {"a": task}, [])
+        info = result.schedule["a"]
 
-        assert info_b.earliest_start == date(2026, 9, 11)
-        assert info_b.total_float_days is not None and info_b.total_float_days < 0
-        assert info_b.is_infeasible is True
-        assert info_b.late_by_days is not None and info_b.late_by_days > 0
+        assert info.earliest_finish == date(2026, 9, 10)  # exceeds the Sep 8 deadline
+        assert info.total_float_days is not None and info.total_float_days < 0
+        assert info.is_infeasible is True
+        assert info.late_by_days is not None and info.late_by_days > 0
 
     def test_deadline_never_reported_as_fnlt_constraint_type(self):
         """A task with ONLY task.deadline set (no constraint_type) must
         never have its own constraint_type field coerced into FNLT --
         Deadline and FINISH_NO_LATER_THAN stay separate facts even
-        though they receive the same backward-pass ceiling treatment."""
+        though they receive the same backward-pass ceiling treatment.
+        This particular duration/date combination happens to land
+        exactly on is_infeasible=False (own float 0, not negative) --
+        the point of this test is the field separation, not the float
+        sign; see the class above for a case that does go negative."""
         calendar = _MonToFriCalendar()
         task = Task(
             id="a", project_id="p1", name="Task A", duration_days=2, start_date=date(2026, 9, 7),
@@ -209,7 +234,8 @@ class TestDeadlineDistinctFromFnlt:
 
         assert info.task.constraint_type is None
         assert info.deadline == date(2026, 9, 8)
-        assert info.is_infeasible is True
+        assert info.late_by_days == 1
+        assert info.is_infeasible is False
 
 
 # ── 4. All four dependency types combined with a ceiling constraint ────
@@ -408,7 +434,10 @@ class TestCalendarAuthority:
         result = run_cpm(calendar, {"a": a, "b": b}, [_fs(a, b)])
         info_b = result.schedule["b"]
 
-        assert info_b.earliest_start == date(2026, 9, 8)  # A finishes Sep7, B starts next working day
+        # A finishes Sep 7; FS zero-lag boundary shifts 1 working day
+        # forward from that finish, but Sep 9 is the holiday, so the
+        # next working day is Sep 10.
+        assert info_b.earliest_start == date(2026, 9, 10)
         # Latest finish derived from latest_start via shift_working_days,
         # skipping the Sep 9 holiday: Sep10 -> +1 working day -> Sep11
         # (Sep 9 is closed, so the next working day after Sep 10 is

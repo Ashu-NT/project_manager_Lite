@@ -38,9 +38,10 @@ def build_overview(
     resource_load: Any,
 ) -> SchedulingOverviewViewModel:
     open_ends = count_open_ends(schedule_items, dependency_rows)
-    negative_float = sum(
-        1 for item in schedule_items if (item.total_float_days or 0) < 0
-    )
+    # R4.4 constraint-aware backward CPM: reads the backend-owned
+    # is_infeasible flag directly, never re-derives it from
+    # total_float_days < 0 -- see SchedulingTaskDto.is_infeasible.
+    infeasible_count = sum(1 for item in schedule_items if item.is_infeasible)
     overloaded_resources = sum(
         1 for item in resource_load if float(item.utilization_percent or 0.0) > 100.0
     )
@@ -73,9 +74,9 @@ def build_overview(
                 supporting_text="Missing predecessor/successor",
             ),
             SchedulingMetricViewModel(
-                label="Neg. float",
-                value=str(negative_float),
-                supporting_text="Activities with float below zero",
+                label="Infeasible",
+                value=str(infeasible_count),
+                supporting_text="Activities whose schedule cannot be satisfied as specified",
             ),
             SchedulingMetricViewModel(
                 label="Baselines",

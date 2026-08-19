@@ -107,6 +107,7 @@ class TaskScheduleImpactOverviewDesktopDto:
     current_start_label: str
     current_finish_label: str
     is_critical: bool
+    is_infeasible: bool
     total_float_days: int | None
     free_float_days: int | None
     baseline_finish_label: str

@@ -461,3 +461,183 @@ scenario in the test matrix (§10.7) reports a float number leveling can
 trust as the REAL constraint-adjusted bound, including genuine
 negative-float infeasibility, which is never silently clamped to zero
 or otherwise disguised.
+
+---
+
+## 11. Wiring is_infeasible to desktop/QML
+
+Follow-up pass (PRE-R4.4 — WIRE CPM INFEASIBILITY STATE TO DESKTOP/QML).
+§10 added `is_infeasible` at the CPM/application layer but never threaded
+it past `TaskScheduleOverview` — the desktop DTOs and every QML surface
+still only knew about `is_critical`/`total_float_days`. This section
+closes that gap on both scheduling read-path surfaces this codebase has.
+
+### 11.1 Read-path trace and where is_infeasible was lost
+
+```
+CPMTaskInfo.is_infeasible (already existed, §10)
+        |
+        ├── TaskScheduleOverview.is_infeasible (already existed, §10)
+        |         |
+        |         └── TaskScheduleImpactOverviewDesktopDto  -- MISSING (fixed here)
+        |                   |
+        |                   └── schedule_impact_builder.py "isInfeasible" -- MISSING (fixed here)
+        |                             |
+        |                             └── TasksScheduleImpactSection.qml -- MISSING (fixed here)
+        |
+        └── (Scheduling workspace path, never touched by §10 at all)
+                  SchedulingTaskDto.is_infeasible  -- MISSING (fixed here)
+                            |
+                            ├── diagnostics_builder.py "Negative Float" row
+                            |         (was re-deriving total_float_days < 0) -- FIXED
+                            ├── overview_builder.py "Neg. float" metric
+                            |         (same re-derivation) -- FIXED
+                            └── record_mappers.py criticalLabel (binary
+                                      Critical/Normal, no infeasible
+                                      distinction) -- FIXED (3-way)
+```
+
+`ConstraintValidator`/`ConstraintViolation`/`DependencyConstraintConflict`
+were confirmed orthogonal to this trace — they never read `is_critical`/
+`total_float_days`/`is_infeasible` at all, so nothing there needed
+changing; they remain the "why" explanation surfaced alongside the
+infeasible status, not a second feasibility calculator.
+
+### 11.2 Desktop DTO contract
+
+- `TaskScheduleImpactOverviewDesktopDto.is_infeasible: bool` (Task Detail
+  → Schedule Impact) — threaded in `serialize_task_schedule_overview`
+  (both the available and unavailable branches).
+- `SchedulingTaskDto.is_infeasible: bool` (Scheduling workspace) —
+  threaded in both `serialize_schedule_item` (real CPM data, via
+  `getattr(item, "is_infeasible", False)` so a pre-existing fake/duck-typed
+  `CPMTaskInfo`-shaped test double without the field still serializes
+  safely) and `serialize_task_as_schedule_item` (the no-CPM-data fallback,
+  hardcoded `False`).
+
+Neither DTO's consumers ever compare `total_float_days < 0` themselves —
+the flag is read directly, per the directive's explicit "the backend
+already owns that semantic distinction."
+
+### 11.3 Task Detail → Schedule Impact presentation
+
+`schedule_impact_builder.py` adds two derived fields to the state dict,
+computed ONCE at the Python boundary and rendered verbatim by QML:
+
+- `"isInfeasible"` — the raw boolean, for styling (e.g. the Total Float
+  value renders in `Theme.AppTheme.error` red when true).
+- `"scheduleStatusLabel"` — the canonical, precedence-ordered string
+  (`_schedule_status_label`): `"Infeasible"` if `is_infeasible`, else
+  `"Critical"` if `is_critical`, else `"Flexible"`. This is what the
+  "Schedule Status" chip (formerly a binary "Critical"/"Not critical"
+  "Critical Path" field) renders — QML never compares booleans or floats
+  itself to pick a label.
+
+`TasksScheduleImpactSection.qml` changes:
+
+- The "Critical Path" field/chip → "Schedule Status" field/chip bound to
+  `scheduleStatusLabel`.
+- Total Float's value colors red when `isInfeasible` (a style decision
+  based on the flag, not a feasibility decision — the number itself is
+  unchanged).
+- A new fallback `InlineMessage` (danger tone), visible only when
+  `isInfeasible` is true AND no structured `conflicts`/`actualVariances`
+  already explain why (both already rendered under SCHEDULE DRIVERS,
+  unchanged from §10/earlier passes) — showing the canonical generic
+  explanation: *"Current scheduling constraints, dependencies, or fixed
+  execution facts cannot all be satisfied simultaneously."* When a
+  structured conflict DOES exist, that specific cause is shown instead
+  and this generic banner stays hidden — no second conflict calculator
+  was written.
+- `AppWidgets.StatusChip` (a shared, app-wide component) gained two new
+  recognized status words: `"infeasible"` → danger (same tone as
+  `"critical"`) and `"flexible"` → success. Purely additive — no existing
+  keyword's behavior changed.
+
+Task-switch staleness was found to already be architecturally
+impossible: `reset_task_lazy_sections` (`task_selection_handler.py`) sets
+`scheduleImpactModel` to `{}` synchronously on every task-selection
+change, before the next task's data is fetched — since every field this
+section reads (`isInfeasible`, `isCritical`, `scheduleStatusLabel`,
+`totalFloatDays`, …) derives from that SAME model object, there is no
+code path where one field could update while another still reflects the
+previous task. Confirmed with a dedicated test rather than left as an
+assumption.
+
+### 11.4 Scheduling workspace (diagnostics/overview/table) presentation
+
+- `diagnostics_builder.py`: the "Negative Float" row (id `negative-float`)
+  became "Infeasible Activities" (id `infeasible`), counting
+  `item.is_infeasible` instead of `(item.total_float_days or 0) < 0`.
+- `overview_builder.py`: the "Neg. float" overview metric became
+  "Infeasible", same counting change.
+- `record_mappers.py` / `formatters.py`: `to_schedule_record`'s
+  `criticalLabel` (feeding the main Scheduling table's status column) now
+  calls a new `activity_criticality_label()` helper —
+  `"Infeasible"` > `"Critical"` > `"Normal"` — instead of the old binary
+  `"Critical"`/`"Normal"`. `to_timeline_record`/`to_critical_path_record`
+  were deliberately left as plain booleans/pre-filtered-critical lists —
+  extending those further was judged unnecessary broadening beyond what
+  the directive asked for on this surface.
+
+No second, parallel diagnostics system was created — both existing
+DTOs/read models were extended in place, per the directive's explicit
+"prefer extending the existing diagnostics/read DTO."
+
+### 11.5 Test evidence
+
+- `test_qml_tasks_schedule_impact_section_contract.py` — 11 new tests:
+  flexible/critical/infeasible chip states, infeasible-takes-precedence,
+  negative float rendering, generic-warning shown/suppressed by a
+  structured conflict, task-switch staleness (both to another task and
+  to an empty/unavailable model), and a source-level assertion that no
+  `totalFloatDays < 0`/`<= 0`/`== 0`-style comparison exists in the QML
+  file.
+- `test_qml_status_chip_priority_severity_variants.py` — confirms
+  `"Infeasible"`/`"Flexible"` map to the intended danger/success tones.
+- `test_task_schedule_impact_bugfixes.py` —
+  `TestTaskScheduleImpactOverviewDesktopDtoInfeasibleRoundTrip` (3 tests):
+  true/false round-trip through the actual desktop DTO (not just the
+  application-layer fact §10 already covered), plus the
+  unavailable-branch construction.
+- `test_scheduling_constraints_panel.py` —
+  `TestSchedulingTaskDtoInfeasibleThreading` (4 tests): true/false
+  round-trip through `SchedulingTaskDto`, zero float not automatically
+  infeasible, positive float not infeasible.
+- `test_scheduling_infeasible_presenters.py` (new file, 8 tests):
+  diagnostics row and overview metric read the flag rather than
+  re-deriving it, plus the 3-way `activity_criticality_label`/
+  `criticalLabel` precedence.
+- Full `src/tests/project_management` regression run (see the run log for
+  exact counts) confirmed only the same pre-existing, unrelated
+  `test_baseline_lifecycle.py`/`test_financial_desktop_forecast_delegation.py`
+  failures already documented in §7 — plus one self-caught regression
+  during this pass (`serialize_schedule_item` crashing on a fake
+  `CPMTaskInfo`-shaped test double lacking `is_infeasible`, fixed via
+  `getattr(..., False)` before the full suite was considered clean).
+
+### 11.6 Exit gate
+
+1. `is_infeasible` reaches both desktop DTOs — done (§11.2).
+2. Schedule Impact consumes it — done (§11.3).
+3. Infeasible is visually distinct from Critical — done (dedicated status
+   word, dedicated danger tone, precedence-tested).
+4. Negative float remains visible — done (unchanged rendering, now
+   additionally colored on `isInfeasible`).
+5. Zero float alone does not imply infeasible — done and tested
+   (`test_zero_float_critical_task_is_not_automatically_infeasible`,
+   `test_no_infeasible_activities_reports_stable`).
+6. QML does not derive infeasibility itself — done and enforced by a
+   source-scan test; every comparison lives in Python
+   (`_schedule_status_label`, `activity_criticality_label`).
+7. Structured conflict details are reused where available — done; the
+   generic banner explicitly suppresses itself when `conflicts`/
+   `actualVariances` already exist, no new conflict calculator written.
+8. Task switching is stale-safe — done and confirmed to be already
+   architecturally guaranteed, not just patched.
+9. Scheduling diagnostics remain truthful — done (both the row and the
+   overview metric now read the real flag).
+10. Tests pass — done (see §11.5); full regression clean of new
+    regressions.
+11. Resource leveling was not modified.
+12. ALAP was not implemented.

@@ -42,3 +42,17 @@ def test_priority_and_severity_words_get_real_tones_not_neutral(qapp):
     assert low.property("_variant") == "info"
     assert critical.property("_variant") == "danger"
     assert unknown.property("_variant") == "neutral"
+
+
+def test_infeasible_and_flexible_schedule_status_words_get_real_tones(qapp) -> None:
+    """R4.4 constraint-aware backward CPM wiring: Task Detail -> Schedule
+    Impact's Schedule Status chip renders the backend-owned
+    "Infeasible"/"Critical"/"Flexible" precedence -- before "infeasible"/
+    "flexible" were added to this vocabulary, both would have silently
+    fallen to the neutral-gray default, defeating the whole point of a
+    visually distinct infeasible state."""
+    infeasible = _make_chip(qapp, "Infeasible")
+    flexible = _make_chip(qapp, "Flexible")
+
+    assert infeasible.property("_variant") == "danger"
+    assert flexible.property("_variant") == "success"
