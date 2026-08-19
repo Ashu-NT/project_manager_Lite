@@ -158,17 +158,17 @@ def load_selected_task_schedule_impact(controller) -> None:
     (one CPM pass, no hypothetical). The "Preview Impact" what-if is a
     separate, EXPLICIT action (see PMScheduleImpactController.previewImpact)
     never run automatically (§26)."""
-    logger.info(
+    logger.debug(
         "load_selected_task_schedule_impact called selected_task_id=%s selected_project_id=%s already_loaded_for=%s",
         controller._selected_task_id,
         controller._selected_project_id,
         controller._schedule_impact_section_loaded_for_task_id,
     )
     if not controller._selected_task_id:
-        logger.info("load_selected_task_schedule_impact: no selected task, returning")
+        logger.debug("load_selected_task_schedule_impact: no selected task, returning")
         return
     if controller._schedule_impact_section_loaded_for_task_id == controller._selected_task_id:
-        logger.info("load_selected_task_schedule_impact: already loaded for this task, returning")
+        logger.debug("load_selected_task_schedule_impact: already loaded for this task, returning")
         return
     controller._set_is_loading(True)
     try:
@@ -179,7 +179,7 @@ def load_selected_task_schedule_impact(controller) -> None:
         )
         controller._set_schedule_impact(overview)
         controller._schedule_impact_section_loaded_for_task_id = controller._selected_task_id
-        logger.info("load_selected_task_schedule_impact: loaded overview=%r", overview)
+        logger.debug("load_selected_task_schedule_impact: loaded overview=%r", overview)
     except Exception as exc:
         logger.exception("load_selected_task_schedule_impact failed")
         controller._set_section_error("scheduleImpact", str(exc))

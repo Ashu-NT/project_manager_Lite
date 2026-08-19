@@ -938,7 +938,7 @@ class ProjectManagementTasksDesktopApi:
             return serialize_task_schedule_overview(
                 normalized_task_id, unavailable_reason="error"
             )
-        logger.info(
+        logger.debug(
             "get_task_schedule_overview result task_id=%s project_id=%s is_available=%s unavailable_reason=%s",
             normalized_task_id,
             normalized_project_id,
@@ -974,7 +974,7 @@ class ProjectManagementTasksDesktopApi:
         try:
             task = self._task_service.get_task(normalized_task_id)
             if task is None or task.start_date is None:
-                logger.info(
+                logger.debug(
                     "preview_task_schedule_impact unavailable: task=%s start_date=%s",
                     normalized_task_id,
                     task.start_date if task is not None else None,

@@ -542,7 +542,7 @@ class ProjectManagementTasksWorkspaceController(
             self._set_section_error("scheduleImpact", str(exc))
             preview = {}
         else:
-            logger.info(
+            logger.debug(
                 "previewTaskScheduleImpact result task_id=%s delay_working_days=%s isAvailable=%s affectedCount=%s",
                 self._selected_task_id,
                 delay_working_days,
