@@ -30,6 +30,7 @@ def task_to_orm(task: Task) -> TaskORM:
         constraint_type=constraint_type.value if constraint_type is not None else None,
         constraint_date=task.constraint_date,
         is_milestone=getattr(task, "is_milestone", False),
+        resource_leveling_not_before=getattr(task, "resource_leveling_not_before", None),
         version=getattr(task, "version", 1),
     )
 
@@ -61,6 +62,7 @@ def task_from_orm(obj: TaskORM) -> Task:
         ),
         constraint_date=getattr(obj, "constraint_date", None),
         is_milestone=getattr(obj, "is_milestone", False),
+        resource_leveling_not_before=getattr(obj, "resource_leveling_not_before", None),
         version=getattr(obj, "version", 1),
     )
 

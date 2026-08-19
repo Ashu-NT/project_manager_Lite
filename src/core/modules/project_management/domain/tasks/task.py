@@ -46,6 +46,7 @@ class Task:
     constraint_type: ConstraintType | None = None
     constraint_date: date | None = None
     is_milestone: bool = False
+    resource_leveling_not_before: date | None = None
     version: int = 1
 
     @field_validator("project_id", mode="before")

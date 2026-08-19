@@ -88,6 +88,7 @@ class TaskORM(Base):
     is_milestone: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="0"
     )
+    resource_leveling_not_before: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 

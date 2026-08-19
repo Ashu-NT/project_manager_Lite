@@ -19,6 +19,7 @@ from src.core.modules.project_management.contracts.repositories.resources.resour
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
 from src.core.modules.project_management.application.scheduling.cpm.task_date_math import (
     apply_actual_date_constraints,
+    apply_resource_leveling_floor,
     apply_scheduling_constraints,
     compute_duration_dates,
     compute_milestone_dates,
@@ -302,7 +303,8 @@ class SchedulingEngine(ResourceLevelingMixin):
             apply_actual_constraints=self._apply_actual_constraints,
             on_dependency_implied=_capture_dependency_implied,
         )
-        return self._apply_scheduling_constraints(task, est, eft)
+        est, eft = self._apply_scheduling_constraints(task, est, eft)
+        return self._apply_resource_leveling_floor(task, est, eft)
 
     def _resolve_task_calendar(self, task_id: str) -> CalendarProtocol:
         """Return the highest-priority calendar for a task's primary resource."""
@@ -324,6 +326,20 @@ class SchedulingEngine(ResourceLevelingMixin):
         eft: date | None,
     ) -> tuple[date | None, date | None]:
         return apply_scheduling_constraints(self._task_calendar, task, est, eft)
+
+    def _apply_resource_leveling_floor(
+        self,
+        task: Task,
+        est: date | None,
+        eft: date | None,
+    ) -> tuple[date | None, date | None]:
+        """R4.4: the live, persisting counterpart of pure_cpm.run_cpm's
+        same-named call -- see task_date_math.apply_resource_leveling_floor
+        for the full rationale. Both orchestrations must apply this floor
+        or the two paths would (again) disagree, the exact class of bug
+        R4.4's canonical-scheduling-implementation consolidation (Phase D,
+        prior session) already fixed once for constraints."""
+        return apply_resource_leveling_floor(self._task_calendar, task, est, eft)
 
     def _compute_dates_milestone(
         self,

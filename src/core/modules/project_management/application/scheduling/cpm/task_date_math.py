@@ -208,6 +208,47 @@ def apply_scheduling_constraints(
     return est, eft
 
 
+def apply_resource_leveling_floor(
+    calendar: CalendarProtocol,
+    task: Task,
+    est: date | None,
+    eft: date | None,
+) -> tuple[date | None, date | None]:
+    """R4.4: unconditional forward-pass floor for an ACCEPTED resource-
+    leveling placement (``Task.resource_leveling_not_before``) -- composes
+    with (never replaces) whatever the dependency graph and
+    ``apply_scheduling_constraints`` already produced, exactly like
+    ``START_NO_EARLIER_THAN``'s own floor. This is what makes a
+    resource-driven placement survive every subsequent canonical
+    ``run_cpm`` call even for a task with an incoming dependency -- the
+    defect ``test_leveling_dependency_boundary.py`` pins (pre-R4.4,
+    leveling wrote raw ``Task.start_date``, which the forward pass
+    ignores outright whenever a usable incoming dependency exists).
+
+    Called AFTER ``apply_scheduling_constraints`` so a real, user-entered
+    exact pin (MUST_START_ON/MUST_FINISH_ON) is never second-guessed by a
+    resource placement -- movability policy (leveling_policy.py) is
+    responsible for never proposing a move for a pinned task in the
+    first place; this function only guards the composition, it does not
+    enforce that policy itself.
+
+    Skipped once ``actual_start``/``actual_end`` locks the task --
+    historical fact always wins over a scheduler-generated placement,
+    same precedence every other constraint already respects.
+    """
+    floor = getattr(task, "resource_leveling_not_before", None)
+    if floor is None:
+        return est, eft
+    if getattr(task, "actual_start", None) is not None or getattr(task, "actual_end", None) is not None:
+        return est, eft
+    if est is not None and est >= floor:
+        return est, eft
+    duration = int(task.duration_days or 0)
+    new_est = floor
+    new_eft = calendar.add_working_days(new_est, duration) if duration > 0 else new_est
+    return new_est, new_eft
+
+
 def apply_backward_scheduling_constraints(
     calendar: CalendarProtocol,
     task: Task,
@@ -310,5 +351,6 @@ __all__ = [
     "compute_duration_dates",
     "apply_actual_date_constraints",
     "apply_scheduling_constraints",
+    "apply_resource_leveling_floor",
     "apply_backward_scheduling_constraints",
 ]

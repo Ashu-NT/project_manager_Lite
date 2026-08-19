@@ -99,6 +99,7 @@ class SqlAlchemyTaskRepository(TaskRepository):
                 ),
                 "constraint_date": task.constraint_date,
                 "is_milestone": task.is_milestone,
+                "resource_leveling_not_before": task.resource_leveling_not_before,
             },
             extra_filters={"project_id": task.project_id},
             not_found_message="Task not found.",

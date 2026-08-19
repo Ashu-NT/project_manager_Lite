@@ -42,6 +42,7 @@ from src.core.modules.project_management.application.scheduling.cpm.results impo
 )
 from src.core.modules.project_management.application.scheduling.cpm.task_date_math import (
     apply_actual_date_constraints,
+    apply_resource_leveling_floor,
     apply_scheduling_constraints,
     compute_duration_dates,
     compute_milestone_dates,
@@ -99,6 +100,7 @@ def run_cpm(
         )
         if apply_constraints:
             est, eft = apply_scheduling_constraints(calendar, task, est, eft)
+            est, eft = apply_resource_leveling_floor(calendar, task, est, eft)
         return est, eft
 
     topo_order, deps_by_successor, deps_by_predecessor = build_project_dependency_graph(
