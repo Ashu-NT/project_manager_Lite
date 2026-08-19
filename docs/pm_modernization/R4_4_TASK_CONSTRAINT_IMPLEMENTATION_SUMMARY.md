@@ -608,13 +608,15 @@ DTOs/read models were extended in place, per the directive's explicit
   diagnostics row and overview metric read the flag rather than
   re-deriving it, plus the 3-way `activity_criticality_label`/
   `criticalLabel` precedence.
-- Full `src/tests/project_management` regression run (see the run log for
-  exact counts) confirmed only the same pre-existing, unrelated
-  `test_baseline_lifecycle.py`/`test_financial_desktop_forecast_delegation.py`
-  failures already documented in §7 — plus one self-caught regression
-  during this pass (`serialize_schedule_item` crashing on a fake
-  `CPMTaskInfo`-shaped test double lacking `is_infeasible`, fixed via
-  `getattr(..., False)` before the full suite was considered clean).
+- Full `src/tests/project_management` regression run: **1078 passed, 1
+  failed** (768s) — the single failure is the same pre-existing,
+  unrelated `test_financial_desktop_forecast_delegation.py` pagination
+  bug already documented in §7, reproducing in complete isolation and
+  touching no file this pass changed. Zero regressions attributable to
+  this wiring pass. One self-caught regression during development
+  (`serialize_schedule_item` crashing on a fake `CPMTaskInfo`-shaped test
+  double lacking `is_infeasible`) was found and fixed via
+  `getattr(..., False)` before this run.
 
 ### 11.6 Exit gate
 
