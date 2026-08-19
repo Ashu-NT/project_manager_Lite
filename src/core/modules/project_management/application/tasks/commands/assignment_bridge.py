@@ -2,13 +2,20 @@ from __future__ import annotations
 
 from src.core.modules.project_management.domain.projects.project import ProjectResource
 from src.core.modules.project_management.domain.tasks.task import TaskAssignment
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
 
 class TaskAssignmentBridgeMixin:
     def assign_resource(
         self, task_id: str, resource_id: str, allocation_percent: float = 100.0
     ) -> TaskAssignment:
+        """Convenience entry point: resolves (or auto-provisions) the
+        resource's ProjectResource envelope on this task's project, then
+        delegates to assign_project_resource -- the same membership
+        invariant (a TaskAssignment always has a real, active ProjectResource
+        behind it) applies here as it does to the primary entry point;
+        there is no bypass for a repository-not-configured case, since a
+        real TaskService always has one wired (see docs §43/§80)."""
         self._require_manage("add assignment")
         task = self._task_repo.get(task_id)
         if not task:
@@ -16,32 +23,16 @@ class TaskAssignmentBridgeMixin:
         self._require_manage("add assignment", project_id=task.project_id)
         self._require_leaf_task(task, operation_label="receive resource assignments")
 
+        if not self._project_resource_repo:
+            raise BusinessRuleError(
+                "Project resource repository is not configured.",
+                code="PROJECT_RESOURCE_REPO_MISSING",
+            )
+
         resource = self._resource_repo.get(resource_id)
         if not resource:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
         assignment = TaskAssignment.create(task_id, resource_id, allocation_percent)
-
-        if not self._project_resource_repo:
-            existing = self._assignment_repo.list_by_task(task_id)
-            if any(a.resource_id == resource_id for a in existing):
-                raise ValidationError(
-                    "Resource is already assigned to this task.",
-                    code="ASSIGNMENT_DUPLICATE",
-                )
-            self._check_resource_overallocation(
-                project_id=task.project_id,
-                resource_id=resource_id,
-                new_task_id=task_id,
-                new_alloc_percent=assignment.allocation_percent,
-            )
-            try:
-                self._assignment_repo.add(assignment)
-                self._session.commit()
-            except Exception:
-                self._session.rollback()
-                raise
-            self._emit_tasks_changed(task.project_id)
-            return assignment
 
         project_resource = self._project_resource_repo.get_for_project(task.project_id, resource_id)
         if not project_resource:
@@ -65,12 +56,6 @@ class TaskAssignmentBridgeMixin:
             project_resource_id=project_resource.id,
             allocation_percent=assignment.allocation_percent,
         )
-
-    @staticmethod
-    def _emit_tasks_changed(project_id: str) -> None:
-        from src.core.shared.events.domain_events import domain_events
-
-        domain_events.tasks_changed.emit(project_id)
 
 
 __all__ = ["TaskAssignmentBridgeMixin"]

@@ -19,6 +19,7 @@ class TaskDependencyUpdateCommand:
     dependency_id: str
     dependency_type: str = DependencyType.FINISH_TO_START.value
     lag_days: int = 0
+    expected_version: int | None = None
 
 
 __all__ = ["TaskDependencyCreateCommand", "TaskDependencyUpdateCommand"]

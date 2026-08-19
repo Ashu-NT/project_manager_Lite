@@ -7,7 +7,6 @@ from src.ui_qml.modules.project_management.view_models.collaboration import (
     CollaborationCollectionViewModel,
 )
 from src.ui_qml.modules.project_management.view_models.timesheets import (
-    TimesheetCollectionViewModel,
     TimesheetDetailViewModel,
 )
 
@@ -78,6 +77,7 @@ class TaskCatalogWorkspaceViewModel:
     selected_status_filter: str = "all"
     selected_priority_filter: str = "all"
     selected_schedule_filter: str = "all"
+    selected_milestones_only: bool = False
     search_text: str = ""
     tasks: tuple[TaskRecordViewModel, ...] = field(default_factory=tuple)
     wbs_parent_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
@@ -93,14 +93,15 @@ class TaskCatalogWorkspaceViewModel:
     dependencies: TaskExecutionCollectionViewModel = field(
         default_factory=lambda: TaskExecutionCollectionViewModel(title="", subtitle="")
     )
-    time_period_options: tuple[TaskSelectorOptionViewModel, ...] = field(default_factory=tuple)
-    selected_time_period_start: str = ""
-    time_assignment_summary: TimesheetDetailViewModel = field(
-        default_factory=TimesheetDetailViewModel
-    )
-    time_entries: TimesheetCollectionViewModel = field(
-        default_factory=lambda: TimesheetCollectionViewModel(title="", subtitle="", empty_state="")
-    )
+    # Task-scoped (never period-scoped, never resource-wide) Time redesign
+    # state (docs §44 Time redesign) -- plain dicts straight from the
+    # desktop API's serialized DTOs, not intermediate view-model dataclasses,
+    # matching the lighter pattern already used for assignmentPreview/
+    # projectResourceUsage.
+    task_time_summary: dict[str, object] | None = None
+    task_time_entries_page: dict[str, object] | None = None
+    task_time_entries_resource_filter: str = ""
+    task_time_entries_page_number: int = 1
     selected_time_entry_id: str = ""
     selected_time_entry_detail: TimesheetDetailViewModel = field(
         default_factory=TimesheetDetailViewModel
@@ -126,6 +127,9 @@ class TaskCatalogWorkspaceViewModel:
         )
     )
     task_skill_requirements: TaskExecutionCollectionViewModel = field(
+        default_factory=lambda: TaskExecutionCollectionViewModel(title="", subtitle="")
+    )
+    task_activity: TaskExecutionCollectionViewModel = field(
         default_factory=lambda: TaskExecutionCollectionViewModel(title="", subtitle="")
     )
     empty_state: str = ""

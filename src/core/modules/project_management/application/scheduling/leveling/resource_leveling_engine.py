@@ -244,11 +244,10 @@ class ResourceLevelingEngine:
         scale = float(threshold_percent or 100.0) / 100.0
         self._resource_threshold_by_id = {}
         names: dict[str, str] = {}
-        for asgn in assignments:
-            rid = asgn.resource_id
-            if rid in names:
-                continue
-            resource = self._resource_repo.get(rid)
+        resource_ids = {asgn.resource_id for asgn in assignments}
+        resources_by_id = {r.id: r for r in self._resource_repo.list_by_ids(list(resource_ids))}
+        for rid in resource_ids:
+            resource = resources_by_id.get(rid)
             names[rid] = resource.name if resource else rid
             cap = float(getattr(resource, "capacity_percent", 100.0) or 100.0) if resource else 100.0
             if cap <= 0.0:

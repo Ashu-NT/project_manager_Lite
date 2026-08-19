@@ -63,6 +63,7 @@ class TaskQueryMixin:
         status: str = "all",
         priority: str = "all",
         schedule: str = "all",
+        milestones_only: bool = False,
         page: int = 1,
         page_size: int = 25,
         as_of: date | None = None,
@@ -109,6 +110,7 @@ class TaskQueryMixin:
             status=status,
             priority=priority,
             schedule=schedule,
+            milestones_only=milestones_only,
             as_of=as_of or date.today(),
         )
         read_kwargs = dict(

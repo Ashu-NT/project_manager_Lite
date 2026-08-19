@@ -37,6 +37,7 @@ def build_fake_task_workspace_page(
     status="all",
     priority="all",
     schedule="all",
+    milestones_only=False,
     page=1,
     page_size=25,
     sort_key="wbsCode",
@@ -56,6 +57,7 @@ def build_fake_task_workspace_page(
         status=status,
         priority=priority,
         schedule=schedule,
+        milestones_only=milestones_only,
         as_of=date.today(),
     )
 
@@ -78,6 +80,8 @@ def build_fake_task_workspace_page(
         ):
             return False
         if criteria.schedule == "no_deadline" and deadline is not None:
+            return False
+        if criteria.milestones_only and not bool(getattr(task, "is_milestone", False)):
             return False
         haystack = " ".join(
             (
@@ -180,6 +184,7 @@ def build_fake_task_workspace_page(
             is_summary=False,
             hierarchy_depth=0,
             child_count=0,
+            is_milestone=bool(getattr(task, "is_milestone", False)),
         )
         for task in filtered[offset : offset + page_size]
     )

@@ -231,11 +231,10 @@ class ResourceLevelingMixin:
                 names.setdefault(rid, rid)
                 self._resource_threshold_by_id.setdefault(rid, 100.0 * scale)
             return names
-        for assignment in assignments:
-            rid = assignment.resource_id
-            if rid in names:
-                continue
-            resource = self._resource_repo.get(rid)
+        resource_ids = {assignment.resource_id for assignment in assignments}
+        resources_by_id = {r.id: r for r in self._resource_repo.list_by_ids(list(resource_ids))}
+        for rid in resource_ids:
+            resource = resources_by_id.get(rid)
             names[rid] = resource.name if resource else rid
             capacity = float(getattr(resource, "capacity_percent", 100.0) or 100.0) if resource else 100.0
             if capacity <= 0.0:

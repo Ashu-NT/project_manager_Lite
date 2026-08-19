@@ -33,6 +33,14 @@ QQC2.ComboBox {
 
     implicitHeight: Theme.AppTheme.inputHeight
     implicitWidth: Math.max(160, contentItem.implicitWidth + Theme.AppTheme.spacingXl)
+    // Without this, a long selected label (a project name, a long site
+    // name, ...) inflates implicitWidth, and QtQuick Layouts uses
+    // implicitWidth as Layout.minimumWidth by default -- so `Layout.fillWidth:
+    // true` alone can never shrink the control below that, and it overflows
+    // past its container/dialog border instead of eliding. Layout.minimumWidth
+    // must be small so fillWidth can actually shrink it; elide below
+    // (Text.ElideRight) then truncates the label instead of overflowing.
+    Layout.minimumWidth: 0
     leftPadding: Theme.AppTheme.spacingSm + 2
     rightPadding: Theme.AppTheme.spacingXl + Theme.AppTheme.spacingSm
     topPadding: 0

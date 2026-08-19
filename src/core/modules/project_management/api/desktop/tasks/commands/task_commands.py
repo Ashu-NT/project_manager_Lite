@@ -20,6 +20,9 @@ class TaskCreateCommand:
     parent_task_id: str | None = None
     wbs_code: str = ""
     sort_order: int | None = None
+    is_milestone: bool = False
+    constraint_type: str | None = None
+    constraint_date: date | None = None
 
 
 @dataclass(frozen=True)
@@ -43,6 +46,7 @@ class TaskUpdateCommand:
     priority: int | None = None
     deadline: date | None = None
     expected_version: int | None = None
+    is_milestone: bool | None = None
 
 
 @dataclass(frozen=True)
@@ -55,7 +59,22 @@ class TaskProgressCommand:
     expected_version: int | None = None
 
 
+@dataclass(frozen=True)
+class TaskConstraintUpdateCommand:
+    """Set/clear a Task's scheduling constraint. constraint_type="" (or
+    None) means ASAP -- clears both fields back to no explicit
+    constraint. Deliberately separate from TaskUpdateCommand: this is a
+    schedule-affecting, governed mutation (see
+    TaskSchedulingConstraintMixin), not a generic field edit."""
+
+    task_id: str
+    constraint_type: str | None = None
+    constraint_date: date | None = None
+    expected_version: int | None = None
+
+
 __all__ = [
+    "TaskConstraintUpdateCommand",
     "TaskCreateCommand",
     "TaskProgressCommand",
     "TaskUpdateCommand",

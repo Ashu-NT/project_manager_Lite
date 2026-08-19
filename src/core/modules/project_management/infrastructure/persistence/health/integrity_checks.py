@@ -141,6 +141,77 @@ def _wbs_cycle_finding(session: Session, *, sample_limit: int) -> IntegrityFindi
     )
 
 
+def _dependency_cycle_finding(session: Session, *, sample_limit: int) -> IntegrityFinding:
+    """Detect a persisted Task->Task dependency cycle -- i.e. a graph that
+    should never have been writable (creation-time cycle detection has
+    covered this since before this check existed), but the approval-apply
+    TOCTOU hole fixed in
+    docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
+    §10/Phase I meant one COULD have been persisted by two
+    concurrently-approved requests each individually valid at request time.
+    Before this check existed, a persisted cycle was invisible to
+    `python -m tools.pm_data_integrity_check` and would only surface later
+    as a `SCHEDULE_CYCLE` crash the next time CPM ran for that project.
+
+    Uses the same DFS three-color cycle detection idiom as
+    ``_wbs_cycle_finding`` above, generalized from a single-parent tree
+    walk to a general graph (a task can have multiple predecessors and
+    successors, unlike the WBS parent chain)."""
+    edges = session.execute(
+        select(
+            TaskDependencyORM.id,
+            TaskDependencyORM.predecessor_task_id,
+            TaskDependencyORM.successor_task_id,
+        )
+    ).all()
+
+    adjacency: dict[str, list[str]] = {}
+    edge_id_by_pair: dict[tuple[str, str], str] = {}
+    for dep_id, predecessor_id, successor_id in edges:
+        adjacency.setdefault(str(predecessor_id), []).append(str(successor_id))
+        edge_id_by_pair[(str(predecessor_id), str(successor_id))] = str(dep_id)
+
+    WHITE, GRAY, BLACK = 0, 1, 2
+    color: dict[str, int] = {task_id: WHITE for task_id in adjacency}
+    for successors in adjacency.values():
+        for succ in successors:
+            color.setdefault(succ, WHITE)
+
+    cycle_edge_ids: set[str] = set()
+
+    def _visit(node: str, stack: list[str]) -> None:
+        color[node] = GRAY
+        stack.append(node)
+        for successor in adjacency.get(node, []):
+            if color.get(successor, WHITE) == WHITE:
+                _visit(successor, stack)
+            elif color.get(successor) == GRAY:
+                # Back-edge to an ancestor still on the stack: walk the
+                # stack from that ancestor to here to collect every edge
+                # id on the cycle.
+                start = stack.index(successor)
+                cycle_nodes = stack[start:] + [successor]
+                for a, b in zip(cycle_nodes, cycle_nodes[1:]):
+                    edge_id = edge_id_by_pair.get((a, b))
+                    if edge_id is not None:
+                        cycle_edge_ids.add(edge_id)
+        stack.pop()
+        color[node] = BLACK
+
+    for task_id in list(adjacency):
+        if color.get(task_id, WHITE) == WHITE:
+            _visit(task_id, [])
+
+    ordered = tuple(sorted(cycle_edge_ids))
+    return IntegrityFinding(
+        category="dependency_cycle",
+        severity=ERROR,
+        message="task dependency graph contains a cycle",
+        count=len(ordered),
+        sample_ids=ordered[:sample_limit],
+    )
+
+
 def run_pm_data_integrity_checks(session: Session, *, sample_limit: int = 20) -> IntegrityReport:
     """Run every PM integrity check and return a structured report.
 
@@ -230,6 +301,8 @@ def run_pm_data_integrity_checks(session: Session, *, sample_limit: int = 20) ->
             ),
             sample_limit=sample_limit,
         ),
+        # 4b. Task dependency cycle (see _dependency_cycle_finding docstring).
+        _dependency_cycle_finding(session, sample_limit=sample_limit),
         # 5. Assignment whose resource is not part of the task's project.
         _finding(
             session,

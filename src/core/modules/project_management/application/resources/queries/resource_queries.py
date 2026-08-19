@@ -102,15 +102,14 @@ class ResourceQueryMixin:
             operation_label="list project resources",
         )
         self._active_organization_id(operation_label="list project resources")
-        resources = self._resource_repo.list()
         normalized_ids = {
             str(resource_id or "").strip()
             for resource_id in resource_ids
             if str(resource_id or "").strip()
         }
         if not normalized_ids:
-            return resources
-        return [resource for resource in resources if resource.id in normalized_ids]
+            return self._resource_repo.list()
+        return self._resource_repo.list_by_ids(list(normalized_ids))
 
     def list_for_task_workspace(
         self,
@@ -130,8 +129,7 @@ class ResourceQueryMixin:
         }
         if not normalized_ids:
             return []
-        resources = self._resource_repo.list()
-        return [resource for resource in resources if resource.id in normalized_ids]
+        return self._resource_repo.list_by_ids(list(normalized_ids))
 
     def get_resource(self, resource_id: str) -> Resource:
         require_permission(self._user_session, "resource.read", operation_label="view resource")

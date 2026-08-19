@@ -70,12 +70,19 @@ def update_project_resource(controller, payload: dict[str, object]) -> dict[str,
         except (InvalidOperation, ValueError) as exc:
             raise ValueError("Hourly rate must be a valid decimal value.") from exc
     is_active = bool(payload.get("isActive", True))
+    raw_version = payload.get("version")
+    expected_version = (
+        int(raw_version)
+        if raw_version is not None and str(raw_version).strip() != ""
+        else None
+    )
     return run_mutation(
         operation=lambda: controller._projects_workspace_presenter.update_project_resource(
             project_resource_id=pr_id,
             planned_hours=planned_hours,
             hourly_rate=hourly_rate,
             is_active=is_active,
+            expected_version=expected_version,
         ),
         success_message="Resource updated.",
         on_success=lambda: on_resource_mutated(controller),
@@ -83,6 +90,31 @@ def update_project_resource(controller, payload: dict[str, object]) -> dict[str,
         set_error_message=controller._set_error_message,
         set_feedback_message=controller._set_feedback_message,
     )
+
+
+def get_project_resource_usage(controller, project_resource_id: str) -> dict[str, object]:
+    try:
+        usage = controller._projects_workspace_presenter.get_project_resource_usage(
+            project_resource_id=project_resource_id
+        )
+    except Exception:
+        return {}
+    if usage is None:
+        return {}
+    return {
+        "projectResourceId": usage.project_resource_id,
+        "plannedHoursLabel": usage.planned_hours_label,
+        "allocatedToTasksHoursLabel": usage.allocated_to_tasks_hours_label,
+        "unallocatedPlannedHoursLabel": usage.unallocated_planned_hours_label,
+        "actualHoursLabel": usage.actual_hours_label,
+        "remainingProjectHoursLabel": usage.remaining_project_hours_label,
+        "plannedBurnPercent": usage.planned_burn_percent,
+        "taskAssignmentCount": usage.task_assignment_count,
+        "envelopeStatus": usage.envelope_status,
+        "envelopeStatusLabel": usage.envelope_status_label,
+        "burnStatus": usage.burn_status,
+        "burnStatusLabel": usage.burn_status_label,
+    }
 
 
 def remove_project_resource(controller, project_resource_id: str) -> dict[str, object]:

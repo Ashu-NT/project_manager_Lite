@@ -67,6 +67,12 @@ def test_resource_profile_fields_roundtrip(services):
 
 
 def test_assignment_overallocation_uses_resource_capacity(services):
+    """60% + 30% = 90% of nominal capacity, but this resource's
+    capacity_percent=80.0 narrows the effective ceiling, so the combined
+    commitment (90% of nominal hours against an 80%-of-nominal ceiling =
+    112.5% of effective capacity) is genuinely over -- proving
+    Resource.capacity_percent is actually applied by the calendar-based
+    capacity authority (docs §44), not just carried as inert metadata."""
     ps = services["project_service"]
     ts = services["task_service"]
     rs = services["resource_service"]
@@ -80,7 +86,7 @@ def test_assignment_overallocation_uses_resource_capacity(services):
     ts.assign_resource(t2.id, resource.id, allocation_percent=30.0)
     warning = ts.consume_last_overallocation_warning()
     assert warning is not None
-    assert "> 80.0%" in warning
+    assert "112.5%" in warning
 
 
 def test_resource_load_summary_reports_capacity_and_utilization(services):

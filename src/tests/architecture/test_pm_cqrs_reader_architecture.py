@@ -503,7 +503,7 @@ def test_portfolio_heatmap_uses_one_scoped_fact_graph_and_pure_policy_engines() 
     reader_source = PORTFOLIO_HEATMAP_READER.read_text(encoding="utf-8")
 
     assert heatmap_source.count("self._heatmap_reader.read_facts(") == 1
-    assert "CPMCalculator(calendar).calculate(" in source
+    assert "run_cpm(" in source
     assert "ResourceLoadEngine.calculate(" in source
     assert "project.finance.control.estimate_at_completion" in source
     assert "LaborCostEngine.for_facts(" not in source

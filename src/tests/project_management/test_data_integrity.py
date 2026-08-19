@@ -150,11 +150,58 @@ def test_detects_cross_project_dependency(session):
 
 
 def test_detects_self_dependency(session):
+    # ck_task_dependencies_not_self (added in migration
+    # k3i9kex13spt_add_task_dependency_version_and_self_check.py) now blocks
+    # this at the DB layer for any NEW row, on top of the pre-existing
+    # domain/application validation. This at-rest integrity check therefore
+    # only matters for rows persisted before that migration ran; simulate
+    # that by disabling SQLite's check-constraint enforcement for this one
+    # insert (mirroring how legacy data could have slipped in), same as
+    # test_duplicate_dependency_rejected_by_db simulates pre-unique-index data.
+    from sqlalchemy import text
+
     _project(session, "p1")
     _task(session, "t1", "p1")
-    _dependency(session, "d1", "t1", "t1")
+    session.execute(text("PRAGMA ignore_check_constraints = 1"))
+    try:
+        _dependency(session, "d1", "t1", "t1")
+    finally:
+        session.execute(text("PRAGMA ignore_check_constraints = 0"))
     _, by_cat = _by_cat(session)
     assert by_cat["self_dependency"].count == 1
+
+
+def test_detects_dependency_cycle(session):
+    """See docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
+    §10/§I2: before this check existed, a persisted cycle was invisible to
+    the integrity tool and would only surface as a SCHEDULE_CYCLE crash the
+    next time CPM ran. A -> B -> C -> A here is inserted directly via the
+    ORM (no cycle CHECK constraint exists at the DB layer -- creation-time
+    cycle detection is application-layer only), simulating exactly the
+    approval-apply TOCTOU scenario Phase H1 closes at the write path."""
+    _project(session, "p1")
+    _task(session, "t1", "p1")
+    _task(session, "t2", "p1")
+    _task(session, "t3", "p1")
+    _dependency(session, "d1", "t1", "t2")
+    _dependency(session, "d2", "t2", "t3")
+    _dependency(session, "d3", "t3", "t1")
+    _, by_cat = _by_cat(session)
+    assert by_cat["dependency_cycle"].count == 3
+    assert by_cat["dependency_cycle"].severity == "error"
+    assert set(by_cat["dependency_cycle"].sample_ids) == {"d1", "d2", "d3"}
+
+
+def test_no_dependency_cycle_reported_for_a_dag(session):
+    _project(session, "p1")
+    _task(session, "t1", "p1")
+    _task(session, "t2", "p1")
+    _task(session, "t3", "p1")
+    _dependency(session, "d1", "t1", "t2")
+    _dependency(session, "d2", "t2", "t3")
+    _dependency(session, "d3", "t1", "t3")  # transitive but not a cycle
+    _, by_cat = _by_cat(session)
+    assert by_cat["dependency_cycle"].count == 0
 
 
 def test_duplicate_dependency_rejected_by_db(session):
@@ -255,9 +302,17 @@ def test_assign_resource_twice_raises_assignment_duplicate(services):
 
 # ── report formatting ───────────────────────────────────────────────────────
 def test_report_lines_render_problems(session):
+    from sqlalchemy import text as sa_text
+
     _project(session, "p1")
     _task(session, "t1", "p1")
-    _dependency(session, "d1", "t1", "t1")
+    # See test_detects_self_dependency: ck_task_dependencies_not_self now
+    # blocks this at insert time, so simulate pre-migration legacy data.
+    session.execute(sa_text("PRAGMA ignore_check_constraints = 1"))
+    try:
+        _dependency(session, "d1", "t1", "t1")
+    finally:
+        session.execute(sa_text("PRAGMA ignore_check_constraints = 0"))
     report, _ = _by_cat(session)
     text = "\n".join(report.to_lines())
     assert "self_dependency" in text

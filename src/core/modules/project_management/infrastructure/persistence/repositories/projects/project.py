@@ -204,6 +204,35 @@ class SqlAlchemyProjectResourceRepository(
         row.planned_hours = pr.planned_hours
         row.is_active = pr.is_active
 
+    def update_with_version_check(
+        self, pr: ProjectResource, *, expected_version: int
+    ) -> ProjectResource:
+        self._require_via_anchor_in_scope(
+            ProjectResourceORM,
+            ProjectORM,
+            joins=((ProjectORM, ProjectResourceORM.project_id == ProjectORM.id),),
+            record_id=pr.id,
+            operation_label="manage project resources",
+            not_found_message="Project resource not found.",
+        )
+        self._ensure_project_in_scope(pr.project_id)
+        self._ensure_resource_in_scope(pr.resource_id)
+        pr.version = update_with_version_check(
+            self.session,
+            ProjectResourceORM,
+            pr.id,
+            expected_version,
+            {
+                "hourly_rate": pr.hourly_rate,
+                "currency_code": pr.currency_code,
+                "planned_hours": pr.planned_hours,
+                "is_active": pr.is_active,
+            },
+            not_found_message="Project resource not found.",
+            stale_message="Project resource was updated by another user.",
+        )
+        return pr
+
     def touch_version_with_check(self, pr_id: str, *, expected_version: int) -> int:
         self._require_via_anchor_in_scope(
             ProjectResourceORM,

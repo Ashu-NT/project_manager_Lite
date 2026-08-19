@@ -364,7 +364,7 @@ class TestBuildProjectActivityState:
         assert item.meta_text == "05 Mar 2026 14:45"
         activity_api.list_recent.assert_any_call(entity_type="project", entity_id="proj-1", limit=50)
         activity_api.list_recent.assert_any_call(
-            entity_type="project_resource", workspace_id="proj-1", limit=50
+            entity_type="project_resource", parent_entity_id="proj-1", limit=50
         )
 
     def test_actor_resolved_from_employee_full_name(self):

@@ -44,11 +44,15 @@ class PMTaskListController(QObject):
         set_is_busy: Callable[[bool], None],
         set_error_message: Callable[[str], None],
         set_feedback_message: Callable[[str], None],
+        refresh_after_constraint_mutation: Callable[[], None] | None = None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self._presenter = presenter
         self._facade_refresh = facade_refresh
+        self._refresh_after_constraint_mutation = (
+            refresh_after_constraint_mutation or facade_refresh
+        )
         self._set_is_busy = set_is_busy
         self._set_error_message = set_error_message
         self._set_feedback_message = set_feedback_message
@@ -258,6 +262,17 @@ class PMTaskListController(QObject):
             operation=lambda: self._presenter.update_task(dict(payload)),
             success_message="Task updated.",
             on_success=self._facade_refresh,
+            set_is_busy=self._set_is_busy,
+            set_error_message=self._set_error_message,
+            set_feedback_message=self._set_feedback_message,
+        )
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateSchedulingConstraint(self, payload: dict[str, object]) -> dict[str, object]:
+        return run_mutation(
+            operation=lambda: self._presenter.update_task_scheduling_constraint(dict(payload)),
+            success_message="Scheduling constraint updated.",
+            on_success=self._refresh_after_constraint_mutation,
             set_is_busy=self._set_is_busy,
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,

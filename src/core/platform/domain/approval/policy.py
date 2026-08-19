@@ -7,7 +7,10 @@ DEFAULT_GOVERNED_ACTIONS = {
     "baseline.create",
     "dependency.add",
     "dependency.remove",
+    "dependency.update",
     "project_cost.approve",
+    "task.constraint.update",
+    "scheduling.leveling.apply",
 }
 
 

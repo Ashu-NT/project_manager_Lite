@@ -7,6 +7,7 @@ from src.core.modules.project_management.api.desktop import SchedulingConstraint
 from src.ui_qml.modules.project_management.view_models.scheduling import SchedulingRecordViewModel
 
 from .formatters import (
+    activity_criticality_label,
     constraint_label_for_activity,
     days_between,
     format_date,
@@ -53,7 +54,7 @@ def to_schedule_record(
             "durationLabel": int_label(item.duration_days),
             "remainingDurationLabel": int_label(remaining_duration),
             "floatLabel": int_label(item.total_float_days),
-            "criticalLabel": "Critical" if item.is_critical else "Normal",
+            "criticalLabel": activity_criticality_label(item),
             "constraintLabel": c_label,
             "calendarLabel": calendar_label,
             "progressValue": {

@@ -18,6 +18,11 @@ class CPMTaskInfo:
     is_critical: bool
     deadline: date | None = None
     late_by_days: int | None = None
+ 
+    dependency_implied_start: date | None = None
+    dependency_implied_finish: date | None = None
+
+    is_infeasible: bool = False
 
 
 __all__ = ["CPMTaskInfo"]

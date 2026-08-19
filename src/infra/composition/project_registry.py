@@ -16,6 +16,9 @@ from src.core.platform.contract.models.approval.contracts import (
     ApprovalHandlerResult,
     ApprovalPostCommitEvent,
 )
+from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
+    coerce_constraint_type,
+)
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.access.policy import (
     PROJECT_SCOPE_ROLE_CHOICES,
@@ -74,6 +77,7 @@ from src.core.modules.project_management.application.resources.assignment_valida
 )
 from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import ProjectCalendarAdapter
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
+from src.core.modules.project_management.application.resources.resource_availability_service import ResourceAvailabilityService
 from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
 from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import PortfolioResourcePoolService
 from src.core.modules.project_management.infrastructure.persistence.reads.portfolio import (
@@ -110,6 +114,14 @@ def _as_dependency_type(value: Any) -> DependencyType:
     if isinstance(value, DependencyType):
         return value
     return DependencyType((value or DependencyType.FINISH_TO_START.value))
+
+
+def _as_optional_date(value: Any) -> date | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, date):
+        return value
+    return date.fromisoformat(value)
 
 
 @dataclass(frozen=True)
@@ -149,6 +161,7 @@ class ProjectManagementServiceBundle:
     project_calendar_adapter: ProjectCalendarAdapter
     enterprise_resource_availability: EnterpriseResourceAvailabilityService
     resource_capacity_calculator: ResourceCapacityCalculator
+    resource_multi_project_allocation_service: ResourceAvailabilityService
     portfolio_resource_pool_service: PortfolioResourcePoolService
 
 
@@ -285,6 +298,13 @@ def build_project_management_service_bundle(
         cert_repo=repositories.resource_cert_repo,
         requirement_repo=repositories.task_skill_req_repo,
     )
+    # Constructed here (ahead of its other use sites further below) so
+    # TaskService's authoritative capacity check (docs §44) can share the
+    # same calendar-resolution instance -- no reason to build two.
+    enterprise_resource_availability = EnterpriseResourceAvailabilityService(
+        resolver=platform_services.enterprise_calendar_resolver,
+        resource_repo=repositories.resource_repo,
+    )
     task_service = TaskService(
         session,
         repositories.task_repo,
@@ -307,6 +327,7 @@ def build_project_management_service_bundle(
         assignment_skill_validator=assignment_skill_validator,
         tenant_context_service=platform_services.tenant_context_service,
         task_workspace_reader=SqlAlchemyTaskWorkspaceReader(session=session),
+        enterprise_resource_availability_service=enterprise_resource_availability,
     )
     # Shared by ResourceService (legacy rate-line seeding/supersession) and
     # RateCardResolver (RateSelectionSnapshot.resolved_at) — one time source,
@@ -601,12 +622,23 @@ def build_project_management_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
     )
     project_calendar_adapter = _pre_project_calendar_adapter  # reuse the instance wired into SchedulingEngine
-    enterprise_resource_availability = EnterpriseResourceAvailabilityService(
-        resolver=platform_services.enterprise_calendar_resolver,
-        resource_repo=repositories.resource_repo,
-    )
     resource_capacity_calculator = ResourceCapacityCalculator(
         availability_service=enterprise_resource_availability,
+    )
+    # Percent-based (allocation_percent vs. Resource.capacity_percent)
+    # multi-project availability aggregation. NO LONGER the Task Assignment
+    # capacity authority (see enterprise_resource_availability /
+    # evaluate_task_assignment_capacity above, wired into TaskService for
+    # that) -- this instance's sole remaining legitimate consumer is the
+    # Resources workspace's own multi-project "Allocation Summary" display,
+    # which asks a genuinely different question ("is this resource
+    # overloaded across every project they're on") than Task Assignment's
+    # single-project capacity check. Kept, not deleted, per docs §44 §18.
+    resource_multi_project_allocation_service = ResourceAvailabilityService(
+        resource_repo=repositories.resource_repo,
+        assignment_repo=repositories.assignment_repo,
+        task_repo=repositories.task_repo,
+        calendar=work_calendar_engine,
     )
     portfolio_resource_pool_service = PortfolioResourcePoolService(
         reader=SqlAlchemyPortfolioResourcePoolReader(session=session),
@@ -666,6 +698,7 @@ def build_project_management_service_bundle(
         project_calendar_adapter=project_calendar_adapter,
         enterprise_resource_availability=enterprise_resource_availability,
         resource_capacity_calculator=resource_capacity_calculator,
+        resource_multi_project_allocation_service=resource_multi_project_allocation_service,
         portfolio_resource_pool_service=portfolio_resource_pool_service,
     )
 
@@ -710,6 +743,35 @@ def _register_project_management_approval_handlers(
     def _apply_dependency_remove(req) -> ApprovalHandlerResult:
         task_service._apply_dependency_remove_decision(
             dependency_id=req.payload["dependency_id"],
+            commit=False,
+        )
+        return _result("tasks_changed", req.project_id or "")
+
+    def _apply_dependency_update(req) -> ApprovalHandlerResult:
+        task_service._apply_dependency_update_decision(
+            dependency_id=req.payload["dependency_id"],
+            dependency_type=_as_dependency_type(req.payload.get("dependency_type", "FS")),
+            lag_days=int(req.payload.get("lag_days", 0) or 0),
+            expected_version=req.payload.get("expected_version"),
+            commit=False,
+        )
+        return _result("tasks_changed", req.project_id or "")
+
+    def _apply_task_constraint_update(req) -> ApprovalHandlerResult:
+        task_service._apply_task_scheduling_constraint_decision(
+            task_id=req.payload["task_id"],
+            constraint_type=coerce_constraint_type(req.payload.get("constraint_type")),
+            constraint_date=_as_optional_date(req.payload.get("constraint_date")),
+            expected_version=req.payload.get("expected_version"),
+            commit=False,
+        )
+        return _result("tasks_changed", req.project_id or "")
+
+    def _apply_resource_leveling_plan(req) -> ApprovalHandlerResult:
+        task_service._apply_resource_leveling_plan_decision(
+            project_id=req.project_id,
+            moves=req.payload["moves"],
+            schedule_fingerprint=req.payload["schedule_fingerprint"],
             commit=False,
         )
         return _result("tasks_changed", req.project_id or "")
@@ -820,6 +882,18 @@ def _register_project_management_approval_handlers(
     approval_service.register_apply_handler(
         "dependency.remove",
         _apply_dependency_remove,
+    )
+    approval_service.register_apply_handler(
+        "dependency.update",
+        _apply_dependency_update,
+    )
+    approval_service.register_apply_handler(
+        "task.constraint.update",
+        _apply_task_constraint_update,
+    )
+    approval_service.register_apply_handler(
+        "scheduling.leveling.apply",
+        _apply_resource_leveling_plan,
     )
     approval_service.register_apply_handler(
         "budget.approve",

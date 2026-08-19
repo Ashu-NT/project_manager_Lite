@@ -69,6 +69,9 @@ class TimesheetEntriesMixin:
     ) -> TimeEntry:
         self._require_time_manage_permission("add time entry")
         work_allocation, work_owner, resource = self._load_work_allocation_context(work_allocation_id)
+        self._require_time_project_scope(
+            work_allocation=work_allocation, work_owner=work_owner, operation_label="add time entry"
+        )
         if self._time_entry_repo is None:
             raise ValidationError("Time entry repository is not configured.")
         self._ensure_timesheet_period_editable(
@@ -169,6 +172,9 @@ class TimesheetEntriesMixin:
         self._require_time_manage_permission("update time entry")
         entry = self._require_time_entry(entry_id)
         work_allocation, work_owner, resource = self._load_work_allocation_context(entry.work_allocation_id)
+        self._require_time_project_scope(
+            work_allocation=work_allocation, work_owner=work_owner, operation_label="update time entry"
+        )
         self._ensure_timesheet_period_editable(
             resource_id=work_allocation.resource_id,
             entry_date=entry.entry_date,
@@ -223,6 +229,9 @@ class TimesheetEntriesMixin:
         self._require_time_manage_permission("delete time entry")
         entry = self._require_time_entry(entry_id)
         work_allocation, work_owner, resource = self._load_work_allocation_context(entry.work_allocation_id)
+        self._require_time_project_scope(
+            work_allocation=work_allocation, work_owner=work_owner, operation_label="delete time entry"
+        )
         self._ensure_timesheet_period_editable(
             resource_id=work_allocation.resource_id,
             entry_date=entry.entry_date,

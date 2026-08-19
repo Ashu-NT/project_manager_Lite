@@ -73,11 +73,11 @@ from src.core.modules.project_management.api.desktop.scheduling.services.schedul
     build_schedule_from_engine,
     build_schedule_from_tasks,
 )
-from src.core.modules.project_management.api.desktop.scheduling.formatters.dependency_formatter import dependency_type_label
-from src.core.modules.project_management.api.desktop.scheduling.utils.dependency_utils import (
+from src.core.modules.project_management.api.desktop.common.dependency_presentation import (
     coerce_dependency_direction,
     coerce_dependency_type,
     dependency_direction,
+    dependency_type_label,
 )
 
 
@@ -178,14 +178,14 @@ class ProjectManagementSchedulingDesktopApi:
         if not normalized_id:
             return ()
         list_tasks = get_task_method(self._task_service, "list_tasks_for_project")
-        list_deps = get_task_method(self._task_service, "list_dependencies_for_task")
-        if list_tasks is None or list_deps is None:
+        # One query for the whole project's edge set (Phase L), not a
+        # per-task loop -- list_dependencies_for_project is backed directly
+        # by DependencyRepository.list_by_project, the same single-query
+        # method the cycle checker and CPM engine already use.
+        list_project_deps = get_task_method(self._task_service, "list_dependencies_for_project")
+        if list_tasks is None or list_project_deps is None:
             return ()
         tasks_by_id = {t.id: t for t in list_tasks(normalized_id)}
-        dependencies_by_id: dict[str, object] = {}
-        for task_id in tasks_by_id:
-            for dep in list_deps(task_id):
-                dependencies_by_id[dep.id] = dep
         rows = [
             SchedulingProjectDependencyDto(
                 id=dep.id,
@@ -197,7 +197,7 @@ class ProjectManagementSchedulingDesktopApi:
                 dependency_type_label=dependency_type_label(dep.dependency_type),
                 lag_days=int(getattr(dep, "lag_days", 0) or 0),
             )
-            for dep in dependencies_by_id.values()
+            for dep in list_project_deps(normalized_id)
         ]
         rows.sort(key=lambda r: (r.predecessor_task_name.casefold(), r.successor_task_name.casefold(), r.dependency_type_label))
         return tuple(rows)

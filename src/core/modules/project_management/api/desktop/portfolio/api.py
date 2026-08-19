@@ -57,7 +57,7 @@ from src.core.modules.project_management.api.desktop.portfolio.serializers.depen
 from src.core.modules.project_management.api.desktop.portfolio.serializers.heatmap_serializer import serialize_heatmap_row
 from src.core.modules.project_management.api.desktop.portfolio.serializers.recent_action_serializer import serialize_recent_action
 from src.core.modules.project_management.api.desktop.portfolio.utils.intake_status_utils import coerce_intake_status
-from src.core.modules.project_management.api.desktop.portfolio.utils.dependency_type_utils import coerce_dependency_type
+from src.core.modules.project_management.api.desktop.common.dependency_presentation import coerce_dependency_type
 
 
 class ProjectManagementPortfolioDesktopApi:

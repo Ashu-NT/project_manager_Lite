@@ -236,6 +236,10 @@ class _FakeTaskTimesheetsDesktopApi:
             entries=tuple(entry_rows),
             resource_period_total_hours_label=f"{total_hours:.2f}h",
             scope_summary=f"Task period entries: {len(entry_rows)} | Resource month total: {total_hours:.2f}h",
+            task_period_hours_label=f"{total_hours:.2f}h",
+            planned_hours_label="0.00h",
+            logged_hours_label="0.00h",
+            remaining_hours_label="0.00h",
         )
 
     def add_time_entry(self, command):

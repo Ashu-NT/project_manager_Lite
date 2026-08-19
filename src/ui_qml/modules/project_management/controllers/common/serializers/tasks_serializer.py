@@ -36,6 +36,7 @@ def serialize_task_record_view_models(
             "subtitle": view_model.subtitle,
             "supportingText": view_model.supporting_text,
             "metaText": view_model.meta_text,
+            "wbsCode": str(view_model.state.get("wbsCode", "") or ""),
             "projectName": str(view_model.state.get("projectName", "") or ""),
             "startDateLabel": str(view_model.state.get("startDateLabel", "") or ""),
             "endDateLabel": str(view_model.state.get("endDateLabel", "") or ""),

@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from datetime import date
 
+from src.core.modules.project_management.access.scope_permissions import (
+    require_any_project_permission,
+)
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
 )
@@ -36,6 +39,25 @@ class TimesheetService(
     ) -> None:
         super().__init__(*args, **kwargs)
         self._timesheet_review_reader = timesheet_review_reader
+
+    def _require_time_project_scope(
+        self,
+        *,
+        work_allocation,
+        work_owner,
+        operation_label: str,
+    ) -> None:
+        project_id = self._resolve_entry_project_id(
+            work_allocation=work_allocation, work_owner=work_owner
+        )
+        if not project_id:
+            return
+        require_any_project_permission(
+            self._user_session,
+            project_id,
+            ("time.manage", "task.manage"),
+            operation_label=operation_label,
+        )
 
     def query_review_queue_page(
         self,

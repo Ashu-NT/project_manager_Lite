@@ -6,6 +6,7 @@ import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import App.Controls 1.0 as AppControls
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
+import ProjectManagement.Widgets 1.0 as PMWidgets
 import workspaces.tasks.sections 1.0
 
 Item {
@@ -19,22 +20,22 @@ Item {
     property var assignmentsTableModel: null
     property string selectedAssignmentId: ""
     property var assignmentOptions: []
-    property var assignmentPreview: null
+    property var projectResourceUsage: null
 
     property var dependenciesModel: AppMock.MockFactory.catalog("Dependencies", "", "Select a task.")
     property var dependenciesTableModel: null
     property var dependencyTypeOptions: []
     property var selectedDependencyItem: null
     property var dependencyTaskOptions: []
+    property var dependencyImpactPreview: ({})
 
-    property var timeAssignmentSummaryModel: AppMock.MockFactory.fieldRecord("", "", "Select a task assignment.")
-    property var timeEntriesModel: AppMock.MockFactory.catalog("Time Entries", "", "Select a task assignment.")
+    property var taskTimeSummary: ({ "hasSummary": false })
+    property var taskTimeEntriesPage: ({ "items": [], "total": 0, "page": 1, "pageSize": 25 })
     property var timeEntriesTableModel: null
     property var selectedTimeEntryModel: AppMock.MockFactory.detail()
     property string selectedEntryId: ""
     property var timeAssignmentOptions: []
-    property var periodOptions: []
-    property string selectedPeriodStart: ""
+    property string timeResourceFilter: ""
 
     property var collaborationCommentsModel: AppMock.MockFactory.catalog("Collaboration", "", "Select a task.")
     property var collaborationPresenceModel: AppMock.MockFactory.catalog("Active Presence", "", "Select a task.")
@@ -43,19 +44,18 @@ Item {
     property bool canOpenProcurement: false
 
     property var skillRequirementsModel: AppMock.MockFactory.catalog("Skill Requirements", "", "Select a task.")
+    property var taskActivityModel: ({
+        "title": "Activity", "subtitle": "", "emptyState": "No activity has been recorded for this task yet.", "items": []
+    })
     property var sectionErrors: ({})
     property var scheduleImpactModel: ({
-        "available": false,
-        "taskId": "",
-        "summary": "Select a task to view schedule impact analysis.",
-        "rows": [],
-        "affectedCount": 0,
-        "maxProjectFinishShiftDays": 0,
-        "requiresApproval": false,
-        "approvalLabel": "",
-        "newlyCriticalCount": 0,
-        "noLongerCriticalCount": 0
+        "isAvailable": false, "taskId": "", "currentStartLabel": "--", "currentFinishLabel": "--",
+        "isCritical": false, "totalFloatDays": null, "freeFloatDays": null,
+        "baselineFinishLabel": "--", "scheduleVarianceDays": null, "scheduleVarianceLabel": "",
+        "drivers": [], "conflicts": [], "actualVariances": [],
+        "downstream": { "directSuccessorCount": 0, "downstreamTaskCount": 0, "downstreamMilestoneCount": 0, "criticalDownstreamCount": 0 }
     })
+    property var scheduleImpactPreviewModel: ({})
 
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
 
@@ -63,12 +63,13 @@ Item {
     signal progressRequested()
     signal deleteRequested()
     signal retrySectionRequested(string sectionName)
+    signal manageProjectResourcesRequested()
 
     signal createAssignmentRequested()
     signal assignmentSelected(string assignmentId)
     signal assignmentPreviewRequested(string projectResourceId, string taskId)
     signal editAllocationRequested(var assignmentData)
-    signal setHoursRequested(var assignmentData)
+    signal editPlannedHoursRequested(var assignmentData)
     signal deleteAssignmentRequested(var assignmentData)
     signal acceptAssignmentRequested(var assignmentData)
     signal declineAssignmentRequested(var assignmentData)
@@ -77,16 +78,18 @@ Item {
     signal editDependencyRequested(var payload)
     signal deleteDependencyRequested(var dependencyData)
     signal dependencySelectionChanged(var dependencyData)
+    signal openTaskRequested(string taskId)
+    signal dependencyPreviewRequested(string dependencyId)
+    signal scheduleImpactPreviewRequested(int delayWorkingDays)
 
-    signal periodChanged(string periodStart)
-    signal timeAssignmentSelected(string assignmentId)
+    signal timeResourceFilterRequested(string resourceId)
+    signal timePageRequested(int page)
     signal entrySelected(string entryId)
     signal timeAddRequested(var payload)
     signal timeUpdateRequested(var payload)
     signal timeDeleteRequested(string entryId)
-    signal timeSubmitRequested(var payload)
-    signal timeLockRequested(var payload)
-    signal timeUnlockRequested(var payload)
+    signal goToAssignmentRequested(string assignmentId)
+    signal openTimesheetsRequested()
 
     signal composeRequested()
     signal commentReplyRequested(var commentData)
@@ -129,9 +132,8 @@ Item {
     }
 
     function openSelectedDependencyEditor() {
-        const section = _sec2.item
-        if (section) {
-            section.openEditSelected()
+        if (root.selectedDependencyItem) {
+            root.editDependencyRequested(root.selectedDependencyItem)
         }
     }
 
@@ -158,12 +160,11 @@ Item {
         if (name === "Assignments")     return _sec1.implicitHeight
         if (name === "Dependencies")    return _sec2.implicitHeight
         if (name === "Time")            return _sec3.implicitHeight
-        if (name === "Activity")        return _sec4.implicitHeight
+        if (name === "Discussion")      return _sec4.implicitHeight
         if (name === "Material Demand") return _sec5.implicitHeight
-        if (name === "Reservations")    return _sec6.implicitHeight
-        if (name === "Procurement")     return _sec7.implicitHeight
-        if (name === "Skills")          return _sec8.implicitHeight
-        if (name === "Schedule Impact") return _sec9.implicitHeight
+        if (name === "Skills")          return _sec6.implicitHeight
+        if (name === "Schedule Impact") return _sec7.implicitHeight
+        if (name === "Activity")        return _sec8.implicitHeight
         return 0
     }
 
@@ -259,7 +260,8 @@ Item {
                     assignmentsModel: root.assignmentsModel
                     assignmentsTableModel: root.assignmentsTableModel
                     selectedAssignmentId: root.selectedAssignmentId
-                    assignmentPreview: root.assignmentPreview
+                    projectResourceUsage: root.projectResourceUsage
+                    taskDetail: root.taskDetail
                     isBusy: root.isBusy
                     canCreate: root._hasTask && !root._isSummary && root.assignmentOptions.length > 0
                     errorText: String(root.sectionErrors["assignments"] || "")
@@ -271,10 +273,11 @@ Item {
                     }
                     onRetryRequested: root.retrySectionRequested("Assignments")
                     onEditAllocationRequested: function(d) { root.editAllocationRequested(d) }
-                    onSetHoursRequested: function(d) { root.setHoursRequested(d) }
+                    onEditPlannedHoursRequested: function(d) { root.editPlannedHoursRequested(d) }
                     onDeleteRequested: function(d) { root.deleteAssignmentRequested(d) }
                     onAcceptRequested: function(d) { root.acceptAssignmentRequested(d) }
                     onDeclineRequested: function(d) { root.declineAssignmentRequested(d) }
+                    onManageProjectResourcesRequested: root.manageProjectResourcesRequested()
                 }
             }
         }
@@ -287,11 +290,12 @@ Item {
                 TasksDependenciesSection {
                     width: parent ? parent.width : 0
                     dependenciesModel: root.dependenciesModel
-                    dependenciesTableModel: root.dependenciesTableModel
                     isBusy: root.isBusy
                     canCreate: root._hasTask && !root._isSummary && root.dependencyTaskOptions.length > 0
                     errorText: String(root.sectionErrors["dependencies"] || "")
                     dependencyTypeOptions: root.dependencyTypeOptions || []
+                    taskDetail: root.taskDetail
+                    dependencyImpactPreview: root.dependencyImpactPreview
 
                     onCreateRequested: root.createDependencyRequested()
                     onSelectionChanged: function(dependencyData) {
@@ -300,6 +304,8 @@ Item {
                     }
                     onEditRequested: function(payload) { root.editDependencyRequested(payload) }
                     onDeleteRequested: function(d) { root.deleteDependencyRequested(d) }
+                    onOpenTaskRequested: function(taskId) { root.openTaskRequested(taskId) }
+                    onPreviewRequested: function(dependencyId) { root.dependencyPreviewRequested(dependencyId) }
                 }
             }
         }
@@ -311,34 +317,32 @@ Item {
             sourceComponent: Component {
                 TasksTimeEntriesSection {
                     width: parent ? parent.width : 0
-                    assignmentSummary: root.timeAssignmentSummaryModel
+                    taskTimeSummary: root.taskTimeSummary
                     assignmentOptions: root.timeAssignmentOptions
-                    periodOptions: root.periodOptions
-                    selectedPeriodStart: root.selectedPeriodStart
-                    entriesModel: root.timeEntriesModel
+                    taskTimeEntriesPage: root.taskTimeEntriesPage
                     entriesTableModel: root.timeEntriesTableModel
+                    timeResourceFilter: root.timeResourceFilter
                     selectedEntryDetail: root.selectedTimeEntryModel
                     selectedEntryId: root.selectedEntryId
                     isBusy: root.isBusy
                     errorText: String(root.sectionErrors["time"] || "")
 
-                    onAssignmentChanged: function(assignmentId) { root.timeAssignmentSelected(assignmentId) }
-                    onPeriodChanged: function(p) { root.periodChanged(p) }
+                    onResourceFilterRequested: function(resourceId) { root.timeResourceFilterRequested(resourceId) }
+                    onPageRequested: function(page) { root.timePageRequested(page) }
                     onEntrySelected: function(id) { root.entrySelected(id) }
                     onAddRequested: function(pl) { root.timeAddRequested(pl) }
                     onUpdateRequested: function(pl) { root.timeUpdateRequested(pl) }
                     onDeleteRequested: function(id) { root.timeDeleteRequested(id) }
-                    onSubmitRequested: function(pl) { root.timeSubmitRequested(pl) }
-                    onLockRequested: function(pl) { root.timeLockRequested(pl) }
-                    onUnlockRequested: function(pl) { root.timeUnlockRequested(pl) }
+                    onOpenTimesheetsRequested: root.openTimesheetsRequested()
+                    onGoToAssignmentRequested: function(assignmentId) { root.goToAssignmentRequested(assignmentId) }
                 }
             }
         }
 
         AppWidgets.LazySectionLoader {
             id: _sec4
-            active: root._idx === root._secIdx("Activity")
-            loadingMessage: "Loading activity..."
+            active: root._idx === root._secIdx("Discussion")
+            loadingMessage: "Loading discussion..."
             sourceComponent: Component {
                 TasksCollaborationSection {
                     width: parent ? parent.width : 0
@@ -347,7 +351,7 @@ Item {
                     selectedTaskId: root.selectedTaskId
                     isBusy: root.isBusy
                     canCompose: root._hasTask
-                    errorText: String(root.sectionErrors["activity"] || "")
+                    errorText: String(root.sectionErrors["discussion"] || "")
 
                     onComposeRequested: root.composeRequested()
                     onReplyRequested: function(item) { root.commentReplyRequested(item) }
@@ -384,35 +388,6 @@ Item {
 
         AppWidgets.LazySectionLoader {
             id: _sec6
-            active: root._idx === root._secIdx("Reservations")
-            loadingMessage: "Loading..."
-            sourceComponent: Component {
-                TasksReservationsSection {
-                    width: parent ? parent.width : 0
-                    taskDetail: root.taskDetail
-                    canOpenReservations: root.canOpenReservations
-                    isBusy: root.isBusy
-                    onOpenReservationsRequested: root.openReservationsRequested()
-                }
-            }
-        }
-
-        AppWidgets.LazySectionLoader {
-            id: _sec7
-            active: root._idx === root._secIdx("Procurement")
-            loadingMessage: "Loading..."
-            sourceComponent: Component {
-                TasksProcurementSection {
-                    width: parent ? parent.width : 0
-                    canOpenProcurement: root.canOpenProcurement
-                    isBusy: root.isBusy
-                    onOpenProcurementRequested: root.openProcurementRequested()
-                }
-            }
-        }
-
-        AppWidgets.LazySectionLoader {
-            id: _sec8
             active: root._idx === root._secIdx("Skills")
             loadingMessage: "Loading..."
             sourceComponent: Component {
@@ -426,15 +401,36 @@ Item {
         }
 
         AppWidgets.LazySectionLoader {
-            id: _sec9
+            id: _sec7
             active: root._idx === root._secIdx("Schedule Impact")
             loadingMessage: "Loading..."
             sourceComponent: Component {
                 TasksScheduleImpactSection {
                     width: parent ? parent.width : 0
                     scheduleImpactModel: root.scheduleImpactModel
+                    scheduleImpactPreviewModel: root.scheduleImpactPreviewModel
                     sectionErrors: root.sectionErrors
                     isBusy: root.isBusy
+
+                    onPreviewRequested: function(delayWorkingDays) {
+                        root.scheduleImpactPreviewRequested(delayWorkingDays)
+                    }
+                    onOpenTaskRequested: function(taskId) { root.openTaskRequested(taskId) }
+                }
+            }
+        }
+
+        AppWidgets.LazySectionLoader {
+            id: _sec8
+            active: root._idx === root._secIdx("Activity")
+            loadingMessage: "Loading activity..."
+            sourceComponent: Component {
+                PMWidgets.ActivityLogSection {
+                    width: parent ? parent.width : 0
+                    label: "Activity"
+                    errorKey: "activity"
+                    sectionErrors: root.sectionErrors
+                    activityModel: root.taskActivityModel
                 }
             }
         }

@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date
 
+from src.core.modules.project_management.application.resources.task_assignment_capacity_service import (
+    CAPACITY_OVER_CAPACITY,
+    evaluate_task_assignment_capacity,
+)
 from src.core.modules.project_management.contracts.repositories.projects.project import ProjectRepository
 from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
 from src.core.modules.project_management.contracts.repositories.tasks.task import (
@@ -52,16 +56,6 @@ class TaskValidationMixin:
                 code="TASK_INVALID_DATE",
             )
 
-    def _iter_workdays(self, start: date, end: date):
-        if not start or not end:
-            return
-        if end < start:
-            start, end = end, start
-        current = start
-        while current <= end:
-            if current.weekday() < 5:
-                yield current
-            current += timedelta(days=1)
 
     def _check_resource_overallocation(
         self,
@@ -71,6 +65,14 @@ class TaskValidationMixin:
         new_alloc_percent: float,
         exclude_assignment_id: str | None = None,
     ) -> str | None:
+        """Authoritative calendar-based capacity check (docs §44). Delegates
+        the actual capacity calculation to
+        ``evaluate_task_assignment_capacity`` -- the enterprise calendar
+        resolver, `Resource.capacity_percent`, and real per-day
+        assignment commitments, not a naive Mon-Fri model. Falls back to
+        skipping the check (never to the old duplicate arithmetic) when the
+        authoritative service isn't configured, e.g. in lightweight test
+        construction that doesn't wire every optional dependency."""
         self._last_overallocation_warning = None
         new_task = self._task_repo.get(new_task_id)
         if not new_task:
@@ -81,65 +83,49 @@ class TaskValidationMixin:
         if not new_start or not new_end:
             return None
 
-        capacity_percent = 100.0
-        resource_repo = getattr(self, "_resource_repo", None)
-        if resource_repo is not None:
-            resource = resource_repo.get(resource_id)
-            raw_capacity = float(getattr(resource, "capacity_percent", 100.0) or 100.0) if resource else 100.0
-            if raw_capacity > 0.0:
-                capacity_percent = raw_capacity
-
-        assignments = self._assignment_repo.list_by_resource(resource_id)
-        if not assignments:
+        availability_service = getattr(self, "_enterprise_resource_availability_service", None)
+        if availability_service is None:
             return None
 
-        daily_total: dict[date, float] = {}
-        daily_tasks: dict[date, list[str]] = {}
+        fact = evaluate_task_assignment_capacity(
+            resource_id=resource_id,
+            project_id=project_id,
+            start_date=new_start,
+            end_date=new_end,
+            proposed_allocation_percent=float(new_alloc_percent or 0.0),
+            task_repo=self._task_repo,
+            assignment_repo=self._assignment_repo,
+            resource_repo=getattr(self, "_resource_repo", None),
+            availability_service=availability_service,
+            exclude_assignment_id=exclude_assignment_id,
+        )
 
-        for assignment in assignments:
-            if exclude_assignment_id and getattr(assignment, "id", None) == exclude_assignment_id:
-                continue
-            task = self._task_repo.get(assignment.task_id)
-            if not task or getattr(task, "project_id", None) != project_id:
-                continue
+        if fact.capacity_status != CAPACITY_OVER_CAPACITY:
+            return None
 
-            task_start = getattr(task, "start_date", None)
-            task_end = getattr(task, "end_date", None)
-            if not task_start or not task_end:
-                continue
-
-            overlap_start = max(new_start, task_start)
-            overlap_end = min(new_end, task_end)
-            if overlap_end < overlap_start:
-                continue
-
-            allocation = float(getattr(assignment, "allocation_percent", 0.0) or 0.0)
-            if allocation <= 0:
-                continue
-
-            for workday in self._iter_workdays(overlap_start, overlap_end):
-                daily_total[workday] = daily_total.get(workday, 0.0) + allocation
-                daily_tasks.setdefault(workday, []).append(getattr(task, "name", assignment.task_id))
-
-        for workday in self._iter_workdays(new_start, new_end):
-            daily_total[workday] = daily_total.get(workday, 0.0) + float(new_alloc_percent or 0.0)
-            daily_tasks.setdefault(workday, []).append(getattr(new_task, "name", new_task_id))
-
-        for workday in sorted(daily_total.keys()):
-            total = daily_total[workday]
-            if total > capacity_percent + 1e-9:
-                tasks = daily_tasks.get(workday, [])[:6]
-                extra = "..." if len(daily_tasks.get(workday, [])) > 6 else ""
-                message = (
-                    f"Resource would be over-allocated on {workday.isoformat()} "
-                    f"({total:.1f}% > {capacity_percent:.1f}%).\n"
-                    f"Tasks: {', '.join(tasks)}{extra}"
-                )
-                if getattr(self, "_overallocation_policy", "warn") == "strict":
-                    raise BusinessRuleError(message, code="RESOURCE_OVERALLOCATED")
-                self._last_overallocation_warning = message
-                return message
-        return None
+        conflict_task_ids: set[str] = set()
+        for day in fact.days:
+            if day.status == CAPACITY_OVER_CAPACITY:
+                conflict_task_ids.update(day.contributing_task_ids)
+        task_names = []
+        for task_id in list(conflict_task_ids)[:6]:
+            task = self._task_repo.get(task_id)
+            if task is not None:
+                task_names.append(getattr(task, "name", task_id))
+        task_names.append(getattr(new_task, "name", new_task_id))
+        extra = "..." if len(conflict_task_ids) > 6 else ""
+        conflict_dates_label = ", ".join(d.isoformat() for d in fact.conflict_dates[:6])
+        if len(fact.conflict_dates) > 6:
+            conflict_dates_label += ", ..."
+        message = (
+            f"Resource would be over-allocated on {conflict_dates_label} "
+            f"(peak {fact.peak_utilization_percent:.1f}% of effective capacity).\n"
+            f"Tasks: {', '.join(task_names)}{extra}"
+        )
+        if getattr(self, "_overallocation_policy", "warn") == "strict":
+            raise BusinessRuleError(message, code="RESOURCE_OVERALLOCATED")
+        self._last_overallocation_warning = message
+        return message
 
 
 __all__ = ["TaskValidationMixin"]

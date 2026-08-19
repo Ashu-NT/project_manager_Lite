@@ -1,31 +1,64 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
-import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
 Rectangle {
     id: root
 
-    property var assignmentState: ({})
+    // Every valid TaskAssignment for this task (docs §44 Time redesign §13)
+    // -- Log Time's assignment choice is local to this component, entirely
+    // independent of whatever is selected in Task Detail -> Assignment.
+    property var assignmentOptions: []
+    // Task-scoped summary (docs §44), used only to look up the chosen
+    // assignment's Planned/Logged/Remaining context -- never recalculated
+    // here.
+    property var taskTimeSummary: ({ "hasSummary": false })
     property var entryState: ({})
     property bool isBusy: false
 
     signal addRequested(var payload)
     signal updateRequested(var payload)
     signal deleteRequested(string entryId)
+    signal cancelEditRequested()
 
-    readonly property var _state: root.assignmentState || {}
+    property string _selectedAssignmentId: ""
+
     readonly property var _entryState: root.entryState || {}
-    readonly property bool _hasAssignment: Boolean(root._state.assignmentId)
     readonly property bool _hasEntry: Boolean(root._entryState.entryId)
+    readonly property var _breakdown: (root.taskTimeSummary && root.taskTimeSummary.resourceBreakdown) || []
+    readonly property var _selectedContext: {
+        const id = root._selectedAssignmentId
+        for (let i = 0; i < root._breakdown.length; i += 1) {
+            if (String(root._breakdown[i].assignmentId || "") === id)
+                return root._breakdown[i]
+        }
+        return null
+    }
+    readonly property bool _hasAssignment: root._selectedAssignmentId.length > 0
+
+    // §14: exactly one valid assignment -> preselect it; more than one ->
+    // require explicit selection (no guessed default).
+    function _defaultAssignmentId() {
+        return root.assignmentOptions.length === 1
+            ? String(root.assignmentOptions[0].value || "")
+            : ""
+    }
+
+    function _applyEntryStateToAssignment() {
+        if (root._entryState.assignmentId) {
+            root._selectedAssignmentId = String(root._entryState.assignmentId)
+        } else if (!root._selectedAssignmentId) {
+            root._selectedAssignmentId = root._defaultAssignmentId()
+        }
+    }
 
     function _syncEditorFields() {
         if (!_dateField || !_hoursField || !_noteArea)
             return
+        root._applyEntryStateToAssignment()
         if (root._entryState.entryId) {
             _dateField.text = String(root._entryState.entryDate || "")
             _hoursField.text = String(root._entryState.hours || "")
@@ -38,6 +71,11 @@ Rectangle {
     }
 
     onEntryStateChanged: Qt.callLater(root._syncEditorFields)
+    onAssignmentOptionsChanged: {
+        if (!root._selectedAssignmentId) {
+            root._selectedAssignmentId = root._defaultAssignmentId()
+        }
+    }
     Component.onCompleted: root._syncEditorFields()
 
     Layout.fillWidth: true
@@ -63,7 +101,7 @@ Rectangle {
 
                 AppControls.Label {
                     Layout.fillWidth: true
-                    text: "Capture Labor Entry"
+                    text: "Log Time"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.bodySize
@@ -72,7 +110,7 @@ Rectangle {
 
                 AppControls.Label {
                     Layout.fillWidth: true
-                    text: "Log daily hours and update the selected time entry without leaving the task workspace."
+                    text: "Record actual work performed against this task."
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.smallSize
@@ -91,7 +129,9 @@ Rectangle {
                 AppControls.Label {
                     id: _entryModeLabel
                     anchors.centerIn: parent
-                    text: root._hasEntry ? "Selected entry" : "New entry"
+                    text: root._hasEntry
+                        ? "Editing entry — recorded by " + String(root._entryState.authorUsername || "unknown")
+                        : "New entry"
                     color: root._hasEntry ? Theme.AppTheme.accent : Theme.AppTheme.textSecondary
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.smallSize
@@ -102,8 +142,102 @@ Rectangle {
 
         Rectangle {
             Layout.fillWidth: true
-            height: 1
+            Layout.preferredHeight: 1
             color: Theme.AppTheme.divider
+        }
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 4
+
+            AppControls.Label {
+                text: "Assignment"
+                color: Theme.AppTheme.textMuted
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.captionSize
+                font.bold: true
+            }
+
+            AppControls.ComboBox {
+                Layout.fillWidth: true
+                model: root.assignmentOptions
+                textRole: "label"
+                enabled: !root.isBusy && !root._hasEntry
+                currentIndex: {
+                    const options = root.assignmentOptions
+                    for (let i = 0; i < options.length; i += 1) {
+                        if (String(options[i].value || "") === root._selectedAssignmentId)
+                            return i
+                    }
+                    return -1
+                }
+                onActivated: function(index) {
+                    const option = root.assignmentOptions[index]
+                    if (option) root._selectedAssignmentId = String(option.value || "")
+                }
+            }
+
+            AppControls.Label {
+                Layout.fillWidth: true
+                visible: root.assignmentOptions.length === 0
+                text: "No resources are assigned to this task."
+                color: Theme.AppTheme.textMuted
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.captionSize
+                wrapMode: Text.WordWrap
+            }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            visible: root._selectedContext !== null
+            implicitHeight: _contextRow.implicitHeight + Theme.AppTheme.spacingMd * 2
+            radius: Theme.AppTheme.radiusSm
+            color: Theme.AppTheme.surfaceAlt
+            border.color: Theme.AppTheme.subtleBorder
+            border.width: 1
+
+            RowLayout {
+                id: _contextRow
+                anchors.fill: parent
+                anchors.margins: Theme.AppTheme.spacingMd
+                spacing: Theme.AppTheme.spacingMd
+
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    text: root._selectedContext
+                        ? String(root._selectedContext.resourceName || "")
+                        : ""
+                    color: Theme.AppTheme.textPrimary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    font.bold: true
+                }
+                AppControls.Label {
+                    text: "Planned " + (root._selectedContext ? String(root._selectedContext.plannedHoursLabel || "") : "")
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                }
+                AppControls.Label {
+                    text: "Logged " + (root._selectedContext ? String(root._selectedContext.actualHoursLabel || "") : "")
+                    color: Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                }
+                AppControls.Label {
+                    text: (root._selectedContext && root._selectedContext.hasOverrun ? "Overrun " : "Remaining ")
+                        + (root._selectedContext
+                            ? String((root._selectedContext.hasOverrun
+                                ? root._selectedContext.overrunHoursLabel
+                                : root._selectedContext.remainingHoursLabel) || "")
+                            : "")
+                    color: (root._selectedContext && root._selectedContext.hasOverrun) ? Theme.AppTheme.danger : Theme.AppTheme.textMuted
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.bold: root._selectedContext && root._selectedContext.hasOverrun
+                }
+            }
         }
 
         GridLayout {
@@ -162,7 +296,7 @@ Rectangle {
             spacing: 4
 
             AppControls.Label {
-                text: "Labor Note"
+                text: "Description"
                 color: Theme.AppTheme.textMuted
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.captionSize
@@ -188,46 +322,52 @@ Rectangle {
             AppControls.Label {
                 Layout.fillWidth: true
                 text: root._hasAssignment
-                    ? "Capture work against the selected assignment and period."
-                    : "Choose a task assignment before logging labor."
+                    ? "Actual work is historical -- logging beyond the planned hours is allowed and will show as an overrun."
+                    : "Choose an assignment before logging time."
                 color: Theme.AppTheme.textMuted
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.captionSize
                 wrapMode: Text.WordWrap
             }
 
-            AppControls.PrimaryButton {
-                text: "Add Entry"
-                iconName: "add"
-                enabled: !root.isBusy && root._hasAssignment
-                onClicked: root.addRequested({
-                    "assignmentId": root._state.assignmentId || "",
-                    "entryDate": _dateField.text,
-                    "hours": _hoursField.text,
-                    "note": _noteArea.text
-                })
+            AppControls.SecondaryButton {
+                text: "Cancel"
+                visible: root._hasEntry
+                enabled: !root.isBusy
+                onClicked: root.cancelEditRequested()
             }
 
-            AppControls.SecondaryButton {
-                text: "Update"
-                iconName: "edit"
-                enabled: !root.isBusy && root._hasEntry
-                onClicked: root.updateRequested({
-                    "entryId": root._entryState.entryId || "",
-                    "entryDate": _dateField.text,
-                    "hours": _hoursField.text,
-                    "note": _noteArea.text
-                })
+            AppControls.PrimaryButton {
+                text: root._hasEntry ? "Save Changes" : "Log Time"
+                iconName: root._hasEntry ? "save" : "add"
+                enabled: !root.isBusy && root._hasAssignment
+                onClicked: {
+                    if (root._hasEntry) {
+                        root.updateRequested({
+                            "entryId": root._entryState.entryId || "",
+                            "entryDate": _dateField.text,
+                            "hours": _hoursField.text,
+                            "note": _noteArea.text
+                        })
+                    } else {
+                        root.addRequested({
+                            "assignmentId": root._selectedAssignmentId,
+                            "entryDate": _dateField.text,
+                            "hours": _hoursField.text,
+                            "note": _noteArea.text
+                        })
+                    }
+                }
             }
 
             AppControls.SecondaryButton {
                 text: "Delete"
                 iconName: "delete"
                 danger: true
-                enabled: !root.isBusy && root._hasEntry
+                visible: root._hasEntry
+                enabled: !root.isBusy
                 onClicked: root.deleteRequested(String(root._entryState.entryId || ""))
             }
         }
     }
 }
-

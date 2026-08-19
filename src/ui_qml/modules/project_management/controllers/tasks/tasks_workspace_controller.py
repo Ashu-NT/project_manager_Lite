@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
+
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
+    serialize_task_collection_view_model,
 )
 from src.ui_qml.modules.project_management.controllers.tasks.pm_assignment_controller import (
     PMAssignmentController,
@@ -34,6 +37,7 @@ from . import task_time_selection_actions as _time_sel
 from .task_domain_event_binder import bind_task_domain_events
 from .task_export_handler import export_tasks
 from .task_lazy_section_loader import (
+    load_selected_task_activity,
     load_selected_task_assignments,
     load_selected_task_collaboration,
     load_selected_task_dependencies,
@@ -51,6 +55,8 @@ from .task_selection_handler import (
 from .task_state_setters import TaskStateSettersMixin
 from .task_subcontroller_factory import create_subcontrollers
 from .task_workspace_state_loader import do_refresh
+
+logger = logging.getLogger(__name__)
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -76,9 +82,11 @@ class ProjectManagementTasksWorkspaceController(
     bulkStatusOptionsChanged = Signal()
     priorityOptionsChanged = Signal()
     scheduleOptionsChanged = Signal()
+    constraintOptionsChanged = Signal()
     selectedStatusFilterChanged = Signal()
     selectedPriorityFilterChanged = Signal()
     selectedScheduleFilterChanged = Signal()
+    milestonesOnlyFilterChanged = Signal()
     searchTextChanged = Signal()
     tasksChanged = Signal()
     selectedTaskChanged = Signal()
@@ -95,10 +103,10 @@ class ProjectManagementTasksWorkspaceController(
     assignmentPreviewChanged = Signal()
     dependenciesChanged = Signal()
     timeAssignmentOptionsChanged = Signal()
-    timePeriodOptionsChanged = Signal()
-    selectedTimePeriodStartChanged = Signal()
-    timeAssignmentSummaryChanged = Signal()
-    timeEntriesChanged = Signal()
+    timeResourceFilterChanged = Signal()
+    timePageChanged = Signal()
+    taskTimeSummaryChanged = Signal()
+    taskTimeEntriesPageChanged = Signal()
     timeSectionLoadedChanged = Signal()
     selectedTimeEntryIdChanged = Signal()
     selectedTimeEntryChanged = Signal()
@@ -111,6 +119,9 @@ class ProjectManagementTasksWorkspaceController(
     skillRequirementsSectionLoadedChanged = Signal()
     scheduleImpactChanged = Signal()
     scheduleImpactSectionLoadedChanged = Signal()
+    scheduleImpactPreviewChanged = Signal()
+    taskActivityChanged = Signal()
+    taskActivitySectionLoadedChanged = Signal()
 
     def __init__(
         self,
@@ -136,10 +147,12 @@ class ProjectManagementTasksWorkspaceController(
         self._selected_status_filter = "all"
         self._selected_priority_filter = "all"
         self._selected_schedule_filter = "all"
+        self._milestones_only_filter = False
         self._search_text = ""
         self._selected_task_id = ""
         self._selected_assignment_id = ""
-        self._selected_time_period_start = ""
+        self._time_resource_filter = ""
+        self._time_page = 1
         self._selected_time_entry_id = ""
         self._task_review_active = False
         self._time_section_loaded_for_task_id = ""
@@ -149,6 +162,9 @@ class ProjectManagementTasksWorkspaceController(
         self._skill_requirements_section_loaded_for_task_id = ""
         self._schedule_impact_section_loaded_for_task_id = ""
         self._schedule_impact: dict[str, object] = {}
+        self._schedule_impact_preview: dict[str, object] = {}
+        self._task_activity_section_loaded_for_task_id = ""
+        self._task_activity: dict[str, object] = {}
         # ── Sub-controllers ────────────────────────────────────────────
         create_subcontrollers(self)
         bind_task_domain_events(self)
@@ -206,6 +222,13 @@ class ProjectManagementTasksWorkspaceController(
     def scheduleOptions(self) -> list[dict[str, str]]:
         return self._task_list.scheduleOptions
 
+    @Property("QVariantList", notify=constraintOptionsChanged)
+    def constraintOptions(self) -> list[dict[str, object]]:
+        # Static (never changes at runtime for a given session) -- a
+        # real notify signal is declared only because QML properties
+        # need one for binding correctness; nothing ever emits it.
+        return list(self._tasks_workspace_presenter.list_constraint_options())
+
     @Property(str, notify=selectedStatusFilterChanged)
     def selectedStatusFilter(self) -> str:
         return self._selected_status_filter
@@ -217,6 +240,10 @@ class ProjectManagementTasksWorkspaceController(
     @Property(str, notify=selectedScheduleFilterChanged)
     def selectedScheduleFilter(self) -> str:
         return self._selected_schedule_filter
+
+    @Property(bool, notify=milestonesOnlyFilterChanged)
+    def milestonesOnlyFilter(self) -> bool:
+        return self._milestones_only_filter
 
     @Property(str, notify=searchTextChanged)
     def searchText(self) -> str:
@@ -310,21 +337,21 @@ class ProjectManagementTasksWorkspaceController(
     def timeAssignmentOptions(self) -> list[dict[str, str]]:
         return self._time_ctrl.timeAssignmentOptions
 
-    @Property("QVariantList", notify=timePeriodOptionsChanged)
-    def timePeriodOptions(self) -> list[dict[str, str]]:
-        return self._time_ctrl.timePeriodOptions
+    @Property(str, notify=timeResourceFilterChanged)
+    def timeResourceFilter(self) -> str:
+        return self._time_resource_filter
 
-    @Property(str, notify=selectedTimePeriodStartChanged)
-    def selectedTimePeriodStart(self) -> str:
-        return self._selected_time_period_start
+    @Property(int, notify=timePageChanged)
+    def timePage(self) -> int:
+        return self._time_page
 
-    @Property("QVariantMap", notify=timeAssignmentSummaryChanged)
-    def timeAssignmentSummary(self) -> dict[str, object]:
-        return self._time_ctrl.timeAssignmentSummary
+    @Property("QVariantMap", notify=taskTimeSummaryChanged)
+    def taskTimeSummary(self) -> dict[str, object]:
+        return self._time_ctrl.taskTimeSummary
 
-    @Property("QVariantMap", notify=timeEntriesChanged)
-    def timeEntries(self) -> dict[str, object]:
-        return self._time_ctrl.timeEntries
+    @Property("QVariantMap", notify=taskTimeEntriesPageChanged)
+    def taskTimeEntriesPage(self) -> dict[str, object]:
+        return self._time_ctrl.taskTimeEntriesPage
 
     @Property(QObject, constant=True)
     def timeEntriesTableModel(self) -> QObject:
@@ -383,11 +410,26 @@ class ProjectManagementTasksWorkspaceController(
     def scheduleImpact(self) -> dict[str, object]:
         return self._schedule_impact
 
+    @Property("QVariantMap", notify=scheduleImpactPreviewChanged)
+    def scheduleImpactPreview(self) -> dict[str, object]:
+        return self._schedule_impact_preview
+
     @Property(bool, notify=scheduleImpactSectionLoadedChanged)
     def isScheduleImpactSectionLoaded(self) -> bool:
         return (
             bool(self._selected_task_id)
             and self._schedule_impact_section_loaded_for_task_id == self._selected_task_id
+        )
+
+    @Property("QVariantMap", notify=taskActivityChanged)
+    def taskActivity(self) -> dict[str, object]:
+        return self._task_activity
+
+    @Property(bool, notify=taskActivitySectionLoadedChanged)
+    def isTaskActivitySectionLoaded(self) -> bool:
+        return (
+            bool(self._selected_task_id)
+            and self._task_activity_section_loaded_for_task_id == self._selected_task_id
         )
 
     @Property(int, notify=taskPageChanged)
@@ -437,6 +479,10 @@ class ProjectManagementTasksWorkspaceController(
     @Slot(str)
     def setScheduleFilter(self, schedule_filter: str) -> None:
         _filter.set_schedule_filter(self, schedule_filter)
+
+    @Slot(bool)
+    def setMilestonesOnlyFilter(self, milestones_only: bool) -> None:
+        _filter.set_milestones_only_filter(self, milestones_only)
 
     @Slot()
     def clearFilters(self) -> None:
@@ -492,6 +538,46 @@ class ProjectManagementTasksWorkspaceController(
     def loadSelectedTaskScheduleImpact(self) -> None:
         load_selected_task_schedule_impact(self)
 
+    @Slot(int, result="QVariantMap")
+    def previewTaskScheduleImpact(self, delay_working_days: int) -> dict[str, object]:
+        """Explicit "Preview Impact" what-if (§12/§13) -- never run
+        automatically. A genuine simulation (two CPM passes), so this is
+        deliberately a separate action from loadSelectedTaskScheduleImpact's
+        cheap current-facts auto-load (§26)."""
+        try:
+            preview = self._tasks_workspace_presenter.build_task_schedule_impact_preview_state(
+                task_id=self._selected_task_id,
+                project_id=self._selected_project_id or None,
+                delay_working_days=delay_working_days,
+            )
+        except Exception as exc:
+            logger.exception(
+                "previewTaskScheduleImpact failed task_id=%s project_id=%s delay_working_days=%s",
+                self._selected_task_id,
+                self._selected_project_id,
+                delay_working_days,
+            )
+            self._set_section_error("scheduleImpact", str(exc))
+            preview = {}
+        else:
+            logger.debug(
+                "previewTaskScheduleImpact result task_id=%s delay_working_days=%s isAvailable=%s affectedCount=%s",
+                self._selected_task_id,
+                delay_working_days,
+                preview.get("isAvailable"),
+                preview.get("affectedCount"),
+            )
+        self._set_schedule_impact_preview(preview)
+        return preview
+
+    @Slot()
+    def clearScheduleImpactPreview(self) -> None:
+        self._set_schedule_impact_preview({})
+
+    @Slot()
+    def loadSelectedTaskActivity(self) -> None:
+        load_selected_task_activity(self)
+
     # ── Task review / bulk selection slots ────────────────────────────
 
     @Slot(bool)
@@ -517,8 +603,12 @@ class ProjectManagementTasksWorkspaceController(
         _time_sel.select_assignment(self, assignment_id)
 
     @Slot(str)
-    def selectTimePeriod(self, period_start: str) -> None:
-        _time_sel.select_time_period(self, period_start)
+    def filterTaskTimeEntriesByResource(self, resource_id: str) -> None:
+        _time_sel.filter_task_time_entries_by_resource(self, resource_id)
+
+    @Slot(int)
+    def setTaskTimeEntriesPage(self, page: int) -> None:
+        _time_sel.set_task_time_entries_page(self, page)
 
     @Slot(str)
     def selectTimeEntry(self, entry_id: str) -> None:
@@ -543,6 +633,10 @@ class ProjectManagementTasksWorkspaceController(
     @Slot("QVariantMap", result="QVariantMap")
     def updateTask(self, payload: dict[str, object]) -> dict[str, object]:
         return _mut.update_task(self, payload)
+
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateSchedulingConstraint(self, payload: dict[str, object]) -> dict[str, object]:
+        return _mut.update_task_scheduling_constraint(self, payload)
 
     @Slot("QVariantMap", result="QVariantMap")
     def moveTaskInWbs(self, payload: dict[str, object]) -> dict[str, object]:
@@ -581,8 +675,8 @@ class ProjectManagementTasksWorkspaceController(
         return _mut.update_assignment_allocation(self, payload)
 
     @Slot("QVariantMap", result="QVariantMap")
-    def setAssignmentHours(self, payload: dict[str, object]) -> dict[str, object]:
-        return _mut.set_assignment_hours(self, payload)
+    def updateAssignmentPlannedHours(self, payload: dict[str, object]) -> dict[str, object]:
+        return _mut.update_assignment_planned_hours(self, payload)
 
     @Slot(str, result="QVariantMap")
     def deleteAssignment(self, assignment_id: str) -> dict[str, object]:
@@ -623,18 +717,6 @@ class ProjectManagementTasksWorkspaceController(
     @Slot(str, result="QVariantMap")
     def deleteTaskTimeEntry(self, entry_id: str) -> dict[str, object]:
         return _mut.delete_task_time_entry(self, entry_id)
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def submitTaskPeriod(self, payload: dict[str, object]) -> dict[str, object]:
-        return _mut.submit_task_period(self, payload)
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def lockTaskPeriod(self, payload: dict[str, object]) -> dict[str, object]:
-        return _mut.lock_task_period(self, payload)
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def unlockTaskPeriod(self, payload: dict[str, object]) -> dict[str, object]:
-        return _mut.unlock_task_period(self, payload)
 
     @Slot("QVariantMap", result="QVariantMap")
     def postTaskComment(self, payload: dict[str, object]) -> dict[str, object]:

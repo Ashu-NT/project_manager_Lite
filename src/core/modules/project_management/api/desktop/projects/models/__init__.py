@@ -8,6 +8,7 @@ from src.core.modules.project_management.api.desktop.projects.models.project imp
 from src.core.modules.project_management.api.desktop.projects.models.resources import (
     ProjectAssignableResourceOptionDescriptor,
     ProjectResourceDesktopDto,
+    ProjectResourceUsageDesktopDto,
 )
 
 __all__ = [
@@ -15,5 +16,6 @@ __all__ = [
     "ProjectCatalogPageDesktopDto",
     "ProjectDesktopDto",
     "ProjectResourceDesktopDto",
+    "ProjectResourceUsageDesktopDto",
     "ProjectStatusDescriptor",
 ]

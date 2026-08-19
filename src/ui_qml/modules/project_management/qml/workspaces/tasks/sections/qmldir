@@ -6,7 +6,5 @@ TasksTimeEntriesSection 1.0 TasksTimeEntriesSection.qml
 TasksCollaborationSection 1.0 TasksCollaborationSection.qml
 TaskCommentCard 1.0 TaskCommentCard.qml
 TasksMaterialDemandSection 1.0 TasksMaterialDemandSection.qml
-TasksReservationsSection 1.0 TasksReservationsSection.qml
-TasksProcurementSection 1.0 TasksProcurementSection.qml
 TasksSkillsSection 1.0 TasksSkillsSection.qml
 TasksScheduleImpactSection 1.0 TasksScheduleImpactSection.qml

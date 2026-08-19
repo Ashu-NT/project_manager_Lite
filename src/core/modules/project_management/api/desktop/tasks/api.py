@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import logging
 from datetime import date
+from decimal import Decimal
 
 from src.core.modules.project_management.api.desktop.scheduling.models.change_impact import (
     ScheduleImpactReportDto,
+    TaskScheduleImpactOverviewDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.scheduling.serializers.change_impact_serializer import (
     serialize_schedule_impact_report,
+    serialize_task_schedule_overview,
 )
 from src.core.modules.project_management.api.desktop.tasks.builders.assignment_preview_builder import (
     build_assignment_preview,
@@ -27,10 +30,25 @@ from src.core.modules.project_management.api.desktop.tasks.builders.resource_opt
 from src.core.modules.project_management.api.desktop.tasks.builders.status_options_builder import (
     build_status_options,
 )
+from src.core.modules.project_management.api.desktop.tasks.serializers.time_summary_serializer import (
+    serialize_task_time_entries_page,
+    serialize_task_time_summary,
+)
+from src.core.modules.project_management.api.desktop.tasks.serializers.dependency_impact_preview_serializer import (
+    serialize_dependency_impact_preview,
+)
+from src.core.modules.project_management.api.desktop.tasks.models.dependency import (
+    TaskDependencyImpactPreviewDesktopDto,
+)
+from src.core.modules.project_management.api.desktop.tasks.models.time_summary import (
+    TaskTimeEntriesPageDesktopDto,
+    TaskTimeSummaryDesktopDto,
+)
 from src.core.modules.project_management.api.desktop.tasks.commands.assignment_commands import (
     TaskAssignmentAllocationCommand,
     TaskAssignmentCreateCommand,
     TaskAssignmentHoursCommand,
+    TaskAssignmentPlannedHoursCommand,
 )
 from src.core.modules.project_management.api.desktop.tasks.commands.bulk_commands import (
     TaskBulkStatusCommand,
@@ -42,7 +60,12 @@ from src.core.modules.project_management.api.desktop.tasks.commands.dependency_c
 from src.core.modules.project_management.api.desktop.tasks.commands.reservation_commands import (
     TaskReservationCreateCommand,
 )
+from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
+    EDITABLE_CONSTRAINT_OPTIONS,
+    coerce_constraint_type,
+)
 from src.core.modules.project_management.api.desktop.tasks.commands.task_commands import (
+    TaskConstraintUpdateCommand,
     TaskCreateCommand,
     TaskProgressCommand,
     TaskUpdateCommand,
@@ -55,6 +78,7 @@ from src.core.modules.project_management.api.desktop.tasks.models.dependency imp
     TaskDependencyDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.tasks.models.options import (
+    TaskConstraintOptionDescriptor,
     TaskDependencyTypeDescriptor,
     TaskProjectOptionDescriptor,
     TaskProjectResourceOptionDescriptor,
@@ -97,7 +121,7 @@ from src.core.modules.project_management.api.desktop.tasks.services.resource_loo
     resource_by_id,
     resource_name_for_assignment,
 )
-from src.core.modules.project_management.api.desktop.tasks.utils.dependency_utils import (
+from src.core.modules.project_management.api.desktop.common.dependency_presentation import (
     coerce_dependency_direction,
     coerce_dependency_type,
     dependency_direction,
@@ -116,9 +140,6 @@ from src.core.modules.project_management.application.resources import (
 )
 from src.core.modules.project_management.application.resources.assignment_validation import (
     AssignmentSkillValidator,
-)
-from src.core.modules.project_management.application.resources.resource_availability_service import (
-    ResourceAvailabilityService,
 )
 from src.core.modules.project_management.application.scheduling.forecasting.schedule_change_impact_service import (
     ScheduleChangeImpactService,
@@ -145,7 +166,6 @@ class ProjectManagementTasksDesktopApi:
         reservation_service: TaskReservationGateway | None = None,
         assignment_skill_validator: AssignmentSkillValidator | None = None,
         schedule_change_impact_service: ScheduleChangeImpactService | None = None,
-        resource_availability_service: ResourceAvailabilityService | None = None,
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
@@ -154,7 +174,6 @@ class ProjectManagementTasksDesktopApi:
         self._reservation_service = reservation_service
         self._assignment_skill_validator = assignment_skill_validator
         self._schedule_change_impact_service = schedule_change_impact_service
-        self._resource_availability_service = resource_availability_service
 
     def list_projects(self) -> tuple[TaskProjectOptionDescriptor, ...]:
         return build_project_options(
@@ -238,6 +257,7 @@ class ProjectManagementTasksDesktopApi:
         status: str = "all",
         priority: str = "all",
         schedule: str = "all",
+        milestones_only: bool = False,
         page: int = 1,
         page_size: int = 25,
         sort_key: str = "wbsCode",
@@ -250,6 +270,7 @@ class ProjectManagementTasksDesktopApi:
             status=status,
             priority=priority,
             schedule=schedule,
+            milestones_only=milestones_only,
             page=page,
             page_size=page_size,
             sort_key=sort_key,
@@ -281,6 +302,7 @@ class ProjectManagementTasksDesktopApi:
                     is_summary=item.is_summary,
                     hierarchy_depth=item.hierarchy_depth,
                     child_count=item.child_count,
+                    is_milestone=item.is_milestone,
                 )
                 for item in result.items
             ),
@@ -310,11 +332,42 @@ class ProjectManagementTasksDesktopApi:
             parent_task_id=getattr(command, "parent_task_id", None),
             wbs_code=getattr(command, "wbs_code", "") or "",
             sort_order=getattr(command, "sort_order", None),
+            is_milestone=bool(getattr(command, "is_milestone", False)),
+            constraint_type=coerce_constraint_type(getattr(command, "constraint_type", None)),
+            constraint_date=getattr(command, "constraint_date", None),
         )
         desired_status = coerce_task_status(command.status)
         if desired_status != task.status:
             service.set_status(task.id, desired_status)
             task = service.get_task(task.id) or task
+        return serialize_task(
+            task,
+            project_name=self._project_name_by_id().get(task.project_id, ""),
+        )
+
+    def list_constraint_options(self) -> tuple[TaskConstraintOptionDescriptor, ...]:
+        return tuple(
+            TaskConstraintOptionDescriptor(
+                value=option.value.value if option.value is not None else "",
+                code=option.code,
+                label=option.label,
+                description=option.description,
+                requires_date=option.requires_date,
+                category=option.category,
+            )
+            for option in EDITABLE_CONSTRAINT_OPTIONS
+        )
+
+    def update_task_scheduling_constraint(
+        self, command: TaskConstraintUpdateCommand
+    ) -> TaskDesktopDto:
+        service = self._require_task_service()
+        task = service.update_task_scheduling_constraint(
+            command.task_id,
+            constraint_type=coerce_constraint_type(command.constraint_type),
+            constraint_date=command.constraint_date,
+            expected_version=command.expected_version,
+        )
         return serialize_task(
             task,
             project_name=self._project_name_by_id().get(task.project_id, ""),
@@ -350,6 +403,7 @@ class ProjectManagementTasksDesktopApi:
             priority=command.priority,
             deadline=command.deadline,
             expected_version=command.expected_version,
+            is_milestone=getattr(command, "is_milestone", None),
         )
         if desired_status != current_task.status:
             service.set_status(task.id, desired_status)
@@ -377,6 +431,16 @@ class ProjectManagementTasksDesktopApi:
             project_name=self._project_name_by_id().get(task.project_id, ""),
         )
 
+    def _project_resource_version_for(self, assignment) -> int:
+        project_resource_id = str(getattr(assignment, "project_resource_id", "") or "")
+        if not project_resource_id or self._project_resource_service is None:
+            return 1
+        try:
+            project_resource = self._project_resource_service.get(project_resource_id)
+        except Exception:
+            return 1
+        return int(getattr(project_resource, "version", 1) or 1)
+
     def list_assignments(self, task_id: str) -> tuple[TaskAssignmentDesktopDto, ...]:
         if not task_id:
             return ()
@@ -403,6 +467,7 @@ class ProjectManagementTasksDesktopApi:
             ),
         )
         action_context_method = getattr(service, "get_assignment_action_context", None)
+        preview_capacity_method = getattr(service, "preview_assignment_capacity", None)
         rows: list[TaskAssignmentDesktopDto] = []
         for assignment in assignments:
             action_context = None
@@ -416,6 +481,30 @@ class ProjectManagementTasksDesktopApi:
                         exc_info=True,
                     )
                     action_context = None
+            capacity_fact = None
+            if callable(preview_capacity_method):
+                try:
+                    # This assignment's own allocation_percent stands in as
+                    # "proposed" against every OTHER assignment already
+                    # committed (exclude_assignment_id) -- i.e. the real
+                    # capacity fact for this assignment's current commitment,
+                    # from the same authority the create/edit preview uses
+                    # (docs §44), not a second calculation.
+                    capacity_fact = preview_capacity_method(
+                        task_id,
+                        assignment.resource_id,
+                        proposed_allocation_percent=float(
+                            getattr(assignment, "allocation_percent", 0.0) or 0.0
+                        ),
+                        exclude_assignment_id=assignment.id,
+                    )
+                except Exception:
+                    logger.warning(
+                        "Assignment capacity could not be resolved assignment_id=%s",
+                        assignment.id,
+                        exc_info=True,
+                    )
+                    capacity_fact = None
             rows.append(
                 serialize_assignment(
                     assignment,
@@ -423,9 +512,55 @@ class ProjectManagementTasksDesktopApi:
                     can_manage=bool(getattr(action_context, "can_manage", False)),
                     can_accept=bool(getattr(action_context, "can_accept", False)),
                     can_decline=bool(getattr(action_context, "can_decline", False)),
+                    project_resource_version=self._project_resource_version_for(assignment),
+                    capacity_fact=capacity_fact,
                 )
             )
         return tuple(rows)
+
+    def get_task_time_summary(self, task_id: str) -> TaskTimeSummaryDesktopDto | None:
+        """Task-scoped planned/actual/remaining/overrun totals plus the
+        per-resource breakdown for Task Detail -> Time -> Overview (docs
+        §44 Time redesign). None when the task can't be resolved."""
+        if not task_id:
+            return None
+        service = self._require_task_service()
+        get_summary = getattr(service, "get_task_time_summary", None)
+        if not callable(get_summary):
+            return None
+        fact = get_summary(task_id)
+        return serialize_task_time_summary(fact)
+
+    def list_task_time_entries(
+        self,
+        task_id: str,
+        *,
+        resource_id: str | None = None,
+        page: int = 1,
+        page_size: int = 25,
+        sort_direction: str = "desc",
+    ) -> TaskTimeEntriesPageDesktopDto | None:
+        """Task-scoped (every assignment on this task), all-time Time
+        Entries listing for Task Detail -> Time -> Time Entries (docs §44
+        Time redesign). None when the task can't be resolved."""
+        if not task_id:
+            return None
+        service = self._require_task_service()
+        list_page = getattr(service, "list_time_entries_for_task_page", None)
+        if not callable(list_page):
+            return None
+        page_result = list_page(
+            task_id,
+            resource_id=resource_id or None,
+            page=page,
+            page_size=page_size,
+            sort_direction=sort_direction,
+        )
+        resources_by_id = resource_by_id(
+            resource_service=self._resource_service,
+            resource_ids=tuple({row.resource_id for row in page_result.items}),
+        )
+        return serialize_task_time_entries_page(page_result, resources_by_id=resources_by_id)
 
     def create_assignment(
         self,
@@ -435,6 +570,7 @@ class ProjectManagementTasksDesktopApi:
             task_id=command.task_id,
             project_resource_id=command.project_resource_id,
             allocation_percent=command.allocation_percent,
+            allocated_planned_hours=getattr(command, "allocated_planned_hours", None) or Decimal("0"),
         )
         return serialize_assignment(
             assignment,
@@ -442,6 +578,7 @@ class ProjectManagementTasksDesktopApi:
                 resource_service=self._resource_service,
                 resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
             ),
+            project_resource_version=self._project_resource_version_for(assignment),
         )
 
     def update_assignment_allocation(
@@ -451,6 +588,7 @@ class ProjectManagementTasksDesktopApi:
         assignment = self._require_task_method("set_assignment_allocation")(
             assignment_id=command.assignment_id,
             allocation_percent=command.allocation_percent,
+            expected_version=getattr(command, "expected_version", None),
         )
         return serialize_assignment(
             assignment,
@@ -458,6 +596,26 @@ class ProjectManagementTasksDesktopApi:
                 resource_service=self._resource_service,
                 resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
             ),
+            project_resource_version=self._project_resource_version_for(assignment),
+        )
+
+    def update_assignment_planned_hours(
+        self,
+        command: TaskAssignmentPlannedHoursCommand,
+    ) -> TaskAssignmentDesktopDto:
+        assignment = self._require_task_method("update_assignment_planned_hours")(
+            assignment_id=command.assignment_id,
+            allocated_planned_hours=command.allocated_planned_hours,
+            expected_assignment_version=command.expected_assignment_version,
+            expected_project_resource_version=command.expected_project_resource_version,
+        )
+        return serialize_assignment(
+            assignment,
+            resources_by_id=resource_by_id(
+                resource_service=self._resource_service,
+                resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
+            ),
+            project_resource_version=self._project_resource_version_for(assignment),
         )
 
     def set_assignment_hours(
@@ -474,6 +632,7 @@ class ProjectManagementTasksDesktopApi:
                 resource_service=self._resource_service,
                 resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
             ),
+            project_resource_version=self._project_resource_version_for(assignment),
         )
 
     def delete_assignment(self, assignment_id: str) -> None:
@@ -487,6 +646,7 @@ class ProjectManagementTasksDesktopApi:
                 resource_service=self._resource_service,
                 resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
             ),
+            project_resource_version=self._project_resource_version_for(assignment),
         )
 
     def decline_assignment(self, assignment_id: str, reason: str = "") -> TaskAssignmentDesktopDto:
@@ -497,6 +657,7 @@ class ProjectManagementTasksDesktopApi:
                 resource_service=self._resource_service,
                 resource_ids=(str(getattr(assignment, "resource_id", "") or ""),),
             ),
+            project_resource_version=self._project_resource_version_for(assignment),
         )
 
     def list_dependencies(self, task_id: str) -> tuple[TaskDependencyDesktopDto, ...]:
@@ -586,10 +747,75 @@ class ProjectManagementTasksDesktopApi:
             normalized_id,
             dependency_type=coerce_dependency_type(command.dependency_type),
             lag_days=command.lag_days,
+            expected_version=command.expected_version,
         )
 
     def delete_dependency(self, dependency_id: str) -> None:
         self._require_task_method("remove_dependency")(dependency_id)
+
+    def preview_create_dependency(
+        self,
+        command: TaskDependencyCreateCommand,
+    ) -> TaskDependencyImpactPreviewDesktopDto | None:
+        """Non-persisting impact preview for a proposed CREATE (Phase K).
+        Uses the same canonical, non-persisting engine the committed
+        schedule uses -- never a second formula, never QML-side math."""
+        service = self._require_task_service()
+        get_diagnostics = getattr(service, "get_dependency_diagnostics", None)
+        if not callable(get_diagnostics):
+            return None
+        relationship_direction = coerce_dependency_direction(command.relationship_direction)
+        predecessor_id = (
+            command.linked_task_id if relationship_direction == "PREDECESSOR" else command.task_id
+        )
+        successor_id = (
+            command.task_id if relationship_direction == "PREDECESSOR" else command.linked_task_id
+        )
+        diagnostic = get_diagnostics(
+            predecessor_id=predecessor_id,
+            successor_id=successor_id,
+            dependency_type=coerce_dependency_type(command.dependency_type),
+            lag_days=command.lag_days,
+            include_impact=True,
+        )
+        return serialize_dependency_impact_preview(diagnostic)
+
+    def preview_update_dependency(
+        self,
+        command: TaskDependencyUpdateCommand,
+    ) -> TaskDependencyImpactPreviewDesktopDto | None:
+        """Non-persisting impact preview for a proposed UPDATE (Phase K)."""
+        service = self._require_task_service()
+        get_diagnostics = getattr(service, "get_dependency_diagnostics", None)
+        get_dependency = getattr(service, "get_dependency", None)
+        if not callable(get_diagnostics) or not callable(get_dependency):
+            return None
+        normalized_id = (command.dependency_id or "").strip()
+        if not normalized_id:
+            return None
+        existing = get_dependency(normalized_id)
+        if existing is None:
+            return None
+        diagnostic = get_diagnostics(
+            predecessor_id=existing.predecessor_task_id,
+            successor_id=existing.successor_task_id,
+            dependency_type=coerce_dependency_type(command.dependency_type),
+            lag_days=command.lag_days,
+            include_impact=True,
+            exclude_dependency_id=normalized_id,
+        )
+        return serialize_dependency_impact_preview(diagnostic)
+
+    def preview_delete_dependency(
+        self, dependency_id: str
+    ) -> TaskDependencyImpactPreviewDesktopDto | None:
+        """Non-persisting impact preview for a proposed DELETE (Phase K)."""
+        service = self._require_task_service()
+        preview = getattr(service, "preview_dependency_removal", None)
+        if not callable(preview):
+            return None
+        diagnostic = preview(dependency_id)
+        return serialize_dependency_impact_preview(diagnostic)
 
     def delete_task(self, task_id: str) -> None:
         self._require_task_service().delete_task(task_id)
@@ -699,6 +925,9 @@ class ProjectManagementTasksDesktopApi:
         self,
         task_id: str,
         project_resource_id: str,
+        *,
+        proposed_allocation_percent: float = 100.0,
+        exclude_assignment_id: str | None = None,
     ) -> AssignmentPreviewDesktopDto:
         return build_assignment_preview(
             task_id,
@@ -706,20 +935,75 @@ class ProjectManagementTasksDesktopApi:
             task_service=self._task_service,
             project_resource_service=self._project_resource_service,
             assignment_skill_validator=self._assignment_skill_validator,
-            resource_availability_service=self._resource_availability_service,
+            proposed_allocation_percent=proposed_allocation_percent,
+            exclude_assignment_id=exclude_assignment_id,
+            project_names=self._project_name_by_id(),
         )
 
-    def get_schedule_impact(
+    def get_task_schedule_overview(
         self,
         task_id: str,
         project_id: str,
+    ) -> TaskScheduleImpactOverviewDesktopDto:
+        """Task Detail -> Schedule Impact's always-visible current-state
+        facts (position, criticality, float, drivers, conflicts,
+        downstream exposure) -- no hypothetical simulation, safe to load
+        automatically on task selection (§26)."""
+        normalized_task_id = str(task_id or "").strip()
+        normalized_project_id = str(project_id or "").strip()
+        if not normalized_task_id or not normalized_project_id:
+            return serialize_task_schedule_overview(
+                normalized_task_id, unavailable_reason="missing_task_or_project_id"
+            )
+        if self._schedule_change_impact_service is None:
+            logger.warning(
+                "Schedule impact requested but no ScheduleChangeImpactService is wired "
+                "(task_id=%s, project_id=%s) -- check that task_service/work_calendar_engine/"
+                "baseline_service are all non-None at desktop_api_builder composition time.",
+                normalized_task_id,
+                normalized_project_id,
+            )
+            return serialize_task_schedule_overview(
+                normalized_task_id, unavailable_reason="service_not_configured"
+            )
+        try:
+            overview = self._schedule_change_impact_service.get_task_schedule_overview(
+                normalized_project_id, normalized_task_id
+            )
+        except Exception:
+            logger.exception(
+                "get_task_schedule_overview failed (task_id=%s, project_id=%s)",
+                normalized_task_id,
+                normalized_project_id,
+            )
+            return serialize_task_schedule_overview(
+                normalized_task_id, unavailable_reason="error"
+            )
+        logger.debug(
+            "get_task_schedule_overview result task_id=%s project_id=%s is_available=%s unavailable_reason=%s",
+            normalized_task_id,
+            normalized_project_id,
+            overview.is_available,
+            overview.unavailable_reason,
+        )
+        return serialize_task_schedule_overview(normalized_task_id, overview)
+
+    def preview_task_schedule_impact(
+        self,
+        task_id: str,
+        project_id: str,
+        *,
+        delay_working_days: int = 1,
     ) -> ScheduleImpactReportDto:
+        """Task Detail -> Schedule Impact's explicit "Preview Impact"
+        what-if (§12/§13) -- a non-persisting simulation, run only when
+        the user asks for it, never automatically on task selection."""
         normalized_task_id = str(task_id or "").strip()
         normalized_project_id = str(project_id or "").strip()
         unavailable = serialize_schedule_impact_report(
             task_id=normalized_task_id,
             project_id=normalized_project_id,
-            simulated_delay_days=1,
+            simulated_delay_days=delay_working_days,
         )
         if (
             not normalized_task_id
@@ -731,19 +1015,30 @@ class ProjectManagementTasksDesktopApi:
         try:
             task = self._task_service.get_task(normalized_task_id)
             if task is None or task.start_date is None:
+                logger.debug(
+                    "preview_task_schedule_impact unavailable: task=%s start_date=%s",
+                    normalized_task_id,
+                    task.start_date if task is not None else None,
+                )
                 return unavailable
-            report = self._schedule_change_impact_service.analyse_delay(
+            report = self._schedule_change_impact_service.analyse_working_day_delay(
                 project_id=normalized_project_id,
                 changed_task_id=normalized_task_id,
                 current_start=task.start_date,
-                delay_days=1,
+                delay_working_days=delay_working_days,
             )
         except Exception:
+            logger.exception(
+                "preview_task_schedule_impact failed (task_id=%s, project_id=%s, delay_working_days=%s)",
+                normalized_task_id,
+                normalized_project_id,
+                delay_working_days,
+            )
             return unavailable
         return serialize_schedule_impact_report(
             task_id=normalized_task_id,
             project_id=normalized_project_id,
-            simulated_delay_days=1,
+            simulated_delay_days=delay_working_days,
             report=report,
         )
 

@@ -37,7 +37,14 @@ Item {
 
     function _handleResult(dialog, result) {
         if (!result || result.ok === false) {
-            dialog.errorMessage = String((result && (result.error || result.message)) || "Operation failed. Please try again.")
+            let message = String((result && (result.error || result.message)) || "Operation failed. Please try again.")
+            // Stale optimistic-concurrency writes get the same actionable
+            // trailer everywhere in Task Detail (docs §44 follow-up) --
+            // the dialog stays open with entered values intact either way.
+            if (message.indexOf("updated by another user") >= 0) {
+                message += " Refresh the latest values before saving again."
+            }
+            dialog.errorMessage = message
         } else {
             dialog.errorMessage = ""
             dialog.close()
@@ -116,11 +123,11 @@ Item {
         assignmentEditorDialog.open()
     }
 
-    function openAssignmentHoursDialog(assignmentData) {
+    function openEditAssignmentPlannedHoursDialog(assignmentData) {
         root.assignmentTarget = assignmentData || ({})
-        assignmentHoursDialog.assignmentData = root.assignmentTarget
-        assignmentHoursDialog.errorMessage = ""
-        assignmentHoursDialog.open()
+        assignmentPlannedHoursDialog.assignmentData = root.assignmentTarget
+        assignmentPlannedHoursDialog.errorMessage = ""
+        assignmentPlannedHoursDialog.open()
     }
 
     function openDeleteAssignmentDialog(assignmentData) {
@@ -130,14 +137,37 @@ Item {
 
     function openCreateDependencyDialog(taskData) {
         root.dependencyTarget = taskData || ({})
+        dependencyEditorDialog.mode = "create"
         dependencyEditorDialog.taskData = root.dependencyTarget
+        dependencyEditorDialog.dependencyData = ({})
+        dependencyEditorDialog.errorMessage = ""
+        dependencyEditorDialog.open()
+    }
+
+    function openEditDependencyDialog(dependencyData) {
+        root.dependencyTarget = dependencyData || ({})
+        dependencyEditorDialog.mode = "edit"
+        dependencyEditorDialog.taskData = root.selectedTaskData || ({})
+        dependencyEditorDialog.dependencyData = root.dependencyTarget
         dependencyEditorDialog.errorMessage = ""
         dependencyEditorDialog.open()
     }
 
     function openDeleteDependencyDialog(dependencyData) {
         root.dependencyTarget = dependencyData || ({})
+        deleteDependencyDialog.deletePreview = ({})
         deleteDependencyDialog.open()
+        if (root.workspaceController !== null) {
+            const state = root.dependencyTarget && root.dependencyTarget.state
+                ? root.dependencyTarget.state
+                : (root.dependencyTarget || {})
+            const dependenciesController = root.workspaceController.dependenciesController
+            if (state.dependencyId && dependenciesController) {
+                deleteDependencyDialog.deletePreview = dependenciesController.previewDeleteDependency(
+                    String(state.dependencyId)
+                ) || {}
+            }
+        }
     }
 
     function openTaskCollaborationDialog(taskData) {
@@ -236,6 +266,26 @@ Item {
                 payload.projectId = String(state.projectId || payload.projectId || root.selectedProjectId || "")
                 payload.taskId = String(state.taskId)
                 payload.expectedVersion = state.version
+                // The scheduling constraint is a separate governed mutation
+                // (TaskSchedulingConstraintMixin) -- update_task's own
+                // command deliberately excludes constraint fields, so a
+                // changed constraint is applied first, before the rest of
+                // the edit, and a failure here (including an
+                // "Approval required" business rule) stops short of the
+                // generic update so the dialog reports exactly what did
+                // not save.
+                if (payload.constraintChanged) {
+                    result = root.workspaceController.updateSchedulingConstraint({
+                        "taskId": payload.taskId,
+                        "constraintType": payload.constraintType,
+                        "constraintDate": payload.constraintDate,
+                        "expectedVersion": payload.expectedVersion
+                    })
+                    if (!result || result.ok === false) {
+                        root._handleResult(editorDialog, result)
+                        return
+                    }
+                }
                 result = root.workspaceController.updateTask(payload)
             } else {
                 result = root.workspaceController.createTask(payload)
@@ -287,16 +337,16 @@ Item {
         }
     }
 
-    TaskDialogs.TaskAssignmentHoursDialog {
-        id: assignmentHoursDialog
-        objectName: "taskAssignmentHoursDialog"
+    TaskDialogs.TaskAssignmentPlannedHoursDialog {
+        id: assignmentPlannedHoursDialog
+        objectName: "taskAssignmentPlannedHoursDialog"
 
         busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
             if (root.workspaceController === null) return
-            const result = root.workspaceController.setAssignmentHours(payload)
-            root._handleResult(assignmentHoursDialog, result)
+            const result = root.workspaceController.updateAssignmentPlannedHours(payload)
+            root._handleResult(assignmentPlannedHoursDialog, result)
         }
     }
 
@@ -306,11 +356,14 @@ Item {
 
         taskOptions: root.dependencyTaskOptions
         dependencyTypeOptions: root.dependencyTypeOptions
+        workspaceController: root.workspaceController
         busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
             if (root.workspaceController === null) return
-            const result = root.workspaceController.createDependency(payload)
+            const result = dependencyEditorDialog.mode === "edit"
+                ? root.workspaceController.updateDependency(payload)
+                : root.workspaceController.createDependency(payload)
             root._handleResult(dependencyEditorDialog, result)
         }
     }
@@ -456,6 +509,11 @@ Item {
     AppControls.ConfirmationDialog {
         id: deleteDependencyDialog
         objectName: "taskDeleteDependencyDialog"
+
+        property var deletePreview: ({})
+        readonly property bool _previewAvailable: deleteDependencyDialog.deletePreview.available === true
+        readonly property int _affectedCount: deleteDependencyDialog.deletePreview.affectedTaskCount || 0
+
         title: "Remove Dependency"
         closePolicy: Popup.CloseOnEscape
         confirmLabel: "Remove Dependency"
@@ -464,7 +522,11 @@ Item {
         message: root.dependencyTarget && root.dependencyTarget.title
             ? "Remove the dependency link to " + root.dependencyTarget.title + "?"
             : "Remove the selected dependency?"
-        supportingText: "This removes the predecessor or successor link from the project plan."
+        supportingText: "Removing this relationship may change the project schedule."
+            + (deleteDependencyDialog._previewAvailable && deleteDependencyDialog._affectedCount > 0
+                ? " " + deleteDependencyDialog._affectedCount
+                    + (deleteDependencyDialog._affectedCount === 1 ? " downstream task may move." : " downstream tasks may move.")
+                : "")
 
         onConfirmed: {
             const state = root.dependencyTarget && root.dependencyTarget.state

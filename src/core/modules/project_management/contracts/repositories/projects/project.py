@@ -45,6 +45,16 @@ class ProjectResourceRepository(ABC):
     def update(self, pr: ProjectResource) -> None: ...
 
     @abstractmethod
+    def update_with_version_check(
+        self, pr: ProjectResource, *, expected_version: int
+    ) -> ProjectResource:
+        """Versioned write path for planning-mutable fields (hourly_rate,
+        currency_code, planned_hours, is_active). Rejects with a
+        ``ConcurrencyError`` if ``expected_version`` no longer matches the
+        persisted row."""
+        ...
+
+    @abstractmethod
     def touch_version_with_check(self, pr_id: str, *, expected_version: int) -> int:
         """Advances only ``version`` (no other field changes) and returns
         the new value. Used by the assignment-level planned-hours

@@ -24,6 +24,7 @@ def build_workspace_state(
     status_filter: str = "all",
     priority_filter: str = "all",
     schedule_filter: str = "all",
+    milestones_only: bool = False,
     selected_task_id: str | None = None,
     page: int = 1,
     page_size: int = 25,
@@ -47,6 +48,7 @@ def build_workspace_state(
         status=filters.status_filter,
         priority=filters.priority_filter,
         schedule=filters.schedule_filter,
+        milestones_only=bool(milestones_only),
         page=page,
         page_size=page_size,
         sort_key=sort_key,
@@ -82,6 +84,7 @@ def build_workspace_state(
         selected_status_filter=filters.status_filter,
         selected_priority_filter=filters.priority_filter,
         selected_schedule_filter=filters.schedule_filter,
+        selected_milestones_only=bool(milestones_only),
         search_text=filters.search_text,
         tasks=tuple(to_task_record_view_model(task) for task in task_page.items),
         wbs_parent_options=(

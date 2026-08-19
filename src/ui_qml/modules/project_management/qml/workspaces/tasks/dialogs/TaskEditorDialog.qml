@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
+import App.Icons 1.0 as AppIcons
 
 AppWidgets.EntityDialog {
     id: root
@@ -29,6 +30,12 @@ AppWidgets.EntityDialog {
     readonly property var workflowStatusOptions: (root.statusOptions || []).filter(function(option) {
         return String(option.value || "").toLowerCase() !== "all"
     })
+    readonly property var constraintOptions: root.workspaceController ? (root.workspaceController.constraintOptions || []) : []
+    readonly property int formColumns: root.width > 760 ? 3 : (root.width > 520 ? 2 : 1)
+    readonly property var selectedConstraintOption: root.constraintOptions[constraintTypeCombo.currentIndex] || { "value": "", "requiresDate": false, "category": "flexible", "label": "" }
+    property bool advancedSchedulingExpanded: false
+    property string _initialConstraintType: ""
+    property string _initialConstraintDate: ""
 
     signal submitted(var payload)
 
@@ -39,7 +46,7 @@ AppWidgets.EntityDialog {
     primaryText:  root.modeTitle === "Create Task" ? "Create Task" : "Save Changes"
     primaryIcon:  root.modeTitle === "Create Task" ? "add" : "save"
     primaryEnabled: root.editingExistingTask || root.editableProjectOptions.length > 0
-    width: 560
+    width: 860
 
     onOpened:   root.populateFromTask()
     onAccepted: root.submitDialog()
@@ -67,11 +74,20 @@ AppWidgets.EntityDialog {
         statusCombo.currentIndex = root.statusIndexForValue(state.status || "TODO")
         parentTaskCombo.currentIndex = root.indexForValue(root.parentTaskOptions, state.parentTaskId || "")
         wbsCodeField.text = String(state.wbsCode || "")
+        milestoneCheck.checked = Boolean(state.isMilestone)
+        constraintTypeCombo.currentIndex = root.indexForValue(root.constraintOptions, state.constraintType || "")
+        constraintDateField.text = String(state.constraintDate || "")
+        root._initialConstraintType = String(state.constraintType || "")
+        root._initialConstraintDate = String(state.constraintDate || "")
+        root.advancedSchedulingExpanded = root._initialConstraintType.length > 0
         root.errorMessage = ""
     }
 
     function buildPayload() {
         var statusOption = root.workflowStatusOptions[statusCombo.currentIndex] || { "value": "TODO" }
+        var constraintOption = root.selectedConstraintOption
+        var constraintTypeValue = String(constraintOption.value || "")
+        var constraintDateValue = constraintOption.requiresDate ? constraintDateField.text : ""
         return {
             "projectId": String((root.editableProjectOptions[projectCombo.currentIndex] || { "value": "" }).value || ""),
             "name": nameField.text,
@@ -79,11 +95,16 @@ AppWidgets.EntityDialog {
             "parentTaskId": String((root.parentTaskOptions[parentTaskCombo.currentIndex] || { "value": "" }).value || ""),
             "wbsCode": wbsCodeField.text,
             "startDate": startDateField.text,
-            "durationDays": durationField.text,
+            "durationDays": milestoneCheck.checked ? "0" : durationField.text,
             "deadline": deadlineField.text,
             "priority": priorityField.text,
             "description": descriptionField.text,
-            "status": statusOption.value || "TODO"
+            "status": statusOption.value || "TODO",
+            "isMilestone": milestoneCheck.checked,
+            "constraintType": constraintTypeValue,
+            "constraintDate": constraintDateValue,
+            "constraintChanged": constraintTypeValue !== root._initialConstraintType
+                || constraintDateValue !== root._initialConstraintDate
         }
     }
 
@@ -106,6 +127,10 @@ AppWidgets.EntityDialog {
             root.errorMessage = "Task name is required."
             return
         }
+        if (root.selectedConstraintOption.requiresDate && constraintDateField.text.trim().length === 0) {
+            root.errorMessage = "Choose a date for the " + (root.selectedConstraintOption.label || "selected") + " constraint."
+            return
+        }
         root.errorMessage = ""
         root.submitted(root.buildPayload())
     }
@@ -124,7 +149,7 @@ AppWidgets.EntityDialog {
 
     GridLayout {
         Layout.fillWidth: true
-        columns: root.width > 520 ? 2 : 1
+        columns: root.formColumns
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
@@ -200,7 +225,12 @@ AppWidgets.EntityDialog {
         AppWidgets.FormField {
             Layout.fillWidth: true
             label: "Duration"
-            AppControls.TextField { id: durationField; Layout.fillWidth: true; placeholderText: "Working days"; enabled: !root.editingSummaryTask }
+            AppControls.TextField {
+                id: durationField
+                Layout.fillWidth: true
+                placeholderText: "Working days"
+                enabled: !root.editingSummaryTask && !milestoneCheck.checked
+            }
         }
 
         AppWidgets.FormField {
@@ -214,6 +244,117 @@ AppWidgets.EntityDialog {
             label: "Priority"
             AppControls.TextField { id: priorityField; Layout.fillWidth: true; placeholderText: "0-100" }
         }
+
+        AppControls.CheckBox {
+            id: milestoneCheck
+            objectName: "milestoneCheck"
+            Layout.columnSpan: parent.columns
+            text: "This is a milestone (zero-duration)"
+            enabled: !root.editingSummaryTask
+            onCheckedChanged: {
+                if (milestoneCheck.checked) {
+                    durationField.text = "0"
+                }
+            }
+        }
+    }
+
+    ColumnLayout {
+        Layout.fillWidth: true
+        spacing: Theme.AppTheme.spacingSm
+
+        Item {
+            Layout.fillWidth: true
+            implicitHeight: advancedHeaderRow.implicitHeight
+
+            RowLayout {
+                id: advancedHeaderRow
+                anchors.left: parent.left
+                anchors.right: parent.right
+                spacing: Theme.AppTheme.spacingSm
+
+                AppIcons.AppIcon {
+                    name: root.advancedSchedulingExpanded ? "chevron_down" : "chevron_right"
+                    size: Theme.AppTheme.navIconSize
+                    iconColor: Theme.AppTheme.textMuted
+                }
+
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    text: "Advanced scheduling"
+                        + (root._initialConstraintType.length > 0 && !root.advancedSchedulingExpanded
+                            ? " · " + (root.constraintOptions[root.indexForValue(root.constraintOptions, root._initialConstraintType)] || {}).code
+                            : "")
+                    color: Theme.AppTheme.textSecondary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    font.bold: true
+                }
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.advancedSchedulingExpanded = !root.advancedSchedulingExpanded
+            }
+        }
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            visible: root.advancedSchedulingExpanded
+            spacing: Theme.AppTheme.spacingSm
+
+            GridLayout {
+                Layout.fillWidth: true
+                columns: root.formColumns
+                columnSpacing: Theme.AppTheme.spacingMd
+                rowSpacing: Theme.AppTheme.spacingSm
+
+                AppWidgets.FormField {
+                    Layout.fillWidth: true
+                    label: "Scheduling constraint"
+                    AppControls.ComboBox {
+                        id: constraintTypeCombo
+                        objectName: "constraintTypeCombo"
+                        Layout.fillWidth: true
+                        model: root.constraintOptions
+                        textRole: "label"
+                        enabled: !root.editingSummaryTask
+                    }
+                }
+
+                AppWidgets.FormField {
+                    Layout.fillWidth: true
+                    label: "Constraint date"
+                    visible: root.selectedConstraintOption.requiresDate
+                    AppControls.DateField {
+                        id: constraintDateField
+                        objectName: "constraintDateField"
+                        Layout.fillWidth: true
+                        placeholderText: "YYYY-MM-DD"
+                        enabled: !root.editingSummaryTask
+                    }
+                }
+            }
+
+            AppControls.Label {
+                Layout.fillWidth: true
+                visible: root.selectedConstraintOption.description.length > 0
+                text: root.selectedConstraintOption.description
+                color: Theme.AppTheme.textSecondary
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.smallSize
+                wrapMode: Text.WordWrap
+            }
+
+            AppWidgets.InlineMessage {
+                Layout.fillWidth: true
+                visible: root.selectedConstraintOption.category === "fixed_date"
+                tone: "warning"
+                message: "This fixes the task to an exact date and can override dependency-driven scheduling. "
+                    + "Check Schedule Impact after saving for any resulting conflicts."
+            }
+        }
     }
 
     AppWidgets.FormField {
@@ -222,7 +363,7 @@ AppWidgets.EntityDialog {
         AppControls.TextArea {
             id: descriptionField
             Layout.fillWidth: true
-            Layout.preferredHeight: 150
+            Layout.preferredHeight: 75
             placeholderText: "Execution notes, scope, and completion criteria."
             wrapMode: TextEdit.WordWrap
         }

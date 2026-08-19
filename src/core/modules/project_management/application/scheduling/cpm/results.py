@@ -16,8 +16,10 @@ def build_schedule_result(
     ls: dict[str, date | None],
     lf: dict[str, date | None],
     calendar: CalendarProtocol,
+    dependency_implied: dict[str, tuple[date | None, date | None]] | None = None,
 ) -> dict[str, CPMTaskInfo]:
     result: dict[str, CPMTaskInfo] = {}
+    dependency_implied = dependency_implied or {}
 
     for task_id, task in tasks_by_id.items():
         est = es[task_id]
@@ -34,15 +36,17 @@ def build_schedule_result(
             tasks_by_id[task_id] = task
 
         if est is not None and lst is not None:
-            if lst < est:
-                total_float = 0
-            else:
+            if lst >= est:
                 days = calendar.working_days_between(est, lst)
                 total_float = max(0, days - 1)
+            else:
+                shortfall = calendar.working_days_between(lst, est)
+                total_float = -max(0, shortfall - 1)
         else:
             total_float = None
 
-        is_critical = total_float == 0 if total_float is not None else False
+        is_infeasible = total_float is not None and total_float < 0
+        is_critical = total_float is not None and total_float <= 0
 
         late_by = None
         if task.deadline and eft and eft > task.deadline:
@@ -50,6 +54,8 @@ def build_schedule_result(
                 calendar.add_working_days(task.deadline, 1),
                 eft,
             )
+
+        implied_start, implied_finish = dependency_implied.get(task_id, (None, None))
 
         result[task_id] = CPMTaskInfo(
             task=task,
@@ -61,6 +67,9 @@ def build_schedule_result(
             is_critical=is_critical,
             deadline=task.deadline,
             late_by_days=late_by,
+            dependency_implied_start=implied_start,
+            dependency_implied_finish=implied_finish,
+            is_infeasible=is_infeasible,
         )
 
     return result

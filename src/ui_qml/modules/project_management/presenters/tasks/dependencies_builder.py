@@ -27,11 +27,15 @@ def build_dependencies_collection(
             empty_state="Select a task to review predecessor and successor links.",
         )
     if dependencies:
+        tasks_by_id = {task.id: task for task in all_tasks}
         return TaskExecutionCollectionViewModel(
             title="Dependencies",
             subtitle="Sequencing links and lag settings for this task.",
             items=tuple(
-                to_dependency_record_view_model(dependency)
+                to_dependency_record_view_model(
+                    dependency,
+                    linked_task=tasks_by_id.get(dependency.linked_task_id),
+                )
                 for dependency in dependencies
             ),
         )

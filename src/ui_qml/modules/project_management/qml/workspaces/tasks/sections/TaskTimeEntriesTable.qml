@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
@@ -10,25 +9,38 @@ import App.Theme 1.0 as Theme
 Item {
     id: root
 
-    property var entriesModel: ({})
+    // Task-scoped (every assignment on this task), all-time Time Entries
+    // page straight from TaskTimeEntriesPageDesktopDto (docs §44 Time
+    // redesign) -- authoritative server-side paging, never a locally
+    // filtered slice of a truncated dataset.
+    property var taskTimeEntriesPage: ({ "items": [], "total": 0, "page": 1, "pageSize": 25 })
     property var entriesTableModel: null
+    property var resourceOptions: []
+    property string resourceFilter: ""
     property string selectedEntryId: ""
     property bool isBusy: false
 
     signal entrySelected(string entryId)
+    signal resourceFilterRequested(string resourceId)
+    signal pageRequested(int page)
 
-    readonly property var _items: root.entriesModel.items || []
+    readonly property var _page: root.taskTimeEntriesPage || {}
+    readonly property var _items: root._page.items || []
+    readonly property int _total: root._page.total || 0
+    readonly property int _currentPage: root._page.page || 1
+    readonly property int _pageSize: root._page.pageSize || 25
+    readonly property var _columns: [
+        { key: "entryDateLabel", label: "Date", flex: 1, minWidth: 100 },
+        { key: "resourceName", label: "Resource", flex: 1, minWidth: 140 },
+        { key: "hoursLabel", label: "Hours", flex: 0, minWidth: 80 },
+        { key: "note", label: "Description", flex: 3, minWidth: 200 }
+    ]
     readonly property int _tableH: {
         const count = root._items.length
         const natural = Theme.AppTheme.normalRowHeight + Math.max(count, 1) * Theme.AppTheme.compactRowHeight + 24
         return Math.max(240, Math.min(natural, 420))
     }
-    readonly property var _columns: [
-        { key: "title", label: "Period / Date", flex: 2, sortable: false },
-        { key: "subtitle", label: "Resource", flex: 2, sortable: false },
-        { key: "metaText", label: "Hours / Note", flex: 2, sortable: false },
-        { key: "statusLabel", label: "Status", flex: 0, minWidth: 90, type: "status" }
-    ]
+
     Layout.fillWidth: true
     implicitHeight: _ledgerFrame.implicitHeight
 
@@ -59,7 +71,7 @@ Item {
 
                     AppControls.Label {
                         Layout.fillWidth: true
-                        text: "Entry Ledger"
+                        text: "Time Entries"
                         color: Theme.AppTheme.textPrimary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.bodySize
@@ -68,7 +80,7 @@ Item {
 
                     AppControls.Label {
                         Layout.fillWidth: true
-                        text: root.entriesModel.subtitle || "Detailed labor entries for the selected task assignment."
+                        text: "The authoritative individual records making up this task's actual time."
                         color: Theme.AppTheme.textMuted
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.smallSize
@@ -76,29 +88,42 @@ Item {
                     }
                 }
 
-                Rectangle {
-                    implicitWidth: _ledgerCountLabel.implicitWidth + Theme.AppTheme.spacingMd * 2
-                    implicitHeight: Theme.AppTheme.toolbarHeight
-                    radius: Theme.AppTheme.radiusSm
-                    color: Theme.AppTheme.surfaceAlt
-                    border.color: Theme.AppTheme.subtleBorder
-                    border.width: 1
+                ColumnLayout {
+                    spacing: 2
 
                     AppControls.Label {
-                        id: _ledgerCountLabel
-                        anchors.centerIn: parent
-                        text: root._items.length > 0 ? root._items.length + " entries" : "No entries"
-                        color: Theme.AppTheme.textSecondary
+                        text: "Resource"
+                        color: Theme.AppTheme.textMuted
                         font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.smallSize
+                        font.pixelSize: Theme.AppTheme.captionSize
                         font.bold: true
+                    }
+
+                    AppControls.ComboBox {
+                        implicitWidth: 180
+                        model: [{ "value": "", "label": "All" }].concat(root.resourceOptions)
+                        textRole: "label"
+                        enabled: !root.isBusy
+                        currentIndex: {
+                            const options = [{ "value": "" }].concat(root.resourceOptions)
+                            for (let i = 0; i < options.length; i += 1) {
+                                if (String(options[i].value || "") === root.resourceFilter)
+                                    return i
+                            }
+                            return 0
+                        }
+                        onActivated: function(index) {
+                            const options = [{ "value": "" }].concat(root.resourceOptions)
+                            const option = options[index]
+                            root.resourceFilterRequested(option ? String(option.value || "") : "")
+                        }
                     }
                 }
             }
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 1
+                Layout.preferredHeight: 1
                 color: Theme.AppTheme.divider
             }
 
@@ -112,7 +137,7 @@ Item {
                     sourceModel: root.entriesTableModel
                     selectedRowId: root.selectedEntryId
                     loading: root.isBusy
-                    emptyText: root.entriesModel.emptyState || "No time entries for this period."
+                    emptyText: "No time entries recorded for this task yet."
 
                     onRowSelected: function(rowId) {
                         root.entrySelected(rowId)
@@ -123,11 +148,20 @@ Item {
                 }
             }
 
+            AppWidgets.TablePaginationBar {
+                Layout.fillWidth: true
+                currentPage: root._currentPage
+                pageSize: root._pageSize
+                totalItems: root._total
+                busy: root.isBusy
+                onPageRequested: function(page) { root.pageRequested(page) }
+            }
+
             AppControls.Label {
                 Layout.fillWidth: true
                 text: root._items.length > 0
-                    ? "Select a row to move directly into capture mode for corrections, notes, or hour adjustments."
-                    : "Entries will appear here once labor is captured for the selected assignment and period."
+                    ? "Select a row to edit or delete it in Log Time."
+                    : "Entries will appear here once time is logged for this task."
                 color: Theme.AppTheme.textMuted
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.captionSize
@@ -136,5 +170,3 @@ Item {
         }
     }
 }
-
-

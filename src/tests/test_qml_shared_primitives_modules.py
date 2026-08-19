@@ -85,7 +85,7 @@ def test_qml_project_management_modules_exist() -> None:
         / "modules/project_management/qml/workspaces/resources/dialogs"
         / "ResourceEditorDialog.qml",
         UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskAssignmentEditorDialog.qml",
-        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskAssignmentHoursDialog.qml",
+        UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskAssignmentPlannedHoursDialog.qml",
         UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskAssignmentResponseDialog.qml",
         UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskCollaborationComposerDialog.qml",
         UI_QML_ROOT / "modules/project_management/qml/workspaces/tasks/dialogs/TaskCommentDeleteDialog.qml",

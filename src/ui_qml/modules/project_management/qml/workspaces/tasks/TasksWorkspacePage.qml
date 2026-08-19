@@ -33,13 +33,15 @@ AppLayouts.WorkspaceFrame {
     readonly property var selectedTaskModel: state.selectedTaskModel
     readonly property var assignmentsModel: state.assignmentsModel
     readonly property var dependenciesModel: state.dependenciesModel
-    readonly property var timeAssignmentSummaryModel: state.timeAssignmentSummaryModel
-    readonly property var timeEntriesModel: state.timeEntriesModel
+    readonly property var taskTimeSummaryModel: state.taskTimeSummaryModel
+    readonly property var taskTimeEntriesPageModel: state.taskTimeEntriesPageModel
     readonly property var selectedTimeEntryModel: state.selectedTimeEntryModel
     readonly property var collaborationCommentsModel: state.collaborationCommentsModel
     readonly property var collaborationPresenceModel: state.collaborationPresenceModel
     readonly property var skillRequirementsModel: state.skillRequirementsModel
     readonly property var scheduleImpactModel: state.scheduleImpactModel
+    readonly property var scheduleImpactPreviewModel: state.scheduleImpactPreviewModel
+    readonly property var taskActivityModel: state.taskActivityModel
 
     // ── RBAC capabilities ─────────────────────────────────────────────────
     readonly property bool _hasInvStockCap: state.hasInvStockCapability
@@ -59,6 +61,7 @@ AppLayouts.WorkspaceFrame {
     readonly property var _detailSections: state.detailSections
     readonly property var _bulkChangeProperties: state.bulkChangeProperties
     property var _selectedDependencyItem: null
+    property var _dependencyImpactPreview: ({})
     readonly property var _selectedAssignmentItem: root._itemById(
         root.assignmentsModel ? (root.assignmentsModel.items || []) : [],
         root.workspaceController ? root.workspaceController.selectedAssignmentId : ""
@@ -116,6 +119,14 @@ AppLayouts.WorkspaceFrame {
 
     function _openTaskProcurementRoute() {
         state.openTaskProcurementRoute()
+    }
+
+    function _openTimesheetsRoute() {
+        state.openTimesheetsRoute()
+    }
+
+    function _openProjectResourcesRoute() {
+        state.openProjectResourcesRoute()
     }
 
     function _openFilterPopup() {
@@ -358,16 +369,6 @@ AppLayouts.WorkspaceFrame {
                             dialogHostLoader.invoke("openDeleteDialog", root.selectedTaskModel)
                         } else if (actionId === "reserve_material") {
                             root._openTaskReservationsRoute()
-                        } else if (actionId === "edit_allocation" && root._selectedAssignmentItem) {
-                            dialogHostLoader.invoke(
-                                "openEditAssignmentAllocationDialog",
-                                root._selectedAssignmentItem,
-                                root.selectedTaskModel
-                            )
-                        } else if (actionId === "set_assignment_hours" && root._selectedAssignmentItem) {
-                            dialogHostLoader.invoke("openAssignmentHoursDialog", root._selectedAssignmentItem)
-                        } else if (actionId === "remove_assignment" && root._selectedAssignmentItem) {
-                            dialogHostLoader.invoke("openDeleteAssignmentDialog", root._selectedAssignmentItem)
                         } else if (actionId === "edit_dependency" && tasksDetailPanel) {
                             tasksDetailPanel.openSelectedDependencyEditor()
                         } else if (actionId === "remove_dependency" && root._selectedDependencyItem) {
@@ -405,21 +406,22 @@ AppLayouts.WorkspaceFrame {
                     assignmentsTableModel: root.workspaceController ? root.workspaceController.assignmentsTableModel : null
                     selectedAssignmentId: root.workspaceController ? root.workspaceController.selectedAssignmentId : ""
                     assignmentOptions: root.workspaceController ? (root.workspaceController.assignmentOptions || []) : []
-                    assignmentPreview: root.workspaceController ? root.workspaceController.assignmentPreview : null
+                    projectResourceUsage: (root.workspaceController && root.workspaceController.assignmentsController)
+                        ? root.workspaceController.assignmentsController.projectResourceUsage : null
 
                     dependenciesModel: root.dependenciesModel
                     dependenciesTableModel: root.workspaceController ? root.workspaceController.dependenciesTableModel : null
                     dependencyTaskOptions: root.workspaceController ? (root.workspaceController.dependencyTaskOptions || []) : []
                     dependencyTypeOptions: root.workspaceController ? (root.workspaceController.dependencyTypeOptions || []) : []
+                    dependencyImpactPreview: root._dependencyImpactPreview
 
-                    timeAssignmentSummaryModel: root.timeAssignmentSummaryModel
-                    timeEntriesModel: root.timeEntriesModel
+                    taskTimeSummary: root.taskTimeSummaryModel
+                    taskTimeEntriesPage: root.taskTimeEntriesPageModel
                     timeEntriesTableModel: root.workspaceController ? root.workspaceController.timeEntriesTableModel : null
                     selectedTimeEntryModel: root.selectedTimeEntryModel
                     selectedEntryId: root.workspaceController ? root.workspaceController.selectedTimeEntryId : ""
                     timeAssignmentOptions: root.workspaceController ? (root.workspaceController.timeAssignmentOptions || []) : []
-                    periodOptions: root.workspaceController ? (root.workspaceController.timePeriodOptions || []) : []
-                    selectedPeriodStart: root.workspaceController ? root.workspaceController.selectedTimePeriodStart : ""
+                    timeResourceFilter: root.workspaceController ? root.workspaceController.timeResourceFilter : ""
 
                     collaborationCommentsModel: root.collaborationCommentsModel
                     collaborationPresenceModel: root.collaborationPresenceModel
@@ -428,6 +430,8 @@ AppLayouts.WorkspaceFrame {
                     canOpenProcurement: root._hasProcReqCap
                     skillRequirementsModel: root.skillRequirementsModel
                     scheduleImpactModel: root.scheduleImpactModel
+                    scheduleImpactPreviewModel: root.scheduleImpactPreviewModel
+                    taskActivityModel: root.taskActivityModel
 
                     onRetrySectionRequested: function(sectionName) {
                         const idx = (root._detailSections || []).indexOf(sectionName)
@@ -440,18 +444,24 @@ AppLayouts.WorkspaceFrame {
                         }
                     }
                     onAssignmentPreviewRequested: function(projectResourceId, taskId) {
+                        // Row selection only loads the Project Resource
+                        // Context (already-authoritative usage fact) --
+                        // previewAssignment() is the hypothetical "what if"
+                        // check reserved for the create/edit dialog, since
+                        // calling it here with no proposedAllocationPercent/
+                        // excludeAssignmentId would double-count this very
+                        // assignment's own existing commitment.
                         if (root.workspaceController !== null && projectResourceId.length > 0) {
-                            root.workspaceController.assignmentsController.previewAssignment({
-                                "projectResourceId": projectResourceId,
-                                "taskId": taskId
-                            })
+                            root.workspaceController.assignmentsController.loadProjectResourceUsage(
+                                projectResourceId
+                            )
                         }
                     }
                     onEditAllocationRequested: function(assignmentData) {
                         dialogHostLoader.invoke("openEditAssignmentAllocationDialog", assignmentData, root.selectedTaskModel)
                     }
-                    onSetHoursRequested: function(assignmentData) {
-                        dialogHostLoader.invoke("openAssignmentHoursDialog", assignmentData)
+                    onEditPlannedHoursRequested: function(assignmentData) {
+                        dialogHostLoader.invoke("openEditAssignmentPlannedHoursDialog", assignmentData)
                     }
                     onDeleteAssignmentRequested: function(assignmentData) {
                         dialogHostLoader.invoke("openDeleteAssignmentDialog", assignmentData)
@@ -466,24 +476,51 @@ AppLayouts.WorkspaceFrame {
                     onCreateDependencyRequested: dialogHostLoader.invoke("openCreateDependencyDialog", root.selectedTaskModel)
                     onDependencySelectionChanged: function(dependencyData) {
                         root._selectedDependencyItem = dependencyData || null
+                        if (!dependencyData) {
+                            root._dependencyImpactPreview = ({})
+                        }
+                    }
+                    onDependencyPreviewRequested: function(dependencyId) {
+                        if (root.workspaceController !== null && dependencyId.length > 0) {
+                            root._dependencyImpactPreview = root.workspaceController.dependenciesController.previewDeleteDependency(dependencyId) || {}
+                        }
                     }
                     onEditDependencyRequested: function(payload) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.updateDependency(payload)
-                        }
+                        dialogHostLoader.invoke("openEditDependencyDialog", payload)
                     }
                     onDeleteDependencyRequested: function(dependencyData) {
                         dialogHostLoader.invoke("openDeleteDependencyDialog", dependencyData)
                     }
-
-                    onTimeAssignmentSelected: function(assignmentId) {
+                    onOpenTaskRequested: function(taskId) {
+                        if (root.workspaceController !== null && taskId.length > 0) {
+                            root.workspaceController.activateTask(taskId)
+                        }
+                        root._openDetail(0)
+                    }
+                    onScheduleImpactPreviewRequested: function(delayWorkingDays) {
                         if (root.workspaceController !== null) {
-                            root.workspaceController.selectAssignment(assignmentId)
+                            root.workspaceController.previewTaskScheduleImpact(delayWorkingDays)
                         }
                     }
-                    onPeriodChanged: function(periodStart) {
+
+                    onTimeResourceFilterRequested: function(resourceId) {
                         if (root.workspaceController !== null) {
-                            root.workspaceController.selectTimePeriod(periodStart)
+                            root.workspaceController.filterTaskTimeEntriesByResource(resourceId)
+                        }
+                    }
+                    onTimePageRequested: function(page) {
+                        if (root.workspaceController !== null) {
+                            root.workspaceController.setTaskTimeEntriesPage(page)
+                        }
+                    }
+                    onGoToAssignmentRequested: function(assignmentId) {
+                        if (root.workspaceController !== null && assignmentId.length > 0) {
+                            root.workspaceController.selectAssignment(assignmentId)
+                        }
+                        const idx = (root._detailSections || []).indexOf("Assignments")
+                        if (idx >= 0 && root.detailPage) {
+                            root.detailPage.scrollToSection(idx)
+                            root._loadLazyDetailSection(idx)
                         }
                     }
                     onEntrySelected: function(entryId) {
@@ -506,21 +543,8 @@ AppLayouts.WorkspaceFrame {
                             root.workspaceController.deleteTaskTimeEntry(entryId)
                         }
                     }
-                    onTimeSubmitRequested: function(payload) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.submitTaskPeriod(payload)
-                        }
-                    }
-                    onTimeLockRequested: function(payload) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.lockTaskPeriod(payload)
-                        }
-                    }
-                    onTimeUnlockRequested: function(payload) {
-                        if (root.workspaceController !== null) {
-                            root.workspaceController.unlockTaskPeriod(payload)
-                        }
-                    }
+                    onOpenTimesheetsRequested: root._openTimesheetsRoute()
+                    onManageProjectResourcesRequested: root._openProjectResourcesRoute()
 
                     onComposeRequested: dialogHostLoader.invoke("openTaskCollaborationDialog", root.selectedTaskModel)
                     onCommentReplyRequested: function(commentData) {

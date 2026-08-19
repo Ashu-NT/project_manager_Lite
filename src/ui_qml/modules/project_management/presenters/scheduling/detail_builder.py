@@ -19,19 +19,22 @@ def build_constraints_collection(selected_activity: Any) -> SchedulingCollection
             empty_state="Select an activity to inspect schedule constraints and controls.",
         )
     rows: list[SchedulingRecordViewModel] = []
-    if selected_activity.start_date:
+    # Only a REAL Task.constraint_type is reported here -- start_date with
+    # no explicit constraint is an ASAP-computed date (a UI default, not a
+    # domain constraint; see constraint_presentation.py), so it is not
+    # listed as a "Planned Start" control the way it previously was.
+    if getattr(selected_activity, "constraint_type", ""):
         rows.append(
             SchedulingRecordViewModel(
-                id=f"{selected_activity.id}:start",
-                title="Planned Start",
-                status_label="Start Control",
-                subtitle=format_date(selected_activity.start_date),
-                supporting_text="Current start anchor used by the scheduling engine.",
-                meta_text="Derived from current plan",
+                id=f"{selected_activity.id}:constraint",
+                title=selected_activity.constraint_type_label,
+                status_label="Constraint",
+                subtitle=format_date(selected_activity.constraint_date),
+                supporting_text="Explicit scheduling constraint set on this task.",
+                meta_text="Task scheduling constraint",
                 state={
-                    "constraintType": "Planned Start",
-                    "constraintValue": format_date(selected_activity.start_date),
-                    "constraintStatus": "Current plan",
+                    "constraintValue": format_date(selected_activity.constraint_date),
+                    "constraintStatus": "Active",
                 },
             )
         )
@@ -39,13 +42,15 @@ def build_constraints_collection(selected_activity: Any) -> SchedulingCollection
         rows.append(
             SchedulingRecordViewModel(
                 id=f"{selected_activity.id}:deadline",
-                title="Finish No Later Than",
+                # Deadline is a distinct concept from FINISH_NO_LATER_THAN
+                # (a real, separate Task.constraint_type) -- never label it
+                # as FNLT (see constraint_presentation.py's module docstring).
+                title="Deadline",
                 status_label="Deadline",
                 subtitle=format_date(selected_activity.deadline),
                 supporting_text="Current deadline control used for delay diagnostics.",
                 meta_text="Project deadline guard",
                 state={
-                    "constraintType": "Finish No Later Than",
                     "constraintValue": format_date(selected_activity.deadline),
                     "constraintStatus": "Active",
                 },

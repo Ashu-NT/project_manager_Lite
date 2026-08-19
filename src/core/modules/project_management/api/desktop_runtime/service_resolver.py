@@ -53,6 +53,7 @@ class ProjectManagementDesktopRuntimeServices:
     availability_service: (
         ResourceAvailabilityService | EnterpriseResourceAvailabilityService | None
     )
+    resource_multi_project_allocation_service: ResourceAvailabilityService | None
     pool_service: PortfolioResourcePoolService | None
     project_resource_service: ProjectResourceService | None
     timesheet_service: TimesheetService | None
@@ -83,6 +84,9 @@ def resolve_project_management_desktop_runtime_services(
     register_service = services.get("register_service")
     resource_service = services.get("resource_service")
     availability_service = services.get("resource_availability_service")
+    resource_multi_project_allocation_service = services.get(
+        "resource_multi_project_allocation_service"
+    )
     pool_service = services.get("portfolio_resource_pool_service")
     project_resource_service = services.get("project_resource_service")
     timesheet_service = services.get("timesheet_service")
@@ -136,6 +140,13 @@ def resolve_project_management_desktop_runtime_services(
                     ResourceAvailabilityService,
                     EnterpriseResourceAvailabilityService,
                 ),
+            )
+            else None
+        ),
+        resource_multi_project_allocation_service=(
+            resource_multi_project_allocation_service
+            if isinstance(
+                resource_multi_project_allocation_service, ResourceAvailabilityService
             )
             else None
         ),

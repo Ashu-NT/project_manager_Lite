@@ -3,7 +3,10 @@ from __future__ import annotations
 
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 
+import logging
 from datetime import date, timedelta
+
+logger = logging.getLogger(__name__)
 
 from sqlalchemy.orm import Session
 
@@ -13,14 +16,17 @@ from src.core.modules.project_management.contracts.repositories.tasks.task impor
     TaskRepository,
 )
 from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
-from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.domain.tasks.task import Task, TaskDependency
+from src.core.modules.project_management.application.scheduling.cpm.task_date_math import (
+    apply_actual_date_constraints,
+    apply_resource_leveling_floor,
+    apply_scheduling_constraints,
+    compute_duration_dates,
+    compute_milestone_dates,
+)
 from src.core.modules.project_management.domain.tasks.hierarchy import select_leaf_dependencies, select_leaf_tasks
 # CalendarResolver removed — enterprise CalendarResolver handles hierarchy resolution
 CalendarResolver = None  # type: ignore[assignment]  # kept for isinstance checks
-from src.core.modules.project_management.application.scheduling.cpm.constraint_validator import (
-    ConstraintType,
-)
 from src.core.modules.project_management.application.scheduling.cpm.date_compute import (
     compute_task_dates_common,
 )
@@ -81,6 +87,10 @@ class SchedulingEngine(ResourceLevelingMixin):
         self._resource_calendar_map: dict[str, CalendarProtocol] = resource_calendar_map or {}
         self._task_primary_resource: dict[str, str] = {}  # task_id → resource_id, pre-loaded per run
         self._project_calendar_adapter: ProjectCalendarAdapter | None = project_calendar_adapter
+        # task_id -> (dependency-implied ES, EF), captured before any hard
+        # constraint override -- reset each run, read by ConstraintValidator
+        # via CPMTaskInfo.dependency_implied_start/finish (Phase F).
+        self._dependency_implied_dates: dict[str, tuple[date | None, date | None]] = {}
 
     def calendar_for_project(self, project_id: str) -> CalendarProtocol:
         if self._project_calendar_adapter is not None:
@@ -89,7 +99,14 @@ class SchedulingEngine(ResourceLevelingMixin):
                 if calendar is not None:
                     return calendar
             except Exception:
-                pass
+                logger.warning(
+                    "Project calendar resolution failed for project_id=%s; "
+                    "falling back to the global calendar. Scheduling dates "
+                    "computed under this fallback may differ from what the "
+                    "project's own enterprise calendar would produce.",
+                    project_id,
+                    exc_info=True,
+                )
         return self._base_calendar
 
     def recalculate_project_schedule(
@@ -112,10 +129,15 @@ class SchedulingEngine(ResourceLevelingMixin):
             return {}
 
         tasks_by_id: dict[str, Task] = {t.id: t for t in tasks}
+        # Baseline for the changed-tasks-only persist below (Phase L1) --
+        # captured before any forward-pass patching (e.g. unanchored-root
+        # default-start patching) can replace entries in tasks_by_id.
+        original_dates = {t.id: (t.start_date, t.end_date) for t in tasks}
         deps = select_leaf_dependencies(
             self._dependency_repo.list_by_project(project_id),
             tasks,
         )
+        self._dependency_implied_dates = {}
 
         # If a project has an enterprise calendar assignment, bind the adapter so all
         # CPM arithmetic uses that calendar instead of the global WorkCalendarEngine.
@@ -131,7 +153,18 @@ class SchedulingEngine(ResourceLevelingMixin):
                     self._calendar = calendar
                     self._task_calendar = calendar
             except Exception:
-                pass  # fall back to default WorkCalendarEngine
+                # Fall back to the global calendar -- but this is a real
+                # degradation (the computed schedule may differ from what
+                # the project's own enterprise calendar would produce), so
+                # it must be observable, not silent. See
+                # docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
+                # §7/Phase E.
+                logger.warning(
+                    "Project calendar snapshot build failed for project_id=%s; "
+                    "recalculating with the global calendar instead.",
+                    project_id,
+                    exc_info=True,
+                )
 
         # Pre-load task→primary_resource for per-task calendar resolution
         if self._calendar_resolver and self._assignment_repo and self._resource_calendar_map:
@@ -171,16 +204,27 @@ class SchedulingEngine(ResourceLevelingMixin):
             ls=ls,
             lf=lf,
             calendar=self._calendar,
+            dependency_implied=self._dependency_implied_dates,
         )
 
         # Reset per-run state — restore base calendar so multi-project calls don't cross-contaminate
         self._task_primary_resource = {}
         self._calendar = self._base_calendar
         self._task_calendar = self._base_calendar
+        self._dependency_implied_dates = {}
 
         if persist:
             try:
-                for info in result.values():
+                # Phase L1: only write tasks whose persisted schedule
+                # fields (start_date/end_date -- the only fields
+                # build_schedule_result ever mutates) actually changed.
+                # Previously every leaf task in the project was written
+                # unconditionally on every single recalculation, correlating
+                # DB write volume with project size rather than with how
+                # much the schedule actually moved.
+                for task_id, info in result.items():
+                    if original_dates.get(task_id) == (info.task.start_date, info.task.end_date):
+                        continue
                     self._task_repo.update(info.task)
                 if commit:
                     self._session.commit()
@@ -234,6 +278,21 @@ class SchedulingEngine(ResourceLevelingMixin):
         ef: dict[str, date | None],
     ) -> tuple[date | None, date | None]:
         self._task_calendar = self._resolve_task_calendar(task.id)
+
+        def _capture_dependency_implied(dep_est, dep_eft):
+            if incoming_deps:
+                # Pure dependency-graph result, captured BEFORE actuals or
+                # this task's own hard constraints get a chance to override
+                # it -- ConstraintValidator compares this against the final
+                # result to report a DEPENDENCY_CONSTRAINT_CONFLICT instead
+                # of a constraint override being silent (Phase F), and it
+                # is also the basis for actual-vs-planned variance
+                # reporting (Phase J). Must be captured pre-actual: a task
+                # with its own actual_start already folded in would not be
+                # a useful basis for asking "did this task's actual
+                # execution violate what its dependency graph required."
+                self._dependency_implied_dates[task.id] = (dep_est, dep_eft)
+
         est, eft = compute_task_dates_common(
             task=task,
             incoming_deps=incoming_deps,
@@ -242,8 +301,10 @@ class SchedulingEngine(ResourceLevelingMixin):
             compute_milestone=self._compute_dates_milestone,
             compute_with_duration=self._compute_dates_with_duration,
             apply_actual_constraints=self._apply_actual_constraints,
+            on_dependency_implied=_capture_dependency_implied,
         )
-        return self._apply_scheduling_constraints(task, est, eft)
+        est, eft = self._apply_scheduling_constraints(task, est, eft)
+        return self._apply_resource_leveling_floor(task, est, eft)
 
     def _resolve_task_calendar(self, task_id: str) -> CalendarProtocol:
         """Return the highest-priority calendar for a task's primary resource."""
@@ -264,48 +325,21 @@ class SchedulingEngine(ResourceLevelingMixin):
         est: date | None,
         eft: date | None,
     ) -> tuple[date | None, date | None]:
-        """
-        Apply forward-pass scheduling constraints (MSO, MFO, SNET, FNET).
+        return apply_scheduling_constraints(self._task_calendar, task, est, eft)
 
-        SNLT, FNLT, DEADLINE are validation-only — they are reported by
-        ConstraintValidator but do not drive the forward-pass schedule.
-        Skipped entirely when task.actual_end is set (task is done).
-        """
-        if getattr(task, "actual_end", None) is not None:
-            return est, eft
-
-        raw_ct = getattr(task, "constraint_type", None)
-        cd: date | None = getattr(task, "constraint_date", None)
-        if raw_ct is None or cd is None:
-            return est, eft
-
-        try:
-            ct = ConstraintType(str(raw_ct)) if not isinstance(raw_ct, ConstraintType) else raw_ct
-        except ValueError:
-            return est, eft
-
-        duration = int(task.duration_days or 0)
-        cal = self._task_calendar
-
-        if ct == ConstraintType.MUST_START_ON:
-            est = cd
-            eft = cal.add_working_days(cd, duration) if duration > 0 else cd
-
-        elif ct == ConstraintType.MUST_FINISH_ON:
-            eft = cd
-            est = cal.add_working_days(cd, -(duration - 1)) if duration > 0 else cd
-
-        elif ct == ConstraintType.START_NO_EARLIER_THAN:
-            if est is None or est < cd:
-                est = cd
-                eft = cal.add_working_days(cd, duration) if duration > 0 else cd
-
-        elif ct == ConstraintType.FINISH_NO_EARLIER_THAN:
-            if eft is None or eft < cd:
-                eft = cd
-                est = cal.add_working_days(cd, -(duration - 1)) if duration > 0 else cd
-
-        return est, eft
+    def _apply_resource_leveling_floor(
+        self,
+        task: Task,
+        est: date | None,
+        eft: date | None,
+    ) -> tuple[date | None, date | None]:
+        """R4.4: the live, persisting counterpart of pure_cpm.run_cpm's
+        same-named call -- see task_date_math.apply_resource_leveling_floor
+        for the full rationale. Both orchestrations must apply this floor
+        or the two paths would (again) disagree, the exact class of bug
+        R4.4's canonical-scheduling-implementation consolidation (Phase D,
+        prior session) already fixed once for constraints."""
+        return apply_resource_leveling_floor(self._task_calendar, task, est, eft)
 
     def _compute_dates_milestone(
         self,
@@ -314,42 +348,7 @@ class SchedulingEngine(ResourceLevelingMixin):
         es: dict[str, date | None],
         ef: dict[str, date | None],
     ) -> tuple[date | None, date | None]:
-        """
-        Milestone or 0-duration task: ES = EF.
-        """
-        if not incoming_deps:
-            if task.start_date:
-                return task.start_date, task.start_date
-            return None, None
-
-        candidates: list[date] = []
-
-        for dep in incoming_deps:
-            pred_es = es.get(dep.predecessor_task_id)
-            pred_ef = ef.get(dep.predecessor_task_id)
-            if pred_es is None and pred_ef is None:
-                continue
-
-            if dep.dependency_type == DependencyType.FINISH_TO_START:
-                if pred_ef:
-                    candidates.append(self._task_calendar.add_working_days(pred_ef, dep.lag_days + 2))
-            elif dep.dependency_type == DependencyType.START_TO_START:
-                if pred_es:
-                    candidates.append(self._task_calendar.add_working_days(pred_es, dep.lag_days))
-            elif dep.dependency_type == DependencyType.FINISH_TO_FINISH:
-                if pred_ef:
-                    candidates.append(self._task_calendar.add_working_days(pred_ef, dep.lag_days))
-            elif dep.dependency_type == DependencyType.START_TO_FINISH:
-                if pred_es:
-                    candidates.append(self._task_calendar.add_working_days(pred_es, dep.lag_days))
-
-        if not candidates:
-            if task.start_date:
-                return task.start_date, task.start_date
-            return None, None
-
-        est = max(candidates)
-        return est, est
+        return compute_milestone_dates(self._task_calendar, task, incoming_deps, es, ef)
 
     def _compute_dates_with_duration(
         self,
@@ -359,60 +358,7 @@ class SchedulingEngine(ResourceLevelingMixin):
         ef: dict[str, date | None],
         duration: int,
     ) -> tuple[date | None, date | None]:
-        """
-        Normal task with duration > 0.
-        """
-        if not incoming_deps:
-            if task.start_date:
-                est = task.start_date
-                eft = self._task_calendar.add_working_days(est, duration)
-                return est, eft
-            return None, None
-
-        candidate_es: list[date] = []
-
-        for dep in incoming_deps:
-            pred_es = es.get(dep.predecessor_task_id)
-            pred_ef = ef.get(dep.predecessor_task_id)
-            if pred_es is None and pred_ef is None:
-                continue
-
-            if dep.dependency_type == DependencyType.FINISH_TO_START:
-                if pred_ef:
-                    candidate_es.append(self._task_calendar.add_working_days(pred_ef, dep.lag_days + 2))
-
-            elif dep.dependency_type == DependencyType.START_TO_START:
-                if pred_es:
-                    candidate_es.append(self._task_calendar.add_working_days(pred_es, dep.lag_days))
-
-            elif dep.dependency_type == DependencyType.FINISH_TO_FINISH:
-                if pred_ef:
-                    ef_s = self._task_calendar.add_working_days(pred_ef, dep.lag_days)
-                    if duration > 0:
-                        cand_es = self._task_calendar.add_working_days(ef_s, -(duration - 1))
-                    else:
-                        cand_es = ef_s
-                    candidate_es.append(cand_es)
-
-            elif dep.dependency_type == DependencyType.START_TO_FINISH:
-                if pred_es:
-                    ef_s = self._task_calendar.add_working_days(pred_es, dep.lag_days)
-                    if duration > 0:
-                        cand_es = self._task_calendar.add_working_days(ef_s, -(duration - 1))
-                    else:
-                        cand_es = ef_s
-                    candidate_es.append(cand_es)
-
-        if not candidate_es:
-            if task.start_date:
-                est = task.start_date
-                eft = self._task_calendar.add_working_days(est, duration)
-                return est, eft
-            return None, None
-
-        est = max(candidate_es)
-        eft = self._task_calendar.add_working_days(est, duration)
-        return est, eft
+        return compute_duration_dates(self._task_calendar, task, incoming_deps, es, ef, duration)
 
     def _apply_actual_constraints(
         self,
@@ -421,38 +367,7 @@ class SchedulingEngine(ResourceLevelingMixin):
         eft: date | None,
         duration_days: int,
     ) -> tuple[date | None, date | None]:
-        """
-        Enforce actual_start/actual_end onto computed ES/EF.
-
-        Rules:
-        - If actual_end exists => EF is fixed to actual_end
-            - ES becomes actual_start if present, else EF - duration
-        - Else if actual_start exists => ES cannot be earlier than actual_start
-            - shift EF accordingly if duration > 0
-        """
-        a_start = getattr(task, "actual_start", None)
-        a_end = getattr(task, "actual_end", None)
-
-        if a_end is not None:
-            fixed_ef = a_end
-            if a_start is not None:
-                fixed_es = a_start
-            else:
-                if duration_days > 0:
-                    fixed_es = self._task_calendar.add_working_days(fixed_ef, -(duration_days - 1))
-                else:
-                    fixed_es = fixed_ef
-            return fixed_es, fixed_ef
-
-        if a_start is not None:
-            if est is None or a_start > est:
-                est = a_start
-                if duration_days <= 0:
-                    eft = est
-                else:
-                    eft = self._task_calendar.add_working_days(est, duration_days)
-
-        return est, eft
+        return apply_actual_date_constraints(self._task_calendar, task, est, eft, duration_days)
 
     def _priority_value(self, task: Task) -> int:
         from src.core.modules.project_management.application.scheduling.utils.task_priority import get_task_priority_value

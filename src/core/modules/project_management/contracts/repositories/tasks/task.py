@@ -34,6 +34,13 @@ class TaskRepository(ABC):
     def list_by_project(self, project_id: str) -> list[Task]: ...
 
     @abstractmethod
+    def list_by_ids(self, task_ids: list[str]) -> list[Task]:
+        """Batch fetch by id -- callers resolving a set of tasks referenced
+        by a resource's assignments (capacity/availability calculations,
+        leveling) must use this instead of a per-id `get()` loop."""
+        ...
+
+    @abstractmethod
     def list_children(self, project_id: str, parent_task_id: str | None) -> list[Task]: ...
 
 
@@ -65,6 +72,13 @@ class AssignmentRepository(ABC):
     ) -> TaskAssignment:
         """Dedicated, versioned write path for
         ``allocated_planned_hours``"""
+        ...
+
+    @abstractmethod
+    def update_allocation_with_version_check(
+        self, assignment: TaskAssignment, *, expected_version: int
+    ) -> TaskAssignment:
+        """Dedicated, versioned write path for ``allocation_percent``."""
         ...
 
     @abstractmethod
@@ -102,7 +116,7 @@ class DependencyRepository(ABC):
     def list_by_project(self, project_id: str) -> list[TaskDependency]: ...
 
     @abstractmethod
-    def delete(self, dependency_id: str) -> None: ...
+    def delete(self, dependency_id: str, *, expected_version: int) -> None: ...
 
     @abstractmethod
     def delete_for_task(self, task_id: str) -> None: ...

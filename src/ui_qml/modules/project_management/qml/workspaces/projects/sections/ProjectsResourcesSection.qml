@@ -90,6 +90,7 @@ Item {
             title: "Edit Resource Assignment"
 
             property var _rowState: ({})
+            property var _usage: ({})
 
             function openForSelected() {
                 const items = root.projectResourcesModel.items || []
@@ -105,6 +106,11 @@ Item {
                 _editRateField.text = String(_rowState.hourlyRate || "")
                 _editActiveToggle.checked = Boolean(_rowState.isActive !== false)
                 _editError.message = ""
+                _usage = {}
+                const ctrl = root.pmCatalog ? root.pmCatalog.projectsWorkspace : null
+                if (ctrl && selId.length > 0) {
+                    _usage = ctrl.getProjectResourceUsage(selId) || {}
+                }
                 open()
             }
 
@@ -112,51 +118,75 @@ Item {
                 spacing: Theme.AppTheme.spacingSm
                 implicitWidth: 320
 
-                RowLayout {
+                AppWidgets.FormField {
                     Layout.fillWidth: true
-                    spacing: Theme.AppTheme.spacingSm
+                    label: "Project planned hours"
+                    helperText: "Total planned work for this resource across this project."
 
-                    ColumnLayout {
+                    AppControls.TextField {
+                        id: _editHoursField
                         Layout.fillWidth: true
-                        spacing: 4
-
-                        AppControls.Label {
-                            text: "Planned Hours"
-                            color: Theme.AppTheme.textSecondary
-                            font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.captionSize
-                            font.bold: true
-                        }
-
-                        AppControls.TextField {
-                            id: _editHoursField
-                            Layout.fillWidth: true
-                            placeholderText: "0"
-                            inputMethodHints: Qt.ImhFormattedNumbersOnly
-                            enabled: !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
-                        }
+                        placeholderText: "0"
+                        inputMethodHints: Qt.ImhFormattedNumbersOnly
+                        enabled: !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
                     }
+                }
 
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 4
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    visible: Object.keys(_editPopup._usage).length > 0
 
-                        AppControls.Label {
-                            text: "Hourly Rate"
-                            color: Theme.AppTheme.textSecondary
-                            font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.captionSize
-                            font.bold: true
-                        }
-
-                        AppControls.TextField {
-                            id: _editRateField
-                            Layout.fillWidth: true
-                            placeholderText: "0.00"
-                            inputMethodHints: Qt.ImhFormattedNumbersOnly
-                            enabled: !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
-                        }
+                    // Terminology matches Task Assignment's Project Resource
+                    // Context exactly (docs §44 follow-up §47) -- the same
+                    // backend facts must never read as different labels in
+                    // different places.
+                    AppControls.Label {
+                        text: "Project planned hours: " + String(_editPopup._usage.plannedHoursLabel || "0.0 h")
+                        color: Theme.AppTheme.textSecondary
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
                     }
+                    AppControls.Label {
+                        text: "Distributed to tasks: " + String(_editPopup._usage.allocatedToTasksHoursLabel || "0.0 h")
+                        color: Theme.AppTheme.textSecondary
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                    }
+                    AppControls.Label {
+                        text: "Unallocated: " + String(_editPopup._usage.unallocatedPlannedHoursLabel || "0.0 h")
+                        color: Theme.AppTheme.textSecondary
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                    }
+                    AppControls.Label {
+                        text: "Actual worked: " + String(_editPopup._usage.actualHoursLabel || "0.0 h")
+                        color: Theme.AppTheme.textSecondary
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                    }
+                    AppControls.Label {
+                        text: "Remaining vs plan: " + String(_editPopup._usage.remainingProjectHoursLabel || "0.0 h")
+                        color: Theme.AppTheme.textSecondary
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                    }
+                }
+
+                AppControls.Label {
+                    text: "Hourly Rate"
+                    color: Theme.AppTheme.textSecondary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    font.bold: true
+                }
+
+                AppControls.TextField {
+                    id: _editRateField
+                    Layout.fillWidth: true
+                    placeholderText: "0.00"
+                    inputMethodHints: Qt.ImhFormattedNumbersOnly
+                    enabled: !(root.pmCatalog ? root.pmCatalog.projectsWorkspace.isBusy : false)
                 }
 
                 AppControls.CheckBox {
@@ -170,6 +200,8 @@ Item {
                     id: _editError
                     Layout.fillWidth: true
                     tone: "danger"
+                    actionLabel: _editError.message.indexOf("updated by another user") >= 0 ? "Refresh" : ""
+                    onActionClicked: _editPopup.openForSelected()
                 }
 
                 RowLayout {
@@ -196,10 +228,14 @@ Item {
                                 "projectResourceId": String(_editPopup._rowState.projectResourceId || ""),
                                 "plannedHours": _editHoursField.text || "0",
                                 "hourlyRate": _editRateField.text || "",
-                                "isActive": _editActiveToggle.checked
+                                "isActive": _editActiveToggle.checked,
+                                "version": _editPopup._rowState.version !== undefined ? String(_editPopup._rowState.version) : ""
                             })
                             if (result && result.ok === false) {
-                                _editError.message = String(result.error || "Update failed.")
+                                const message = String(result.error || "Update failed.")
+                                _editError.message = message.indexOf("STALE_WRITE") >= 0 || message.indexOf("updated by another user") >= 0
+                                    ? "This resource plan was updated by another user. Refresh the latest values before saving again."
+                                    : message
                             } else {
                                 _editPopup.close()
                             }
@@ -212,12 +248,18 @@ Item {
         AppControls.ConfirmationDialog {
             id: _deleteConfirm
             title: "Remove Resource"
-            message: "Remove this resource from the project? This cannot be undone."
+            message: "Remove this resource from the project? This cannot be undone. If the " +
+                "resource has recorded actual time on this project's tasks, removal will be blocked " +
+                "and you should deactivate it instead."
             confirmLabel: "Remove"
             confirmDanger: true
             onConfirmed: {
                 const ctrl = root.pmCatalog ? root.pmCatalog.projectsWorkspace : null
-                if (ctrl) ctrl.removeProjectResource(root.selectedProjectResourceId)
+                if (!ctrl) return
+                const result = ctrl.removeProjectResource(root.selectedProjectResourceId)
+                if (result && result.ok === false) {
+                    root.sectionErrors = Object.assign({}, root.sectionErrors, { "resources": String(result.error || "Removal failed.") })
+                }
             }
         }
 

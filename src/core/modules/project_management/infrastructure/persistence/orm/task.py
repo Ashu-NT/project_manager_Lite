@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -82,6 +83,12 @@ class TaskORM(Base):
     actual_start: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     actual_end: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     deadline: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    constraint_type: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    constraint_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    is_milestone: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
+    resource_leveling_not_before: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
@@ -142,6 +149,12 @@ Index(
 
 class TaskDependencyORM(Base):
     __tablename__ = "task_dependencies"
+    __table_args__ = (
+        CheckConstraint(
+            "predecessor_task_id <> successor_task_id",
+            name="ck_task_dependencies_not_self",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     predecessor_task_id: Mapped[str] = mapped_column(
@@ -160,6 +173,7 @@ class TaskDependencyORM(Base):
         nullable=False,
     )
     lag_days: Mapped[int] = mapped_column(nullable=False, default=0)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
 
 
 Index("idx_dep_predecessor", TaskDependencyORM.predecessor_task_id)

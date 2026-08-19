@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import App.Mock 1.0 as AppMock
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "TasksColumnConfig.js" as ColumnConfig
 
@@ -77,24 +76,13 @@ Item {
             "items": []
         })
 
-    readonly property var timeAssignmentSummaryModel: root.workspaceController
-        ? root.workspaceController.timeAssignmentSummary
-        : ({
-            "title": "",
-            "subtitle": "",
-            "emptyState": "Select a task assignment to review detailed time entries, period status, and labor totals.",
-            "fields": [],
-            "state": {}
-        })
+    readonly property var taskTimeSummaryModel: root.workspaceController
+        ? root.workspaceController.taskTimeSummary
+        : ({ "hasSummary": false })
 
-    readonly property var timeEntriesModel: root.workspaceController
-        ? root.workspaceController.timeEntries
-        : ({
-            "title": "Time Entries",
-            "subtitle": "Detailed labor entries for the selected task assignment.",
-            "emptyState": "Select a task assignment to review or capture labor entries.",
-            "items": []
-        })
+    readonly property var taskTimeEntriesPageModel: root.workspaceController
+        ? root.workspaceController.taskTimeEntriesPage
+        : ({ "items": [], "total": 0, "page": 1, "pageSize": 25 })
 
     readonly property var selectedTimeEntryModel: root.workspaceController
         ? root.workspaceController.selectedTimeEntry
@@ -139,16 +127,38 @@ Item {
     readonly property var scheduleImpactModel: root.workspaceController
         ? root.workspaceController.scheduleImpact
         : ({
-            "available": false,
+            "isAvailable": false,
             "taskId": "",
-            "summary": "Select a task to view schedule impact analysis.",
-            "rows": [],
-            "affectedCount": 0,
-            "maxProjectFinishShiftDays": 0,
-            "requiresApproval": false,
-            "approvalLabel": "",
-            "newlyCriticalCount": 0,
-            "noLongerCriticalCount": 0
+            "currentStartLabel": "--",
+            "currentFinishLabel": "--",
+            "isCritical": false,
+            "totalFloatDays": null,
+            "freeFloatDays": null,
+            "baselineFinishLabel": "--",
+            "scheduleVarianceDays": null,
+            "scheduleVarianceLabel": "",
+            "drivers": [],
+            "conflicts": [],
+            "actualVariances": [],
+            "downstream": {
+                "directSuccessorCount": 0,
+                "downstreamTaskCount": 0,
+                "downstreamMilestoneCount": 0,
+                "criticalDownstreamCount": 0
+            }
+        })
+
+    readonly property var scheduleImpactPreviewModel: root.workspaceController
+        ? root.workspaceController.scheduleImpactPreview
+        : ({})
+
+    readonly property var taskActivityModel: root.workspaceController
+        ? root.workspaceController.taskActivity
+        : ({
+            "title": "Activity",
+            "subtitle": "",
+            "emptyState": "Select a task to review its activity.",
+            "items": []
         })
 
     // ── Pagination state ─────────────────────────────────────────────────
@@ -181,7 +191,7 @@ Item {
     property var columns: []
 
     function initializeColumns() {
-        const base = ColumnConfig.baseColumns(root.hasInvStockCapability)
+        const base = ColumnConfig.baseColumns()
         if (root.workspaceController !== null) {
             const saved = root.workspaceController.loadTableColumnState(root.tableId)
             root.columns = ColumnConfig.applyColumnState(base, saved)
@@ -203,11 +213,11 @@ Item {
     // ── Detail sections list ─────────────────────────────────────────────
     readonly property var detailSections: {
         const secs = ["Details", "Assignments", "Skills", "Dependencies", "Time"]
-        if (root.hasInvStockCapability)       secs.push("Material Demand")
-        if (root.hasInvReservationsCapability) secs.push("Reservations")
-        if (root.hasProcurementCapability)    secs.push("Procurement")
+        if (root.hasInvStockCapability || root.hasInvReservationsCapability || root.hasProcurementCapability)
+            secs.push("Material Demand")
         secs.push("Schedule Impact")
         secs.push("Activity")
+        secs.push("Discussion")
         return secs
     }
 
@@ -246,19 +256,6 @@ Item {
                 })
             }
             return actions
-        }
-        if (sectionName === "Assignments") {
-            const assignmentItem = selection.assignmentItem
-                || root._itemById(
-                    root.assignmentsModel ? (root.assignmentsModel.items || []) : [],
-                    root.workspaceController ? root.workspaceController.selectedAssignmentId : ""
-                )
-            if (!assignmentItem) return []
-            return [
-                { "id": "edit_allocation", "label": "Allocation", "icon": "edit", "enabled": true, "danger": false },
-                { "id": "set_assignment_hours", "label": "Set Hours", "icon": "time", "enabled": true, "danger": false },
-                { "id": "remove_assignment", "label": "Remove", "icon": "delete", "enabled": true, "danger": true }
-            ]
         }
         if (sectionName === "Dependencies") {
             if (!selection.dependencyItem) return []
@@ -312,14 +309,15 @@ Item {
         root.navigateToRoute("inventory_procurement.procurement")
     }
 
-    // ── Detail opening helpers ───────────────────────────────────────────
-    function canViewDetailSection(sectionName) {
-        if (sectionName === "Material Demand") return root.hasInvStockCapability
-        if (sectionName === "Reservations") return root.hasInvReservationsCapability
-        if (sectionName === "Procurement") return root.hasProcurementCapability
-        return true
+    function openTimesheetsRoute() {
+        root.navigateToRoute("project_management.timesheets")
     }
 
+    function openProjectResourcesRoute() {
+        root.navigateToRoute("project_management.projects")
+    }
+
+    // ── Detail opening helpers ───────────────────────────────────────────
     function lazyLoadDetailSection(detailPage, sectionIndex) {
         if (root.workspaceController === null) return
         const page = detailPage
@@ -331,7 +329,8 @@ Item {
         else if (label === "Dependencies")    root.workspaceController.loadSelectedTaskDependencies()
         else if (label === "Time")            root.workspaceController.loadSelectedTaskTime()
         else if (label === "Schedule Impact") root.workspaceController.loadSelectedTaskScheduleImpact()
-        else if (label === "Activity")        root.workspaceController.loadSelectedTaskCollaboration()
+        else if (label === "Activity")        root.workspaceController.loadSelectedTaskActivity()
+        else if (label === "Discussion")      root.workspaceController.loadSelectedTaskCollaboration()
     }
 
     // ── Initialization ───────────────────────────────────────────────────

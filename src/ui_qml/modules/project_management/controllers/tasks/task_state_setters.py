@@ -58,6 +58,12 @@ class TaskStateSettersMixin:
         self._selected_schedule_filter = v
         self.selectedScheduleFilterChanged.emit()
 
+    def _set_milestones_only_filter(self, v: bool) -> None:
+        if v == self._milestones_only_filter:
+            return
+        self._milestones_only_filter = v
+        self.milestonesOnlyFilterChanged.emit()
+
     def _set_search_text(self, v: str) -> None:
         if v == self._search_text:
             return
@@ -78,11 +84,17 @@ class TaskStateSettersMixin:
         self._selected_assignment_id = v
         self.selectedAssignmentIdChanged.emit()
 
-    def _set_selected_time_period_start(self, v: str) -> None:
-        if v == self._selected_time_period_start:
+    def _set_time_resource_filter(self, v: str) -> None:
+        if v == self._time_resource_filter:
             return
-        self._selected_time_period_start = v
-        self.selectedTimePeriodStartChanged.emit()
+        self._time_resource_filter = v
+        self.timeResourceFilterChanged.emit()
+
+    def _set_time_page(self, v: int) -> None:
+        if v == self._time_page:
+            return
+        self._time_page = v
+        self.timePageChanged.emit()
 
     def _set_selected_time_entry_id(self, v: str) -> None:
         if v == self._selected_time_entry_id:
@@ -110,6 +122,19 @@ class TaskStateSettersMixin:
         self._schedule_impact = v
         self.scheduleImpactChanged.emit()
         self.scheduleImpactSectionLoadedChanged.emit()
+
+    def _set_schedule_impact_preview(self, v: dict[str, object]) -> None:
+        if v == self._schedule_impact_preview:
+            return
+        self._schedule_impact_preview = v
+        self.scheduleImpactPreviewChanged.emit()
+
+    def _set_task_activity(self, v: dict[str, object]) -> None:
+        if v == self._task_activity:
+            return
+        self._task_activity = v
+        self.taskActivityChanged.emit()
+        self.taskActivitySectionLoadedChanged.emit()
 
 
 __all__ = ["TaskStateSettersMixin"]

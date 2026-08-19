@@ -1,15 +1,20 @@
 """Constraint violation serializer."""
 
+from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
+    constraint_presentation,
+)
 from src.core.modules.project_management.api.desktop.scheduling.models.constraints import SchedulingConstraintViolationDto
 
 
 def serialize_constraint_violation(v, *, hard_pairs: set) -> SchedulingConstraintViolationDto:
     is_hard = (v.task_id, v.constraint_type) in hard_pairs
+
+    presentation = constraint_presentation(v.constraint_type)
     return SchedulingConstraintViolationDto(
         task_id=v.task_id,
         task_name=v.task_name,
         constraint_type=str(getattr(v.constraint_type, "value", v.constraint_type)),
-        constraint_type_label=str(getattr(v.constraint_type, "value", v.constraint_type)).replace("_", " ").title(),
+        constraint_type_label=presentation.label,
         constraint_date=v.constraint_date,
         constraint_date_label=v.constraint_date.isoformat() if v.constraint_date else "-",
         computed_date=v.computed_date,

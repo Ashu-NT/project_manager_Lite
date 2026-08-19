@@ -9,7 +9,6 @@ from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     run_mutation,
     serialize_selector_options,
-    serialize_timesheet_collection_view_model,
     serialize_timesheet_detail_view_model,
 )
 from src.ui_qml.modules.project_management.presenters import (
@@ -18,12 +17,13 @@ from src.ui_qml.modules.project_management.presenters import (
 
 
 class PMTimeController(QObject):
-    """Owns time-tracking domain data and time-entry mutations."""
+    """Owns Task Detail -> Time domain data (task-scoped summary, resource
+    breakdown, and the Time Entries page -- docs §44 Time redesign) and
+    time-entry mutations. Never period-scoped, never resource-wide."""
 
     timeAssignmentOptionsChanged = Signal()
-    timePeriodOptionsChanged = Signal()
-    timeAssignmentSummaryChanged = Signal()
-    timeEntriesChanged = Signal()
+    taskTimeSummaryChanged = Signal()
+    taskTimeEntriesPageChanged = Signal()
     selectedTimeEntryChanged = Signal()
 
     def __init__(
@@ -46,15 +46,9 @@ class PMTimeController(QObject):
         self._set_error_message = set_error_message
         self._set_feedback_message = set_feedback_message
         self._time_assignment_options: list[dict[str, str]] = []
-        self._time_period_options: list[dict[str, str]] = []
-        self._time_assignment_summary: dict[str, object] = {
-            "id": "", "title": "", "statusLabel": "", "subtitle": "",
-            "description": "", "emptyState": "", "fields": [], "state": {},
-        }
+        self._task_time_summary: dict[str, object] | None = None
         self._time_entries_table_model = DynamicTableModel(self)
-        self._time_entries: dict[str, object] = {
-            "title": "", "subtitle": "", "emptyState": "", "items": []
-        }
+        self._task_time_entries_page: dict[str, object] | None = None
         self._selected_time_entry: dict[str, object] = {
             "id": "", "title": "", "statusLabel": "", "subtitle": "",
             "description": "", "emptyState": "", "fields": [], "state": {},
@@ -66,15 +60,8 @@ class PMTimeController(QObject):
         self._set_time_assignment_options(
             serialize_selector_options(workspace_state.assignment_options)
         )
-        self._set_time_period_options(
-            serialize_selector_options(workspace_state.time_period_options)
-        )
-        self._set_time_assignment_summary(
-            serialize_timesheet_detail_view_model(workspace_state.time_assignment_summary)
-        )
-        self._set_time_entries(
-            serialize_timesheet_collection_view_model(workspace_state.time_entries)
-        )
+        self._set_task_time_summary(workspace_state.task_time_summary)
+        self._set_task_time_entries_page(workspace_state.task_time_entries_page)
         self._set_selected_time_entry(
             serialize_timesheet_detail_view_model(
                 workspace_state.selected_time_entry_detail
@@ -82,13 +69,10 @@ class PMTimeController(QObject):
         )
 
     def _update_entries_only(self, workspace_state: object) -> None:
-        """Fast path: only update entries + summary, skip assignments/period options."""
-        self._set_time_assignment_summary(
-            serialize_timesheet_detail_view_model(workspace_state.time_assignment_summary)
-        )
-        self._set_time_entries(
-            serialize_timesheet_collection_view_model(workspace_state.time_entries)
-        )
+        """Fast path: only update the summary + entries page, skip
+        assignment-options rebuild."""
+        self._set_task_time_summary(workspace_state.task_time_summary)
+        self._set_task_time_entries_page(workspace_state.task_time_entries_page)
         self._set_selected_time_entry(
             serialize_timesheet_detail_view_model(
                 workspace_state.selected_time_entry_detail
@@ -101,17 +85,13 @@ class PMTimeController(QObject):
     def timeAssignmentOptions(self) -> list[dict[str, str]]:
         return self._time_assignment_options
 
-    @Property("QVariantList", notify=timePeriodOptionsChanged)
-    def timePeriodOptions(self) -> list[dict[str, str]]:
-        return self._time_period_options
+    @Property("QVariantMap", notify=taskTimeSummaryChanged)
+    def taskTimeSummary(self) -> dict[str, object]:
+        return self._task_time_summary or {"hasSummary": False}
 
-    @Property("QVariantMap", notify=timeAssignmentSummaryChanged)
-    def timeAssignmentSummary(self) -> dict[str, object]:
-        return self._time_assignment_summary
-
-    @Property("QVariantMap", notify=timeEntriesChanged)
-    def timeEntries(self) -> dict[str, object]:
-        return self._time_entries
+    @Property("QVariantMap", notify=taskTimeEntriesPageChanged)
+    def taskTimeEntriesPage(self) -> dict[str, object]:
+        return self._task_time_entries_page or {"items": [], "total": 0, "page": 1, "pageSize": 25}
 
     @Property(QObject, constant=True)
     def timeEntriesTableModel(self) -> DynamicTableModel:
@@ -156,38 +136,10 @@ class PMTimeController(QObject):
             set_feedback_message=self._set_feedback_message,
         )
 
-    @Slot("QVariantMap", result="QVariantMap")
-    def submitTaskPeriod(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._presenter.submit_task_period(dict(payload)),
-            success_message="Task period submitted.",
-            on_success=self._facade_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def lockTaskPeriod(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._presenter.lock_task_period(dict(payload)),
-            success_message="Task period locked.",
-            on_success=self._facade_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def unlockTaskPeriod(self, payload: dict[str, object]) -> dict[str, object]:
-        return run_mutation(
-            operation=lambda: self._presenter.unlock_task_period(dict(payload)),
-            success_message="Task period unlocked.",
-            on_success=self._facade_refresh,
-            set_is_busy=self._set_is_busy,
-            set_error_message=self._set_error_message,
-            set_feedback_message=self._set_feedback_message,
-        )
+    # Period submit/lock/unlock is deliberately not exposed here -- a
+    # period can span other tasks' assignments too, so it's not task-scoped.
+    # Users go through the Timesheets workspace (My Time / Review Queue)
+    # for that; see TasksWorkspaceState.qml's openTimesheetsRoute().
 
     # ── Private setters ───────────────────────────────────────────────
 
@@ -197,24 +149,18 @@ class PMTimeController(QObject):
         self._time_assignment_options = v
         self.timeAssignmentOptionsChanged.emit()
 
-    def _set_time_period_options(self, v: list) -> None:
-        if v == self._time_period_options:
+    def _set_task_time_summary(self, v: dict | None) -> None:
+        if v == self._task_time_summary:
             return
-        self._time_period_options = v
-        self.timePeriodOptionsChanged.emit()
+        self._task_time_summary = v
+        self.taskTimeSummaryChanged.emit()
 
-    def _set_time_assignment_summary(self, v: dict) -> None:
-        if v == self._time_assignment_summary:
+    def _set_task_time_entries_page(self, v: dict | None) -> None:
+        if v == self._task_time_entries_page:
             return
-        self._time_assignment_summary = v
-        self.timeAssignmentSummaryChanged.emit()
-
-    def _set_time_entries(self, v: dict) -> None:
-        if v == self._time_entries:
-            return
-        self._time_entries = v
-        self._time_entries_table_model.set_rows(v.get("items", []))
-        self.timeEntriesChanged.emit()
+        self._task_time_entries_page = v
+        self._time_entries_table_model.set_rows((v or {}).get("items", []))
+        self.taskTimeEntriesPageChanged.emit()
 
     def _set_selected_time_entry(self, v: dict) -> None:
         if v == self._selected_time_entry:

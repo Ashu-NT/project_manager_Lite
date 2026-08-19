@@ -10,6 +10,9 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_tasks_desktop_api,
     build_project_management_timesheets_desktop_api,
 )
+from src.core.platform.api.desktop.history.activity.activity import PlatformActivityDesktopApi
+from src.core.platform.api.desktop.master_data.employee.employee import PlatformEmployeeDesktopApi
+from src.core.platform.api.desktop.security.auth.user import PlatformUserDesktopApi
 from src.ui_qml.modules.project_management.view_models.tasks import (
     TaskCatalogWorkspaceViewModel,
 )
@@ -20,8 +23,8 @@ from .assignment_command_handler import (
     decline_assignment,
     delete_assignment,
     preview_assignment,
-    set_assignment_hours,
     update_assignment_allocation,
+    update_assignment_planned_hours,
     validate_assignment,
 )
 from .assignments_builder import build_task_assignments_state
@@ -39,12 +42,19 @@ from .collaboration_command_handler import (
 from .dependency_command_handler import (
     create_dependency,
     delete_dependency,
+    preview_create_dependency,
+    preview_delete_dependency,
+    preview_update_dependency,
     update_dependency,
 )
 from .dependencies_builder import build_task_dependencies_state
 from .detail_builder import build_task_basic_detail_state, build_task_detail_state
-from .schedule_impact_builder import build_schedule_impact_state
+from .schedule_impact_builder import (
+    build_task_schedule_impact_preview_state,
+    build_task_schedule_overview_state,
+)
 from .skill_requirements_builder import build_task_skill_requirements_state
+from .task_activity_builder import build_task_activity_state
 from .task_command_handler import (
     apply_bulk_status,
     bulk_delete_tasks,
@@ -53,6 +63,7 @@ from .task_command_handler import (
     suggest_code,
     update_progress,
     update_task,
+    update_task_scheduling_constraint,
 )
 from .time_builder import (
     build_empty_task_time_state,
@@ -62,9 +73,6 @@ from .time_builder import (
 from .time_command_handler import (
     add_task_time_entry,
     delete_task_time_entry,
-    lock_task_period,
-    submit_task_period,
-    unlock_task_period,
     update_task_time_entry,
 )
 from .workspace_builder import build_workspace_state
@@ -77,6 +85,10 @@ class ProjectTasksWorkspacePresenter:
         desktop_api: ProjectManagementTasksDesktopApi | None = None,
         collaboration_desktop_api: ProjectManagementCollaborationDesktopApi | None = None,
         timesheets_desktop_api: ProjectManagementTimesheetsDesktopApi | None = None,
+        user_api: PlatformUserDesktopApi | None = None,
+        employee_api: PlatformEmployeeDesktopApi | None = None,
+        activity_api: PlatformActivityDesktopApi | None = None,
+        projects_desktop_api: object | None = None,
     ) -> None:
         self._desktop_api = desktop_api or build_project_management_tasks_desktop_api()
         self._collaboration_desktop_api = (
@@ -87,6 +99,23 @@ class ProjectTasksWorkspacePresenter:
             timesheets_desktop_api
             or build_project_management_timesheets_desktop_api()
         )
+        self._user_api = user_api
+        self._employee_api = employee_api
+        self._activity_api = activity_api
+        self._projects_desktop_api = projects_desktop_api
+
+    def list_constraint_options(self) -> tuple[dict[str, object], ...]:
+        return tuple(
+            {
+                "value": option.value,
+                "code": option.code,
+                "label": option.label,
+                "description": option.description,
+                "requiresDate": option.requires_date,
+                "category": option.category,
+            }
+            for option in self._desktop_api.list_constraint_options()
+        )
 
     def build_workspace_state(
         self,
@@ -96,10 +125,8 @@ class ProjectTasksWorkspacePresenter:
         status_filter: str = "all",
         priority_filter: str = "all",
         schedule_filter: str = "all",
+        milestones_only: bool = False,
         selected_task_id: str | None = None,
-        selected_assignment_id: str | None = None,
-        selected_time_period_start: str = "",
-        selected_time_entry_id: str | None = None,
         page: int = 1,
         page_size: int = 25,
         sort_key: str = "wbsCode",
@@ -112,6 +139,7 @@ class ProjectTasksWorkspacePresenter:
             status_filter=status_filter,
             priority_filter=priority_filter,
             schedule_filter=schedule_filter,
+            milestones_only=milestones_only,
             selected_task_id=selected_task_id,
             page=page,
             page_size=page_size,
@@ -127,6 +155,7 @@ class ProjectTasksWorkspacePresenter:
         status_filter: str = "all",
         priority_filter: str = "all",
         schedule_filter: str = "all",
+        milestones_only: bool = False,
         sort_key: str = "wbsCode",
         sort_direction: str = "asc",
         batch_size: int = 500,
@@ -140,6 +169,7 @@ class ProjectTasksWorkspacePresenter:
                 status=status_filter,
                 priority=priority_filter,
                 schedule=schedule_filter,
+                milestones_only=milestones_only,
                 page=page,
                 page_size=batch_size,
                 sort_key=sort_key,
@@ -203,16 +233,18 @@ class ProjectTasksWorkspacePresenter:
         self,
         *,
         task_id: str,
-        selected_assignment_id: str | None = None,
-        selected_time_period_start: str = "",
+        resource_filter: str = "",
+        page: int = 1,
+        page_size: int = 25,
         selected_time_entry_id: str | None = None,
     ) -> TaskCatalogWorkspaceViewModel:
         return build_task_time_state(
             self._desktop_api,
             self._timesheets_desktop_api,
             task_id=task_id,
-            selected_assignment_id=selected_assignment_id,
-            selected_time_period_start=selected_time_period_start,
+            resource_filter=resource_filter,
+            page=page,
+            page_size=page_size,
             selected_time_entry_id=selected_time_entry_id,
         )
 
@@ -222,14 +254,18 @@ class ProjectTasksWorkspacePresenter:
     def build_task_time_entries_refresh(
         self,
         *,
-        assignment_id: str | None,
-        period_start: str = "",
+        task_id: str,
+        resource_filter: str = "",
+        page: int = 1,
+        page_size: int = 25,
         selected_time_entry_id: str | None = None,
     ) -> TaskCatalogWorkspaceViewModel | None:
         return build_task_time_entries_refresh(
-            self._timesheets_desktop_api,
-            assignment_id=assignment_id,
-            period_start=period_start,
+            self._desktop_api,
+            task_id=task_id,
+            resource_filter=resource_filter,
+            page=page,
+            page_size=page_size,
             selected_time_entry_id=selected_time_entry_id,
         )
 
@@ -244,16 +280,30 @@ class ProjectTasksWorkspacePresenter:
             task_id=task_id,
         )
 
-    def build_task_schedule_impact_state(
+    def build_task_schedule_overview_state(
         self,
         *,
         task_id: str,
         project_id: str | None = None,
     ) -> dict[str, object]:
-        return build_schedule_impact_state(
+        return build_task_schedule_overview_state(
             self._desktop_api,
             task_id=task_id,
             project_id=project_id,
+        )
+
+    def build_task_schedule_impact_preview_state(
+        self,
+        *,
+        task_id: str,
+        project_id: str | None,
+        delay_working_days: int,
+    ) -> dict[str, object]:
+        return build_task_schedule_impact_preview_state(
+            self._desktop_api,
+            task_id=task_id,
+            project_id=project_id,
+            delay_working_days=delay_working_days,
         )
 
     def build_task_skill_requirements_state(
@@ -266,6 +316,18 @@ class ProjectTasksWorkspacePresenter:
             task_id=task_id,
         )
 
+    def build_task_activity_state(
+        self,
+        *,
+        task_id: str,
+    ) -> TaskCatalogWorkspaceViewModel:
+        return build_task_activity_state(
+            self._activity_api,
+            task_id=task_id,
+            user_api=self._user_api,
+            employee_api=self._employee_api,
+        )
+
     def create_task(self, payload: dict[str, Any]) -> None:
         create_task(self._desktop_api, payload)
 
@@ -274,6 +336,9 @@ class ProjectTasksWorkspacePresenter:
 
     def update_task(self, payload: dict[str, Any]) -> None:
         update_task(self._desktop_api, payload)
+
+    def update_task_scheduling_constraint(self, payload: dict[str, Any]) -> None:
+        update_task_scheduling_constraint(self._desktop_api, payload)
 
     def move_task_in_wbs(self, payload: dict[str, Any]) -> None:
         move_task_in_wbs(self._desktop_api, payload)
@@ -287,8 +352,42 @@ class ProjectTasksWorkspacePresenter:
     def update_assignment_allocation(self, payload: dict[str, Any]) -> None:
         update_assignment_allocation(self._desktop_api, payload)
 
-    def set_assignment_hours(self, payload: dict[str, Any]) -> None:
-        set_assignment_hours(self._desktop_api, payload)
+    def update_assignment_planned_hours(self, payload: dict[str, Any]) -> None:
+        update_assignment_planned_hours(self._desktop_api, payload)
+
+    def get_project_resource_usage(self, project_resource_id: str) -> dict[str, object] | None:
+        """Project Resource Context for the Assignment inspector (docs §44
+        follow-up) -- reads the same ProjectResourceUsageFact the Projects ->
+        Resources workspace already renders, via the Projects desktop API's
+        existing get_project_resource_usage. No new calculation."""
+        normalized_id = (project_resource_id or "").strip()
+        if not normalized_id or self._projects_desktop_api is None:
+            return None
+        get_usage = getattr(self._projects_desktop_api, "get_project_resource_usage", None)
+        if not callable(get_usage):
+            return None
+        try:
+            usage = get_usage(normalized_id)
+        except Exception:
+            return None
+        if usage is None:
+            return None
+        return {
+            "projectResourceId": usage.project_resource_id,
+            "projectId": usage.project_id,
+            "resourceId": usage.resource_id,
+            "plannedHoursLabel": usage.planned_hours_label,
+            "allocatedToTasksHoursLabel": usage.allocated_to_tasks_hours_label,
+            "unallocatedPlannedHoursLabel": usage.unallocated_planned_hours_label,
+            "actualHoursLabel": usage.actual_hours_label,
+            "remainingProjectHoursLabel": usage.remaining_project_hours_label,
+            "plannedBurnPercent": usage.planned_burn_percent,
+            "taskAssignmentCount": usage.task_assignment_count,
+            "envelopeStatus": usage.envelope_status,
+            "envelopeStatusLabel": usage.envelope_status_label,
+            "burnStatus": usage.burn_status,
+            "burnStatusLabel": usage.burn_status_label,
+        }
 
     def add_task_time_entry(self, payload: dict[str, Any]) -> None:
         add_task_time_entry(self._timesheets_desktop_api, payload)
@@ -298,15 +397,6 @@ class ProjectTasksWorkspacePresenter:
 
     def delete_task_time_entry(self, entry_id: str) -> None:
         delete_task_time_entry(self._timesheets_desktop_api, entry_id)
-
-    def submit_task_period(self, payload: dict[str, Any]) -> None:
-        submit_task_period(self._timesheets_desktop_api, payload)
-
-    def lock_task_period(self, payload: dict[str, Any]) -> None:
-        lock_task_period(self._timesheets_desktop_api, payload)
-
-    def unlock_task_period(self, payload: dict[str, Any]) -> None:
-        unlock_task_period(self._timesheets_desktop_api, payload)
 
     def delete_assignment(self, assignment_id: str) -> None:
         delete_assignment(self._desktop_api, assignment_id)
@@ -331,6 +421,15 @@ class ProjectTasksWorkspacePresenter:
 
     def delete_dependency(self, dependency_id: str) -> None:
         delete_dependency(self._desktop_api, dependency_id)
+
+    def preview_create_dependency(self, payload: dict[str, Any]) -> dict[str, object]:
+        return preview_create_dependency(self._desktop_api, payload)
+
+    def preview_update_dependency(self, payload: dict[str, Any]) -> dict[str, object]:
+        return preview_update_dependency(self._desktop_api, payload)
+
+    def preview_delete_dependency(self, dependency_id: str) -> dict[str, object]:
+        return preview_delete_dependency(self._desktop_api, dependency_id)
 
     def post_task_comment(self, payload: dict[str, Any]) -> None:
         post_task_comment(self._collaboration_desktop_api, payload)

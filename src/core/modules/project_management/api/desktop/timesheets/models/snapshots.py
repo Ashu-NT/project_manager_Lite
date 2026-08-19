@@ -23,6 +23,10 @@ class TimesheetAssignmentSnapshotDesktopDto:
     entries: tuple[TimesheetEntryDesktopDto, ...]
     resource_period_total_hours_label: str
     scope_summary: str
+    task_period_hours_label: str = "0.00h"
+    planned_hours_label: str = "0.00h"
+    logged_hours_label: str = "0.00h"
+    remaining_hours_label: str = "0.00h"
 
 
 __all__ = ["TimesheetAssignmentSnapshotDesktopDto"]

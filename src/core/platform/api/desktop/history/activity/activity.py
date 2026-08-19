@@ -21,6 +21,7 @@ class PlatformActivityDesktopApi:
         entity_id: str | None = None,
         module: str | None = None,
         workspace_id: str | None = None,
+        parent_entity_id: str | None = None,
     ) -> DesktopApiResult[tuple[ActivityEntryDto, ...]]:
         return execute_desktop_operation(
             lambda: self._serialize_entries(
@@ -30,6 +31,7 @@ class PlatformActivityDesktopApi:
                     entity_id=entity_id,
                     module=module,
                     workspace_id=workspace_id,
+                    parent_entity_id=parent_entity_id,
                 )
             )
         )

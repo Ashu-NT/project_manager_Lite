@@ -26,12 +26,16 @@ class SchedulingTaskDto:
     remaining_duration_days: int | None
     total_float_days: int | None
     is_critical: bool
+    is_infeasible: bool
     deadline: date | None
     late_by_days: int | None
     percent_complete: float
     actual_start: date | None
     actual_end: date | None
     priority: int | None
+    constraint_type: str
+    constraint_type_label: str
+    constraint_date: date | None
 
 
 __all__ = ["SchedulingProjectOptionDescriptor", "SchedulingTaskDto"]

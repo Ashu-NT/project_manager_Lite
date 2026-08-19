@@ -6,6 +6,10 @@ from .pm_dependency_controller import PMDependencyController
 from .pm_task_list_controller import PMTaskListController
 from .pm_time_controller import PMTimeController
 from .task_facade_signal_binder import bind_task_facade_signals
+from .task_lazy_section_loader import (
+    refresh_after_constraint_mutation,
+    refresh_after_dependency_mutation,
+)
 
 
 def create_subcontrollers(controller) -> None:
@@ -17,9 +21,17 @@ def create_subcontrollers(controller) -> None:
         set_feedback_message=controller._set_feedback_message,
         parent=controller,
     )
-    controller._task_list = PMTaskListController(**_cb)
+    controller._task_list = PMTaskListController(
+        **_cb,
+        refresh_after_constraint_mutation=lambda: refresh_after_constraint_mutation(controller),
+    )
     controller._assignments_ctrl = PMAssignmentController(**_cb)
-    controller._dependencies_ctrl = PMDependencyController(**_cb)
+    controller._dependencies_ctrl = PMDependencyController(
+        **{
+            **_cb,
+            "facade_refresh": lambda: refresh_after_dependency_mutation(controller),
+        }
+    )
     controller._time_ctrl = PMTimeController(
         **_cb, refresh_time_entries=controller._refresh_time_entries_only
     )

@@ -12,7 +12,9 @@ def format_date(value: date | None) -> str:
 def format_date_label(value: date | None) -> str:
     if value is None:
         return "Not set"
-    return value.isoformat()
+    # Matches the human-readable format already used elsewhere in PM
+    # (e.g. Projects' format_date_label) rather than a raw ISO string.
+    return value.strftime("%d %b %Y")
 
 
 def shift_days_label(days: int) -> str:

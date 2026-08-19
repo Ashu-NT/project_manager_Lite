@@ -106,6 +106,22 @@ class SqlAlchemyTimeEntryRepository(TenantScopedRepositorySupport, TimeEntryRepo
         rows = self.session.execute(stmt).scalars().all()
         return [time_entry_from_orm(row) for row in rows]
 
+    def list_by_work_allocations(self, work_allocation_ids: list[str]) -> list[TimeEntry]:
+        if not work_allocation_ids:
+            return []
+        ctx = self._context(operation_label="access time entries")
+        stmt = (
+            select(TimeEntryORM)
+            .where(
+                TimeEntryORM.work_allocation_id.in_(set(work_allocation_ids)),
+                TimeEntryORM.tenant_id == ctx.tenant_id,
+                TimeEntryORM.organization_id == ctx.organization_id,
+            )
+            .order_by(TimeEntryORM.entry_date.desc(), TimeEntryORM.created_at.desc())
+        )
+        rows = self.session.execute(stmt).scalars().all()
+        return [time_entry_from_orm(row) for row in rows]
+
     def list_for_organization(self, organization_id: str) -> list[TimeEntry]:
         ctx = self._context(operation_label="access time entries")
         if not self._organization_in_scope(ctx, organization_id):

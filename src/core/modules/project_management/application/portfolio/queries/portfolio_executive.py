@@ -11,8 +11,8 @@ from src.core.modules.project_management.application.resources.resource_load_eng
 from src.core.modules.project_management.application.scheduling.calendars.working_day_snapshot import (
     WorkingDaySnapshotCalendar,
 )
-from src.core.modules.project_management.application.scheduling.cpm.cpm_calculator import (
-    CPMCalculator,
+from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import (
+    run_cpm,
 )
 from src.core.modules.project_management.contracts.reads.portfolio.models.heatmap_facts import (
     HeatmapProjectFacts,
@@ -219,7 +219,8 @@ class PortfolioExecutiveQueryMixin:
             self._heatmap_domain_dependencies(project),
             tasks,
         )
-        schedule = CPMCalculator(calendar).calculate(
+        schedule = run_cpm(
+            calendar,
             {task.id: task for task in tasks},
             dependencies,
         ).schedule

@@ -37,24 +37,36 @@ def set_schedule_filter(controller, schedule_filter: str) -> None:
     controller.refresh()
 
 
+def set_milestones_only_filter(controller, milestones_only: bool) -> None:
+    normalized = bool(milestones_only)
+    if normalized == controller._milestones_only_filter:
+        return
+    controller._set_milestones_only_filter(normalized)
+    controller._set_task_page(1)
+    controller.refresh()
+
+
 def clear_filters(controller) -> None:
     if (
         not controller._search_text
         and controller._selected_status_filter == "all"
         and controller._selected_priority_filter == "all"
         and controller._selected_schedule_filter == "all"
+        and not controller._milestones_only_filter
     ):
         return
     controller._set_search_text("")
     controller._set_selected_status_filter("all")
     controller._set_selected_priority_filter("all")
     controller._set_selected_schedule_filter("all")
+    controller._set_milestones_only_filter(False)
     controller._set_task_page(1)
     controller.refresh()
 
 
 __all__ = [
     "clear_filters",
+    "set_milestones_only_filter",
     "set_priority_filter",
     "set_schedule_filter",
     "set_search_text",

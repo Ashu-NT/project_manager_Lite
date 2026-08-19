@@ -3,6 +3,9 @@ from __future__ import annotations
 from decimal import Decimal
 from types import SimpleNamespace
 
+from src.core.modules.project_management.application.common import (
+    project_resource_envelope_policy as envelope_policy,
+)
 from src.core.modules.project_management.contracts.repositories.projects.project import (
     ProjectRepository,
     ProjectResourceRepository,
@@ -76,16 +79,11 @@ class ProjectResourceCommandMixin:
     def _allocated_planned_hours_total(self, project_id: str, resource_id: str) -> Decimal:
         if self._task_repo is None or self._assignment_repo is None:
             return Decimal("0")
-        task_ids = [t.id for t in self._task_repo.list_by_project(project_id)]
-        if not task_ids:
-            return Decimal("0")
-        return sum(
-            (
-                a.allocated_planned_hours
-                for a in self._assignment_repo.list_by_tasks(task_ids)
-                if a.resource_id == resource_id
-            ),
-            Decimal("0"),
+        return envelope_policy.allocated_to_tasks_hours(
+            task_repo=self._task_repo,
+            assignment_repo=self._assignment_repo,
+            project_id=project_id,
+            resource_id=resource_id,
         )
 
     def add_to_project(
@@ -154,6 +152,7 @@ class ProjectResourceCommandMixin:
                 entity_id=project_resource.id,
                 module="project_management",
                 workspace_id=project_id,
+                parent_entity_id=project_id,
                 message=f"Assigned {resource.name} to the project",
                 details={
                     "resource_name": resource.name,
@@ -177,6 +176,8 @@ class ProjectResourceCommandMixin:
         currency_code: str | None,
         planned_hours: Decimal | int | str,
         is_active: bool,
+        *,
+        expected_version: int | None = None,
     ) -> None:
         require_permission(
             self._user_session,
@@ -201,12 +202,9 @@ class ProjectResourceCommandMixin:
         allocated_total = self._allocated_planned_hours_total(
             project_resource.project_id, project_resource.resource_id
         )
-        if new_envelope < allocated_total:
-            raise BusinessRuleError(
-                f"Cannot reduce planned hours to {new_envelope}: "
-                f"{allocated_total} hours are already allocated to tasks for this resource.",
-                code="PROJECT_RESOURCE_ENVELOPE_BELOW_ALLOCATIONS",
-            )
+        envelope_policy.require_can_reduce_envelope(
+            new_envelope=new_envelope, allocated_total=allocated_total
+        )
 
         resolved_currency = resolve_pm_currency(
             tenant_context_service=getattr(self, "_tenant_context_service", None),
@@ -228,7 +226,12 @@ class ProjectResourceCommandMixin:
         resource_name = resource.name if resource is not None else project_resource.resource_id
 
         try:
-            self._project_resource_repo.update(project_resource)
+            if expected_version is not None:
+                self._project_resource_repo.update_with_version_check(
+                    project_resource, expected_version=expected_version
+                )
+            else:
+                self._project_resource_repo.update(project_resource)
             self._session.commit()
             record_activity(
                 self,
@@ -237,6 +240,7 @@ class ProjectResourceCommandMixin:
                 entity_id=project_resource.id,
                 module="project_management",
                 workspace_id=project_resource.project_id,
+                parent_entity_id=project_resource.project_id,
                 message=f"Updated {resource_name}'s assignment",
                 details={
                     "resource_name": resource_name,
@@ -279,6 +283,7 @@ class ProjectResourceCommandMixin:
                 entity_id=project_resource.id,
                 module="project_management",
                 workspace_id=project_resource.project_id,
+                parent_entity_id=project_resource.project_id,
                 message=(
                     f"{'Activated' if project_resource.is_active else 'Deactivated'} "
                     f"{resource_name}'s assignment"
@@ -310,6 +315,27 @@ class ProjectResourceCommandMixin:
             "project.manage",
             operation_label="delete project resource",
         )
+        # Historical actual work must not disappear because a planning
+        # assignment is removed: the DB FK cascade would otherwise silently
+        # delete every TaskAssignment (and, via ITS cascade, every TimeEntry)
+        # referencing this project resource. Once real hours have been
+        # logged against any of them, block the hard delete and point the
+        # caller at deactivation instead, which preserves the historical
+        # relationship intact.
+        if self._task_repo is not None and self._assignment_repo is not None:
+            assignments = envelope_policy.resource_assignments_in_project(
+                task_repo=self._task_repo,
+                assignment_repo=self._assignment_repo,
+                project_id=project_resource.project_id,
+                resource_id=project_resource.resource_id,
+            )
+            if any(a.hours_logged and a.hours_logged > 0 for a in assignments):
+                raise BusinessRuleError(
+                    "This resource has recorded actual time against tasks on this "
+                    "project. Deactivate the project resource instead of removing "
+                    "it, to preserve the historical record.",
+                    code="PROJECT_RESOURCE_HAS_HISTORICAL_ACTUALS",
+                )
         resource = self._resource_repo.get(project_resource.resource_id)
         resource_name = resource.name if resource is not None else project_resource.resource_id
         try:
@@ -322,6 +348,7 @@ class ProjectResourceCommandMixin:
                 entity_id=project_resource.id,
                 module="project_management",
                 workspace_id=project_resource.project_id,
+                parent_entity_id=project_resource.project_id,
                 message=f"Removed {resource_name} from the project",
                 details={"resource_name": resource_name},
             )

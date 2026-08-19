@@ -432,16 +432,30 @@ class ResourceCommandMixin:
         if not resource:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
 
+        # Historical actual work must not disappear because the resource
+        # itself is deleted -- this path previously cascade-deleted every
+        # assignment's time entries unconditionally, silently bypassing the
+        # same "preserve historical actuals" invariant enforced on the more
+        # targeted ProjectResource/TaskAssignment removal paths. Deactivate
+        # (is_active=False) instead once any actual hours have been logged.
+        assignments = self._assignment_repo.list_by_resource(resource_id)
+        if any(a.hours_logged and a.hours_logged > 0 for a in assignments):
+            raise BusinessRuleError(
+                "This resource has recorded actual time on one or more tasks. "
+                "Deactivate the resource instead of deleting it, to preserve "
+                "the historical record.",
+                code="RESOURCE_HAS_HISTORICAL_ACTUALS",
+            )
+
         try:
             # delete assignments and Project- Resource first
-            assignments = self._assignment_repo.list_by_resource(resource_id)
             for a in assignments:
                 if self._time_entry_repo is not None:
                     self._time_entry_repo.delete_by_assignment(a.id)
                 self._assignment_repo.delete(a.id)
             if self._project_resource_repo is not None:
                 self._project_resource_repo.delete_by_resource(resource_id)
-                 
+
             self._resource_repo.delete(resource_id)
             self._session.commit()
             record_activity(

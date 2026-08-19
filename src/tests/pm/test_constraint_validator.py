@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import date
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -12,27 +13,34 @@ from src.core.modules.project_management.application.scheduling.cpm.constraint_v
 )
 from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
 from src.core.modules.project_management.domain.tasks.task import Task
+from src.core.platform.common.exceptions import ValidationError
 
 
 def _task(constraint_type=None, constraint_date=None, deadline=None, **kwargs) -> Task:
-    t = Task(
+
+    return Task(
         id="t1",
         project_id="p1",
         name="Test Task",
         duration_days=5,
+        constraint_type=constraint_type,
+        constraint_date=constraint_date,
+        deadline=deadline,
+        **kwargs,
     )
-    t.constraint_type = constraint_type
-    t.constraint_date = constraint_date
-    t.deadline = deadline
-    for k, v in kwargs.items():
-        setattr(t, k, v)
-    return t
 
 
-def _info(es: date, ef: date) -> CPMTaskInfo:
+def _info(es: date, ef: date, *, dependency_implied_start=None, dependency_implied_finish=None) -> CPMTaskInfo:
     m = MagicMock(spec=CPMTaskInfo)
     m.earliest_start = es
     m.earliest_finish = ef
+    # MagicMock(spec=...) does not honor dataclass field defaults --
+    # dependency_implied_start/finish must be explicitly set to None,
+    # otherwise accessing them returns a truthy child mock and
+    # ConstraintValidator._check_dependency_conflict (Phase F) would treat
+    # that as a real implied date.
+    m.dependency_implied_start = dependency_implied_start
+    m.dependency_implied_finish = dependency_implied_finish
     return m
 
 
@@ -121,7 +129,33 @@ class TestNoConstraint:
         result = validator.validate({"t1": t}, {"t1": _info(date(2026, 6, 1), date(2026, 6, 6))})
         assert result.is_valid
 
-    def test_unknown_constraint_type_string_is_silently_ignored(self, validator):
-        t = _task(constraint_type="unknown_type_xyz", constraint_date=date(2026, 6, 1))
+    def test_unknown_constraint_type_string_fails_closed_at_the_domain_boundary(self):
+        """R4.4 hardening: a real Task can no longer be constructed with an
+        invalid constraint_type -- it must fail closed, not be silently
+        treated as unset (the old, now-obsolete behavior this test used to
+        assert)."""
+        with pytest.raises(ValidationError) as exc_info:
+            Task(
+                id="t1",
+                project_id="p1",
+                name="Test Task",
+                duration_days=5,
+                constraint_type="unknown_type_xyz",
+                constraint_date=date(2026, 6, 1),
+            )
+        assert exc_info.value.code == "TASK_CONSTRAINT_TYPE_INVALID"
+
+    def test_validator_defensively_ignores_an_invalid_duck_typed_constraint_type(self, validator):
+        """ConstraintValidator's duck-typed reader is a defensive fallback
+        for legacy/corrupt data that bypassed domain validation (e.g. a
+        raw object, not a real Task) -- it must not crash, and must treat
+        an unrecognized value as no constraint."""
+        t = SimpleNamespace(
+            constraint_type="unknown_type_xyz",
+            constraint_date=date(2026, 6, 1),
+            deadline=None,
+            id="t1",
+            name="Legacy Task",
+        )
         result = validator.validate({"t1": t}, {"t1": _info(date(2026, 6, 5), date(2026, 6, 10))})
         assert result.is_valid

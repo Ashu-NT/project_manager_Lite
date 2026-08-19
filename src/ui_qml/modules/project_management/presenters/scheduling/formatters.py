@@ -48,11 +48,30 @@ def constraint_label_for_activity(item: Any) -> str:
         return "Actual finish locked"
     if item.actual_start:
         return "Actual start locked"
+    # A real Task.constraint_type takes precedence over the deadline --
+    # Deadline is a distinct concept and must never be labeled as FNLT
+    # (see constraint_presentation.py's module docstring).
+    if getattr(item, "constraint_type", ""):
+        return item.constraint_type_label
     if item.deadline:
-        return "Finish no later than"
+        return "Deadline"
     if item.start_date:
         return "Planned start anchor"
     return "Open"
+
+def activity_criticality_label(item: Any) -> str:
+    """Canonical, backend-owned schedule-status label -- Infeasible
+    takes precedence over Critical, which takes precedence over Normal
+    (R4.4 constraint-aware backward CPM). Reads item.is_infeasible/
+    item.is_critical directly; never re-derives either from
+    total_float_days itself, so this is the one place the Scheduling
+    table's status column can drift from Task Detail -> Schedule
+    Impact's own scheduleStatusLabel."""
+    if getattr(item, "is_infeasible", False):
+        return "Infeasible"
+    if item.is_critical:
+        return "Critical"
+    return "Normal"
 
 def build_schedule_empty_state(
     *,
@@ -74,5 +93,6 @@ __all__ = [
     "timeline_bounds",
     "days_between",
     "constraint_label_for_activity",
+    "activity_criticality_label",
     "build_schedule_empty_state",
 ]

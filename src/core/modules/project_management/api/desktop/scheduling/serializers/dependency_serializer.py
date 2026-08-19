@@ -1,8 +1,10 @@
 """Dependency serializers."""
 
 from src.core.modules.project_management.api.desktop.scheduling.models.dependencies import SchedulingDependencyDto
-from src.core.modules.project_management.api.desktop.scheduling.formatters.dependency_formatter import dependency_type_label
-from src.core.modules.project_management.api.desktop.scheduling.utils.dependency_utils import dependency_direction
+from src.core.modules.project_management.api.desktop.common.dependency_presentation import (
+    dependency_direction,
+    dependency_type_label,
+)
 
 
 def serialize_dependency(dependency, *, current_task_id: str, tasks_by_id: dict) -> SchedulingDependencyDto:

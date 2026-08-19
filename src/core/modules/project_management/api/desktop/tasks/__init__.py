@@ -7,6 +7,7 @@ from src.core.modules.project_management.api.desktop.tasks.commands.assignment_c
     TaskAssignmentAllocationCommand,
     TaskAssignmentCreateCommand,
     TaskAssignmentHoursCommand,
+    TaskAssignmentPlannedHoursCommand,
 )
 from src.core.modules.project_management.api.desktop.tasks.commands.bulk_commands import (
     TaskBulkStatusCommand,
@@ -19,6 +20,7 @@ from src.core.modules.project_management.api.desktop.tasks.commands.reservation_
     TaskReservationCreateCommand,
 )
 from src.core.modules.project_management.api.desktop.tasks.commands.task_commands import (
+    TaskConstraintUpdateCommand,
     TaskCreateCommand,
     TaskProgressCommand,
     TaskUpdateCommand,
@@ -32,8 +34,11 @@ from src.core.modules.project_management.api.desktop.tasks.models.assignment imp
 )
 from src.core.modules.project_management.api.desktop.tasks.models.dependency import (
     TaskDependencyDesktopDto,
+    TaskDependencyImpactPreviewDesktopDto,
+    TaskDependencyImpactRowDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.tasks.models.options import (
+    TaskConstraintOptionDescriptor,
     TaskDependencyTypeDescriptor,
     TaskProjectOptionDescriptor,
     TaskProjectResourceOptionDescriptor,
@@ -49,6 +54,12 @@ from src.core.modules.project_management.api.desktop.tasks.models.skill import (
 from src.core.modules.project_management.api.desktop.tasks.models.task import (
     TaskDesktopDto,
 )
+from src.core.modules.project_management.api.desktop.tasks.models.time_summary import (
+    TaskResourceTimeBreakdownDesktopDto,
+    TaskTimeEntriesPageDesktopDto,
+    TaskTimeEntryDesktopDto,
+    TaskTimeSummaryDesktopDto,
+)
 from src.core.modules.project_management.api.desktop.tasks.models.validation import (
     AssignmentPreviewDesktopDto,
     AssignmentValidationDesktopDto,
@@ -63,10 +74,15 @@ __all__ = [
     "TaskAssignmentCreateCommand",
     "TaskAssignmentDesktopDto",
     "TaskAssignmentHoursCommand",
+    "TaskAssignmentPlannedHoursCommand",
     "TaskBulkStatusCommand",
+    "TaskConstraintOptionDescriptor",
+    "TaskConstraintUpdateCommand",
     "TaskCreateCommand",
     "TaskDependencyCreateCommand",
     "TaskDependencyDesktopDto",
+    "TaskDependencyImpactPreviewDesktopDto",
+    "TaskDependencyImpactRowDesktopDto",
     "TaskDependencyTypeDescriptor",
     "TaskDependencyUpdateCommand",
     "TaskDesktopDto",
@@ -76,8 +92,12 @@ __all__ = [
     "TaskProjectResourceOptionDescriptor",
     "TaskReservationCreateCommand",
     "TaskReservationDesktopDto",
+    "TaskResourceTimeBreakdownDesktopDto",
     "TaskSkillRequirementDesktopDto",
     "TaskStatusDescriptor",
+    "TaskTimeEntriesPageDesktopDto",
+    "TaskTimeEntryDesktopDto",
+    "TaskTimeSummaryDesktopDto",
     "TaskUpdateCommand",
     "TaskWbsMoveCommand",
     "build_project_management_tasks_desktop_api",

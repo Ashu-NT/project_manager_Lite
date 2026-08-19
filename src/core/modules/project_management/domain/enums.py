@@ -24,6 +24,20 @@ class DependencyType(str, Enum):
     START_TO_FINISH = "SF"
 
 
+class ConstraintType(str, Enum):
+    """A Task scheduling constraint. Values match the existing persisted
+    strings (tasks.constraint_type, String(32)) -- do not change them,
+    that would silently corrupt any already-stored data."""
+
+    MUST_START_ON = "must_start_on"
+    MUST_FINISH_ON = "must_finish_on"
+    START_NO_EARLIER_THAN = "start_no_earlier_than"
+    START_NO_LATER_THAN = "start_no_later_than"
+    FINISH_NO_EARLIER_THAN = "finish_no_earlier_than"
+    FINISH_NO_LATER_THAN = "finish_no_later_than"
+    DEADLINE = "deadline"
+
+
 class CostType(str, Enum):
     LABOR = "LABOR"
     MATERIAL = "MATERIAL"
@@ -39,4 +53,11 @@ class WorkerType(str, Enum):
     EXTERNAL = "EXTERNAL"
 
 
-__all__ = ["ProjectStatus", "TaskStatus", "DependencyType", "CostType", "WorkerType"]
+__all__ = [
+    "ProjectStatus",
+    "TaskStatus",
+    "DependencyType",
+    "ConstraintType",
+    "CostType",
+    "WorkerType",
+]

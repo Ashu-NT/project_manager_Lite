@@ -35,8 +35,32 @@ class ProjectCatalogReadPage:
     sort: ReadSort = ReadSort("title")
 
 
+@dataclass(frozen=True, slots=True)
+class ProjectResourceUsageFact:
+    """Authoritative reconciliation of one ProjectResource's planned
+    envelope against its task-level distribution and actual work.
+    ``actual_hours``/``allocated_to_tasks_hours`` are bounded aggregate
+    queries over that project_resource's TaskAssignment rows — never a
+    client-side sum of a currently-loaded page."""
+
+    project_resource_id: str
+    project_id: str
+    resource_id: str
+    planned_hours: Decimal
+    allocated_to_tasks_hours: Decimal
+    unallocated_planned_hours: Decimal
+    actual_hours: Decimal
+    remaining_project_hours: Decimal
+    planned_burn_percent: float
+    task_assignment_count: int
+    envelope_status: str
+    burn_status: str
+    version: int
+
+
 __all__ = [
     "ProjectCatalogReadItem",
     "ProjectCatalogReadPage",
     "ProjectCatalogSummary",
+    "ProjectResourceUsageFact",
 ]

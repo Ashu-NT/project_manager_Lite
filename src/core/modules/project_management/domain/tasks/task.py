@@ -6,7 +6,11 @@ import re
 
 from pydantic import field_validator, model_validator
 
-from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
+from src.core.modules.project_management.domain.enums import (
+    ConstraintType,
+    DependencyType,
+    TaskStatus,
+)
 from src.core.modules.project_management.domain.identifiers import generate_id
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.pydantic import (
@@ -39,8 +43,10 @@ class Task:
     actual_start: date | None = None
     actual_end: date | None = None
     deadline: date | None = None
-    constraint_type: str | None = None
+    constraint_type: ConstraintType | None = None
     constraint_date: date | None = None
+    is_milestone: bool = False
+    resource_leveling_not_before: date | None = None
     version: int = 1
 
     @field_validator("project_id", mode="before")
@@ -99,10 +105,26 @@ class Task:
             )
         return normalized
 
-    @field_validator("code", "description", "constraint_type", mode="before")
+    @field_validator("code", "description", mode="before")
     @classmethod
     def _normalize_text_fields(cls, value: object) -> str:
         return normalize_optional_text(value)
+
+    @field_validator("constraint_type", mode="before")
+    @classmethod
+    def _normalize_constraint_type(cls, value: object) -> ConstraintType | None:
+        if value is None or isinstance(value, ConstraintType):
+            return value
+        stripped = str(value).strip()
+        if not stripped:
+            return None
+        try:
+            return ConstraintType(stripped)
+        except ValueError as exc:
+            raise ValidationError(
+                f"Unknown scheduling constraint type: {stripped!r}.",
+                code="TASK_CONSTRAINT_TYPE_INVALID",
+            ) from exc
 
     @field_validator("duration_days", mode="before")
     @classmethod
@@ -117,6 +139,11 @@ class Task:
             )
         return resolved
 
+    @field_validator("is_milestone", mode="before")
+    @classmethod
+    def _validate_is_milestone(cls, value: object) -> bool:
+        return bool(value)
+
     @field_validator("percent_complete", mode="before")
     @classmethod
     def _validate_percent_complete(cls, value: object) -> float:
@@ -130,6 +157,8 @@ class Task:
 
     @model_validator(mode="after")
     def _validate_date_ranges(self) -> "Task":
+        if self.is_milestone and self.duration_days:
+            self.duration_days = 0
         if not self.wbs_code:
             self.wbs_code = str(self.id or "").strip().upper()
         if not self.wbs_code or not _WBS_CODE_PATTERN.fullmatch(self.wbs_code):
@@ -160,6 +189,34 @@ class Task:
                 "Actual end date cannot be before actual start.",
                 code="TASK_ACTUAL_DATE_RANGE_INVALID",
             )
+        if self.constraint_type is None:
+            # ASAP: no explicit constraint. A stray constraint_date with no
+            # type is meaningless on its own -- normalized away rather than
+            # rejected, the same "normalize, don't reject" precedent already
+            # used above for is_milestone/duration_days. Guarded (only
+            # assign when not already None) because validate_assignment
+            # re-runs this whole validator on every attribute set --
+            # an unconditional assignment here recurses forever.
+            if self.constraint_date is not None:
+                self.constraint_date = None
+        else:
+            if self.constraint_type is ConstraintType.DEADLINE:
+                # DEADLINE exists only as ConstraintValidator's internal
+                # classification for a task.deadline violation -- it is not
+                # a user-selectable value for THIS field (task.deadline is
+                # the real, separate field for that concept; see
+                # docs/pm_modernization/R4_4_TASK_CONSTRAINT_CURRENT_STATE_AND_TARGET_GAPS.md).
+                raise ValidationError(
+                    "Deadline is not a selectable scheduling constraint -- "
+                    "set the task's deadline field instead.",
+                    code="TASK_CONSTRAINT_TYPE_INVALID",
+                )
+            if self.constraint_date is None:
+                raise ValidationError(
+                    f"Scheduling constraint {self.constraint_type.value!r} "
+                    "requires a constraint date.",
+                    code="TASK_CONSTRAINT_DATE_REQUIRED",
+                )
         return self
 
     @property
@@ -312,6 +369,7 @@ class TaskDependency:
     successor_task_id: str
     dependency_type: DependencyType = DependencyType.FINISH_TO_START
     lag_days: int = 0
+    version: int = 1
 
     @field_validator("predecessor_task_id", mode="before")
     @classmethod

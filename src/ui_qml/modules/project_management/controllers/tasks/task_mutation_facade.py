@@ -13,6 +13,10 @@ def update_task(controller, payload: dict[str, object]) -> dict[str, object]:
     return controller._task_list.updateTask(payload)
 
 
+def update_task_scheduling_constraint(controller, payload: dict[str, object]) -> dict[str, object]:
+    return controller._task_list.updateSchedulingConstraint(payload)
+
+
 def move_task_in_wbs(controller, payload: dict[str, object]) -> dict[str, object]:
     return controller._task_list.moveTaskInWbs(payload)
 
@@ -49,8 +53,8 @@ def update_assignment_allocation(controller, payload: dict[str, object]) -> dict
     return controller._assignments_ctrl.updateAssignmentAllocation(payload)
 
 
-def set_assignment_hours(controller, payload: dict[str, object]) -> dict[str, object]:
-    return controller._assignments_ctrl.setAssignmentHours(payload)
+def update_assignment_planned_hours(controller, payload: dict[str, object]) -> dict[str, object]:
+    return controller._assignments_ctrl.updateAssignmentPlannedHours(payload)
 
 
 def delete_assignment(controller, assignment_id: str) -> dict[str, object]:
@@ -91,18 +95,6 @@ def update_task_time_entry(controller, payload: dict[str, object]) -> dict[str, 
 
 def delete_task_time_entry(controller, entry_id: str) -> dict[str, object]:
     return controller._time_ctrl.deleteTaskTimeEntry(entry_id)
-
-
-def submit_task_period(controller, payload: dict[str, object]) -> dict[str, object]:
-    return controller._time_ctrl.submitTaskPeriod(payload)
-
-
-def lock_task_period(controller, payload: dict[str, object]) -> dict[str, object]:
-    return controller._time_ctrl.lockTaskPeriod(payload)
-
-
-def unlock_task_period(controller, payload: dict[str, object]) -> dict[str, object]:
-    return controller._time_ctrl.unlockTaskPeriod(payload)
 
 
 def post_task_comment(controller, payload: dict[str, object]) -> dict[str, object]:
@@ -158,18 +150,15 @@ __all__ = [
     "end_task_presence",
     "edit_task_comment",
     "generate_entity_code",
-    "lock_task_period",
     "mark_task_collaboration_read",
     "move_task_in_wbs",
     "post_task_comment",
     "react_to_task_comment",
     "redo_last_task_action",
     "remove_task_comment_reaction",
-    "set_assignment_hours",
-    "submit_task_period",
     "undo_last_task_action",
-    "unlock_task_period",
     "update_assignment_allocation",
+    "update_assignment_planned_hours",
     "update_dependency",
     "update_progress",
     "update_task",

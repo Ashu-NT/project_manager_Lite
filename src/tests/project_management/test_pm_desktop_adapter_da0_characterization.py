@@ -83,6 +83,9 @@ class _ImpactService:
     def analyse_delay(self, **kwargs):
         return self.analyse(**kwargs)
 
+    def analyse_working_day_delay(self, **kwargs):
+        return self.analyse(**kwargs)
+
 
 def test_da5_schedule_impact_entry_points_share_baseline_decision() -> None:
     impact_service = _ImpactService()
@@ -98,7 +101,7 @@ def test_da5_schedule_impact_entry_points_share_baseline_decision() -> None:
     task_result = ProjectManagementTasksDesktopApi(
         task_service=task_service,
         schedule_change_impact_service=impact_service,
-    ).get_schedule_impact("task-1", "project-1")
+    ).preview_task_schedule_impact("task-1", "project-1")
 
     assert impact_service.has_baseline_values == [True, True]
     assert scheduling_result is not None and scheduling_result.requires_approval is True
@@ -360,47 +363,99 @@ def test_da0_characterizes_duplicate_project_resource_rate_precedence() -> None:
     assert task_options[0].label == "Planner (125.00 GBP/hr)"
 
 
-def test_da0_characterizes_assignment_preview_formula_and_per_conflict_lookup() -> None:
-    target = SimpleNamespace(
-        id="task-1",
-        start_date=date(2026, 8, 10),
-        end_date=date(2026, 8, 12),
+def _fake_capacity_fact(*, peak_utilization_percent: float, days: tuple) -> SimpleNamespace:
+    """Stand-in for TaskAssignmentCapacityFact (docs §44) -- only the
+    fields `build_assignment_preview` actually reads."""
+    return SimpleNamespace(
+        effective_available_capacity_hours=Decimal("10"),
+        existing_committed_capacity_hours=Decimal("6"),
+        proposed_committed_capacity_hours=Decimal("10"),
+        resulting_committed_capacity_hours=Decimal("16"),
+        peak_utilization_percent=peak_utilization_percent,
+        capacity_status="OVER_CAPACITY",
+        conflict_dates=(date(2026, 8, 10), date(2026, 8, 11)),
+        is_over_capacity=True,
+        days=days,
     )
+
+
+def test_da0_characterizes_assignment_preview_formula_and_per_conflict_lookup() -> None:
     conflict_tasks = {
-        "task-2": SimpleNamespace(id="task-2", project_name="Project Two"),
-        "task-3": SimpleNamespace(id="task-3", project_name="Project Three"),
+        "task-2": SimpleNamespace(id="task-2", project_id="project-2"),
+        "task-3": SimpleNamespace(id="task-3", project_id="project-3"),
     }
     task_calls: list[str] = []
 
     def _get_task(task_id: str):
         task_calls.append(task_id)
-        return target if task_id == target.id else conflict_tasks.get(task_id)
+        return conflict_tasks.get(task_id)
 
-    window = SimpleNamespace(
-        peak_load_percent=160.0,
-        capacity_percent=100.0,
-        daily_loads=(
-            SimpleNamespace(overloaded=True, contributing_tasks=("task-1", "task-2")),
-            SimpleNamespace(overloaded=True, contributing_tasks=("task-3",)),
+    fact = _fake_capacity_fact(
+        peak_utilization_percent=160.0,
+        days=(
+            SimpleNamespace(status="OVER_CAPACITY", contributing_task_ids=("task-1", "task-2")),
+            SimpleNamespace(status="OVER_CAPACITY", contributing_task_ids=("task-3",)),
         ),
     )
 
     preview = build_assignment_preview(
         "task-1",
         "project-resource-1",
-        task_service=SimpleNamespace(get_task=_get_task),
+        task_service=SimpleNamespace(
+            get_task=_get_task,
+            preview_assignment_capacity=lambda *args, **kwargs: fact,
+        ),
         project_resource_service=SimpleNamespace(
             get=lambda _project_resource_id: SimpleNamespace(resource_id="resource-1")
         ),
         assignment_skill_validator=None,
-        resource_availability_service=SimpleNamespace(
-            is_resource_available=lambda *_args: (False, window)
-        ),
+        project_names={"project-2": "Project Two", "project-3": "Project Three"},
     )
 
     assert preview.overallocation_pct == 60.0
     assert set(preview.conflict_projects) == {"Project Two", "Project Three"}
-    assert set(task_calls) == {"task-1", "task-2", "task-3"}
+    assert set(task_calls) == {"task-2", "task-3"}
+
+
+def test_da0_assignment_preview_omits_conflict_names_outside_authorized_project_scope() -> None:
+    """A conflicting task in a project the caller's scoped project_names
+    lookup doesn't include (i.e. not authorized/visible) must not leak that
+    project's name -- the capacity result (overallocation_pct) still
+    surfaces, but the identity of the other project does not."""
+    conflict_tasks = {
+        "task-2": SimpleNamespace(id="task-2", project_id="project-visible"),
+        "task-3": SimpleNamespace(id="task-3", project_id="project-hidden"),
+    }
+
+    def _get_task(task_id: str):
+        return conflict_tasks.get(task_id)
+
+    fact = _fake_capacity_fact(
+        peak_utilization_percent=160.0,
+        days=(
+            SimpleNamespace(status="OVER_CAPACITY", contributing_task_ids=("task-1", "task-2")),
+            SimpleNamespace(status="OVER_CAPACITY", contributing_task_ids=("task-3",)),
+        ),
+    )
+
+    preview = build_assignment_preview(
+        "task-1",
+        "project-resource-1",
+        task_service=SimpleNamespace(
+            get_task=_get_task,
+            preview_assignment_capacity=lambda *args, **kwargs: fact,
+        ),
+        project_resource_service=SimpleNamespace(
+            get=lambda _project_resource_id: SimpleNamespace(resource_id="resource-1")
+        ),
+        assignment_skill_validator=None,
+        # Only the caller's scoped lookup -- "project-hidden" deliberately
+        # not included, standing in for a project the current user cannot see.
+        project_names={"project-visible": "Visible Project"},
+    )
+
+    assert preview.overallocation_pct == 60.0
+    assert preview.conflict_projects == ("Visible Project",)
 
 
 def test_da0_characterizes_shared_overload_boundary_across_desktop_views() -> None:

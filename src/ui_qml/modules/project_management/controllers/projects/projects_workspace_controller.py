@@ -55,6 +55,7 @@ from .project_lazy_section_loader import (
 )
 from .project_resource_handler import (
     assign_project_resource,
+    get_project_resource_usage,
     load_assignable_resources,
     remove_project_resource,
     select_project_resource,
@@ -655,6 +656,10 @@ class ProjectManagementProjectsWorkspaceController(
     @Slot(str, result="QVariantMap")
     def removeProjectResource(self, project_resource_id: str) -> dict[str, object]:
         return remove_project_resource(self, project_resource_id)
+
+    @Slot(str, result="QVariantMap")
+    def getProjectResourceUsage(self, project_resource_id: str) -> dict[str, object]:
+        return get_project_resource_usage(self, project_resource_id)
 
 
 __all__ = ["ProjectManagementProjectsWorkspaceController"]

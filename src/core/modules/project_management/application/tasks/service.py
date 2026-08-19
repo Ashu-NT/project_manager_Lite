@@ -37,8 +37,14 @@ from src.core.modules.project_management.application.tasks.commands.identity imp
 from src.core.modules.project_management.application.tasks.commands.progress import (
     TaskProgressMixin,
 )
+from src.core.modules.project_management.application.tasks.commands.resource_leveling_apply import (
+    ResourceLevelingApplyMixin,
+)
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
     TaskScheduleSyncMixin,
+)
+from src.core.modules.project_management.application.tasks.commands.scheduling_constraint import (
+    TaskSchedulingConstraintMixin,
 )
 from src.core.modules.project_management.application.tasks.commands.time_entries import (
     TaskTimeEntryMixin,
@@ -88,6 +94,8 @@ class TaskService(
     TaskLifecycleMixin,
     TaskDependencyDiagnosticsMixin,
     TaskDependencyMixin,
+    TaskSchedulingConstraintMixin,
+    ResourceLevelingApplyMixin,
     TaskAssignmentMixin,
     TaskTimeEntryMixin,
     TaskAssignmentBridgeMixin,
@@ -119,6 +127,7 @@ class TaskService(
         assignment_skill_validator=None,
         tenant_context_service=None,
         task_workspace_reader: TaskWorkspaceReader | None = None,
+        enterprise_resource_availability_service=None,
     ):
         self._session: Session = session
         self._task_repo: TaskRepository = task_repo
@@ -141,6 +150,11 @@ class TaskService(
         self._assignment_skill_validator = assignment_skill_validator
         self._tenant_context_service = tenant_context_service
         self._task_workspace_reader = task_workspace_reader
+        # The authoritative calendar-based capacity source (docs §44) --
+        # TaskValidationMixin falls back to skipping the capacity check
+        # entirely (never to the old naive Mon-Fri/percent duplicate logic)
+        # when this isn't configured, e.g. in lightweight test construction.
+        self._enterprise_resource_availability_service = enterprise_resource_availability_service
         policy = os.getenv("PM_OVERALLOCATION_POLICY", "warn").strip().lower()
         self._overallocation_policy: str = "strict" if policy == "strict" else "warn"
         self._last_overallocation_warning: str | None = None

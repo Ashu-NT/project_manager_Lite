@@ -39,6 +39,9 @@ class _FakeTaskService:
         parent_task_id: str | None = None,
         wbs_code: str = "",
         sort_order: int | None = None,
+        is_milestone: bool = False,
+        constraint_type=None,
+        constraint_date: date | None = None,
     ) -> Task:
         resolved_sort_order = (
             sort_order
@@ -66,6 +69,9 @@ class _FakeTaskService:
             parent_task_id=parent_task_id,
             wbs_code=wbs_code or str(self._next_id),
             sort_order=resolved_sort_order,
+            is_milestone=is_milestone,
+            constraint_type=constraint_type,
+            constraint_date=constraint_date,
         )
         self._next_id += 1
         self._tasks[task.id] = task
@@ -125,6 +131,7 @@ class _FakeTaskService:
         task_id: str,
         project_resource_id: str,
         allocation_percent: float,
+        allocated_planned_hours=None,
     ) -> TaskAssignment:
         resource_id = self._project_resource_lookup.get(project_resource_id, project_resource_id)
         assignment = self.create_assignment(
@@ -133,11 +140,17 @@ class _FakeTaskService:
             allocation_percent=allocation_percent,
         )
         assignment.project_resource_id = project_resource_id
+        if allocated_planned_hours is not None:
+            assignment.allocated_planned_hours = allocated_planned_hours
         return assignment
 
-    def set_assignment_allocation(self, *, assignment_id: str, allocation_percent: float) -> TaskAssignment:
+    def set_assignment_allocation(
+        self, *, assignment_id: str, allocation_percent: float, expected_version: int | None = None
+    ) -> TaskAssignment:
         assignment = self._assignments[assignment_id]
         assignment.allocation_percent = allocation_percent
+        if expected_version is not None:
+            assignment.version = expected_version + 1
         return assignment
 
     def set_assignment_hours(self, *, assignment_id: str, hours_logged: float) -> TaskAssignment:
@@ -188,6 +201,7 @@ class _FakeTaskService:
         duration_days: int | None = None,
         priority: int | None = None,
         deadline: date | None = None,
+        is_milestone: bool | None = None,
     ) -> Task:
         task = self._tasks[task_id]
         if name is not None:
@@ -206,9 +220,38 @@ class _FakeTaskService:
             task.priority = priority
         if deadline is not None:
             task.deadline = deadline
+        if is_milestone is not None:
+            task.is_milestone = is_milestone
+        if task.is_milestone:
+            task.duration_days = 0
         task.end_date = _derive_end_date(task.start_date, task.duration_days)
         task.version += 1
         return task
+
+    def update_task_scheduling_constraint(
+        self,
+        task_id: str,
+        *,
+        constraint_type=None,
+        constraint_date: date | None = None,
+        expected_version: int | None = None,
+    ) -> Task:
+        task = self._tasks[task_id]
+        if expected_version is not None and task.version != expected_version:
+            from src.core.platform.common.exceptions import ConcurrencyError
+
+            raise ConcurrencyError("Task was updated by another user.", code="STALE_WRITE")
+        # One atomic replace(), not sequential attribute assignment --
+        # see the note on _task() in test_constraint_validator.py for why
+        # (validate_assignment=True re-runs the whole model validator per
+        # set, and "dated constraint requires a date" would spuriously
+        # fire between the two assignments otherwise).
+        from dataclasses import replace
+
+        updated = replace(task, constraint_type=constraint_type, constraint_date=constraint_date)
+        updated.version = task.version + 1
+        self._tasks[task_id] = updated
+        return updated
 
     def set_status(self, task_id: str, status: TaskStatus) -> None:
         task = self._tasks[task_id]
