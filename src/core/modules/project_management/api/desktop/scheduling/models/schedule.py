@@ -32,6 +32,9 @@ class SchedulingTaskDto:
     actual_start: date | None
     actual_end: date | None
     priority: int | None
+    constraint_type: str
+    constraint_type_label: str
+    constraint_date: date | None
 
 
 __all__ = ["SchedulingProjectOptionDescriptor", "SchedulingTaskDto"]

@@ -266,6 +266,26 @@ Item {
                 payload.projectId = String(state.projectId || payload.projectId || root.selectedProjectId || "")
                 payload.taskId = String(state.taskId)
                 payload.expectedVersion = state.version
+                // The scheduling constraint is a separate governed mutation
+                // (TaskSchedulingConstraintMixin) -- update_task's own
+                // command deliberately excludes constraint fields, so a
+                // changed constraint is applied first, before the rest of
+                // the edit, and a failure here (including an
+                // "Approval required" business rule) stops short of the
+                // generic update so the dialog reports exactly what did
+                // not save.
+                if (payload.constraintChanged) {
+                    result = root.workspaceController.updateSchedulingConstraint({
+                        "taskId": payload.taskId,
+                        "constraintType": payload.constraintType,
+                        "constraintDate": payload.constraintDate,
+                        "expectedVersion": payload.expectedVersion
+                    })
+                    if (!result || result.ok === false) {
+                        root._handleResult(editorDialog, result)
+                        return
+                    }
+                }
                 result = root.workspaceController.updateTask(payload)
             } else {
                 result = root.workspaceController.createTask(payload)

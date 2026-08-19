@@ -274,7 +274,7 @@ Item {
                         required property var modelData
                         Layout.fillWidth: true
                         tone: "danger"
-                        message: "⚠ Hard constraint (" + String(_conflictMsg.modelData.constraintType || "")
+                        message: "⚠ Hard constraint (" + String(_conflictMsg.modelData.constraintTypeLabel || "")
                             + " · " + String(_conflictMsg.modelData.constraintDateLabel || "")
                             + ") conflicts with the predecessor relationship, which requires "
                             + String(_conflictMsg.modelData.dependencyRequiredDateLabel || "") + "."

@@ -30,6 +30,37 @@ class _FakeProjectsWorkspaceController(QObject):
         return "XAF"
 
 
+class _FakeTasksWorkspaceController(QObject):
+    """Minimal stand-in exposing just what TaskEditorDialog's Advanced
+    scheduling section reads -- constraintOptions must mirror the real
+    EDITABLE_CONSTRAINT_OPTIONS shape (value/code/label/description/
+    requiresDate/category) since the dialog binds those exact keys."""
+
+    @Property(bool, constant=True)
+    def isBusy(self) -> bool:
+        return False
+
+    @Property("QVariantList", constant=True)
+    def constraintOptions(self) -> list:
+        return [
+            {
+                "value": "", "code": "ASAP", "label": "As Soon As Possible (ASAP)",
+                "description": "Task is scheduled from dependencies, duration and project calendar.",
+                "requiresDate": False, "category": "flexible",
+            },
+            {
+                "value": "start_no_earlier_than", "code": "SNET", "label": "Start No Earlier Than (SNET)",
+                "description": "Task cannot start before the specified date.",
+                "requiresDate": True, "category": "date_boundary",
+            },
+            {
+                "value": "must_start_on", "code": "MSO", "label": "Must Start On (MSO)",
+                "description": "Fixes the task to the specified start date.",
+                "requiresDate": True, "category": "fixed_date",
+            },
+        ]
+
+
 PROJECT_EDITOR_DIALOG = Path(
     "src/ui_qml/modules/project_management/qml/workspaces/projects/dialogs/ProjectEditorDialog.qml"
 )
@@ -221,6 +252,114 @@ def test_task_editor_dialog_populates_existing_milestone_flag() -> None:
     assert QMetaObject.invokeMethod(root, "populateFromTask")
     milestone_check = _find_child(root, "milestoneCheck")
     assert milestone_check.property("checked") is True
+
+
+def test_task_editor_dialog_defaults_to_asap_and_omits_constraint_date() -> None:
+    """Phase N/O: a brand-new task with no prior constraint state must
+    default the picker to ASAP and never report a changed constraint on
+    create (constraintChanged only matters for the edit/update path)."""
+    controller = _FakeTasksWorkspaceController()
+    _, root = _load_dialog(
+        TASK_EDITOR_DIALOG,
+        {
+            "modeTitle": "Create Task",
+            "workspaceController": controller,
+            "statusOptions": [{"value": "TODO", "label": "To Do"}],
+            "projectOptions": [{"value": "proj-1", "label": "Refinery"}],
+            "taskData": {"state": {"name": "Cable Pull"}},
+        },
+    )
+    captured: list[dict] = []
+    root.submitted.connect(lambda payload: captured.append(_variant(payload)))
+
+    assert QMetaObject.invokeMethod(root, "populateFromTask")
+    combo = _find_child(root, "constraintTypeCombo")
+    assert combo.property("currentIndex") == 0
+
+    submit_button = _find_child(root, "dialogSubmitButton")
+    assert QMetaObject.invokeMethod(submit_button, "click")
+
+    assert len(captured) == 1
+    assert captured[0]["constraintType"] == ""
+    assert captured[0]["constraintDate"] == ""
+    assert captured[0]["constraintChanged"] is False
+
+
+def test_task_editor_dialog_dated_constraint_requires_date_before_submit() -> None:
+    """Phase O: selecting a dated constraint type (SNET here) without a
+    date must block submission with an inline error rather than send a
+    half-filled constraint to the backend."""
+    controller = _FakeTasksWorkspaceController()
+    _, root = _load_dialog(
+        TASK_EDITOR_DIALOG,
+        {
+            "modeTitle": "Create Task",
+            "workspaceController": controller,
+            "statusOptions": [{"value": "TODO", "label": "To Do"}],
+            "projectOptions": [{"value": "proj-1", "label": "Refinery"}],
+            "taskData": {"state": {"name": "Cable Pull"}},
+        },
+    )
+    captured: list[dict] = []
+    root.submitted.connect(lambda payload: captured.append(_variant(payload)))
+
+    assert QMetaObject.invokeMethod(root, "populateFromTask")
+    combo = _find_child(root, "constraintTypeCombo")
+    combo.setProperty("currentIndex", 1)  # SNET, requires a date
+
+    submit_button = _find_child(root, "dialogSubmitButton")
+    assert QMetaObject.invokeMethod(submit_button, "click")
+    assert len(captured) == 0
+    assert "SNET" in str(root.property("errorMessage")) or "Start No Earlier Than" in str(root.property("errorMessage"))
+
+    date_field = _find_child(root, "constraintDateField")
+    date_field.setProperty("text", "2026-09-18")
+    assert QMetaObject.invokeMethod(submit_button, "click")
+
+    assert len(captured) == 1
+    assert captured[0]["constraintType"] == "start_no_earlier_than"
+    assert captured[0]["constraintDate"] == "2026-09-18"
+    assert captured[0]["constraintChanged"] is True
+
+
+def test_task_editor_dialog_populates_existing_constraint_and_expands_section() -> None:
+    """Phase N: an existing task that already carries a constraint must
+    auto-expand the collapsed Advanced scheduling section so the current
+    value is visible without an extra click, and must round-trip it back
+    unchanged if the user does not touch the picker."""
+    controller = _FakeTasksWorkspaceController()
+    _, root = _load_dialog(
+        TASK_EDITOR_DIALOG,
+        {
+            "modeTitle": "Edit Task",
+            "workspaceController": controller,
+            "statusOptions": [{"value": "IN_PROGRESS", "label": "In Progress"}],
+            "taskData": {
+                "state": {
+                    "taskId": "task-99",
+                    "name": "Cable Pull",
+                    "status": "IN_PROGRESS",
+                    "constraintType": "must_start_on",
+                    "constraintDate": "2026-09-18",
+                }
+            },
+        },
+    )
+    captured: list[dict] = []
+    root.submitted.connect(lambda payload: captured.append(_variant(payload)))
+
+    assert QMetaObject.invokeMethod(root, "populateFromTask")
+    assert root.property("advancedSchedulingExpanded") is True
+    combo = _find_child(root, "constraintTypeCombo")
+    assert combo.property("currentIndex") == 2  # MSO
+
+    submit_button = _find_child(root, "dialogSubmitButton")
+    assert QMetaObject.invokeMethod(submit_button, "click")
+
+    assert len(captured) == 1
+    assert captured[0]["constraintType"] == "must_start_on"
+    assert captured[0]["constraintDate"] == "2026-09-18"
+    assert captured[0]["constraintChanged"] is False
 
 
 def test_task_progress_dialog_submit_button_emits_payload() -> None:

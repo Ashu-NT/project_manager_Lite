@@ -153,6 +153,34 @@ def refresh_after_dependency_mutation(controller) -> None:
         controller._task_list.updateSelectedTaskOnly(ws)
 
 
+def refresh_after_constraint_mutation(controller) -> None:
+    """A scheduling-constraint update (MSO/MFO/SNET/SNLT/FNET/FNLT or
+    clear-back-to-ASAP) changes the CURRENTLY SELECTED task's own computed
+    dates and the Schedule Impact section's drivers/conflicts -- but, same
+    gap as refresh_after_dependency_mutation above, the Schedule Impact
+    lazy loader only re-fetches on a NEW tab activation, so without this
+    the edit lands on the backend immediately but the open Schedule Impact
+    panel keeps showing the pre-edit drivers/conflicts. The Dependencies
+    section itself is deliberately NOT invalidated here: a constraint
+    change never alters the underlying dependency rows, only how they
+    interact with this task's own dates (visible via Schedule Impact's
+    dependency_conflicts, not the Dependencies list).
+    """
+    if not controller._selected_task_id:
+        return
+    controller._schedule_impact_section_loaded_for_task_id = ""
+    load_selected_task_schedule_impact(controller)
+    try:
+        ws = controller._tasks_workspace_presenter.build_task_basic_detail_state(
+            task_id=controller._selected_task_id,
+            project_id=controller._selected_project_id or None,
+        )
+    except Exception:
+        pass
+    else:
+        controller._task_list.updateSelectedTaskOnly(ws)
+
+
 def load_selected_task_schedule_impact(controller) -> None:
     """Auto-loaded on section activation -- current-state facts only
     (one CPM pass, no hypothetical). The "Preview Impact" what-if is a
@@ -238,6 +266,7 @@ __all__ = [
     "load_selected_task_skill_requirements",
     "load_selected_task_time",
     "load_task_assignments_and_dependencies",
+    "refresh_after_constraint_mutation",
     "refresh_after_dependency_mutation",
     "refresh_time_entries_only",
 ]

@@ -92,7 +92,7 @@ def build_task_schedule_overview_state(
             {
                 "taskId": c.task_id,
                 "taskName": c.task_name,
-                "constraintType": c.constraint_type,
+                "constraintTypeLabel": c.constraint_type_label,
                 "constraintDateLabel": c.constraint_date.isoformat(),
                 "dependencyRequiredDateLabel": c.dependency_required_date.isoformat(),
                 "direction": c.direction,

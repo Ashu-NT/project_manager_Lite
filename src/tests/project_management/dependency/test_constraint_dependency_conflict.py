@@ -5,18 +5,16 @@ docs/pm_modernization/R4_4_TASK_DEPENDENCY_CURRENT_STATE_AND_TARGET_GAPS.md
 
 Pure, in-memory tests (no DB) using ``run_cpm`` directly with hand-built
 ``Task``/``TaskDependency`` domain objects -- NOT the ``services`` fixture's
-repository round-trip. This is deliberate: ``Task.constraint_type`` and
-``Task.constraint_date`` were discovered, while building this test, to have
-NO backing ORM columns at all (grep confirms zero references in
-infrastructure/persistence/orm/task.py or mappers/task.py) -- they are
-accepted at construction but silently dropped on every save/reload. That is
-a real, separate backend gap (Task-level constraint persistence, not a
-TaskDependency concern) that this pass does not fix; testing through the
-repository would only produce false-positive passes (no constraint ever
-actually reaching the engine). ``run_cpm`` exercises the exact same
+repository round-trip. At the time this test was written,
+``Task.constraint_type``/``Task.constraint_date`` had no backing ORM
+columns at all and were silently dropped on every save/reload; the R4.4
+constraint pass has since closed that gap (see
+infrastructure/persistence/orm/task.py, mappers/task.py, and
+test_task_constraint_persistence.py, which cover the real repository
+round-trip end-to-end). This file is kept as a pure, in-memory
+``run_cpm`` test regardless, since it exercises the exact same
 ``task_date_math``/``ConstraintValidator`` code SchedulingEngine uses
-(Phase D consolidated them), so this is genuine coverage of the real
-production logic, not a shortcut around it.
+(Phase D consolidated them) without the overhead of a DB-backed fixture.
 """
 from __future__ import annotations
 

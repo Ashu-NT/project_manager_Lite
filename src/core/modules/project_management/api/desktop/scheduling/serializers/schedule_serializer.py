@@ -1,10 +1,14 @@
 """Schedule item serializers."""
 
+from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
+    constraint_presentation,
+)
 from src.core.modules.project_management.api.desktop.scheduling.models.schedule import SchedulingTaskDto
 
 
 def serialize_schedule_item(item) -> SchedulingTaskDto:
     task = item.task
+    presentation = constraint_presentation(getattr(task, "constraint_type", None))
     return SchedulingTaskDto(
         id=task.id,
         project_id=task.project_id,
@@ -27,11 +31,15 @@ def serialize_schedule_item(item) -> SchedulingTaskDto:
         actual_start=getattr(task, "actual_start", None),
         actual_end=getattr(task, "actual_end", None),
         priority=getattr(task, "priority", None),
+        constraint_type=presentation.value.value if presentation.value is not None else "",
+        constraint_type_label=presentation.label,
+        constraint_date=getattr(task, "constraint_date", None),
     )
 
 
 def serialize_task_as_schedule_item(task) -> SchedulingTaskDto:
     """Serialize a plain task domain object when no CPM data is available."""
+    presentation = constraint_presentation(getattr(task, "constraint_type", None))
     return SchedulingTaskDto(
         id=task.id,
         project_id=task.project_id,
@@ -54,6 +62,9 @@ def serialize_task_as_schedule_item(task) -> SchedulingTaskDto:
         actual_start=getattr(task, "actual_start", None),
         actual_end=getattr(task, "actual_end", None),
         priority=getattr(task, "priority", None),
+        constraint_type=presentation.value.value if presentation.value is not None else "",
+        constraint_type_label=presentation.label,
+        constraint_date=getattr(task, "constraint_date", None),
     )
 
 

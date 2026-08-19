@@ -257,6 +257,64 @@ class TestScheduleOverviewProjectIdFallback:
         assert calls == [("task-1", "project-real")]
 
 
+class TestScheduleImpactConflictConstraintLabel:
+    """R4.4 constraint pass, Phase R: schedule_impact_builder.py's
+    conflicts list previously carried the raw ConstraintType value
+    (e.g. "must_start_on") under a "constraintType" key straight from
+    the application-layer DependencyConstraintConflict fact --
+    TasksScheduleImpactSection.qml rendered it unlabeled, verbatim, in
+    the "Hard constraint (...)" banner. Fixed by consuming the desktop
+    DTO's already-humanized constraint_type_label (constraint_presentation.py)
+    under a "constraintTypeLabel" key, matching this same dict's other
+    *Label siblings (constraintDateLabel, dependencyRequiredDateLabel)."""
+
+    def test_mso_dependency_conflict_reports_a_humanized_label_not_the_raw_enum(self, services):
+        from src.core.modules.project_management.api.desktop.tasks.api import (
+            ProjectManagementTasksDesktopApi,
+        )
+        from src.ui_qml.modules.project_management.presenters.tasks.schedule_impact_builder import (
+            build_task_schedule_overview_state,
+        )
+
+        ps = services["project_service"]
+        ts = services["task_service"]
+        project = ps.create_project("Schedule Impact Constraint Label", "")
+        predecessor = ts.create_task(
+            project.id, "Foundation", "", start_date=date(2026, 9, 7), duration_days=3
+        )
+        successor = ts.create_task(
+            project.id,
+            "Cable Pull",
+            "",
+            start_date=date(2026, 9, 7),
+            duration_days=2,
+            constraint_type="must_start_on",
+            # A --FS--> B implies B starts 2026-09-11; MSO overrides it to
+            # an earlier date, producing exactly the dependency-conflict
+            # fact whose constraint_type this test is verifying.
+            constraint_date=date(2026, 9, 8),
+        )
+        ts.add_dependency(
+            predecessor_id=predecessor.id,
+            successor_id=successor.id,
+            dependency_type=DependencyType.FINISH_TO_START,
+            lag_days=0,
+        )
+
+        api = ProjectManagementTasksDesktopApi(
+            task_service=ts,
+            schedule_change_impact_service=_impact_service(services),
+        )
+        state = build_task_schedule_overview_state(
+            api, task_id=successor.id, project_id=project.id
+        )
+
+        conflicts = [c for c in state["conflicts"] if c["taskId"] == successor.id]
+        assert len(conflicts) == 1
+        assert conflicts[0]["constraintTypeLabel"] == "Must Start On (MSO)"
+        assert "constraintType" not in conflicts[0]
+
+
 class TestPreviewDeadlineConflict:
     """The reported bug: "Preview Impact" worked for a 1 working-day
     delay but showed nothing at all for a 2+ day delay. Root cause --

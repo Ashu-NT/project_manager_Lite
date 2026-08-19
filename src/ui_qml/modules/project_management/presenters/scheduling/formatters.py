@@ -48,8 +48,13 @@ def constraint_label_for_activity(item: Any) -> str:
         return "Actual finish locked"
     if item.actual_start:
         return "Actual start locked"
+    # A real Task.constraint_type takes precedence over the deadline --
+    # Deadline is a distinct concept and must never be labeled as FNLT
+    # (see constraint_presentation.py's module docstring).
+    if getattr(item, "constraint_type", ""):
+        return item.constraint_type_label
     if item.deadline:
-        return "Finish no later than"
+        return "Deadline"
     if item.start_date:
         return "Planned start anchor"
     return "Open"
