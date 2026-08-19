@@ -15,6 +15,7 @@ from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from .activity_log_service import ActivityLogService
 from .domain_event_binder import bind_scheduling_domain_events
 from .filter_service import filter_rows
+from .leveling_actions import apply_resource_leveling, preview_resource_leveling
 from .mutation_handler import SchedulingMutationHandler
 from .scheduling_calculation_actions import (
     calculate_working_days,
@@ -101,6 +102,7 @@ from .state import (
     default_baselines,
     default_calendar,
     default_collection,
+    default_leveling_proposal,
     default_overview,
     default_schedule_impact,
     default_selected_activity,
@@ -176,6 +178,8 @@ class ProjectManagementSchedulingWorkspaceController(
     calculatorResultChanged = Signal()
     baselineVarianceRowsChanged = Signal()
     scheduleImpactChanged = Signal()
+    levelingProposalChanged = Signal()
+    levelingMoveRowsChanged = Signal()
 
     def __init__(
         self,
@@ -255,6 +259,8 @@ class ProjectManagementSchedulingWorkspaceController(
         self._calculator_result = ""
         self._baseline_variance_rows: list[dict[str, object]] = []
         self._schedule_impact: dict[str, object] = default_schedule_impact()
+        self._leveling_proposal: dict[str, object] = default_leveling_proposal()
+        self._leveling_move_rows: list[dict[str, object]] = []
         self._active_panel_id = "activity_timeline"
         bind_scheduling_domain_events(self)
         self.refresh()
@@ -574,6 +580,18 @@ class ProjectManagementSchedulingWorkspaceController(
     def scheduleImpact(self) -> dict[str, object]:
         return self._schedule_impact
 
+    @Property("QVariantMap", notify=levelingProposalChanged)
+    def levelingProposal(self) -> dict[str, object]:
+        return self._leveling_proposal
+
+    @Property("QVariantList", notify=levelingMoveRowsChanged)
+    def levelingMoveRows(self) -> list[dict[str, object]]:
+        return self._leveling_move_rows
+
+    @Property(QObject, constant=True)
+    def levelingMovesTableModel(self) -> DynamicTableModel:
+        return self._table_models.leveling_moves
+
     # ── Refresh ───────────────────────────────────────────────────────
 
     @Slot()
@@ -697,6 +715,14 @@ class ProjectManagementSchedulingWorkspaceController(
     @Slot(result="QVariantMap")
     def recalculateSchedule(self) -> dict[str, object]:
         return self._mutations.recalculate_schedule()
+
+    @Slot(result="QVariantMap")
+    def previewResourceLeveling(self) -> dict[str, object]:
+        return preview_resource_leveling(self)
+
+    @Slot(result="QVariantMap")
+    def applyResourceLeveling(self) -> dict[str, object]:
+        return apply_resource_leveling(self)
 
     @Slot("QVariantMap", result="QVariantMap")
     def createDependency(self, payload: dict[str, object]) -> dict[str, object]:

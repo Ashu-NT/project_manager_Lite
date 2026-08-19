@@ -25,6 +25,7 @@ Item {
         { "id": "activity_timeline", "label": "Activity & Timeline" },
         { "id": "diagnostics",       "label": "Diagnostics"         },
         { "id": "resources",         "label": "Resources"           },
+        { "id": "resource_leveling", "label": "Resource Leveling"   },
         { "id": "baselines",         "label": "Baselines"           },
         { "id": "delays",            "label": "Delays"              },
         { "id": "calendars",         "label": "Calendars"           },

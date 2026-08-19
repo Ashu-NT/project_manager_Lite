@@ -57,6 +57,24 @@ def default_schedule_impact() -> dict[str, object]:
     }
 
 
+def default_leveling_proposal() -> dict[str, object]:
+    return {
+        "projectId": "",
+        "scheduleFingerprint": "",
+        "hasPreview": False,
+        "isFeasible": True,
+        "resourceConflictsBefore": 0,
+        "resourceConflictsAfter": 0,
+        "projectFinishBeforeLabel": "--",
+        "projectFinishAfterLabel": "--",
+        "criticalPathChanged": False,
+        "warnings": [],
+        "unresolvedConflicts": [],
+        "moves": [],
+        "emptyState": "Click Preview to check for resource overloads and proposed fixes.",
+    }
+
+
 __all__ = [
     "default_overview",
     "default_collection",
@@ -64,4 +82,5 @@ __all__ = [
     "default_baselines",
     "default_selected_activity",
     "default_schedule_impact",
+    "default_leveling_proposal",
 ]

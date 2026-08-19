@@ -267,6 +267,21 @@ def set_resource_loading_rows(controller, rows: list) -> None:
     controller._table_models.resources_loading.set_rows(controller.filteredResourceRows)
 
 
+def set_leveling_proposal(controller, v: dict) -> None:
+    if v == controller._leveling_proposal:
+        return
+    controller._leveling_proposal = v
+    controller.levelingProposalChanged.emit()
+
+
+def set_leveling_move_rows(controller, rows: list) -> None:
+    if rows == controller._leveling_move_rows:
+        return
+    controller._leveling_move_rows = rows
+    controller.levelingMoveRowsChanged.emit()
+    controller._table_models.leveling_moves.set_rows(rows)
+
+
 def set_baseline_compare_rows(controller, rows: list) -> None:
     if rows == controller._baseline_compare_rows:
         return
@@ -379,6 +394,8 @@ __all__ = [
     "set_diagnostics",
     "set_diagnostics_rows",
     "set_holiday_rows",
+    "set_leveling_proposal",
+    "set_leveling_move_rows",
     "set_overview",
     "set_project_options",
     "set_resource_loading",

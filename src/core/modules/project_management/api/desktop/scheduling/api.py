@@ -26,6 +26,7 @@ from src.core.modules.project_management.api.desktop.scheduling.models import (
     SchedulingConstraintViolationDto,
     SchedulingDependencyDto,
     SchedulingDependencyTypeDescriptor,
+    SchedulingLevelingProposalDto,
     SchedulingProjectDependencyDto,
     SchedulingProjectOptionDescriptor,
     SchedulingResourceLoadDto,
@@ -57,6 +58,10 @@ from src.core.modules.project_management.api.desktop.scheduling.builders.baselin
     build_variance_rows,
 )
 from src.core.modules.project_management.api.desktop.scheduling.builders.resource_load_builder import build_resource_load
+from src.core.modules.project_management.api.desktop.scheduling.builders.leveling_builder import (
+    build_resource_leveling_preview,
+    empty_leveling_proposal_dto,
+)
 from src.core.modules.project_management.api.desktop.scheduling.builders.constraint_builder import build_constraint_violations
 from src.core.modules.project_management.api.desktop.scheduling.builders.change_impact_builder import build_change_impact
 from src.core.modules.project_management.api.desktop.scheduling.serializers.dependency_serializer import serialize_dependency
@@ -106,6 +111,11 @@ class ProjectManagementSchedulingDesktopApi:
         self._reporting_service = reporting_service
         self._change_impact_service = change_impact_service
         self._constraint_validator = constraint_validator
+        # Last-previewed leveling proposal per project, keyed so Apply can
+        # hand the EXACT snapshot Preview reasoned about back to
+        # apply_resource_leveling_plan without a lossy QML round-trip --
+        # Apply still revalidates it against a fresh DB read (R4.4L).
+        self._pending_leveling_proposals: dict[str, object] = {}
 
     # ── Project / Activity options ────────────────────────────────────────────
 
@@ -323,6 +333,32 @@ class ProjectManagementSchedulingDesktopApi:
 
     def list_resource_load(self, project_id: str) -> tuple[SchedulingResourceLoadDto, ...]:
         return build_resource_load((project_id or "").strip(), self._reporting_service)
+
+    # ── Resource leveling ─────────────────────────────────────────────────────
+
+    def preview_resource_leveling(self, project_id: str) -> SchedulingLevelingProposalDto:
+        normalized_id = (project_id or "").strip()
+        if not normalized_id:
+            return empty_leveling_proposal_dto()
+        result = build_resource_leveling_preview(normalized_id, self._task_service, self._work_calendar_engine)
+        if result is None:
+            return empty_leveling_proposal_dto(normalized_id)
+        proposal, dto = result
+        # Cached on this instance rather than round-tripped through QML --
+        # Apply revalidates it against a fresh DB snapshot anyway (R4.4L),
+        # so QML only ever needs the display DTO, not the raw domain moves.
+        self._pending_leveling_proposals[normalized_id] = proposal
+        return dto
+
+    def apply_resource_leveling(self, project_id: str) -> tuple[SchedulingTaskDto, ...]:
+        normalized_id = (project_id or "").strip()
+        if not normalized_id:
+            raise ValueError("Select a project before applying resource leveling.")
+        proposal = self._pending_leveling_proposals.pop(normalized_id, None)
+        if proposal is None:
+            raise ValueError("Preview resource leveling before applying it.")
+        require_task_method(self._task_service, "apply_resource_leveling_plan")(normalized_id, proposal)
+        return self.list_schedule(normalized_id)
 
     # ── Constraints ───────────────────────────────────────────────────────────
 

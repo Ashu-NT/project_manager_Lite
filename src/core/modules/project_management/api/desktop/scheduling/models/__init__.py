@@ -33,6 +33,11 @@ from src.core.modules.project_management.api.desktop.scheduling.models.dependenc
     SchedulingDependencyTypeDescriptor,
     SchedulingProjectDependencyDto,
 )
+from src.core.modules.project_management.api.desktop.scheduling.models.leveling import (
+    SchedulingLevelingProposalDto,
+    SchedulingProposedTaskMoveDto,
+    SchedulingUnresolvedConflictDto,
+)
 from src.core.modules.project_management.api.desktop.scheduling.models.resources import (
     SchedulingResourceLoadDto,
 )
@@ -63,9 +68,12 @@ __all__ = [
     "SchedulingDependencyDto",
     "SchedulingDependencyTypeDescriptor",
     "SchedulingHolidayDto",
+    "SchedulingLevelingProposalDto",
     "SchedulingProjectDependencyDto",
     "SchedulingProjectOptionDescriptor",
+    "SchedulingProposedTaskMoveDto",
     "SchedulingResourceLoadDto",
     "SchedulingTaskDto",
+    "SchedulingUnresolvedConflictDto",
     "SchedulingWorkingDayCalculationDto",
 ]

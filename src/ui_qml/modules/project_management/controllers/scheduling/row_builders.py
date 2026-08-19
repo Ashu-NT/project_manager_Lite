@@ -200,6 +200,14 @@ def build_baseline_variance_rows(model: dict[str, object]) -> list[dict[str, obj
     return rows
 
 
+def build_leveling_move_rows(model: dict[str, object]) -> list[dict[str, object]]:
+    # build_resource_leveling_state() already emits fully camelCase,
+    # DataTable-column-shaped rows -- no per-field remapping needed here,
+    # unlike the other builders above that flatten a generic
+    # {"items": [{"state": {...}}]} collection shape.
+    return list(model.get("moves", []))
+
+
 __all__ = [
     "build_baseline_compare_rows",
     "build_baseline_register_rows",
@@ -210,6 +218,7 @@ __all__ = [
     "build_dependency_rows",
     "build_diagnostics_rows",
     "build_holiday_rows",
+    "build_leveling_move_rows",
     "build_resource_rows",
     "build_schedule_rows",
     "build_violation_rows",

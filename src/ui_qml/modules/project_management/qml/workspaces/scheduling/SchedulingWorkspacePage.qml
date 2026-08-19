@@ -325,6 +325,12 @@ AppLayouts.WorkspaceFrame {
                             workspaceController: root.workspaceController
                         }
 
+                        Panels.SchedulingResourceLevelingPanel {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            workspaceController: root.workspaceController
+                        }
+
                         Panels.SchedulingBaselinesPanel {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
