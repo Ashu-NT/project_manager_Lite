@@ -10,6 +10,7 @@ DEFAULT_GOVERNED_ACTIONS = {
     "dependency.update",
     "project_cost.approve",
     "task.constraint.update",
+    "scheduling.leveling.apply",
 }
 
 

@@ -767,6 +767,15 @@ def _register_project_management_approval_handlers(
         )
         return _result("tasks_changed", req.project_id or "")
 
+    def _apply_resource_leveling_plan(req) -> ApprovalHandlerResult:
+        task_service._apply_resource_leveling_plan_decision(
+            project_id=req.project_id,
+            moves=req.payload["moves"],
+            schedule_fingerprint=req.payload["schedule_fingerprint"],
+            commit=False,
+        )
+        return _result("tasks_changed", req.project_id or "")
+
     def _require_financial_decision_actor() -> str:
         principal = user_session.principal if user_session else None
         if principal is None:
@@ -881,6 +890,10 @@ def _register_project_management_approval_handlers(
     approval_service.register_apply_handler(
         "task.constraint.update",
         _apply_task_constraint_update,
+    )
+    approval_service.register_apply_handler(
+        "scheduling.leveling.apply",
+        _apply_resource_leveling_plan,
     )
     approval_service.register_apply_handler(
         "budget.approve",

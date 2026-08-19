@@ -37,6 +37,9 @@ from src.core.modules.project_management.application.tasks.commands.identity imp
 from src.core.modules.project_management.application.tasks.commands.progress import (
     TaskProgressMixin,
 )
+from src.core.modules.project_management.application.tasks.commands.resource_leveling_apply import (
+    ResourceLevelingApplyMixin,
+)
 from src.core.modules.project_management.application.tasks.commands.schedule_sync import (
     TaskScheduleSyncMixin,
 )
@@ -92,6 +95,7 @@ class TaskService(
     TaskDependencyDiagnosticsMixin,
     TaskDependencyMixin,
     TaskSchedulingConstraintMixin,
+    ResourceLevelingApplyMixin,
     TaskAssignmentMixin,
     TaskTimeEntryMixin,
     TaskAssignmentBridgeMixin,
