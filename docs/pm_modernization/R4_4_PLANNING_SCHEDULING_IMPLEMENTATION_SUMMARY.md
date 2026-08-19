@@ -271,16 +271,23 @@ semantics.
 
 | Scenario | Before | After | Speedup |
 |---|---|---|---|
-| Real DB + real calendar, n=100 | 5.05 s | 0.028–0.036 s | ~150–180× |
+| Real DB + real calendar, n=100 | 5.05 s | 0.023–0.036 s | ~140–220× |
 | Real DB + real calendar, n=1,000 | 57.67 s | 0.198–0.326 s | ~180–290× |
+| Real DB + real calendar, n=5,000 | not measured pre-fix (projected tens of minutes+ from the observed super-linear trend; impractical to run) | **1.589 s** | — |
 | Synthetic calendar (bulk-method-capable), n=100 | 0.058 s | 0.032 s | ~1.8× |
 | Synthetic calendar (bulk-method-capable), n=1,000 | 3.28 s | 0.341 s | ~9.6× |
 | Synthetic calendar (bulk-method-capable), n=5,000 | 111.2 s | 1.737 s | **~64×** |
 
-Post-fix scaling across 100→1,000→5,000 tasks is roughly linear
-(0.032 s → 0.341 s → 1.737 s), not quadratic — consistent with the
-root cause (uncached per-task calendar I/O) having been eliminated
-rather than merely reduced by a constant factor.
+Post-fix scaling across 100→1,000→5,000 tasks is roughly linear on
+BOTH the real DB+calendar path (0.023 s → 0.290 s → 1.589 s) and the
+synthetic-calendar path (0.032 s → 0.341 s → 1.737 s), not quadratic —
+consistent with the root cause (uncached per-task calendar I/O) having
+been eliminated rather than merely reduced by a constant factor. The
+n=5,000 real-DB run's own ORM task-creation SETUP took ~27.5 minutes
+(1652.6 s, via `ts.create_task` in a loop) — an unrelated cost of
+building the synthetic test dataset itself through the real
+application/domain-validation/ORM stack, not part of what
+`build_proposal` measures or what this remediation addresses.
 
 ### 4.6 Performance-exit classification
 
@@ -311,10 +318,117 @@ equality of results — continued to pass unchanged).
 - **ALAP** — not implemented, not exposed, not planned.
 - **R4.5 (Gantt) work, R5 work** — untouched.
 - **`ResourceLevelingMixin`/`ResourceLevelingEngine` deletion** — see
-  §R4.4Y for the dead-code audit and removal.
+  §6 for the dead-code audit and removal.
 - **General CPM-wide calendar caching** (beyond the leveling Preview
   path) — the root cause found in §4.2 would also benefit any other
   `run_cpm` consumer (Dashboard, Task Detail, plain "Recalculate
   Schedule"), but fixing it everywhere was not authorized by this
   migration's charter and was deliberately left as a candidate for a
   future, separately-scoped performance pass.
+
+## 6. R4.4Y — dead code removed
+
+A dedicated reachability audit (grep every reference across `src/`,
+classify each as definition/comment/test-only/real caller, trace
+`DashboardService`'s own callers one level further to confirm nothing
+in QML or the desktop API reaches it) confirmed the old resource-leveling
+implementation had zero production callers anywhere, and removed it:
+
+- **`ResourceLevelingEngine`**
+  (`application/scheduling/leveling/resource_leveling_engine.py`) —
+  zero instantiations anywhere; deleted along with its re-exports from
+  `scheduling/__init__.py` and `scheduling/leveling/__init__.py`.
+- **`ResourceLevelingMixin`**
+  (`application/scheduling/leveling/leveling_mixin.py`) — mixed into
+  `SchedulingEngine` but reachable only from tests and from
+  `DashboardService`'s own three wrapper methods, which were
+  themselves reachable from nothing but tests (no `.qml` file, no
+  desktop API caller). `SchedulingEngine` no longer inherits it;
+  `class SchedulingEngine:` has no base class now.
+- **`DashboardService.preview_resource_conflicts` /
+  `.auto_level_overallocations` / `.manually_shift_task_for_leveling`**
+  — the dead wrapper methods, deleted along with their now-unused
+  `ResourceConflict`/`ResourceLevelingAction`/`ResourceLevelingResult`/
+  `domain_events` imports.
+- **`ResourceLevelingAction`/`ResourceLevelingResult`** dataclasses
+  (`models/leveling.py`) — orphaned once the mixin methods that
+  returned them were deleted; removed along with their re-exports.
+  `ResourceConflict`/`ResourceConflictEntry` (still used by
+  `build_resource_conflicts`, actively consumed by
+  `ResourceLevelingPlanner`) were kept.
+- **Test files deleted outright** (tested the deleted mixin/engine
+  directly, not salvageable): `test_resource_leveling_workflow.py`,
+  `test_dashboard_leveling_flow.py`,
+  `dependency/test_leveling_dependency_boundary.py` (the latter was a
+  deliberately pinned regression proving the OLD broken interaction
+  the new `resource_leveling_not_before` floor mechanism, §2, already
+  fixes — its own docstring said its final assertion should flip once
+  R4.4 "reconciles leveling with dependency minimum dates through one
+  schedule model," which is exactly what happened).
+- **Test files trimmed** (one dead test/assertion removed, rest kept):
+  `test_r43_resource_capacity_upgrade.py` (a whole test function that
+  only checked the deleted `preview_resource_conflicts`'s query-batching
+  behavior), `test_phase_b_session_permissions.py` (two `pytest.raises`
+  blocks asserting permission checks on the two deleted
+  `DashboardService` methods).
+- **Architecture guardrail rewritten, not deleted**:
+  `test_scheduling_leveling_is_split_from_engine`
+  (`test_architecture_guardrails_services.py`) previously asserted
+  `scheduling_engine.py`'s source text contained the exact mixin
+  import/inheritance strings — now asserts the new architecture
+  instead (`ResourceLevelingPlanner` is not in `SchedulingEngine`'s
+  MRO), preserving the file's general "keep orchestrator services
+  thin" guardrail intent without depending on deleted code.
+
+Verified via the full `src/tests/project_management` suite plus the
+touched architecture/platform test files — zero regressions from the
+deletion (one pre-existing, unrelated failure in
+`test_known_large_modules_have_growth_budgets`, caused by two
+untouched files exceeding their line budgets, predates this session).
+
+## 7. R4.4 exit-gate self-assessment
+
+This session's original 36-item exit gate text is not present in the
+current working context to check off verbatim, so this is a reasonable
+self-assessment against everything actually documented above, not a
+fabricated recreation of that checklist.
+
+| Area | Status |
+|---|---|
+| One authoritative leveling component (no duplicate implementations) | **PASS** — `ResourceLevelingPlanner` is the only leveling component with real callers; `ResourceLevelingMixin`/`ResourceLevelingEngine` deleted (§6) |
+| Leveled-schedule model survives recalculation | **PASS** — `Task.resource_leveling_not_before` floor, proven via repeated `run_cpm`/`SchedulingEngine.recalculate_project_schedule` (§3) |
+| Canonical feasibility seam (no duplicated CPM/constraint math) | **PASS** — every candidate re-runs the real `run_cpm` |
+| Resource capacity authority incl. multi-resource tasks | **PASS** — R4.4E multi-resource gap found and fixed with regression coverage |
+| Dependency-aware leveling/propagation | **PASS** — `TestDependencyAwarePropagation` |
+| Constraint-aware leveling + movability policy | **PASS** — `movability_policy.py`, 10-test matrix |
+| Actual-execution policy | **PASS** — actual-locked tasks never movable |
+| Float/criticality/infeasibility-informed candidate priority | **PASS** — `_ordered_candidates` |
+| Candidate-placement search (no `+1 day` greedy loop) | **PASS** — bounded nearest-legal-placement search |
+| Pure, non-persisting Preview | **PASS** — `TestPreviewNeverPersists`, unaffected by the R4.4W.1 cache change |
+| Staleness/concurrency (fingerprint) | **PASS** — `compute_schedule_fingerprint`, re-validated at Apply time |
+| Apply command, atomic mutate+recalculate | **PASS** — mirrors `TaskSchedulingConstraintMixin`'s shape |
+| **Preview → Apply → reload → run_cpm idempotence** | **PASS** — the directive-flagged CRITICAL regression, both via pure `run_cpm` and the live `SchedulingEngine` path |
+| Governance parity (admin bypass, TOCTOU revalidation) | **PASS** — `scheduling.leveling.apply` registered, 3 dedicated tests |
+| Per-task audit trail | **PASS** — `entity_type="task"` activity entries with old/new start + reason |
+| Unresolved-conflict UX (never silently dropped) | **PASS** — surfaced as danger-toned banners in the QML panel |
+| Resource Leveling tab in Scheduling workspace | **PASS** — real offscreen QML load of the whole workspace passes |
+| Leveling inspector panel | **PASS** — DataTable + InspectorPanel, reusing established app widgets |
+| Async/loading UX | **PASS** — reuses the page's existing `isBusy`/`isLoading`/error/feedback banners; Apply gated by a confirmation dialog |
+| Performance at 100/1,000/5,000 tasks | **PASS (after remediation)** — real DB+calendar: 0.023 s / 0.290 s / 1.589 s; classified INTERACTIVE (§4.6) |
+| Dead/duplicate leveling code removed | **PASS** — §6 |
+| Documentation | **PASS** — this document |
+| Full regression suite green (scheduling/leveling scope) | **PASS** — full `src/tests/project_management` run: 1,146 passed, 5 failed. All 5 failures are outside R4.4's scope: 1 pre-existing (`test_financial_desktop_forecast_delegation.py`, a Financials pagination-offset assertion, confirmed unrelated earlier this session) + 4 new (`test_project_finance_rate_cards.py`, Financials rate-card/resource-currency logic — confirmed via `git show --stat` that none of this session's commits touch resource-service, rate-card, or currency code; see note below). Every scheduling/leveling/dependency/constraint test is green. |
+| No ALAP / no R4.5 / no R5 / no scheduling-semantics redesign / no commits by the assistant | **PASS** — none occurred (the user's own workflow committed this session's changes; the assistant made none) |
+
+**Overall: R4.4 CLOSED.**
+
+**Note on the 4 `test_project_finance_rate_cards.py` failures:** these are in the
+Financials/rate-card subsystem, untouched by any R4.4 work this session
+(verified: every commit made during this session — `572f4ad0`,
+`477563eb`, `3d025743`, `4fa6bd9e` — touches only scheduling/leveling
+files). They were not present in this session's first full-suite
+baseline (`1122 passed, 1 failed` — only the pagination issue). They
+appear to be a genuine, separate regression from concurrent Financials
+work outside this session's charter and are flagged for the user's
+attention rather than "fixed" blind by an agent with no context on
+that in-progress feature.
