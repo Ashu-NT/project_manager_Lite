@@ -16,10 +16,15 @@ Item {
     property var activityColumns: []
     property string activityTableId: "pm.scheduling.activity.table"
     property var selectedActivityModel: ({ "id": "", "title": "", "statusLabel": "", "fields": [] })
-    property string ganttViewMode: "split"
+    property string ganttViewMode: root.workspaceController
+        ? root.workspaceController.ganttRequestedViewMode
+        : "split"
 
     readonly property bool compact: root.width <= Theme.AppTheme.compactContentBreakpoint
     readonly property bool hasSelection: String(root.selectedActivityModel.id || "").length > 0
+    readonly property bool inspectorInline: root.hasSelection
+        && root.width >= Theme.AppTheme.inspectorWidth + Theme.AppTheme.spacingSm + 1024
+    readonly property bool secondaryControlsInline: root.width >= 1360
     readonly property var ganttTimeAxis: root.workspaceController
         ? root.workspaceController.ganttTimeAxis
         : null
@@ -90,13 +95,21 @@ Item {
         return list.length > 0 ? 0 : -1
     }
 
+    function _requestGanttViewMode(viewMode) {
+        const normalized = String(viewMode || "grid")
+        if (root.workspaceController !== null)
+            root.workspaceController.setGanttRequestedViewMode(normalized)
+        else
+            root.ganttViewMode = normalized
+    }
+
     Component {
         id: inspectorComponent
 
         AppWidgets.InspectorPanel {
             title: String(root.selectedActivityModel.title || "")
             statusLabel: String(root.selectedActivityModel.statusLabel || "")
-            showHeader: !root.compact
+            showHeader: root.inspectorInline
             sections: root.inspectorSections
             busy: root.workspaceController ? root.workspaceController.isBusy : false
             editActionLabel: "Open Task"
@@ -206,6 +219,7 @@ Item {
 
             AppWidgets.TableToolbar {
                 id: activityToolbar
+                objectName: "ganttPrimaryToolbar"
                 Layout.fillWidth: true
                 searchText: root.workspaceController ? root.workspaceController.searchText : ""
                 searchPlaceholder: "Search activities..."
@@ -239,6 +253,7 @@ Item {
 
                 AppControls.CheckBox {
                     text: "Highlight Critical Tasks"
+                    visible: root.secondaryControlsInline
                     checked: root.workspaceController
                         ? root.workspaceController.highlightCriticalTasks
                         : true
@@ -253,6 +268,7 @@ Item {
 
                 AppControls.CheckBox {
                     text: "Dependency Lines"
+                    visible: root.secondaryControlsInline
                     checked: root.workspaceController
                         ? root.workspaceController.showDependencyLines
                         : true
@@ -266,6 +282,7 @@ Item {
                 }
 
                 Row {
+                    visible: root.secondaryControlsInline
                     height: Theme.AppTheme.inputHeight
                     spacing: Theme.AppTheme.spacingXs
 
@@ -306,6 +323,7 @@ Item {
                 }
 
                 Row {
+                    visible: root.secondaryControlsInline
                     height: Theme.AppTheme.inputHeight
                     spacing: Theme.AppTheme.spacingXs
 
@@ -337,6 +355,7 @@ Item {
                 }
 
                 Row {
+                    visible: root.secondaryControlsInline
                     height: Theme.AppTheme.toolbarHeight
                     spacing: Theme.AppTheme.spacingXs
 
@@ -437,8 +456,143 @@ Item {
 
                             HoverHandler { id: viewModeHover; cursorShape: Qt.PointingHandCursor }
                             TapHandler {
-                                onTapped: root.ganttViewMode = String(viewModeButton.modelData.id || "grid")
+                                onTapped: root._requestGanttViewMode(
+                                    String(viewModeButton.modelData.id || "grid")
+                                )
                             }
+                        }
+                    }
+                }
+
+                AppControls.SecondaryButton {
+                    id: ganttOptionsButton
+                    objectName: "ganttOptionsOverflowButton"
+                    visible: !root.secondaryControlsInline
+                    text: "View options"
+                    iconName: "settings"
+                    onClicked: ganttOptionsPopup.open()
+                }
+            }
+
+            AppWidgets.AnchoredPopup {
+                id: ganttOptionsPopup
+                objectName: "ganttOptionsOverflowPopup"
+                anchorItem: ganttOptionsButton
+                placement: "below-right"
+                implicitWidth: 320
+                closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+                contentItem: ColumnLayout {
+                    spacing: Theme.AppTheme.spacingSm
+
+                    AppControls.CheckBox {
+                        text: "Highlight Critical Tasks"
+                        checked: root.workspaceController
+                            ? root.workspaceController.highlightCriticalTasks
+                            : true
+                        enabled: !(root.workspaceController
+                            ? root.workspaceController.isBusy
+                            : false)
+                        onToggled: {
+                            if (root.workspaceController !== null)
+                                root.workspaceController.setHighlightCriticalTasks(checked)
+                        }
+                    }
+
+                    AppControls.CheckBox {
+                        text: "Dependency Lines"
+                        checked: root.workspaceController
+                            ? root.workspaceController.showDependencyLines
+                            : true
+                        enabled: !(root.workspaceController
+                            ? root.workspaceController.isBusy
+                            : false)
+                        onToggled: {
+                            if (root.workspaceController !== null)
+                                root.workspaceController.setShowDependencyLines(checked)
+                        }
+                    }
+
+                    AppControls.Label {
+                        text: "Baseline"
+                        color: Theme.AppTheme.textMuted
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                    }
+
+                    AppControls.ComboBox {
+                        Layout.fillWidth: true
+                        model: root.ganttBaselineOptions
+                        textRole: "label"
+                        valueRole: "value"
+                        enabled: root.workspaceController
+                            ? root.workspaceController.selectedProjectId.length > 0
+                                && !root.workspaceController.isBusy
+                                && !root.workspaceController.ganttBaselineLoading
+                            : false
+                        currentIndex: root._optionIndex(
+                            model,
+                            root.workspaceController
+                                ? root.workspaceController.ganttSelectedBaselineId
+                                : ""
+                        )
+                        onActivated: function(index) {
+                            const option = model[index]
+                            if (option && root.workspaceController !== null)
+                                root.workspaceController.selectGanttBaseline(
+                                    String(option.value || "")
+                                )
+                        }
+                    }
+
+                    AppControls.Label {
+                        text: "Timescale"
+                        color: Theme.AppTheme.textMuted
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                    }
+
+                    AppControls.ComboBox {
+                        Layout.fillWidth: true
+                        model: root.ganttTimeAxis ? root.ganttTimeAxis.timescaleOptions : []
+                        textRole: "label"
+                        valueRole: "value"
+                        searchThreshold: 99
+                        enabled: root.ganttTimeAxis ? root.ganttTimeAxis.hasRange : false
+                        currentIndex: root._optionIndex(
+                            model,
+                            root.ganttTimeAxis ? root.ganttTimeAxis.timescale : "week"
+                        )
+                        onActivated: function(index) {
+                            const option = model[index]
+                            if (option)
+                                ganttSurface.setTimescale(String(option.value || "week"))
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Theme.AppTheme.spacingXs
+
+                        AppControls.SecondaryButton {
+                            Layout.fillWidth: true
+                            text: "-"
+                            enabled: root.ganttTimeAxis ? root.ganttTimeAxis.canZoomOut : false
+                            onClicked: ganttSurface.zoomOut()
+                        }
+                        AppControls.SecondaryButton {
+                            Layout.fillWidth: true
+                            text: root.ganttTimeAxis
+                                ? Math.round(root.ganttTimeAxis.zoomMultiplier * 100) + "%"
+                                : "100%"
+                            enabled: root.ganttTimeAxis ? root.ganttTimeAxis.canResetZoom : false
+                            onClicked: ganttSurface.resetZoom()
+                        }
+                        AppControls.SecondaryButton {
+                            Layout.fillWidth: true
+                            text: "+"
+                            enabled: root.ganttTimeAxis ? root.ganttTimeAxis.canZoomIn : false
+                            onClicked: ganttSurface.zoomIn()
                         }
                     }
                 }
@@ -491,11 +645,15 @@ Item {
 
                 Gantt.SchedulingGanttSurface {
                     id: ganttSurface
+                    objectName: "schedulingGanttSurface"
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     workspaceController: root.workspaceController
                     columns: root.activityColumns
                     requestedViewMode: root.ganttViewMode
+                    requestedSplitRatio: root.workspaceController
+                        ? root.workspaceController.ganttSplitRatio
+                        : 0.5
                     selectedActivityId: root.workspaceController
                         ? root.workspaceController.selectedActivityId
                         : ""
@@ -512,12 +670,17 @@ Item {
                         if (root.workspaceController !== null)
                             root.workspaceController.setActivitySort(key, direction)
                     }
+                    onSplitRatioCommitted: function(ratio) {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setGanttSplitRatio(ratio)
+                    }
                 }
 
                 Loader {
+                    objectName: "ganttInlineInspector"
                     Layout.preferredWidth: Theme.AppTheme.inspectorWidth
                     Layout.fillHeight: true
-                    active: root.hasSelection && !root.compact
+                    active: root.inspectorInline
                     visible: active
                     sourceComponent: inspectorComponent
                 }
@@ -653,8 +816,9 @@ Item {
     }
 
     AppWidgets.SlideOverPanel {
+        objectName: "ganttSlideOverInspector"
         anchors.fill: parent
-        open: root.hasSelection && root.compact
+        open: root.hasSelection && !root.inspectorInline
         panelWidth: Math.min(360, Math.max(240, root.width - 80))
         title: String(root.selectedActivityModel.title || "")
         onCloseRequested: {
@@ -663,7 +827,7 @@ Item {
 
         Loader {
             anchors.fill: parent
-            active: root.hasSelection && root.compact
+            active: root.hasSelection && !root.inspectorInline
             sourceComponent: inspectorComponent
         }
     }

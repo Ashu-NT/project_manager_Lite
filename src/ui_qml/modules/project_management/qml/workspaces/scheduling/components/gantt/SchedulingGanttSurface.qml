@@ -21,14 +21,18 @@ Item {
     property bool highlightCriticalTasks: workspaceController
         ? workspaceController.highlightCriticalTasks
         : true
-    property real requestedGridWidth: 760
-    property real _splitDragStartWidth: 760
+    property real requestedSplitRatio: 0.5
+    property real _splitDragStartRatio: 0.5
+    property real _dragSplitRatio: 0.5
+    property bool _splitDragging: false
     property real _centerAnchorDay: -1
     property real _previousTimelineWidth: 0
     property bool _restoringCenter: false
 
     readonly property bool compact: root.width <= Theme.AppTheme.compactContentBreakpoint
-    readonly property real splitMinimumWidth: 960
+    readonly property real minimumGridWidth: 420
+    readonly property real minimumTimelineWidth: 360
+    readonly property real splitMinimumWidth: minimumGridWidth + minimumTimelineWidth + 6
     readonly property bool splitAvailable: !root.compact && root.width >= root.splitMinimumWidth
     readonly property string effectiveViewMode: root.requestedViewMode === "split"
         && !root.splitAvailable
@@ -37,11 +41,20 @@ Item {
     readonly property bool showGrid: root.effectiveViewMode !== "timeline"
     readonly property bool showTimeline: root.effectiveViewMode !== "grid"
     readonly property real splitterWidth: root.effectiveViewMode === "split" ? 6 : 0
+    readonly property real effectiveSplitRatio: root._splitDragging
+        ? root._dragSplitRatio
+        : root._clampSplitRatio(root.requestedSplitRatio)
     readonly property real gridWidth: root.effectiveViewMode === "grid"
         ? root.width
         : root.effectiveViewMode === "timeline"
             ? 0
-            : Math.max(420, Math.min(root.requestedGridWidth, root.width - 360 - root.splitterWidth))
+            : Math.max(
+                root.minimumGridWidth,
+                Math.min(
+                    root.width * root.effectiveSplitRatio,
+                    root.width - root.minimumTimelineWidth - root.splitterWidth
+                )
+            )
     readonly property real timelineX: root.showGrid ? root.gridWidth + root.splitterWidth : 0
     readonly property real timelineWidth: root.showTimeline
         ? Math.max(0, root.width - root.timelineX)
@@ -71,6 +84,15 @@ Item {
     signal activitySelected(string taskId)
     signal activityActivated(string taskId)
     signal sortRequested(string key, int direction)
+    signal splitRatioCommitted(real ratio)
+    signal hierarchyExpansionRequested(string taskId, bool expanded)
+
+    function _clampSplitRatio(ratio) {
+        if (root.width <= 0) return 0.5
+        const minimum = root.minimumGridWidth / root.width
+        const maximum = (root.width - root.minimumTimelineWidth - 6) / root.width
+        return Math.max(minimum, Math.min(maximum, Number(ratio)))
+    }
 
     function _columnWidth(column) {
         const key = String(column.key || "")
@@ -164,20 +186,34 @@ Item {
 
     function setTimescale(timescale) {
         return root._applyAxisChange(function() {
-            return root.axisModel.setTimescale(timescale)
+            return root.workspaceController
+                ? root.workspaceController.setGanttTimescale(timescale)
+                : root.axisModel.setTimescale(timescale)
         })
     }
 
     function zoomIn() {
-        return root._applyAxisChange(function() { return root.axisModel.zoomIn() })
+        return root._applyAxisChange(function() {
+            return root.workspaceController
+                ? root.workspaceController.ganttZoomIn()
+                : root.axisModel.zoomIn()
+        })
     }
 
     function zoomOut() {
-        return root._applyAxisChange(function() { return root.axisModel.zoomOut() })
+        return root._applyAxisChange(function() {
+            return root.workspaceController
+                ? root.workspaceController.ganttZoomOut()
+                : root.axisModel.zoomOut()
+        })
     }
 
     function resetZoom() {
-        return root._applyAxisChange(function() { return root.axisModel.resetZoom() })
+        return root._applyAxisChange(function() {
+            return root.workspaceController
+                ? root.workspaceController.resetGanttZoom()
+                : root.axisModel.resetZoom()
+        })
     }
 
     function goToToday() {
@@ -288,6 +324,7 @@ Item {
         onSelectionRequested: function(taskId) { root.activitySelected(taskId) }
         onActivationRequested: function(taskId) { root.activityActivated(taskId) }
         onExpansionRequested: function(taskId, expanded) {
+            root.hierarchyExpansionRequested(taskId, expanded)
             if (root.workspaceController !== null)
                 root.workspaceController.setGanttExpanded(taskId, expanded)
         }
@@ -412,15 +449,19 @@ Item {
             xAxis.enabled: true
             yAxis.enabled: false
             onActiveChanged: {
-                if (active) root._splitDragStartWidth = root.requestedGridWidth
+                if (active) {
+                    root._splitDragging = true
+                    root._splitDragStartRatio = root.effectiveSplitRatio
+                    root._dragSplitRatio = root._splitDragStartRatio
+                } else if (root._splitDragging) {
+                    root._splitDragging = false
+                    root.splitRatioCommitted(root._clampSplitRatio(root._dragSplitRatio))
+                }
             }
             onActiveTranslationChanged: {
-                root.requestedGridWidth = Math.max(
-                    420,
-                    Math.min(
-                        root.width - 360 - root.splitterWidth,
-                        root._splitDragStartWidth + activeTranslation.x
-                    )
+                if (!root._splitDragging || root.width <= 0) return
+                root._dragSplitRatio = root._clampSplitRatio(
+                    root._splitDragStartRatio + activeTranslation.x / root.width
                 )
             }
         }

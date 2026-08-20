@@ -109,7 +109,8 @@ def test_compact_inspector_has_one_header_and_activity_id_is_user_facing() -> No
     assert fields[0]["value"] == "TASK-042"
     assert task_id not in {field["value"] for field in fields}
     assert "property bool showHeader: true" in inspector
-    assert "showHeader: !root.compact" in panel
+    assert "showHeader: root.inspectorInline" in panel
+    assert "Theme.AppTheme.inspectorWidth + Theme.AppTheme.spacingSm + 1024" in panel
 
 
 def test_open_task_uses_canonical_pm_entity_navigation() -> None:

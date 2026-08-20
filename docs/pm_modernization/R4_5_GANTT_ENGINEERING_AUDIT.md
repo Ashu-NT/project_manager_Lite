@@ -731,7 +731,7 @@ Names may be adjusted to repository conventions during implementation, but respo
 4. **R4.5D - Time axis, range, timescale, and zoom (COMPLETE):** deterministic complete-project range, two-band header, Week default, Day/Month/Quarter, discrete zoom, Today behavior, non-working shading where authoritative calendar facts permit.
 5. **R4.5E - Dependency visualization (COMPLETE):** Canvas routing, FS/SS/FF/SF anchors, viewport culling, visibility semantics, selection highlighting, lag tooltip/metadata.
 6. **R4.5F - Baseline, milestone, and critical/infeasible layers (COMPLETE):** independent one-bulk-read baseline overlay, explicit current/historical milestone shapes, task-only critical highlight separate from filter, and tested visual precedence. See `R4_5F_GANTT_SEMANTIC_VISUALIZATION.md`.
-7. **R4.5G - Responsive, persistence, keyboard, and performance:** toolbar overflow, five viewport layouts, validated preferences, essential focus/keyboard behavior, 100/1,000/5,000 measurements and tuning.
+7. **R4.5G - Responsive, persistence, keyboard, and performance (COMPLETE):** toolbar overflow, five viewport layouts, validated organization/project-scoped preferences, essential focus/keyboard behavior, and measured 100/1,000/5,000-row hardening. See `R4_5G_GANTT_HARDENING_IMPLEMENTATION.md`.
 8. **R4.5H - Validation and cleanup:** targeted regression matrix, qmllint/offscreen checks, dead old timeline code/qmldir cleanup, documentation/exit reconciliation, no compatibility stubs left behind.
 
 R4.5B must precede visual feature controls. A control ships in the same phase as its complete data/render/test path.
@@ -746,7 +746,7 @@ R4.5B must precede visual feature controls. A control ships in the same phase as
 | R4.5D | COMPLETE: deterministic range and all four scales tested; zoom min/max/reset/anchor tested at runtime; header/body/bar/Today/shading share one X authority; no UI action reruns CPM. |
 | R4.5E | COMPLETE: FS/SS/FF/SF anchors and visibility rules tested; one high-DPI Canvas processes only complete visible/overscan edges through adjacency indexes; no misleading partial connector; selected incident links and measured density fallback are truthful. |
 | R4.5F | COMPLETE: Gantt-local baseline defaults to None and uses one authorized bulk read with no CPM; overlays are indexed and range-safe; current-only, baseline-only, and unscheduled combinations are truthful; explicit milestone facts and critical/infeasible/selection precedence are tested; task-only critical wording avoids fabricated critical-edge semantics. |
-| R4.5G | Five viewports pass geometry and offscreen load tests; preferences fail safe; keyboard essentials pass; measured 100/1,000/5,000 budgets meet section 28 or deviations are resolved, not waived silently. |
+| R4.5G | COMPLETE: five viewports pass runtime geometry tests; actual-content Split and Inspector fallback preserve requested mode; validated organization/project-scoped preferences fail safe without business work; keyboard essentials use the one indexed viewport; 100/1,000/5,000-row, memory, dependency-density, baseline, project-switch, resize, and DPR evidence is recorded in `R4_5G_GANTT_HARDENING_IMPLEMENTATION.md`. |
 | R4.5H | Targeted PM scheduling/domain/shared-QML regressions green; qmllint green; no placeholder, duplicate renderer, unused API, stale qmldir entry, compatibility shim, or dead timeline code remains; closure docs identify any explicitly approved deferment. |
 
 No phase may close on source-string tests alone where runtime QML behavior is material.
@@ -778,11 +778,11 @@ None of these decisions requires changing scheduling semantics.
 
 ## 40. Final Recommendation
 
-Option B remains approved: a specialized integrated Gantt surface with one virtualized row viewport, one horizontal timeline authority, lightweight recycled QML bar delegates, and one viewport-aware Canvas dependency layer. R4.5B through R4.5F are complete; R4.5G is the next phase.
+Option B remains approved: a specialized integrated Gantt surface with one virtualized row viewport, one horizontal timeline authority, lightweight recycled QML bar delegates, and one viewport-aware Canvas dependency layer. R4.5B through R4.5G are complete; R4.5H is the next phase.
 
 R4.5B should first create a typed, disposable, complete-project Gantt projection that merges canonical CPM leaf results with existing hierarchy and dependency facts and selected-baseline snapshots. It must preserve tenant/org/project authorization, expose explicit milestone identity, add historical baseline milestone identity, remove generated activity codes, stop page-derived timeline bounds, eliminate first-row auto-selection, and make selection/detail updates atomic without rerunning CPM.
 
-R4.5C replaced the independently scrolling grid/timeline pair, deleted `gantt_legacy_adapter.py` and `SchedulingTimelinePanel.qml`, and removed visual pagination and duplicate presenter collections. R4.5D then established the single deterministic time-axis contract documented in `R4_5D_GANTT_TIME_AXIS_IMPLEMENTATION.md`. R4.5E added the bounded dependency renderer documented in `R4_5E_GANTT_DEPENDENCY_VISUALIZATION.md`, and R4.5F added the semantic layers documented in `R4_5F_GANTT_SEMANTIC_VISUALIZATION.md`. R4.5G-H continue incrementally while preserving the established enterprise scheduling engine as the sole business authority.
+R4.5C replaced the independently scrolling grid/timeline pair, deleted `gantt_legacy_adapter.py` and `SchedulingTimelinePanel.qml`, and removed visual pagination and duplicate presenter collections. R4.5D then established the single deterministic time-axis contract documented in `R4_5D_GANTT_TIME_AXIS_IMPLEMENTATION.md`. R4.5E added the bounded dependency renderer documented in `R4_5E_GANTT_DEPENDENCY_VISUALIZATION.md`, R4.5F added the semantic layers documented in `R4_5F_GANTT_SEMANTIC_VISUALIZATION.md`, and R4.5G completed responsive, persistence, keyboard, and measured large-project hardening in `R4_5G_GANTT_HARDENING_IMPLEMENTATION.md`. R4.5H now owns only integrated validation and cleanup while preserving the established enterprise scheduling engine as the sole business authority.
 
 ## 41. R4.5F Closure
 
@@ -803,4 +803,30 @@ introduced. The one R4.5E Canvas and density fallback remain unchanged.
 Final focused evidence is `19 passed` for R4.5F, `89 passed` for the combined
 R4.5B-F/planning-IA/desktop-API checkpoint, silent
 changed-QML `qmllint`, and recorded 100/1,000/5,000 overlay measurements. R4.5G
-is the exact next handoff; R4.5G and R5 have not started.
+was the exact handoff at R4.5F closure; section 42 records its completion. R5
+has not started.
+
+## 42. R4.5G Closure
+
+R4.5G is complete. The implementation and measurements are documented in
+`R4_5G_GANTT_HARDENING_IMPLEMENTATION.md`. Responsive behavior now uses the
+actual allocated Gantt surface width, preserves requested versus effective mode,
+keeps 420 px grid and 360 px timeline minimums, moves secondary view controls to
+the established anchored overflow below 1360 px, and uses the existing
+slide-over Inspector whenever inline placement would remove the approved 1024 px
+Gantt budget.
+
+Validated organization-scoped view preferences restore requested mode, split
+ratio, timescale, discrete zoom, dependency visibility, and critical-task
+highlighting without business writes. Baseline ID preference is additionally
+project scoped and is accepted only after the current authorized baseline
+options are loaded. Selection, focus, hierarchy expansion, Inspector state,
+scroll positions, and renderer caches remain transient.
+
+The single indexed row viewport now owns Up/Down/Home/End/Enter and basic tree
+Left/Right behavior. At 5,000 rows, the core viewport retained 20 delegates and
+the combined baseline/dependency/Month/zoom case retained 32. Visible dependency
+lookup remained row-window bounded, baseline merge remained linear, density
+protection remained truthful, and DPR 1.0/1.25/1.5/2.0 runtime probes remained
+green. No R5 capability or broad R8 work was introduced. R4.5H is the sole next
+handoff and owns final integrated validation and cleanup only.

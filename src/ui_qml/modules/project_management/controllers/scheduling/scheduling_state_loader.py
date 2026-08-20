@@ -13,7 +13,7 @@ from .panel_hydrator import hydrate_visible_panel_models, serialize_workspace_pa
 from .gantt_selection import set_gantt_selection
 from .gantt_baseline_actions import (
     clear_gantt_baseline,
-    reload_gantt_baseline_after_workspace,
+    restore_gantt_baseline_after_workspace,
 )
 from .gantt_view_state import refresh_local_gantt_view
 from .state import default_schedule_impact
@@ -103,7 +103,7 @@ def load_workspace_state(controller) -> None:
         set_activity_sort_direction(controller, 1 if ws.sort_direction == "desc" else 0)
         controller._gantt_model.set_projection(ws.gantt_projection)
         controller._gantt_time_axis.set_projection(ws.gantt_projection)
-        reload_gantt_baseline_after_workspace(controller)
+        restore_gantt_baseline_after_workspace(controller)
         panels = serialize_workspace_panels(ws)
         hydrate_visible_panel_models(controller, panels)
         refresh_local_gantt_view(controller)

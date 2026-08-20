@@ -223,6 +223,31 @@ class GanttTimeAxisController(QObject):
         self._rebuild_viewport(force=True)
         return True
 
+    @Slot(str, float, result=bool)
+    def restoreConfiguration(self, timescale: str, zoom_multiplier: float) -> bool:
+        normalized_timescale = str(timescale or "").strip().lower()
+        if normalized_timescale not in _TIMESCALE_BASE_DENSITY:
+            normalized_timescale = "week"
+        try:
+            zoom_index = next(
+                index
+                for index, level in enumerate(_ZOOM_LEVELS)
+                if abs(level - float(zoom_multiplier)) < 0.000_001
+            )
+        except (StopIteration, TypeError, ValueError):
+            zoom_index = _NEUTRAL_ZOOM_INDEX
+        if (
+            normalized_timescale == self._timescale
+            and zoom_index == self._zoom_index
+        ):
+            return True
+        self._timescale = normalized_timescale
+        self._zoom_index = zoom_index
+        self._rebuild_range()
+        self.configurationChanged.emit()
+        self._rebuild_viewport(force=True)
+        return True
+
     @Slot(result=bool)
     def zoomIn(self) -> bool:
         if not self.canZoomIn:

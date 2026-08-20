@@ -321,6 +321,26 @@ class GanttListModel(QAbstractListModel):
             return self._effective_rows[index].task_id
         return ""
 
+    @Slot(int, result=bool)
+    def isSummaryAt(self, index: int) -> bool:
+        return (
+            0 <= index < len(self._effective_rows)
+            and self._effective_rows[index].is_summary
+        )
+
+    @Slot(int, result=bool)
+    def isExpandedAt(self, index: int) -> bool:
+        return (
+            0 <= index < len(self._effective_rows)
+            and self._effective_rows[index].task_id in self._expanded_summary_ids
+        )
+
+    @Slot(int, result=str)
+    def parentTaskIdAt(self, index: int) -> str:
+        if 0 <= index < len(self._effective_rows):
+            return str(self._effective_rows[index].parent_task_id or "")
+        return ""
+
     def contains_effective_task(self, task_id: str) -> bool:
         normalized = str(task_id or "").strip()
         return normalized in self._effective_index_by_task_id

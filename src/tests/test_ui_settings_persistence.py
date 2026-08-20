@@ -91,6 +91,88 @@ def test_app_settings_store_namespaces_unscoped_tenant_state(repo_workspace):
     assert "dashboard/layout" not in all_keys
 
 
+def test_gantt_view_preferences_are_validated_and_organization_scoped(repo_workspace):
+    store, _settings = _store_with_ini(repo_workspace)
+
+    store.save_gantt_view_state(
+        {
+            "requestedViewMode": "timeline",
+            "splitRatio": 0.58,
+            "timescale": "month",
+            "zoomMultiplier": 0.875,
+            "dependencyLinesEnabled": False,
+            "highlightCriticalTasks": False,
+        },
+        organization_id="org-a",
+    )
+    store.save_gantt_view_state(
+        {
+            "requestedViewMode": "grid",
+            "splitRatio": 0.45,
+            "timescale": "week",
+            "zoomMultiplier": 1.25,
+            "dependencyLinesEnabled": True,
+            "highlightCriticalTasks": True,
+        },
+        organization_id="org-b",
+    )
+
+    assert store.load_gantt_view_state(organization_id="org-a") == {
+        "version": 1,
+        "requestedViewMode": "timeline",
+        "splitRatio": 0.58,
+        "timescale": "month",
+        "zoomMultiplier": 0.875,
+        "dependencyLinesEnabled": False,
+        "highlightCriticalTasks": False,
+    }
+    assert store.load_gantt_view_state(organization_id="org-b")["requestedViewMode"] == "grid"
+
+
+def test_gantt_view_preferences_fail_safe_for_malformed_stale_values(repo_workspace):
+    store, settings = _store_with_ini(repo_workspace)
+    settings.setValue(
+        "tenant/org-a/ui/project_management/gantt/view_state",
+        json.dumps(
+            {
+                "version": 999,
+                "requestedViewMode": "unknown",
+                "splitRatio": "wide",
+                "timescale": "year",
+                "zoomMultiplier": 1.1,
+                "dependencyLinesEnabled": "yes",
+                "highlightCriticalTasks": 1,
+            }
+        ),
+    )
+    settings.sync()
+
+    assert store.load_gantt_view_state(organization_id="org-a") == {
+        "version": 1,
+        "requestedViewMode": "split",
+        "splitRatio": 0.5,
+        "timescale": "week",
+        "zoomMultiplier": 1.0,
+        "dependencyLinesEnabled": True,
+        "highlightCriticalTasks": True,
+    }
+
+
+def test_gantt_baseline_preference_is_project_and_organization_scoped(repo_workspace):
+    store, _settings = _store_with_ini(repo_workspace)
+
+    store.save_gantt_project_baseline("project-a", "baseline-a", organization_id="org-a")
+    store.save_gantt_project_baseline("project-b", "baseline-b", organization_id="org-a")
+    store.save_gantt_project_baseline("project-a", "baseline-c", organization_id="org-b")
+
+    assert store.load_gantt_project_baseline("project-a", organization_id="org-a") == "baseline-a"
+    assert store.load_gantt_project_baseline("project-b", organization_id="org-a") == "baseline-b"
+    assert store.load_gantt_project_baseline("project-a", organization_id="org-b") == "baseline-c"
+    store.save_gantt_project_baseline("project-a", "", organization_id="org-a")
+    assert store.load_gantt_project_baseline("project-a", organization_id="org-a") == ""
+    assert store.load_gantt_project_baseline("project-b", organization_id="org-a") == "baseline-b"
+
+
 def test_workspace_controller_base_scopes_table_state_by_runtime_context(
     repo_workspace,
     qapp,

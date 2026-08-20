@@ -23,6 +23,7 @@ def select_gantt_baseline(controller, baseline_id: str) -> None:
     ):
         return
     _load_gantt_baseline(controller, normalized)
+    _persist_gantt_baseline_preference(controller)
 
 
 def retry_gantt_baseline(controller) -> None:
@@ -30,11 +31,32 @@ def retry_gantt_baseline(controller) -> None:
         _load_gantt_baseline(controller, controller._gantt_selected_baseline_id)
 
 
-def reload_gantt_baseline_after_workspace(controller) -> None:
-    selected_id = controller._gantt_selected_baseline_id
-    if not selected_id:
+def restore_gantt_baseline_after_workspace(controller) -> None:
+    project_id = str(controller._selected_project_id or "").strip()
+    if not project_id:
         return
-    _load_gantt_baseline(controller, selected_id)
+    selected_id = str(controller._gantt_selected_baseline_id or "").strip()
+    if not selected_id:
+        selected_id = controller._app_settings.load_gantt_project_baseline(
+            project_id,
+            organization_id=controller._active_organization_id_for_settings(),
+        )
+    option_ids = {
+        str(option.get("value") or "").strip()
+        for option in controller._baseline_options
+    }
+    if selected_id not in option_ids:
+        selected_id = ""
+        controller._app_settings.save_gantt_project_baseline(
+            project_id,
+            "",
+            organization_id=controller._active_organization_id_for_settings(),
+        )
+    if selected_id != controller._gantt_selected_baseline_id:
+        controller._gantt_selected_baseline_id = selected_id
+        controller.ganttSelectedBaselineIdChanged.emit()
+    if selected_id:
+        _load_gantt_baseline(controller, selected_id)
 
 
 def _load_gantt_baseline(controller, baseline_id: str) -> None:
@@ -107,9 +129,20 @@ def _set_error(controller, value: str) -> None:
     controller.ganttBaselineErrorChanged.emit()
 
 
+def _persist_gantt_baseline_preference(controller) -> None:
+    project_id = str(controller._selected_project_id or "").strip()
+    if not project_id:
+        return
+    controller._app_settings.save_gantt_project_baseline(
+        project_id,
+        controller._gantt_selected_baseline_id,
+        organization_id=controller._active_organization_id_for_settings(),
+    )
+
+
 __all__ = [
     "clear_gantt_baseline",
-    "reload_gantt_baseline_after_workspace",
+    "restore_gantt_baseline_after_workspace",
     "retry_gantt_baseline",
     "select_gantt_baseline",
 ]

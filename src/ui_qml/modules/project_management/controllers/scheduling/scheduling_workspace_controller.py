@@ -21,6 +21,16 @@ from .gantt_baseline_actions import (
     select_gantt_baseline,
 )
 from .gantt_time_axis_controller import GanttTimeAxisController
+from .gantt_view_state import (
+    gantt_zoom_in,
+    gantt_zoom_out,
+    persist_gantt_view_preferences,
+    reset_gantt_zoom,
+    restore_gantt_view_preferences,
+    set_gantt_requested_view_mode,
+    set_gantt_split_ratio,
+    set_gantt_timescale,
+)
 from .leveling_actions import apply_resource_leveling, preview_resource_leveling
 from .mutation_handler import SchedulingMutationHandler
 from .scheduling_calculation_actions import (
@@ -134,6 +144,8 @@ class ProjectManagementSchedulingWorkspaceController(
     ganttSelectedBaselineIdChanged = Signal()
     ganttBaselineLoadingChanged = Signal()
     ganttBaselineErrorChanged = Signal()
+    ganttRequestedViewModeChanged = Signal()
+    ganttSplitRatioChanged = Signal()
     activitySortKeyChanged = Signal()
     activitySortDirectionChanged = Signal()
     calendarChanged = Signal()
@@ -220,6 +232,8 @@ class ProjectManagementSchedulingWorkspaceController(
         self._gantt_selected_baseline_id = ""
         self._gantt_baseline_loading = False
         self._gantt_baseline_error = ""
+        self._gantt_requested_view_mode = "split"
+        self._gantt_split_ratio = 0.5
         self._activity_sort_key = "schedule"
         self._activity_sort_direction = 0
         self._selected_activity_id = ""
@@ -254,6 +268,7 @@ class ProjectManagementSchedulingWorkspaceController(
         self._leveling_proposal: dict[str, object] = default_leveling_proposal()
         self._leveling_move_rows: list[dict[str, object]] = []
         self._active_panel_id = "overview"
+        restore_gantt_view_preferences(self)
         bind_scheduling_domain_events(self)
         self.refresh()
 
@@ -336,6 +351,14 @@ class ProjectManagementSchedulingWorkspaceController(
     @Property(str, notify=ganttBaselineErrorChanged)
     def ganttBaselineError(self) -> str:
         return self._gantt_baseline_error
+
+    @Property(str, notify=ganttRequestedViewModeChanged)
+    def ganttRequestedViewMode(self) -> str:
+        return self._gantt_requested_view_mode
+
+    @Property(float, notify=ganttSplitRatioChanged)
+    def ganttSplitRatio(self) -> float:
+        return self._gantt_split_ratio
 
     @Property(str, notify=activitySortKeyChanged)
     def activitySortKey(self) -> str:
@@ -626,6 +649,7 @@ class ProjectManagementSchedulingWorkspaceController(
             return
         self._show_dependency_lines = normalized
         self.showDependencyLinesChanged.emit()
+        persist_gantt_view_preferences(self)
 
     @Slot(bool)
     def setHighlightCriticalTasks(self, enabled: bool) -> None:
@@ -634,6 +658,31 @@ class ProjectManagementSchedulingWorkspaceController(
             return
         self._highlight_critical_tasks = normalized
         self.highlightCriticalTasksChanged.emit()
+        persist_gantt_view_preferences(self)
+
+    @Slot(str)
+    def setGanttRequestedViewMode(self, view_mode: str) -> None:
+        set_gantt_requested_view_mode(self, view_mode)
+
+    @Slot(float)
+    def setGanttSplitRatio(self, ratio: float) -> None:
+        set_gantt_split_ratio(self, ratio)
+
+    @Slot(str, result=bool)
+    def setGanttTimescale(self, timescale: str) -> bool:
+        return set_gantt_timescale(self, timescale)
+
+    @Slot(result=bool)
+    def ganttZoomIn(self) -> bool:
+        return gantt_zoom_in(self)
+
+    @Slot(result=bool)
+    def ganttZoomOut(self) -> bool:
+        return gantt_zoom_out(self)
+
+    @Slot(result=bool)
+    def resetGanttZoom(self) -> bool:
+        return reset_gantt_zoom(self)
 
     @Slot(str)
     def selectGanttBaseline(self, baseline_id: str) -> None:

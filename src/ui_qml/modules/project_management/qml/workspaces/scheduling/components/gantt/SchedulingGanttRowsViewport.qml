@@ -57,6 +57,18 @@ Item {
             rowsList.positionViewAtIndex(index, ListView.Contain)
     }
 
+    function selectIndex(index) {
+        if (root.ganttModel === null) return
+        const boundedIndex = Math.max(
+            0,
+            Math.min(root.ganttModel.rowCountValue - 1, Number(index))
+        )
+        const taskId = root.ganttModel.taskIdAt(boundedIndex)
+        if (taskId.length === 0) return
+        root.selectionRequested(taskId)
+        rowsList.positionViewAtIndex(boundedIndex, ListView.Contain)
+    }
+
     onSelectedActivityIdChanged: revealSelection(false)
 
     ListView {
@@ -77,11 +89,7 @@ Item {
                 ? root.ganttModel.indexOfTask(root.selectedActivityId)
                 : -1
             const target = Math.max(0, current < 0 ? 0 : current - 1)
-            const taskId = root.ganttModel ? root.ganttModel.taskIdAt(target) : ""
-            if (taskId.length > 0) {
-                root.selectionRequested(taskId)
-                rowsList.positionViewAtIndex(target, ListView.Contain)
-            }
+            root.selectIndex(target)
             event.accepted = true
         }
         Keys.onDownPressed: function(event) {
@@ -89,10 +97,44 @@ Item {
                 ? root.ganttModel.indexOfTask(root.selectedActivityId)
                 : -1
             const target = current < 0 ? 0 : current + 1
-            const taskId = root.ganttModel ? root.ganttModel.taskIdAt(target) : ""
-            if (taskId.length > 0) {
-                root.selectionRequested(taskId)
-                rowsList.positionViewAtIndex(target, ListView.Contain)
+            root.selectIndex(target)
+            event.accepted = true
+        }
+        Keys.onPressed: function(event) {
+            if (event.key === Qt.Key_Home) {
+                root.selectIndex(0)
+                event.accepted = true
+            } else if (event.key === Qt.Key_End) {
+                const lastIndex = root.ganttModel
+                    ? root.ganttModel.rowCountValue - 1
+                    : -1
+                if (lastIndex >= 0) root.selectIndex(lastIndex)
+                event.accepted = true
+            }
+        }
+        Keys.onRightPressed: function(event) {
+            const index = root.ganttModel
+                ? root.ganttModel.indexOfTask(root.selectedActivityId)
+                : -1
+            if (index >= 0
+                    && root.ganttModel.isSummaryAt(index)
+                    && !root.ganttModel.isExpandedAt(index)) {
+                root.expansionRequested(root.selectedActivityId, true)
+            }
+            event.accepted = true
+        }
+        Keys.onLeftPressed: function(event) {
+            const index = root.ganttModel
+                ? root.ganttModel.indexOfTask(root.selectedActivityId)
+                : -1
+            if (index >= 0
+                    && root.ganttModel.isSummaryAt(index)
+                    && root.ganttModel.isExpandedAt(index)) {
+                root.expansionRequested(root.selectedActivityId, false)
+            } else if (index >= 0) {
+                const parentTaskId = root.ganttModel.parentTaskIdAt(index)
+                const parentIndex = root.ganttModel.indexOfTask(parentTaskId)
+                if (parentIndex >= 0) root.selectIndex(parentIndex)
             }
             event.accepted = true
         }

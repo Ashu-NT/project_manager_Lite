@@ -113,8 +113,9 @@ def test_planning_responsive_contract_and_retired_panels_remain_enforced() -> No
     assert 'root.requestedViewMode === "split"' in surface
     assert "root.splitAvailable" in surface
     assert "AppWidgets.SlideOverPanel" in gantt
-    assert "root.hasSelection && root.compact" in gantt
-    assert "root.hasSelection && !root.compact" in gantt
+    assert "root.hasSelection && !root.inspectorInline" in gantt
+    assert "root.hasSelection\n        && root.width >= Theme.AppTheme.inspectorWidth" in gantt
+    assert "Theme.AppTheme.inspectorWidth + Theme.AppTheme.spacingSm + 1024" in gantt
 
     for retired_panel in (
         "SchedulingActivityTimelinePanel.qml",

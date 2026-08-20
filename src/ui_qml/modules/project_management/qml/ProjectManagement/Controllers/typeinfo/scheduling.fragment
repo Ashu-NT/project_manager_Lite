@@ -17,6 +17,13 @@ Component {
     Property { name: "searchText"; type: "QString"; isReadonly: true }
     Property { name: "showCriticalOnly"; type: "bool"; isReadonly: true }
     Property { name: "showDelayedOnly"; type: "bool"; isReadonly: true }
+    Property { name: "showDependencyLines"; type: "bool"; isReadonly: true }
+    Property { name: "highlightCriticalTasks"; type: "bool"; isReadonly: true }
+    Property { name: "ganttSelectedBaselineId"; type: "QString"; isReadonly: true }
+    Property { name: "ganttBaselineLoading"; type: "bool"; isReadonly: true }
+    Property { name: "ganttBaselineError"; type: "QString"; isReadonly: true }
+    Property { name: "ganttRequestedViewMode"; type: "QString"; isReadonly: true }
+    Property { name: "ganttSplitRatio"; type: "double"; isReadonly: true }
     Property { name: "activityPage"; type: "int"; isReadonly: true }
     Property { name: "activityPageSize"; type: "int"; isReadonly: true }
     Property { name: "activityTotalCount"; type: "int"; isReadonly: true }
@@ -56,6 +63,15 @@ Component {
     Method { name: "setStatusFilter"; Parameter { name: "statusFilter"; type: "QString" } }
     Method { name: "setShowCriticalOnly"; Parameter { name: "enabled"; type: "bool" } }
     Method { name: "setShowDelayedOnly"; Parameter { name: "enabled"; type: "bool" } }
+    Method { name: "setShowDependencyLines"; Parameter { name: "enabled"; type: "bool" } }
+    Method { name: "setHighlightCriticalTasks"; Parameter { name: "enabled"; type: "bool" } }
+    Method { name: "setGanttRequestedViewMode"; Parameter { name: "viewMode"; type: "QString" } }
+    Method { name: "setGanttSplitRatio"; Parameter { name: "ratio"; type: "double" } }
+    Method { name: "setGanttTimescale"; type: "bool"; Parameter { name: "timescale"; type: "QString" } }
+    Method { name: "ganttZoomIn"; type: "bool" }
+    Method { name: "ganttZoomOut"; type: "bool" }
+    Method { name: "resetGanttZoom"; type: "bool" }
+    Method { name: "selectGanttBaseline"; Parameter { name: "baselineId"; type: "QString" } }
     Method { name: "setActivePanel"; Parameter { name: "panelId"; type: "QString" } }
     Method { name: "clearFilters" }
     Method { name: "selectActivity"; Parameter { name: "activityId"; type: "QString" } }
