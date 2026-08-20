@@ -1,7 +1,7 @@
 // Column configuration for Projects workspace table
 
-function baseColumns() {
-    return [
+function baseColumns(includeApprovedBudget) {
+    const columns = [
         { "key": "title",              "label": "Project",  "flex": 2,   "sortable": true, "required": true, "visibleByDefault": true  },
         { "key": "projectCode",        "label": "Code",     "flex": 0,   "minWidth": 120, "sortable": true,  "visibleByDefault": true  },
         { "key": "statusLabel",        "label": "Status",   "flex": 0,   "minWidth": 110, "type": "status", "required": true, "visibleByDefault": true  },
@@ -10,8 +10,11 @@ function baseColumns() {
         { "key": "clientContact",      "label": "Contact",  "flex": 1.5,                                     "visibleByDefault": false },
         { "key": "startDateLabel",     "label": "Start",    "flex": 0,   "minWidth": 90,                     "visibleByDefault": true  },
         { "key": "endDateLabel",       "label": "Finish",   "flex": 0,   "minWidth": 90,                     "visibleByDefault": true  },
-        { "key": "approvedBudgetLabel", "label": "Approved Budget", "flex": 0, "minWidth": 130, "visibleByDefault": true }
+        { "key": "approvedBudgetLabel", "label": "Approved Budget", "flex": 0, "minWidth": 130, "sortable": true, "visibleByDefault": true }
     ]
+    return includeApprovedBudget === true
+        ? columns
+        : columns.filter(function(column) { return column.key !== "approvedBudgetLabel" })
 }
 
 function applyColumnState(base, saved) {

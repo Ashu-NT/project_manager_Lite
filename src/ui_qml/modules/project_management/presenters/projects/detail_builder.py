@@ -18,27 +18,35 @@ def build_detail_view_model(project: Any) -> ProjectDetailViewModel:
     state = build_project_state(project)
     client_label = state["clientLabel"] or "No client assigned"
     site_label = state["siteLabel"] or "No site assigned"
+    fields = [
+        ProjectDetailFieldViewModel(
+            label="Client",
+            value=client_label,
+            supporting_text=state["clientContact"] or "No client contact recorded",
+        ),
+        ProjectDetailFieldViewModel(label="Start", value=state["startDateLabel"]),
+        ProjectDetailFieldViewModel(label="Finish", value=state["endDateLabel"]),
+    ]
+    if state["approvedBudgetVisible"]:
+        fields.append(
+            ProjectDetailFieldViewModel(
+                label="Approved Budget",
+                value=state["approvedBudgetLabel"],
+                supporting_text=state["approvedBudgetCurrency"],
+            )
+        )
+    fields.extend(
+        (
+            ProjectDetailFieldViewModel(label="Site", value=site_label),
+            ProjectDetailFieldViewModel(label="Version", value=str(state["version"])),
+        )
+    )
     return ProjectDetailViewModel(
         id=project.id,
         title=project.name,
         status_label=project.status_label,
         subtitle=client_label,
         description=project.description or "No project description has been added yet.",
-        fields=(
-            ProjectDetailFieldViewModel(
-                label="Client",
-                value=client_label,
-                supporting_text=state["clientContact"] or "No client contact recorded",
-            ),
-            ProjectDetailFieldViewModel(label="Start", value=state["startDateLabel"]),
-            ProjectDetailFieldViewModel(label="Finish", value=state["endDateLabel"]),
-            ProjectDetailFieldViewModel(
-                label="Budget",
-                value=state["approvedBudgetLabel"],
-                supporting_text=state["financialCurrencyCode"] or "Finance profile not configured",
-            ),
-            ProjectDetailFieldViewModel(label="Site", value=site_label),
-            ProjectDetailFieldViewModel(label="Version", value=str(state["version"])),
-        ),
+        fields=tuple(fields),
         state=state,
     )

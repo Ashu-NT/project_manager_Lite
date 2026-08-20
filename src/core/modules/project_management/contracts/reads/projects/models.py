@@ -13,6 +13,8 @@ class ProjectCatalogReadItem:
     site_label: str = ""
     financial_currency_code: str = ""
     approved_budget: Decimal | None = None
+    approved_budget_currency: str = ""
+    approved_budget_visible: bool = False
     client_label: str = ""
 
 
@@ -33,6 +35,7 @@ class ProjectCatalogReadPage:
     page_size: int = 25
     summary: ProjectCatalogSummary = ProjectCatalogSummary()
     sort: ReadSort = ReadSort("title")
+    approved_budget_visible: bool = False
 
 
 @dataclass(frozen=True, slots=True)

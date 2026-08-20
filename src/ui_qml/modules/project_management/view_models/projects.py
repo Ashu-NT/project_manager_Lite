@@ -83,6 +83,7 @@ class ProjectCatalogWorkspaceViewModel:
     page_size: int = 25
     sort_key: str = "title"
     sort_direction: str = "asc"
+    approved_budget_visible: bool = False
     
     project_tasks: ProjectSectionCollectionViewModel = field(
     default_factory=lambda: ProjectSectionCollectionViewModel(

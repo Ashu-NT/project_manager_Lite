@@ -139,6 +139,18 @@ class ProjectManagementProjectsDesktopApi:
                     department_lookup=department_lookup,
                     financial_currency_code=item.financial_currency_code,
                     approved_budget=item.approved_budget,
+                    approved_budget_currency=getattr(
+                        item,
+                        "approved_budget_currency",
+                        item.financial_currency_code,
+                    ),
+                    approved_budget_visible=bool(
+                        getattr(
+                            item,
+                            "approved_budget_visible",
+                            item.approved_budget is not None,
+                        )
+                    ),
                     client_label=item.client_label,
                 )
                 for item in result.items
@@ -153,12 +165,43 @@ class ProjectManagementProjectsDesktopApi:
             page_size=result.page_size,
             sort_key=result.sort.key,
             sort_direction=result.sort.direction.value,
+            approved_budget_visible=bool(
+                getattr(
+                    result,
+                    "approved_budget_visible",
+                    any(
+                        bool(
+                            getattr(
+                                item,
+                                "approved_budget_visible",
+                                item.approved_budget is not None,
+                            )
+                        )
+                        for item in result.items
+                    ),
+                )
+            ),
         )
 
     def get_project(self, project_id: str) -> ProjectDesktopDto | None:
         normalized_id = str(project_id or "").strip()
         if not normalized_id or self._project_service is None:
             return None
+        query_detail = getattr(self._project_service, "query_project_detail", None)
+        if callable(query_detail):
+            item = query_detail(normalized_id)
+            if item is None:
+                return None
+            return serialize_project(
+                item.project,
+                site_lookup={str(item.project.site_id or ""): item.site_label},
+                department_lookup=self._department_lookup(),
+                financial_currency_code=item.financial_currency_code,
+                approved_budget=item.approved_budget,
+                approved_budget_currency=item.approved_budget_currency,
+                approved_budget_visible=item.approved_budget_visible,
+                client_label=item.client_label,
+            )
         project = self._project_service.get_project(normalized_id)
         if project is None:
             return None

@@ -123,6 +123,7 @@ def build_workspace_state(
         page_size=project_page.page_size,
         sort_key=project_page.sort_key,
         sort_direction=project_page.sort_direction,
+        approved_budget_visible=project_page.approved_budget_visible,
     )
 
 

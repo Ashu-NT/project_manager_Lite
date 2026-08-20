@@ -39,3 +39,4 @@ tmp_reports/
 .pytest_tmp/
 .pytest_workspaces/
 main.py
+.pytest_appdata/

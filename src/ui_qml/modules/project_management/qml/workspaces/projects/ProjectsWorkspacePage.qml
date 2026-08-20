@@ -65,15 +65,21 @@ AppLayouts.WorkspaceFrame {
         const item = root._inspectorItem
         if (!item) return []
         const s = item.state || {}
-        return [
+        const sections = [
             { "label": "Client", "value": String(s.clientLabel || "") },
             { "label": "Site", "value": String(s.siteLabel || "") },
             { "label": "Department", "value": String(s.departmentLabel || "") },
             { "label": "Start", "value": String(s.startDateLabel || "") },
             { "label": "Finish", "value": String(s.endDateLabel || "") },
-            { "label": "Approved Budget", "value": String(s.approvedBudgetLabel || "") },
             { "label": "Contact", "value": String(s.clientContact || "") }
         ]
+        if (s.approvedBudgetVisible === true) {
+            sections.splice(5, 0, {
+                "label": "Approved Budget",
+                "value": String(s.approvedBudgetLabel || "")
+            })
+        }
+        return sections
     }
 
     function _clearInspectorSelection() {

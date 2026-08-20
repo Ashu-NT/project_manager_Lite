@@ -50,6 +50,10 @@ Item {
             "state": {}
         })
 
+    readonly property bool approvedBudgetVisible: Boolean(
+        root.projectsModel.approvedBudgetVisible
+    )
+
     readonly property var projectTasksModel: root.workspaceController
         ? root.workspaceController.projectTasks
         : ({ "title": "Tasks", "subtitle": "", "emptyState": "Open this section to load project tasks.", "items": [] })
@@ -89,7 +93,7 @@ Item {
     property var columns: []
 
     function initializeColumns() {
-        const base = ColumnConfig.baseColumns()
+        const base = ColumnConfig.baseColumns(root.approvedBudgetVisible)
         if (root.workspaceController !== null) {
             const saved = root.workspaceController.loadTableColumnState(root.tableId)
             root.columns = ColumnConfig.applyColumnState(base, saved)
@@ -138,5 +142,11 @@ Item {
 
     Component.onCompleted: {
         root.initializeColumns()
+    }
+
+    Connections {
+        target: root.workspaceController
+        enabled: root.workspaceController !== null
+        function onProjectsChanged() { root.initializeColumns() }
     }
 }

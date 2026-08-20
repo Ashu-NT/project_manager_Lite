@@ -59,7 +59,7 @@ def format_signed_money(value: DesktopNumericInput | None) -> str:
 
 def format_budget(value: DesktopNumericInput | None, currency: str | None) -> str:
     if value is None:
-        return "Not set"
+        return "No approved budget"
     return format_money(value, currency)
 
 

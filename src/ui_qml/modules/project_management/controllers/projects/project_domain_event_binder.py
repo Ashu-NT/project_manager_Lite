@@ -4,6 +4,7 @@ from __future__ import annotations
 def bind_project_domain_events(controller) -> None:
     controller._subscribe_domain_change(
         "project",
+        "project_budget",
         "portfolio_entity",
         scope_code="project_management",
     )

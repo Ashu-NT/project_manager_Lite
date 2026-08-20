@@ -21,7 +21,7 @@ def test_financial_formatting_uses_decimal_rounding_and_currency_minor_units() -
 
 
 def test_financial_formatting_preserves_desktop_fallback_contracts() -> None:
-    assert format_budget(None, "EUR") == "Not set"
+    assert format_budget(None, "EUR") == "No approved budget"
     assert format_hourly_rate(None, "EUR") == "Rate not set"
     assert format_money(None, fallback="No limit") == "No limit"
     assert format_money("12.5", "USD") == "USD 12.50"

@@ -425,6 +425,7 @@ class ProjectManagementProjectsWorkspaceController(
                     "title": "Project Catalog",
                     "subtitle": "Create, edit, and review project lifecycle records.",
                     "emptyState": workspace_state.empty_state,
+                    "approvedBudgetVisible": workspace_state.approved_budget_visible,
                     "items": serialize_project_record_view_models(
                         workspace_state.projects
                     ),

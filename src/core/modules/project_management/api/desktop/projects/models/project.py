@@ -23,6 +23,8 @@ class ProjectDesktopDto:
     client_contact: str | None
     approved_budget: str | None
     approved_budget_label: str
+    approved_budget_currency: str
+    approved_budget_visible: bool
     financial_currency_code: str
     organization_id: str | None
     site_id: str | None
@@ -48,6 +50,7 @@ class ProjectCatalogPageDesktopDto:
     page_size: int = 25
     sort_key: str = "title"
     sort_direction: str = "asc"
+    approved_budget_visible: bool = False
 
 
 __all__ = ["ProjectCatalogPageDesktopDto", "ProjectDesktopDto", "ProjectStatusDescriptor"]

@@ -200,6 +200,7 @@ Item {
 
                     ColumnLayout {
                         Layout.fillWidth: true
+                        visible: (root.projectDetail.state || {}).approvedBudgetVisible === true
                         spacing: 2
                         AppControls.Label {
                             text: "Budget"
@@ -220,6 +221,7 @@ Item {
 
                     ColumnLayout {
                         Layout.fillWidth: true
+                        visible: (root.projectDetail.state || {}).approvedBudgetVisible === true
                         spacing: 2
                         AppControls.Label {
                             text: "Currency"
@@ -230,7 +232,7 @@ Item {
                         }
                         AppControls.Label {
                             Layout.fillWidth: true
-                            text: root._sv("financialCurrencyCode") || "-"
+                            text: root._sv("approvedBudgetCurrency") || "-"
                             color: Theme.AppTheme.textPrimary
                             font.family: Theme.AppTheme.fontFamily
                             font.pixelSize: Theme.AppTheme.smallSize

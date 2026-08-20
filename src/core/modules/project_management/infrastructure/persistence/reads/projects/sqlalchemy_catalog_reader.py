@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, literal, or_, select
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.reads.projects import (
@@ -45,6 +45,7 @@ class SqlAlchemyProjectCatalogReader:
         tenant_id: str,
         organization_id: str,
         allowed_project_ids: tuple[str, ...] | None,
+        finance_allowed_project_ids: tuple[str, ...] | None,
         search_text: str,
         status: ProjectStatus | None,
         project_name: str | None = None,
@@ -135,23 +136,8 @@ class SqlAlchemyProjectCatalogReader:
         filtered_total = int(
             self._session.scalar(select(func.count(ProjectORM.id)).where(*filtered)) or 0
         )
-        approved_budget = (
-            select(func.sum(BudgetLineORM.amount))
-            .join(
-                ProjectBudgetORM,
-                (ProjectBudgetORM.id == BudgetLineORM.budget_id)
-                & (ProjectBudgetORM.tenant_id == BudgetLineORM.tenant_id)
-                & (ProjectBudgetORM.organization_id == BudgetLineORM.organization_id)
-                & (ProjectBudgetORM.project_id == BudgetLineORM.project_id),
-            )
-            .where(
-                ProjectBudgetORM.tenant_id == ProjectORM.tenant_id,
-                ProjectBudgetORM.organization_id == ProjectORM.organization_id,
-                ProjectBudgetORM.project_id == ProjectORM.id,
-                ProjectBudgetORM.status == "approved",
-            )
-            .correlate(ProjectORM)
-            .scalar_subquery()
+        approved_budget, approved_budget_currency, approved_budget_visible = (
+            self._approved_budget_projections(finance_allowed_project_ids)
         )
         resolved_client_name = func.coalesce(PartyORM.party_name, ProjectORM.client_name, "")
         rows_stmt = (
@@ -160,6 +146,8 @@ class SqlAlchemyProjectCatalogReader:
                 SiteORM.name,
                 ProjectFinancialProfileORM.currency_code,
                 approved_budget.label("approved_budget"),
+                approved_budget_currency.label("approved_budget_currency"),
+                approved_budget_visible.label("approved_budget_visible"),
                 resolved_client_name.label("client_label"),
             )
             .outerjoin(
@@ -213,11 +201,21 @@ class SqlAlchemyProjectCatalogReader:
                 ProjectCatalogReadItem(
                     project=project_from_orm(project_row),
                     site_label=str(site_name or ""),
-                    financial_currency_code=str(currency_code or ""),
+                    financial_currency_code=str(financial_currency_code or ""),
                     approved_budget=approved_budget_value,
+                    approved_budget_currency=str(approved_budget_currency_value or ""),
+                    approved_budget_visible=bool(approved_budget_visible_value),
                     client_label=str(client_label_value or ""),
                 )
-                for project_row, site_name, currency_code, approved_budget_value, client_label_value in rows
+                for (
+                    project_row,
+                    site_name,
+                    financial_currency_code,
+                    approved_budget_value,
+                    approved_budget_currency_value,
+                    approved_budget_visible_value,
+                    client_label_value,
+                ) in rows
             ),
             filtered_total=filtered_total,
             page=page,
@@ -225,6 +223,122 @@ class SqlAlchemyProjectCatalogReader:
             summary=summary,
             sort=sort,
         )
+
+    def read_one(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        project_id: str,
+        include_approved_budget: bool,
+    ) -> ProjectCatalogReadItem | None:
+        approved_budget, approved_budget_currency, approved_budget_visible = (
+            self._approved_budget_projections(None if include_approved_budget else ())
+        )
+        resolved_client_name = func.coalesce(PartyORM.party_name, ProjectORM.client_name, "")
+        row = self._session.execute(
+            select(
+                ProjectORM,
+                SiteORM.name,
+                ProjectFinancialProfileORM.currency_code,
+                approved_budget.label("approved_budget"),
+                approved_budget_currency.label("approved_budget_currency"),
+                approved_budget_visible.label("approved_budget_visible"),
+                resolved_client_name.label("client_label"),
+            )
+            .outerjoin(
+                SiteORM,
+                (SiteORM.id == ProjectORM.site_id)
+                & (SiteORM.tenant_id == ProjectORM.tenant_id)
+                & (SiteORM.organization_id == ProjectORM.organization_id),
+            )
+            .outerjoin(
+                ProjectFinancialProfileORM,
+                (ProjectFinancialProfileORM.project_id == ProjectORM.id)
+                & (ProjectFinancialProfileORM.tenant_id == ProjectORM.tenant_id)
+                & (ProjectFinancialProfileORM.organization_id == ProjectORM.organization_id),
+            )
+            .outerjoin(
+                PartyORM,
+                (PartyORM.id == ProjectORM.client_party_id)
+                & (PartyORM.organization_id == ProjectORM.organization_id),
+            )
+            .where(
+                ProjectORM.tenant_id == tenant_id,
+                ProjectORM.organization_id == organization_id,
+                ProjectORM.id == project_id,
+            )
+            .limit(1)
+        ).one_or_none()
+        if row is None:
+            return None
+        (
+            project_row,
+            site_name,
+            financial_currency_code,
+            approved_budget_value,
+            approved_budget_currency_value,
+            approved_budget_visible_value,
+            client_label_value,
+        ) = row
+        return ProjectCatalogReadItem(
+            project=project_from_orm(project_row),
+            site_label=str(site_name or ""),
+            financial_currency_code=str(financial_currency_code or ""),
+            approved_budget=approved_budget_value,
+            approved_budget_currency=str(approved_budget_currency_value or ""),
+            approved_budget_visible=bool(approved_budget_visible_value),
+            client_label=str(client_label_value or ""),
+        )
+
+    @staticmethod
+    def _approved_budget_projections(
+        finance_allowed_project_ids: tuple[str, ...] | None,
+    ):
+        if finance_allowed_project_ids == ():
+            return literal(None), literal(""), literal(False)
+
+        finance_scope_filters = ()
+        if finance_allowed_project_ids is not None:
+            finance_scope_filters = (ProjectORM.id.in_(finance_allowed_project_ids),)
+
+        approved_budget = (
+            select(func.sum(BudgetLineORM.amount))
+            .join(
+                ProjectBudgetORM,
+                (ProjectBudgetORM.id == BudgetLineORM.budget_id)
+                & (ProjectBudgetORM.tenant_id == BudgetLineORM.tenant_id)
+                & (ProjectBudgetORM.organization_id == BudgetLineORM.organization_id)
+                & (ProjectBudgetORM.project_id == BudgetLineORM.project_id),
+            )
+            .where(
+                ProjectBudgetORM.tenant_id == ProjectORM.tenant_id,
+                ProjectBudgetORM.organization_id == ProjectORM.organization_id,
+                ProjectBudgetORM.project_id == ProjectORM.id,
+                ProjectBudgetORM.status == "approved",
+                *finance_scope_filters,
+            )
+            .correlate(ProjectORM)
+            .scalar_subquery()
+        )
+        approved_budget_currency = (
+            select(ProjectBudgetORM.currency_code)
+            .where(
+                ProjectBudgetORM.tenant_id == ProjectORM.tenant_id,
+                ProjectBudgetORM.organization_id == ProjectORM.organization_id,
+                ProjectBudgetORM.project_id == ProjectORM.id,
+                ProjectBudgetORM.status == "approved",
+                *finance_scope_filters,
+            )
+            .correlate(ProjectORM)
+            .scalar_subquery()
+        )
+        approved_budget_visible = (
+            literal(True)
+            if finance_allowed_project_ids is None
+            else ProjectORM.id.in_(finance_allowed_project_ids)
+        )
+        return approved_budget, approved_budget_currency, approved_budget_visible
 
 
 __all__ = ["SqlAlchemyProjectCatalogReader"]

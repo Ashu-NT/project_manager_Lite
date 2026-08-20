@@ -51,7 +51,7 @@ def test_project_management_projects_desktop_api_mutates_project_records() -> No
     listed = api.list_projects()
 
     assert created.status == "ACTIVE"
-    assert listed[0].approved_budget_label == "Not set"
+    assert listed[0].approved_budget_label == ""
     assert listed[0].status_label == "Active"
 
     updated = api.update_project(
@@ -70,7 +70,7 @@ def test_project_management_projects_desktop_api_mutates_project_records() -> No
 
     assert updated.name == "Plant Upgrade Phase 1"
     assert updated.status == "ON_HOLD"
-    assert updated.approved_budget_label == "Not set"
+    assert updated.approved_budget_label == ""
 
     completed = api.set_project_status(created.id, "COMPLETED")
 

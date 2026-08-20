@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 
 from src.core.modules.project_management.access.scope_permissions import (
@@ -91,10 +92,12 @@ class ProjectQueryMixin:
             allowed_project_ids = tuple(
                 sorted(self._user_session.project_ids_for("project.read"))
             )
+        finance_allowed_project_ids = self._finance_allowed_project_ids()
         read_kwargs = dict(
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,
             allowed_project_ids=allowed_project_ids,
+            finance_allowed_project_ids=finance_allowed_project_ids,
             search_text=str(search_text or "").strip(),
             status=status,
             project_name=project_name,
@@ -119,7 +122,52 @@ class ProjectQueryMixin:
         if normalized_page != result.page:
             read_kwargs["page"] = normalized_page
             result = self._project_catalog_reader.read_page(**read_kwargs)
-        return result
+        return replace(
+            result,
+            approved_budget_visible=self._can_read_any_project_finance(),
+        )
+
+    def query_project_detail(self, project_id: str):
+        require_permission(self._user_session, "project.read", operation_label="view project")
+        normalized_project_id = str(project_id or "").strip()
+        if not normalized_project_id:
+            return None
+        require_project_permission(
+            self._user_session,
+            normalized_project_id,
+            "project.read",
+            operation_label="view project",
+        )
+        if self._project_catalog_reader is None or self._tenant_context_service is None:
+            raise RuntimeError("Project catalog reader is not configured.")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view project"
+        )
+        can_read_finance = bool(
+            self._user_session is not None
+            and self._user_session.has_project_permission(
+                normalized_project_id, "finance.read"
+            )
+        )
+        return self._project_catalog_reader.read_one(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=normalized_project_id,
+            include_approved_budget=can_read_finance,
+        )
+
+    def _finance_allowed_project_ids(self) -> tuple[str, ...] | None:
+        if self._user_session is None or not self._user_session.has_permission("finance.read"):
+            return ()
+        if self._user_session.is_project_restricted():
+            return tuple(sorted(self._user_session.project_ids_for("finance.read")))
+        return None
+
+    def _can_read_any_project_finance(self) -> bool:
+        return bool(
+            self._user_session is not None
+            and self._user_session.has_any_project_access("finance.read")
+        )
 
     def list_for_task_workspace(self) -> list[Project]:
         permission_codes = ("project.read", "task.read", "task.manage")
