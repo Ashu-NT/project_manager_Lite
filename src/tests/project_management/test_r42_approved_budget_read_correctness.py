@@ -199,7 +199,7 @@ def test_project_scoped_finance_access_redacts_only_unauthorized_project(service
 
 
 def test_approved_budget_sort_is_numeric_stable_and_cross_page(services) -> None:
-    values = ("9", "100", "1000", None)
+    values = ("9", "100", "1000", None, "100")
     projects = []
     for index, amount in enumerate(values):
         project = services["project_service"].create_project(f"Budget Sort {index}")
@@ -209,7 +209,7 @@ def test_approved_budget_sort_is_numeric_stable_and_cross_page(services) -> None
 
     ascending = [
         item
-        for page in (1, 2)
+        for page in (1, 2, 3)
         for item in services["project_service"].query_catalog_page(
             sort_key="approvedBudgetLabel",
             sort_direction="asc",
@@ -219,7 +219,7 @@ def test_approved_budget_sort_is_numeric_stable_and_cross_page(services) -> None
     ]
     descending = [
         item
-        for page in (1, 2)
+        for page in (1, 2, 3)
         for item in services["project_service"].query_catalog_page(
             sort_key="approvedBudgetLabel",
             sort_direction="desc",
@@ -231,14 +231,21 @@ def test_approved_budget_sort_is_numeric_stable_and_cross_page(services) -> None
     assert [item.approved_budget for item in ascending if item.approved_budget is not None] == [
         Decimal("9"),
         Decimal("100"),
+        Decimal("100"),
         Decimal("1000"),
     ]
     assert [item.approved_budget for item in descending if item.approved_budget is not None] == [
         Decimal("1000"),
         Decimal("100"),
+        Decimal("100"),
         Decimal("9"),
     ]
     assert {item.project.id for item in ascending} == {project.id for project in projects}
+    assert [
+        item.project.id for item in ascending if item.approved_budget == Decimal("100")
+    ] == sorted(
+        item.project.id for item in ascending if item.approved_budget == Decimal("100")
+    )
 
 
 def test_only_currently_approved_budget_is_projected(services) -> None:

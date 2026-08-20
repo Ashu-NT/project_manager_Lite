@@ -694,3 +694,124 @@ No Project ORM column, Project domain field, or Project repository write is requ
 7. Which roles may create/submit versus approve budgets in the first desktop rollout? Existing permission split is `budget.manage`, `budget.approve`, `approval.request`, and `approval.decide`.
 
 Until these decisions and backend corrections are resolved, no Approved Budget input should be added to `ProjectEditorDialog.qml`.
+
+## 46. Implementation Decision - R4.2 Read Correctness Patch
+
+Status: **implemented and closed**. This is a read-only correctness and security
+follow-up to the closed R4.2 Projects redesign. It does not begin Finance budget
+management, R4.5, R5, or R6.
+
+### Ownership and write boundary
+
+- Approved Budget remains owned by Finance as the sum of `BudgetLine.amount`
+  for the one `ProjectBudget` whose current status is `approved`.
+- Project domain, Project ORM, Project repository writes, Project create/update
+  commands, and `ProjectEditorDialog.qml` remain free of Approved Budget and
+  `planned_budget` fields.
+- The Projects capability consumes this value only through an immutable CQRS
+  read projection. No second financial source of truth was introduced.
+
+### Authorization decision
+
+- The existing `finance.read` permission governs the Approved Budget fact.
+- `project.read` plus authorized `finance.read` returns the amount and its
+  approved Budget currency.
+- `project.read` without `finance.read` returns `approved_budget=None`, an empty
+  approved-budget currency and label, and `approved_budget_visible=False` at
+  the read/desktop DTO boundary.
+- Project-scoped Finance grants are applied per row. A principal may see an
+  authorized project's amount while another visible project's amount remains
+  redacted.
+- QML removes the catalog column when no Finance access is available and hides
+  the Inspector and Overview budget surfaces from redacted project rows. QML
+  never receives a hidden amount and is not the security boundary.
+
+### Projection correctness and parity
+
+- The SQL reader obtains the approved amount and `ProjectBudget.currency_code`
+  under the same tenant, organization, project, approved-status, and Finance
+  scope predicates.
+- Financial Profile currency remains a separate configuration fact; it is no
+  longer used to label Approved Budget.
+- `ProjectCatalogReader.read_one()` provides a bounded single-project SQL read.
+  `ProjectManagementProjectsDesktopApi.get_project()` uses it instead of
+  list-then-filter or a Finance-service N+1 call.
+- Catalog, Inspector and Project detail now share the same amount, currency and
+  authorization visibility semantics.
+- If no budget is currently approved, authorized readers see
+  `No approved budget`; closed and superseded amounts are not presented as
+  current authorization and absence is not rendered as zero.
+
+### Invalidation and sorting
+
+- Projects now subscribes to `project_budget` domain changes through its
+  existing domain-event invalidation path. Existing busy/loading queuing,
+  selected-project state, lazy loading and tenant/organization context behavior
+  are preserved.
+- The Approved Budget column declares `sortable: true` and remains server-owned.
+  SQL orders by the Numeric/Decimal aggregate, not formatted text, with the
+  existing ascending project-ID tie-breaker for deterministic pagination.
+- Null/currently-unapproved rows remain null facts; no client-side money sort
+  was added.
+
+### Verification
+
+Focused regression coverage proves:
+
+- real database-backed multi-line sums;
+- approved Budget currency differing from Financial Profile currency;
+- authorized catalog, Inspector and detail parity;
+- deny-safe catalog DTO, detail DTO, presenter state and QML behavior;
+- project-scoped Finance authorization and project correlation;
+- tenant and organization isolation on the bounded detail reader;
+- no-approved, approved, superseded, closed and successor-approved lifecycle
+  projection behavior;
+- ascending/descending numeric sorting across pages, null rows, and stable
+  equal-value project-ID ordering;
+- `project_budget` refresh plus queued refresh while busy;
+- unchanged Project write models and editor inputs;
+- constant query budgets, shared Portfolio-reader compatibility, QML route
+  loading, and CQRS reader architecture guardrails.
+
+### Explicit deferral and next stage
+
+No Budget create/edit/line, submit, approve, reject, close, successor, Manage
+Budget, initial estimate, or Budget Request UI was added. Those workflows remain
+R6 Finance scope. No Gantt work was included in this patch.
+
+### Exit gate
+
+| # | Gate | Result |
+|---:|---|---|
+| 1 | Approved Budget absent from Project domain | PASS |
+| 2 | Approved Budget absent from Project ORM | PASS |
+| 3 | Approved Budget absent from Project Create | PASS |
+| 4 | Approved Budget absent from Project Edit | PASS |
+| 5 | `finance.read` protects the fact | PASS |
+| 6 | `project.read` alone does not disclose totals | PASS |
+| 7 | QML does not leak unauthorized values | PASS |
+| 8 | Currency comes from approved `ProjectBudget` | PASS |
+| 9 | Catalog amount/currency pair is authoritative | PASS |
+| 10 | Single-project detail matches catalog | PASS |
+| 11 | Inspector matches catalog | PASS |
+| 12 | No Python N+1 introduced | PASS |
+| 13 | `project_budget` refreshes Projects | PASS |
+| 14 | Busy/loading queued refresh preserved | PASS |
+| 15 | Approved Budget sorting reachable in QML | PASS |
+| 16 | Sorting numeric and server-side | PASS |
+| 17 | Null/currently-unapproved wording truthful | PASS |
+| 18 | Tenant isolation preserved | PASS |
+| 19 | Organization isolation preserved | PASS |
+| 20 | Relevant backend tests pass | PASS |
+| 21 | Relevant QML tests pass | PASS |
+| 22 | Relevant architecture guardrails pass | PASS |
+| 23 | No Finance Budget write UI started | PASS |
+| 24 | No Manage Budget action added | PASS |
+| 25 | No Initial/Estimated Budget feature added | PASS |
+| 26 | No R4.5 work started | PASS |
+| 27 | No R5/R6 work started | PASS |
+| 28 | No assistant commit | PASS; external team commit `cfd1ff4f` landed during validation |
+
+Approved sequence after this closure:
+
+`R4.2 Approved Budget correctness patch -> CLOSED -> R4.5 Gantt modernization`
