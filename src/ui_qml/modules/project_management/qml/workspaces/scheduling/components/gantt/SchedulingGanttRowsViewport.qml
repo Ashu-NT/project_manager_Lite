@@ -25,6 +25,7 @@ Item {
     readonly property int rowHeight: Theme.AppTheme.compactRowHeight
     readonly property int activeDelegateCount: _delegateCount
     readonly property real verticalContentY: rowsList.contentY
+    readonly property real verticalOriginY: rowsList.originY
     readonly property int overscanRowCount: 4
     readonly property int firstVisibleIndex: ganttModel && ganttModel.rowCountValue > 0
         ? Math.max(0, Math.floor(Math.max(0, rowsList.contentY) / rowHeight))

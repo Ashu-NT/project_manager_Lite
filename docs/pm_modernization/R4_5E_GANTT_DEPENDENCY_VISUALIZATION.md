@@ -1,7 +1,7 @@
 # R4.5E Gantt Dependency Visualization
 
-**Status:** COMPLETE
-**Next phase:** R4.5F - baseline and semantic Gantt presentation
+**Status:** COMPLETE - DPR/coordinate follow-up verified
+**Next phase:** none started by this follow-up
 **Commit:** no E commit created
 
 ## Boundary
@@ -18,8 +18,8 @@ calculation, resource lane, or R5 behavior was added.
 ## Architecture
 
 `SchedulingGanttDependencyLayer.qml` is the only dependency renderer. It owns
-one high-DPI `Canvas`, a compact display-route cache, coalesced repaint timing,
-and truthful render status. It does not own dependency facts.
+one logical-coordinate `Canvas`, a compact display-route cache, bounded repaint
+handling, and truthful render status. It does not own dependency facts.
 
 The existing `GanttListModel` now exposes one bounded `dependencyWindow(...)`
 slot. The slot uses the R4.5B indexes:
@@ -128,13 +128,25 @@ These measurements are characterization results, not a cross-device guarantee.
 R4.5G may tune/persist display preferences, but any threshold change must remain
 measurement-backed and truthful.
 
-## High DPI And Paint Coalescing
+## High DPI And Repaint Policy
 
-The Canvas backing size follows `Screen.devicePixelRatio`; the context is
-scaled back to logical coordinates, and line joins/caps are rounded. Width,
-height, backing-size, horizontal-scroll, and vertical-scroll changes schedule
-one zero-delay paint rather than repainting from row delegates. Route rebuilds
-occur only when endpoint/window/axis/model/selection facts change.
+The dependency Canvas uses its logical QML item dimensions and all route paint
+coordinates remain logical. It does not manually multiply `canvasSize` by
+`Screen.devicePixelRatio` and does not call `context.scale(DPR, DPR)`. Qt Quick
+therefore performs exactly one logical-to-physical mapping, matching normal QML
+task bars at DPR `1`, `1.25`, `1.5`, and `2`. Logical line widths and arrowhead
+dimensions are retained so Qt renders them crisply without manual DPR inflation.
+
+The route cache remains stable content-space geometry. Horizontal rendering
+subtracts `timelineContentX`; vertical rendering subtracts the generalized
+ListView offset `contentY - originY`. Scroll changes request Canvas paint
+directly so the bitmap follows the rendered frame without rebuilding routes.
+Width/height and route rebuild work retain the existing bounded coalescing.
+
+The painted regression fixture verifies `144 -> 168` at `contentX=0`,
+`44 -> 68` at `contentX=100`, and natural clipping at `contentX=250`. It also
+verifies row centers `18 -> 54`, their exact `-12` vertical translation, and
+equivalent output for non-zero `originY`.
 
 ## Files
 
@@ -171,15 +183,22 @@ renderer was introduced.
 
 ## Verification
 
-- 21 focused R4.5E tests passed;
-- 69 combined R4.5B/C/D/E and Planning IA tests passed;
-- real offscreen `QQuickView` Canvas tests cover route and paint work;
+- 33 focused R4.5E tests passed;
+- 100 combined targeted R4.5B/C/D/E/F and Planning IA tests passed;
+- real offscreen `QQuickView` pixel tests pass at DPR `1`, `1.25`, `1.5`, and `2`;
+- painted output covers exact horizontal/vertical translation, non-zero
+  `originY`, first/middle/last effective-row centers, and natural clipping;
+- every discrete zoom multiplier and Day/Week/Month/Quarter density shares the
+  same authoritative bar/dependency anchor geometry;
 - integrated surface tests cover vertical scroll, horizontal pan, zoom, every
   timescale, Grid/Timeline mode changes, and project reset;
-- direct `pyside6-qmllint` over all changed Gantt QML is silent;
+- 120 continuous horizontal/vertical frame updates completed in approximately
+  `2.1 ms` of dispatch work without any route rebuild;
+- direct `pyside6-qmllint` over changed Gantt QML with application import roots
+  is silent;
 - targeted Python compilation passes;
 - no full test suite was run;
-- no E commit was created and the assistant did not amend the user's D commit.
+- no commit was created.
 
 ## R4.5F Handoff
 

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
 import os
+import subprocess
+import sys
 from dataclasses import replace
 from datetime import date, timedelta
 from pathlib import Path
@@ -8,7 +11,7 @@ from time import perf_counter
 
 import pytest
 from PySide6.QtCore import QObject, QUrl
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QColor, QGuiApplication
 from PySide6.QtQml import QJSValue, QQmlComponent, QQmlExpression
 from PySide6.QtQuick import QQuickView
 from PySide6.QtTest import QTest
@@ -126,24 +129,32 @@ def _minimum_width_and_milestone_projection() -> GanttProjectionDto:
     )
 
 
-def _create_layer(model: GanttListModel, *, selected: str = "", limit: int = 500):
+def _create_layer(
+    model: GanttListModel,
+    *,
+    selected: str = "",
+    limit: int = 500,
+    connector_color: QColor | None = None,
+):
     application = _application()
     engine = create_qml_engine()
     view = QQuickView(engine, None)
     view.setResizeMode(QQuickView.SizeRootObjectToView)
-    view.setInitialProperties(
-        {
-            "ganttModel": model,
-            "firstRenderedIndex": 0,
-            "lastRenderedIndex": max(0, model.rowCountValue - 1),
-            "rowHeight": 36,
-            "verticalContentY": 0.0,
-            "axisStartDay": date(2026, 1, 1).toordinal(),
-            "pixelsPerDay": 10.0,
-            "selectedTaskId": selected,
-            "normalEdgeLimit": limit,
-        }
-    )
+    initial_properties = {
+        "ganttModel": model,
+        "firstRenderedIndex": 0,
+        "lastRenderedIndex": max(0, model.rowCountValue - 1),
+        "rowHeight": 36,
+        "verticalContentY": 0.0,
+        "axisStartDay": date(2026, 1, 1).toordinal(),
+        "pixelsPerDay": 10.0,
+        "selectedTaskId": selected,
+        "normalEdgeLimit": limit,
+    }
+    if connector_color is not None:
+        initial_properties["normalConnectorColor"] = connector_color
+        initial_properties["selectedConnectorColor"] = connector_color
+    view.setInitialProperties(initial_properties)
     view.setSource(
         QUrl.fromLocalFile(str(GANTT_ROOT / "SchedulingGanttDependencyLayer.qml"))
     )
@@ -161,6 +172,161 @@ def _create_layer(model: GanttListModel, *, selected: str = "", limit: int = 500
 
 def _routes(layer) -> list[dict[str, object]]:
     return list(_variant(layer.property("visibleRoutes")) or [])
+
+
+def _painted_red_bounds(image) -> list[int]:
+    points: list[tuple[int, int]] = []
+    for y in range(image.height()):
+        for x in range(image.width()):
+            color = image.pixelColor(x, y)
+            if color.red() >= 200 and color.green() <= 150 and color.blue() <= 150:
+                points.append((x, y))
+    if not points:
+        raise AssertionError("Dependency Canvas produced no red painted pixels")
+    xs = [point[0] for point in points]
+    ys = [point[1] for point in points]
+    return [min(xs), min(ys), max(xs), max(ys), len(points)]
+
+
+def _has_red_near(image, x: float, y: float, pixel_scale: float) -> bool:
+    center_x = round(x * pixel_scale)
+    center_y = round(y * pixel_scale)
+    radius = max(2, round(2 * pixel_scale))
+    for pixel_y in range(max(0, center_y - radius), min(image.height(), center_y + radius + 1)):
+        for pixel_x in range(max(0, center_x - radius), min(image.width(), center_x + radius + 1)):
+            color = image.pixelColor(pixel_x, pixel_y)
+            if color.red() >= 200 and color.green() <= 150 and color.blue() <= 150:
+                return True
+    return False
+
+
+def _canvas_paint_probe() -> dict[str, object]:
+    predecessor = _task("pred", code="PRED", wbs="1")
+    successor = _task("succ", code="SUCC", wbs="2")
+    projection = build_gantt_projection(
+        tenant_id="tenant-1",
+        organization_id="org-1",
+        project_id="project-1",
+        hierarchy_nodes=(_node(predecessor), _node(successor)),
+        schedule_items=(
+            _schedule(
+                predecessor,
+                start=date(2026, 8, 10),
+                finish=date(2026, 8, 12),
+            ),
+            _schedule(
+                successor,
+                start=date(2026, 8, 15),
+                finish=date(2026, 8, 18),
+            ),
+        ),
+        dependency_rows=(_edge(1, "pred", "succ", "FS", 0),),
+    )
+    model = GanttListModel()
+    model.set_projection(projection)
+    application, _engine, view, layer = _create_layer(
+        model,
+        connector_color=QColor("#ff0000"),
+    )
+    view.setColor(QColor("#ffffff"))
+    view.resize(240, 100)
+    assert layer.setProperty("axisStartDay", date(2026, 8, 1).toordinal())
+    assert layer.setProperty("pixelsPerDay", 12.0)
+
+    def snapshot() -> tuple[object, list[int]]:
+        _process_events(application)
+        QTest.qWait(40)
+        image = view.grabWindow()
+        return image, _painted_red_bounds(image)
+
+    initial_image, initial = snapshot()
+    initial_routes = _routes(layer)
+    route = initial_routes[0]
+    assert layer.setProperty("timelineContentX", 100.0)
+    horizontal_image, horizontal = snapshot()
+    assert _routes(layer) == initial_routes
+    assert layer.setProperty("timelineContentX", 250.0)
+    _process_events(application)
+    QTest.qWait(40)
+    try:
+        _painted_red_bounds(view.grabWindow())
+        fully_offscreen_clipped = False
+    except AssertionError:
+        fully_offscreen_clipped = True
+    assert _routes(layer) == initial_routes
+    assert layer.setProperty("timelineContentX", 100.0)
+    assert layer.setProperty("verticalContentY", 12.0)
+    vertical_image, vertical = snapshot()
+    assert _routes(layer) == initial_routes
+    assert layer.setProperty("verticalContentY", 20.0)
+    assert layer.setProperty("verticalOriginY", 8.0)
+    generalized_origin_image, generalized_origin = snapshot()
+    assert _routes(layer) == initial_routes
+
+    pixel_scale = float(initial_image.width()) / float(view.width())
+    endpoint_alignment = {
+        "initialSource": _has_red_near(
+            initial_image, float(route["sourceX"]), float(route["sourceY"]), pixel_scale
+        ),
+        "initialTarget": _has_red_near(
+            initial_image, float(route["targetX"]), float(route["targetY"]), pixel_scale
+        ),
+        "horizontalSource": _has_red_near(
+            horizontal_image,
+            float(route["sourceX"]) - 100.0,
+            float(route["sourceY"]),
+            pixel_scale,
+        ),
+        "horizontalTarget": _has_red_near(
+            horizontal_image,
+            float(route["targetX"]) - 100.0,
+            float(route["targetY"]),
+            pixel_scale,
+        ),
+        "verticalSource": _has_red_near(
+            vertical_image,
+            float(route["sourceX"]) - 100.0,
+            float(route["sourceY"]) - 12.0,
+            pixel_scale,
+        ),
+        "verticalTarget": _has_red_near(
+            vertical_image,
+            float(route["targetX"]) - 100.0,
+            float(route["targetY"]) - 12.0,
+            pixel_scale,
+        ),
+        "generalizedOriginSource": _has_red_near(
+            generalized_origin_image,
+            float(route["sourceX"]) - 100.0,
+            float(route["sourceY"]) - 12.0,
+            pixel_scale,
+        ),
+        "generalizedOriginTarget": _has_red_near(
+            generalized_origin_image,
+            float(route["targetX"]) - 100.0,
+            float(route["targetY"]) - 12.0,
+            pixel_scale,
+        ),
+    }
+
+    result = {
+        "devicePixelRatio": float(view.devicePixelRatio()),
+        "pixelScale": pixel_scale,
+        "initial": initial,
+        "horizontal": horizontal,
+        "vertical": vertical,
+        "generalizedOrigin": generalized_origin,
+        "fullyOffscreenClipped": fully_offscreen_clipped,
+        "endpointAlignment": endpoint_alignment,
+        "sourceX": float(route["sourceX"]),
+        "targetX": float(route["targetX"]),
+        "sourceY": float(route["sourceY"]),
+        "targetY": float(route["targetY"]),
+    }
+    view.close()
+    layer.deleteLater()
+    _process_events(application)
+    return result
 
 
 def _dense_projection(row_count: int, edge_count: int) -> GanttProjectionDto:
@@ -548,6 +714,182 @@ def test_scroll_zoom_and_scale_only_rebuild_display_routes() -> None:
     _process_events(application)
 
 
+@pytest.mark.parametrize(
+    ("timescale", "base_pixels_per_day"),
+    (("day", 40.0), ("week", 12.0), ("month", 4.0), ("quarter", 1.5)),
+)
+def test_all_timescales_and_zoom_levels_share_exact_dependency_anchor_geometry(
+    timescale: str,
+    base_pixels_per_day: float,
+) -> None:
+    model = GanttListModel()
+    model.set_projection(_typed_projection())
+    application, _engine, _view, layer = _create_layer(model)
+
+    for zoom in (0.75, 0.875, 1.0, 1.25, 1.5):
+        pixels_per_day = base_pixels_per_day * zoom
+        assert layer.setProperty("pixelsPerDay", pixels_per_day)
+        _process_events(application)
+        by_type = {route["dependencyType"]: route for route in _routes(layer)}
+
+        predecessor_start = pixels_per_day
+        predecessor_finish = predecessor_start + max(12.0, 2.0 * pixels_per_day)
+        successor_start = 5.0 * pixels_per_day
+        successor_finish = successor_start + max(12.0, 3.0 * pixels_per_day)
+        assert by_type["FS"]["sourceX"] == pytest.approx(predecessor_finish)
+        assert by_type["FS"]["targetX"] == pytest.approx(successor_start)
+        assert by_type["SS"]["sourceX"] == pytest.approx(predecessor_start)
+        assert by_type["SS"]["targetX"] == pytest.approx(successor_start)
+        assert by_type["FF"]["sourceX"] == pytest.approx(predecessor_finish)
+        assert by_type["FF"]["targetX"] == pytest.approx(successor_finish)
+        assert by_type["SF"]["sourceX"] == pytest.approx(predecessor_start)
+        assert by_type["SF"]["targetX"] == pytest.approx(successor_finish)
+
+        routes_before_scroll = _routes(layer)
+        assert layer.setProperty("timelineContentX", pixels_per_day * 0.5)
+        _process_events(application)
+        assert _routes(layer) == routes_before_scroll, (timescale, zoom)
+
+    layer.deleteLater()
+    _process_events(application)
+
+
+@pytest.mark.parametrize("requested_dpr", (1.0, 1.25, 1.5, 2.0))
+def test_canvas_painted_output_tracks_scroll_and_row_centers_at_supported_dpr(
+    requested_dpr: float,
+) -> None:
+    probe_code = (
+        "import json; "
+        "from src.tests.project_management.test_r4_5e_gantt_dependencies "
+        "import _canvas_paint_probe; "
+        "print('R45E_PROBE=' + json.dumps(_canvas_paint_probe()))"
+    )
+    environment = os.environ.copy()
+    environment["QT_QPA_PLATFORM"] = "offscreen"
+    environment["QT_SCALE_FACTOR"] = str(requested_dpr)
+    completed = subprocess.run(
+        [sys.executable, "-c", probe_code],
+        cwd=REPO_ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+    payload_line = next(
+        line for line in completed.stdout.splitlines() if line.startswith("R45E_PROBE=")
+    )
+    payload = json.loads(payload_line.removeprefix("R45E_PROBE="))
+    assert payload["devicePixelRatio"] == pytest.approx(requested_dpr, abs=0.01)
+    assert payload["pixelScale"] == pytest.approx(requested_dpr, abs=0.01)
+    assert all(payload["endpointAlignment"].values())
+    assert payload["fullyOffscreenClipped"] is True
+    assert payload["sourceX"] == pytest.approx(144.0)
+    assert payload["targetX"] == pytest.approx(168.0)
+
+    def logical_bounds(name: str) -> list[float]:
+        scale = payload["pixelScale"]
+        return [value / scale for value in payload[name][:4]]
+
+    initial = logical_bounds("initial")
+    horizontal = logical_bounds("horizontal")
+    vertical = logical_bounds("vertical")
+    generalized_origin = logical_bounds("generalizedOrigin")
+    tolerance = max(0.8, 1.0 / payload["pixelScale"])
+
+    assert horizontal[0] == pytest.approx(initial[0] - 100.0, abs=tolerance)
+    assert horizontal[2] == pytest.approx(initial[2] - 100.0, abs=tolerance)
+    assert horizontal[1] == pytest.approx(initial[1], abs=tolerance)
+    assert horizontal[3] == pytest.approx(initial[3], abs=tolerance)
+    assert vertical[0] == pytest.approx(horizontal[0], abs=tolerance)
+    assert vertical[2] == pytest.approx(horizontal[2], abs=tolerance)
+    assert vertical[1] == pytest.approx(horizontal[1] - 12.0, abs=tolerance)
+    assert vertical[3] == pytest.approx(horizontal[3] - 12.0, abs=tolerance)
+    assert generalized_origin == pytest.approx(vertical, abs=tolerance)
+
+
+@pytest.mark.parametrize(
+    ("predecessor_index", "successor_index"),
+    ((0, 1), (5, 6), (10, 11)),
+)
+def test_canvas_paints_first_middle_and_last_row_endpoints_at_exact_centers(
+    predecessor_index: int,
+    successor_index: int,
+) -> None:
+    projection = _long_chain_projection(12)
+    model = GanttListModel()
+    model.set_projection(replace(projection, dependency_edges=()))
+    predecessor_id = model.taskIdAt(predecessor_index)
+    successor_id = model.taskIdAt(successor_index)
+    rows_by_id = {row.task_id: row for row in projection.rows}
+    edge = replace(
+        projection.dependency_edges[0],
+        predecessor_task_id=predecessor_id,
+        predecessor_task_name=rows_by_id[predecessor_id].name,
+        successor_task_id=successor_id,
+        successor_task_name=rows_by_id[successor_id].name,
+    )
+    model.set_projection(replace(projection, dependency_edges=(edge,)))
+    application, _engine, view, layer = _create_layer(
+        model,
+        connector_color=QColor("#ff0000"),
+    )
+    view.setColor(QColor("#ffffff"))
+    view.resize(300, 450)
+    _process_events(application)
+    QTest.qWait(40)
+
+    route = _routes(layer)[0]
+    expected_source_y = (predecessor_index + 0.5) * 36.0
+    expected_target_y = (successor_index + 0.5) * 36.0
+    assert route["sourceY"] == pytest.approx(expected_source_y)
+    assert route["targetY"] == pytest.approx(expected_target_y)
+    image = view.grabWindow()
+    pixel_scale = float(image.width()) / float(view.width())
+    assert _has_red_near(
+        image, float(route["sourceX"]), expected_source_y, pixel_scale
+    )
+    assert _has_red_near(
+        image, float(route["targetX"]), expected_target_y, pixel_scale
+    )
+
+    view.close()
+    layer.deleteLater()
+    _process_events(application)
+
+
+def test_continuous_scroll_repaints_without_route_rebuild_or_material_regression() -> None:
+    class CountingModel(GanttListModel):
+        def __init__(self) -> None:
+            super().__init__()
+            self.window_calls = 0
+
+        def dependencyWindow(self, *args):
+            self.window_calls += 1
+            return super().dependencyWindow(*args)
+
+    model = CountingModel()
+    model.set_projection(_typed_projection())
+    application, _engine, _view, layer = _create_layer(model)
+    initial_routes = _routes(layer)
+    initial_window_calls = model.window_calls
+
+    started = perf_counter()
+    for frame in range(120):
+        assert layer.setProperty("timelineContentX", float(frame))
+        assert layer.setProperty("verticalContentY", float(frame % 18))
+        _process_events(application, passes=1)
+    elapsed_ms = (perf_counter() - started) * 1_000
+
+    assert _routes(layer) == initial_routes
+    assert model.window_calls == initial_window_calls
+    assert elapsed_ms < 1_000
+    print(f"R4.5E continuous scroll frames=120 elapsed_ms={elapsed_ms:.3f}")
+    layer.deleteLater()
+    _process_events(application)
+
+
 @pytest.mark.parametrize("row_count", [100, 1_000, 5_000])
 def test_visible_edge_lookup_is_bounded_by_row_window(row_count: int) -> None:
     model = GanttListModel()
@@ -619,7 +961,14 @@ def test_dependency_canvas_architecture_has_one_bounded_renderer() -> None:
     assert layer.count("Canvas {") == 1
     assert "Repeater" not in layer
     assert "ShapePath" not in layer
-    assert "devicePixelRatio" in layer
+    assert "devicePixelRatio" not in layer
+    assert "canvasSize:" not in layer
+    assert "context.scale(" not in layer
+    assert "onTimelineContentXChanged: dependencyCanvas.requestPaint()" in layer
+    assert "onVerticalContentYChanged: dependencyCanvas.requestPaint()" in layer
+    assert "route.sourceX - root.timelineContentX" in layer
+    assert "route.sourceY - root.rowScrollOffset" in layer
+    assert "root.verticalContentY - root.verticalOriginY" in layer
     assert "dependencyWindow(" in layer
     assert surface.count("SchedulingGanttDependencyLayer {") == 1
     assert "SchedulingGanttDependencyLayer" not in row

@@ -12,6 +12,7 @@ Item {
     property int lastRenderedIndex: -1
     property int rowHeight: 36
     property real verticalContentY: 0
+    property real verticalOriginY: 0
     property int axisStartDay: -1
     property real pixelsPerDay: 0
     property real timelineContentX: 0
@@ -31,6 +32,7 @@ Item {
     readonly property real lastRouteBuildMs: _lastRouteBuildMs
     readonly property real lastPaintMs: dependencyCanvas.lastPaintMs
     readonly property int paintedRouteCount: dependencyCanvas.paintedRouteCount
+    readonly property real rowScrollOffset: root.verticalContentY - root.verticalOriginY
 
     property var _routes: []
     property int _candidateEdgeCount: 0
@@ -213,19 +215,13 @@ Item {
         visible: root.dependencyLinesEnabled && root.routeCount > 0
         renderTarget: Canvas.Image
         renderStrategy: Canvas.Cooperative
-        canvasSize: Qt.size(
-            Math.max(1, Math.ceil(width * Screen.devicePixelRatio)),
-            Math.max(1, Math.ceil(height * Screen.devicePixelRatio))
-        )
         property real lastPaintMs: 0
         property int paintedRouteCount: 0
 
         onPaint: {
             const started = Date.now()
             const context = getContext("2d")
-            const dpr = Screen.devicePixelRatio
             context.reset()
-            context.scale(dpr, dpr)
             context.lineJoin = "round"
             context.lineCap = "round"
             let painted = 0
@@ -236,8 +232,8 @@ Item {
                 const channelX = route.channelX - root.timelineContentX
                 const targetOuterX = route.targetOuterX - root.timelineContentX
                 const targetX = route.targetX - root.timelineContentX
-                const sourceY = route.sourceY - root.verticalContentY
-                const targetY = route.targetY - root.verticalContentY
+                const sourceY = route.sourceY - root.rowScrollOffset
+                const targetY = route.targetY - root.rowScrollOffset
                 context.strokeStyle = route.selected
                     ? root.selectedConnectorColor
                     : root.normalConnectorColor
@@ -262,17 +258,17 @@ Item {
 
         onWidthChanged: root._schedulePaint()
         onHeightChanged: root._schedulePaint()
-        onCanvasSizeChanged: root._schedulePaint()
     }
 
     onGanttModelChanged: _scheduleRebuild()
     onFirstRenderedIndexChanged: _scheduleRebuild()
     onLastRenderedIndexChanged: _scheduleRebuild()
     onRowHeightChanged: _scheduleRebuild()
-    onVerticalContentYChanged: _schedulePaint()
+    onVerticalContentYChanged: dependencyCanvas.requestPaint()
+    onVerticalOriginYChanged: dependencyCanvas.requestPaint()
     onAxisStartDayChanged: _scheduleRebuild()
     onPixelsPerDayChanged: _scheduleRebuild()
-    onTimelineContentXChanged: _schedulePaint()
+    onTimelineContentXChanged: dependencyCanvas.requestPaint()
     onSelectedTaskIdChanged: _scheduleRebuild()
     onDependencyLinesEnabledChanged: _scheduleRebuild()
     onNormalEdgeLimitChanged: _scheduleRebuild()

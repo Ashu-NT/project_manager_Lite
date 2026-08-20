@@ -309,6 +309,7 @@ Item {
         lastRenderedIndex: rowsViewport.lastRenderedIndex
         rowHeight: rowsViewport.rowHeight
         verticalContentY: rowsViewport.verticalContentY
+        verticalOriginY: rowsViewport.verticalOriginY
         axisStartDay: root.axisStartDay
         pixelsPerDay: root.pixelsPerDay
         timelineContentX: timelineAxis.contentX
