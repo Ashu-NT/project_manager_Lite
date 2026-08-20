@@ -23,6 +23,7 @@ Item {
     property string ganttViewMode: "split"
 
     signal activityColumnsStateChanged(var cols)
+    signal activityDetailRequested(string activityId)
 
     readonly property bool _compact: root.width < Theme.AppTheme.compactContentBreakpoint
     // Split mode needs both SplitView panes' minimum widths (420 + 360) plus
@@ -86,7 +87,9 @@ Item {
                 if (root.workspaceController !== null) root.workspaceController.selectActivity("")
             }
             onEditRequested: {
-                if (root.shellModel) root.shellModel.selectRoute("project_management.tasks")
+                root.activityDetailRequested(
+                    String(root.selectedActivityModel.id || "")
+                )
             }
 
             ColumnLayout {
