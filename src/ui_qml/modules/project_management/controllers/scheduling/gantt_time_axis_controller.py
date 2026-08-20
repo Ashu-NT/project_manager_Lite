@@ -139,14 +139,6 @@ class GanttTimeAxisController(QObject):
             return ""
         return "This timeline is extremely wide. Use Month or Quarter for safer navigation."
 
-    @Property(int, notify=viewportChanged)
-    def visibleStartDay(self) -> int:
-        return self._visible_start_day
-
-    @Property(int, notify=viewportChanged)
-    def visibleFinishDay(self) -> int:
-        return self._visible_finish_day
-
     @Property("QVariantList", notify=viewportChanged)
     def majorTicks(self) -> list[dict[str, object]]:
         return list(self._major_ticks)

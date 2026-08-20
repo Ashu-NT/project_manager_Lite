@@ -15,7 +15,6 @@ from src.ui_qml.modules.project_management.view_models.scheduling import (
 
 from .activity_feed_builder import build_activity_feed_collection
 from .calendar_builder import build_calendar_view_model
-from .detail_builder import build_constraints_collection, build_detail_view_model
 from .diagnostics_builder import build_diagnostics_collection
 from .formatters import (
     label_for_option,
@@ -32,9 +31,7 @@ from .record_mappers import (
     to_baseline_compare_record,
     to_baseline_register_record,
     to_constraint_violation_record,
-    to_critical_path_record,
     to_delayed_activity_record,
-    to_dependency_record,
     to_resource_load_record,
 )
 from .schedule_filter import matches_schedule_filters
@@ -84,10 +81,6 @@ def build_workspace_state(
     )
     calendar_snapshot = desktop_api.get_calendar_snapshot(resolved_calendar_id)
 
-    dependency_type_options = tuple(
-        SchedulingSelectorOptionViewModel(value=option.value, label=option.label)
-        for option in desktop_api.list_dependency_types()
-    )
     baseline_options = (
         tuple(
             SchedulingSelectorOptionViewModel(value=option.value, label=option.label)
@@ -152,27 +145,6 @@ def build_workspace_state(
         selected_activity_id,
         filtered_schedule=filtered_schedule,
     )
-    selected_activity = next(
-        (item for item in filtered_schedule if item.id == resolved_selected_activity_id),
-        None,
-    )
-    dependency_task_options = (
-        tuple(
-            SchedulingSelectorOptionViewModel(value=option.value, label=option.label)
-            for option in desktop_api.list_activity_options(
-                resolved_project_id,
-                exclude_task_id=resolved_selected_activity_id,
-            )
-        )
-        if resolved_project_id and resolved_selected_activity_id
-        else ()
-    )
-    activity_dependencies = (
-        desktop_api.list_dependencies(resolved_selected_activity_id)
-        if resolved_selected_activity_id
-        else ()
-    )
-
     comparison_rows = ()
     comparison_summary = ""
     comparison_empty_state = ""
@@ -250,8 +222,6 @@ def build_workspace_state(
         project_options=project_options,
         calendar_options=calendar_options,
         baseline_options=baseline_options,
-        dependency_type_options=dependency_type_options,
-        dependency_task_options=dependency_task_options,
         status_options=status_options,
         selected_project_id=resolved_project_id,
         selected_calendar_id=resolved_calendar_id,
@@ -273,16 +243,6 @@ def build_workspace_state(
             summary_text=comparison_summary,
             rows=tuple(to_baseline_compare_record(row) for row in comparison_rows),
             empty_state=comparison_empty_state,
-        ),
-        critical_path=SchedulingCollectionViewModel(
-            title="Critical Path",
-            subtitle="Zero-float activities driving the current finish date.",
-            items=tuple(to_critical_path_record(item) for item in critical_items[:12]),
-            empty_state=(
-                "No critical-path activities are available for the current filter."
-                if resolved_project_id
-                else "Select a project to review the critical path."
-            ),
         ),
         diagnostics=build_diagnostics_collection(
             schedule_items=schedule_items,
@@ -320,17 +280,6 @@ def build_workspace_state(
                 else "Select a project to review baselines."
             ),
         ),
-        dependencies=SchedulingCollectionViewModel(
-            title="Dependencies",
-            subtitle="Sequencing links for the selected activity.",
-            items=tuple(to_dependency_record(row) for row in activity_dependencies),
-            empty_state=(
-                "No dependencies are linked to the selected activity."
-                if resolved_selected_activity_id
-                else "Select an activity to review dependency logic."
-            ),
-        ),
-        constraints=build_constraints_collection(selected_activity),
         constraint_violations=SchedulingCollectionViewModel(
             title="Constraint Violations",
             subtitle="Hard and soft date-constraint violations detected by the schedule validator.",
@@ -348,11 +297,6 @@ def build_workspace_state(
             delayed_items=delayed_items,
             resource_load=resource_load,
             activity_log=activity_log,
-        ),
-        selected_activity_detail=build_detail_view_model(
-            selected_activity=selected_activity,
-            dependency_rows=activity_dependencies,
-            resource_load=resource_load,
         ),
     )
 

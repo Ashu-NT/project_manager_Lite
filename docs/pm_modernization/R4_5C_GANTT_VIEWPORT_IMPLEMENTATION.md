@@ -163,7 +163,7 @@ Delegate count remains bounded by viewport plus cache buffer, not dataset size. 
 - no full test suite was run;
 - no unexplained unrelated failure remains.
 
-## R4.5D Handoff
+## Historical R4.5D Handoff
 
 R4.5D may replace the isolated transitional `pixelsPerDay` and date-label geometry with:
 
@@ -175,3 +175,8 @@ R4.5D may replace the isolated transitional `pixelsPerDay` and date-label geomet
 6. non-working shading only where authoritative calendar facts support it.
 
 R4.5D must retain the one-row viewport, one timeline horizontal authority, direct `GanttListModel` binding, selection invariant, bounded delegates, and no-CPM UI interaction rule. It must not implement dependency connectors, baseline overlays, R5 resource lanes, or a second renderer.
+
+R4.5D-H subsequently completed within those boundaries. Final validation found
+one required internal `timelineContentX` synchronization property and retained
+it; no duplicate viewport or timeline authority exists. See
+`R4_5_GANTT_CLOSURE.md` for the reconciled final architecture.

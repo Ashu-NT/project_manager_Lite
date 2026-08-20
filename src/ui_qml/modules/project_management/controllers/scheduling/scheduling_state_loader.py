@@ -22,8 +22,6 @@ from .scheduling_property_updates import (
     set_activity_sort_key,
     set_baseline_options,
     set_calendar_options,
-    set_dependency_task_options,
-    set_dependency_type_options,
     set_overview,
     set_project_options,
     set_search_text,
@@ -85,12 +83,6 @@ def load_workspace_state(controller) -> None:
         set_project_options(controller, serialize_selector_options(ws.project_options))
         set_calendar_options(controller, serialize_selector_options(ws.calendar_options))
         set_baseline_options(controller, serialize_selector_options(ws.baseline_options))
-        set_dependency_type_options(
-            controller, serialize_selector_options(ws.dependency_type_options)
-        )
-        set_dependency_task_options(
-            controller, serialize_selector_options(ws.dependency_task_options)
-        )
         set_status_options(controller, serialize_selector_options(ws.status_options))
         set_selected_project_id(controller, ws.selected_project_id)
         set_selected_calendar_id(controller, ws.selected_calendar_id)
@@ -108,7 +100,6 @@ def load_workspace_state(controller) -> None:
         hydrate_visible_panel_models(controller, panels)
         refresh_local_gantt_view(controller)
         set_gantt_selection(controller, ws.selected_activity_id)
-        controller._set_empty_state(ws.selected_activity_detail.empty_state)
         success = True
     except Exception as exc:  # pragma: no cover - defensive fallback
         logger.exception("PM scheduling refresh failed")

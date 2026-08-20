@@ -153,7 +153,7 @@ controller work.
 - Python `compileall` for changed PM desktop/controller/presenter packages: pass.
 - No full repository test suite was run, per the targeted-test instruction.
 
-## R4.5G Handoff
+## Historical R4.5G Handoff
 
 R4.5G may now address only the approved responsive layouts, toolbar overflow,
 validated display-preference persistence, keyboard/focus essentials, and broader
@@ -162,4 +162,6 @@ single-axis geometry, explicit milestone facts, task-only critical wording,
 single dependency Canvas, fixed row-height virtualization, and zero-CPM local
 controls.
 
-R4.5G and R5 were not started. Nothing was committed by Codex.
+R4.5G and R4.5H subsequently completed within this boundary; R5 was not started.
+The final semantic and regression evidence is recorded in
+`R4_5_GANTT_CLOSURE.md`.

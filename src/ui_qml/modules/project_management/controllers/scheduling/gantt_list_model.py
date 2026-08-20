@@ -62,8 +62,6 @@ class GanttListModel(QAbstractListModel):
         self._baseline_id = ""
         self._baseline_by_task_id: dict[str, GanttBaselineTaskSnapshotDto] = {}
         self._baseline_orphan_count = 0
-        self._timeline_start_day = -1
-        self._timeline_finish_day = -1
         self._expanded_summary_ids: set[str] = set()
         self._search_text = ""
         self._status_filter = "all"
@@ -157,14 +155,6 @@ class GanttListModel(QAbstractListModel):
     def scheduleAuthority(self) -> str:
         return self._projection.schedule_authority if self._projection else ""
 
-    @Property(int, notify=projectionChanged)
-    def timelineStartDay(self) -> int:
-        return self._timeline_start_day
-
-    @Property(int, notify=projectionChanged)
-    def timelineFinishDay(self) -> int:
-        return self._timeline_finish_day
-
     @Property("QVariantList", notify=projectionChanged)
     def criticalAttentionRows(self) -> list[dict[str, object]]:
         return [
@@ -226,8 +216,6 @@ class GanttListModel(QAbstractListModel):
         self._recount_baseline_matches()
         range_start = projection.range_start_day_ordinal if projection else None
         range_finish = projection.range_finish_day_ordinal if projection else None
-        self._timeline_start_day = int(range_start) if range_start is not None else -1
-        self._timeline_finish_day = int(range_finish) if range_finish is not None else -1
         self._expanded_summary_ids = {
             row.task_id
             for row in self._all_rows
@@ -344,10 +332,6 @@ class GanttListModel(QAbstractListModel):
     def contains_effective_task(self, task_id: str) -> bool:
         normalized = str(task_id or "").strip()
         return normalized in self._effective_index_by_task_id
-
-    def contains_filtered_task(self, task_id: str) -> bool:
-        row = self.row_for_task(task_id)
-        return row is not None and self._matches(row)
 
     def incident_edge_ids(self, task_id: str) -> tuple[str, ...]:
         return self._edge_ids_by_task_id.get(str(task_id or "").strip(), ())
@@ -477,12 +461,6 @@ class GanttListModel(QAbstractListModel):
         self._effective_index_by_task_id = {
             row.task_id: index for index, row in enumerate(self._effective_rows)
         }
-
-    def filtered_leaf_rows(self) -> tuple[GanttTaskRowDto, ...]:
-        rows = tuple(row for row in self._all_rows if not row.is_summary and self._matches(row))
-        if not self._hierarchy_mode:
-            return self._sort_flat_rows(rows)
-        return rows
 
     def _build_effective_rows(self) -> tuple[GanttTaskRowDto, ...]:
         matching = tuple(row for row in self._all_rows if self._matches(row))

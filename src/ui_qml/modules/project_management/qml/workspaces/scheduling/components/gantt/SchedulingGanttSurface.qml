@@ -70,16 +70,11 @@ Item {
     readonly property real timelineContentWidth: root.axisModel
         ? root.axisModel.contentWidth
         : 0
-    readonly property int activeDelegateCount: rowsViewport.activeDelegateCount
     readonly property real timelineContentX: timelineAxis.contentX
-    readonly property real verticalContentY: rowsViewport.verticalContentY
-    readonly property real authoritativeRowHeight: rowsViewport.rowHeight
-    readonly property int dependencyRouteCount: dependencyLayer.routeCount
+    readonly property int activeDelegateCount: rowsViewport.activeDelegateCount
     readonly property int dependencyCandidateEdgeCount: dependencyLayer.candidateEdgeCount
     readonly property bool dependencyDensitySuppressed: dependencyLayer.densitySuppressed
     readonly property string dependencyStatusMessage: dependencyLayer.statusMessage
-    readonly property real dependencyRouteBuildMs: dependencyLayer.lastRouteBuildMs
-    readonly property real dependencyPaintMs: dependencyLayer.lastPaintMs
 
     signal activitySelected(string taskId)
     signal activityActivated(string taskId)

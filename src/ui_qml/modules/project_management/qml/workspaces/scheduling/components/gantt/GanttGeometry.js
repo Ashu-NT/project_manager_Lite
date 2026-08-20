@@ -1,11 +1,7 @@
-.pragma library 
+.pragma library
 
 function dayStartX(dayOrdinal, axisStartDay, pixelsPerDay) {
     return (Number(dayOrdinal) - Number(axisStartDay)) * Number(pixelsPerDay)
-}
-
-function dayFinishX(dayOrdinal, axisStartDay, pixelsPerDay) {
-    return dayStartX(Number(dayOrdinal) + 1, axisStartDay, pixelsPerDay)
 }
 
 function dayCenterX(dayOrdinal, axisStartDay, pixelsPerDay) {

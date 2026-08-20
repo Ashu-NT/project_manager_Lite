@@ -6,22 +6,10 @@ from src.core.modules.project_management.api.desktop import SchedulingConstraint
 from src.ui_qml.modules.project_management.view_models.scheduling import SchedulingRecordViewModel
 
 from .formatters import (
-    constraint_label_for_activity,
     format_date,
     int_label,
     shift_label,
 )
-
-def to_critical_path_record(item: Any) -> SchedulingRecordViewModel:
-    return SchedulingRecordViewModel(
-        id=item.id,
-        title=item.name,
-        status_label="Critical",
-        subtitle=f"{format_date(item.start_date)} -> {format_date(item.finish_date)}",
-        supporting_text=f"Float {int_label(item.total_float_days)} | Progress {float(item.percent_complete or 0.0):.0f}%",
-        meta_text=f"Latest finish {format_date(item.latest_finish)}",
-        state={"activityId": item.id},
-    )
 
 def to_delayed_activity_record(item: Any) -> SchedulingRecordViewModel:
     return SchedulingRecordViewModel(
@@ -80,30 +68,6 @@ def to_baseline_register_record(item: Any) -> SchedulingRecordViewModel:
             "canSubmit": item.can_submit,
             "canApprove": item.can_approve,
             "canReject": item.can_reject,
-        },
-    )
-
-def to_dependency_record(item: Any) -> SchedulingRecordViewModel:
-    return SchedulingRecordViewModel(
-        id=item.id,
-        title=item.related_activity_name,
-        status_label=item.direction_label,
-        subtitle=f"{item.dependency_type_label} | Lag {item.lag_days:+d}d",
-        supporting_text=item.relationship_label,
-        meta_text="Linked activity",
-        can_secondary_action=True,
-        can_tertiary_action=True,
-        state={
-            "dependencyId": item.id,
-            "taskId": item.related_activity_id,
-            "directionLabel": item.direction_label,
-            "relatedActivityName": item.related_activity_name,
-            "dependencyType": item.dependency_type,
-            "dependencyTypeLabel": item.dependency_type_label,
-            "lagDays": item.lag_days,
-            "lagLabel": f"{item.lag_days:+d}d",
-            "relationshipLabel": item.relationship_label,
-            "statusLabel": item.status_label,
         },
     )
 
@@ -184,11 +148,9 @@ def to_baseline_variance_record(rec: Any) -> SchedulingRecordViewModel:
     )
 
 __all__ = [
-    "to_critical_path_record",
     "to_delayed_activity_record",
     "to_baseline_compare_record",
     "to_baseline_register_record",
-    "to_dependency_record",
     "to_resource_load_record",
     "to_constraint_violation_record",
     "to_baseline_variance_record",

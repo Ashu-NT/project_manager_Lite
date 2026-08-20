@@ -487,3 +487,7 @@ Files modified by the approved fix:
 No changes were made to FS/SS/FF/SF semantics, lag handling, CPM, task dates,
 dependency persistence, the scheduling engine, the Gantt model, row
 virtualization, or the approved R4.5 architecture.
+
+R4.5H re-ran the DPR/runtime matrix and broad relevant PM regressions after
+cleanup. The fix remains authoritative and no competing dependency renderer or
+manual DPR transform was found. Final evidence is in `R4_5_GANTT_CLOSURE.md`.

@@ -1,6 +1,6 @@
 # R4.5 Gantt Modernization: Engineering Audit and Implementation Design
 
-**Status:** R4.5A through R4.5E complete; R4.5F is next
+**Status:** R4.5A through R4.5H complete; R4.5 closed
 **Scope:** Project Management > Planning > Gantt  
 **Evidence basis:** production QML, controller, presenter, desktop API, scheduling application/domain, persistence, shared QML primitives, and current targeted tests  
 **R4.5A non-goals honored:** its audit was read-only; R4.5B subsequently changed Python and the clean pre-release schema baseline, but made no visual QML, scheduling-semantic, R5, or commit changes
@@ -732,7 +732,7 @@ Names may be adjusted to repository conventions during implementation, but respo
 5. **R4.5E - Dependency visualization (COMPLETE):** Canvas routing, FS/SS/FF/SF anchors, viewport culling, visibility semantics, selection highlighting, lag tooltip/metadata.
 6. **R4.5F - Baseline, milestone, and critical/infeasible layers (COMPLETE):** independent one-bulk-read baseline overlay, explicit current/historical milestone shapes, task-only critical highlight separate from filter, and tested visual precedence. See `R4_5F_GANTT_SEMANTIC_VISUALIZATION.md`.
 7. **R4.5G - Responsive, persistence, keyboard, and performance (COMPLETE):** toolbar overflow, five viewport layouts, validated organization/project-scoped preferences, essential focus/keyboard behavior, and measured 100/1,000/5,000-row hardening. See `R4_5G_GANTT_HARDENING_IMPLEMENTATION.md`.
-8. **R4.5H - Validation and cleanup:** targeted regression matrix, qmllint/offscreen checks, dead old timeline code/qmldir cleanup, documentation/exit reconciliation, no compatibility stubs left behind.
+8. **R4.5H - Validation and cleanup (COMPLETE):** broad relevant PM regression matrix, qmllint/offscreen checks, dead side-channel cleanup, architecture guardrails, final measurements, and documentation/exit reconciliation completed with no compatibility stubs left behind.
 
 R4.5B must precede visual feature controls. A control ships in the same phase as its complete data/render/test path.
 
@@ -778,11 +778,11 @@ None of these decisions requires changing scheduling semantics.
 
 ## 40. Final Recommendation
 
-Option B remains approved: a specialized integrated Gantt surface with one virtualized row viewport, one horizontal timeline authority, lightweight recycled QML bar delegates, and one viewport-aware Canvas dependency layer. R4.5B through R4.5G are complete; R4.5H is the next phase.
+Option B remains approved: a specialized integrated Gantt surface with one virtualized row viewport, one horizontal timeline authority, lightweight recycled QML bar delegates, and one viewport-aware Canvas dependency layer. R4.5B through R4.5H are complete and the phase is closed.
 
 R4.5B should first create a typed, disposable, complete-project Gantt projection that merges canonical CPM leaf results with existing hierarchy and dependency facts and selected-baseline snapshots. It must preserve tenant/org/project authorization, expose explicit milestone identity, add historical baseline milestone identity, remove generated activity codes, stop page-derived timeline bounds, eliminate first-row auto-selection, and make selection/detail updates atomic without rerunning CPM.
 
-R4.5C replaced the independently scrolling grid/timeline pair, deleted `gantt_legacy_adapter.py` and `SchedulingTimelinePanel.qml`, and removed visual pagination and duplicate presenter collections. R4.5D then established the single deterministic time-axis contract documented in `R4_5D_GANTT_TIME_AXIS_IMPLEMENTATION.md`. R4.5E added the bounded dependency renderer documented in `R4_5E_GANTT_DEPENDENCY_VISUALIZATION.md`, R4.5F added the semantic layers documented in `R4_5F_GANTT_SEMANTIC_VISUALIZATION.md`, and R4.5G completed responsive, persistence, keyboard, and measured large-project hardening in `R4_5G_GANTT_HARDENING_IMPLEMENTATION.md`. R4.5H now owns only integrated validation and cleanup while preserving the established enterprise scheduling engine as the sole business authority.
+R4.5C replaced the independently scrolling grid/timeline pair, deleted `gantt_legacy_adapter.py` and `SchedulingTimelinePanel.qml`, and removed visual pagination and duplicate presenter collections. R4.5D then established the single deterministic time-axis contract documented in `R4_5D_GANTT_TIME_AXIS_IMPLEMENTATION.md`. R4.5E added the bounded dependency renderer documented in `R4_5E_GANTT_DEPENDENCY_VISUALIZATION.md`, R4.5F added the semantic layers documented in `R4_5F_GANTT_SEMANTIC_VISUALIZATION.md`, and R4.5G completed responsive, persistence, keyboard, and measured large-project hardening in `R4_5G_GANTT_HARDENING_IMPLEMENTATION.md`. R4.5H completed integrated validation, retired the remaining duplicate Scheduling detail/dependency side-channel, and closed the phase while preserving the established enterprise scheduling engine as the sole business authority. See `R4_5_GANTT_CLOSURE.md`.
 
 ## 41. R4.5F Closure
 
@@ -828,5 +828,5 @@ Left/Right behavior. At 5,000 rows, the core viewport retained 20 delegates and
 the combined baseline/dependency/Month/zoom case retained 32. Visible dependency
 lookup remained row-window bounded, baseline merge remained linear, density
 protection remained truthful, and DPR 1.0/1.25/1.5/2.0 runtime probes remained
-green. No R5 capability or broad R8 work was introduced. R4.5H is the sole next
-handoff and owns final integrated validation and cleanup only.
+green. No R5 capability or broad R8 work was introduced. R4.5H completed the
+final cleanup and validation gates documented in `R4_5_GANTT_CLOSURE.md`.

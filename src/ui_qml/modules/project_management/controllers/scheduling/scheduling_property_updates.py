@@ -29,20 +29,6 @@ def set_baseline_options(controller, v: list) -> None:
     controller.baselineOptionsChanged.emit()
 
 
-def set_dependency_type_options(controller, v: list) -> None:
-    if v == controller._dependency_type_options:
-        return
-    controller._dependency_type_options = v
-    controller.dependencyTypeOptionsChanged.emit()
-
-
-def set_dependency_task_options(controller, v: list) -> None:
-    if v == controller._dependency_task_options:
-        return
-    controller._dependency_task_options = v
-    controller.dependencyTaskOptionsChanged.emit()
-
-
 def set_status_options(controller, v: list) -> None:
     if v == controller._status_options:
         return
@@ -113,13 +99,6 @@ def set_activity_sort_direction(controller, v: int) -> None:
     controller.activitySortDirectionChanged.emit()
 
 
-def set_selected_activity_id(controller, v: str) -> None:
-    if v == controller._selected_activity_id:
-        return
-    controller._selected_activity_id = v
-    controller.selectedActivityIdChanged.emit()
-
-
 def set_calendar(controller, v: dict) -> None:
     if v == controller._calendar:
         return
@@ -132,13 +111,6 @@ def set_baselines(controller, v: dict) -> None:
         return
     controller._baselines = v
     controller.baselinesChanged.emit()
-
-
-def set_critical_path(controller, v: dict) -> None:
-    if v == controller._critical_path:
-        return
-    controller._critical_path = v
-    controller.criticalPathChanged.emit()
 
 
 def set_diagnostics(controller, v: dict) -> None:
@@ -160,20 +132,6 @@ def set_baseline_register(controller, v: dict) -> None:
         return
     controller._baseline_register = v
     controller.baselineRegisterChanged.emit()
-
-
-def set_dependencies(controller, v: dict) -> None:
-    if v == controller._dependencies:
-        return
-    controller._dependencies = v
-    controller.dependenciesChanged.emit()
-
-
-def set_constraints(controller, v: dict) -> None:
-    if v == controller._constraints:
-        return
-    controller._constraints = v
-    controller.constraintsChanged.emit()
 
 
 def set_constraint_violations(controller, v: dict) -> None:
@@ -248,22 +206,6 @@ def set_baseline_register_rows(controller, rows: list) -> None:
     controller._table_models.baseline_register.set_rows(controller.filteredBaselineRegisterRows)
 
 
-def set_dependency_rows(controller, rows: list) -> None:
-    if rows == controller._dependency_rows:
-        return
-    controller._dependency_rows = rows
-    controller._table_models.dependency.set_rows(rows)
-    controller.dependencyRowsChanged.emit()
-
-
-def set_constraint_rows(controller, rows: list) -> None:
-    if rows == controller._constraint_rows:
-        return
-    controller._constraint_rows = rows
-    controller._table_models.constraint.set_rows(rows)
-    controller.constraintRowsChanged.emit()
-
-
 def set_violation_rows(controller, rows: list) -> None:
     if rows == controller._violation_rows:
         return
@@ -288,13 +230,6 @@ def set_holiday_rows(controller, rows: list) -> None:
     controller.holidayRowsChanged.emit()
     controller.filteredHolidayRowsChanged.emit()
     controller._table_models.holiday.set_rows(controller.filteredHolidayRows)
-
-
-def set_selected_activity(controller, v: dict) -> None:
-    if v == controller._selected_activity:
-        return
-    controller._selected_activity = v
-    controller.selectedActivityChanged.emit()
 
 
 def set_calculator_result(controller, v: str) -> None:
@@ -326,15 +261,8 @@ __all__ = [
     "set_calendar_options",
     "set_calendar_summary_rows",
     "set_calculator_result",
-    "set_constraint_rows",
     "set_constraint_violations",
-    "set_constraints",
-    "set_critical_path",
     "set_delayed_activity_rows",
-    "set_dependencies",
-    "set_dependency_rows",
-    "set_dependency_task_options",
-    "set_dependency_type_options",
     "set_diagnostics",
     "set_diagnostics_rows",
     "set_holiday_rows",
@@ -345,8 +273,6 @@ __all__ = [
     "set_resource_loading",
     "set_resource_loading_rows",
     "set_search_text",
-    "set_selected_activity",
-    "set_selected_activity_id",
     "set_selected_baseline_id",
     "set_selected_calendar_id",
     "set_selected_project_id",

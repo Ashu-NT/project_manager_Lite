@@ -213,7 +213,7 @@ def test_project_management_workspace_catalog_exposes_typed_scheduling_controlle
     assert controller.projectOptions[0]["label"] == "Plant Upgrade"
     assert controller.calendar["workingDays"][0]["checked"] is True
     assert controller.ganttRowsModel.row_for_task("task-1").name == "Cable Pull"
-    assert controller.criticalPath["items"][0]["title"] == "Cable Pull"
+    assert controller.ganttRowsModel.criticalAttentionRows[0]["name"] == "Cable Pull"
     assert controller.baselines["rows"][0]["title"] == "Cable Pull"
 
     controller.setActivitySort("taskName", 1)

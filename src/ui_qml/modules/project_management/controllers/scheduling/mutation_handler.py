@@ -112,34 +112,4 @@ class SchedulingMutationHandler:
             project_id or "Current project",
         )
 
-    def create_dependency(self, payload: dict) -> dict[str, object]:
-        related_name = str(payload.get("relatedActivityName", "") or "").strip()
-        return self._run(
-            lambda: self._presenter.create_dependency(dict(payload)),
-            "Dependency created.",
-            "Dependency created",
-            "Success",
-            related_name or "Activity relationship saved",
-        )
-
-    def update_dependency(self, payload: dict) -> dict[str, object]:
-        related_name = str(payload.get("relatedActivityName", "") or "").strip()
-        lag_label = str(payload.get("lagDays", "") or "").strip()
-        return self._run(
-            lambda: self._presenter.update_dependency(dict(payload)),
-            "Dependency updated.",
-            "Dependency updated",
-            "Success",
-            f"{related_name or 'Linked activity'} | Lag {lag_label or '0'}",
-        )
-
-    def delete_dependency(self, dependency_id: str) -> dict[str, object]:
-        return self._run(
-            lambda: self._presenter.delete_dependency(dependency_id),
-            "Dependency removed.",
-            "Dependency removed",
-            "Warning",
-            str(dependency_id or ""),
-        )
-
 __all__ = ["SchedulingMutationHandler"]

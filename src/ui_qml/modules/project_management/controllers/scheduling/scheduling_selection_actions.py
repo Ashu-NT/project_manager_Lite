@@ -134,10 +134,6 @@ def select_activity(controller, activity_id: str) -> None:
     set_gantt_selection(controller, activity_id)
 
 
-def activate_activity(controller, activity_id: str) -> None:
-    select_activity(controller, activity_id)
-
-
 def set_hierarchy_expanded(controller, task_id: str, expanded: bool) -> None:
     set_gantt_expanded(controller, task_id, expanded)
 
@@ -158,7 +154,6 @@ def set_activity_sort(controller, sort_key: str, sort_direction: int) -> None:
 
 
 __all__ = [
-    "activate_activity",
     "apply_search_text",
     "apply_show_critical_only",
     "apply_show_delayed_only",

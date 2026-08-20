@@ -55,7 +55,6 @@ from src.ui_qml.modules.project_management.controllers.common.serializers.schedu
     serialize_scheduling_baselines_view_model,
     serialize_scheduling_calendar_view_model,
     serialize_scheduling_collection_view_model,
-    serialize_scheduling_detail_view_model,
     serialize_scheduling_overview_view_model,
     serialize_scheduling_record_view_models,
 )
@@ -147,7 +146,6 @@ __all__ = [
     "serialize_scheduling_baselines_view_model",
     "serialize_scheduling_calendar_view_model",
     "serialize_scheduling_collection_view_model",
-    "serialize_scheduling_detail_view_model",
     "serialize_scheduling_overview_view_model",
     "serialize_selector_options",
     "serialize_task_catalog_overview_view_model",

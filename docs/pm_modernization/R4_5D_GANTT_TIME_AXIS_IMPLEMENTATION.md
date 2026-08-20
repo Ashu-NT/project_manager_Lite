@@ -131,7 +131,7 @@ vertical scroll, 11.756 ms local filter, and 0.208 ms mode switch.
 - no commit was created by the assistant; the user committed the D production
   source during implementation as `67d4ba77`.
 
-## R4.5E Handoff
+## Historical R4.5E Handoff
 
 R4.5E may add exactly one centralized, viewport-aware dependency Canvas above
 the timeline rows. It must consume the existing project-wide typed edge facts
@@ -145,3 +145,7 @@ complete-edge visibility rules, visible/overscan adjacency lookup, selected
 incident-edge emphasis, coalesced repaint, and measurement-backed high-density
 behavior. Baseline overlays, final critical-path styling, dependency CRUD,
 milestone redesign, and R5 remain excluded.
+
+R4.5E-H completed this handoff without adding another axis or scheduling-math
+implementation. Final axis and geometry validation is recorded in
+`R4_5_GANTT_CLOSURE.md`.

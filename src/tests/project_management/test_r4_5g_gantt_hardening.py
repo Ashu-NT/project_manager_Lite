@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import gc
 import os
+from datetime import date, timedelta
 from pathlib import Path
 from time import perf_counter
 import tracemalloc
@@ -15,12 +16,19 @@ from PySide6.QtTest import QTest
 
 import src.ui_qml.modules.project_management.controllers.scheduling.gantt_baseline_actions as baseline_actions
 import src.ui_qml.modules.project_management.controllers.scheduling.gantt_view_state as gantt_view_state
+from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_builder import (
+    build_gantt_projection,
+)
+from src.core.modules.project_management.domain.scheduling.baseline import BaselineTask
 from src.tests.path_rewrites import REPO_ROOT
 from src.tests.project_management.test_r4_5b_gantt_read_contract import _projection
 from src.tests.project_management.test_r4_5c_gantt_viewport import (
     _projection_from_hierarchy,
 )
 from src.tests.project_management.test_r4_5b_gantt_read_contract import (
+    _edge,
+    _node,
+    _schedule,
     _task,
 )
 from src.ui_qml.modules.project_management.controllers.scheduling.gantt_list_model import (
@@ -28,6 +36,9 @@ from src.ui_qml.modules.project_management.controllers.scheduling.gantt_list_mod
 )
 from src.ui_qml.modules.project_management.controllers.scheduling.gantt_time_axis_controller import (
     GanttTimeAxisController,
+)
+from src.ui_qml.modules.project_management.controllers.scheduling.scheduling_workspace_controller import (
+    ProjectManagementSchedulingWorkspaceController,
 )
 from src.ui_qml.shell.qml_engine import create_qml_engine
 
@@ -80,6 +91,90 @@ def _create_view(
     root = view.rootObject()
     assert root is not None
     return application, engine, view, root
+
+
+def _combined_projection(
+    row_count: int,
+    *,
+    project_id: str = "project-a",
+    prefix: str = "a",
+):
+    assert row_count >= 50 and row_count % 50 == 0
+    hierarchy_nodes = []
+    schedule_items = []
+    baseline_tasks = []
+    leaf_tasks = []
+    base_date = date(2026, 1, 1)
+
+    for group_index in range(row_count // 50):
+        summary = _task(
+            f"{prefix}-summary-{group_index}",
+            code=f"{prefix.upper()}-S-{group_index}",
+            wbs=str(group_index + 1),
+            sort_order=group_index,
+        )
+        summary.project_id = project_id
+        hierarchy_nodes.append(_node(summary, is_summary=True, child_count=49))
+
+        for child_index in range(49):
+            leaf_index = len(leaf_tasks)
+            milestone = leaf_index % 37 == 0
+            task = _task(
+                f"{prefix}-task-{leaf_index}",
+                code=f"{prefix.upper()}-T-{leaf_index}",
+                wbs=f"{group_index + 1}.{child_index + 1}",
+                parent_id=summary.id,
+                sort_order=child_index,
+                is_milestone=milestone,
+            )
+            task.project_id = project_id
+            if milestone:
+                task.duration_days = 0
+                task.remaining_duration_days = 0
+            start = base_date + timedelta(days=leaf_index % 365)
+            finish = start if milestone else start + timedelta(days=2)
+            schedule = _schedule(task, start=start, finish=finish)
+            schedule.is_critical = leaf_index % 3 == 0
+            schedule.is_infeasible = leaf_index % 97 == 0
+            hierarchy_nodes.append(_node(task, depth=1, ancestors=(summary.id,)))
+            schedule_items.append(schedule)
+            baseline_tasks.append(
+                BaselineTask.create(
+                    baseline_id=f"{prefix}-baseline",
+                    task_id=task.id,
+                    task_name=task.name,
+                    baseline_start=start - timedelta(days=7),
+                    baseline_finish=finish - timedelta(days=7),
+                    baseline_duration_days=task.duration_days,
+                    baseline_planned_cost=0,
+                    baseline_is_milestone=milestone,
+                )
+            )
+            leaf_tasks.append(task)
+
+    relationships = ("FS", "SS", "FF", "SF")
+    dependency_rows = []
+    for index in range(1, len(leaf_tasks)):
+        edge = _edge(
+            index,
+            leaf_tasks[index - 1].id,
+            leaf_tasks[index].id,
+            relationships[index % len(relationships)],
+            (index % 5) - 2,
+        )
+        edge.id = f"{prefix}-edge-{index}"
+        dependency_rows.append(edge)
+
+    return build_gantt_projection(
+        tenant_id="tenant-1",
+        organization_id="org-1",
+        project_id=project_id,
+        hierarchy_nodes=tuple(hierarchy_nodes),
+        schedule_items=tuple(schedule_items),
+        dependency_rows=tuple(dependency_rows),
+        baseline_tasks=tuple(baseline_tasks),
+        selected_baseline_id=f"{prefix}-baseline",
+    )
 
 
 @pytest.mark.parametrize(

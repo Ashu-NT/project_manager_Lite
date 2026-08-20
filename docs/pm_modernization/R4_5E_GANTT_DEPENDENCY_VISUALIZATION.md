@@ -200,7 +200,7 @@ renderer was introduced.
 - no full test suite was run;
 - no commit was created.
 
-## R4.5F Handoff
+## Historical R4.5F Handoff
 
 R4.5F may add the explicit selected-baseline overlay and final semantic visual
 precedence for baseline, milestone, selected/focused, critical, and infeasible
@@ -212,3 +212,7 @@ R4.5F must retain the single Canvas, adjacency-window algorithm, complete-edge
 visibility rule, 500-edge truthful fallback, one axis/row coordinate system,
 and no-CPM/no-query display interactions. It must not add dependency CRUD,
 infer infeasibility from geometry, redesign scheduling semantics, or begin R5.
+
+R4.5F-H retained these constraints. R4.5H confirms the central Canvas is still
+the only production dependency renderer and the component-owned zero-delay Timer
+only coalesces repaint requests. See `R4_5_GANTT_CLOSURE.md`.

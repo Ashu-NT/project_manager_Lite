@@ -49,16 +49,6 @@ class GanttTaskRowDto:
     late_by_days: int | None
     priority: int | None
 
-    @property
-    def id(self) -> str:
-        """Compatibility alias for existing read-only scheduling presenters."""
-        return self.task_id
-
-    @property
-    def actual_end(self) -> date | None:
-        return self.actual_finish
-
-
 @dataclass(frozen=True, slots=True)
 class GanttDependencyEdgeDto:
     tenant_id: str
@@ -72,11 +62,6 @@ class GanttDependencyEdgeDto:
     dependency_type: str
     dependency_type_label: str
     lag_days: int
-
-    @property
-    def id(self) -> str:
-        return self.dependency_id
-
 
 @dataclass(frozen=True, slots=True)
 class GanttBaselineTaskSnapshotDto:

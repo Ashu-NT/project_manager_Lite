@@ -1,7 +1,7 @@
 # R4.5B Gantt Read Contract Implementation
 
 **Status:** COMPLETE  
-**Handoff status:** R4.5C completed; R4.5D is next
+**Handoff status:** R4.5B-H complete; R4.5 closed
 **Commit:** none created
 
 ## Boundary
@@ -132,7 +132,7 @@ or both are empty. No first row is automatically selected. Selection clears on p
 
 ## Local View Separation
 
-Search, status filter, critical-only filter, delayed-only filter, sort, page, and page-size actions now call the local indexed model path. They do not call `controller.refresh()` and therefore do not rerun SchedulingEngine.
+Search, status filter, critical-only filter, delayed-only filter, sort, and hierarchy expansion call the local indexed model path. They do not call `controller.refresh()` and therefore do not rerun SchedulingEngine. The production Gantt has no page or page-size state.
 
 **R4.5C deletion completed:** `gantt_legacy_adapter.py`, its imports, the paginated Gantt `DataTable`, and `SchedulingTimelinePanel` were deleted. No compatibility shim or duplicate production renderer remains.
 
@@ -182,3 +182,10 @@ R4.5C consumes `controller.ganttRowsModel` directly and provides:
 5. responsive Grid/Timeline/Split composition required by C.
 
 R4.5C added no dependency Canvas, baseline visuals, timescale/zoom, or R5 resource lanes. The adapter and independently scrolling timeline path are removed. Exact measurements, verification, and the R4.5D handoff are recorded in `R4_5C_GANTT_VIEWPORT_IMPLEMENTATION.md`.
+
+## Final R4.5H Reconciliation
+
+R4.5H confirmed this projection remains the only production Gantt read path,
+removed the remaining duplicate Scheduling detail/dependency side-channel, and
+passed the final architecture, runtime, scope, and broad PM regression gates.
+The authoritative final state is recorded in `R4_5_GANTT_CLOSURE.md`.

@@ -52,23 +52,6 @@ class SchedulingCollectionViewModel:
     empty_state: str = ""
 
 @dataclass(frozen=True)
-class SchedulingDetailFieldViewModel:
-    label: str
-    value: str
-    supporting_text: str = ""
-
-@dataclass(frozen=True)
-class SchedulingDetailViewModel:
-    id: str = ""
-    title: str = ""
-    status_label: str = ""
-    subtitle: str = ""
-    description: str = ""
-    empty_state: str = ""
-    fields: tuple[SchedulingDetailFieldViewModel, ...] = field(default_factory=tuple)
-    state: dict[str, Any] = field(default_factory=dict)
-
-@dataclass(frozen=True)
 class SchedulingCalendarViewModel:
     summary_text: str
     working_day_options: tuple[SchedulingDayOptionViewModel, ...] = field(
@@ -102,12 +85,6 @@ class SchedulingWorkspaceViewModel:
     baseline_options: tuple[SchedulingSelectorOptionViewModel, ...] = field(
         default_factory=tuple
     )
-    dependency_type_options: tuple[SchedulingSelectorOptionViewModel, ...] = field(
-        default_factory=tuple
-    )
-    dependency_task_options: tuple[SchedulingSelectorOptionViewModel, ...] = field(
-        default_factory=tuple
-    )
     status_options: tuple[SchedulingSelectorOptionViewModel, ...] = field(
         default_factory=tuple
     )
@@ -127,12 +104,6 @@ class SchedulingWorkspaceViewModel:
     )
     baselines: SchedulingBaselineCompareViewModel = field(
         default_factory=SchedulingBaselineCompareViewModel
-    )
-    critical_path: SchedulingCollectionViewModel = field(
-        default_factory=lambda: SchedulingCollectionViewModel(
-            title="Critical Path",
-            subtitle="",
-        )
     )
     diagnostics: SchedulingCollectionViewModel = field(
         default_factory=lambda: SchedulingCollectionViewModel(
@@ -158,18 +129,6 @@ class SchedulingWorkspaceViewModel:
             subtitle="",
         )
     )
-    dependencies: SchedulingCollectionViewModel = field(
-        default_factory=lambda: SchedulingCollectionViewModel(
-            title="Dependencies",
-            subtitle="",
-        )
-    )
-    constraints: SchedulingCollectionViewModel = field(
-        default_factory=lambda: SchedulingCollectionViewModel(
-            title="Constraints",
-            subtitle="",
-        )
-    )
     constraint_violations: SchedulingCollectionViewModel = field(
         default_factory=lambda: SchedulingCollectionViewModel(
             title="Constraint Violations",
@@ -182,17 +141,11 @@ class SchedulingWorkspaceViewModel:
             subtitle="",
         )
     )
-    selected_activity_detail: SchedulingDetailViewModel = field(
-        default_factory=SchedulingDetailViewModel
-    )
-
 __all__ = [
     "SchedulingBaselineCompareViewModel",
     "SchedulingCalendarViewModel",
     "SchedulingCollectionViewModel",
     "SchedulingDayOptionViewModel",
-    "SchedulingDetailFieldViewModel",
-    "SchedulingDetailViewModel",
     "SchedulingMetricViewModel",
     "SchedulingOverviewViewModel",
     "SchedulingRecordViewModel",

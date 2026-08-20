@@ -58,7 +58,6 @@ AppLayouts.WorkspaceFrame {
         sourceComponent: Component {
             Dialogs.SchedulingDialogHost {
                 selectedProjectId:    root.workspaceController ? root.workspaceController.selectedProjectId : ""
-                selectedActivityData: root.selectedActivityModel
                 onCreateBaselineRequested: function(payload) {
                     if (root.workspaceController !== null) root.workspaceController.createBaseline(payload)
                 }

@@ -9,7 +9,6 @@ Item {
     id: root
 
     property string selectedProjectId: ""
-    property var selectedActivityData: ({})
     property var workspaceController: null
 
     signal createBaselineRequested(var payload)

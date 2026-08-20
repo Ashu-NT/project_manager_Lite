@@ -10,8 +10,6 @@ from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 @dataclass
 class SchedulingTableModels:
     schedule_impact_tasks: DynamicTableModel
-    dependency: DynamicTableModel
-    constraint: DynamicTableModel
     calendar_summary: DynamicTableModel
     baseline_variance: DynamicTableModel
     diagnostics: DynamicTableModel
@@ -26,8 +24,6 @@ class SchedulingTableModels:
 def create_scheduling_table_models(parent: QObject) -> SchedulingTableModels:
     return SchedulingTableModels(
         schedule_impact_tasks=DynamicTableModel(parent),
-        dependency=DynamicTableModel(parent),
-        constraint=DynamicTableModel(parent),
         calendar_summary=DynamicTableModel(parent),
         baseline_variance=DynamicTableModel(parent),
         diagnostics=DynamicTableModel(parent),

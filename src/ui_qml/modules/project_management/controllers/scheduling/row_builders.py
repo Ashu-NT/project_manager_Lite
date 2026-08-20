@@ -80,36 +80,6 @@ def build_baseline_register_rows(model: dict[str, object]) -> list[dict[str, obj
     return rows
 
 
-def build_dependency_rows(model: dict[str, object]) -> list[dict[str, object]]:
-    rows: list[dict[str, object]] = []
-    for item in model.get("items", []):
-        state = dict(item.get("state", {}) or {})
-        rows.append({
-            "id": item.get("id", ""),
-            "relatedActivity": item.get("title", ""),
-            "dependencyType": state.get("dependencyTypeLabel", item.get("subtitle", "")),
-            "lag": state.get("lagLabel", ""),
-            "direction": item.get("statusLabel", ""),
-            "status": state.get("statusLabel", ""),
-            "notes": item.get("supportingText", ""),
-        })
-    return rows
-
-
-def build_constraint_rows(model: dict[str, object]) -> list[dict[str, object]]:
-    rows: list[dict[str, object]] = []
-    for item in model.get("items", []):
-        state = dict(item.get("state", {}) or {})
-        rows.append({
-            "id": item.get("id", ""),
-            "constraint": item.get("title", ""),
-            "value": state.get("constraintValue", item.get("subtitle", "")),
-            "status": state.get("constraintStatus", item.get("statusLabel", "")),
-            "notes": item.get("supportingText", ""),
-        })
-    return rows
-
-
 def build_violation_rows(model: dict[str, object]) -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
     for item in model.get("items", []):
@@ -189,9 +159,7 @@ __all__ = [
     "build_baseline_register_rows",
     "build_baseline_variance_rows",
     "build_calendar_summary_rows",
-    "build_constraint_rows",
     "build_delayed_rows",
-    "build_dependency_rows",
     "build_diagnostics_rows",
     "build_holiday_rows",
     "build_leveling_move_rows",

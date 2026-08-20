@@ -202,9 +202,9 @@ Only measured or contract-proven changes were made:
 
 No cache, alternate row model, business write, CPM path, or DB query was added.
 
-## 8. R4.5H Handoff
+## 8. R4.5H Closure Reconciliation
 
-R4.5H owns only final integrated validation and cleanup:
+R4.5H completed final integrated validation and cleanup:
 
 1. run the full relevant PM scheduling/domain/shared-QML regression matrix;
 2. repeat changed-QML lint and runtime import/qmldir guardrails;
@@ -212,6 +212,8 @@ R4.5H owns only final integrated validation and cleanup:
    contract remains;
 4. reconcile all R4.5A-G closure documents and the final R4.5 exit gate.
 
-No known R4.5G correctness defect is deferred to H. R5 resource/workload
-features and broad R8 accessibility remain untouched. Nothing was committed by
-this implementation run.
+No R4.5G correctness defect remains. Final remeasurement and broad regression
+evidence supersede the phase-local measurements above where they differ and are
+recorded in `R4_5_GANTT_CLOSURE.md`. R5 resource/workload features and broad R8
+accessibility remain untouched. Nothing was committed by this implementation
+run.
