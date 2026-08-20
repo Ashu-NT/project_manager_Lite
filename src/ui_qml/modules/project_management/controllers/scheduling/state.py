@@ -34,6 +34,7 @@ def default_baselines() -> dict[str, object]:
 def default_selected_activity() -> dict[str, object]:
     return {
         "id": "",
+        "taskId": "",
         "title": "",
         "statusLabel": "",
         "subtitle": "",

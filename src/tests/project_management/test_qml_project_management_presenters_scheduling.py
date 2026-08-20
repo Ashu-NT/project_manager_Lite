@@ -112,9 +112,13 @@ def test_project_management_workspace_catalog_exposes_typed_scheduling_controlle
     scheduling_api = build_project_management_scheduling_desktop_api(
         project_service=SimpleNamespace(
             list_projects=lambda: [
-                SimpleNamespace(id="proj-1", name="Plant Upgrade"),
-                SimpleNamespace(id="proj-2", name="Warehouse Retrofit"),
-            ]
+                SimpleNamespace(id="proj-1", name="Plant Upgrade", organization_id="org-1"),
+                SimpleNamespace(id="proj-2", name="Warehouse Retrofit", organization_id="org-1"),
+            ],
+            get_project=lambda project_id: SimpleNamespace(
+                id=project_id,
+                organization_id="org-1",
+            ),
         ),
         task_service=SimpleNamespace(list_tasks_for_project=lambda project_id: []),
         scheduling_engine=_FakeSchedulingEngine(
@@ -190,6 +194,12 @@ def test_project_management_workspace_catalog_exposes_typed_scheduling_controlle
                     )
                 ]
             }
+        ),
+        tenant_context_service=SimpleNamespace(
+            require_active_scope_ids=lambda **_kwargs: SimpleNamespace(
+                tenant_id="tenant-1",
+                organization_id="org-1",
+            )
         ),
     )
     catalog = ProjectManagementWorkspaceCatalog(

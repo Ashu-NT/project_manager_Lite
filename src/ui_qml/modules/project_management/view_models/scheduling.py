@@ -3,6 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from src.core.modules.project_management.api.desktop.scheduling.models import (
+    GanttProjectionDto,
+)
+
 @dataclass(frozen=True)
 class SchedulingMetricViewModel:
     label: str
@@ -120,6 +124,7 @@ class SchedulingWorkspaceViewModel:
     sort_key: str = "schedule"
     sort_direction: str = "asc"
     selected_activity_id: str = ""
+    gantt_projection: GanttProjectionDto | None = None
     calendar: SchedulingCalendarViewModel = field(
         default_factory=lambda: SchedulingCalendarViewModel(summary_text="")
     )

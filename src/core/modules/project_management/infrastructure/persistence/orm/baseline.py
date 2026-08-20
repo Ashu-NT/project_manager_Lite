@@ -6,7 +6,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import Date, DateTime, ForeignKey, Index, Integer, String
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infra.persistence.orm.base import Base
@@ -57,6 +57,9 @@ class BaselineTaskORM(Base):
     baseline_start: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     baseline_finish: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     baseline_duration_days: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    baseline_is_milestone: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )
     baseline_planned_cost: Mapped[Decimal] = mapped_column(
         financial_numeric(FinancialNumericKind.MONEY),
         nullable=False,

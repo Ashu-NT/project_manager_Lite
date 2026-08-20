@@ -15,6 +15,7 @@ from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from .activity_log_service import ActivityLogService
 from .domain_event_binder import bind_scheduling_domain_events
 from .filter_service import filter_rows
+from .gantt_list_model import GanttListModel
 from .leveling_actions import apply_resource_leveling, preview_resource_leveling
 from .mutation_handler import SchedulingMutationHandler
 from .scheduling_calculation_actions import (
@@ -85,6 +86,7 @@ from .scheduling_selection_actions import (
     select_project,
     set_active_panel,
     set_activity_sort,
+    set_hierarchy_expanded,
     set_include_unchanged,
     set_page,
     set_page_size,
@@ -191,6 +193,7 @@ class ProjectManagementSchedulingWorkspaceController(
             scheduling_workspace_presenter or ProjectSchedulingWorkspacePresenter()
         )
         self._table_models = create_scheduling_table_models(self)
+        self._gantt_model = GanttListModel(self)
         self._activity_log_svc = ActivityLogService()
         self._mutations = SchedulingMutationHandler(
             presenter=self._scheduling_workspace_presenter,
@@ -491,6 +494,10 @@ class ProjectManagementSchedulingWorkspaceController(
         return self._table_models.schedule
 
     @Property(QObject, constant=True)
+    def ganttRowsModel(self) -> GanttListModel:
+        return self._gantt_model
+
+    @Property(QObject, constant=True)
     def scheduleImpactTasksTableModel(self) -> DynamicTableModel:
         return self._table_models.schedule_impact_tasks
 
@@ -643,6 +650,10 @@ class ProjectManagementSchedulingWorkspaceController(
     @Slot(str, int)
     def setActivitySort(self, sort_key: str, sort_direction: int) -> None:
         set_activity_sort(self, sort_key, sort_direction)
+
+    @Slot(str, bool)
+    def setGanttExpanded(self, task_id: str, expanded: bool) -> None:
+        set_hierarchy_expanded(self, task_id, expanded)
 
     # ── Tab-local search text slots ───────────────────────────────────
 

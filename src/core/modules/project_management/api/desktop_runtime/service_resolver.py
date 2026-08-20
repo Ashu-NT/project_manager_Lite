@@ -41,6 +41,7 @@ from src.core.modules.project_management.application.scheduling.baselines.baseli
 from src.core.modules.project_management.application.tasks import TaskService
 from src.core.modules.project_management.application.timesheets import TimesheetService
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
 
 
 @dataclass(frozen=True)
@@ -73,6 +74,7 @@ class ProjectManagementDesktopRuntimeServices:
     billing_preparation_service: ProjectBillingPreparationService | None
     baseline_service: BaselineService | None
     reporting_service: ReportingService | None
+    tenant_context_service: TenantContextService | None
 
 
 def resolve_project_management_desktop_runtime_services(
@@ -106,6 +108,7 @@ def resolve_project_management_desktop_runtime_services(
     billing_preparation_service = services.get("billing_preparation_service")
     baseline_service = services.get("baseline_service")
     reporting_service = services.get("reporting_service")
+    tenant_context_service = services.get("tenant_context_service")
 
     if work_calendar_engine is not None and not hasattr(
         work_calendar_engine, "is_working_day"
@@ -233,6 +236,11 @@ def resolve_project_management_desktop_runtime_services(
         reporting_service=(
             reporting_service
             if isinstance(reporting_service, ReportingService)
+            else None
+        ),
+        tenant_context_service=(
+            tenant_context_service
+            if isinstance(tenant_context_service, TenantContextService)
             else None
         ),
     )

@@ -4,13 +4,14 @@ import logging
 from time import perf_counter
 
 from src.ui_qml.modules.project_management.controllers.common import (
-    serialize_scheduling_detail_view_model,
     serialize_scheduling_overview_view_model,
     serialize_selector_options,
     serialize_workspace_view_model,
 )
 
 from .panel_hydrator import hydrate_visible_panel_models, serialize_workspace_panels
+from .gantt_selection import set_gantt_selection
+from .gantt_view_state import refresh_local_gantt_view
 from .state import default_schedule_impact
 from .scheduling_property_updates import (
     set_activity_page,
@@ -25,8 +26,6 @@ from .scheduling_property_updates import (
     set_overview,
     set_project_options,
     set_search_text,
-    set_selected_activity,
-    set_selected_activity_id,
     set_selected_baseline_id,
     set_selected_calendar_id,
     set_selected_project_id,
@@ -106,13 +105,11 @@ def load_workspace_state(controller) -> None:
         set_activity_total_count(controller, ws.total_count)
         set_activity_sort_key(controller, ws.sort_key)
         set_activity_sort_direction(controller, 1 if ws.sort_direction == "desc" else 0)
-        set_selected_activity_id(controller, ws.selected_activity_id)
+        controller._gantt_model.set_projection(ws.gantt_projection)
         panels = serialize_workspace_panels(ws)
         hydrate_visible_panel_models(controller, panels)
-        set_selected_activity(
-            controller,
-            serialize_scheduling_detail_view_model(ws.selected_activity_detail),
-        )
+        refresh_local_gantt_view(controller)
+        set_gantt_selection(controller, ws.selected_activity_id)
         controller._set_empty_state(
             ws.schedule.empty_state or ws.selected_activity_detail.empty_state
         )

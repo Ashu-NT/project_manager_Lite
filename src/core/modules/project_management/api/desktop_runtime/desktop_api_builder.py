@@ -109,6 +109,7 @@ def build_project_management_desktop_runtime_apis(
             reporting_service=resolved.reporting_service,
             change_impact_service=change_impact_service,
             constraint_validator=constraint_validator,
+            tenant_context_service=resolved.tenant_context_service,
         ),
         project_management_tasks=build_project_management_tasks_desktop_api(
             project_service=resolved.project_service,

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QTimer
-
+from .gantt_selection import set_gantt_selection
+from .gantt_view_state import refresh_local_gantt_view, set_gantt_expanded
 from .scheduling_property_updates import (
     set_activity_page,
     set_activity_page_size,
@@ -10,7 +10,6 @@ from .scheduling_property_updates import (
     set_baseline_variance_rows,
     set_baselines,
     set_search_text,
-    set_selected_activity_id,
     set_selected_baseline_id,
     set_selected_calendar_id,
     set_selected_project_id,
@@ -34,7 +33,7 @@ def select_project(controller, project_id: str) -> None:
         return
     set_selected_project_id(controller, normalized)
     set_selected_baseline_id(controller, "")
-    set_selected_activity_id(controller, "")
+    set_gantt_selection(controller, "")
     set_baselines(controller, {
         **controller._baselines,
         "selectedBaselineAId": "",
@@ -93,7 +92,7 @@ def apply_search_text(controller, search_text: str) -> None:
         return
     set_search_text(controller, normalized)
     set_activity_page(controller, 1)
-    controller.refresh()
+    refresh_local_gantt_view(controller)
 
 
 def apply_status_filter(controller, status_filter: str) -> None:
@@ -102,7 +101,7 @@ def apply_status_filter(controller, status_filter: str) -> None:
         return
     set_selected_status_filter(controller, normalized)
     set_activity_page(controller, 1)
-    controller.refresh()
+    refresh_local_gantt_view(controller)
 
 
 def apply_show_critical_only(controller, enabled: bool) -> None:
@@ -110,7 +109,7 @@ def apply_show_critical_only(controller, enabled: bool) -> None:
         return
     set_show_critical_only(controller, enabled)
     set_activity_page(controller, 1)
-    controller.refresh()
+    refresh_local_gantt_view(controller)
 
 
 def apply_show_delayed_only(controller, enabled: bool) -> None:
@@ -118,7 +117,7 @@ def apply_show_delayed_only(controller, enabled: bool) -> None:
         return
     set_show_delayed_only(controller, enabled)
     set_activity_page(controller, 1)
-    controller.refresh()
+    refresh_local_gantt_view(controller)
 
 
 def clear_filters(controller) -> None:
@@ -134,19 +133,19 @@ def clear_filters(controller) -> None:
     set_show_critical_only(controller, False)
     set_show_delayed_only(controller, False)
     set_activity_page(controller, 1)
-    controller.refresh()
+    refresh_local_gantt_view(controller)
 
 
 def select_activity(controller, activity_id: str) -> None:
-    normalized = (activity_id or "").strip()
-    if normalized == controller._selected_activity_id:
-        return
-    set_selected_activity_id(controller, normalized)
+    set_gantt_selection(controller, activity_id)
 
 
 def activate_activity(controller, activity_id: str) -> None:
     select_activity(controller, activity_id)
-    QTimer.singleShot(0, controller.refresh)
+
+
+def set_hierarchy_expanded(controller, task_id: str, expanded: bool) -> None:
+    set_gantt_expanded(controller, task_id, expanded)
 
 
 def set_page(controller, page: int) -> None:
@@ -154,7 +153,7 @@ def set_page(controller, page: int) -> None:
     if resolved == controller._activity_page:
         return
     set_activity_page(controller, resolved)
-    controller.refresh()
+    refresh_local_gantt_view(controller)
 
 
 def set_page_size(controller, page_size: int) -> None:
@@ -163,7 +162,7 @@ def set_page_size(controller, page_size: int) -> None:
         return
     set_activity_page_size(controller, resolved)
     set_activity_page(controller, 1)
-    controller.refresh()
+    refresh_local_gantt_view(controller)
 
 
 def set_activity_sort(controller, sort_key: str, sort_direction: int) -> None:
@@ -179,7 +178,7 @@ def set_activity_sort(controller, sort_key: str, sort_direction: int) -> None:
     set_activity_sort_key(controller, normalized_key)
     set_activity_sort_direction(controller, normalized_direction)
     set_activity_page(controller, 1)
-    controller.refresh()
+    refresh_local_gantt_view(controller)
 
 
 __all__ = [
@@ -197,6 +196,7 @@ __all__ = [
     "select_project",
     "set_active_panel",
     "set_activity_sort",
+    "set_hierarchy_expanded",
     "set_include_unchanged",
     "set_page",
     "set_page_size",

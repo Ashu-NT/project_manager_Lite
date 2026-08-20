@@ -90,14 +90,6 @@ def build_workspace_state(
     )
     calendar_snapshot = desktop_api.get_calendar_snapshot(resolved_calendar_id)
 
-    schedule_items = (
-        desktop_api.list_schedule(resolved_project_id) if resolved_project_id else ()
-    )
-    dependency_rows = (
-        desktop_api.list_project_dependencies(resolved_project_id)
-        if resolved_project_id
-        else ()
-    )
     dependency_type_options = tuple(
         SchedulingSelectorOptionViewModel(value=option.value, label=option.label)
         for option in desktop_api.list_dependency_types()
@@ -115,10 +107,28 @@ def build_workspace_state(
         if resolved_project_id
         else ()
     )
-    resolved_baseline_id = resolve_selected_option(
-        selected_baseline_id,
-        baseline_options,
-        default_value="",
+    requested_baseline_id = str(selected_baseline_id or "").strip()
+    baseline_ids = {option.value for option in baseline_options}
+    resolved_baseline_id = (
+        requested_baseline_id if requested_baseline_id in baseline_ids else ""
+    )
+    gantt_projection = (
+        desktop_api.build_gantt_projection(
+            resolved_project_id,
+            selected_baseline_id=resolved_baseline_id or None,
+        )
+        if resolved_project_id
+        else None
+    )
+    schedule_items = (
+        tuple(row for row in gantt_projection.rows if not row.is_summary)
+        if gantt_projection is not None
+        else ()
+    )
+    dependency_rows = (
+        gantt_projection.dependency_edges
+        if gantt_projection is not None
+        else ()
     )
     resolved_baseline_a_id, resolved_baseline_b_id = resolve_baseline_ids(
         baseline_options=baseline_options,
@@ -284,6 +294,7 @@ def build_workspace_state(
         sort_key=schedule_sort.key,
         sort_direction=schedule_sort.direction.value,
         selected_activity_id=resolved_selected_activity_id,
+        gantt_projection=gantt_projection,
         calendar=build_calendar_view_model(calendar_snapshot),
         baselines=SchedulingBaselineCompareViewModel(
             options=baseline_options,

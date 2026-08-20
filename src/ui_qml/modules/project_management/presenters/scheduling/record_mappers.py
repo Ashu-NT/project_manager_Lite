@@ -22,7 +22,7 @@ def to_schedule_record(
     row_index: int,
     calendar_label: str,
 ) -> SchedulingRecordViewModel:
-    activity_code = f"A-{row_index:03d}"
+    activity_code = str(getattr(item, "code", "") or "")
     progress_value = float(item.percent_complete or 0.0)
     remaining_duration = item.remaining_duration_days
     c_label = constraint_label_for_activity(item)
@@ -87,9 +87,7 @@ def to_timeline_record(item: Any, *, timeline_items: Any) -> SchedulingRecordVie
         if start_offset is not None and finish_offset is not None
         else 1
     )
-    milestone = bool(
-        item.start_date and item.finish_date and item.start_date == item.finish_date
-    )
+    milestone = bool(getattr(item, "is_milestone", False))
     return SchedulingRecordViewModel(
         id=item.id,
         title=item.name,

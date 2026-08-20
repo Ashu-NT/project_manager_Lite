@@ -38,6 +38,12 @@ from src.core.modules.project_management.api.desktop.scheduling.models.leveling 
     SchedulingProposedTaskMoveDto,
     SchedulingUnresolvedConflictDto,
 )
+from src.core.modules.project_management.api.desktop.scheduling.models.gantt import (
+    GanttBaselineTaskSnapshotDto,
+    GanttDependencyEdgeDto,
+    GanttProjectionDto,
+    GanttTaskRowDto,
+)
 from src.core.modules.project_management.api.desktop.scheduling.models.resources import (
     SchedulingResourceLoadDto,
 )
@@ -50,6 +56,10 @@ __all__ = [
     "_DAY_LABELS",
     "ActualVarianceDto",
     "DownstreamExposureDto",
+    "GanttBaselineTaskSnapshotDto",
+    "GanttDependencyEdgeDto",
+    "GanttProjectionDto",
+    "GanttTaskRowDto",
     "ScheduleConflictDto",
     "ScheduleDriverDto",
     "TaskScheduleImpactOverviewDesktopDto",

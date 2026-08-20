@@ -2047,6 +2047,7 @@ def upgrade() -> None:
     sa.Column('baseline_start', sa.Date(), nullable=True),
     sa.Column('baseline_finish', sa.Date(), nullable=True),
     sa.Column('baseline_duration_days', sa.Integer(), nullable=False),
+    sa.Column('baseline_is_milestone', sa.Boolean(), server_default='0', nullable=False),
     sa.Column('baseline_planned_cost', sa.Numeric(precision=19, scale=4), server_default='0', nullable=False),
     sa.ForeignKeyConstraint(['baseline_id'], ['project_baselines.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')

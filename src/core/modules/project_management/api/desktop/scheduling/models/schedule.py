@@ -13,8 +13,12 @@ class SchedulingProjectOptionDescriptor:
 class SchedulingTaskDto:
     id: str
     project_id: str
+    code: str
     name: str
+    parent_task_id: str | None
     wbs_code: str
+    sort_order: int
+    is_milestone: bool
     description: str
     status: str
     status_label: str
