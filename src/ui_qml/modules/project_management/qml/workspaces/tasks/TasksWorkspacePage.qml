@@ -13,6 +13,9 @@ AppLayouts.WorkspaceFrame {
 
     property ShellContexts.ShellContext shellModel
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
+    readonly property ProjectManagementControllers.PMWorkspaceNavigationController pmNavigation: root.pmCatalog
+        ? root.pmCatalog.pmNavigation
+        : null
     property ProjectManagementControllers.ProjectManagementTasksWorkspaceController workspaceController: root.pmCatalog
         ? root.pmCatalog.tasksWorkspace
         : null
@@ -148,6 +151,37 @@ AppLayouts.WorkspaceFrame {
             root._loadLazyDetailSection(sectionIndex)
         }
     }
+
+    function _navigationSectionIndex(sectionId) {
+        const normalized = String(sectionId || "").trim().toLowerCase()
+        if (!normalized.length) return 0
+        for (let index = 0; index < root._detailSections.length; index += 1) {
+            if (String(root._detailSections[index] || "").trim().toLowerCase() === normalized) {
+                return index
+            }
+        }
+        return 0
+    }
+
+    function _applyPmNavigationIntent() {
+        const navigation = root.pmNavigation
+        if (!navigation || navigation.workspaceKey !== "tasks") return
+        const routeState = navigation.routeState || ({})
+        const taskId = String(routeState.entityId || "").trim()
+        if (!taskId.length || root.workspaceController === null) return
+        root.workspaceController.activateTask(taskId)
+        root._openDetail(root._navigationSectionIndex(routeState.section))
+    }
+
+    Connections {
+        target: root.pmNavigation
+
+        function onRouteStateChanged() {
+            Qt.callLater(root._applyPmNavigationIntent)
+        }
+    }
+
+    Component.onCompleted: Qt.callLater(root._applyPmNavigationIntent)
 
     AppWidgets.LazyObjectLoader {
         id: dialogHostLoader

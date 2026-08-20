@@ -7,7 +7,6 @@ import App.Layouts 1.0 as AppLayouts
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
-import Shell.Context 1.0 as ShellContexts
 import "panels" as Panels
 import "dialogs" as Dialogs
 import "components" as Components
@@ -16,7 +15,9 @@ AppLayouts.WorkspaceFrame {
     id: root
 
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
-    property ShellContexts.ShellContext shellModel
+    readonly property ProjectManagementControllers.PMWorkspaceNavigationController pmNavigation: root.pmCatalog
+        ? root.pmCatalog.pmNavigation
+        : null
     property ProjectManagementControllers.ProjectManagementSchedulingWorkspaceController workspaceController: root.pmCatalog
         ? root.pmCatalog.schedulingWorkspace
         : null
@@ -228,11 +229,12 @@ AppLayouts.WorkspaceFrame {
                             activityColumns:       state.activityColumns
                             activityTableId:       state.activityTableId
                             selectedActivityModel: root.selectedActivityModel
-                            shellModel:            root.shellModel
                             onActivityColumnsStateChanged: function(cols) { state.activityColumns = cols }
                             onActivityDetailRequested: function(activityId) {
                                 if (root.workspaceController !== null) root.workspaceController.selectActivity(activityId)
-                                if (root.shellModel) root.shellModel.selectRoute("project_management.tasks")
+                                if (root.pmNavigation) {
+                                    root.pmNavigation.openEntity("tasks", activityId, "")
+                                }
                             }
                         }
 

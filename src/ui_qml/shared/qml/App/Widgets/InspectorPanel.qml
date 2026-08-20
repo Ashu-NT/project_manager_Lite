@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 import App.Icons 1.0 as AppIcons
@@ -14,6 +13,7 @@ Rectangle {
     // -- Header ---------------------------------------------------------
     property string title: ""
     property string statusLabel: ""
+    property bool showHeader: true
 
     // -- Metadata sections ------------------------------------------------
     // Array of { label, value } sections rendered below the header, in
@@ -60,7 +60,8 @@ Rectangle {
         // -- Panel header -------------------------------------------------
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: Theme.AppTheme.toolbarHeight - 6
+            Layout.preferredHeight: root.showHeader ? Theme.AppTheme.toolbarHeight - 6 : 0
+            visible: root.showHeader
             color: Theme.AppTheme.surfaceRaised
 
             Rectangle {
@@ -172,7 +173,7 @@ Rectangle {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.topMargin: 2
-                    height: Theme.AppTheme.borderWidthThin
+                    Layout.preferredHeight: Theme.AppTheme.borderWidthThin
                     color: Theme.AppTheme.divider
                 }
 

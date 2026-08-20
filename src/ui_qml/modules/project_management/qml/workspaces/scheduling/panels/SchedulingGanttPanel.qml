@@ -16,7 +16,6 @@ Item {
     property var activityColumns: []
     property string activityTableId: "pm.scheduling.activity.table"
     property var selectedActivityModel: ({ "id": "", "title": "", "statusLabel": "", "fields": [] })
-    property var shellModel: null
     property string ganttViewMode: "split"
 
     readonly property bool compact: root.width <= Theme.AppTheme.compactContentBreakpoint
@@ -91,6 +90,7 @@ Item {
         AppWidgets.InspectorPanel {
             title: String(root.selectedActivityModel.title || "")
             statusLabel: String(root.selectedActivityModel.statusLabel || "")
+            showHeader: !root.compact
             sections: root.inspectorSections
             busy: root.workspaceController ? root.workspaceController.isBusy : false
             editActionLabel: "Open Task"

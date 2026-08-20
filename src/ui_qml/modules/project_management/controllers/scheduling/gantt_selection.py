@@ -49,8 +49,7 @@ def _serialize_detail(row: GanttTaskRowDto, *, dependency_count: int) -> dict[st
         "description": row.description or "Schedule activity selected for planning inspection.",
         "emptyState": "",
         "fields": [
-            _field("Activity ID", row.task_id, "Authoritative task identifier."),
-            _field("Activity code", row.code or "-", "Authoritative Task.code."),
+            _field("Activity ID", row.code or "-", "Authoritative task code."),
             _field("WBS", row.wbs_code or "-", "Canonical work breakdown code."),
             _field("Start", _date_label(row.start_date), f"Latest {_date_label(row.latest_start)}"),
             _field("Finish", _date_label(row.finish_date), f"Latest {_date_label(row.latest_finish)}"),

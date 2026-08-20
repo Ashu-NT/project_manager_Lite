@@ -17,11 +17,34 @@ Component {
     Property { name: "dashboardWorkspace"; type: "ProjectManagementDashboardWorkspaceController"; isReadonly: true }
     Property { name: "timesheetsWorkspace"; type: "ProjectManagementTimesheetsWorkspaceController"; isReadonly: true }
     Property { name: "pmCapabilityController"; type: "PMCapabilityController"; isReadonly: true }
+    Property { name: "pmNavigation"; type: "PMWorkspaceNavigationController"; isReadonly: true }
     Method { name: "workspace"; type: "QVariantMap"; Parameter { name: "routeId"; type: "QString" } }
     Method { name: "dashboardOverview"; type: "QVariantMap" }
     Method { name: "isModuleEnabled"; type: "bool"; Parameter { name: "moduleCode"; type: "QString" } }
     Method { name: "hasCapability"; type: "bool"; Parameter { name: "capabilityId"; type: "QString" } }
     Method { name: "canUseIntegration"; type: "bool"; Parameter { name: "sourceModule"; type: "QString" } Parameter { name: "targetModule"; type: "QString" } Parameter { name: "capability"; type: "QString" } }
+}
+
+Component {
+    name: "PMWorkspaceNavigationController"
+    accessSemantics: "reference"
+    prototype: "QObject"
+    exports: ["ProjectManagement.Controllers/PMWorkspaceNavigationController 1.0"]
+    isCreatable: false
+    Property { name: "workspaceKey"; type: "QString"; isReadonly: true }
+    Property { name: "destinationId"; type: "QString"; isReadonly: true }
+    Property { name: "secondaryId"; type: "QString"; isReadonly: true }
+    Property { name: "routeState"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "navigationItems"; type: "QVariantList"; isReadonly: true }
+    Method { name: "applyRoute"; type: "bool"; Parameter { name: "routeId"; type: "QString" } }
+    Method { name: "selectWorkspace"; type: "bool"; Parameter { name: "workspaceKey"; type: "QString" } }
+    Method {
+        name: "openEntity"
+        type: "bool"
+        Parameter { name: "workspaceKey"; type: "QString" }
+        Parameter { name: "entityId"; type: "QString" }
+        Parameter { name: "sectionId"; type: "QString" }
+    }
 }
 
 Component {
@@ -472,6 +495,19 @@ Component {
     Method { name: "clearProjectResourceUsage" }
 }
 
+Component {
+    name: "PMDependencyController"
+    accessSemantics: "reference"
+    prototype: "QObject"
+    Property { name: "dependencyTaskOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "dependencyTypeOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "dependencies"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "dependenciesTableModel"; type: "QObject"; isReadonly: true }
+    Method { name: "previewCreateDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "previewUpdateDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "previewDeleteDependency"; type: "QVariantMap"; Parameter { name: "dependencyId"; type: "QString" } }
+}
+
 
 Component {
     name: "ProjectManagementTasksWorkspaceController"
@@ -493,6 +529,7 @@ Component {
     Property { name: "searchText"; type: "QString"; isReadonly: true }
     Property { name: "tasks"; type: "QVariantMap"; isReadonly: true }
     Property { name: "selectedTask"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "wbsParentOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "selectedTaskId"; type: "QString"; isReadonly: true }
     Property { name: "selectedTaskIds"; type: "QVariantList"; isReadonly: true }
     Property { name: "selectedTaskCount"; type: "int"; isReadonly: true }
@@ -509,6 +546,7 @@ Component {
     Property { name: "assignmentPreview"; type: "QVariantMap"; isReadonly: true }
     Property { name: "assignmentsTableModel"; type: "QObject"; isReadonly: true }
     Property { name: "assignmentsController"; type: "PMAssignmentController"; isReadonly: true }
+    Property { name: "dependenciesController"; type: "PMDependencyController"; isReadonly: true }
     Property { name: "dependencies"; type: "QVariantMap"; isReadonly: true }
     Property { name: "dependenciesTableModel"; type: "QObject"; isReadonly: true }
     Property { name: "timeAssignmentOptions"; type: "QVariantList"; isReadonly: true }
@@ -583,6 +621,7 @@ Component {
     Method { name: "loadSelectedTaskDependencies" }
     Method { name: "loadSelectedTaskTime"}
     Method { name: "loadSelectedTaskCollaboration"}
+    Method { name: "previewTaskScheduleImpact"; type: "QVariantMap"; Parameter { name: "delayWorkingDays"; type: "int" } }
     Method { name: "setTaskReviewActive"; Parameter { name: "active"; type: "bool" } }
     Method { name: "markTaskCollaborationRead"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } }
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from datetime import date
 from pathlib import Path
 from time import perf_counter
 
@@ -9,6 +10,9 @@ from PySide6.QtCore import QObject, QUrl
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlComponent
 
+from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_builder import (
+    build_gantt_projection,
+)
 from src.tests.path_rewrites import REPO_ROOT
 from src.tests.project_management.test_r4_5b_gantt_read_contract import (
     _node,
@@ -74,6 +78,60 @@ def test_integrated_surface_has_one_row_viewport_and_no_legacy_renderer() -> Non
         / "scheduling"
         / "gantt_legacy_adapter.py"
     ).exists()
+
+
+def test_compact_inspector_has_one_header_and_activity_id_is_user_facing() -> None:
+    panel = _read(SCHEDULING_ROOT / "panels" / "SchedulingGanttPanel.qml")
+    inspector = _read(
+        REPO_ROOT / "src" / "ui_qml" / "shared" / "qml" / "App" / "Widgets"
+        / "InspectorPanel.qml"
+    )
+    task_id = "7f05d925-0053-4149-a554-aa928d0462c7"
+    task = _task(task_id, code="TASK-042", wbs="4.2")
+    controller = ProjectManagementSchedulingWorkspaceController()
+
+    controller._gantt_model.set_projection(
+        build_gantt_projection(
+            tenant_id="tenant-1",
+            organization_id="org-1",
+            project_id="project-1",
+            hierarchy_nodes=(_node(task),),
+            schedule_items=(
+                _schedule(task, start=date(2026, 1, 1), finish=date(2026, 1, 2)),
+            ),
+        )
+    )
+    controller.selectActivity(task_id)
+
+    fields = controller.selectedActivity["fields"]
+    assert [field["label"] for field in fields].count("Activity ID") == 1
+    assert all(field["label"] != "Activity code" for field in fields)
+    assert fields[0]["value"] == "TASK-042"
+    assert task_id not in {field["value"] for field in fields}
+    assert "property bool showHeader: true" in inspector
+    assert "showHeader: !root.compact" in panel
+
+
+def test_open_task_uses_canonical_pm_entity_navigation() -> None:
+    scheduling_page = _read(SCHEDULING_ROOT / "SchedulingWorkspacePage.qml")
+    tasks_page = _read(
+        SCHEDULING_ROOT.parent / "tasks" / "TasksWorkspacePage.qml"
+    )
+    qmltypes = _read(
+        REPO_ROOT / "src" / "ui_qml" / "modules" / "project_management" / "qml"
+        / "ProjectManagement" / "Controllers" / "typeinfo" / "plugins.qmltypes"
+    )
+
+    assert 'root.pmNavigation.openEntity("tasks", activityId, "")' in scheduling_page
+    assert 'selectRoute("project_management.tasks")' not in scheduling_page
+    assert "function _applyPmNavigationIntent()" in tasks_page
+    assert "root.workspaceController.activateTask(taskId)" in tasks_page
+    assert (
+        "root._openDetail(root._navigationSectionIndex(routeState.section))"
+        in tasks_page
+    )
+    assert 'name: "PMWorkspaceNavigationController"' in qmltypes
+    assert 'Property { name: "pmNavigation"' in qmltypes
 
 
 def test_hierarchy_expansion_and_selection_use_the_indexed_effective_rows() -> None:
