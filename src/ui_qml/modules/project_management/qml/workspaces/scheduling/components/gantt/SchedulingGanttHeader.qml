@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import "GanttGeometry.js" as Geometry
 
 Item {
     id: root
@@ -141,11 +142,15 @@ Item {
                     id: majorTick
                     required property var modelData
 
-                    x: (Number(majorTick.modelData.startDay) - root.axisStartDay)
-                        * root.pixelsPerDay
+                    x: Geometry.dayStartX(
+                        majorTick.modelData.startDay, root.axisStartDay, root.pixelsPerDay
+                    )
                     y: 0
-                    width: (Number(majorTick.modelData.finishDay)
-                        - Number(majorTick.modelData.startDay) + 1) * root.pixelsPerDay
+                    width: Geometry.inclusiveWidth(
+                        majorTick.modelData.startDay,
+                        majorTick.modelData.finishDay,
+                        root.pixelsPerDay
+                    )
                     height: root.bandHeight
                     color: "transparent"
                     border.color: Theme.AppTheme.divider
@@ -174,11 +179,15 @@ Item {
                     id: minorTick
                     required property var modelData
 
-                    x: (Number(minorTick.modelData.startDay) - root.axisStartDay)
-                        * root.pixelsPerDay
+                    x: Geometry.dayStartX(
+                        minorTick.modelData.startDay, root.axisStartDay, root.pixelsPerDay
+                    )
                     y: root.bandHeight
-                    width: (Number(minorTick.modelData.finishDay)
-                        - Number(minorTick.modelData.startDay) + 1) * root.pixelsPerDay
+                    width: Geometry.inclusiveWidth(
+                        minorTick.modelData.startDay,
+                        minorTick.modelData.finishDay,
+                        root.pixelsPerDay
+                    )
                     height: root.bandHeight
                     color: "transparent"
                     border.color: Theme.AppTheme.divider

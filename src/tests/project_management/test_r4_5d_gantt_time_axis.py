@@ -10,11 +10,16 @@ from PySide6.QtCore import QObject, QUrl
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlComponent, QQmlExpression
 
+from src.core.modules.project_management.api.desktop.scheduling.api import (
+    ProjectManagementSchedulingDesktopApi,
+)
 from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_builder import (
     build_gantt_projection,
 )
 from src.tests.path_rewrites import REPO_ROOT
 from src.tests.project_management.test_r4_5b_gantt_read_contract import (
+    _CountingEngine,
+    _ScopeContext,
     _node,
     _projection,
     _schedule,
@@ -150,6 +155,69 @@ def test_calendar_shading_uses_authoritative_working_dates_and_exceptions() -> N
     no_calendar = _dated_projection(date(2026, 6, 1), date(2026, 6, 8))
     assert no_calendar.calendar_shading_authoritative is False
     assert no_calendar.non_working_intervals == ()
+
+
+def test_desktop_api_projects_project_bounds_and_bound_calendar() -> None:
+    task = _task("task-1", code="TASK-001", wbs="1")
+    engine = _CountingEngine(task)
+    calendar_calls: list[str] = []
+
+    class Calendar:
+        @staticmethod
+        def working_day_dates_between(start: date, finish: date) -> tuple[date, ...]:
+            values: list[date] = []
+            cursor = start
+            while cursor <= finish:
+                if cursor.weekday() < 5:
+                    values.append(cursor)
+                cursor += timedelta(days=1)
+            return tuple(values)
+
+    calendar = Calendar()
+
+    def calendar_for_project(project_id: str) -> Calendar:
+        calendar_calls.append(project_id)
+        return calendar
+
+    engine.calendar_for_project = calendar_for_project
+    project = type(
+        "Project",
+        (),
+        {
+            "id": "project-1",
+            "tenant_id": "tenant-1",
+            "organization_id": "org-1",
+            "start_date": date(2025, 12, 1),
+            "end_date": date(2026, 2, 1),
+        },
+    )()
+    task_service = type(
+        "TaskService",
+        (),
+        {
+            "list_task_hierarchy": lambda _self, _project_id: [_node(task)],
+            "list_dependencies_for_project": lambda _self, _project_id: [],
+        },
+    )()
+    api = ProjectManagementSchedulingDesktopApi(
+        project_service=type(
+            "ProjectService",
+            (),
+            {"get_project": lambda _self, _project_id: project},
+        )(),
+        task_service=task_service,
+        scheduling_engine=engine,
+        tenant_context_service=_ScopeContext("tenant-1", "org-1"),
+    )
+
+    projection = api.build_gantt_projection("project-1")
+
+    assert calendar_calls == ["project-1"]
+    assert projection.project_start_day_ordinal == date(2025, 12, 1).toordinal()
+    assert projection.project_finish_day_ordinal == date(2026, 2, 1).toordinal()
+    assert projection.range_start_day_ordinal == date(2025, 12, 1).toordinal()
+    assert projection.range_finish_day_ordinal == date(2026, 2, 1).toordinal()
+    assert projection.calendar_shading_authoritative is True
 
 
 @pytest.mark.parametrize(

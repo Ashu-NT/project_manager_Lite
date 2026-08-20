@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Controls
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import "GanttGeometry.js" as Geometry
 
 Item {
     id: root
@@ -14,6 +15,9 @@ Item {
     property var columns: []
     property string requestedViewMode: "split"
     property string selectedActivityId: ""
+    property bool dependencyLinesEnabled: workspaceController
+        ? workspaceController.showDependencyLines
+        : true
     property real requestedGridWidth: 760
     property real _splitDragStartWidth: 760
     property real _centerAnchorDay: -1
@@ -54,6 +58,12 @@ Item {
     readonly property real timelineContentX: timelineAxis.contentX
     readonly property real verticalContentY: rowsViewport.verticalContentY
     readonly property real authoritativeRowHeight: rowsViewport.rowHeight
+    readonly property int dependencyRouteCount: dependencyLayer.routeCount
+    readonly property int dependencyCandidateEdgeCount: dependencyLayer.candidateEdgeCount
+    readonly property bool dependencyDensitySuppressed: dependencyLayer.densitySuppressed
+    readonly property string dependencyStatusMessage: dependencyLayer.statusMessage
+    readonly property real dependencyRouteBuildMs: dependencyLayer.lastRouteBuildMs
+    readonly property real dependencyPaintMs: dependencyLayer.lastPaintMs
 
     signal activitySelected(string taskId)
     signal activityActivated(string taskId)
@@ -232,11 +242,16 @@ Item {
                     id: nonWorkingInterval
                     required property var modelData
 
-                    x: (Number(nonWorkingInterval.modelData.startDay) - root.axisStartDay)
-                        * root.pixelsPerDay
-                    width: (Number(nonWorkingInterval.modelData.finishDay)
-                        - Number(nonWorkingInterval.modelData.startDay) + 1)
-                        * root.pixelsPerDay
+                    x: Geometry.dayStartX(
+                        nonWorkingInterval.modelData.startDay,
+                        root.axisStartDay,
+                        root.pixelsPerDay
+                    )
+                    width: Geometry.inclusiveWidth(
+                        nonWorkingInterval.modelData.startDay,
+                        nonWorkingInterval.modelData.finishDay,
+                        root.pixelsPerDay
+                    )
                     height: parent.height
                     color: Theme.AppTheme.surfaceOverlay
                     opacity: 0.7
@@ -275,12 +290,36 @@ Item {
         onTimelinePanRequested: function(deltaX) { root._panTimeline(deltaX) }
     }
 
+    SchedulingGanttDependencyLayer {
+        id: dependencyLayer
+        objectName: "ganttDependencyLayer"
+        x: root.timelineX
+        y: ganttHeader.height
+        width: root.timelineWidth
+        height: Math.max(0, root.height - y - Theme.AppTheme.spacingMd)
+        visible: root.showTimeline
+        clip: true
+        z: 1
+        ganttModel: root.ganttModel
+        firstRenderedIndex: rowsViewport.firstRenderedIndex
+        lastRenderedIndex: rowsViewport.lastRenderedIndex
+        rowHeight: rowsViewport.rowHeight
+        verticalContentY: rowsViewport.verticalContentY
+        axisStartDay: root.axisStartDay
+        pixelsPerDay: root.pixelsPerDay
+        timelineContentX: timelineAxis.contentX
+        selectedTaskId: root.selectedActivityId
+        dependencyLinesEnabled: root.dependencyLinesEnabled && root.showTimeline
+    }
+
     Rectangle {
         id: todayMarker
         objectName: "ganttTodayMarker"
-        x: root.timelineX
-            + (root.axisModel ? root.axisModel.todayDay - root.axisStartDay + 0.5 : 0)
-                * root.pixelsPerDay
+        x: root.timelineX + (root.axisModel
+            ? Geometry.dayCenterX(
+                root.axisModel.todayDay, root.axisStartDay, root.pixelsPerDay
+            )
+            : 0)
             - timelineAxis.contentX
         y: ganttHeader.height
         width: 2

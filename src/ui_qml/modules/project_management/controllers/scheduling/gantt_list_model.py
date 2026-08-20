@@ -17,6 +17,7 @@ from PySide6.QtCore import (
 )
 
 from src.core.modules.project_management.api.desktop.scheduling.models import (
+    GanttDependencyEdgeDto,
     GanttProjectionDto,
     GanttTaskRowDto,
 )
@@ -52,7 +53,7 @@ class GanttListModel(QAbstractListModel):
         self._effective_rows: tuple[GanttTaskRowDto, ...] = ()
         self._row_by_task_id: dict[str, GanttTaskRowDto] = {}
         self._effective_index_by_task_id: dict[str, int] = {}
-        self._edge_by_id: dict[str, object] = {}
+        self._edge_by_id: dict[str, GanttDependencyEdgeDto] = {}
         self._edge_ids_by_task_id: dict[str, tuple[str, ...]] = {}
         self._baseline_by_task_id: dict[str, object] = {}
         self._timeline_start_day = -1
@@ -279,8 +280,120 @@ class GanttListModel(QAbstractListModel):
     def incident_edge_ids(self, task_id: str) -> tuple[str, ...]:
         return self._edge_ids_by_task_id.get(str(task_id or "").strip(), ())
 
+    @Slot(int, int, str, int, result="QVariantMap")
+    def dependencyWindow(
+        self,
+        first_index: int,
+        last_index: int,
+        selected_task_id: str,
+        normal_edge_limit: int,
+    ) -> dict[str, object]:
+        """Return complete edges whose endpoints are in one bounded row window."""
+        if not self._effective_rows:
+            return _empty_dependency_window(self.projectId)
+        first = max(0, int(first_index))
+        last = min(len(self._effective_rows) - 1, int(last_index))
+        if first > last:
+            return _empty_dependency_window(self.projectId)
+
+        row_indexes = {
+            row.task_id: index
+            for index, row in enumerate(self._effective_rows[first : last + 1], first)
+        }
+        candidate_ids: set[str] = set()
+        for task_id in row_indexes:
+            candidate_ids.update(self._edge_ids_by_task_id.get(task_id, ()))
+        complete_ids = tuple(
+            edge_id
+            for edge_id in sorted(candidate_ids)
+            if (
+                (edge := self._edge_by_id.get(edge_id)) is not None
+                and edge.predecessor_task_id in row_indexes
+                and edge.successor_task_id in row_indexes
+            )
+        )
+        positionable_ids = tuple(
+            edge_id
+            for edge_id in complete_ids
+            if self._edge_has_positionable_endpoints(self._edge_by_id[edge_id])
+        )
+        limit = max(0, int(normal_edge_limit))
+        suppressed = limit > 0 and len(positionable_ids) > limit
+        normalized_selection = str(selected_task_id or "").strip()
+        selected_ids = set(self._edge_ids_by_task_id.get(normalized_selection, ()))
+        rendered_ids = (
+            tuple(edge_id for edge_id in positionable_ids if edge_id in selected_ids)
+            if suppressed
+            else positionable_ids
+        )
+        edges = [
+            self._serialize_dependency_edge(
+                self._edge_by_id[edge_id],
+                row_indexes=row_indexes,
+                selected_edge_ids=selected_ids,
+            )
+            for edge_id in rendered_ids
+        ]
+        return {
+            "projectId": self.projectId,
+            "firstRowIndex": first,
+            "lastRowIndex": last,
+            "candidateEdgeCount": len(complete_ids),
+            "unpositionedEdgeCount": len(complete_ids) - len(positionable_ids),
+            "suppressed": suppressed,
+            "edges": edges,
+        }
+
+    def _edge_has_positionable_endpoints(
+        self, edge: GanttDependencyEdgeDto
+    ) -> bool:
+        predecessor = self._row_by_task_id[edge.predecessor_task_id]
+        successor = self._row_by_task_id[edge.successor_task_id]
+        return all(
+            value is not None
+            for value in (
+                predecessor.start_day_ordinal,
+                predecessor.finish_day_ordinal,
+                successor.start_day_ordinal,
+                successor.finish_day_ordinal,
+            )
+        )
+
     def baseline_for_task(self, task_id: str) -> object | None:
         return self._baseline_by_task_id.get(str(task_id or "").strip())
+
+    def _serialize_dependency_edge(
+        self,
+        edge: GanttDependencyEdgeDto,
+        *,
+        row_indexes: dict[str, int],
+        selected_edge_ids: set[str],
+    ) -> dict[str, object]:
+        predecessor = self._row_by_task_id[edge.predecessor_task_id]
+        successor = self._row_by_task_id[edge.successor_task_id]
+        return {
+            "dependencyId": edge.dependency_id,
+            "predecessorTaskId": edge.predecessor_task_id,
+            "predecessorTaskName": edge.predecessor_task_name,
+            "successorTaskId": edge.successor_task_id,
+            "successorTaskName": edge.successor_task_name,
+            "dependencyType": edge.dependency_type,
+            "dependencyTypeLabel": edge.dependency_type_label,
+            "lagDays": edge.lag_days,
+            "predecessorRowIndex": row_indexes[edge.predecessor_task_id],
+            "successorRowIndex": row_indexes[edge.successor_task_id],
+            "predecessorStartDay": predecessor.start_day_ordinal,
+            "predecessorFinishDay": predecessor.finish_day_ordinal,
+            "successorStartDay": successor.start_day_ordinal,
+            "successorFinishDay": successor.finish_day_ordinal,
+            "predecessorIsCritical": predecessor.is_critical,
+            "successorIsCritical": successor.is_critical,
+            "predecessorIsInfeasible": predecessor.is_infeasible,
+            "successorIsInfeasible": successor.is_infeasible,
+            "predecessorIsMilestone": predecessor.is_milestone,
+            "successorIsMilestone": successor.is_milestone,
+            "selected": edge.dependency_id in selected_edge_ids,
+        }
 
     def _rebuild_effective_index(self) -> None:
         self._effective_index_by_task_id = {
@@ -407,6 +520,18 @@ class GanttListModel(QAbstractListModel):
 
 def _iso(value: date | None) -> str:
     return value.isoformat() if value is not None else ""
+
+
+def _empty_dependency_window(project_id: str) -> dict[str, object]:
+    return {
+        "projectId": project_id,
+        "firstRowIndex": -1,
+        "lastRowIndex": -1,
+        "candidateEdgeCount": 0,
+        "unpositionedEdgeCount": 0,
+        "suppressed": False,
+        "edges": [],
+    }
 
 
 __all__ = ["GanttListModel"]

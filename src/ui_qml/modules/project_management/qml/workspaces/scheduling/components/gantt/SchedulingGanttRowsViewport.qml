@@ -24,6 +24,22 @@ Item {
     readonly property int rowHeight: Theme.AppTheme.compactRowHeight
     readonly property int activeDelegateCount: _delegateCount
     readonly property real verticalContentY: rowsList.contentY
+    readonly property int overscanRowCount: 4
+    readonly property int firstVisibleIndex: ganttModel && ganttModel.rowCountValue > 0
+        ? Math.max(0, Math.floor(Math.max(0, rowsList.contentY) / rowHeight))
+        : -1
+    readonly property int lastVisibleIndex: firstVisibleIndex >= 0
+        ? Math.min(
+            ganttModel.rowCountValue - 1,
+            Math.ceil((Math.max(0, rowsList.contentY) + rowsList.height) / rowHeight) - 1
+        )
+        : -1
+    readonly property int firstRenderedIndex: firstVisibleIndex >= 0
+        ? Math.max(0, firstVisibleIndex - overscanRowCount)
+        : -1
+    readonly property int lastRenderedIndex: lastVisibleIndex >= 0
+        ? Math.min(ganttModel.rowCountValue - 1, lastVisibleIndex + overscanRowCount)
+        : -1
     property int _delegateCount: 0
 
     signal selectionRequested(string taskId)

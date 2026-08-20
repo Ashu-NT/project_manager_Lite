@@ -89,9 +89,11 @@ def test_gantt_has_truthful_controls_lazy_impact_and_no_fake_baseline_rendering(
     assert "TablePaginationBar" not in gantt
     assert "AppWidgets.DataTable" not in gantt
 
-    for fake_control in ("Dependency Lines", "Baseline overlay", "Highlight Critical Path"):
+    for fake_control in ("Baseline overlay", "Highlight Critical Path"):
         assert fake_control not in gantt_code
         assert fake_control not in surface_code
+    assert 'text: "Dependency Lines"' in gantt_code
+    assert "SchedulingGanttDependencyLayer" in surface_code
     assert 'text: "Scale"' in gantt_code
     assert 'text: "Today"' in gantt_code
     assert "ganttSurface.zoomIn()" in gantt_code

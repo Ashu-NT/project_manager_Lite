@@ -125,6 +125,7 @@ class ProjectManagementSchedulingWorkspaceController(
     searchTextChanged = Signal()
     showCriticalOnlyChanged = Signal()
     showDelayedOnlyChanged = Signal()
+    showDependencyLinesChanged = Signal()
     activitySortKeyChanged = Signal()
     activitySortDirectionChanged = Signal()
     calendarChanged = Signal()
@@ -206,6 +207,7 @@ class ProjectManagementSchedulingWorkspaceController(
         self._search_text = ""
         self._show_critical_only = False
         self._show_delayed_only = False
+        self._show_dependency_lines = True
         self._activity_sort_key = "schedule"
         self._activity_sort_direction = 0
         self._selected_activity_id = ""
@@ -302,6 +304,10 @@ class ProjectManagementSchedulingWorkspaceController(
     @Property(bool, notify=showDelayedOnlyChanged)
     def showDelayedOnly(self) -> bool:
         return self._show_delayed_only
+
+    @Property(bool, notify=showDependencyLinesChanged)
+    def showDependencyLines(self) -> bool:
+        return self._show_dependency_lines
 
     @Property(str, notify=activitySortKeyChanged)
     def activitySortKey(self) -> str:
@@ -584,6 +590,14 @@ class ProjectManagementSchedulingWorkspaceController(
     @Slot(bool)
     def setShowDelayedOnly(self, enabled: bool) -> None:
         apply_show_delayed_only(self, enabled)
+
+    @Slot(bool)
+    def setShowDependencyLines(self, enabled: bool) -> None:
+        normalized = bool(enabled)
+        if normalized == self._show_dependency_lines:
+            return
+        self._show_dependency_lines = normalized
+        self.showDependencyLinesChanged.emit()
 
     @Slot()
     def clearFilters(self) -> None:

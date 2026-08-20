@@ -3,6 +3,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
+import "GanttGeometry.js" as Geometry
 
 Item {
     id: root
@@ -20,19 +21,19 @@ Item {
     property bool isInfeasible: false
     property bool selected: false
 
-    readonly property real minimumTaskPixels: 12
-    readonly property real milestoneSize: 14
+    readonly property real milestoneSize: Geometry.milestoneSize()
     readonly property bool hasDates: root.axisStartDay > 0
         && root.startDay >= root.axisStartDay
         && root.finishDay >= root.startDay
         && root.pixelsPerDay > 0
-    readonly property real contentStartX: (root.startDay - root.axisStartDay)
-        * root.pixelsPerDay
-    readonly property real contentCenterX: (root.startDay - root.axisStartDay + 0.5)
-        * root.pixelsPerDay
-    readonly property real taskWidth: Math.max(
-        root.minimumTaskPixels,
-        (root.finishDay - root.startDay + 1) * root.pixelsPerDay
+    readonly property real contentStartX: Geometry.dayStartX(
+        root.startDay, root.axisStartDay, root.pixelsPerDay
+    )
+    readonly property real contentCenterX: Geometry.dayCenterX(
+        root.startDay, root.axisStartDay, root.pixelsPerDay
+    )
+    readonly property real taskWidth: Geometry.taskWidth(
+        root.startDay, root.finishDay, root.pixelsPerDay
     )
     readonly property real progressWidth: root.isMilestone
         ? 0

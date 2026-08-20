@@ -1,11 +1,16 @@
 # R4.5 Gantt Modernization: Engineering Audit and Implementation Design
 
-**Status:** R4.5A, R4.5B, and R4.5C complete; R4.5D is next
+**Status:** R4.5A through R4.5E complete; R4.5F is next
 **Scope:** Project Management > Planning > Gantt  
 **Evidence basis:** production QML, controller, presenter, desktop API, scheduling application/domain, persistence, shared QML primitives, and current targeted tests  
 **R4.5A non-goals honored:** its audit was read-only; R4.5B subsequently changed Python and the clean pre-release schema baseline, but made no visual QML, scheduling-semantic, R5, or commit changes
 
-R4.5B delivered the typed read contract, indexed model, baseline milestone snapshot fact, selection seam, and local-view/CPM separation. R4.5C delivered the integrated virtualized viewport, direct model binding, responsive view modes, shared horizontal timeline authority, and legacy renderer/adapter deletion. R4.5D time-axis work has not started.
+R4.5B delivered the typed read contract, indexed model, baseline milestone snapshot fact, selection seam, and local-view/CPM separation. R4.5C delivered the integrated virtualized viewport, direct model binding, responsive view modes, shared horizontal timeline authority, and legacy renderer/adapter deletion. R4.5D delivered the complete-project range contract, authoritative calendar shading facts, one display-only axis controller, two-band Day/Week/Month/Quarter header, fixed zoom levels, center-preserving navigation, and truthful Today behavior. R4.5E delivered one viewport-bounded high-DPI Canvas, adjacency-indexed complete-edge selection, deterministic FS/SS/FF/SF routes, selected incident-edge emphasis, truthful density fallback, and a real Dependency Lines control. R4.5F semantic and baseline presentation is next.
+
+**Historical-baseline note:** sections 1-32 preserve the read-only R4.5A
+current-state evidence and therefore describe the pre-B/C/D implementation.
+The status above, section 37 phase gates, and the phase implementation reports
+are authoritative for the live post-D codebase.
 
 ## 1. Executive Summary
 
@@ -738,8 +743,8 @@ R4.5B must precede visual feature controls. A control ships in the same phase as
 | R4.5A | All 40 audit sections complete; exact source paths and gaps reconciled; no production files changed. |
 | R4.5B | COMPLETE: typed complete-project Gantt projection is tenant/org safe; explicit milestone/hierarchy/edges/baseline facts covered; generated activity code and equal-date milestone inference removed; selection lookup O(1); local view operations avoid CPM; no scheduling-semantic change. |
 | R4.5C | COMPLETE: one virtualized vertical authority; grid/timeline share each delegate; one timeline horizontal authority; direct `GanttListModel` binding; row/bar/Inspector selection agrees; no auto-selection; 20 delegates at 5,000 rows; old adapter/timeline/pagination deleted. |
-| R4.5D | Deterministic range and all four scales tested; zoom min/max/reset/anchor tested; header/body X never drift; no UI action reruns CPM. |
-| R4.5E | FS/SS/FF/SF anchors and visibility rules tested; Canvas processes only visible/overscan edges; no misleading partial connector; toggle is truthful. |
+| R4.5D | COMPLETE: deterministic range and all four scales tested; zoom min/max/reset/anchor tested at runtime; header/body/bar/Today/shading share one X authority; no UI action reruns CPM. |
+| R4.5E | COMPLETE: FS/SS/FF/SF anchors and visibility rules tested; one high-DPI Canvas processes only complete visible/overscan edges through adjacency indexes; no misleading partial connector; selected incident links and measured density fallback are truthful. |
 | R4.5F | Baseline snapshots are bulk/read-safe and explicit about milestones; added/deleted/unscheduled cases tested; critical/infeasible/milestone/selection precedence is unambiguous. |
 | R4.5G | Five viewports pass geometry and offscreen load tests; preferences fail safe; keyboard essentials pass; measured 100/1,000/5,000 budgets meet section 28 or deviations are resolved, not waived silently. |
 | R4.5H | Targeted PM scheduling/domain/shared-QML regressions green; qmllint green; no placeholder, duplicate renderer, unused API, stale qmldir entry, compatibility shim, or dead timeline code remains; closure docs identify any explicitly approved deferment. |
@@ -773,8 +778,8 @@ None of these decisions requires changing scheduling semantics.
 
 ## 40. Final Recommendation
 
-Option B remains approved: a specialized integrated Gantt surface with one virtualized row viewport, one horizontal timeline authority, lightweight recycled QML bar delegates, and one future viewport-aware Canvas dependency layer. R4.5B and R4.5C are complete; R4.5D is the next phase.
+Option B remains approved: a specialized integrated Gantt surface with one virtualized row viewport, one horizontal timeline authority, lightweight recycled QML bar delegates, and one future viewport-aware Canvas dependency layer. R4.5B, R4.5C, and R4.5D are complete; R4.5E is the next phase.
 
 R4.5B should first create a typed, disposable, complete-project Gantt projection that merges canonical CPM leaf results with existing hierarchy and dependency facts and selected-baseline snapshots. It must preserve tenant/org/project authorization, expose explicit milestone identity, add historical baseline milestone identity, remove generated activity codes, stop page-derived timeline bounds, eliminate first-row auto-selection, and make selection/detail updates atomic without rerunning CPM.
 
-R4.5C replaced the independently scrolling grid/timeline pair, deleted `gantt_legacy_adapter.py` and `SchedulingTimelinePanel.qml`, and removed visual pagination and duplicate presenter collections. R4.5D-H continue incrementally while preserving the established enterprise scheduling engine as the sole business authority.
+R4.5C replaced the independently scrolling grid/timeline pair, deleted `gantt_legacy_adapter.py` and `SchedulingTimelinePanel.qml`, and removed visual pagination and duplicate presenter collections. R4.5D then established the single deterministic time-axis contract documented in `R4_5D_GANTT_TIME_AXIS_IMPLEMENTATION.md`. R4.5E added the bounded dependency renderer documented in `R4_5E_GANTT_DEPENDENCY_VISUALIZATION.md`. R4.5F-H continue incrementally while preserving the established enterprise scheduling engine as the sole business authority.

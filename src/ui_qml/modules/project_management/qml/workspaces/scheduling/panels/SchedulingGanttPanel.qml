@@ -234,6 +234,20 @@ Item {
                     }
                 }
 
+                AppControls.CheckBox {
+                    text: "Dependency Lines"
+                    checked: root.workspaceController
+                        ? root.workspaceController.showDependencyLines
+                        : true
+                    enabled: !(root.workspaceController
+                        ? root.workspaceController.isBusy
+                        : false)
+                    onToggled: {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setShowDependencyLines(checked)
+                    }
+                }
+
                 Row {
                     height: Theme.AppTheme.inputHeight
                     spacing: Theme.AppTheme.spacingXs
@@ -371,6 +385,18 @@ Item {
                         }
                     }
                 }
+            }
+
+            AppControls.Label {
+                Layout.fillWidth: true
+                visible: ganttSurface.dependencyStatusMessage.length > 0
+                text: ganttSurface.dependencyStatusMessage
+                wrapMode: Text.WordWrap
+                color: ganttSurface.dependencyDensitySuppressed
+                    ? Theme.AppTheme.warning
+                    : Theme.AppTheme.textSecondary
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.typeSupportingTextSize
             }
 
             RowLayout {
