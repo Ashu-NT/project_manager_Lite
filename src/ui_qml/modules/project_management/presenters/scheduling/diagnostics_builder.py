@@ -17,9 +17,10 @@ def build_diagnostics_collection(
     # Critical/Open-ends/Infeasible/Delayed/Overloads are already reported by
     # the Overview KPI strip (overview_builder.build_overview) -- this
     # collection only carries the one diagnostic the KPI strip does not:
-    # deadline breaches, distinct from the per-constraint-type overrun table
-    # below it (see the "Constraint Overruns" rename in
-    # SchedulingDiagnosticsPanel.qml that disambiguates the two).
+    # deadline breaches. Deadline lateness is not itself a constraint type,
+    # so this row is titled/labeled distinctly from the real per-constraint-
+    # type "Constraint Overruns" table below it in
+    # SchedulingDiagnosticsPanel.qml.
     constraints = sum(
         1
         for item in schedule_items
@@ -28,7 +29,7 @@ def build_diagnostics_collection(
     rows = (
         SchedulingRecordViewModel(
             id="constraints",
-            title="Constraint Violations",
+            title="Deadline Breaches",
             status_label="Danger" if constraints else "Stable",
             subtitle=str(constraints),
             supporting_text="Activities missing their current deadline guard.",

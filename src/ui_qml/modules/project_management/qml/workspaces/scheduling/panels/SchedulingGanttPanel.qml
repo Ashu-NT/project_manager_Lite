@@ -23,10 +23,17 @@ Item {
     property string ganttViewMode: "split"
 
     signal activityColumnsStateChanged(var cols)
-    signal activityDetailRequested(string activityId)
 
     readonly property bool _compact: root.width < Theme.AppTheme.compactContentBreakpoint
-    readonly property string _effectiveViewMode: (root._compact && root.ganttViewMode === "split")
+    // Split mode needs both SplitView panes' minimum widths (420 + 360) plus
+    // the inline inspector column whenever a task is selected -- at exactly
+    // the compact breakpoint that combination (1068px) can exceed the
+    // available width even though _compact alone is false, so fall back to
+    // "grid" in that case too rather than only checking _compact.
+    readonly property bool _splitFitsWithInspector: !root._hasSelection
+        || (root.width - Theme.AppTheme.inspectorWidth) >= 780
+    readonly property string _effectiveViewMode: (root.ganttViewMode === "split"
+            && (root._compact || !root._splitFitsWithInspector))
         ? "grid"
         : root.ganttViewMode
     readonly property bool _hasSelection: String(root.selectedActivityModel.id || "").length > 0
@@ -305,9 +312,6 @@ Item {
                             }
                             onRowSelected: function(rowId) {
                                 if (root.workspaceController !== null) root.workspaceController.selectActivity(rowId)
-                            }
-                            onRowActivated: function(rowId) {
-                                root.activityDetailRequested(rowId)
                             }
                         }
 
