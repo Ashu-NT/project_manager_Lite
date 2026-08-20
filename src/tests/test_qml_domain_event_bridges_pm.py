@@ -96,6 +96,7 @@ def test_pm_timesheets_workspace_refreshes_on_timesheet_workflow_events(monkeypa
 def test_platform_control_workspace_refreshes_on_control_events(monkeypatch) -> None:
     catalog = PlatformWorkspaceCatalog()
     controller = catalog.controlWorkspace
+    controller.ensureLoaded()
     refresh_calls: list[str] = []
     monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
 
@@ -108,6 +109,7 @@ def test_platform_control_workspace_refreshes_on_control_events(monkeypatch) -> 
 def test_platform_settings_workspace_refreshes_on_runtime_events(monkeypatch) -> None:
     catalog = PlatformWorkspaceCatalog()
     controller = catalog.settingsWorkspace
+    controller.ensureLoaded()
     refresh_calls: list[str] = []
     monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
 
@@ -120,6 +122,7 @@ def test_platform_settings_workspace_refreshes_on_runtime_events(monkeypatch) ->
 def test_platform_admin_access_workspace_refreshes_on_access_events(monkeypatch) -> None:
     catalog = PlatformWorkspaceCatalog()
     controller = catalog.adminAccessWorkspace
+    controller.ensureLoaded()
     refresh_calls: list[str] = []
     monkeypatch.setattr(controller, "refresh", lambda: refresh_calls.append("refresh"))
 

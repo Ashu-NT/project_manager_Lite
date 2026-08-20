@@ -11,7 +11,7 @@ def _config(database_path) -> Config:
     return config
 
 
-def test_financial_period_migration_is_reversible_and_enforces_catalog_identity(tmp_path) -> None:
+def test_fresh_baseline_financial_period_schema_is_reversible_and_scoped(tmp_path) -> None:
     database_path = tmp_path / "financial-periods.db"
     config = _config(database_path)
     command.upgrade(config, "head")
@@ -32,7 +32,7 @@ def test_financial_period_migration_is_reversible_and_enforces_catalog_identity(
     ) in unique_sets
     engine.dispose()
 
-    command.downgrade(config, "n1o2p3q4r5s6")
+    command.downgrade(config, "base")
     engine = sa.create_engine(config.get_main_option("sqlalchemy.url"), future=True)
     assert "financial_periods" not in sa.inspect(engine).get_table_names()
     engine.dispose()

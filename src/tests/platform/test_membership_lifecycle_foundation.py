@@ -295,158 +295,43 @@ def test_membership_lifecycle_migration_builds_production_shape(tmp_path) -> Non
     assert "idx_user_tenants_active" not in indexes
 
 
-def test_membership_lifecycle_migration_backfills_and_round_trips(
-    tmp_path,
-) -> None:
-    database_path = tmp_path / "membership-lifecycle-backfill.db"
+def test_fresh_baseline_membership_schema_round_trips(tmp_path) -> None:
+    database_path = tmp_path / "membership-lifecycle-round-trip.db"
     database_url = f"sqlite:///{database_path.as_posix()}"
     config = _alembic_config(database_url)
-    command.upgrade(config, "b5c6d7e8f9a0")
-
-    engine = create_engine(database_url, future=True)
-    legacy_time = "2026-07-30 08:00:00"
-    try:
-        with engine.begin() as connection:
-            connection.execute(
-                text(
-                    "INSERT INTO users "
-                    "(id, username, password_hash, is_active, created_at, "
-                    "updated_at, version) VALUES "
-                    "('migration-active-user', 'migration_active', 'x', 1, "
-                    ":stamp, :stamp, 1), "
-                    "('migration-inactive-user', 'migration_inactive', 'x', 1, "
-                    ":stamp, :stamp, 1)"
-                ),
-                {"stamp": legacy_time},
-            )
-            connection.execute(
-                text(
-                    "INSERT INTO tenants "
-                    "(id, tenant_code, display_name, tenant_status, "
-                    "is_active, version) VALUES "
-                    "('migration-tenant', 'MIGRATION', 'Migration', "
-                    "'active', 1, 1)"
-                )
-            )
-            connection.execute(
-                text(
-                    "INSERT INTO user_tenants "
-                    "(id, user_id, tenant_id, is_active, tenant_role, "
-                    "invited_at, joined_at, created_at, updated_at) VALUES "
-                    "('membership-active', 'migration-active-user', "
-                    "'migration-tenant', 1, 'member', NULL, :stamp, "
-                    ":stamp, :stamp), "
-                    "('membership-inactive', 'migration-inactive-user', "
-                    "'migration-tenant', 0, 'member', NULL, :stamp, "
-                    ":stamp, :stamp)"
-                ),
-                {"stamp": legacy_time},
-            )
-    finally:
-        engine.dispose()
-
     command.upgrade(config, "head")
+
     engine = create_engine(database_url, future=True)
     try:
         with engine.connect() as connection:
-            rows = connection.execute(
-                text(
-                    "SELECT id, status, accepted_at, "
-                    "suspended_at, version FROM user_tenants ORDER BY id"
-                )
-            ).mappings().all()
+            columns = {
+                column["name"]
+                for column in inspect(connection).get_columns("user_tenants")
+            }
     finally:
         engine.dispose()
 
-    rows_by_id = {row["id"]: row for row in rows}
-    assert rows_by_id["membership-active"]["status"] == "active"
-    assert rows_by_id["membership-active"]["accepted_at"] is not None
-    assert rows_by_id["membership-active"]["suspended_at"] is None
-    assert rows_by_id["membership-inactive"]["status"] == "suspended"
-    assert rows_by_id["membership-inactive"]["accepted_at"] is not None
-    assert rows_by_id["membership-inactive"]["suspended_at"] is not None
-    assert rows_by_id["membership-inactive"]["version"] == 1
+    assert {
+        "status",
+        "invitation_token_hash",
+        "accepted_at",
+        "suspended_at",
+        "revoked_at",
+        "removed_at",
+        "version",
+    } <= columns
+    assert {"is_active", "tenant_role"}.isdisjoint(columns)
 
-    command.downgrade(config, "b5c6d7e8f9a0")
+    command.downgrade(config, "base")
     engine = create_engine(database_url, future=True)
     try:
-        downgraded_columns = {
-            column["name"]
-            for column in inspect(engine).get_columns("user_tenants")
-        }
-    finally:
-        engine.dispose()
-    assert "status" not in downgraded_columns
-    assert "version" not in downgraded_columns
-
-    command.upgrade(config, "head")
-
-
-def test_token_migration_retires_unverifiable_legacy_invitations(
-    tmp_path,
-) -> None:
-    database_path = tmp_path / "membership-token-upgrade.db"
-    database_url = f"sqlite:///{database_path.as_posix()}"
-    config = _alembic_config(database_url)
-    command.upgrade(config, "6f1a9c2e8d4b")
-    stamp = "2026-07-30 08:00:00"
-
-    engine = create_engine(database_url, future=True)
-    try:
-        with engine.begin() as connection:
-            connection.execute(
-                text(
-                    "INSERT INTO users "
-                    "(id, username, password_hash, is_active, created_at, "
-                    "updated_at, version) VALUES "
-                    "('legacy-invite-user', 'legacy_invite_user', 'x', 1, "
-                    ":stamp, :stamp, 1), "
-                    "('legacy-invite-admin', 'legacy_invite_admin', 'x', 1, "
-                    ":stamp, :stamp, 1)"
-                ),
-                {"stamp": stamp},
-            )
-            connection.execute(
-                text(
-                    "INSERT INTO tenants "
-                    "(id, tenant_code, display_name, tenant_status, "
-                    "is_active, version) VALUES "
-                    "('legacy-invite-tenant', 'LEGACY-INVITE', "
-                    "'Legacy Invite', 'active', 1, 1)"
-                )
-            )
-            connection.execute(
-                text(
-                    "INSERT INTO user_tenants "
-                    "(id, user_id, tenant_id, status, is_active, tenant_role, "
-                    "invited_by_user_id, invited_at, invitation_expires_at, "
-                    "accepted_at, joined_at, suspended_at, revoked_at, "
-                    "removed_at, created_at, updated_at, version) VALUES "
-                    "('legacy-invitation', 'legacy-invite-user', "
-                    "'legacy-invite-tenant', 'invited', 0, 'member', "
-                    "'legacy-invite-admin', :stamp, '2026-08-01 08:00:00', "
-                    "NULL, NULL, NULL, NULL, NULL, :stamp, :stamp, 1)"
-                ),
-                {"stamp": stamp},
-            )
+        assert not inspect(engine).has_table("user_tenants")
     finally:
         engine.dispose()
 
     command.upgrade(config, "head")
     engine = create_engine(database_url, future=True)
     try:
-        with engine.connect() as connection:
-            row = connection.execute(
-                text(
-                    "SELECT status, invitation_token_hash, revoked_at, "
-                    "removed_at FROM user_tenants "
-                    "WHERE id = 'legacy-invitation'"
-                )
-            ).mappings().one()
+        assert inspect(engine).has_table("user_tenants")
     finally:
         engine.dispose()
-
-    assert row["status"] == MEMBERSHIP_STATUS_REMOVED
-    assert row["invitation_token_hash"] is None
-    assert row["revoked_at"] is not None
-    assert row["removed_at"] is not None

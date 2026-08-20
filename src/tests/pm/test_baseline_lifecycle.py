@@ -11,6 +11,7 @@ from src.core.modules.project_management.domain.scheduling.baseline import (
     BaselineVarianceRecord,
     ProjectBaseline,
 )
+from src.core.platform.common.exceptions import ValidationError
 
 
 class TestProjectBaselineCreate:
@@ -41,14 +42,14 @@ class TestBaselineSubmit:
     def test_cannot_submit_already_submitted(self):
         b = ProjectBaseline.create("p1", "B1")
         b.submit("user_1")
-        with pytest.raises(ValueError, match="Cannot submit"):
+        with pytest.raises(ValidationError, match="Cannot submit"):
             b.submit("user_2")
 
     def test_cannot_submit_approved(self):
         b = ProjectBaseline.create("p1", "B1")
         b.submit("user_1")
         b.approve("approver_1")
-        with pytest.raises(ValueError, match="Cannot submit"):
+        with pytest.raises(ValidationError, match="Cannot submit"):
             b.submit("user_2")
 
 
@@ -64,7 +65,7 @@ class TestBaselineApprove:
 
     def test_cannot_approve_draft(self):
         b = ProjectBaseline.create("p1", "B1")
-        with pytest.raises(ValueError, match="Cannot approve"):
+        with pytest.raises(ValidationError, match="Cannot approve"):
             b.approve("approver_1")
 
 
@@ -77,7 +78,7 @@ class TestBaselineReject:
 
     def test_cannot_reject_draft(self):
         b = ProjectBaseline.create("p1", "B1")
-        with pytest.raises(ValueError, match="Cannot reject"):
+        with pytest.raises(ValidationError, match="Cannot reject"):
             b.reject()
 
 
@@ -91,7 +92,7 @@ class TestBaselineSupersede:
 
     def test_cannot_supersede_draft(self):
         b = ProjectBaseline.create("p1", "B1")
-        with pytest.raises(ValueError, match="Cannot supersede"):
+        with pytest.raises(ValidationError, match="Cannot supersede"):
             b.supersede()
 
 
@@ -114,26 +115,28 @@ class TestBaselineVarianceRecord:
 
 
 class TestBaselineTask:
-    def test_create_clamps_negative_duration(self):
-        bt = BaselineTask.create(
-            baseline_id="b1",
-            task_id="t1",
-            task_name="Task",
-            baseline_start=None,
-            baseline_finish=None,
-            baseline_duration_days=-5,
-            baseline_planned_cost=1000.0,
-        )
-        assert bt.baseline_duration_days == 0
+    def test_create_rejects_negative_duration(self):
+        with pytest.raises(ValidationError) as exc_info:
+            BaselineTask.create(
+                baseline_id="b1",
+                task_id="t1",
+                task_name="Task",
+                baseline_start=None,
+                baseline_finish=None,
+                baseline_duration_days=-5,
+                baseline_planned_cost=1000.0,
+            )
+        assert exc_info.value.code == "BASELINE_TASK_DURATION_INVALID"
 
-    def test_create_clamps_negative_cost(self):
-        bt = BaselineTask.create(
-            baseline_id="b1",
-            task_id="t1",
-            task_name="Task",
-            baseline_start=None,
-            baseline_finish=None,
-            baseline_duration_days=5,
-            baseline_planned_cost=-200.0,
-        )
-        assert bt.baseline_planned_cost == 0.0
+    def test_create_rejects_negative_cost(self):
+        with pytest.raises(ValidationError) as exc_info:
+            BaselineTask.create(
+                baseline_id="b1",
+                task_id="t1",
+                task_name="Task",
+                baseline_start=None,
+                baseline_finish=None,
+                baseline_duration_days=5,
+                baseline_planned_cost=-200.0,
+            )
+        assert exc_info.value.code == "BASELINE_TASK_PLANNED_COST_INVALID"

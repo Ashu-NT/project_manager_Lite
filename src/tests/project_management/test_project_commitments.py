@@ -370,13 +370,13 @@ def test_commitment_migration_installs_immutable_revision_and_match_guards(tmp_p
     assert "trg_project_commitment_matches_immutable_delete" in triggers
     engine.dispose()
 
-    command.downgrade(config, "p3q4r5s6t7u8")
+    command.downgrade(config, "base")
     downgraded_engine = sa.create_engine(
         config.get_main_option("sqlalchemy.url"), future=True
     )
     with downgraded_engine.begin() as connection:
         downgraded_tables = set(sa.inspect(connection).get_table_names())
-    assert "project_cost_entries" in downgraded_tables
+    assert "project_cost_entries" not in downgraded_tables
     assert "project_commitments" not in downgraded_tables
     assert "project_commitment_lines" not in downgraded_tables
     assert "project_commitment_source_revisions" not in downgraded_tables

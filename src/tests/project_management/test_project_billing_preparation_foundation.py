@@ -4,6 +4,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
+import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
 
@@ -180,13 +181,24 @@ def test_pm_schema_does_not_manufacture_accounting_truth() -> None:
     assert "def post_payment" not in service_source
 
 
-def test_project_billing_migration_upgrades_and_downgrades(tmp_path) -> None:
+def test_fresh_baseline_project_billing_schema_round_trips(tmp_path) -> None:
     database_path = tmp_path / "project-billing.db"
     config = Config("src/infra/persistence/migrations/alembic.ini")
     config.set_main_option("sqlalchemy.url", f"sqlite:///{database_path.as_posix()}")
 
-    command.upgrade(config, "pfbill_e1_001")
-    command.downgrade(config, "pfnum_d8_002")
+    command.upgrade(config, "head")
+    engine = sa.create_engine(config.get_main_option("sqlalchemy.url"), future=True)
+    assert {
+        "project_billing_profiles",
+        "project_billing_preparations",
+        "project_billing_preparation_lines",
+    } <= set(sa.inspect(engine).get_table_names())
+    engine.dispose()
+
+    command.downgrade(config, "base")
+    engine = sa.create_engine(config.get_main_option("sqlalchemy.url"), future=True)
+    assert "project_billing_profiles" not in sa.inspect(engine).get_table_names()
+    engine.dispose()
 
 
 def test_desktop_billing_workspace_is_empty_before_profile_configuration() -> None:

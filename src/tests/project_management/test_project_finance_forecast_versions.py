@@ -566,21 +566,7 @@ def test_forecast_migration_is_reversible_and_installs_constraints(tmp_path) -> 
     assert "ck_pf_forecast_decisions_reconciled" in decision_checks
     engine.dispose()
 
-    command.downgrade(config, "v9w0x1y2z3a4")
-    engine = sa.create_engine(config.get_main_option("sqlalchemy.url"), future=True)
-    inspector = sa.inspect(engine)
-    assert "project_finance_forecast_source_decisions" not in inspector.get_table_names()
-    line_checks = {
-        row["name"]: row["sqltext"] for row in inspector.get_check_constraints(
-            "project_finance_forecast_lines"
-        )
-    }
-    assert "'risk'" not in line_checks[
-        "ck_pf_forecast_lines_source_metadata"
-    ]
-    engine.dispose()
-
-    command.downgrade(config, "u8v9w0x1y2z3")
+    command.downgrade(config, "base")
     engine = sa.create_engine(config.get_main_option("sqlalchemy.url"), future=True)
     tables = set(sa.inspect(engine).get_table_names())
     assert "project_finance_forecasts" not in tables

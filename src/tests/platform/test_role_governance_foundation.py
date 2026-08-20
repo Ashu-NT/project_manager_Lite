@@ -927,30 +927,30 @@ def test_role_governance_migration_builds_namespace_and_delegation_schema(
     } <= delegation_indexes
 
 
-def test_role_governance_migration_round_trips_before_custom_role_cutover(
+def test_fresh_baseline_role_governance_schema_round_trips(
     tmp_path,
 ) -> None:
     database_path = tmp_path / "role-governance-round-trip.db"
     database_url = f"sqlite:///{database_path.as_posix()}"
     config = _alembic_config(database_url)
     command.upgrade(config, "head")
-    command.downgrade(config, "7a2b3c4d5e6f")
+    command.downgrade(config, "base")
 
     engine = create_engine(database_url, future=True)
     try:
         with engine.connect() as connection:
             inspector = inspect(connection)
-            role_indexes = {
-                index["name"]
-                for index in inspector.get_indexes("roles")
-            }
-            revision = connection.execute(
-                text("SELECT version_num FROM alembic_version")
-            ).scalar_one()
+            assert not inspector.has_table("roles")
             assert not inspector.has_table("role_delegation_policies")
     finally:
         engine.dispose()
 
-    assert revision == "7a2b3c4d5e6f"
-    assert "idx_roles_name" in role_indexes
     command.upgrade(config, "head")
+    engine = create_engine(database_url, future=True)
+    try:
+        with engine.connect() as connection:
+            inspector = inspect(connection)
+            assert inspector.has_table("roles")
+            assert inspector.has_table("role_delegation_policies")
+    finally:
+        engine.dispose()

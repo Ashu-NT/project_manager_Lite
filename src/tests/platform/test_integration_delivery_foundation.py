@@ -165,7 +165,7 @@ def test_delivery_migration_installs_owned_stores_and_envelope_guards(tmp_path) 
     }
     engine.dispose()
 
-    command.downgrade(config, "q4r5s6t7u8v9")
+    command.downgrade(config, "base")
     engine = sa.create_engine(config.get_main_option("sqlalchemy.url"), future=True)
     assert "project_finance_inbox_receipts" not in sa.inspect(engine).get_table_names()
     engine.dispose()
