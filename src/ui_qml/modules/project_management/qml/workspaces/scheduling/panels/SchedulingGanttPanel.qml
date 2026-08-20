@@ -20,6 +20,9 @@ Item {
 
     readonly property bool compact: root.width <= Theme.AppTheme.compactContentBreakpoint
     readonly property bool hasSelection: String(root.selectedActivityModel.id || "").length > 0
+    readonly property var ganttTimeAxis: root.workspaceController
+        ? root.workspaceController.ganttTimeAxis
+        : null
     readonly property string effectiveGanttViewMode: ganttSurface.effectiveViewMode
     readonly property int activeGanttDelegateCount: ganttSurface.activeDelegateCount
     readonly property var inspectorSections: (root.selectedActivityModel.fields || []).map(function(field) {
@@ -216,12 +219,13 @@ Item {
                 onCustomizeClicked: columnCustomizer.open()
             }
 
-            RowLayout {
+            Flow {
                 Layout.fillWidth: true
+                Layout.preferredHeight: childrenRect.height
                 spacing: Theme.AppTheme.spacingSm
 
                 AppControls.CheckBox {
-                    text: "Critical Path"
+                    text: "Critical only"
                     checked: root.workspaceController ? root.workspaceController.showCriticalOnly : false
                     enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
                     onToggled: {
@@ -230,60 +234,140 @@ Item {
                     }
                 }
 
-                Item { Layout.fillWidth: true }
+                Row {
+                    height: Theme.AppTheme.inputHeight
+                    spacing: Theme.AppTheme.spacingXs
 
-                AppControls.Label {
-                    text: "View:"
-                    color: Theme.AppTheme.textMuted
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.captionSize
+                    AppControls.Label {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Scale"
+                        color: Theme.AppTheme.textMuted
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                    }
+
+                    AppControls.ComboBox {
+                        id: timescaleCombo
+                        width: 124
+                        model: root.ganttTimeAxis ? root.ganttTimeAxis.timescaleOptions : []
+                        textRole: "label"
+                        valueRole: "value"
+                        searchThreshold: 99
+                        enabled: root.ganttTimeAxis ? root.ganttTimeAxis.hasRange : false
+                        currentIndex: root._optionIndex(
+                            model,
+                            root.ganttTimeAxis ? root.ganttTimeAxis.timescale : "week"
+                        )
+                        onActivated: function(index) {
+                            const option = model[index]
+                            if (option) ganttSurface.setTimescale(String(option.value || "week"))
+                        }
+                    }
                 }
 
-                Repeater {
-                    model: ganttSurface.splitAvailable
-                        ? [
-                            { "id": "grid", "label": "Grid" },
-                            { "id": "timeline", "label": "Timeline" },
-                            { "id": "split", "label": "Split" }
-                        ]
-                        : [
-                            { "id": "grid", "label": "Grid" },
-                            { "id": "timeline", "label": "Timeline" }
-                        ]
+                Row {
+                    height: Theme.AppTheme.toolbarHeight
+                    spacing: Theme.AppTheme.spacingXs
 
-                    delegate: Rectangle {
-                        id: viewModeButton
-                        required property var modelData
+                    AppControls.SecondaryButton {
+                        width: 44
+                        text: "-"
+                        enabled: root.ganttTimeAxis ? root.ganttTimeAxis.canZoomOut : false
+                        onClicked: ganttSurface.zoomOut()
+                        ToolTip.visible: hovered
+                        ToolTip.text: "Zoom out"
+                    }
 
-                        readonly property bool active: root.effectiveGanttViewMode
-                            === String(viewModeButton.modelData.id || "")
+                    AppControls.SecondaryButton {
+                        width: 68
+                        text: root.ganttTimeAxis
+                            ? Math.round(root.ganttTimeAxis.zoomMultiplier * 100) + "%"
+                            : "100%"
+                        enabled: root.ganttTimeAxis ? root.ganttTimeAxis.canResetZoom : false
+                        onClicked: ganttSurface.resetZoom()
+                        ToolTip.visible: hovered
+                        ToolTip.text: "Reset zoom"
+                    }
 
-                        implicitWidth: viewModeLabel.implicitWidth + 18
-                        implicitHeight: Theme.AppTheme.inputHeight
-                        radius: Theme.AppTheme.radiusSm
-                        color: active
-                            ? Theme.AppTheme.navSelectedBackground
-                            : viewModeHover.hovered
-                                ? Theme.AppTheme.hoverSurface
-                                : Theme.AppTheme.surfaceOverlay
-                        border.color: active ? Theme.AppTheme.accent : Theme.AppTheme.subtleBorder
-                        border.width: active ? 1 : 0
+                    AppControls.SecondaryButton {
+                        width: 44
+                        text: "+"
+                        enabled: root.ganttTimeAxis ? root.ganttTimeAxis.canZoomIn : false
+                        onClicked: ganttSurface.zoomIn()
+                        ToolTip.visible: hovered
+                        ToolTip.text: "Zoom in"
+                    }
+                }
 
-                        AppControls.Label {
-                            id: viewModeLabel
-                            anchors.centerIn: parent
-                            text: String(viewModeButton.modelData.label || "")
-                            color: viewModeButton.active
-                                ? Theme.AppTheme.navSelectedText
-                                : Theme.AppTheme.textSecondary
-                            font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.captionSize
-                            font.bold: viewModeButton.active
-                        }
+                AppControls.SecondaryButton {
+                    width: 84
+                    text: "Today"
+                    enabled: root.ganttTimeAxis ? root.ganttTimeAxis.todayAvailable : false
+                    onClicked: ganttSurface.goToToday()
+                    ToolTip.visible: hovered && !enabled
+                    ToolTip.text: root.ganttTimeAxis
+                        ? root.ganttTimeAxis.todayUnavailableReason
+                        : "No scheduled date range is available."
+                }
 
-                        HoverHandler { id: viewModeHover; cursorShape: Qt.PointingHandCursor }
-                        TapHandler {
-                            onTapped: root.ganttViewMode = String(viewModeButton.modelData.id || "grid")
+                Row {
+                    height: Theme.AppTheme.inputHeight
+                    spacing: Theme.AppTheme.spacingXs
+
+                    AppControls.Label {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "View"
+                        color: Theme.AppTheme.textMuted
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                    }
+
+                    Repeater {
+                        model: ganttSurface.splitAvailable
+                            ? [
+                                { "id": "grid", "label": "Grid" },
+                                { "id": "timeline", "label": "Timeline" },
+                                { "id": "split", "label": "Split" }
+                            ]
+                            : [
+                                { "id": "grid", "label": "Grid" },
+                                { "id": "timeline", "label": "Timeline" }
+                            ]
+
+                        delegate: Rectangle {
+                            id: viewModeButton
+                            required property var modelData
+
+                            readonly property bool active: root.effectiveGanttViewMode
+                                === String(viewModeButton.modelData.id || "")
+
+                            implicitWidth: viewModeLabel.implicitWidth + 18
+                            implicitHeight: Theme.AppTheme.inputHeight
+                            radius: Theme.AppTheme.radiusSm
+                            color: active
+                                ? Theme.AppTheme.navSelectedBackground
+                                : viewModeHover.hovered
+                                    ? Theme.AppTheme.hoverSurface
+                                    : Theme.AppTheme.surfaceOverlay
+                            border.color: active ? Theme.AppTheme.accent : Theme.AppTheme.subtleBorder
+                            border.width: active ? 1 : 0
+
+                            AppControls.Label {
+                                id: viewModeLabel
+                                anchors.centerIn: parent
+                                text: String(viewModeButton.modelData.label || "")
+                                color: viewModeButton.active
+                                    ? Theme.AppTheme.navSelectedText
+                                    : Theme.AppTheme.textSecondary
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                font.bold: viewModeButton.active
+                            }
+
+                            HoverHandler { id: viewModeHover; cursorShape: Qt.PointingHandCursor }
+                            TapHandler {
+                                onTapped: root.ganttViewMode = String(viewModeButton.modelData.id || "grid")
+                            }
                         }
                     }
                 }

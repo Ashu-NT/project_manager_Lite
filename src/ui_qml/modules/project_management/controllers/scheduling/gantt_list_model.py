@@ -195,18 +195,10 @@ class GanttListModel(QAbstractListModel):
             snapshot.task_id: snapshot
             for snapshot in (projection.baseline_snapshots if projection else ())
         }
-        start_days = [
-            row.start_day_ordinal
-            for row in self._all_rows
-            if not row.is_summary and row.start_day_ordinal is not None
-        ]
-        finish_days = [
-            row.finish_day_ordinal
-            for row in self._all_rows
-            if not row.is_summary and row.finish_day_ordinal is not None
-        ]
-        self._timeline_start_day = min(start_days) if start_days else -1
-        self._timeline_finish_day = max(finish_days) if finish_days else -1
+        range_start = projection.range_start_day_ordinal if projection else None
+        range_finish = projection.range_finish_day_ordinal if projection else None
+        self._timeline_start_day = int(range_start) if range_start is not None else -1
+        self._timeline_finish_day = int(range_finish) if range_finish is not None else -1
         self._expanded_summary_ids = {
             row.task_id
             for row in self._all_rows

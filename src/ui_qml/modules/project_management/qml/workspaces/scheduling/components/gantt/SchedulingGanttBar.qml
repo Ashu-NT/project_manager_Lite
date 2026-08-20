@@ -10,7 +10,7 @@ Item {
     property int startDay: -1
     property int finishDay: -1
     property int axisStartDay: -1
-    property real pixelsPerDay: 12
+    property real pixelsPerDay: 0
     property real timelineContentX: 0
     property real progressPercent: 0
     property string taskLabel: ""
@@ -20,11 +20,23 @@ Item {
     property bool isInfeasible: false
     property bool selected: false
 
-    readonly property bool hasDates: root.startDay >= 0
-    readonly property real contentStartX: 16
-        + Math.max(0, root.startDay - root.axisStartDay) * root.pixelsPerDay
-    readonly property real taskSpan: Math.max(1, root.finishDay - root.startDay + 1)
-    readonly property real taskWidth: Math.max(12, root.taskSpan * root.pixelsPerDay)
+    readonly property real minimumTaskPixels: 12
+    readonly property real milestoneSize: 14
+    readonly property bool hasDates: root.axisStartDay > 0
+        && root.startDay >= root.axisStartDay
+        && root.finishDay >= root.startDay
+        && root.pixelsPerDay > 0
+    readonly property real contentStartX: (root.startDay - root.axisStartDay)
+        * root.pixelsPerDay
+    readonly property real contentCenterX: (root.startDay - root.axisStartDay + 0.5)
+        * root.pixelsPerDay
+    readonly property real taskWidth: Math.max(
+        root.minimumTaskPixels,
+        (root.finishDay - root.startDay + 1) * root.pixelsPerDay
+    )
+    readonly property real progressWidth: root.isMilestone
+        ? 0
+        : Math.max(0, Math.min(root.taskWidth, root.taskWidth * root.progressPercent / 100))
     readonly property color semanticColor: root.isInfeasible
         ? Theme.AppTheme.danger
         : root.isCritical
@@ -32,8 +44,10 @@ Item {
             : Theme.AppTheme.accent
 
     visible: root.hasDates
-    x: root.contentStartX - root.timelineContentX
-    width: root.isMilestone ? 14 : root.taskWidth
+    x: (root.isMilestone
+        ? root.contentCenterX - root.milestoneSize / 2
+        : root.contentStartX) - root.timelineContentX
+    width: root.isMilestone ? root.milestoneSize : root.taskWidth
     height: 18
 
     Rectangle {
@@ -53,10 +67,7 @@ Item {
             anchors.left: parent.left
             anchors.top: parent.top
             anchors.bottom: parent.bottom
-            width: Math.max(
-                0,
-                Math.min(parent.width, parent.width * root.progressPercent / 100)
-            )
+            width: root.progressWidth
             radius: parent.radius
             color: Theme.AppTheme.success
             opacity: 0.55

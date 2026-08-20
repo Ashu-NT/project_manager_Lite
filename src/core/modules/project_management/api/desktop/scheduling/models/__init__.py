@@ -41,6 +41,7 @@ from src.core.modules.project_management.api.desktop.scheduling.models.leveling 
 from src.core.modules.project_management.api.desktop.scheduling.models.gantt import (
     GanttBaselineTaskSnapshotDto,
     GanttDependencyEdgeDto,
+    GanttNonWorkingIntervalDto,
     GanttProjectionDto,
     GanttTaskRowDto,
 )
@@ -58,6 +59,7 @@ __all__ = [
     "DownstreamExposureDto",
     "GanttBaselineTaskSnapshotDto",
     "GanttDependencyEdgeDto",
+    "GanttNonWorkingIntervalDto",
     "GanttProjectionDto",
     "GanttTaskRowDto",
     "ScheduleConflictDto",

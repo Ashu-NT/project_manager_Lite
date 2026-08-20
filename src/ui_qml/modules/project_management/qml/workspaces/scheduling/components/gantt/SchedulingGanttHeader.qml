@@ -9,23 +9,25 @@ Item {
 
     property var columns: []
     property var columnWidths: ({})
+    property var axisModel: null
     property real gridWidth: 0
     property real gridContentWidth: 0
     property real gridContentX: 0
     property real timelineX: 0
     property real timelineWidth: 0
-    property real timelineContentWidth: 0
     property real timelineContentX: 0
-    property string timelineStartLabel: ""
-    property string timelineFinishLabel: ""
     property string sortKey: "schedule"
     property int sortDirection: Qt.AscendingOrder
     property bool showGrid: true
     property bool showTimeline: true
 
+    readonly property int bandHeight: 28
+    readonly property int axisStartDay: root.axisModel ? root.axisModel.rangeStartDay : -1
+    readonly property real pixelsPerDay: root.axisModel ? root.axisModel.pixelsPerDay : 0
+
     signal sortRequested(string key, int direction)
 
-    height: Theme.AppTheme.normalRowHeight
+    height: root.bandHeight * 2
 
     Rectangle {
         anchors.fill: parent
@@ -35,7 +37,6 @@ Item {
     }
 
     Item {
-        x: 0
         width: root.gridWidth
         height: parent.height
         visible: root.showGrid
@@ -114,40 +115,88 @@ Item {
         height: parent.height
         visible: root.showTimeline
         clip: true
-        color: "transparent"
+        color: Theme.AppTheme.surfaceAlt
         border.color: Theme.AppTheme.divider
         border.width: 1
 
+        AppControls.Label {
+            anchors.centerIn: parent
+            visible: !root.axisModel || !root.axisModel.hasRange
+            text: "No scheduled date range"
+            color: Theme.AppTheme.textMuted
+            font.family: Theme.AppTheme.fontFamily
+            font.pixelSize: Theme.AppTheme.captionSize
+        }
+
         Item {
             x: -root.timelineContentX
-            width: root.timelineContentWidth
+            width: root.axisModel ? root.axisModel.contentWidth : 0
             height: parent.height
+            visible: root.axisModel && root.axisModel.hasRange
 
-            AppControls.Label {
-                x: 16
-                anchors.verticalCenter: parent.verticalCenter
-                text: root.timelineStartLabel || "Schedule start"
-                color: Theme.AppTheme.textMuted
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.captionSize
+            Repeater {
+                model: root.axisModel ? root.axisModel.majorTicks : []
+
+                delegate: Rectangle {
+                    id: majorTick
+                    required property var modelData
+
+                    x: (Number(majorTick.modelData.startDay) - root.axisStartDay)
+                        * root.pixelsPerDay
+                    y: 0
+                    width: (Number(majorTick.modelData.finishDay)
+                        - Number(majorTick.modelData.startDay) + 1) * root.pixelsPerDay
+                    height: root.bandHeight
+                    color: "transparent"
+                    border.color: Theme.AppTheme.divider
+                    border.width: 1
+
+                    AppControls.Label {
+                        anchors.fill: parent
+                        anchors.leftMargin: Theme.AppTheme.spacingXs
+                        anchors.rightMargin: Theme.AppTheme.spacingXs
+                        text: String(majorTick.modelData.label || "")
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        color: Theme.AppTheme.textSecondary
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        font.bold: true
+                        elide: Text.ElideRight
+                    }
+                }
             }
 
-            AppControls.Label {
-                x: Math.max(16, parent.width - implicitWidth - 16)
-                anchors.verticalCenter: parent.verticalCenter
-                text: root.timelineFinishLabel || "Schedule finish"
-                color: Theme.AppTheme.textMuted
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.captionSize
-            }
+            Repeater {
+                model: root.axisModel ? root.axisModel.minorTicks : []
 
-            AppControls.Label {
-                anchors.centerIn: parent
-                text: "Current schedule"
-                color: Theme.AppTheme.textSecondary
-                font.family: Theme.AppTheme.fontFamily
-                font.pixelSize: Theme.AppTheme.captionSize
-                font.bold: true
+                delegate: Rectangle {
+                    id: minorTick
+                    required property var modelData
+
+                    x: (Number(minorTick.modelData.startDay) - root.axisStartDay)
+                        * root.pixelsPerDay
+                    y: root.bandHeight
+                    width: (Number(minorTick.modelData.finishDay)
+                        - Number(minorTick.modelData.startDay) + 1) * root.pixelsPerDay
+                    height: root.bandHeight
+                    color: "transparent"
+                    border.color: Theme.AppTheme.divider
+                    border.width: 1
+
+                    AppControls.Label {
+                        anchors.fill: parent
+                        anchors.leftMargin: 2
+                        anchors.rightMargin: 2
+                        text: String(minorTick.modelData.label || "")
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        color: Theme.AppTheme.textMuted
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        elide: Text.ElideRight
+                    }
+                }
             }
         }
     }

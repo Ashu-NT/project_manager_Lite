@@ -94,12 +94,24 @@ class GanttBaselineTaskSnapshotDto:
 
 
 @dataclass(frozen=True, slots=True)
+class GanttNonWorkingIntervalDto:
+    start_day_ordinal: int
+    finish_day_ordinal: int
+
+
+@dataclass(frozen=True, slots=True)
 class GanttProjectionDto:
     tenant_id: str
     organization_id: str
     project_id: str
     schedule_authority: str
     selected_baseline_id: str | None
+    project_start_day_ordinal: int | None
+    project_finish_day_ordinal: int | None
+    range_start_day_ordinal: int | None
+    range_finish_day_ordinal: int | None
+    calendar_shading_authoritative: bool
+    non_working_intervals: tuple[GanttNonWorkingIntervalDto, ...]
     rows: tuple[GanttTaskRowDto, ...]
     dependency_edges: tuple[GanttDependencyEdgeDto, ...]
     baseline_snapshots: tuple[GanttBaselineTaskSnapshotDto, ...]
@@ -108,6 +120,7 @@ class GanttProjectionDto:
 __all__ = [
     "GanttBaselineTaskSnapshotDto",
     "GanttDependencyEdgeDto",
+    "GanttNonWorkingIntervalDto",
     "GanttProjectionDto",
     "GanttTaskRowDto",
 ]

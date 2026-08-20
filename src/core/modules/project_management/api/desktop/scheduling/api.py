@@ -351,6 +351,14 @@ class ProjectManagementSchedulingDesktopApi:
                     expected_project_id=normalized_id,
                 )
             )
+        calendar_for_project = getattr(
+            self._scheduling_engine, "calendar_for_project", None
+        )
+        project_calendar = (
+            calendar_for_project(normalized_id)
+            if callable(calendar_for_project)
+            else self._work_calendar_engine
+        )
         return assemble_gantt_projection(
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,
@@ -360,7 +368,9 @@ class ProjectManagementSchedulingDesktopApi:
             dependency_rows=dependencies,
             baseline_tasks=baseline_tasks,
             selected_baseline_id=baseline_id or None,
-            work_calendar=self._work_calendar_engine,
+            project_start=getattr(project, "start_date", None),
+            project_finish=getattr(project, "end_date", None),
+            work_calendar=project_calendar,
         )
 
     # ── Baselines ─────────────────────────────────────────────────────────────

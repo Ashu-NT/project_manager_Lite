@@ -409,6 +409,45 @@ Component {
 
 
 Component {
+    name: "GanttTimeAxisController"
+    accessSemantics: "reference"
+    prototype: "QObject"
+    exports: ["ProjectManagement.Controllers/GanttTimeAxisController 1.0"]
+    isCreatable: false
+    Property { name: "timescale"; type: "QString"; isReadonly: true }
+    Property { name: "timescaleOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "zoomLevels"; type: "QVariantList"; isReadonly: true }
+    Property { name: "zoomIndex"; type: "int"; isReadonly: true }
+    Property { name: "zoomMultiplier"; type: "double"; isReadonly: true }
+    Property { name: "canZoomIn"; type: "bool"; isReadonly: true }
+    Property { name: "canZoomOut"; type: "bool"; isReadonly: true }
+    Property { name: "canResetZoom"; type: "bool"; isReadonly: true }
+    Property { name: "hasRange"; type: "bool"; isReadonly: true }
+    Property { name: "baseRangeStartDay"; type: "int"; isReadonly: true }
+    Property { name: "baseRangeFinishDay"; type: "int"; isReadonly: true }
+    Property { name: "rangeStartDay"; type: "int"; isReadonly: true }
+    Property { name: "rangeFinishDay"; type: "int"; isReadonly: true }
+    Property { name: "rangeDayCount"; type: "int"; isReadonly: true }
+    Property { name: "pixelsPerDay"; type: "double"; isReadonly: true }
+    Property { name: "contentWidth"; type: "double"; isReadonly: true }
+    Property { name: "rangeWarning"; type: "QString"; isReadonly: true }
+    Property { name: "visibleStartDay"; type: "int"; isReadonly: true }
+    Property { name: "visibleFinishDay"; type: "int"; isReadonly: true }
+    Property { name: "majorTicks"; type: "QVariantList"; isReadonly: true }
+    Property { name: "minorTicks"; type: "QVariantList"; isReadonly: true }
+    Property { name: "calendarShadingAuthoritative"; type: "bool"; isReadonly: true }
+    Property { name: "visibleNonWorkingIntervals"; type: "QVariantList"; isReadonly: true }
+    Property { name: "todayDay"; type: "int"; isReadonly: true }
+    Property { name: "todayAvailable"; type: "bool"; isReadonly: true }
+    Property { name: "todayUnavailableReason"; type: "QString"; isReadonly: true }
+    Method { name: "setTimescale"; type: "bool"; Parameter { name: "timescale"; type: "QString" } }
+    Method { name: "zoomIn"; type: "bool" }
+    Method { name: "zoomOut"; type: "bool" }
+    Method { name: "resetZoom"; type: "bool" }
+    Method { name: "updateViewport"; Parameter { name: "contentX"; type: "double" } Parameter { name: "viewportWidth"; type: "double" } }
+}
+
+Component {
     name: "ProjectManagementSchedulingWorkspaceController"
     accessSemantics: "reference"
     prototype: "ProjectManagementWorkspaceControllerBase"
@@ -455,6 +494,8 @@ Component {
     Property { name: "holidayRows"; type: "QVariantList"; isReadonly: true }
     Property { name: "selectedActivity"; type: "QVariantMap"; isReadonly: true }
     Property { name: "calculatorResult"; type: "QString"; isReadonly: true }
+    Property { name: "ganttRowsModel"; type: "QObject"; isReadonly: true }
+    Property { name: "ganttTimeAxis"; type: "GanttTimeAxisController"; isReadonly: true }
     Method { name: "refresh" }
     Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
     Method { name: "selectCalendar"; Parameter { name: "calendarId"; type: "QString" } }

@@ -16,6 +16,7 @@ from .activity_log_service import ActivityLogService
 from .domain_event_binder import bind_scheduling_domain_events
 from .filter_service import filter_rows
 from .gantt_list_model import GanttListModel
+from .gantt_time_axis_controller import GanttTimeAxisController
 from .leveling_actions import apply_resource_leveling, preview_resource_leveling
 from .mutation_handler import SchedulingMutationHandler
 from .scheduling_calculation_actions import (
@@ -180,6 +181,7 @@ class ProjectManagementSchedulingWorkspaceController(
         )
         self._table_models = create_scheduling_table_models(self)
         self._gantt_model = GanttListModel(self)
+        self._gantt_time_axis = GanttTimeAxisController(self)
         self._activity_log_svc = ActivityLogService()
         self._mutations = SchedulingMutationHandler(
             presenter=self._scheduling_workspace_presenter,
@@ -448,6 +450,10 @@ class ProjectManagementSchedulingWorkspaceController(
     @Property(QObject, constant=True)
     def ganttRowsModel(self) -> GanttListModel:
         return self._gantt_model
+
+    @Property(GanttTimeAxisController, constant=True)
+    def ganttTimeAxis(self) -> GanttTimeAxisController:
+        return self._gantt_time_axis
 
     @Property(QObject, constant=True)
     def scheduleImpactTasksTableModel(self) -> DynamicTableModel:

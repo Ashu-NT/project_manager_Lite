@@ -49,7 +49,9 @@ Item {
         case "activityCode": return root.code || "-"
         case "wbs": return root.wbsCode || "-"
         case "taskName": return root.name
-        case "start": return String(root.rowData.startDate || "-")
+        case "start": return root.rowData.startDate
+            ? String(root.rowData.startDate)
+            : "Unscheduled"
         case "finish": return String(root.rowData.finishDate || "-")
         case "duration": return root.rowData.durationDays === null || root.rowData.durationDays === undefined ? "-" : String(root.rowData.durationDays) + "d"
         case "remainingDuration": return root.rowData.remainingDurationDays === null || root.rowData.remainingDurationDays === undefined ? "-" : String(root.rowData.remainingDurationDays) + "d"

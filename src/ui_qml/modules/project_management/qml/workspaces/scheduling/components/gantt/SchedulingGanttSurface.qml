@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
+import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
 
 Item {
@@ -9,11 +10,15 @@ Item {
 
     property var workspaceController: null
     property var ganttModel: workspaceController ? workspaceController.ganttRowsModel : null
+    property var axisModel: workspaceController ? workspaceController.ganttTimeAxis : null
     property var columns: []
     property string requestedViewMode: "split"
     property string selectedActivityId: ""
     property real requestedGridWidth: 760
     property real _splitDragStartWidth: 760
+    property real _centerAnchorDay: -1
+    property real _previousTimelineWidth: 0
+    property bool _restoringCenter: false
 
     readonly property bool compact: root.width <= Theme.AppTheme.compactContentBreakpoint
     readonly property real splitMinimumWidth: 960
@@ -39,15 +44,12 @@ Item {
     })
     readonly property var columnWidths: root._buildColumnWidths()
     readonly property real gridContentWidth: root._columnContentWidth()
-    readonly property int axisStartDay: root.ganttModel ? root.ganttModel.timelineStartDay : -1
-    readonly property int axisFinishDay: root.ganttModel ? root.ganttModel.timelineFinishDay : -1
-    readonly property real pixelsPerDay: 12
-    readonly property real timelineContentWidth: Math.max(
-        root.timelineWidth,
-        root.axisStartDay >= 0 && root.axisFinishDay >= root.axisStartDay
-            ? (root.axisFinishDay - root.axisStartDay + 1) * root.pixelsPerDay + 220
-            : root.timelineWidth
-    )
+    readonly property int axisStartDay: root.axisModel ? root.axisModel.rangeStartDay : -1
+    readonly property int axisFinishDay: root.axisModel ? root.axisModel.rangeFinishDay : -1
+    readonly property real pixelsPerDay: root.axisModel ? root.axisModel.pixelsPerDay : 0
+    readonly property real timelineContentWidth: root.axisModel
+        ? root.axisModel.contentWidth
+        : 0
     readonly property int activeDelegateCount: rowsViewport.activeDelegateCount
     readonly property real timelineContentX: timelineAxis.contentX
     readonly property real verticalContentY: rowsViewport.verticalContentY
@@ -93,10 +95,82 @@ Item {
         return result
     }
 
-    function _dateLabel(dayOrdinal) {
-        if (dayOrdinal < 1) return ""
-        const epochDay = dayOrdinal - 719163
-        return new Date(epochDay * 86400000).toISOString().slice(0, 10)
+    function _currentCenterDay(widthOverride) {
+        if (!root.axisModel || !root.axisModel.hasRange || root.pixelsPerDay <= 0)
+            return -1
+        const viewportWidth = widthOverride === undefined
+            ? root.timelineWidth
+            : Number(widthOverride)
+        return root.axisStartDay
+            + (timelineAxis.contentX + Math.max(0, viewportWidth) / 2) / root.pixelsPerDay
+    }
+
+    function _centerOnDay(dayOrdinal) {
+        if (!root.axisModel || !root.axisModel.hasRange || root.timelineWidth <= 0)
+            return
+        const boundedDay = Math.max(
+            root.axisStartDay,
+            Math.min(root.axisFinishDay, Number(dayOrdinal))
+        )
+        const requestedX = (boundedDay - root.axisStartDay)
+            * root.pixelsPerDay - root.timelineWidth / 2
+        const wasRestoringCenter = root._restoringCenter
+        root._restoringCenter = true
+        timelineAxis.contentX = Math.max(
+            0,
+            Math.min(
+                Math.max(0, root.timelineContentWidth - root.timelineWidth),
+                requestedX
+            )
+        )
+        root._restoringCenter = wasRestoringCenter
+        root._centerAnchorDay = boundedDay
+        root._syncAxisViewport()
+    }
+
+    function _syncAxisViewport() {
+        if (root.axisModel)
+            root.axisModel.updateViewport(timelineAxis.contentX, root.timelineWidth)
+    }
+
+    function _applyAxisChange(callback) {
+        if (!root.axisModel) return false
+        const centerDay = root._currentCenterDay()
+        if (centerDay > 0) root._centerAnchorDay = centerDay
+        root._restoringCenter = true
+        const changed = callback()
+        Qt.callLater(function() {
+            if (root._centerAnchorDay > 0)
+                root._centerOnDay(root._centerAnchorDay)
+            else
+                root._syncAxisViewport()
+            root._restoringCenter = false
+        })
+        return changed
+    }
+
+    function setTimescale(timescale) {
+        return root._applyAxisChange(function() {
+            return root.axisModel.setTimescale(timescale)
+        })
+    }
+
+    function zoomIn() {
+        return root._applyAxisChange(function() { return root.axisModel.zoomIn() })
+    }
+
+    function zoomOut() {
+        return root._applyAxisChange(function() { return root.axisModel.zoomOut() })
+    }
+
+    function resetZoom() {
+        return root._applyAxisChange(function() { return root.axisModel.resetZoom() })
+    }
+
+    function goToToday() {
+        if (!root.axisModel || !root.axisModel.todayAvailable) return false
+        root._centerOnDay(root.axisModel.todayDay + 0.5)
+        return true
     }
 
     function _panTimeline(deltaX) {
@@ -125,10 +199,8 @@ Item {
         gridContentX: gridAxis.contentX
         timelineX: root.timelineX
         timelineWidth: root.timelineWidth
-        timelineContentWidth: root.timelineContentWidth
         timelineContentX: timelineAxis.contentX
-        timelineStartLabel: root._dateLabel(root.axisStartDay)
-        timelineFinishLabel: root._dateLabel(root.axisFinishDay)
+        axisModel: root.axisModel
         sortKey: root.workspaceController ? root.workspaceController.activitySortKey : "schedule"
         sortDirection: root.workspaceController
             ? root.workspaceController.activitySortDirection
@@ -136,6 +208,41 @@ Item {
         showGrid: root.showGrid
         showTimeline: root.showTimeline
         onSortRequested: function(key, direction) { root.sortRequested(key, direction) }
+    }
+
+    Item {
+        id: timelineContextLayer
+        objectName: "ganttTimelineContextLayer"
+        x: root.timelineX
+        y: ganttHeader.height
+        width: root.timelineWidth
+        height: Math.max(0, root.height - y - Theme.AppTheme.spacingMd)
+        visible: root.showTimeline && root.axisModel && root.axisModel.hasRange
+        clip: true
+
+        Item {
+            x: -timelineAxis.contentX
+            width: root.timelineContentWidth
+            height: parent.height
+
+            Repeater {
+                model: root.axisModel ? root.axisModel.visibleNonWorkingIntervals : []
+
+                delegate: Rectangle {
+                    id: nonWorkingInterval
+                    required property var modelData
+
+                    x: (Number(nonWorkingInterval.modelData.startDay) - root.axisStartDay)
+                        * root.pixelsPerDay
+                    width: (Number(nonWorkingInterval.modelData.finishDay)
+                        - Number(nonWorkingInterval.modelData.startDay) + 1)
+                        * root.pixelsPerDay
+                    height: parent.height
+                    color: Theme.AppTheme.surfaceOverlay
+                    opacity: 0.7
+                }
+            }
+        }
     }
 
     SchedulingGanttRowsViewport {
@@ -166,6 +273,39 @@ Item {
                 root.workspaceController.setGanttExpanded(taskId, expanded)
         }
         onTimelinePanRequested: function(deltaX) { root._panTimeline(deltaX) }
+    }
+
+    Rectangle {
+        id: todayMarker
+        objectName: "ganttTodayMarker"
+        x: root.timelineX
+            + (root.axisModel ? root.axisModel.todayDay - root.axisStartDay + 0.5 : 0)
+                * root.pixelsPerDay
+            - timelineAxis.contentX
+        y: ganttHeader.height
+        width: 2
+        height: Math.max(0, root.height - y - Theme.AppTheme.spacingMd)
+        visible: root.showTimeline
+            && root.axisModel
+            && root.axisModel.todayAvailable
+            && x >= root.timelineX
+            && x <= root.timelineX + root.timelineWidth
+        color: Theme.AppTheme.danger
+        opacity: 0.8
+        z: 2
+    }
+
+    AppControls.Label {
+        anchors.centerIn: rowsViewport
+        visible: root.showTimeline
+            && root.ganttModel
+            && root.ganttModel.rowCountValue > 0
+            && (!root.axisModel || !root.axisModel.hasRange)
+        text: "No scheduled dates are available for this project."
+        color: Theme.AppTheme.textMuted
+        font.family: Theme.AppTheme.fontFamily
+        font.pixelSize: Theme.AppTheme.smallSize
+        z: 2
     }
 
     // These two objects own horizontal state. They contain no rows; the one
@@ -199,7 +339,7 @@ Item {
         width: root.timelineWidth
         height: Math.max(0, root.height - y)
         visible: root.showTimeline
-        contentWidth: root.timelineContentWidth
+        contentWidth: Math.max(width, root.timelineContentWidth)
         contentHeight: height
         interactive: false
         boundsBehavior: Flickable.StopAtBounds
@@ -240,5 +380,47 @@ Item {
                 )
             }
         }
+    }
+
+    onTimelineContentXChanged: {
+        if (!root._restoringCenter && root.timelineWidth > 0)
+            root._centerAnchorDay = root._currentCenterDay()
+        root._syncAxisViewport()
+    }
+
+    onTimelineWidthChanged: {
+        if (!root._restoringCenter
+                && root._previousTimelineWidth > 0
+                && root.axisModel
+                && root.axisModel.hasRange) {
+            root._centerAnchorDay = root._currentCenterDay(root._previousTimelineWidth)
+            root._restoringCenter = true
+        }
+        root._previousTimelineWidth = root.timelineWidth
+        Qt.callLater(function() {
+            if (root.timelineWidth > 0 && root._centerAnchorDay > 0)
+                root._centerOnDay(root._centerAnchorDay)
+            else
+                root._syncAxisViewport()
+            root._restoringCenter = false
+        })
+    }
+
+    Connections {
+        target: root.axisModel
+
+        function onConfigurationChanged() {
+            Qt.callLater(function() {
+                if (root._centerAnchorDay > 0)
+                    root._centerOnDay(root._centerAnchorDay)
+                else
+                    root._syncAxisViewport()
+            })
+        }
+    }
+
+    Component.onCompleted: {
+        root._previousTimelineWidth = root.timelineWidth
+        root._syncAxisViewport()
     }
 }

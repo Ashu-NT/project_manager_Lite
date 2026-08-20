@@ -97,6 +97,7 @@ def load_workspace_state(controller) -> None:
         set_activity_sort_key(controller, ws.sort_key)
         set_activity_sort_direction(controller, 1 if ws.sort_direction == "desc" else 0)
         controller._gantt_model.set_projection(ws.gantt_projection)
+        controller._gantt_time_axis.set_projection(ws.gantt_projection)
         panels = serialize_workspace_panels(ws)
         hydrate_visible_panel_models(controller, panels)
         refresh_local_gantt_view(controller)

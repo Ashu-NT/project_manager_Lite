@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from calendar import monthrange
+from datetime import date, timedelta
 from typing import Iterable
 
 from src.core.modules.project_management.api.desktop.scheduling.models.gantt import (
     GanttBaselineTaskSnapshotDto,
     GanttDependencyEdgeDto,
+    GanttNonWorkingIntervalDto,
     GanttProjectionDto,
     GanttTaskRowDto,
 )
@@ -125,6 +127,8 @@ def build_gantt_projection(
     dependency_rows: Iterable[object] = (),
     baseline_tasks: Iterable[object] = (),
     selected_baseline_id: str | None = None,
+    project_start: date | None = None,
+    project_finish: date | None = None,
     work_calendar: object | None = None,
 ) -> GanttProjectionDto:
     """Merge hierarchy and canonical leaf CPM results in O(N + E + B)."""
@@ -261,12 +265,39 @@ def build_gantt_projection(
         )
         for item in sorted_baseline_tasks
     )
+    range_dates = [
+        value
+        for row in rows
+        for value in (
+            row.start_date,
+            row.finish_date,
+            row.actual_start,
+            row.actual_finish,
+        )
+        if value is not None
+    ]
+    range_dates.extend(
+        value for value in (project_start, project_finish) if value is not None
+    )
+    range_start = min(range_dates) if range_dates else None
+    range_finish = max(range_dates) if range_dates else None
+    shading_authoritative, non_working_intervals = _build_non_working_intervals(
+        work_calendar,
+        range_start=_add_months(range_start, -3) if range_start else None,
+        range_finish=_add_months(range_finish, 3) if range_finish else None,
+    )
     return GanttProjectionDto(
         tenant_id=tenant_id,
         organization_id=organization_id,
         project_id=project_id,
         schedule_authority="canonical",
         selected_baseline_id=selected_baseline_id or None,
+        project_start_day_ordinal=day_ordinal(project_start),
+        project_finish_day_ordinal=day_ordinal(project_finish),
+        range_start_day_ordinal=day_ordinal(range_start),
+        range_finish_day_ordinal=day_ordinal(range_finish),
+        calendar_shading_authoritative=shading_authoritative,
+        non_working_intervals=non_working_intervals,
         rows=rows,
         dependency_edges=tuple(edges),
         baseline_snapshots=baseline_rows,
@@ -456,6 +487,59 @@ def _max_optional_int(left: int | None, right: int | None) -> int | None:
     if right is None:
         return left
     return max(left, right)
+
+
+def _add_months(value: date, months: int) -> date:
+    month_index = value.year * 12 + value.month - 1 + months
+    year, zero_based_month = divmod(month_index, 12)
+    month = zero_based_month + 1
+    return date(year, month, min(value.day, monthrange(year, month)[1]))
+
+
+def _build_non_working_intervals(
+    work_calendar: object | None,
+    *,
+    range_start: date | None,
+    range_finish: date | None,
+) -> tuple[bool, tuple[GanttNonWorkingIntervalDto, ...]]:
+    if work_calendar is None or range_start is None or range_finish is None:
+        return False, ()
+    working_dates_between = getattr(work_calendar, "working_day_dates_between", None)
+    is_working_day = getattr(work_calendar, "is_working_day", None)
+    if callable(working_dates_between):
+        working_dates = set(working_dates_between(range_start, range_finish))
+
+        def predicate(value: date) -> bool:
+            return value in working_dates
+
+    elif callable(is_working_day):
+        predicate = is_working_day
+    else:
+        return False, ()
+
+    intervals: list[GanttNonWorkingIntervalDto] = []
+    interval_start: date | None = None
+    cursor = range_start
+    while cursor <= range_finish:
+        if not predicate(cursor):
+            interval_start = interval_start or cursor
+        elif interval_start is not None:
+            intervals.append(
+                GanttNonWorkingIntervalDto(
+                    start_day_ordinal=interval_start.toordinal(),
+                    finish_day_ordinal=(cursor - timedelta(days=1)).toordinal(),
+                )
+            )
+            interval_start = None
+        cursor += timedelta(days=1)
+    if interval_start is not None:
+        intervals.append(
+            GanttNonWorkingIntervalDto(
+                start_day_ordinal=interval_start.toordinal(),
+                finish_day_ordinal=range_finish.toordinal(),
+            )
+        )
+    return True, tuple(intervals)
 
 
 __all__ = ["build_gantt_projection", "build_hierarchy_nodes", "day_ordinal"]
