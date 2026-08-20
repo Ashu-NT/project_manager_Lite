@@ -64,7 +64,11 @@ Item {
 
     // ── Column management ─────────────────────────────────────────────────
     function initColumns() {
-        const base = _baseColumns()
+        const base = _baseColumns().map(function(column) {
+            return Object.assign({}, column, {
+                "visible": column.visibleByDefault !== false
+            })
+        })
         if (root.workspaceController !== null) {
             const saved = root.workspaceController.loadTableColumnState(root.activityTableId)
             root.activityColumns = _applyColumnState(base, saved)

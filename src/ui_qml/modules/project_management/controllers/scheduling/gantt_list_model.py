@@ -55,6 +55,8 @@ class GanttListModel(QAbstractListModel):
         self._edge_by_id: dict[str, object] = {}
         self._edge_ids_by_task_id: dict[str, tuple[str, ...]] = {}
         self._baseline_by_task_id: dict[str, object] = {}
+        self._timeline_start_day = -1
+        self._timeline_finish_day = -1
         self._expanded_summary_ids: set[str] = set()
         self._search_text = ""
         self._status_filter = "all"
@@ -146,21 +148,19 @@ class GanttListModel(QAbstractListModel):
 
     @Property(int, notify=projectionChanged)
     def timelineStartDay(self) -> int:
-        values = [
-            row.start_day_ordinal
-            for row in self._all_rows
-            if not row.is_summary and row.start_day_ordinal is not None
-        ]
-        return min(values) if values else -1
+        return self._timeline_start_day
 
     @Property(int, notify=projectionChanged)
     def timelineFinishDay(self) -> int:
-        values = [
-            row.finish_day_ordinal
+        return self._timeline_finish_day
+
+    @Property("QVariantList", notify=projectionChanged)
+    def criticalAttentionRows(self) -> list[dict[str, object]]:
+        return [
+            self.serialize_row(row)
             for row in self._all_rows
-            if not row.is_summary and row.finish_day_ordinal is not None
+            if not row.is_summary and (row.is_critical or row.is_infeasible)
         ]
-        return max(values) if values else -1
 
     @property
     def projection(self) -> GanttProjectionDto | None:
@@ -195,6 +195,18 @@ class GanttListModel(QAbstractListModel):
             snapshot.task_id: snapshot
             for snapshot in (projection.baseline_snapshots if projection else ())
         }
+        start_days = [
+            row.start_day_ordinal
+            for row in self._all_rows
+            if not row.is_summary and row.start_day_ordinal is not None
+        ]
+        finish_days = [
+            row.finish_day_ordinal
+            for row in self._all_rows
+            if not row.is_summary and row.finish_day_ordinal is not None
+        ]
+        self._timeline_start_day = min(start_days) if start_days else -1
+        self._timeline_finish_day = max(finish_days) if finish_days else -1
         self._expanded_summary_ids = {
             row.task_id
             for row in self._all_rows
@@ -266,7 +278,7 @@ class GanttListModel(QAbstractListModel):
 
     def contains_effective_task(self, task_id: str) -> bool:
         normalized = str(task_id or "").strip()
-        return any(row.task_id == normalized for row in self._effective_rows)
+        return normalized in self._effective_index_by_task_id
 
     def contains_filtered_task(self, task_id: str) -> bool:
         row = self.row_for_task(task_id)

@@ -72,42 +72,49 @@ def test_planning_navigation_and_header_match_the_approved_information_architect
 
 def test_gantt_has_truthful_controls_lazy_impact_and_no_fake_baseline_rendering() -> None:
     gantt = _read("panels/SchedulingGanttPanel.qml")
-    timeline = _read("panels/SchedulingTimelinePanel.qml")
+    surface = _read("components/gantt/SchedulingGanttSurface.qml")
+    row = _read("components/gantt/SchedulingGanttRow.qml")
     gantt_code = _without_line_comments(gantt)
-    timeline_code = _without_line_comments(timeline)
+    surface_code = _without_line_comments(surface)
+    row_code = _without_line_comments(row)
 
     assert 'text: "Delayed only"' in gantt
     assert 'text: "Critical only"' in gantt
     assert 'text: "Analyze Impact"' in gantt
     assert "workspaceController.computeScheduleImpact" in gantt
-    assert "root._scheduleImpact.taskId" in gantt
+    assert "root.scheduleImpact.taskId" in gantt
 
-    row_selection = gantt.split("onRowSelected:", 1)[1].split("}", 1)[0]
-    assert "selectActivity" in row_selection
-    assert "computeScheduleImpact" not in row_selection
+    assert "workspaceController.ganttRowsModel" in surface
+    assert "root.workspaceController.selectActivity(taskId)" in gantt
+    assert "TablePaginationBar" not in gantt
+    assert "AppWidgets.DataTable" not in gantt
 
     for fake_control in ("Dependency Lines", "Zoom", "Timescale"):
         assert fake_control not in gantt_code
-        assert fake_control not in timeline_code
-    assert "baselinePlaceholder" not in timeline_code
-    assert "baseline_placeholder" not in timeline_code
+        assert fake_control not in surface_code
+    assert "baselinePlaceholder" not in row_code
+    assert "baseline_placeholder" not in row_code
+    assert "isMilestone: root.isMilestone" in row
+    assert "startDayOrdinal === finishDayOrdinal" not in row
 
 
 def test_planning_responsive_contract_and_retired_panels_remain_enforced() -> None:
     gantt = _read("panels/SchedulingGanttPanel.qml")
+    surface = _read("components/gantt/SchedulingGanttSurface.qml")
 
     assert "compactContentBreakpoint" in gantt
-    assert 'root.ganttViewMode === "split"' in gantt
-    assert 'root._compact || !root._splitFitsWithInspector' in gantt
+    assert 'root.requestedViewMode === "split"' in surface
+    assert "root.splitAvailable" in surface
     assert "AppWidgets.SlideOverPanel" in gantt
-    assert "root._hasSelection && root._compact" in gantt
-    assert "root._hasSelection && !root._compact" in gantt
+    assert "root.hasSelection && root.compact" in gantt
+    assert "root.hasSelection && !root.compact" in gantt
 
     for retired_panel in (
         "SchedulingActivityTimelinePanel.qml",
         "SchedulingDelaysPanel.qml",
         "SchedulingDetailPanel.qml",
         "SchedulingResourcesPanel.qml",
+        "SchedulingTimelinePanel.qml",
     ):
         assert not (SCHEDULING_ROOT / "panels" / retired_panel).exists()
 

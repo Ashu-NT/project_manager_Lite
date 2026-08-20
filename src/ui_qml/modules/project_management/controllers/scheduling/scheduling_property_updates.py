@@ -99,27 +99,6 @@ def set_show_delayed_only(controller, v: bool) -> None:
     controller.showDelayedOnlyChanged.emit()
 
 
-def set_activity_page(controller, v: int) -> None:
-    if v == controller._activity_page:
-        return
-    controller._activity_page = v
-    controller.activityPageChanged.emit()
-
-
-def set_activity_page_size(controller, v: int) -> None:
-    if v == controller._activity_page_size:
-        return
-    controller._activity_page_size = v
-    controller.activityPageSizeChanged.emit()
-
-
-def set_activity_total_count(controller, v: int) -> None:
-    if v == controller._activity_total_count:
-        return
-    controller._activity_total_count = v
-    controller.activityTotalCountChanged.emit()
-
-
 def set_activity_sort_key(controller, v: str) -> None:
     if v == controller._activity_sort_key:
         return
@@ -153,20 +132,6 @@ def set_baselines(controller, v: dict) -> None:
         return
     controller._baselines = v
     controller.baselinesChanged.emit()
-
-
-def set_schedule(controller, v: dict) -> None:
-    if v == controller._schedule:
-        return
-    controller._schedule = v
-    controller.scheduleChanged.emit()
-
-
-def set_timeline(controller, v: dict) -> None:
-    if v == controller._timeline:
-        return
-    controller._timeline = v
-    controller.timelineChanged.emit()
 
 
 def set_critical_path(controller, v: dict) -> None:
@@ -223,14 +188,6 @@ def set_activity_feed(controller, v: dict) -> None:
         return
     controller._activity_feed = v
     controller.activityFeedChanged.emit()
-
-
-def set_schedule_rows(controller, rows: list) -> None:
-    if rows == controller._schedule_rows:
-        return
-    controller._schedule_rows = rows
-    controller._table_models.schedule.set_rows(rows)
-    controller.scheduleRowsChanged.emit()
 
 
 def set_diagnostics_rows(controller, rows: list) -> None:
@@ -357,9 +314,6 @@ def set_baseline_variance_rows(controller, rows: list) -> None:
 
 __all__ = [
     "set_activity_feed",
-    "set_activity_page",
-    "set_activity_page_size",
-    "set_activity_total_count",
     "set_activity_sort_key",
     "set_activity_sort_direction",
     "set_baseline_compare_rows",
@@ -390,8 +344,6 @@ __all__ = [
     "set_project_options",
     "set_resource_loading",
     "set_resource_loading_rows",
-    "set_schedule",
-    "set_schedule_rows",
     "set_search_text",
     "set_selected_activity",
     "set_selected_activity_id",
@@ -402,6 +354,5 @@ __all__ = [
     "set_show_critical_only",
     "set_show_delayed_only",
     "set_status_options",
-    "set_timeline",
     "set_violation_rows",
 ]

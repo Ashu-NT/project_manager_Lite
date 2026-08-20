@@ -40,9 +40,6 @@ AppLayouts.WorkspaceFrame {
     readonly property var activityFeedModel: root.workspaceController
         ? root.workspaceController.activityFeed
         : ({ "title": "", "subtitle": "", "items": [], "emptyState": "No planning activity has been recorded." })
-    readonly property var timelineModel: root.workspaceController
-        ? root.workspaceController.timeline
-        : ({ "title": "", "subtitle": "", "items": [], "emptyState": "No timeline items are available." })
 
     title:    root.overviewModel.title    || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
@@ -230,7 +227,6 @@ AppLayouts.WorkspaceFrame {
                             workspaceController:   root.workspaceController
                             activityColumns:       state.activityColumns
                             activityTableId:       state.activityTableId
-                            timelineModel:         root.timelineModel
                             selectedActivityModel: root.selectedActivityModel
                             shellModel:            root.shellModel
                             onActivityColumnsStateChanged: function(cols) { state.activityColumns = cols }

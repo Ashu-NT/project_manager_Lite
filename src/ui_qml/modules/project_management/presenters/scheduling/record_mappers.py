@@ -1,118 +1,16 @@
 from __future__ import annotations
 
-from datetime import date
 from typing import Any
 
 from src.core.modules.project_management.api.desktop import SchedulingConstraintViolationDto
 from src.ui_qml.modules.project_management.view_models.scheduling import SchedulingRecordViewModel
 
 from .formatters import (
-    activity_criticality_label,
     constraint_label_for_activity,
-    days_between,
     format_date,
     int_label,
     shift_label,
-    timeline_bounds,
 )
-
-def to_schedule_record(
-    item: Any,
-    *,
-    row_index: int,
-    calendar_label: str,
-) -> SchedulingRecordViewModel:
-    activity_code = str(getattr(item, "code", "") or "")
-    progress_value = float(item.percent_complete or 0.0)
-    remaining_duration = item.remaining_duration_days
-    c_label = constraint_label_for_activity(item)
-    late_label = (
-        f"Late by {item.late_by_days} day(s)"
-        if (item.late_by_days or 0) > 0
-        else "On plan"
-    )
-    return SchedulingRecordViewModel(
-        id=item.id,
-        title=item.name,
-        status_label=item.status_label,
-        subtitle=(
-            f"WBS {item.wbs_code or '-'} | Activity {activity_code} | "
-            f"{format_date(item.start_date)} -> {format_date(item.finish_date)}"
-        ),
-        supporting_text=(
-            f"Duration {int_label(item.duration_days)} | Remaining {int_label(remaining_duration)} | "
-            f"Float {int_label(item.total_float_days)}"
-        ),
-        meta_text=f"{late_label} | Calendar {calendar_label}",
-        state={
-            "activityId": item.id,
-            "activityCode": activity_code,
-            "wbs": item.wbs_code or "-",
-            "taskName": item.name,
-            "startDateLabel": format_date(item.start_date),
-            "finishDateLabel": format_date(item.finish_date),
-            "durationLabel": int_label(item.duration_days),
-            "remainingDurationLabel": int_label(remaining_duration),
-            "floatLabel": int_label(item.total_float_days),
-            "criticalLabel": activity_criticality_label(item),
-            "constraintLabel": c_label,
-            "calendarLabel": calendar_label,
-            "progressValue": {
-                "value": progress_value / 100.0,
-                "label": f"{progress_value:.0f}%",
-            },
-            "statusLabel": item.status_label,
-            "deadlineLabel": format_date(item.deadline),
-            "latestStartLabel": format_date(item.latest_start),
-            "latestFinishLabel": format_date(item.latest_finish),
-            "lateByLabel": int_label(item.late_by_days),
-            "actualStartLabel": format_date(item.actual_start),
-            "actualFinishLabel": format_date(item.actual_end),
-            "description": item.description or "",
-        },
-    )
-
-def to_timeline_record(item: Any, *, timeline_items: Any) -> SchedulingRecordViewModel:
-    bounds = timeline_bounds(timeline_items)
-    start_offset = days_between(bounds[0], item.start_date)
-    finish_offset = days_between(bounds[0], item.finish_date)
-    current_offset = days_between(bounds[0], date.today())
-    window_days = (
-        max(1, ((bounds[1] - bounds[0]).days + 1))
-        if bounds[0] is not None and bounds[1] is not None
-        else 1
-    )
-    span_days = (
-        max(1, (finish_offset - start_offset) + 1)
-        if start_offset is not None and finish_offset is not None
-        else 1
-    )
-    milestone = bool(getattr(item, "is_milestone", False))
-    return SchedulingRecordViewModel(
-        id=item.id,
-        title=item.name,
-        status_label="Critical" if item.is_critical else item.status_label,
-        subtitle=f"{format_date(item.start_date)} -> {format_date(item.finish_date)}",
-        supporting_text=f"Progress {float(item.percent_complete or 0.0):.0f}% | Float {int_label(item.total_float_days)}",
-        meta_text=(
-            f"Window {bounds[0].isoformat()} -> {bounds[1].isoformat()}"
-            if bounds[0] and bounds[1]
-            else ""
-        ),
-        state={
-            "startOffsetDays": start_offset if start_offset is not None else 0,
-            "spanDays": span_days,
-            "milestone": milestone,
-            "critical": bool(item.is_critical),
-            "progressPercent": float(item.percent_complete or 0.0),
-            "startDateLabel": format_date(item.start_date),
-            "finishDateLabel": format_date(item.finish_date),
-            "windowStartLabel": format_date(bounds[0]),
-            "windowFinishLabel": format_date(bounds[1]),
-            "windowDays": window_days,
-            "currentOffsetDays": current_offset if current_offset is not None else -1,
-        },
-    )
 
 def to_critical_path_record(item: Any) -> SchedulingRecordViewModel:
     return SchedulingRecordViewModel(
@@ -286,8 +184,6 @@ def to_baseline_variance_record(rec: Any) -> SchedulingRecordViewModel:
     )
 
 __all__ = [
-    "to_schedule_record",
-    "to_timeline_record",
     "to_critical_path_record",
     "to_delayed_activity_record",
     "to_baseline_compare_record",

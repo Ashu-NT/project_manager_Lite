@@ -118,9 +118,6 @@ class SchedulingWorkspaceViewModel:
     search_text: str = ""
     show_critical_only: bool = False
     show_delayed_only: bool = False
-    page: int = 1
-    page_size: int = 25
-    total_count: int = 0
     sort_key: str = "schedule"
     sort_direction: str = "asc"
     selected_activity_id: str = ""
@@ -130,18 +127,6 @@ class SchedulingWorkspaceViewModel:
     )
     baselines: SchedulingBaselineCompareViewModel = field(
         default_factory=SchedulingBaselineCompareViewModel
-    )
-    schedule: SchedulingCollectionViewModel = field(
-        default_factory=lambda: SchedulingCollectionViewModel(
-            title="Activity Table",
-            subtitle="",
-        )
-    )
-    timeline: SchedulingCollectionViewModel = field(
-        default_factory=lambda: SchedulingCollectionViewModel(
-            title="Timeline",
-            subtitle="",
-        )
     )
     critical_path: SchedulingCollectionViewModel = field(
         default_factory=lambda: SchedulingCollectionViewModel(

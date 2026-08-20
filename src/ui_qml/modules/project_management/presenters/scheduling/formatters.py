@@ -14,34 +14,11 @@ def shift_label(value: int | None) -> str:
         return "-"
     return f"{int(value):+d}d"
 
-def calendar_label(
-    calendar_options: Any,
-    selected_calendar_id: str,
-) -> str:
-    for option in calendar_options:
-        if option.value == selected_calendar_id:
-            return option.label
-    return "Default Calendar"
-
 def label_for_option(option_value: str, options: Any) -> str:
     for option in options:
         if option.value == option_value:
             return option.label
     return option_value
-
-def timeline_bounds(items: Any) -> tuple[date | None, date | None]:
-    starts = [item.start_date for item in items if item.start_date]
-    finishes = [item.finish_date for item in items if item.finish_date]
-    if not starts and not finishes:
-        return None, None
-    minimum = min(starts or finishes)
-    maximum = max(finishes or starts)
-    return minimum, maximum
-
-def days_between(origin: date | None, target: date | None) -> int | None:
-    if origin is None or target is None:
-        return None
-    return (target - origin).days
 
 def constraint_label_for_activity(item: Any) -> str:
     if item.actual_end:
@@ -59,40 +36,10 @@ def constraint_label_for_activity(item: Any) -> str:
         return "Planned start anchor"
     return "Open"
 
-def activity_criticality_label(item: Any) -> str:
-    """Canonical, backend-owned schedule-status label -- Infeasible
-    takes precedence over Critical, which takes precedence over Normal
-    (R4.4 constraint-aware backward CPM). Reads item.is_infeasible/
-    item.is_critical directly; never re-derives either from
-    total_float_days itself, so this is the one place the Scheduling
-    table's status column can drift from Task Detail -> Schedule
-    Impact's own scheduleStatusLabel."""
-    if getattr(item, "is_infeasible", False):
-        return "Infeasible"
-    if item.is_critical:
-        return "Critical"
-    return "Normal"
-
-def build_schedule_empty_state(
-    *,
-    resolved_project_id: str,
-    schedule_items: Any,
-) -> str:
-    if not resolved_project_id:
-        return "Select a project to review the current schedule."
-    if schedule_items:
-        return ""
-    return "No scheduled activities are available for the selected project."
-
 __all__ = [
     "format_date",
     "int_label",
     "shift_label",
-    "calendar_label",
     "label_for_option",
-    "timeline_bounds",
-    "days_between",
     "constraint_label_for_activity",
-    "activity_criticality_label",
-    "build_schedule_empty_state",
 ]

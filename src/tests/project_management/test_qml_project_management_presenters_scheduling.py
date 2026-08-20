@@ -212,7 +212,7 @@ def test_project_management_workspace_catalog_exposes_typed_scheduling_controlle
     assert controller.overview["title"] == "Scheduling"
     assert controller.projectOptions[0]["label"] == "Plant Upgrade"
     assert controller.calendar["workingDays"][0]["checked"] is True
-    assert controller.schedule["items"][0]["title"] == "Cable Pull"
+    assert controller.ganttRowsModel.row_for_task("task-1").name == "Cable Pull"
     assert controller.criticalPath["items"][0]["title"] == "Cable Pull"
     assert controller.baselines["rows"][0]["title"] == "Cable Pull"
 
@@ -220,7 +220,7 @@ def test_project_management_workspace_catalog_exposes_typed_scheduling_controlle
 
     assert controller.activitySortKey == "taskName"
     assert controller.activitySortDirection == 1
-    assert [item["title"] for item in controller.schedule["items"]] == [
+    assert [row.name for row in controller.ganttRowsModel.effective_rows] == [
         "Punchlist Closeout",
         "Cable Pull",
     ]
@@ -228,5 +228,4 @@ def test_project_management_workspace_catalog_exposes_typed_scheduling_controlle
     controller.selectProject("proj-2")
 
     assert controller.selectedProjectId == "proj-2"
-    assert controller.schedule["items"] == []
-    assert controller.schedule["emptyState"] == "No scheduled activities are available for the selected project."
+    assert controller.ganttRowsModel.rowCountValue == 0

@@ -18,8 +18,6 @@ from .calendar_builder import build_calendar_view_model
 from .detail_builder import build_constraints_collection, build_detail_view_model
 from .diagnostics_builder import build_diagnostics_collection
 from .formatters import (
-    build_schedule_empty_state,
-    calendar_label as get_calendar_label,
     label_for_option,
 )
 from .option_resolver import (
@@ -38,11 +36,9 @@ from .record_mappers import (
     to_delayed_activity_record,
     to_dependency_record,
     to_resource_load_record,
-    to_schedule_record,
-    to_timeline_record,
 )
 from .schedule_filter import matches_schedule_filters
-from .schedule_sort import normalize_schedule_sort, sort_schedule_items
+from .schedule_sort import normalize_schedule_sort
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +55,6 @@ def build_workspace_state(
     search_text: str = "",
     show_critical_only: bool = False,
     show_delayed_only: bool = False,
-    page: int = 1,
-    page_size: int = 25,
     sort_key: str = "schedule",
     sort_direction: str = "asc",
     selected_activity_id: str | None = None,
@@ -155,21 +149,11 @@ def build_workspace_state(
         )
     )
     schedule_sort = normalize_schedule_sort(key=sort_key, direction=sort_direction)
-    ordered_schedule = sort_schedule_items(filtered_schedule, sort=schedule_sort)
     total_count = len(filtered_schedule)
-    resolved_page_size = max(10, int(page_size or 25))
-    resolved_page = max(1, int(page or 1))
-    total_pages = max(1, (total_count + resolved_page_size - 1) // resolved_page_size)
-    if resolved_page > total_pages:
-        resolved_page = total_pages
-    page_start = (resolved_page - 1) * resolved_page_size
-    page_end = page_start + resolved_page_size
-    paged_schedule = ordered_schedule[page_start:page_end]
 
     resolved_selected_activity_id = resolve_selected_activity_id(
         selected_activity_id,
         filtered_schedule=filtered_schedule,
-        paged_schedule=paged_schedule,
     )
     selected_activity = next(
         (item for item in filtered_schedule if item.id == resolved_selected_activity_id),
@@ -237,30 +221,21 @@ def build_workspace_state(
     log_method = logger.warning if duration_ms > 500 else logger.info
     log_method(
         "PM scheduling presenter build complete duration_ms=%.1f project=%s "
-        "schedule_count=%s filtered_count=%s paged_count=%s dependency_count=%s "
-        "baseline_count=%s resource_load_count=%s violation_count=%s page=%s "
-        "page_size=%s search=%s status_filter=%s critical_only=%s delayed_only=%s",
+        "schedule_count=%s filtered_count=%s dependency_count=%s baseline_count=%s "
+        "resource_load_count=%s violation_count=%s search=%s status_filter=%s "
+        "critical_only=%s delayed_only=%s",
         duration_ms,
         resolved_project_id,
         len(schedule_items),
         total_count,
-        len(paged_schedule),
         len(dependency_rows),
         len(baseline_options),
         len(resource_load),
         len(constraint_violations),
-        resolved_page,
-        resolved_page_size,
         normalized_search,
         resolved_status_filter,
         show_critical_only,
         show_delayed_only,
-    )
-
-    cal_label = get_calendar_label(calendar_options, resolved_calendar_id)
-    empty_state = build_schedule_empty_state(
-        resolved_project_id=resolved_project_id,
-        schedule_items=filtered_schedule,
     )
 
     return SchedulingWorkspaceViewModel(
@@ -288,9 +263,6 @@ def build_workspace_state(
         search_text=normalized_search,
         show_critical_only=show_critical_only,
         show_delayed_only=show_delayed_only,
-        page=resolved_page,
-        page_size=resolved_page_size,
-        total_count=total_count,
         sort_key=schedule_sort.key,
         sort_direction=schedule_sort.direction.value,
         selected_activity_id=resolved_selected_activity_id,
@@ -304,28 +276,6 @@ def build_workspace_state(
             summary_text=comparison_summary,
             rows=tuple(to_baseline_compare_record(row) for row in comparison_rows),
             empty_state=comparison_empty_state,
-        ),
-        schedule=SchedulingCollectionViewModel(
-            title="Activities",
-            subtitle="Current planning window with CPM, float, constraint, and progress context.",
-            items=tuple(
-                to_schedule_record(
-                    item,
-                    row_index=page_start + index,
-                    calendar_label=cal_label,
-                )
-                for index, item in enumerate(paged_schedule, start=1)
-            ),
-            empty_state=empty_state,
-        ),
-        timeline=SchedulingCollectionViewModel(
-            title="Timeline",
-            subtitle="Current schedule bars, milestone markers, and baseline-ready planner lane.",
-            items=tuple(
-                to_timeline_record(item, timeline_items=paged_schedule)
-                for item in paged_schedule
-            ),
-            empty_state=empty_state,
         ),
         critical_path=SchedulingCollectionViewModel(
             title="Critical Path",

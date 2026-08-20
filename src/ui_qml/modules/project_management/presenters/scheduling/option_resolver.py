@@ -73,7 +73,6 @@ def resolve_selected_activity_id(
     selected_activity_id: str | None,
     *,
     filtered_schedule: Any,
-    paged_schedule: Any,
 ) -> str:
     normalized_id = (selected_activity_id or "").strip()
     filtered_ids = {item.id for item in filtered_schedule}

@@ -1,11 +1,11 @@
 # R4.5 Gantt Modernization: Engineering Audit and Implementation Design
 
-**Status:** R4.5A and R4.5B complete; locked architecture/product decisions; R4.5C not started  
+**Status:** R4.5A, R4.5B, and R4.5C complete; R4.5D is next
 **Scope:** Project Management > Planning > Gantt  
 **Evidence basis:** production QML, controller, presenter, desktop API, scheduling application/domain, persistence, shared QML primitives, and current targeted tests  
 **R4.5A non-goals honored:** its audit was read-only; R4.5B subsequently changed Python and the clean pre-release schema baseline, but made no visual QML, scheduling-semantic, R5, or commit changes
 
-R4.5B closure supersedes the original read-only status line above for implementation tracking: the typed read contract, indexed model, baseline milestone snapshot fact, selection seam, and local-view/CPM separation are implemented. No visual R4.5C work has started.
+R4.5B delivered the typed read contract, indexed model, baseline milestone snapshot fact, selection seam, and local-view/CPM separation. R4.5C delivered the integrated virtualized viewport, direct model binding, responsive view modes, shared horizontal timeline authority, and legacy renderer/adapter deletion. R4.5D time-axis work has not started.
 
 ## 1. Executive Summary
 
@@ -722,7 +722,7 @@ Names may be adjusted to repository conventions during implementation, but respo
 
 1. **R4.5A - Engineering audit/design:** this document; no production change.
 2. **R4.5B - Authoritative Gantt read contract (COMPLETE):** typed rows/edges/baseline snapshots, explicit milestone, hierarchy facts, date ordinals, stable IDs/order, one-pass merge, no generated activity codes, selection-detail index, characterization and scale tests.
-3. **R4.5C - Integrated viewport and selection:** specialized single vertical row viewport, frozen grid/timeline composition, horizontal authority, atomic row/bar/Inspector selection, no first-row auto-selection, existing Inspector preserved.
+3. **R4.5C - Integrated viewport and selection (COMPLETE):** specialized single vertical row viewport, frozen grid/timeline composition, horizontal authority, atomic row/bar/Inspector selection, no first-row auto-selection, existing Inspector preserved, legacy adapter/timeline/pagination removed.
 4. **R4.5D - Time axis, range, timescale, and zoom:** deterministic complete-project range, two-band header, Week default, Day/Month/Quarter, discrete zoom, Today behavior, non-working shading where authoritative calendar facts permit.
 5. **R4.5E - Dependency visualization:** Canvas routing, FS/SS/FF/SF anchors, viewport culling, visibility semantics, selection highlighting, lag tooltip/metadata.
 6. **R4.5F - Baseline, milestone, and critical/infeasible layers:** baseline schema/read addition, selected overlay, explicit milestone shapes, critical highlight separate from filter, visual precedence tests.
@@ -737,7 +737,7 @@ R4.5B must precede visual feature controls. A control ships in the same phase as
 |---|---|
 | R4.5A | All 40 audit sections complete; exact source paths and gaps reconciled; no production files changed. |
 | R4.5B | COMPLETE: typed complete-project Gantt projection is tenant/org safe; explicit milestone/hierarchy/edges/baseline facts covered; generated activity code and equal-date milestone inference removed; selection lookup O(1); local view operations avoid CPM; no scheduling-semantic change. |
-| R4.5C | One vertical authority; grid/timeline rows cannot drift; one horizontal authority; row/bar/Inspector selection agrees; no auto-selection; Inspector and Schedule Impact regressions green. |
+| R4.5C | COMPLETE: one virtualized vertical authority; grid/timeline share each delegate; one timeline horizontal authority; direct `GanttListModel` binding; row/bar/Inspector selection agrees; no auto-selection; 20 delegates at 5,000 rows; old adapter/timeline/pagination deleted. |
 | R4.5D | Deterministic range and all four scales tested; zoom min/max/reset/anchor tested; header/body X never drift; no UI action reruns CPM. |
 | R4.5E | FS/SS/FF/SF anchors and visibility rules tested; Canvas processes only visible/overscan edges; no misleading partial connector; toggle is truthful. |
 | R4.5F | Baseline snapshots are bulk/read-safe and explicit about milestones; added/deleted/unscheduled cases tested; critical/infeasible/milestone/selection precedence is unambiguous. |
@@ -773,8 +773,8 @@ None of these decisions requires changing scheduling semantics.
 
 ## 40. Final Recommendation
 
-Option B remains approved: a specialized integrated Gantt surface with one virtualized row viewport, one horizontal timeline authority, lightweight recycled QML bar delegates, and one viewport-aware Canvas dependency layer. R4.5B is complete; R4.5C is the next phase.
+Option B remains approved: a specialized integrated Gantt surface with one virtualized row viewport, one horizontal timeline authority, lightweight recycled QML bar delegates, and one future viewport-aware Canvas dependency layer. R4.5B and R4.5C are complete; R4.5D is the next phase.
 
 R4.5B should first create a typed, disposable, complete-project Gantt projection that merges canonical CPM leaf results with existing hierarchy and dependency facts and selected-baseline snapshots. It must preserve tenant/org/project authorization, expose explicit milestone identity, add historical baseline milestone identity, remove generated activity codes, stop page-derived timeline bounds, eliminate first-row auto-selection, and make selection/detail updates atomic without rerunning CPM.
 
-R4.5C must replace the independently scrolling grid/timeline pair and delete the explicitly temporary `gantt_legacy_adapter.py` once the specialized viewport consumes `GanttListModel` directly. R4.5C-H then continue incrementally while preserving the established enterprise scheduling engine as the sole business authority.
+R4.5C replaced the independently scrolling grid/timeline pair, deleted `gantt_legacy_adapter.py` and `SchedulingTimelinePanel.qml`, and removed visual pagination and duplicate presenter collections. R4.5D-H continue incrementally while preserving the established enterprise scheduling engine as the sole business authority.

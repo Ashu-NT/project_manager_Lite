@@ -1,7 +1,7 @@
 # R4.5B Gantt Read Contract Implementation
 
 **Status:** COMPLETE  
-**Next phase:** R4.5C - Integrated viewport and selection rendering  
+**Handoff status:** R4.5C completed; R4.5D is next
 **Commit:** none created
 
 ## Boundary
@@ -77,7 +77,7 @@ No DTO contains ORM objects, mutable aggregates, QML pixel geometry, free float,
 
 The merge is O(N + E + B) time and O(N + E + B) memory for N hierarchy rows, E edges, and B baseline snapshots. Summary dates, progress, status, criticality, and infeasibility are display rollups only. Summary tasks are never supplied to CPM and never create new dependency semantics.
 
-Canonical schedule input remains the complete project graph. The target projection has no Gantt pagination. The temporary existing panel still receives a page adapter until R4.5C, while `GanttListModel` always owns the complete projection.
+Canonical schedule input remains the complete project graph. The target projection has no Gantt pagination. R4.5C now feeds the production viewport directly from `GanttListModel`; the temporary page adapter and duplicate collections have been deleted.
 
 ## Authority And Scope
 
@@ -134,9 +134,7 @@ or both are empty. No first row is automatically selected. Selection clears on p
 
 Search, status filter, critical-only filter, delayed-only filter, sort, page, and page-size actions now call the local indexed model path. They do not call `controller.refresh()` and therefore do not rerun SchedulingEngine.
 
-The existing paginated visual surface is temporarily fed by `gantt_legacy_adapter.py`. It uses authoritative rows, explicit task code/milestone identity, and complete-project timeline bounds. It does not alter the complete target projection.
-
-**Mandatory R4.5C deletion:** `gantt_legacy_adapter.py` and its imports must be deleted when the specialized viewport consumes `GanttListModel` directly. The file must not survive retirement of the paginated `DataTable` plus `SchedulingTimelinePanel` pair. No compatibility shim should remain.
+**R4.5C deletion completed:** `gantt_legacy_adapter.py`, its imports, the paginated Gantt `DataTable`, and `SchedulingTimelinePanel` were deleted. No compatibility shim or duplicate production renderer remains.
 
 ## Invalidation
 
@@ -173,9 +171,9 @@ Focused coverage proves:
 
 The final affected R4.5B matrix completed with 66 passing tests. `ruff` was unavailable in `pmenv`; targeted Python compilation completed successfully. No full test suite was run, per the targeted-test constraint.
 
-## R4.5C Handoff
+## R4.5C Closure
 
-R4.5C should consume `controller.ganttRowsModel` directly and implement only:
+R4.5C consumes `controller.ganttRowsModel` directly and provides:
 
 1. the specialized integrated row viewport;
 2. one vertical row authority for frozen grid and timeline lane;
@@ -183,4 +181,4 @@ R4.5C should consume `controller.ganttRowsModel` directly and implement only:
 4. direct row/bar selection through the existing atomic controller seam;
 5. responsive Grid/Timeline/Split composition required by C.
 
-R4.5C must not add the dependency Canvas, baseline visuals, timescale/zoom, or R5 resource lanes. Those remain R4.5D-F/R5. It must remove the temporary adapter and old independently scrolling timeline path once replacement characterization tests are green.
+R4.5C added no dependency Canvas, baseline visuals, timescale/zoom, or R5 resource lanes. The adapter and independently scrolling timeline path are removed. Exact measurements, verification, and the R4.5D handoff are recorded in `R4_5C_GANTT_VIEWPORT_IMPLEMENTATION.md`.

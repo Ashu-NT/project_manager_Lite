@@ -25,11 +25,8 @@ from .scheduling_calculation_actions import (
 )
 from .scheduling_property_updates import (
     set_activity_feed,
-    set_activity_page,
-    set_activity_page_size,
     set_activity_sort_direction,
     set_activity_sort_key,
-    set_activity_total_count,
     set_baseline_compare_rows,
     set_baseline_options,
     set_baseline_register,
@@ -56,8 +53,6 @@ from .scheduling_property_updates import (
     set_project_options,
     set_resource_loading,
     set_resource_loading_rows,
-    set_schedule,
-    set_schedule_rows,
     set_search_text,
     set_selected_activity,
     set_selected_activity_id,
@@ -68,7 +63,6 @@ from .scheduling_property_updates import (
     set_show_critical_only,
     set_show_delayed_only,
     set_status_options,
-    set_timeline,
     set_violation_rows,
 )
 from .scheduling_selection_actions import (
@@ -88,8 +82,6 @@ from .scheduling_selection_actions import (
     set_activity_sort,
     set_hierarchy_expanded,
     set_include_unchanged,
-    set_page,
-    set_page_size,
 )
 from .scheduling_state_loader import load_workspace_state
 from .scheduling_tab_search_actions import (
@@ -132,15 +124,10 @@ class ProjectManagementSchedulingWorkspaceController(
     searchTextChanged = Signal()
     showCriticalOnlyChanged = Signal()
     showDelayedOnlyChanged = Signal()
-    activityPageChanged = Signal()
-    activityPageSizeChanged = Signal()
-    activityTotalCountChanged = Signal()
     activitySortKeyChanged = Signal()
     activitySortDirectionChanged = Signal()
     calendarChanged = Signal()
     baselinesChanged = Signal()
-    scheduleChanged = Signal()
-    timelineChanged = Signal()
     criticalPathChanged = Signal()
     diagnosticsChanged = Signal()
     resourceLoadingChanged = Signal()
@@ -149,7 +136,6 @@ class ProjectManagementSchedulingWorkspaceController(
     constraintsChanged = Signal()
     constraintViolationsChanged = Signal()
     activityFeedChanged = Signal()
-    scheduleRowsChanged = Signal()
     diagnosticsRowsChanged = Signal()
     delayedActivityRowsChanged = Signal()
     resourceLoadingRowsChanged = Signal()
@@ -218,16 +204,11 @@ class ProjectManagementSchedulingWorkspaceController(
         self._search_text = ""
         self._show_critical_only = False
         self._show_delayed_only = False
-        self._activity_page = 1
-        self._activity_page_size = 25
-        self._activity_total_count = 0
         self._activity_sort_key = "schedule"
         self._activity_sort_direction = 0
         self._selected_activity_id = ""
         self._calendar: dict[str, object] = default_calendar()
         self._baselines: dict[str, object] = default_baselines()
-        self._schedule: dict[str, object] = default_collection()
-        self._timeline: dict[str, object] = default_collection()
         self._critical_path: dict[str, object] = default_collection()
         self._diagnostics: dict[str, object] = default_collection()
         self._resource_loading: dict[str, object] = default_collection()
@@ -236,7 +217,6 @@ class ProjectManagementSchedulingWorkspaceController(
         self._constraints: dict[str, object] = default_collection()
         self._constraint_violations: dict[str, object] = default_collection()
         self._activity_feed: dict[str, object] = default_collection()
-        self._schedule_rows: list[dict[str, object]] = []
         self._diagnostics_rows: list[dict[str, object]] = []
         self._delayed_activity_rows: list[dict[str, object]] = []
         self._resource_loading_rows: list[dict[str, object]] = []
@@ -321,18 +301,6 @@ class ProjectManagementSchedulingWorkspaceController(
     def showDelayedOnly(self) -> bool:
         return self._show_delayed_only
 
-    @Property(int, notify=activityPageChanged)
-    def activityPage(self) -> int:
-        return self._activity_page
-
-    @Property(int, notify=activityPageSizeChanged)
-    def activityPageSize(self) -> int:
-        return self._activity_page_size
-
-    @Property(int, notify=activityTotalCountChanged)
-    def activityTotalCount(self) -> int:
-        return self._activity_total_count
-
     @Property(str, notify=activitySortKeyChanged)
     def activitySortKey(self) -> str:
         return self._activity_sort_key
@@ -350,14 +318,6 @@ class ProjectManagementSchedulingWorkspaceController(
     @Property("QVariantMap", notify=baselinesChanged)
     def baselines(self) -> dict[str, object]:
         return self._baselines
-
-    @Property("QVariantMap", notify=scheduleChanged)
-    def schedule(self) -> dict[str, object]:
-        return self._schedule
-
-    @Property("QVariantMap", notify=timelineChanged)
-    def timeline(self) -> dict[str, object]:
-        return self._timeline
 
     @Property("QVariantMap", notify=criticalPathChanged)
     def criticalPath(self) -> dict[str, object]:
@@ -392,10 +352,6 @@ class ProjectManagementSchedulingWorkspaceController(
         return self._activity_feed
 
     # ── Raw row list properties ───────────────────────────────────────
-
-    @Property("QVariantList", notify=scheduleRowsChanged)
-    def scheduleRows(self) -> list[dict[str, object]]:
-        return self._schedule_rows
 
     @Property("QVariantList", notify=diagnosticsRowsChanged)
     def diagnosticsRows(self) -> list[dict[str, object]]:
@@ -488,10 +444,6 @@ class ProjectManagementSchedulingWorkspaceController(
                            ["date", "exception", "calendar", "details"])
 
     # ── Table model properties ────────────────────────────────────────
-
-    @Property(QObject, constant=True)
-    def scheduleTableModel(self) -> DynamicTableModel:
-        return self._table_models.schedule
 
     @Property(QObject, constant=True)
     def ganttRowsModel(self) -> GanttListModel:
@@ -639,14 +591,6 @@ class ProjectManagementSchedulingWorkspaceController(
     def activateActivity(self, activity_id: str) -> None:
         activate_activity(self, activity_id)
 
-    @Slot(int)
-    def setActivityPage(self, page: int) -> None:
-        set_page(self, page)
-
-    @Slot(int)
-    def setActivityPageSize(self, page_size: int) -> None:
-        set_page_size(self, page_size)
-
     @Slot(str, int)
     def setActivitySort(self, sort_key: str, sort_direction: int) -> None:
         set_activity_sort(self, sort_key, sort_direction)
@@ -749,16 +693,11 @@ class ProjectManagementSchedulingWorkspaceController(
     def _set_search_text(self, v): set_search_text(self, v)
     def _set_show_critical_only(self, v): set_show_critical_only(self, v)
     def _set_show_delayed_only(self, v): set_show_delayed_only(self, v)
-    def _set_activity_page(self, v): set_activity_page(self, v)
-    def _set_activity_page_size(self, v): set_activity_page_size(self, v)
-    def _set_activity_total_count(self, v): set_activity_total_count(self, v)
     def _set_activity_sort_key(self, v): set_activity_sort_key(self, v)
     def _set_activity_sort_direction(self, v): set_activity_sort_direction(self, v)
     def _set_selected_activity_id(self, v): set_selected_activity_id(self, v)
     def _set_calendar(self, v): set_calendar(self, v)
     def _set_baselines(self, v): set_baselines(self, v)
-    def _set_schedule(self, v): set_schedule(self, v)
-    def _set_timeline(self, v): set_timeline(self, v)
     def _set_critical_path(self, v): set_critical_path(self, v)
     def _set_diagnostics(self, v): set_diagnostics(self, v)
     def _set_resource_loading(self, v): set_resource_loading(self, v)
@@ -767,7 +706,6 @@ class ProjectManagementSchedulingWorkspaceController(
     def _set_constraints(self, v): set_constraints(self, v)
     def _set_constraint_violations(self, v): set_constraint_violations(self, v)
     def _set_activity_feed(self, v): set_activity_feed(self, v)
-    def _set_schedule_rows(self, rows): set_schedule_rows(self, rows)
     def _set_diagnostics_rows(self, rows): set_diagnostics_rows(self, rows)
     def _set_delayed_activity_rows(self, rows): set_delayed_activity_rows(self, rows)
     def _set_resource_loading_rows(self, rows): set_resource_loading_rows(self, rows)

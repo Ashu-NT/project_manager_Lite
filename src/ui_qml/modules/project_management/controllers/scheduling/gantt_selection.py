@@ -10,7 +10,7 @@ from .state import default_selected_activity
 def set_gantt_selection(controller, task_id: str) -> None:
     normalized = str(task_id or "").strip()
     row = controller._gantt_model.row_for_task(normalized)
-    if row is None or not controller._gantt_model.contains_filtered_task(normalized):
+    if row is None or not controller._gantt_model.contains_effective_task(normalized):
         normalized = ""
         detail = default_selected_activity()
     else:

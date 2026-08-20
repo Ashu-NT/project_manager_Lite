@@ -16,7 +16,6 @@ from .row_builders import (
     build_diagnostics_rows,
     build_holiday_rows,
     build_resource_rows,
-    build_schedule_rows,
     build_violation_rows,
 )
 
@@ -25,8 +24,6 @@ def serialize_workspace_panels(workspace_state) -> dict[str, dict[str, object]]:
     return {
         "calendar": serialize_scheduling_calendar_view_model(workspace_state.calendar),
         "baselines": serialize_scheduling_baselines_view_model(workspace_state.baselines),
-        "schedule": serialize_scheduling_collection_view_model(workspace_state.schedule),
-        "timeline": serialize_scheduling_collection_view_model(workspace_state.timeline),
         "critical_path": serialize_scheduling_collection_view_model(workspace_state.critical_path),
         "diagnostics": serialize_scheduling_collection_view_model(workspace_state.diagnostics),
         "delayed": serialize_scheduling_collection_view_model(workspace_state.delayed_activities),
@@ -48,8 +45,6 @@ def hydrate_visible_panel_models(
 
     controller._set_calendar(panels["calendar"])
     controller._set_baselines(panels["baselines"])
-    controller._set_schedule(panels["schedule"])
-    controller._set_timeline(panels["timeline"])
     controller._set_critical_path(panels["critical_path"])
     controller._set_diagnostics(panels["diagnostics"])
     controller._set_resource_loading(panels["resource_loading"])
@@ -58,9 +53,6 @@ def hydrate_visible_panel_models(
     controller._set_constraints(panels["constraints"])
     controller._set_constraint_violations(panels["constraint_violations"])
     controller._set_activity_feed(panels["activity_feed"])
-
-    if panel_id in ("gantt", "overview"):
-        controller._set_schedule_rows(build_schedule_rows(panels["schedule"]))
 
     if panel_id == "diagnostics":
         controller._set_diagnostics_rows(build_diagnostics_rows(panels["diagnostics"]))

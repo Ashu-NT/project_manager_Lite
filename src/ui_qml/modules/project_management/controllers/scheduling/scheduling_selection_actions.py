@@ -3,8 +3,6 @@ from __future__ import annotations
 from .gantt_selection import set_gantt_selection
 from .gantt_view_state import refresh_local_gantt_view, set_gantt_expanded
 from .scheduling_property_updates import (
-    set_activity_page,
-    set_activity_page_size,
     set_activity_sort_direction,
     set_activity_sort_key,
     set_baseline_variance_rows,
@@ -40,7 +38,6 @@ def select_project(controller, project_id: str) -> None:
         "selectedBaselineBId": "",
         "includeUnchanged": False,
     })
-    set_activity_page(controller, 1)
     controller._activity_log_svc.reset()
     set_baseline_variance_rows(controller, [])
     controller.refresh()
@@ -91,7 +88,6 @@ def apply_search_text(controller, search_text: str) -> None:
     if normalized == controller._search_text:
         return
     set_search_text(controller, normalized)
-    set_activity_page(controller, 1)
     refresh_local_gantt_view(controller)
 
 
@@ -100,7 +96,6 @@ def apply_status_filter(controller, status_filter: str) -> None:
     if normalized == controller._selected_status_filter:
         return
     set_selected_status_filter(controller, normalized)
-    set_activity_page(controller, 1)
     refresh_local_gantt_view(controller)
 
 
@@ -108,7 +103,6 @@ def apply_show_critical_only(controller, enabled: bool) -> None:
     if enabled == controller._show_critical_only:
         return
     set_show_critical_only(controller, enabled)
-    set_activity_page(controller, 1)
     refresh_local_gantt_view(controller)
 
 
@@ -116,7 +110,6 @@ def apply_show_delayed_only(controller, enabled: bool) -> None:
     if enabled == controller._show_delayed_only:
         return
     set_show_delayed_only(controller, enabled)
-    set_activity_page(controller, 1)
     refresh_local_gantt_view(controller)
 
 
@@ -132,7 +125,6 @@ def clear_filters(controller) -> None:
     set_selected_status_filter(controller, "all")
     set_show_critical_only(controller, False)
     set_show_delayed_only(controller, False)
-    set_activity_page(controller, 1)
     refresh_local_gantt_view(controller)
 
 
@@ -148,23 +140,6 @@ def set_hierarchy_expanded(controller, task_id: str, expanded: bool) -> None:
     set_gantt_expanded(controller, task_id, expanded)
 
 
-def set_page(controller, page: int) -> None:
-    resolved = max(1, int(page or 1))
-    if resolved == controller._activity_page:
-        return
-    set_activity_page(controller, resolved)
-    refresh_local_gantt_view(controller)
-
-
-def set_page_size(controller, page_size: int) -> None:
-    resolved = max(10, int(page_size or 25))
-    if resolved == controller._activity_page_size:
-        return
-    set_activity_page_size(controller, resolved)
-    set_activity_page(controller, 1)
-    refresh_local_gantt_view(controller)
-
-
 def set_activity_sort(controller, sort_key: str, sort_direction: int) -> None:
     normalized_key = (sort_key or "").strip()
     normalized_direction = 1 if sort_direction == 1 else 0
@@ -177,7 +152,6 @@ def set_activity_sort(controller, sort_key: str, sort_direction: int) -> None:
         return
     set_activity_sort_key(controller, normalized_key)
     set_activity_sort_direction(controller, normalized_direction)
-    set_activity_page(controller, 1)
     refresh_local_gantt_view(controller)
 
 
@@ -198,6 +172,4 @@ __all__ = [
     "set_activity_sort",
     "set_hierarchy_expanded",
     "set_include_unchanged",
-    "set_page",
-    "set_page_size",
 ]

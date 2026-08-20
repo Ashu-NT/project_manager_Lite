@@ -1,30 +1,6 @@
 from __future__ import annotations
 
 
-def build_schedule_rows(model: dict[str, object]) -> list[dict[str, object]]:
-    rows: list[dict[str, object]] = []
-    for item in model.get("items", []):
-        state = dict(item.get("state", {}) or {})
-        rows.append({
-            "id": item.get("id", ""),
-            "activityId": state.get("activityId", item.get("id", "")),
-            "activityCode": state.get("activityCode", ""),
-            "wbs": state.get("wbs", ""),
-            "taskName": item.get("title", ""),
-            "start": state.get("startDateLabel", ""),
-            "finish": state.get("finishDateLabel", ""),
-            "duration": state.get("durationLabel", ""),
-            "remainingDuration": state.get("remainingDurationLabel", ""),
-            "float": state.get("floatLabel", ""),
-            "critical": state.get("criticalLabel", ""),
-            "constraint": state.get("constraintLabel", ""),
-            "calendar": state.get("calendarLabel", ""),
-            "progress": state.get("progressValue", {"value": 0.0, "label": "0%"}),
-            "status": state.get("statusLabel", item.get("statusLabel", "")),
-        })
-    return rows
-
-
 def build_diagnostics_rows(model: dict[str, object]) -> list[dict[str, object]]:
     return [
         {
@@ -220,6 +196,5 @@ __all__ = [
     "build_holiday_rows",
     "build_leveling_move_rows",
     "build_resource_rows",
-    "build_schedule_rows",
     "build_violation_rows",
 ]
