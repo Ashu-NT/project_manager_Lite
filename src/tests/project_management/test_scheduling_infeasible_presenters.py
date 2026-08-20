@@ -18,7 +18,7 @@ from src.ui_qml.modules.project_management.presenters.scheduling.overview_builde
 
 def _item(**overrides):
     base = dict(
-        id="task-1",
+        task_id="task-1",
         total_float_days=0,
         is_critical=False,
         is_infeasible=False,
@@ -76,7 +76,10 @@ class TestDiagnosticsConstraintsRow:
 
 class TestOverviewInfeasibleMetric:
     def test_infeasible_metric_counts_the_flag(self):
-        items = [_item(is_infeasible=True), _item(id="task-2", is_infeasible=False)]
+        items = [
+            _item(is_infeasible=True),
+            _item(task_id="task-2", is_infeasible=False),
+        ]
         overview = build_overview(
             resolved_project_id="project-1",
             schedule_items=items,

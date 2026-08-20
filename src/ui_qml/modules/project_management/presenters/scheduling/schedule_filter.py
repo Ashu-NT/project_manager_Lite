@@ -22,7 +22,7 @@ def matches_schedule_filters(
         return True
     normalized_search = search_text.casefold()
     haystacks = (
-        item.id,
+        item.task_id,
         item.name,
         item.description or "",
         item.status_label or "",

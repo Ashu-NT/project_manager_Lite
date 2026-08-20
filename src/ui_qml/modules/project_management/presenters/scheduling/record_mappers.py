@@ -13,13 +13,13 @@ from .formatters import (
 
 def to_delayed_activity_record(item: Any) -> SchedulingRecordViewModel:
     return SchedulingRecordViewModel(
-        id=item.id,
+        id=item.task_id,
         title=item.name,
         status_label="Delayed",
         subtitle=f"Finish {format_date(item.finish_date)} | Deadline {format_date(item.deadline)}",
         supporting_text=f"Late by {int_label(item.late_by_days)} day(s)",
         meta_text=f"Progress {float(item.percent_complete or 0.0):.0f}%",
-        state={"activityId": item.id},
+        state={"activityId": item.task_id},
     )
 
 def to_baseline_compare_record(item: Any) -> SchedulingRecordViewModel:

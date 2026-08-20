@@ -503,31 +503,35 @@ def test_combined_baseline_dependency_zoom_and_scroll_remain_bounded(
     row_count: int,
 ) -> None:
     projection_started = perf_counter()
-    projection = _projection(row_count, with_edges=True, with_baseline=True)
+    projection = _combined_projection(row_count)
     projection_ms = (perf_counter() - projection_started) * 1_000
-    model = GanttListModel()
+    controller = ProjectManagementSchedulingWorkspaceController()
+    controller._selected_project_id = projection.project_id
+    model = controller._gantt_model
     model_started = perf_counter()
     model.set_projection(projection)
     model_ms = (perf_counter() - model_started) * 1_000
-    axis = GanttTimeAxisController()
+    axis = controller._gantt_time_axis
     axis.set_projection(projection)
     axis.restoreConfiguration("month", 0.875)
+    selected_task_id = next(row.task_id for row in projection.rows if not row.is_summary)
+    controller.selectActivity(selected_task_id)
+    controller._gantt_selected_baseline_id = str(projection.selected_baseline_id or "")
 
     viewport_started = perf_counter()
-    application, _engine, view, surface = _create_view(
-        GANTT_ROOT / "SchedulingGanttSurface.qml",
+    application, _engine, view, panel = _create_view(
+        SCHEDULING_ROOT / "panels" / "SchedulingGanttPanel.qml",
         width=1920,
         height=900,
         initial_properties={
-            "ganttModel": model,
-            "axisModel": axis,
-            "requestedViewMode": "split",
-            "selectedActivityId": model.taskIdAt(min(10, row_count - 1)),
-            "dependencyLinesEnabled": True,
-            "highlightCriticalTasks": True,
+            "workspaceController": controller,
+            "selectedActivityModel": controller.selectedActivity,
+            "ganttViewMode": "split",
         },
     )
     viewport_ms = (perf_counter() - viewport_started) * 1_000
+    surface = panel.findChild(QObject, "schedulingGanttSurface")
+    assert surface is not None
     rows_view = surface.findChild(QObject, "ganttRowsVerticalAuthority")
     timeline = surface.findChild(QObject, "ganttTimelineHorizontalAuthority")
     assert rows_view is not None and timeline is not None
@@ -544,7 +548,8 @@ def test_combined_baseline_dependency_zoom_and_scroll_remain_bounded(
     _process_events(application)
     zoom_ms = (perf_counter() - zoom_started) * 1_000
 
-    assert model.baselineTaskCount == row_count
+    assert bool(panel.property("inspectorInline")) is True
+    assert model.baselineTaskCount == row_count - row_count // 50
     assert model.baselineOrphanTaskCount == 0
     assert 0 < active_delegates < 100
     assert int(surface.property("dependencyCandidateEdgeCount")) < 100
@@ -562,7 +567,7 @@ def test_combined_baseline_dependency_zoom_and_scroll_remain_bounded(
     )
 
     view.close()
-    surface.deleteLater()
+    panel.deleteLater()
     _process_events(application)
 
 
@@ -572,7 +577,7 @@ def test_python_visible_projection_and_model_memory_remains_bounded(
 ) -> None:
     gc.collect()
     tracemalloc.start()
-    projection = _projection(row_count, with_edges=True, with_baseline=True)
+    projection = _combined_projection(row_count)
     model = GanttListModel()
     model.set_projection(projection)
     current_bytes, peak_bytes = tracemalloc.get_traced_memory()
@@ -588,15 +593,16 @@ def test_python_visible_projection_and_model_memory_remains_bounded(
 
 
 def test_project_switch_replaces_large_combined_model_without_stale_indexes() -> None:
-    large_projection = _projection(5_000, with_edges=True, with_baseline=True)
-    small_projection = _projection(100, with_edges=True, with_baseline=True)
+    project_a = _combined_projection(5_000, project_id="project-a", prefix="a")
+    project_b = _combined_projection(100, project_id="project-b", prefix="b")
+    project_c = _combined_projection(1_000, project_id="project-c", prefix="c")
     model = GanttListModel()
-    model.set_projection(large_projection)
-    stale_task_id = model.taskIdAt(4_999)
-    assert stale_task_id and model.indexOfTask(stale_task_id) == 4_999
+    model.set_projection(project_a)
+    project_a_task_id = next(row.task_id for row in project_a.rows if not row.is_summary)
+    assert model.indexOfTask(project_a_task_id) >= 0
 
     axis = GanttTimeAxisController()
-    axis.set_projection(large_projection)
+    axis.set_projection(project_a)
     application, _engine, view, surface = _create_view(
         GANTT_ROOT / "SchedulingGanttSurface.qml",
         width=1440,
@@ -609,17 +615,24 @@ def test_project_switch_replaces_large_combined_model_without_stale_indexes() ->
         },
     )
 
-    model.set_projection(small_projection)
-    axis.set_projection(small_projection)
-    surface.setProperty("selectedActivityId", "")
-    _process_events(application)
-    assert model.rowCountValue == 100
-    assert model.indexOfTask(stale_task_id) == -1
-    assert model.baselineTaskCount == 100
-    assert model.projection is not None
-    assert len(model.projection.dependency_edges) == 99
-    assert int(surface.property("activeDelegateCount")) < 100
-    assert int(surface.property("dependencyCandidateEdgeCount")) < 100
+    previous_task_id = project_a_task_id
+    for projection in (project_b, project_c, project_a):
+        model.set_projection(projection)
+        axis.set_projection(projection)
+        surface.setProperty("selectedActivityId", "")
+        _process_events(application)
+        first_leaf_id = next(row.task_id for row in projection.rows if not row.is_summary)
+        assert model.rowCountValue == len(projection.rows)
+        assert model.projection is not None
+        assert model.projection.project_id == projection.project_id
+        assert model.indexOfTask(first_leaf_id) >= 0
+        if projection is not project_a:
+            assert model.indexOfTask(previous_task_id) == -1
+        assert model.baselineTaskCount == len(projection.baseline_snapshots)
+        assert len(model.projection.dependency_edges) == len(projection.dependency_edges)
+        assert int(surface.property("activeDelegateCount")) < 100
+        assert int(surface.property("dependencyCandidateEdgeCount")) < 100
+        previous_task_id = first_leaf_id
 
     view.close()
     surface.deleteLater()

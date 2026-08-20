@@ -21,7 +21,10 @@ def count_open_ends(schedule_items: Any, dependency_rows: Any) -> int:
         )
     open_ends = 0
     for item in schedule_items:
-        if predecessor_count.get(item.id, 0) == 0 or successor_count.get(item.id, 0) == 0:
+        if (
+            predecessor_count.get(item.task_id, 0) == 0
+            or successor_count.get(item.task_id, 0) == 0
+        ):
             open_ends += 1
     return open_ends
 
