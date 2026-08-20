@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 import App.Controls 1.0 as AppControls
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Theme 1.0 as Theme
 

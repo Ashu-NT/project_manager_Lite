@@ -146,6 +146,7 @@ Item {
                                     model: root._checkedDays
 
                                     delegate: Rectangle {
+                                        id: dayChip
                                         required property var modelData
                                         height: 26
                                         radius: Theme.AppTheme.radiusSm
@@ -157,7 +158,7 @@ Item {
                                         AppControls.Label {
                                             id: dayLabel
                                             anchors.centerIn: parent
-                                            text: String(modelData.label || "")
+                                            text: String(dayChip.modelData.label || "")
                                             color: Theme.AppTheme.accent
                                             font.pixelSize: Theme.AppTheme.captionSize
                                             font.bold: true
