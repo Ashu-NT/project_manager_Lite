@@ -5,7 +5,6 @@ import pytest
 from src.core.platform.access.authorization import require_scope_permission
 from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.common.exceptions import BusinessRuleError, ValidationError
-from src.core.modules.maintenance.access import resolve_maintenance_scope_permissions
 from src.core.modules.inventory_procurement.access.policy import resolve_storeroom_scope_permissions
 from src.core.modules.project_management.access.policy import resolve_project_scope_permissions
 from src.core.platform.domain.master_data.site.access_policy import resolve_site_scope_permissions
@@ -195,7 +194,6 @@ def test_access_service_supports_storeroom_scope_grants_and_principal_hydration(
         "project",
         "site",
         "storeroom",
-        "maintenance",
     }
 
     listed_scope_grants = access.list_scope_grants("storeroom", storeroom.id)
@@ -247,68 +245,6 @@ def test_access_service_supports_site_scope_grants_and_site_filtering(services):
     visible_sites = services["site_service"].list_sites()
 
     assert [site.id for site in visible_sites] == [site_a.id]
-
-
-def test_maintenance_scoped_access_filters_locations(services):
-    auth = services["auth_service"]
-    access = services["access_service"]
-    site = services["site_service"].create_site(
-        site_code="MNT-SITE",
-        name="Maintenance Scope Site",
-        city="Oslo",
-        currency_code="NOK",
-    )
-    accessible = services["maintenance_location_service"].create_location(
-        site_id=site.id,
-        location_code="MNT-LOC-ACCESS",
-        name="Accessible Maintenance Location",
-        description="",
-    )
-    blocked = services["maintenance_location_service"].create_location(
-        site_id=site.id,
-        location_code="MNT-LOC-BLOCKED",
-        name="Blocked Maintenance Location",
-        description="",
-    )
-    user = _register_active_tenant_user(
-        services,
-        "maintenance-scope-user",
-        role_names=["maintenance_manager"],
-    )
-
-    grant = access.assign_scope_grant(
-        scope_type="maintenance",
-        scope_id=accessible.id,
-        user_id=user.id,
-        scope_role="operator",
-    )
-
-    assert grant.scope_type == "maintenance"
-    assert grant.scope_id == accessible.id
-    assert grant.scope_role == "operator"
-    assert grant.permission_codes == sorted(resolve_maintenance_scope_permissions("operator"))
-    assert access.list_scope_role_choices("maintenance") == ("viewer", "operator", "manager")
-    assert "maintenance" in access.list_supported_scope_types()
-
-    principal = auth.build_principal(user)
-    assert principal.scoped_access["maintenance"][accessible.id] == frozenset(
-        resolve_maintenance_scope_permissions("operator")
-    )
-
-    login_as(services, "maintenance-scope-user", "StrongPass123")
-    visible_locations = services["maintenance_location_service"].list_locations()
-    assert [location.id for location in visible_locations] == [accessible.id]
-
-    events = []
-    services["user_session"].set_security_denial_listener(events.append)
-    with pytest.raises(BusinessRuleError) as exc_info:
-        services["maintenance_task_template_service"].list_task_templates()
-
-    assert exc_info.value.code == "PERMISSION_DENIED"
-    assert len(events) == 1
-    assert events[0].operation == "authorization.resource_scope.denied"
-    assert events[0].reason_code == "PERMISSION_DENIED"
-    assert events[0].target_scope_type == "maintenance"
 
 
 def test_storeroom_scoped_access_filters_inventory_and_stock_queries(services):

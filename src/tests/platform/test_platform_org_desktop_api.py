@@ -88,21 +88,15 @@ def test_platform_site_desktop_api_maps_site_validation_errors(services):
     assert duplicate_result.error.code == "SITE_CODE_EXISTS"
 
 
-def test_platform_department_desktop_api_manages_department_dtos_and_location_references(services):
+def test_platform_department_desktop_api_manages_department_dtos(services):
     api = _build_department_api(services)
     site = services["site_service"].create_site(site_code="DEPT", name="Department Site")
-    location = services["maintenance_location_service"].create_location(
-        site_id=site.id,
-        location_code="shop-a",
-        name="Shop A",
-    )
 
     create_result = api.create_department(
         DepartmentCreateCommand(
             department_code="OPS",
             name="Operations",
             site_id=site.id,
-            default_location_id=location.id,
             department_type="OPERATIONS",
         )
     )
@@ -110,7 +104,6 @@ def test_platform_department_desktop_api_manages_department_dtos_and_location_re
     assert create_result.ok is True
     assert create_result.data is not None
     assert create_result.data.department_code == "OPS"
-    assert create_result.data.default_location_id == location.id
 
     update_result = api.update_department(
         DepartmentUpdateCommand(
@@ -120,15 +113,10 @@ def test_platform_department_desktop_api_manages_department_dtos_and_location_re
             expected_version=create_result.data.version,
         )
     )
-    locations_result = api.list_location_references(site_id=site.id)
-
     assert update_result.ok is True
     assert update_result.data is not None
     assert update_result.data.name == "Operations Team"
     assert update_result.data.is_active is False
-    assert locations_result.ok is True
-    assert locations_result.data is not None
-    assert [row.location_code for row in locations_result.data] == ["SHOP-A"]
 
 
 def test_platform_employee_desktop_api_manages_employee_dtos(services):

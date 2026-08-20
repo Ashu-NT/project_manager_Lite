@@ -194,8 +194,6 @@ def test_orm_package_root_loads_all_model_packages():
 
     assert not (ROOT / "src" / "infra" / "persistence" / "orm" / "platform").exists()
     assert "from src.infra.persistence.orm.base import Base" in package_text
-    assert "import src.core.modules.maintenance.infrastructure.persistence.orm.models" in package_text
-    assert "import src.core.modules.maintenance.infrastructure.persistence.orm.preventive_runtime_models" in package_text
     platform_orm_modules = (
         "tenant.modules.modules", "time_management.time.time", "security.auth.auth", "events.notifications.notification", "history.audit.audit_entry", "approval.approval", "data_operations.runtime_tracking.runtime_tracking",
         "master_data.employee.employee", "master_data.site.sites", "master_data.department.departments",
@@ -269,7 +267,6 @@ def test_qml_module_workspace_roots_exist():
     for rel_path in (
         "src/ui_qml/modules/project_management/qml/workspaces",
         "src/ui_qml/modules/inventory_procurement/qml/workspaces",
-        "src/ui_qml/modules/maintenance/qml/workspaces",
     ):
         assert (ROOT / rel_path).is_dir()
 

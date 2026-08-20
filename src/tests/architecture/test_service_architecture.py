@@ -16,7 +16,6 @@ from src.core.platform.application.time_management.time import TimeService
 from src.tests.path_rewrites import REPO_ROOT
 from src.core.modules.inventory_procurement import (
     InventoryDataExchangeService,
-    MaintenanceMaterialService,
     InventoryReferenceService,
     InventoryReportingService,
     ProcurementService,
@@ -30,38 +29,6 @@ from src.core.modules.inventory_procurement.application.inventory import (
     InventoryService,
     ReservationService,
     StockControlService,
-)
-from src.core.modules.maintenance import (
-    MaintenanceAssetService,
-    MaintenanceAssetComponentService,
-    MaintenanceDocumentService,
-    MaintenanceDowntimeEventService,
-    MaintenanceFailureCodeService,
-    MaintenanceIntegrationSourceService,
-    MaintenanceLaborService,
-    MaintenanceLocationService,
-    MaintenancePreventiveGenerationService,
-    MaintenancePreventivePlanService,
-    MaintenancePreventivePlanTaskService,
-    MaintenanceReliabilityService,
-    MaintenanceSensorExceptionService,
-    MaintenanceSensorReadingService,
-    MaintenanceSensorService,
-    MaintenanceSensorSourceMappingService,
-    MaintenanceSystemService,
-    MaintenanceTaskStepTemplateService,
-    MaintenanceTaskTemplateService,
-    MaintenanceWorkOrderMaterialRequirementService,
-    MaintenanceWorkOrderService,
-    MaintenanceWorkOrderTaskService,
-    MaintenanceWorkOrderTaskStepService,
-    MaintenanceWorkRequestService,
-)
-from src.core.modules.maintenance.application.common import (
-    MaintenanceRuntimeContractCatalogService,
-)
-from src.core.modules.maintenance.infrastructure.reporting import (
-    MaintenanceReportingService,
 )
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
@@ -111,38 +78,11 @@ def test_service_graph_builder_wires_all_services(session):
     assert isinstance(graph.inventory_reporting_service, InventoryReportingService)
     assert isinstance(graph.inventory_item_category_service, ItemCategoryService)
     assert isinstance(graph.inventory_item_service, ItemMasterService)
-    assert isinstance(graph.inventory_maintenance_material_service, MaintenanceMaterialService)
     assert isinstance(graph.inventory_service, InventoryService)
     assert isinstance(graph.inventory_stock_service, StockControlService)
     assert isinstance(graph.inventory_reservation_service, ReservationService)
     assert isinstance(graph.inventory_procurement_service, ProcurementService)
     assert isinstance(graph.inventory_purchasing_service, PurchasingService)
-    assert isinstance(graph.maintenance_runtime_contract_catalog_service, MaintenanceRuntimeContractCatalogService)
-    assert isinstance(graph.maintenance_asset_service, MaintenanceAssetService)
-    assert isinstance(graph.maintenance_asset_component_service, MaintenanceAssetComponentService)
-    assert isinstance(graph.maintenance_document_service, MaintenanceDocumentService)
-    assert isinstance(graph.maintenance_downtime_event_service, MaintenanceDowntimeEventService)
-    assert isinstance(graph.maintenance_failure_code_service, MaintenanceFailureCodeService)
-    assert isinstance(graph.maintenance_integration_source_service, MaintenanceIntegrationSourceService)
-    assert isinstance(graph.maintenance_labor_service, MaintenanceLaborService)
-    assert isinstance(graph.maintenance_location_service, MaintenanceLocationService)
-    assert isinstance(graph.maintenance_preventive_generation_service, MaintenancePreventiveGenerationService)
-    assert isinstance(graph.maintenance_preventive_plan_service, MaintenancePreventivePlanService)
-    assert isinstance(graph.maintenance_preventive_plan_task_service, MaintenancePreventivePlanTaskService)
-    assert isinstance(graph.maintenance_reliability_service, MaintenanceReliabilityService)
-    assert isinstance(graph.maintenance_reporting_service, MaintenanceReportingService)
-    assert isinstance(graph.maintenance_sensor_exception_service, MaintenanceSensorExceptionService)
-    assert isinstance(graph.maintenance_sensor_service, MaintenanceSensorService)
-    assert isinstance(graph.maintenance_sensor_reading_service, MaintenanceSensorReadingService)
-    assert isinstance(graph.maintenance_sensor_source_mapping_service, MaintenanceSensorSourceMappingService)
-    assert isinstance(graph.maintenance_system_service, MaintenanceSystemService)
-    assert isinstance(graph.maintenance_task_step_template_service, MaintenanceTaskStepTemplateService)
-    assert isinstance(graph.maintenance_task_template_service, MaintenanceTaskTemplateService)
-    assert isinstance(graph.maintenance_work_request_service, MaintenanceWorkRequestService)
-    assert isinstance(graph.maintenance_work_order_service, MaintenanceWorkOrderService)
-    assert isinstance(graph.maintenance_work_order_material_requirement_service, MaintenanceWorkOrderMaterialRequirementService)
-    assert isinstance(graph.maintenance_work_order_task_service, MaintenanceWorkOrderTaskService)
-    assert isinstance(graph.maintenance_work_order_task_step_service, MaintenanceWorkOrderTaskStepService)
     assert isinstance(graph.access_service, AccessControlService)
     assert isinstance(graph.enterprise_audit_service, EnterpriseAuditService)
     assert isinstance(graph.collaboration_service, CollaborationService)
@@ -179,44 +119,11 @@ def test_service_graph_builder_wires_all_services(session):
     assert as_dict["inventory_reporting_service"] is graph.inventory_reporting_service
     assert as_dict["inventory_item_category_service"] is graph.inventory_item_category_service
     assert as_dict["inventory_item_service"] is graph.inventory_item_service
-    assert as_dict["inventory_maintenance_material_service"] is graph.inventory_maintenance_material_service
     assert as_dict["inventory_service"] is graph.inventory_service
     assert as_dict["inventory_stock_service"] is graph.inventory_stock_service
     assert as_dict["inventory_reservation_service"] is graph.inventory_reservation_service
     assert as_dict["inventory_procurement_service"] is graph.inventory_procurement_service
     assert as_dict["inventory_purchasing_service"] is graph.inventory_purchasing_service
-    assert (
-        as_dict["maintenance_runtime_contract_catalog_service"]
-        is graph.maintenance_runtime_contract_catalog_service
-    )
-    assert as_dict["maintenance_asset_service"] is graph.maintenance_asset_service
-    assert as_dict["maintenance_asset_component_service"] is graph.maintenance_asset_component_service
-    assert as_dict["maintenance_document_service"] is graph.maintenance_document_service
-    assert as_dict["maintenance_downtime_event_service"] is graph.maintenance_downtime_event_service
-    assert as_dict["maintenance_failure_code_service"] is graph.maintenance_failure_code_service
-    assert as_dict["maintenance_integration_source_service"] is graph.maintenance_integration_source_service
-    assert as_dict["maintenance_labor_service"] is graph.maintenance_labor_service
-    assert as_dict["maintenance_location_service"] is graph.maintenance_location_service
-    assert as_dict["maintenance_preventive_generation_service"] is graph.maintenance_preventive_generation_service
-    assert as_dict["maintenance_preventive_plan_service"] is graph.maintenance_preventive_plan_service
-    assert as_dict["maintenance_preventive_plan_task_service"] is graph.maintenance_preventive_plan_task_service
-    assert as_dict["maintenance_reliability_service"] is graph.maintenance_reliability_service
-    assert as_dict["maintenance_reporting_service"] is graph.maintenance_reporting_service
-    assert as_dict["maintenance_sensor_exception_service"] is graph.maintenance_sensor_exception_service
-    assert as_dict["maintenance_sensor_service"] is graph.maintenance_sensor_service
-    assert as_dict["maintenance_sensor_reading_service"] is graph.maintenance_sensor_reading_service
-    assert as_dict["maintenance_sensor_source_mapping_service"] is graph.maintenance_sensor_source_mapping_service
-    assert as_dict["maintenance_system_service"] is graph.maintenance_system_service
-    assert as_dict["maintenance_task_step_template_service"] is graph.maintenance_task_step_template_service
-    assert as_dict["maintenance_task_template_service"] is graph.maintenance_task_template_service
-    assert as_dict["maintenance_work_request_service"] is graph.maintenance_work_request_service
-    assert as_dict["maintenance_work_order_service"] is graph.maintenance_work_order_service
-    assert (
-        as_dict["maintenance_work_order_material_requirement_service"]
-        is graph.maintenance_work_order_material_requirement_service
-    )
-    assert as_dict["maintenance_work_order_task_service"] is graph.maintenance_work_order_task_service
-    assert as_dict["maintenance_work_order_task_step_service"] is graph.maintenance_work_order_task_step_service
     assert as_dict["module_catalog_service"] is graph.module_catalog_service
     assert as_dict["time_service"] is graph.time_service
     assert as_dict["access_service"] is graph.access_service
@@ -262,19 +169,10 @@ def test_inventory_procurement_legacy_service_roots_are_removed():
         assert not files, f"Legacy inventory-procurement root still contains files: {files}"
 
 
-def test_maintenance_helper_legacy_roots_are_removed():
-    legacy_roots = (
-        Path("core/modules/maintenance_management"),
-        Path("infra/modules/maintenance_management"),
-    )
-
-    for root in legacy_roots:
-        files = [
-            path
-            for path in root.rglob("*")
-            if path.is_file() and "__pycache__" not in path.parts
-        ]
-        assert not files, f"Legacy maintenance helper root still contains files: {files}"
+def test_maintenance_product_roots_and_registry_are_absent():
+    assert not (REPO_ROOT / "src" / "core" / "modules" / "maintenance").exists()
+    assert not (REPO_ROOT / "src" / "ui_qml" / "modules" / "maintenance").exists()
+    assert not (REPO_ROOT / "src" / "infra" / "composition" / "maintenance_registry.py").exists()
 
 
 def test_legacy_service_imports_point_to_new_packages():
@@ -295,7 +193,6 @@ def test_services_module_delegates_to_modular_registration_builders():
     assert "build_platform_service_bundle(session, repositories)" in text
     assert "build_inventory_procurement_service_bundle(" in text
     assert "procurement_financial_outbox_service=_procurement_financial_outbox_service" in text
-    assert "build_maintenance_service_bundle(" in text
     assert "build_project_management_service_bundle(" in text
 
 
@@ -306,6 +203,5 @@ def test_service_registration_package_is_split_by_platform_and_module():
     assert (root / "repositories.py").exists()
     assert (root / "platform_registry.py").exists()
     assert (root / "inventory_registry.py").exists()
-    assert (root / "maintenance_registry.py").exists()
     assert (root / "project_registry.py").exists()
 

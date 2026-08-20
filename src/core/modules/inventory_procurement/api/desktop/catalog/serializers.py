@@ -55,9 +55,6 @@ def serialize_category(row) -> InventoryCategoryDesktopDto:
         category_type_label=format_enum_label(category_type),
         is_equipment=bool(getattr(row, "is_equipment", False)),
         supports_project_usage=bool(getattr(row, "supports_project_usage", False)),
-        supports_maintenance_usage=bool(
-            getattr(row, "supports_maintenance_usage", False)
-        ),
         is_active=is_active,
         active_label=format_bool_label(is_active),
         version=int(getattr(row, "version", 1) or 1),

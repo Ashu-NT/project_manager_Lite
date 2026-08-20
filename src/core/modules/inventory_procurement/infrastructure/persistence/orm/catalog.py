@@ -37,12 +37,6 @@ class InventoryItemCategoryORM(Base):
         default=False,
         server_default="0",
     )
-    supports_maintenance_usage: Mapped[bool] = mapped_column(
-        Boolean,
-        nullable=False,
-        default=False,
-        server_default="0",
-    )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="1")
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

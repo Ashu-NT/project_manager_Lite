@@ -101,7 +101,7 @@ Item {
             { type: "group", label: "CONFIGURATION" },
             { type: "item",  section: "integrations",  label: "Integration Capabilities",  icon: "collaboration" },
             { type: "group", label: "SYSTEM" },
-            { type: "item",  section: "sysinfo",       label: "Diagnostics",               icon: "maintenance"   }
+            { type: "item",  section: "sysinfo",       label: "Diagnostics",               icon: "support"   }
         ]
 
         delegate: Item {

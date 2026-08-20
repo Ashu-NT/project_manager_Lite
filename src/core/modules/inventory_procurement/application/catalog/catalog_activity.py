@@ -22,7 +22,6 @@ def _build_category_create_details(
         "category_type": category.category_type,
         "is_equipment": category.is_equipment,
         "supports_project_usage": category.supports_project_usage,
-        "supports_maintenance_usage": category.supports_maintenance_usage,
     }
 
 

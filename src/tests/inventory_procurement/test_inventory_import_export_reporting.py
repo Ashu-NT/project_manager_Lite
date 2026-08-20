@@ -282,7 +282,7 @@ def test_inventory_data_exchange_imports_procurement_documents_and_records_runti
     requisitions_csv = tmp_path / "requisitions-import.csv"
     requisitions_csv.write_text(
         "requisition_number,requesting_site_code,requesting_storeroom_code,purpose,needed_by_date,priority,source_reference_type,source_reference_id,status,line_number,item_code,quantity_requested,uom,estimated_unit_cost,suggested_supplier_code\n"
-        "REQ-IMPORT-001,IMP-PROC-SITE,IMP-PROC-ST,Imported maintenance demand,2026-05-01,HIGH,maintenance_work_order,MWO-001,DRAFT,1,IMP-PROC-ITEM,5,EA,12.5,IMP-PROC-SUP\n",
+        "REQ-IMPORT-001,IMP-PROC-SITE,IMP-PROC-ST,Imported project demand,2026-05-01,HIGH,project_task,TASK-001,DRAFT,1,IMP-PROC-ITEM,5,EA,12.5,IMP-PROC-SUP\n",
         encoding="utf-8",
     )
     requisition_summary = exchange.import_csv("requisitions", requisitions_csv)

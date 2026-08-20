@@ -39,7 +39,7 @@ ScopeExistsResolver = Callable[[str, str], bool]
 
 # Scope types that write/read canonical role_bindings, translated to the
 # ScopedAccessGrant shape so the desktop API/QML contract stays unchanged.
-_CANONICAL_SCOPE_TYPES = frozenset({"project", "site", "storeroom", "maintenance"})
+_CANONICAL_SCOPE_TYPES = frozenset({"project", "site", "storeroom"})
 
 
 class AccessControlService:
@@ -243,12 +243,7 @@ class AccessControlService:
             )
         return self._role_governance_service, self._role_repo, self._role_binding_repo
 
-    # "maintenance_manager" already names a pre-existing tenant-wide role;
-    # the resource-scoped canonical name must differ to avoid colliding with
-    # it in the system role namespace.
-    _CANONICAL_ROLE_NAME_OVERRIDES = {
-        ("maintenance", "manager"): "maintenance_scope_manager",
-    }
+    _CANONICAL_ROLE_NAME_OVERRIDES: dict[tuple[str, str], str] = {}
 
     @classmethod
     def _canonical_role_name(cls, scope_type: str, scope_role: str) -> str:

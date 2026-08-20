@@ -161,7 +161,6 @@ def test_inventory_catalog_desktop_api_mutates_categories_items_and_document_lin
             category_code="SP-BRG",
             name="Bearings",
             category_type="SPARE",
-            supports_maintenance_usage=True,
         )
     )
     item = api.create_item(

@@ -45,7 +45,6 @@ from src.core.platform.application.security.identity import ServicePrincipalServ
 from src.core.modules.inventory_procurement import (
     ProcurementService,
     InventoryDataExchangeService,
-    MaintenanceMaterialService,
     InventoryReferenceService,
     InventoryReportingService,
     PurchasingService,
@@ -59,38 +58,6 @@ from src.core.modules.inventory_procurement.application.inventory import (
     InventoryService,
     ReservationService,
     StockControlService,
-)
-from src.core.modules.maintenance import (
-    MaintenanceAssetService,
-    MaintenanceAssetComponentService,
-    MaintenanceDocumentService,
-    MaintenanceDowntimeEventService,
-    MaintenanceFailureCodeService,
-    MaintenanceIntegrationSourceService,
-    MaintenanceLaborService,
-    MaintenanceLocationService,
-    MaintenancePreventiveGenerationService,
-    MaintenancePreventivePlanService,
-    MaintenancePreventivePlanTaskService,
-    MaintenanceReliabilityService,
-    MaintenanceSensorExceptionService,
-    MaintenanceSensorReadingService,
-    MaintenanceSensorService,
-    MaintenanceSensorSourceMappingService,
-    MaintenanceSystemService,
-    MaintenanceTaskStepTemplateService,
-    MaintenanceTaskTemplateService,
-    MaintenanceWorkOrderMaterialRequirementService,
-    MaintenanceWorkOrderService,
-    MaintenanceWorkOrderTaskService,
-    MaintenanceWorkOrderTaskStepService,
-    MaintenanceWorkRequestService,
-)
-from src.core.modules.maintenance.application.common import (
-    MaintenanceRuntimeContractCatalogService,
-)
-from src.core.modules.maintenance.infrastructure.reporting import (
-    MaintenanceReportingService,
 )
 from src.core.modules.project_management.application.scheduling.baselines.baseline_service import (
     BaselineService,
@@ -143,7 +110,6 @@ from src.core.modules.project_management.application.resources.enterprise_resour
 from src.core.modules.project_management.application.resources.resource_availability_service import ResourceAvailabilityService
 from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import PortfolioResourcePoolService
 from src.infra.composition.inventory_registry import build_inventory_procurement_service_bundle
-from src.infra.composition.maintenance_registry import build_maintenance_service_bundle
 from src.infra.composition.platform_registry import build_platform_service_bundle
 from src.infra.composition.project_registry import build_project_management_service_bundle
 from src.infra.composition.repositories import build_repository_bundle
@@ -191,39 +157,12 @@ class ServiceGraph:
     inventory_reporting_service: InventoryReportingService
     inventory_item_category_service: ItemCategoryService
     inventory_item_service: ItemMasterService
-    inventory_maintenance_material_service: MaintenanceMaterialService
     inventory_foundation_service: InventoryFoundationService
     inventory_service: InventoryService
     inventory_stock_service: StockControlService
     inventory_reservation_service: ReservationService
     inventory_procurement_service: ProcurementService
     inventory_purchasing_service: PurchasingService
-    maintenance_runtime_contract_catalog_service: MaintenanceRuntimeContractCatalogService
-    maintenance_asset_service: MaintenanceAssetService
-    maintenance_asset_component_service: MaintenanceAssetComponentService
-    maintenance_document_service: MaintenanceDocumentService
-    maintenance_downtime_event_service: MaintenanceDowntimeEventService
-    maintenance_failure_code_service: MaintenanceFailureCodeService
-    maintenance_integration_source_service: MaintenanceIntegrationSourceService
-    maintenance_labor_service: MaintenanceLaborService
-    maintenance_location_service: MaintenanceLocationService
-    maintenance_preventive_generation_service: MaintenancePreventiveGenerationService
-    maintenance_preventive_plan_service: MaintenancePreventivePlanService
-    maintenance_preventive_plan_task_service: MaintenancePreventivePlanTaskService
-    maintenance_reliability_service: MaintenanceReliabilityService
-    maintenance_reporting_service: MaintenanceReportingService
-    maintenance_sensor_exception_service: MaintenanceSensorExceptionService
-    maintenance_sensor_service: MaintenanceSensorService
-    maintenance_sensor_reading_service: MaintenanceSensorReadingService
-    maintenance_sensor_source_mapping_service: MaintenanceSensorSourceMappingService
-    maintenance_system_service: MaintenanceSystemService
-    maintenance_task_step_template_service: MaintenanceTaskStepTemplateService
-    maintenance_task_template_service: MaintenanceTaskTemplateService
-    maintenance_work_request_service: MaintenanceWorkRequestService
-    maintenance_work_order_service: MaintenanceWorkOrderService
-    maintenance_work_order_material_requirement_service: MaintenanceWorkOrderMaterialRequirementService
-    maintenance_work_order_task_service: MaintenanceWorkOrderTaskService
-    maintenance_work_order_task_step_service: MaintenanceWorkOrderTaskStepService
     access_service: AccessControlService
     activity_service: ActivityService
     enterprise_audit_service: EnterpriseAuditService
@@ -308,39 +247,12 @@ class ServiceGraph:
             "inventory_reporting_service": self.inventory_reporting_service,
             "inventory_item_category_service": self.inventory_item_category_service,
             "inventory_item_service": self.inventory_item_service,
-            "inventory_maintenance_material_service": self.inventory_maintenance_material_service,
             "inventory_foundation_service": self.inventory_foundation_service,
             "inventory_service": self.inventory_service,
             "inventory_stock_service": self.inventory_stock_service,
             "inventory_reservation_service": self.inventory_reservation_service,
             "inventory_procurement_service": self.inventory_procurement_service,
             "inventory_purchasing_service": self.inventory_purchasing_service,
-            "maintenance_runtime_contract_catalog_service": self.maintenance_runtime_contract_catalog_service,
-            "maintenance_asset_service": self.maintenance_asset_service,
-            "maintenance_asset_component_service": self.maintenance_asset_component_service,
-            "maintenance_document_service": self.maintenance_document_service,
-            "maintenance_downtime_event_service": self.maintenance_downtime_event_service,
-            "maintenance_failure_code_service": self.maintenance_failure_code_service,
-            "maintenance_integration_source_service": self.maintenance_integration_source_service,
-            "maintenance_labor_service": self.maintenance_labor_service,
-            "maintenance_location_service": self.maintenance_location_service,
-            "maintenance_preventive_generation_service": self.maintenance_preventive_generation_service,
-            "maintenance_preventive_plan_service": self.maintenance_preventive_plan_service,
-            "maintenance_preventive_plan_task_service": self.maintenance_preventive_plan_task_service,
-            "maintenance_reliability_service": self.maintenance_reliability_service,
-            "maintenance_reporting_service": self.maintenance_reporting_service,
-            "maintenance_sensor_exception_service": self.maintenance_sensor_exception_service,
-            "maintenance_sensor_service": self.maintenance_sensor_service,
-            "maintenance_sensor_reading_service": self.maintenance_sensor_reading_service,
-            "maintenance_sensor_source_mapping_service": self.maintenance_sensor_source_mapping_service,
-            "maintenance_system_service": self.maintenance_system_service,
-            "maintenance_task_step_template_service": self.maintenance_task_step_template_service,
-            "maintenance_task_template_service": self.maintenance_task_template_service,
-            "maintenance_work_request_service": self.maintenance_work_request_service,
-            "maintenance_work_order_service": self.maintenance_work_order_service,
-            "maintenance_work_order_material_requirement_service": self.maintenance_work_order_material_requirement_service,
-            "maintenance_work_order_task_service": self.maintenance_work_order_task_service,
-            "maintenance_work_order_task_step_service": self.maintenance_work_order_task_step_service,
             "access_service": self.access_service,
             "activity_service": self.activity_service,
             "enterprise_audit_service": self.enterprise_audit_service,
@@ -440,14 +352,6 @@ def build_service_graph(session: Session) -> ServiceGraph:
         "Inventory/Procurement service bundle built duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
-    maintenance_services = build_maintenance_service_bundle(
-        platform_services,
-        inventory_procurement_services,
-    )
-    logger.debug(
-        "Maintenance service bundle built duration_ms=%.1f",
-        (perf_counter() - started) * 1000,
-    )
     project_management_services = build_project_management_service_bundle(
         session,
         repositories,
@@ -528,39 +432,12 @@ def build_service_graph(session: Session) -> ServiceGraph:
         inventory_reporting_service=inventory_procurement_services.inventory_reporting_service,
         inventory_item_category_service=inventory_procurement_services.inventory_item_category_service,
         inventory_item_service=inventory_procurement_services.inventory_item_service,
-        inventory_maintenance_material_service=inventory_procurement_services.inventory_maintenance_material_service,
         inventory_foundation_service=inventory_procurement_services.inventory_foundation_service,
         inventory_service=inventory_procurement_services.inventory_service,
         inventory_stock_service=inventory_procurement_services.inventory_stock_service,
         inventory_reservation_service=inventory_procurement_services.inventory_reservation_service,
         inventory_procurement_service=inventory_procurement_services.inventory_procurement_service,
         inventory_purchasing_service=inventory_procurement_services.inventory_purchasing_service,
-        maintenance_runtime_contract_catalog_service=maintenance_services.maintenance_runtime_contract_catalog_service,
-        maintenance_asset_service=maintenance_services.maintenance_asset_service,
-        maintenance_asset_component_service=maintenance_services.maintenance_asset_component_service,
-        maintenance_document_service=maintenance_services.maintenance_document_service,
-        maintenance_downtime_event_service=maintenance_services.maintenance_downtime_event_service,
-        maintenance_failure_code_service=maintenance_services.maintenance_failure_code_service,
-        maintenance_integration_source_service=maintenance_services.maintenance_integration_source_service,
-        maintenance_labor_service=maintenance_services.maintenance_labor_service,
-        maintenance_location_service=maintenance_services.maintenance_location_service,
-        maintenance_preventive_generation_service=maintenance_services.maintenance_preventive_generation_service,
-        maintenance_preventive_plan_service=maintenance_services.maintenance_preventive_plan_service,
-        maintenance_preventive_plan_task_service=maintenance_services.maintenance_preventive_plan_task_service,
-        maintenance_reliability_service=maintenance_services.maintenance_reliability_service,
-        maintenance_reporting_service=maintenance_services.maintenance_reporting_service,
-        maintenance_sensor_exception_service=maintenance_services.maintenance_sensor_exception_service,
-        maintenance_sensor_service=maintenance_services.maintenance_sensor_service,
-        maintenance_sensor_reading_service=maintenance_services.maintenance_sensor_reading_service,
-        maintenance_sensor_source_mapping_service=maintenance_services.maintenance_sensor_source_mapping_service,
-        maintenance_system_service=maintenance_services.maintenance_system_service,
-        maintenance_task_step_template_service=maintenance_services.maintenance_task_step_template_service,
-        maintenance_task_template_service=maintenance_services.maintenance_task_template_service,
-        maintenance_work_request_service=maintenance_services.maintenance_work_request_service,
-        maintenance_work_order_service=maintenance_services.maintenance_work_order_service,
-        maintenance_work_order_material_requirement_service=maintenance_services.maintenance_work_order_material_requirement_service,
-        maintenance_work_order_task_service=maintenance_services.maintenance_work_order_task_service,
-        maintenance_work_order_task_step_service=maintenance_services.maintenance_work_order_task_step_service,
         access_service=platform_services.access_service,
         activity_service=platform_services.activity_service,
         enterprise_audit_service=platform_services.enterprise_audit_service,

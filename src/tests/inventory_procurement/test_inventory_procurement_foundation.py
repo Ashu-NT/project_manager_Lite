@@ -197,28 +197,22 @@ def test_inventory_item_service_requires_conversion_factors_for_alternate_uoms(s
         )
 
 
-def test_inventory_item_categories_govern_equipment_and_cross_module_usage_flags(services):
+def test_inventory_item_categories_govern_equipment_and_project_usage(services):
     category_service = services["inventory_item_category_service"]
     equipment_category = category_service.create_category(
         category_code="EQUIP-GEN",
         name="Generators",
         category_type="EQUIPMENT",
         supports_project_usage=True,
-        supports_maintenance_usage=True,
     )
     spare_category = category_service.create_category(
         category_code="SPARE-MECH",
         name="Mechanical Spares",
         category_type="SPARE",
-        supports_maintenance_usage=True,
     )
 
     assert equipment_category.is_equipment is True
     assert [row.category_code for row in category_service.list_project_resource_categories()] == ["EQUIP-GEN"]
-    assert {row.category_code for row in category_service.list_maintenance_categories()} == {
-        "EQUIP-GEN",
-        "SPARE-MECH",
-    }
     assert [row.category_code for row in category_service.search_categories(equipment_only=True)] == ["EQUIP-GEN"]
 
     updated = category_service.update_category(

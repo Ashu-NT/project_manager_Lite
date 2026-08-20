@@ -35,7 +35,6 @@ class InventoryCategoryDesktopDto:
     category_type_label: str
     is_equipment: bool
     supports_project_usage: bool
-    supports_maintenance_usage: bool
     is_active: bool
     active_label: str
     version: int
@@ -91,7 +90,6 @@ class InventoryCategoryCreateCommand:
     category_type: str = "MATERIAL"
     is_equipment: bool = False
     supports_project_usage: bool = False
-    supports_maintenance_usage: bool = False
     is_active: bool = True
 
 
@@ -104,7 +102,6 @@ class InventoryCategoryUpdateCommand:
     category_type: str = "MATERIAL"
     is_equipment: bool = False
     supports_project_usage: bool = False
-    supports_maintenance_usage: bool = False
     is_active: bool = True
     expected_version: int | None = None
 

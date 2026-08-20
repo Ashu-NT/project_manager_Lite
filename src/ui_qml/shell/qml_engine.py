@@ -29,15 +29,6 @@ import src.ui_qml.modules.project_management.controllers.resources.resources_wor
 import src.ui_qml.modules.project_management.controllers.register.register_workspace_controller  # noqa: F401
 import src.ui_qml.modules.project_management.controllers.dashboard.dashboard_workspace_controller  # noqa: F401
 import src.ui_qml.modules.project_management.controllers.timesheets.timesheets_workspace_controller  # noqa: F401
-import src.ui_qml.modules.maintenance.context  # noqa: F401
-import src.ui_qml.modules.maintenance.controllers.common.workspace_controller_base  # noqa: F401
-import src.ui_qml.modules.maintenance.controllers.assets.assets_workspace_controller  # noqa: F401
-import src.ui_qml.modules.maintenance.controllers.dashboard.dashboard_workspace_controller  # noqa: F401
-import src.ui_qml.modules.maintenance.controllers.planner.planner_workspace_controller  # noqa: F401
-import src.ui_qml.modules.maintenance.controllers.preventive.preventive_workspace_controller  # noqa: F401
-import src.ui_qml.modules.maintenance.controllers.reliability.reliability_workspace_controller  # noqa: F401
-import src.ui_qml.modules.maintenance.controllers.work_orders.work_orders_workspace_controller  # noqa: F401
-import src.ui_qml.modules.maintenance.controllers.work_requests.work_requests_workspace_controller  # noqa: F401
 import src.ui_qml.modules.inventory_procurement.context  # noqa: F401
 import src.ui_qml.modules.inventory_procurement.controllers.common.workspace_controller_base  # noqa: F401
 import src.ui_qml.modules.inventory_procurement.controllers.catalog.catalog_workspace_controller  # noqa: F401

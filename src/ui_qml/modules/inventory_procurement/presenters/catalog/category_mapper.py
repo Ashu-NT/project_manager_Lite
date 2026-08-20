@@ -14,8 +14,6 @@ def to_category_record_view_model(category) -> InventoryRecordViewModel:
         usage_bits.append("Equipment")
     if category.supports_project_usage:
         usage_bits.append("Projects")
-    if category.supports_maintenance_usage:
-        usage_bits.append("Maintenance")
     return InventoryRecordViewModel(
         id=category.id,
         title=f"{category.category_code} - {category.name}",

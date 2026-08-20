@@ -16,12 +16,10 @@ def test_service_graph_exposes_project_management_as_enabled_module(services):
     assert catalog.is_enabled("project_management") is True
     assert catalog.is_licensed("project_management") is True
     assert catalog.is_enabled("inventory_procurement") is False
-    assert catalog.is_enabled("maintenance_management") is False
     assert catalog.is_enabled("qhse") is False
     assert catalog.is_enabled("hr_management") is False
     assert [module.code for module in catalog.list_available_modules()] == [
         "inventory_procurement",
-        "maintenance_management",
     ]
     assert [module.code for module in catalog.list_enabled_modules()] == ["project_management"]
     assert [module.code for module in catalog.list_licensed_modules()] == ["project_management"]
@@ -62,7 +60,6 @@ def test_module_catalog_can_enable_future_modules_explicitly():
     assert catalog.is_licensed("project_management") is True
     assert catalog.is_enabled("hr_management") is True
     assert catalog.is_licensed("hr_management") is True
-    assert catalog.is_enabled("maintenance_management") is False
 
 
 def test_module_catalog_accepts_legacy_payroll_code_as_hr_management_alias():

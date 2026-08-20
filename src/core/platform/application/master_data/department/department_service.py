@@ -12,17 +12,13 @@ from src.core.platform.domain.master_data.department import Department
 from src.core.platform.contract.repositories.master_data.employee.contracts import EmployeeRepository
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
-from src.core.platform.contract.repositories.master_data.site.contracts import LocationReferenceRepository, SiteRepository
+from src.core.platform.contract.repositories.master_data.site.contracts import SiteRepository
 from src.core.platform.application.tenant.tenancy import TenantContextService
 
 from .department_access import require_department_read_access
 from .department_context import active_organization
 from . import department_commands as _cmd
 from . import department_queries as _queries
-from .department_location_service import (
-    list_available_location_references as _list_location_refs,
-    register_location_reference_repository as _register_location_repo,
-)
 
 
 class DepartmentService:
@@ -34,7 +30,6 @@ class DepartmentService:
         organization_repo: OrganizationRepository,
         site_repo: SiteRepository | None = None,
         employee_repo: EmployeeRepository | None = None,
-        location_reference_repo: LocationReferenceRepository | None = None,
         user_session=None,
         enterprise_audit_service=None,
         tenant_context_service: TenantContextService | None = None,
@@ -45,17 +40,10 @@ class DepartmentService:
         self._organization_repo = organization_repo
         self._site_repo = site_repo
         self._employee_repo = employee_repo
-        self._location_reference_repo = location_reference_repo
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
         self._overview_rollup_reader = overview_rollup_reader
-
-    def register_location_reference_repository(
-        self,
-        location_reference_repo: LocationReferenceRepository | None,
-    ) -> None:
-        _register_location_repo(self, location_reference_repo)
 
     def list_departments(self, *, active_only: bool | None = None) -> list[Department]:
         return _queries.list_departments(self, active_only=active_only)
@@ -95,14 +83,6 @@ class DepartmentService:
     def get_context_organization(self) -> Organization:
         return _queries.get_context_organization(self)
 
-    def list_available_location_references(
-        self,
-        *,
-        site_id: str | None = None,
-        active_only: bool | None = True,
-    ) -> list[object]:
-        return _list_location_refs(self, site_id=site_id, active_only=active_only)
-
     def create_department(
         self,
         *,
@@ -111,7 +91,6 @@ class DepartmentService:
         display_name: str | None = None,
         description: str = "",
         site_id: str | None = None,
-        default_location_id: str | None = None,
         parent_department_id: str | None = None,
         department_type: str = "",
         cost_center_code: str = "",
@@ -126,7 +105,6 @@ class DepartmentService:
             display_name=display_name,
             description=description,
             site_id=site_id,
-            default_location_id=default_location_id,
             parent_department_id=parent_department_id,
             department_type=department_type,
             cost_center_code=cost_center_code,
@@ -144,7 +122,6 @@ class DepartmentService:
         display_name: str | None = None,
         description: str | None = None,
         site_id: str | None = None,
-        default_location_id: str | None = None,
         parent_department_id: str | None = None,
         department_type: str | None = None,
         cost_center_code: str | None = None,
@@ -161,7 +138,6 @@ class DepartmentService:
             display_name=display_name,
             description=description,
             site_id=site_id,
-            default_location_id=default_location_id,
             parent_department_id=parent_department_id,
             department_type=department_type,
             cost_center_code=cost_center_code,

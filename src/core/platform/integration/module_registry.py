@@ -8,7 +8,6 @@ Module IDs match DEFAULT_ENTERPRISE_MODULES codes:
     platform             (always enabled — built-in)
     project_management
     inventory_procurement
-    maintenance_management
     qhse
     hr_management
 """
@@ -40,44 +39,34 @@ _CAPABILITY_MODULE: dict[str, str] = {
     "procurement.requisitions.create": "inventory_procurement",
     "procurement.purchase_orders.read": "inventory_procurement",
     "procurement.purchase_orders.create": "inventory_procurement",
-    # Maintenance
-    "maintenance.work_orders.read": "maintenance_management",
-    "maintenance.work_orders.open": "maintenance_management",
-    "maintenance.material_demand.create": "maintenance_management",
-    "maintenance.assets.read": "maintenance_management",
 }
 
 # Maps capability_id → short labels of modules that consume the capability.
 _CAPABILITY_CONSUMERS: dict[str, list[str]] = {
-    "platform.sites.read":              ["PM", "INV", "MNT"],
-    "platform.parties.read":            ["PM", "INV", "MNT"],
-    "platform.employees.read":          ["PM", "MNT"],
-    "platform.documents.attach":        ["PM", "INV", "MNT"],
-    "platform.approvals.create":        ["PM", "INV", "MNT"],
-    "platform.audit.write":             ["PM", "INV", "MNT"],
+    "platform.sites.read":              ["PM", "INV"],
+    "platform.parties.read":            ["PM", "INV"],
+    "platform.employees.read":          ["PM"],
+    "platform.documents.attach":        ["PM", "INV"],
+    "platform.approvals.create":        ["PM", "INV"],
+    "platform.audit.write":             ["PM", "INV"],
     "project_management.projects.read": ["PM"],
     "project_management.tasks.read":    ["PM"],
-    "project_management.tasks.open":    ["INV", "MNT"],
+    "project_management.tasks.open":    ["INV"],
     "project_management.material_demand.create": ["PM"],
     "project_management.resources.read": ["PM"],
     "project_management.financials.read": ["PM"],
-    "inventory.stock.read":             ["PM", "MNT"],
-    "inventory.reservations.create":    ["PM", "MNT"],
-    "inventory.reservations.read":      ["PM", "MNT"],
-    "procurement.requisitions.create":  ["PM", "MNT"],
-    "procurement.purchase_orders.read": ["PM", "MNT"],
+    "inventory.stock.read":             ["PM"],
+    "inventory.reservations.create":    ["PM"],
+    "inventory.reservations.read":      ["PM"],
+    "procurement.requisitions.create":  ["PM"],
+    "procurement.purchase_orders.read": ["PM"],
     "procurement.purchase_orders.create": ["INV"],
-    "maintenance.work_orders.read":     ["MNT"],
-    "maintenance.work_orders.open":     ["INV"],
-    "maintenance.material_demand.create": ["MNT"],
-    "maintenance.assets.read":          ["MNT"],
 }
 
 _MODULE_LABELS: dict[str, str] = {
     "platform":              "Platform",
     "project_management":    "PM",
     "inventory_procurement": "INV",
-    "maintenance_management": "MNT",
     "qhse":                  "QHSE",
     "hr_management":         "HR",
 }
@@ -89,9 +78,6 @@ _INTEGRATION_RULES: frozenset[tuple[str, str, str]] = frozenset(
         ("project_management", "inventory_procurement", "material_demand"),
         ("project_management", "inventory_procurement", "source_reference"),
         ("inventory_procurement", "project_management", "source_reference"),
-        ("inventory_procurement", "maintenance_management", "source_reference"),
-        ("maintenance_management", "inventory_procurement", "material_demand"),
-        ("maintenance_management", "inventory_procurement", "source_reference"),
     }
 )
 
@@ -178,7 +164,6 @@ class ModuleRegistry:
             "isPlatformEnabled": True,
             "isProjectManagementEnabled": self.is_module_enabled("project_management"),
             "isInventoryProcurementEnabled": self.is_module_enabled("inventory_procurement"),
-            "isMaintenanceEnabled": self.is_module_enabled("maintenance_management"),
             "isQhseEnabled": self.is_module_enabled("qhse"),
             "isHrManagementEnabled": self.is_module_enabled("hr_management"),
             # Cross-module integration pairs
@@ -187,12 +172,6 @@ class ModuleRegistry:
             ),
             "canInventoryLinkPm": self.can_use_integration(
                 "inventory_procurement", "project_management", "source_reference"
-            ),
-            "canInventoryLinkMaintenance": self.can_use_integration(
-                "inventory_procurement", "maintenance_management", "source_reference"
-            ),
-            "canMaintenanceLinkInventory": self.can_use_integration(
-                "maintenance_management", "inventory_procurement", "material_demand"
             ),
         }
 

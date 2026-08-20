@@ -19,7 +19,6 @@ class InventoryCatalogDesktopCategoryMixin:
         search_text: str = "",
         equipment_only: bool | None = None,
         project_usage_only: bool | None = None,
-        maintenance_usage_only: bool | None = None,
     ) -> tuple[InventoryCategoryDesktopDto, ...]:
         if self._category_service is None:
             return ()
@@ -27,7 +26,6 @@ class InventoryCatalogDesktopCategoryMixin:
             search_text
             or equipment_only is not None
             or project_usage_only is not None
-            or maintenance_usage_only is not None
         ):
             categories = self._category_service.search_categories(
                 search_text=search_text,
@@ -35,7 +33,6 @@ class InventoryCatalogDesktopCategoryMixin:
                 category_type=category_type,
                 equipment_only=equipment_only,
                 project_usage_only=project_usage_only,
-                maintenance_usage_only=maintenance_usage_only,
             )
         else:
             categories = self._category_service.list_categories(
@@ -63,7 +60,6 @@ class InventoryCatalogDesktopCategoryMixin:
             category_type=command.category_type,
             is_equipment=command.is_equipment,
             supports_project_usage=command.supports_project_usage,
-            supports_maintenance_usage=command.supports_maintenance_usage,
             is_active=command.is_active,
         )
         return serialize_category(category)
@@ -81,7 +77,6 @@ class InventoryCatalogDesktopCategoryMixin:
             category_type=command.category_type,
             is_equipment=command.is_equipment,
             supports_project_usage=command.supports_project_usage,
-            supports_maintenance_usage=command.supports_maintenance_usage,
             is_active=command.is_active,
             expected_version=command.expected_version,
         )

@@ -2,8 +2,6 @@
 
 from src.infra.persistence.orm.base import Base
 import src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant  # noqa: F401  — must precede org (FK dep)
-import src.core.modules.maintenance.infrastructure.persistence.orm.models  # noqa: F401
-import src.core.modules.maintenance.infrastructure.persistence.orm.preventive_runtime_models  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.master_data.org.org  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.master_data.employee.employee  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.master_data.site.sites  # noqa: F401

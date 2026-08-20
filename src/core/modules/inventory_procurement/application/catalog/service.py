@@ -58,7 +58,6 @@ class ItemMasterService:
         category_code: str | None = None,
         equipment_only: bool | None = None,
         project_usage_only: bool | None = None,
-        maintenance_usage_only: bool | None = None,
     ) -> list[StockItem]:
         return item_queries.search_items(
             self,
@@ -67,7 +66,6 @@ class ItemMasterService:
             category_code=category_code,
             equipment_only=equipment_only,
             project_usage_only=project_usage_only,
-            maintenance_usage_only=maintenance_usage_only,
         )
 
     def get_item(self, item_id: str) -> StockItem:

@@ -38,20 +38,6 @@ from src.core.modules.inventory_procurement.api.desktop_runtime import (
     InventoryProcurementDesktopRuntimePlatformDependencies,
     build_inventory_procurement_desktop_runtime_apis,
 )
-from src.core.modules.maintenance.api.desktop import (
-    MaintenanceAssetsDesktopApi,
-    MaintenanceDashboardDesktopApi,
-    MaintenancePlannerDesktopApi,
-    MaintenancePreventiveDesktopApi,
-    MaintenanceReliabilityDesktopApi,
-    MaintenanceWorkOrdersDesktopApi,
-    MaintenanceWorkRequestsDesktopApi,
-    MaintenanceWorkspaceDesktopApi,
-)
-from src.core.modules.maintenance.api.desktop_runtime import (
-    MaintenanceDesktopRuntimePlatformDependencies,
-    build_maintenance_desktop_runtime_apis,
-)
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementCollaborationDesktopApi,
     ProjectManagementDashboardDesktopApi,
@@ -142,14 +128,6 @@ class DesktopApiRegistry:
     inventory_procurement_procurement: InventoryProcurementProcurementDesktopApi
     inventory_procurement_dashboard: InventoryProcurementDashboardDesktopApi
     inventory_procurement_pricing: InventoryProcurementPricingDesktopApi
-    maintenance_workspaces: MaintenanceWorkspaceDesktopApi
-    maintenance_assets: MaintenanceAssetsDesktopApi
-    maintenance_dashboard: MaintenanceDashboardDesktopApi
-    maintenance_planner: MaintenancePlannerDesktopApi
-    maintenance_preventive: MaintenancePreventiveDesktopApi
-    maintenance_reliability: MaintenanceReliabilityDesktopApi
-    maintenance_work_requests: MaintenanceWorkRequestsDesktopApi
-    maintenance_work_orders: MaintenanceWorkOrdersDesktopApi
 
 
 def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegistry:
@@ -237,27 +215,6 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             for storeroom in inventory_service.list_storerooms()
         ]
 
-    maintenance_asset_service = services.get("maintenance_asset_service")
-    maintenance_location_service = services.get("maintenance_location_service")
-    if maintenance_asset_service is not None and hasattr(
-        maintenance_asset_service,
-        "list_assets",
-    ):
-        access_scope_type_choices.append(("Asset", "maintenance"))
-        access_scope_option_loaders["maintenance"] = lambda: [
-            (f"{asset.name} ({asset.asset_code})", asset.id)
-            for asset in maintenance_asset_service.list_assets()
-        ]
-    elif maintenance_location_service is not None and hasattr(
-        maintenance_location_service,
-        "list_locations",
-    ):
-        access_scope_type_choices.append(("Maintenance Location", "maintenance"))
-        access_scope_option_loaders["maintenance"] = lambda: [
-            (location.name, location.id)
-            for location in maintenance_location_service.list_locations()
-        ]
-
     module_registry = services.get("module_registry")
     if not isinstance(module_registry, ModuleRegistry):
         from src.core.platform.api.desktop_runtime.service_resolver import (
@@ -335,15 +292,6 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
             user_session=services.get("user_session"),
         ),
     )
-    maintenance_apis = build_maintenance_desktop_runtime_apis(
-        services=services,
-        platform_dependencies=MaintenanceDesktopRuntimePlatformDependencies(
-            site_service=site_service,
-            party_service=party_service,
-            employee_service=employee_service,
-        ),
-    )
-
     return DesktopApiRegistry(
         integration_capability=integration_capability,
         platform_runtime=PlatformRuntimeDesktopApi(
@@ -388,7 +336,6 @@ def build_desktop_api_registry(services: Mapping[str, object]) -> DesktopApiRegi
         ),
         **vars(project_management_apis),
         **vars(inventory_procurement_apis),
-        **vars(maintenance_apis),
     )
 
 

@@ -1,6 +1,9 @@
 # Enterprise Cache Service Strategy
 
-This document captures a documentation-only cache strategy for the existing modular SaaS application. It does not implement runtime code. It is intended as a follow-up blueprint for introducing service-level caching safely across Platform, Project Management, Inventory & Procurement, Maintenance, and shared runtime services.
+This document captures a documentation-only cache strategy for the existing modular SaaS application. It does not implement runtime code. It is intended as a follow-up blueprint for introducing service-level caching safely across Platform, Project Management, Inventory & Procurement, and shared runtime services.
+
+Maintenance-specific candidates retained later in this historical strategy are out of current
+product scope and are not active implementation targets.
 
 ## Inspection Basis
 

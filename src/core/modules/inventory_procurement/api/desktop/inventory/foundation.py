@@ -361,11 +361,6 @@ class InventoryDesktopFoundationMixin:
                 label="Project Management",
                 route_id="project_management.dashboard",
             ),
-            self._build_module_link(
-                code="maintenance_management",
-                label="Maintenance / CMMS",
-                route_id="maintenance.dashboard",
-            ),
             InventoryModuleLinkDescriptor(
                 code="documents",
                 label="Document Control",

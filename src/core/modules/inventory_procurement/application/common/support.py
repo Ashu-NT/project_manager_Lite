@@ -4,14 +4,12 @@ from datetime import date, datetime, timedelta, timezone
 
 from src.core.modules.inventory_procurement.domain._validation import (
     ITEM_CATEGORY_TYPES,
-    MAINTENANCE_SOURCE_REFERENCE_TYPES,
     INVENTORY_SOURCE_REFERENCE_TYPES,
     normalize_inventory_code,
     normalize_inventory_name,
     normalize_item_category_type,
     normalize_nonnegative_days,
     normalize_nonnegative_quantity,
-    normalize_maintenance_source_reference_type,
     normalize_optional_date,
     normalize_optional_text,
     normalize_positive_quantity,

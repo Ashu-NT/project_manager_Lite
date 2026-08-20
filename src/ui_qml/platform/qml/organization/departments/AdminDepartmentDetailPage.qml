@@ -143,7 +143,6 @@ Item {
         { "label": "Status", "value": root._status },
         { "label": "Version", "value": root._state.version },
         { "label": "Site ID", "value": root._state.siteId },
-        { "label": "Default Location ID", "value": root._state.defaultLocationId },
         { "label": "Parent Department ID", "value": root._state.parentDepartmentId },
         { "label": "Active", "value": root._isActive }
     ]

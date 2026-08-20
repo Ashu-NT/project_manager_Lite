@@ -42,7 +42,6 @@ def test_inventory_catalog_dtos_normalize_fields() -> None:
         category_type=" equipment ",
         is_equipment=False,
         supports_project_usage=True,
-        supports_maintenance_usage=True,
     )
 
     assert category.organization_id == "org-1"
@@ -290,7 +289,7 @@ def test_inventory_stock_operation_dtos_normalize_fields_and_validate_ranges() -
         need_by_date="2026-07-30",
         source_reference_type=" work_order ",
         source_reference_id="  wo-1  ",
-        source_module="  maintenance_management  ",
+        source_module="  project_management  ",
         source_entity_type="  work_order  ",
         source_code_snapshot="  wo-001  ",
         source_title_snapshot="  Pump Overhaul  ",
@@ -310,7 +309,7 @@ def test_inventory_stock_operation_dtos_normalize_fields_and_validate_ranges() -
     assert reservation.need_by_date == date(2026, 7, 30)
     assert reservation.source_reference_type == "work_order"
     assert reservation.source_reference_id == "wo-1"
-    assert reservation.source_module == "maintenance_management"
+    assert reservation.source_module == "project_management"
     assert reservation.source_entity_type == "work_order"
     assert reservation.source_code_snapshot == "wo-001"
     assert reservation.source_title_snapshot == "Pump Overhaul"

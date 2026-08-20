@@ -3,6 +3,10 @@
 > **Status:** Living Document · **Version:** 1.0 · **Date:** 2026-06-17
 >
 > This document captures the complete enterprise architecture review of the Project Manager Lite platform.
+>
+> **Scope correction (2026-08-20):** Maintenance is no longer a current product module. Any
+> Maintenance roles, permissions, services, QML, or tables described below are historical audit,
+> proposal, or retained migration-schema context, not current runtime composition.
 > It consolidates all findings from the Tenant Architecture Review (Deliverables 1–5) and extends them
 > with 14 additional architectural analyses covering data ownership, RBAC, lifecycle management, security,
 > governance, and deployment readiness.

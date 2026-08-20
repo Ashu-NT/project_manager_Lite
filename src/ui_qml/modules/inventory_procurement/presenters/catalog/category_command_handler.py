@@ -43,9 +43,6 @@ def create_category(desktop_api, payload: dict[str, Any]) -> None:
         supports_project_usage=optional_bool(
             payload, "supportsProjectUsage", default=False
         ),
-        supports_maintenance_usage=optional_bool(
-            payload, "supportsMaintenanceUsage", default=False
-        ),
         is_active=optional_bool(payload, "isActive", default=True),
     )
     desktop_api.create_category(command)
@@ -66,9 +63,6 @@ def update_category(desktop_api, payload: dict[str, Any]) -> None:
         is_equipment=optional_bool(payload, "isEquipment", default=False),
         supports_project_usage=optional_bool(
             payload, "supportsProjectUsage", default=False
-        ),
-        supports_maintenance_usage=optional_bool(
-            payload, "supportsMaintenanceUsage", default=False
         ),
         is_active=optional_bool(payload, "isActive", default=True),
         expected_version=optional_int(payload, "expectedVersion"),

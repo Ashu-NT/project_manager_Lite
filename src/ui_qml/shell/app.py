@@ -22,7 +22,6 @@ from src.infra.platform.resource import resource_path
 from src.ui_qml.modules.inventory_procurement.context import (
     InventoryProcurementWorkspaceCatalog,
 )
-from src.ui_qml.modules.maintenance.context import MaintenanceWorkspaceCatalog
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 from src.ui_qml.platform.context import PlatformWorkspaceCatalog
 from src.ui_qml.shell.context import build_shell_context, update_shell_runtime_state
@@ -199,10 +198,6 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
         desktop_api_registry=desktop_api_registry,
     )
     logger.debug("Inventory/Procurement workspace catalog created.")
-    maintenance_workspace_catalog = MaintenanceWorkspaceCatalog(
-        desktop_api_registry=desktop_api_registry,
-    )
-    logger.debug("Maintenance workspace catalog created.")
     platform_workspace_catalog.tenantSwitcher.tenantSwitched.connect(
         pm_workspace_catalog.refreshCapabilities
     )
@@ -230,7 +225,6 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
                 platform_workspace_catalog.refreshAllWorkspaces,
                 pm_workspace_catalog.refreshAllWorkspaces,
                 inventory_workspace_catalog.refreshAllWorkspaces,
-                maintenance_workspace_catalog.refreshAllWorkspaces,
             ),
             poll_interval_ms=poll_interval_ms,
             app=app,
@@ -249,7 +243,6 @@ def main(argv: list[str] | None = None, desktop_api_registry: object | None = No
             "platformCatalog": platform_workspace_catalog,
             "pmCatalog": pm_workspace_catalog,
             "inventoryCatalog": inventory_workspace_catalog,
-            "maintenanceCatalog": maintenance_workspace_catalog,
         },
     )
     if runtime_session_controller is not None:

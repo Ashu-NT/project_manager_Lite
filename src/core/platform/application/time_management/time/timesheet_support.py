@@ -68,9 +68,7 @@ class TimesheetSupportMixin:
         """Hook for module-specific project/site/department scoping on top
         of the global time.*/task.* capability check above. A no-op here,
         since this mixin is shared platform infrastructure with no concept
-        of "project" scope of its own (see e.g. maintenance's
-        MaintenanceLaborService, which has a different scoping model
-        entirely). project_management's TimesheetService overrides this to
+        of "project" scope of its own. project_management's TimesheetService overrides this to
         additionally require project-scoped task.manage/task.read, closing
         the gap where a user with only the global time.manage capability
         could otherwise write time against any project's tasks."""

@@ -1,5 +1,5 @@
 """Live user report against DataTable (the shared widget behind Projects,
-Tasks, Portfolio, and most Platform/Maintenance/Inventory list pages):
+Tasks, Portfolio, and most Platform/Inventory list pages):
 the header "select all" checkbox didn't work and wasn't centered (it used
 a real QQC2.CheckBox Control, unlike the per-row checkboxes which are a
 plain Rectangle+Text+MouseArea and worked fine); columns had no resize

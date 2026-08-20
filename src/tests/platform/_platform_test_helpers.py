@@ -13,7 +13,6 @@ from src.core.platform.api.desktop.access.models.access import (
 from src.core.platform.api.desktop.approval.models.approval import ApprovalRequestDto
 from src.core.platform.api.desktop.master_data.department.models.department import (
     DepartmentDto,
-    DepartmentLocationReferenceDto,
     DepartmentRollupSummaryDto,
 )
 from src.core.platform.api.desktop.master_data.documents.models.document import (
@@ -81,8 +80,8 @@ class FakePlatformRuntimeApi:
         ]
         self._modules = (
             _module(code="project_management", label="Project Management", description="Projects"),
-            _module(code="maintenance", label="Maintenance", description="Assets"),
-            _module(code="inventory", label="Inventory", description="Stock", stage="planned"),
+            _module(code="inventory_procurement", label="Inventory & Procurement", description="Stock"),
+            _module(code="hr_management", label="HR Management", description="People", stage="planned"),
         )
         self._entitlements: list[ModuleEntitlementDto] = [
             ModuleEntitlementDto(
@@ -100,8 +99,8 @@ class FakePlatformRuntimeApi:
                 module=self._modules[0],
             ),
             ModuleEntitlementDto(
-                module_code="maintenance",
-                label="Maintenance",
+                module_code="inventory_procurement",
+                label="Inventory & Procurement",
                 stage="active",
                 licensed=True,
                 enabled=False,
@@ -114,8 +113,8 @@ class FakePlatformRuntimeApi:
                 module=self._modules[1],
             ),
             ModuleEntitlementDto(
-                module_code="inventory",
-                label="Inventory",
+                module_code="hr_management",
+                label="HR Management",
                 stage="planned",
                 licensed=False,
                 enabled=False,
@@ -386,11 +385,10 @@ class FakePlatformSiteApi:
 
 
 class FakePlatformDepartmentApi:
-    def __init__(self, *, runtime_api: FakePlatformRuntimeApi, site_api: FakePlatformSiteApi, rows: tuple[DepartmentDto, ...], location_rows: tuple[DepartmentLocationReferenceDto, ...]) -> None:
+    def __init__(self, *, runtime_api: FakePlatformRuntimeApi, site_api: FakePlatformSiteApi, rows: tuple[DepartmentDto, ...]) -> None:
         self._runtime_api = runtime_api
         self._site_api = site_api
         self._rows = list(rows)
-        self._location_rows = list(location_rows)
 
     def get_context(self) -> DesktopApiResult[OrganizationDto]:
         return DesktopApiResult(ok=True, data=self._runtime_api.get_runtime_context().data.active_organization)
@@ -410,12 +408,6 @@ class FakePlatformDepartmentApi:
             ),
         )
 
-    def list_location_references(self, *, active_only: bool | None = None) -> DesktopApiResult[tuple[DepartmentLocationReferenceDto, ...]]:
-        rows = self._location_rows
-        if active_only is not None:
-            rows = [row for row in rows if row.is_active == active_only]
-        return DesktopApiResult(ok=True, data=tuple(rows))
-
     def create_department(self, command) -> DesktopApiResult[DepartmentDto]:
         active_organization = self._runtime_api.get_runtime_context().data.active_organization
         department = DepartmentDto(
@@ -425,7 +417,6 @@ class FakePlatformDepartmentApi:
             name=command.name,
             description=command.description,
             site_id=command.site_id,
-            default_location_id=command.default_location_id,
             parent_department_id=command.parent_department_id,
             department_type=command.department_type,
             cost_center_code=command.cost_center_code,
@@ -447,7 +438,6 @@ class FakePlatformDepartmentApi:
                 name=command.name or row.name,
                 description=row.description if command.description is None else command.description,
                 site_id=row.site_id if command.site_id is None else command.site_id,
-                default_location_id=row.default_location_id if command.default_location_id is None else command.default_location_id,
                 parent_department_id=row.parent_department_id if command.parent_department_id is None else command.parent_department_id,
                 department_type=row.department_type if command.department_type is None else command.department_type,
                 cost_center_code=row.cost_center_code if command.cost_center_code is None else command.cost_center_code,
@@ -1202,19 +1192,15 @@ def build_connected_platform_registry() -> SimpleNamespace:
         SiteDto(id="site-2", organization_id="org-1", site_code="DXB", name="Dubai Yard", description="Secondary site", country="AE", region="Dubai", city="Dubai", address_line_1="Street 2", address_line_2="", postal_code="00000", timezone="Asia/Dubai", currency_code="AED", site_type="yard", status="inactive", default_calendar_id="cal-2", default_language="en", is_active=False, notes="", version=1),
     )
     department_rows = (
-        DepartmentDto(id="dep-1", organization_id="org-1", department_code="ENG", name="Engineering", description="Engineering", site_id="site-1", default_location_id=None, parent_department_id=None, department_type="functional", cost_center_code="CC-1", manager_employee_id=None, is_active=True, notes="", version=1),
-        DepartmentDto(id="dep-2", organization_id="org-1", department_code="OPS", name="Operations", description="Operations", site_id="site-2", default_location_id=None, parent_department_id=None, department_type="functional", cost_center_code="CC-2", manager_employee_id=None, is_active=False, notes="", version=1),
-    )
-    location_rows = (
-        DepartmentLocationReferenceDto(id="loc-1", organization_id="org-1", site_id="site-1", location_code="BLD-A", name="Building A", is_active=True),
-        DepartmentLocationReferenceDto(id="loc-2", organization_id="org-1", site_id="site-2", location_code="YARD-1", name="Main Yard", is_active=True),
+        DepartmentDto(id="dep-1", organization_id="org-1", department_code="ENG", name="Engineering", description="Engineering", site_id="site-1", parent_department_id=None, department_type="functional", cost_center_code="CC-1", manager_employee_id=None, is_active=True, notes="", version=1),
+        DepartmentDto(id="dep-2", organization_id="org-1", department_code="OPS", name="Operations", description="Operations", site_id="site-2", parent_department_id=None, department_type="functional", cost_center_code="CC-2", manager_employee_id=None, is_active=False, notes="", version=1),
     )
     employee_rows = (
         EmployeeDto(id="emp-1", employee_code="E-001", full_name="Ada Lovelace", department_id="dep-1", department="Engineering", site_id="site-1", site_name="Berlin Campus", title="Engineer", employment_type="FULL_TIME", email="ada@example.com", phone=None, is_active=True, version=1),
         EmployeeDto(id="emp-2", employee_code="E-002", full_name="Grace Hopper", department_id="dep-2", department="Operations", site_id="site-2", site_name="Dubai Yard", title="Manager", employment_type="CONTRACTOR", email="grace@example.com", phone=None, is_active=False, version=1),
     )
     site_api = FakePlatformSiteApi(runtime_api=runtime_api, rows=site_rows)
-    department_api = FakePlatformDepartmentApi(runtime_api=runtime_api, site_api=site_api, rows=department_rows, location_rows=location_rows)
+    department_api = FakePlatformDepartmentApi(runtime_api=runtime_api, site_api=site_api, rows=department_rows)
     employee_api = FakePlatformEmployeeApi(employee_rows)
     role_rows = (
         RoleDto(id="role-1", name="admin", description="Platform administrators", is_system=True),
@@ -1251,7 +1237,7 @@ def build_connected_platform_registry() -> SimpleNamespace:
     )
     document_link_rows = (
         DocumentLinkDto(id="link-1", organization_id="org-1", document_id="doc-1", module_code="project_management", entity_type="task", entity_id="task-42", link_role="attachment"),
-        DocumentLinkDto(id="link-2", organization_id="org-1", document_id="doc-1", module_code="maintenance", entity_type="asset", entity_id="asset-7", link_role="reference"),
+        DocumentLinkDto(id="link-2", organization_id="org-1", document_id="doc-1", module_code="inventory_procurement", entity_type="item", entity_id="item-7", link_role="reference"),
     )
     document_api = FakePlatformDocumentApi(runtime_api=runtime_api, rows=document_rows, structure_rows=document_structure_rows, link_rows=document_link_rows)
     party_rows = (

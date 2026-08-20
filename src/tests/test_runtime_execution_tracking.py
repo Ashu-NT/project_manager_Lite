@@ -46,10 +46,10 @@ def test_runtime_execution_service_tracks_cancellation_and_retry_metadata(servic
 
     execution = runtime.start_execution(
         operation_type="report",
-        operation_key=_unique_key("maintenance_backlog"),
-        module_code="maintenance_management",
-        input_path="maintenance.xlsx",
-        output_path="maintenance-report.xlsx",
+        operation_key=_unique_key("inventory_backlog"),
+        module_code="inventory_procurement",
+        input_path="inventory.xlsx",
+        output_path="inventory-report.xlsx",
     )
     runtime.request_cancellation(execution.id)
     requested = runtime.get_execution(execution.id)
@@ -58,14 +58,14 @@ def test_runtime_execution_service_tracks_cancellation_and_retry_metadata(servic
     assert requested.cancellation_requested_at is not None
     assert requested.cancellation_requested_by_username == "admin"
     cancelled = runtime.cancel_execution(requested, error_message="Cancelled from queue")
-    retry = runtime.start_retry(cancelled.id, output_path="maintenance-report-retry.xlsx")
+    retry = runtime.start_retry(cancelled.id, output_path="inventory-report-retry.xlsx")
 
     assert cancelled.status == "CANCELLED"
     assert cancelled.completed_at is not None
     assert cancelled.error_message == "Cancelled from queue"
     assert retry.retry_of_execution_id == cancelled.id
     assert retry.attempt_number == 2
-    assert retry.output_path == "maintenance-report-retry.xlsx"
+    assert retry.output_path == "inventory-report-retry.xlsx"
 
 
 def test_export_runtime_records_artifact_metadata_in_execution_history(services, tmp_path):

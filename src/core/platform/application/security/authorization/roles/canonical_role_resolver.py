@@ -124,7 +124,7 @@ class CanonicalRoleResolver:
         """Resolve platform/tenant/organization plus already cut-over resource scopes.
 
         `cutover_resource_scope_types` grows one entry at a time as each
-        resource scope (project, site, storeroom, maintenance) replaces its
+        resource scope (project, site, storeroom) replaces its
         legacy scoped-grant/project-membership decision source.
         """
         return self._resolve(

@@ -47,10 +47,6 @@ def test_module_catalog_service_bootstraps_persistent_defaults(services):
     assert entitlements["project_management"].enabled is True
     assert entitlements["project_management"].lifecycle_status == "active"
     assert entitlements["project_management"].runtime_enabled is True
-    assert entitlements["maintenance_management"].licensed is False
-    assert entitlements["maintenance_management"].enabled is False
-    assert entitlements["maintenance_management"].lifecycle_status == "inactive"
-    assert entitlements["maintenance_management"].runtime_enabled is False
 
 
 def test_module_catalog_service_rejects_licensing_planned_module(services):

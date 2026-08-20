@@ -8,7 +8,7 @@ def test_platform_workspace_catalog_runs_control_and_settings_actions() -> None:
     catalog = PlatformWorkspaceCatalog(desktop_api_registry=build_connected_platform_registry())
 
     approve_result = catalog.approveRequestWithNote("approval-1", "Budget aligned with governance.")
-    enable_result = catalog.toggleModuleEnabled("maintenance")
+    enable_result = catalog.toggleModuleEnabled("inventory_procurement")
     lifecycle_result = catalog.changeModuleLifecycleStatus("project_management", "suspended")
 
     assert approve_result == {"ok": True, "category": "", "code": "", "message": "Approval request approved and applied."}
@@ -19,14 +19,14 @@ def test_platform_workspace_catalog_runs_control_and_settings_actions() -> None:
     settings_overview = catalog.settingsOverview()
     module_entitlements = catalog.moduleEntitlements()
     project_management = {item["id"]: item for item in module_entitlements["items"]}["project_management"]
-    maintenance = {item["id"]: item for item in module_entitlements["items"]}["maintenance"]
+    inventory = {item["id"]: item for item in module_entitlements["items"]}["inventory_procurement"]
 
     assert approval_queue["items"][0]["statusLabel"] == "Approved"
     assert approval_queue["items"][0]["canPrimaryAction"] is False
     assert approval_queue["items"][0]["state"]["decisionNote"] == "Budget aligned with governance."
     assert "Decision note: Budget aligned with governance." in approval_queue["items"][0]["metaText"]
     assert settings_overview["metrics"][1]["value"] == "1"
-    assert maintenance["subtitle"].endswith("Enabled")
+    assert inventory["subtitle"].endswith("Enabled")
     assert project_management["statusLabel"] == "Suspended"
     assert project_management["state"]["runtimeEnabled"] is False
     assert project_management["canSecondaryAction"] is False

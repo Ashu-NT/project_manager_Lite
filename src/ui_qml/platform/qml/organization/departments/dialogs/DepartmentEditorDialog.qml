@@ -10,7 +10,6 @@ AppWidgets.EntityDialog {
     property string mode: "create"
     property var draft: ({})
     property var siteOptions: []
-    property var locationOptions: []
     property var parentOptions: []
     property var workspaceController: null
     property string departmentCode: ""
@@ -47,7 +46,6 @@ AppWidgets.EntityDialog {
         name: nameField.text.trim(),
         description: descriptionField.text.trim(),
         siteId: _currentValue(siteModel, siteCombo),
-        defaultLocationId: _currentValue(locationModel, locationCombo),
         parentDepartmentId: _currentValue(parentModel, parentCombo),
         departmentType: departmentTypeField.text.trim(),
         costCenterCode: costCenterField.text.trim(),
@@ -73,10 +71,8 @@ AppWidgets.EntityDialog {
 
     function _assignOptions(options) {
         root.siteOptions = options.siteOptions || []
-        root.locationOptions = options.locationOptions || []
         root.parentOptions = options.parentOptions || []
         _reloadOptionModel(siteModel, root.siteOptions)
-        _reloadOptionModel(locationModel, root.locationOptions)
         _reloadOptionModel(parentModel, root.parentOptions, root.draft.departmentId || root.draft.id || "")
     }
 
@@ -104,7 +100,6 @@ AppWidgets.EntityDialog {
         notesField.text = root.draft.notes || ""
         activeCheck.checked = root.draft.isActive !== undefined ? root.draft.isActive : true
         _setCurrentIndex(siteModel, siteCombo, root.draft.siteId || "")
-        _setCurrentIndex(locationModel, locationCombo, root.draft.defaultLocationId || "")
         _setCurrentIndex(parentModel, parentCombo, root.draft.parentDepartmentId || "")
     }
 
@@ -126,7 +121,6 @@ AppWidgets.EntityDialog {
     }
 
     ListModel { id: siteModel }
-    ListModel { id: locationModel }
     ListModel { id: parentModel }
 
     AppWidgets.CodeFieldRow {
@@ -179,18 +173,6 @@ AppWidgets.EntityDialog {
             id: siteCombo
             Layout.fillWidth: true
             model: siteModel
-            textRole: "label"
-        }
-    }
-
-    AppWidgets.FormField {
-        Layout.fillWidth: true
-        label: "Default Location"
-
-        AppControls.ComboBox {
-            id: locationCombo
-            Layout.fillWidth: true
-            model: locationModel
             textRole: "label"
         }
     }

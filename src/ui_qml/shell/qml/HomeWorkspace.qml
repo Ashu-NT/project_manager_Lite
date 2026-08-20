@@ -51,7 +51,6 @@ AppLayouts.WorkspaceFrame {
     function iconForModule(moduleLabel) {
         const s = String(moduleLabel || "").toLowerCase()
         if (s.indexOf("project") >= 0) return "project"
-        if (s.indexOf("maintenance") >= 0) return "assets"
         if (s.indexOf("inventory") >= 0 || s.indexOf("procurement") >= 0) return "inventory"
         return "admin"
     }

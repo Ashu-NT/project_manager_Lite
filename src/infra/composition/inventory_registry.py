@@ -8,7 +8,6 @@ from src.core.platform.access import ScopedRolePolicy
 from src.core.modules.inventory_procurement import (
     InventoryDataExchangeService,
     InventoryReferenceService,
-    MaintenanceMaterialService,
 )
 from src.core.modules.inventory_procurement.access.policy import (
     STOREROOM_SCOPE_ROLE_CHOICES,
@@ -65,7 +64,6 @@ class InventoryProcurementServiceBundle:
     inventory_reporting_service: InventoryReportingService
     inventory_item_category_service: ItemCategoryService
     inventory_item_service: ItemMasterService
-    inventory_maintenance_material_service: MaintenanceMaterialService
     inventory_foundation_service: InventoryFoundationService
     inventory_service: InventoryService
     inventory_stock_service: StockControlService
@@ -299,14 +297,6 @@ def build_inventory_procurement_service_bundle(
         module_catalog_service=platform_services.module_catalog_service,
         runtime_execution_service=platform_services.runtime_execution_service,
     )
-    inventory_maintenance_material_service = MaintenanceMaterialService(
-        item_service=inventory_item_service,
-        item_category_service=inventory_item_category_service,
-        inventory_service=inventory_service,
-        stock_service=inventory_stock_service,
-        reservation_service=inventory_reservation_service,
-        procurement_service=inventory_procurement_service,
-    )
     logger.debug("Inventory/Procurement core services built")
 
     def _storeroom_exists(tenant_id: str, storeroom_id: str) -> bool:
@@ -342,7 +332,6 @@ def build_inventory_procurement_service_bundle(
         inventory_reporting_service=inventory_reporting_service,
         inventory_item_category_service=inventory_item_category_service,
         inventory_item_service=inventory_item_service,
-        inventory_maintenance_material_service=inventory_maintenance_material_service,
         inventory_foundation_service=inventory_foundation_service,
         inventory_service=inventory_service,
         inventory_stock_service=inventory_stock_service,

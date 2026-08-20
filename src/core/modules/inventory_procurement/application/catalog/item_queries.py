@@ -33,7 +33,6 @@ def search_items(
     category_code: str | None = None,
     equipment_only: bool | None = None,
     project_usage_only: bool | None = None,
-    maintenance_usage_only: bool | None = None,
 ) -> list[StockItem]:
     _require_read(owner, "search inventory items")
     normalized_search = normalize_optional_text(search_text).lower()
@@ -75,10 +74,6 @@ def search_items(
         if project_usage_only is True and not bool(category and category.supports_project_usage):
             continue
         if project_usage_only is False and bool(category and category.supports_project_usage):
-            continue
-        if maintenance_usage_only is True and not bool(category and category.supports_maintenance_usage):
-            continue
-        if maintenance_usage_only is False and bool(category and category.supports_maintenance_usage):
             continue
         result.append(item)
     return result
