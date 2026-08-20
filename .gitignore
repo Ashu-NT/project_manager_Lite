@@ -21,6 +21,7 @@ dist/
 *.db
 *.sqlite
 *.sqlite3
+tmp_alembic_*/
 
 # IDE
 .vscode/

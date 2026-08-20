@@ -9,28 +9,20 @@ from src.infra.persistence.db.postgresql_rls import (
     configure_session_rls_context,
     worker_tenant_scope,
 )
-from src.infra.persistence.migrations.versions.h6i7j8k9l0m1_enable_postgresql_tenant_rls import (
-    TENANT_RLS_TABLES,
+from src.infra.persistence.migrations.helpers.postgresql_rls import (
+    build_nullable_tenant_audit_rls_enable_statements,
+    build_tenant_only_rls_enable_statements,
+    build_tenant_organization_rls_enable_statements,
 )
-from src.infra.persistence.migrations.versions.pfaudit_p04_001_enable_audit_entries_rls import (
-    _TABLE as AUDIT_ENTRIES_CUSTOM_RLS_TABLE,
+from src.infra.persistence.migrations.helpers.rls_classification import (
+    ALL_CLASSIFIED_TABLES,
+    INTENTIONAL_RLS_EXCLUSION_TABLES,
+    NULLABLE_TENANT_AUDIT_TABLES,
+    TENANT_AND_ORGANIZATION_TABLES,
+    TENANT_ONLY_TABLES,
+    validate_rls_classification,
 )
 from src.infra.persistence.orm import Base
-
-
-_IDENTITY_BOOTSTRAP_TABLES = {
-    "notifications",
-    "organizations",
-    "role_bindings",
-    "role_delegation_policies",
-    "roles",
-    "user_tenants",
-}
-
-# Tables with a bespoke policy (not the generic single-predicate one in
-# TENANT_RLS_TABLES) because a plain tenant-match predicate would reject or
-# hide their legitimate NULL-tenant rows. See pfaudit_p04_001 for audit_entries.
-_CUSTOM_POLICY_TABLES = {AUDIT_ENTRIES_CUSTOM_RLS_TABLE}
 
 
 class _FakePostgresConnection:
@@ -101,11 +93,68 @@ def test_sqlite_transaction_context_is_noop():
     session.info["pm_rls_context_listener"](session, None, connection)
 
 
-def test_every_tenant_bearing_table_has_rls_or_explicit_bootstrap_classification():
-    tenant_tables = {
-        table_name
-        for table_name, table in Base.metadata.tables.items()
-        if "tenant_id" in table.c
+def test_every_application_table_has_exactly_one_rls_classification():
+    columns_by_table = {
+        name: set(table.c.keys()) for name, table in Base.metadata.tables.items()
     }
 
-    assert tenant_tables == set(TENANT_RLS_TABLES) | _IDENTITY_BOOTSTRAP_TABLES | _CUSTOM_POLICY_TABLES
+    validate_rls_classification(Base.metadata.tables, columns_by_table)
+    groups = (
+        TENANT_AND_ORGANIZATION_TABLES,
+        TENANT_ONLY_TABLES,
+        NULLABLE_TENANT_AUDIT_TABLES,
+        INTENTIONAL_RLS_EXCLUSION_TABLES,
+    )
+    assert set(Base.metadata.tables) == set(ALL_CLASSIFIED_TABLES)
+    assert sum(len(group) for group in groups) == len(ALL_CLASSIFIED_TABLES)
+
+
+def test_rls_classification_contains_no_maintenance_objects():
+    forbidden = ("maintenance", "cmms")
+    assert not any(
+        marker in table.lower()
+        for table in ALL_CLASSIFIED_TABLES
+        for marker in forbidden
+    )
+
+
+def test_tenant_organization_policy_sql_is_explicit_and_forced():
+    statements = build_tenant_organization_rls_enable_statements(
+        "projects", quote=lambda identifier: f'"{identifier}"'
+    )
+
+    assert statements[:2] == (
+        'ALTER TABLE "projects" ENABLE ROW LEVEL SECURITY',
+        'ALTER TABLE "projects" FORCE ROW LEVEL SECURITY',
+    )
+    assert any("FOR SELECT USING" in statement for statement in statements)
+    assert any("FOR INSERT WITH CHECK" in statement for statement in statements)
+    assert any("FOR UPDATE" in statement and "WITH CHECK" in statement for statement in statements)
+    assert any("FOR DELETE USING" in statement for statement in statements)
+    assert all("app.tenant_id" in statement for statement in statements[2:])
+    assert all("app.organization_id" in statement for statement in statements[2:])
+
+
+def test_tenant_only_policy_does_not_require_organization_context():
+    statements = build_tenant_only_rls_enable_statements(
+        "platform_events", quote=lambda identifier: f'"{identifier}"'
+    )
+
+    assert all("app.tenant_id" in statement for statement in statements[2:])
+    assert all("app.organization_id" not in statement for statement in statements)
+
+
+def test_nullable_audit_policy_preserves_platform_rows_exactly():
+    statements = build_nullable_tenant_audit_rls_enable_statements(
+        "audit_entries", quote=lambda identifier: f'"{identifier}"'
+    )
+
+    assert statements[:2] == (
+        'ALTER TABLE "audit_entries" ENABLE ROW LEVEL SECURITY',
+        'ALTER TABLE "audit_entries" FORCE ROW LEVEL SECURITY',
+    )
+    assert len(statements) == 3
+    assert '"audit_entries_tenant_isolation_or_platform"' in statements[2]
+    assert "tenant_id IS NULL" in statements[2]
+    assert "app.tenant_id" in statements[2]
+    assert "app.organization_id" not in statements[2]
