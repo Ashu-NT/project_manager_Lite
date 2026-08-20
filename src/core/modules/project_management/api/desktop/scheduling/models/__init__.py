@@ -39,6 +39,7 @@ from src.core.modules.project_management.api.desktop.scheduling.models.leveling 
     SchedulingUnresolvedConflictDto,
 )
 from src.core.modules.project_management.api.desktop.scheduling.models.gantt import (
+    GanttBaselineOverlayDto,
     GanttBaselineTaskSnapshotDto,
     GanttDependencyEdgeDto,
     GanttNonWorkingIntervalDto,
@@ -57,6 +58,7 @@ __all__ = [
     "_DAY_LABELS",
     "ActualVarianceDto",
     "DownstreamExposureDto",
+    "GanttBaselineOverlayDto",
     "GanttBaselineTaskSnapshotDto",
     "GanttDependencyEdgeDto",
     "GanttNonWorkingIntervalDto",

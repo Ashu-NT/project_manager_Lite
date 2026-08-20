@@ -19,6 +19,7 @@ Item {
     property bool isMilestone: false
     property bool isCritical: false
     property bool isInfeasible: false
+    property bool highlightCriticalTasks: true
     property bool selected: false
 
     readonly property real milestoneSize: Geometry.milestoneSize()
@@ -38,9 +39,10 @@ Item {
     readonly property real progressWidth: root.isMilestone
         ? 0
         : Math.max(0, Math.min(root.taskWidth, root.taskWidth * root.progressPercent / 100))
+    readonly property int selectionOutlineWidth: root.selected ? 2 : 0
     readonly property color semanticColor: root.isInfeasible
         ? Theme.AppTheme.danger
-        : root.isCritical
+        : root.isCritical && root.highlightCriticalTasks
             ? Theme.AppTheme.warning
             : Theme.AppTheme.accent
 
@@ -53,6 +55,7 @@ Item {
 
     Rectangle {
         id: taskShape
+        objectName: "currentGanttShape"
         anchors.centerIn: parent
         width: root.isMilestone ? 12 : parent.width
         height: root.isMilestone ? 12 : 14
@@ -61,7 +64,7 @@ Item {
         color: root.semanticColor
         opacity: root.isSummary ? 0.72 : 1.0
         border.color: root.selected ? Theme.AppTheme.textPrimary : "transparent"
-        border.width: root.selected ? 2 : 0
+        border.width: root.selectionOutlineWidth
 
         Rectangle {
             visible: !root.isMilestone

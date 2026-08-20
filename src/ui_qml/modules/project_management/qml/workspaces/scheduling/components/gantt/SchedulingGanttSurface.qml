@@ -18,6 +18,9 @@ Item {
     property bool dependencyLinesEnabled: workspaceController
         ? workspaceController.showDependencyLines
         : true
+    property bool highlightCriticalTasks: workspaceController
+        ? workspaceController.highlightCriticalTasks
+        : true
     property real requestedGridWidth: 760
     property real _splitDragStartWidth: 760
     property real _centerAnchorDay: -1
@@ -281,6 +284,7 @@ Item {
         showGrid: root.showGrid
         showTimeline: root.showTimeline
         selectedActivityId: root.selectedActivityId
+        highlightCriticalTasks: root.highlightCriticalTasks
         onSelectionRequested: function(taskId) { root.activitySelected(taskId) }
         onActivationRequested: function(taskId) { root.activityActivated(taskId) }
         onExpansionRequested: function(taskId, expanded) {

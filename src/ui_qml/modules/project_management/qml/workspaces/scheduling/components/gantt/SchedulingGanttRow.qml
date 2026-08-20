@@ -23,6 +23,7 @@ Item {
     required property bool isInfeasible
     required property real percentComplete
     required property string status
+    required property var baselineData
 
     property var columns: []
     property var columnWidths: ({})
@@ -38,6 +39,7 @@ Item {
     property bool showTimeline: true
     property bool hierarchyMode: true
     property bool selected: false
+    property bool highlightCriticalTasks: true
 
     signal selectionRequested(string taskId)
     signal activationRequested(string taskId)
@@ -193,7 +195,26 @@ Item {
             isMilestone: root.isMilestone
             isCritical: root.isCritical
             isInfeasible: root.isInfeasible
+            highlightCriticalTasks: root.highlightCriticalTasks
             selected: root.selected
+        }
+
+        SchedulingGanttBaseline {
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 3
+            startDay: root.baselineData.startDayOrdinal === null
+                || root.baselineData.startDayOrdinal === undefined
+                ? -1
+                : Number(root.baselineData.startDayOrdinal)
+            finishDay: root.baselineData.finishDayOrdinal === null
+                || root.baselineData.finishDayOrdinal === undefined
+                ? -1
+                : Number(root.baselineData.finishDayOrdinal)
+            axisStartDay: root.axisStartDay
+            pixelsPerDay: root.pixelsPerDay
+            timelineContentX: root.timelineContentX
+            isMilestone: root.baselineData.isMilestone === true
+            taskLabel: root.name
         }
 
         MouseArea {

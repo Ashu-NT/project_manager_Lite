@@ -11,6 +11,7 @@ from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.modules.project_management.api.desktop.scheduling.models import (
+    GanttBaselineOverlayDto,
     GanttProjectionDto,
 )
 
@@ -46,6 +47,11 @@ class GanttTimeAxisController(QObject):
         self._zoom_index = _NEUTRAL_ZOOM_INDEX
         self._base_start_day = -1
         self._base_finish_day = -1
+        self._projection_project_id = ""
+        self._projection_start_day = -1
+        self._projection_finish_day = -1
+        self._baseline_start_day = -1
+        self._baseline_finish_day = -1
         self._range_start_day = -1
         self._range_finish_day = -1
         self._viewport_content_x = 0.0
@@ -176,8 +182,11 @@ class GanttTimeAxisController(QObject):
     def set_projection(self, projection: GanttProjectionDto | None) -> None:
         base_start = projection.range_start_day_ordinal if projection else None
         base_finish = projection.range_finish_day_ordinal if projection else None
-        self._base_start_day = int(base_start) if base_start is not None else -1
-        self._base_finish_day = int(base_finish) if base_finish is not None else -1
+        self._projection_project_id = projection.project_id if projection else ""
+        self._projection_start_day = int(base_start) if base_start is not None else -1
+        self._projection_finish_day = int(base_finish) if base_finish is not None else -1
+        self._baseline_start_day = -1
+        self._baseline_finish_day = -1
         self._calendar_shading_authoritative = bool(
             projection and projection.calendar_shading_authoritative
         )
@@ -185,7 +194,18 @@ class GanttTimeAxisController(QObject):
             (interval.start_day_ordinal, interval.finish_day_ordinal)
             for interval in (projection.non_working_intervals if projection else ())
         )
-        self._rebuild_range()
+        self._refresh_effective_base_range()
+        self.configurationChanged.emit()
+        self._rebuild_viewport(force=True)
+
+    def set_baseline_overlay(self, overlay: GanttBaselineOverlayDto | None) -> None:
+        if overlay is not None and overlay.project_id != self._projection_project_id:
+            raise ValueError("The Gantt baseline overlay belongs to another project.")
+        start = overlay.range_start_day_ordinal if overlay else None
+        finish = overlay.range_finish_day_ordinal if overlay else None
+        self._baseline_start_day = int(start) if start is not None else -1
+        self._baseline_finish_day = int(finish) if finish is not None else -1
+        self._refresh_effective_base_range()
         self.configurationChanged.emit()
         self._rebuild_viewport(force=True)
 
@@ -267,6 +287,21 @@ class GanttTimeAxisController(QObject):
             finish = _add_months(finish, 3)
         self._range_start_day = start.toordinal()
         self._range_finish_day = finish.toordinal()
+
+    def _refresh_effective_base_range(self) -> None:
+        starts = [
+            value
+            for value in (self._projection_start_day, self._baseline_start_day)
+            if value > 0
+        ]
+        finishes = [
+            value
+            for value in (self._projection_finish_day, self._baseline_finish_day)
+            if value > 0
+        ]
+        self._base_start_day = min(starts) if starts else -1
+        self._base_finish_day = max(finishes) if finishes else -1
+        self._rebuild_range()
 
     def _rebuild_viewport(self, *, force: bool = False) -> None:
         previous = (

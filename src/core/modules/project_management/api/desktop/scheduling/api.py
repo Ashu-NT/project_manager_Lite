@@ -21,6 +21,7 @@ from src.core.platform.application.tenant.tenancy.tenant_context import TenantCo
 from src.core.platform.common.exceptions import NotFoundError
 
 from src.core.modules.project_management.api.desktop.scheduling.models import (
+    GanttBaselineOverlayDto,
     GanttProjectionDto,
     SchedulingBaselineComparisonRowDto,
     SchedulingBaselineOptionDescriptor,
@@ -40,6 +41,7 @@ from src.core.modules.project_management.api.desktop.scheduling.models import (
     SchedulingWorkingDayCalculationDto,
 )
 from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_builder import (
+    build_gantt_baseline_overlay as assemble_gantt_baseline_overlay,
     build_gantt_projection as assemble_gantt_projection,
     build_hierarchy_nodes,
 )
@@ -302,26 +304,7 @@ class ProjectManagementSchedulingDesktopApi:
         normalized_id = str(project_id or "").strip()
         if not normalized_id:
             raise ValueError("Select a project before loading the Gantt projection.")
-        if self._tenant_context_service is None:
-            raise RuntimeError(
-                "Project management Gantt API requires TenantContextService."
-            )
-        scope = self._tenant_context_service.require_active_scope_ids(
-            operation_label="view project Gantt"
-        )
-        get_project = getattr(self._project_service, "get_project", None)
-        project = get_project(normalized_id) if callable(get_project) else None
-        if project is None:
-            raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
-        project_tenant_id = str(getattr(project, "tenant_id", "") or "")
-        project_organization_id = str(getattr(project, "organization_id", "") or "")
-        if (
-            project_tenant_id and project_tenant_id != scope.tenant_id
-        ) or (
-            project_organization_id
-            and project_organization_id != scope.organization_id
-        ):
-            raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
+        scope, project = self._require_gantt_project_scope(normalized_id)
 
         schedule = build_schedule_from_engine(
             normalized_id,
@@ -372,6 +355,53 @@ class ProjectManagementSchedulingDesktopApi:
             project_finish=getattr(project, "end_date", None),
             work_calendar=project_calendar,
         )
+
+    def build_gantt_baseline_overlay(
+        self,
+        project_id: str,
+        baseline_id: str,
+    ) -> GanttBaselineOverlayDto:
+        """Read one authorized baseline snapshot without rebuilding schedule state."""
+        normalized_project_id = str(project_id or "").strip()
+        normalized_baseline_id = str(baseline_id or "").strip()
+        if not normalized_project_id:
+            raise ValueError("Select a project before loading a Gantt baseline.")
+        if not normalized_baseline_id:
+            raise ValueError("Select a baseline before loading its Gantt overlay.")
+        scope, _project = self._require_gantt_project_scope(normalized_project_id)
+        snapshots = self._require_baseline_service().list_baseline_tasks(
+            normalized_baseline_id,
+            expected_project_id=normalized_project_id,
+        )
+        return assemble_gantt_baseline_overlay(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=normalized_project_id,
+            baseline_id=normalized_baseline_id,
+            baseline_tasks=snapshots,
+        )
+
+    def _require_gantt_project_scope(self, project_id: str):
+        if self._tenant_context_service is None:
+            raise RuntimeError(
+                "Project management Gantt API requires TenantContextService."
+            )
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view project Gantt"
+        )
+        get_project = getattr(self._project_service, "get_project", None)
+        project = get_project(project_id) if callable(get_project) else None
+        if project is None:
+            raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
+        project_tenant_id = str(getattr(project, "tenant_id", "") or "")
+        project_organization_id = str(getattr(project, "organization_id", "") or "")
+        if (
+            project_tenant_id and project_tenant_id != scope.tenant_id
+        ) or (
+            project_organization_id and project_organization_id != scope.organization_id
+        ):
+            raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
+        return scope, project
 
     # ── Baselines ─────────────────────────────────────────────────────────────
 

@@ -8,6 +8,7 @@ from datetime import date, timedelta
 from typing import Iterable
 
 from src.core.modules.project_management.api.desktop.scheduling.models.gantt import (
+    GanttBaselineOverlayDto,
     GanttBaselineTaskSnapshotDto,
     GanttDependencyEdgeDto,
     GanttNonWorkingIntervalDto,
@@ -115,6 +116,42 @@ class _Rollup:
         )
         self.late_by_days = _max_optional_int(self.late_by_days, other.late_by_days)
         self.canonical_count += other.canonical_count
+
+
+def build_gantt_baseline_overlay(
+    *,
+    tenant_id: str,
+    organization_id: str,
+    project_id: str,
+    baseline_id: str,
+    baseline_tasks: Iterable[object],
+) -> GanttBaselineOverlayDto:
+    """Build one disposable, project-scoped baseline display projection."""
+    snapshots = _build_baseline_snapshots(
+        tenant_id=tenant_id,
+        organization_id=organization_id,
+        project_id=project_id,
+        baseline_id=baseline_id,
+        baseline_tasks=baseline_tasks,
+    )
+    baseline_days = [
+        day
+        for snapshot in snapshots
+        for day in (
+            snapshot.baseline_start_day_ordinal,
+            snapshot.baseline_finish_day_ordinal,
+        )
+        if day is not None
+    ]
+    return GanttBaselineOverlayDto(
+        tenant_id=tenant_id,
+        organization_id=organization_id,
+        project_id=project_id,
+        baseline_id=baseline_id,
+        range_start_day_ordinal=min(baseline_days) if baseline_days else None,
+        range_finish_day_ordinal=max(baseline_days) if baseline_days else None,
+        snapshots=snapshots,
+    )
 
 
 def build_gantt_projection(
@@ -235,35 +272,12 @@ def build_gantt_projection(
         )
     )
 
-    sorted_baseline_tasks = tuple(
-        sorted(
-            baseline_tasks,
-            key=lambda value: (str(value.task_id), str(value.id)),
-        )
-    )
-    if selected_baseline_id and any(
-        str(item.baseline_id) != selected_baseline_id
-        for item in sorted_baseline_tasks
-    ):
-        raise BusinessRuleError(
-            "The Gantt baseline snapshot set contains another baseline.",
-            code="GANTT_BASELINE_SCOPE_VIOLATION",
-        )
-    baseline_rows = tuple(
-        GanttBaselineTaskSnapshotDto(
-            tenant_id=tenant_id,
-            organization_id=organization_id,
-            project_id=project_id,
-            baseline_id=str(item.baseline_id),
-            task_id=str(item.task_id),
-            baseline_start=item.baseline_start,
-            baseline_finish=item.baseline_finish,
-            baseline_duration_days=int(item.baseline_duration_days or 0),
-            baseline_is_milestone=bool(item.baseline_is_milestone),
-            baseline_start_day_ordinal=day_ordinal(item.baseline_start),
-            baseline_finish_day_ordinal=day_ordinal(item.baseline_finish),
-        )
-        for item in sorted_baseline_tasks
+    baseline_rows = _build_baseline_snapshots(
+        tenant_id=tenant_id,
+        organization_id=organization_id,
+        project_id=project_id,
+        baseline_id=selected_baseline_id or "",
+        baseline_tasks=baseline_tasks,
     )
     range_dates = [
         value
@@ -301,6 +315,49 @@ def build_gantt_projection(
         rows=rows,
         dependency_edges=tuple(edges),
         baseline_snapshots=baseline_rows,
+    )
+
+
+def _build_baseline_snapshots(
+    *,
+    tenant_id: str,
+    organization_id: str,
+    project_id: str,
+    baseline_id: str,
+    baseline_tasks: Iterable[object],
+) -> tuple[GanttBaselineTaskSnapshotDto, ...]:
+    sorted_tasks = tuple(
+        sorted(
+            baseline_tasks,
+            key=lambda value: (str(value.task_id), str(value.id)),
+        )
+    )
+    if baseline_id and any(str(item.baseline_id) != baseline_id for item in sorted_tasks):
+        raise BusinessRuleError(
+            "The Gantt baseline snapshot set contains another baseline.",
+            code="GANTT_BASELINE_SCOPE_VIOLATION",
+        )
+    task_ids = [str(item.task_id) for item in sorted_tasks]
+    if len(task_ids) != len(set(task_ids)):
+        raise BusinessRuleError(
+            "The Gantt baseline snapshot set contains duplicate task IDs.",
+            code="GANTT_DUPLICATE_BASELINE_TASK_ID",
+        )
+    return tuple(
+        GanttBaselineTaskSnapshotDto(
+            tenant_id=tenant_id,
+            organization_id=organization_id,
+            project_id=project_id,
+            baseline_id=str(item.baseline_id),
+            task_id=str(item.task_id),
+            baseline_start=item.baseline_start,
+            baseline_finish=item.baseline_finish,
+            baseline_duration_days=int(item.baseline_duration_days or 0),
+            baseline_is_milestone=bool(item.baseline_is_milestone),
+            baseline_start_day_ordinal=day_ordinal(item.baseline_start),
+            baseline_finish_day_ordinal=day_ordinal(item.baseline_finish),
+        )
+        for item in sorted_tasks
     )
 
 

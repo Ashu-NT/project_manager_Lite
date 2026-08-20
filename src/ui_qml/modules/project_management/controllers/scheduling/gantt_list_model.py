@@ -17,6 +17,8 @@ from PySide6.QtCore import (
 )
 
 from src.core.modules.project_management.api.desktop.scheduling.models import (
+    GanttBaselineOverlayDto,
+    GanttBaselineTaskSnapshotDto,
     GanttDependencyEdgeDto,
     GanttProjectionDto,
     GanttTaskRowDto,
@@ -41,10 +43,12 @@ class GanttListModel(QAbstractListModel):
     IsInfeasibleRole = Qt.UserRole + 15
     ProgressRole = Qt.UserRole + 16
     StatusRole = Qt.UserRole + 17
+    BaselineDataRole = Qt.UserRole + 18
 
     rowCountChanged = Signal()
     projectionChanged = Signal()
     hierarchyModeChanged = Signal()
+    baselineOverlayChanged = Signal()
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -55,7 +59,9 @@ class GanttListModel(QAbstractListModel):
         self._effective_index_by_task_id: dict[str, int] = {}
         self._edge_by_id: dict[str, GanttDependencyEdgeDto] = {}
         self._edge_ids_by_task_id: dict[str, tuple[str, ...]] = {}
-        self._baseline_by_task_id: dict[str, object] = {}
+        self._baseline_id = ""
+        self._baseline_by_task_id: dict[str, GanttBaselineTaskSnapshotDto] = {}
+        self._baseline_orphan_count = 0
         self._timeline_start_day = -1
         self._timeline_finish_day = -1
         self._expanded_summary_ids: set[str] = set()
@@ -86,6 +92,7 @@ class GanttListModel(QAbstractListModel):
             self.IsInfeasibleRole: QByteArray(b"isInfeasible"),
             self.ProgressRole: QByteArray(b"percentComplete"),
             self.StatusRole: QByteArray(b"status"),
+            self.BaselineDataRole: QByteArray(b"baselineData"),
         }
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:  # type: ignore[override]
@@ -129,6 +136,9 @@ class GanttListModel(QAbstractListModel):
             return row.percent_complete
         if role == self.StatusRole:
             return row.status
+        if role == self.BaselineDataRole:
+            snapshot = None if row.is_summary else self._baseline_by_task_id.get(row.task_id)
+            return self.serialize_baseline(snapshot)
         return None
 
     @Property(int, notify=rowCountChanged)
@@ -163,6 +173,22 @@ class GanttListModel(QAbstractListModel):
             if not row.is_summary and (row.is_critical or row.is_infeasible)
         ]
 
+    @Property(str, notify=baselineOverlayChanged)
+    def selectedBaselineId(self) -> str:
+        return self._baseline_id
+
+    @Property(int, notify=baselineOverlayChanged)
+    def baselineTaskCount(self) -> int:
+        return len(self._baseline_by_task_id)
+
+    @Property(int, notify=baselineOverlayChanged)
+    def baselineMatchedTaskCount(self) -> int:
+        return len(self._baseline_by_task_id) - self._baseline_orphan_count
+
+    @Property(int, notify=baselineOverlayChanged)
+    def baselineOrphanTaskCount(self) -> int:
+        return self._baseline_orphan_count
+
     @property
     def projection(self) -> GanttProjectionDto | None:
         return self._projection
@@ -196,6 +222,8 @@ class GanttListModel(QAbstractListModel):
             snapshot.task_id: snapshot
             for snapshot in (projection.baseline_snapshots if projection else ())
         }
+        self._baseline_id = str(projection.selected_baseline_id or "") if projection else ""
+        self._recount_baseline_matches()
         range_start = projection.range_start_day_ordinal if projection else None
         range_finish = projection.range_finish_day_ordinal if projection else None
         self._timeline_start_day = int(range_start) if range_start is not None else -1
@@ -210,6 +238,30 @@ class GanttListModel(QAbstractListModel):
         self.endResetModel()
         self.rowCountChanged.emit()
         self.projectionChanged.emit()
+        self.baselineOverlayChanged.emit()
+
+    def set_baseline_overlay(self, overlay: GanttBaselineOverlayDto | None) -> None:
+        if overlay is not None:
+            projection = self._projection
+            if projection is None or (
+                overlay.tenant_id != projection.tenant_id
+                or overlay.organization_id != projection.organization_id
+                or overlay.project_id != projection.project_id
+            ):
+                raise ValueError("The Gantt baseline overlay belongs to another scope.")
+        self._baseline_id = overlay.baseline_id if overlay else ""
+        self._baseline_by_task_id = {
+            snapshot.task_id: snapshot
+            for snapshot in (overlay.snapshots if overlay else ())
+        }
+        self._recount_baseline_matches()
+        if self._effective_rows:
+            self.dataChanged.emit(
+                self.index(0, 0),
+                self.index(len(self._effective_rows) - 1, 0),
+                [self.BaselineDataRole],
+            )
+        self.baselineOverlayChanged.emit()
 
     def apply_view(
         self,
@@ -359,8 +411,14 @@ class GanttListModel(QAbstractListModel):
             )
         )
 
-    def baseline_for_task(self, task_id: str) -> object | None:
+    def baseline_for_task(self, task_id: str) -> GanttBaselineTaskSnapshotDto | None:
         return self._baseline_by_task_id.get(str(task_id or "").strip())
+
+    def _recount_baseline_matches(self) -> None:
+        current_ids = set(self._row_by_task_id)
+        self._baseline_orphan_count = sum(
+            task_id not in current_ids for task_id in self._baseline_by_task_id
+        )
 
     def _serialize_dependency_edge(
         self,
@@ -515,6 +573,23 @@ class GanttListModel(QAbstractListModel):
             "deadline": _iso(row.deadline),
             "lateByDays": row.late_by_days,
             "priority": row.priority,
+        }
+
+    @staticmethod
+    def serialize_baseline(
+        snapshot: GanttBaselineTaskSnapshotDto | None,
+    ) -> dict[str, object]:
+        if snapshot is None:
+            return {}
+        return {
+            "baselineId": snapshot.baseline_id,
+            "taskId": snapshot.task_id,
+            "startDate": _iso(snapshot.baseline_start),
+            "finishDate": _iso(snapshot.baseline_finish),
+            "startDayOrdinal": snapshot.baseline_start_day_ordinal,
+            "finishDayOrdinal": snapshot.baseline_finish_day_ordinal,
+            "durationDays": snapshot.baseline_duration_days,
+            "isMilestone": snapshot.baseline_is_milestone,
         }
 
 

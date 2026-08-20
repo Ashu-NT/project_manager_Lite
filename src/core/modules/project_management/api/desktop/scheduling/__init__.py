@@ -20,6 +20,7 @@ from src.core.modules.project_management.api.desktop.scheduling.factories.schedu
 from src.core.modules.project_management.api.desktop.scheduling.models import (
     ActualVarianceDto,
     DownstreamExposureDto,
+    GanttBaselineOverlayDto,
     GanttBaselineTaskSnapshotDto,
     GanttDependencyEdgeDto,
     GanttProjectionDto,
@@ -56,6 +57,7 @@ __all__ = [
     "ProjectManagementSchedulingDesktopApi",
     "ActualVarianceDto",
     "DownstreamExposureDto",
+    "GanttBaselineOverlayDto",
     "GanttBaselineTaskSnapshotDto",
     "GanttDependencyEdgeDto",
     "GanttProjectionDto",

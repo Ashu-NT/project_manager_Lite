@@ -107,10 +107,7 @@ def build_workspace_state(
         requested_baseline_id if requested_baseline_id in baseline_ids else ""
     )
     gantt_projection = (
-        desktop_api.build_gantt_projection(
-            resolved_project_id,
-            selected_baseline_id=resolved_baseline_id or None,
-        )
+        desktop_api.build_gantt_projection(resolved_project_id)
         if resolved_project_id
         else None
     )

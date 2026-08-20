@@ -11,6 +11,10 @@ from src.ui_qml.modules.project_management.controllers.common import (
 
 from .panel_hydrator import hydrate_visible_panel_models, serialize_workspace_panels
 from .gantt_selection import set_gantt_selection
+from .gantt_baseline_actions import (
+    clear_gantt_baseline,
+    reload_gantt_baseline_after_workspace,
+)
 from .gantt_view_state import refresh_local_gantt_view
 from .state import default_schedule_impact
 from .scheduling_property_updates import (
@@ -46,6 +50,7 @@ def load_workspace_state(controller) -> None:
         controller._show_critical_only, controller._show_delayed_only,
     )
     controller._set_is_loading(True)
+    clear_gantt_baseline(controller, clear_selection=False)
     success = False
     # Any full workspace reload can shift schedule dates (recalculation,
     # leveling apply, baseline/calendar/project change) -- a previously
@@ -98,6 +103,7 @@ def load_workspace_state(controller) -> None:
         set_activity_sort_direction(controller, 1 if ws.sort_direction == "desc" else 0)
         controller._gantt_model.set_projection(ws.gantt_projection)
         controller._gantt_time_axis.set_projection(ws.gantt_projection)
+        reload_gantt_baseline_after_workspace(controller)
         panels = serialize_workspace_panels(ws)
         hydrate_visible_panel_models(controller, panels)
         refresh_local_gantt_view(controller)

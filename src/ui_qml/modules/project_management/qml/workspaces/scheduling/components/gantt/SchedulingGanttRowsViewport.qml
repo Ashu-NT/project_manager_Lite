@@ -21,6 +21,7 @@ Item {
     property bool showGrid: true
     property bool showTimeline: true
     property string selectedActivityId: ""
+    property bool highlightCriticalTasks: true
     readonly property int rowHeight: Theme.AppTheme.compactRowHeight
     readonly property int activeDelegateCount: _delegateCount
     readonly property real verticalContentY: rowsList.contentY
@@ -124,6 +125,7 @@ Item {
             hierarchyMode: root.ganttModel ? root.ganttModel.hierarchyMode : true
             selected: root.selectedActivityId.length > 0
                 && root.selectedActivityId === ganttRow.taskId
+            highlightCriticalTasks: root.highlightCriticalTasks
 
             onSelectionRequested: function(taskId) {
                 rowsList.forceActiveFocus()

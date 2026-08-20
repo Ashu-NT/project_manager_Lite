@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .gantt_selection import set_gantt_selection
+from .gantt_baseline_actions import clear_gantt_baseline
 from .gantt_view_state import refresh_local_gantt_view, set_gantt_expanded
 from .scheduling_property_updates import (
     set_activity_sort_direction,
@@ -29,6 +30,7 @@ def select_project(controller, project_id: str) -> None:
     normalized = (project_id or "").strip()
     if normalized == controller._selected_project_id:
         return
+    clear_gantt_baseline(controller, clear_selection=True)
     set_selected_project_id(controller, normalized)
     set_selected_baseline_id(controller, "")
     set_gantt_selection(controller, "")

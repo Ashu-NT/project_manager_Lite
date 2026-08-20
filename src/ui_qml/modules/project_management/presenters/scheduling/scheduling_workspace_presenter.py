@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
+    GanttBaselineOverlayDto,
     ProjectManagementSchedulingDesktopApi,
     build_project_management_scheduling_desktop_api,
 )
@@ -71,6 +72,13 @@ class ProjectSchedulingWorkspacePresenter:
             include_unchanged=include_unchanged,
             activity_log=activity_log,
         )
+
+    def build_gantt_baseline_overlay(
+        self,
+        project_id: str,
+        baseline_id: str,
+    ) -> GanttBaselineOverlayDto:
+        return self._desktop_api.build_gantt_baseline_overlay(project_id, baseline_id)
 
     def create_baseline(self, payload: dict[str, Any]) -> None:
         create_baseline(self._desktop_api, payload)

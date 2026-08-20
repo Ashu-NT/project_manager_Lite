@@ -23,6 +23,9 @@ Item {
     readonly property var ganttTimeAxis: root.workspaceController
         ? root.workspaceController.ganttTimeAxis
         : null
+    readonly property var ganttBaselineOptions: [{ "value": "", "label": "None" }].concat(
+        root.workspaceController ? (root.workspaceController.baselineOptions || []) : []
+    )
     readonly property string effectiveGanttViewMode: ganttSurface.effectiveViewMode
     readonly property int activeGanttDelegateCount: ganttSurface.activeDelegateCount
     readonly property var inspectorSections: (root.selectedActivityModel.fields || []).map(function(field) {
@@ -235,6 +238,20 @@ Item {
                 }
 
                 AppControls.CheckBox {
+                    text: "Highlight Critical Tasks"
+                    checked: root.workspaceController
+                        ? root.workspaceController.highlightCriticalTasks
+                        : true
+                    enabled: !(root.workspaceController
+                        ? root.workspaceController.isBusy
+                        : false)
+                    onToggled: {
+                        if (root.workspaceController !== null)
+                            root.workspaceController.setHighlightCriticalTasks(checked)
+                    }
+                }
+
+                AppControls.CheckBox {
                     text: "Dependency Lines"
                     checked: root.workspaceController
                         ? root.workspaceController.showDependencyLines
@@ -245,6 +262,46 @@ Item {
                     onToggled: {
                         if (root.workspaceController !== null)
                             root.workspaceController.setShowDependencyLines(checked)
+                    }
+                }
+
+                Row {
+                    height: Theme.AppTheme.inputHeight
+                    spacing: Theme.AppTheme.spacingXs
+
+                    AppControls.Label {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Baseline"
+                        color: Theme.AppTheme.textMuted
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                    }
+
+                    AppControls.ComboBox {
+                        id: ganttBaselineCombo
+                        objectName: "ganttBaselineSelector"
+                        width: 210
+                        model: root.ganttBaselineOptions
+                        textRole: "label"
+                        valueRole: "value"
+                        enabled: root.workspaceController
+                            ? root.workspaceController.selectedProjectId.length > 0
+                                && !root.workspaceController.isBusy
+                                && !root.workspaceController.ganttBaselineLoading
+                            : false
+                        currentIndex: root._optionIndex(
+                            model,
+                            root.workspaceController
+                                ? root.workspaceController.ganttSelectedBaselineId
+                                : ""
+                        )
+                        onActivated: function(index) {
+                            const option = model[index]
+                            if (option && root.workspaceController !== null)
+                                root.workspaceController.selectGanttBaseline(
+                                    String(option.value || "")
+                                )
+                        }
                     }
                 }
 
@@ -395,6 +452,34 @@ Item {
                 color: ganttSurface.dependencyDensitySuppressed
                     ? Theme.AppTheme.warning
                     : Theme.AppTheme.textSecondary
+                font.family: Theme.AppTheme.fontFamily
+                font.pixelSize: Theme.AppTheme.typeSupportingTextSize
+            }
+
+            AppWidgets.InlineMessage {
+                Layout.fillWidth: true
+                message: root.workspaceController
+                    ? root.workspaceController.ganttBaselineError
+                    : ""
+                tone: "danger"
+                actionLabel: "Retry"
+                onActionClicked: {
+                    if (root.workspaceController !== null)
+                        root.workspaceController.retryGanttBaseline()
+                }
+            }
+
+            AppControls.Label {
+                Layout.fillWidth: true
+                visible: root.workspaceController
+                    ? root.workspaceController.ganttBaselineLoading
+                        || root.workspaceController.ganttRowsModel.baselineOrphanTaskCount > 0
+                    : false
+                text: root.workspaceController && root.workspaceController.ganttBaselineLoading
+                    ? "Loading baseline comparison..."
+                    : String(root.workspaceController.ganttRowsModel.baselineOrphanTaskCount)
+                        + " baseline task(s) are no longer in the current schedule."
+                color: Theme.AppTheme.textSecondary
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.typeSupportingTextSize
             }

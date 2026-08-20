@@ -16,6 +16,10 @@ from .activity_log_service import ActivityLogService
 from .domain_event_binder import bind_scheduling_domain_events
 from .filter_service import filter_rows
 from .gantt_list_model import GanttListModel
+from .gantt_baseline_actions import (
+    retry_gantt_baseline,
+    select_gantt_baseline,
+)
 from .gantt_time_axis_controller import GanttTimeAxisController
 from .leveling_actions import apply_resource_leveling, preview_resource_leveling
 from .mutation_handler import SchedulingMutationHandler
@@ -126,6 +130,10 @@ class ProjectManagementSchedulingWorkspaceController(
     showCriticalOnlyChanged = Signal()
     showDelayedOnlyChanged = Signal()
     showDependencyLinesChanged = Signal()
+    highlightCriticalTasksChanged = Signal()
+    ganttSelectedBaselineIdChanged = Signal()
+    ganttBaselineLoadingChanged = Signal()
+    ganttBaselineErrorChanged = Signal()
     activitySortKeyChanged = Signal()
     activitySortDirectionChanged = Signal()
     calendarChanged = Signal()
@@ -208,6 +216,10 @@ class ProjectManagementSchedulingWorkspaceController(
         self._show_critical_only = False
         self._show_delayed_only = False
         self._show_dependency_lines = True
+        self._highlight_critical_tasks = True
+        self._gantt_selected_baseline_id = ""
+        self._gantt_baseline_loading = False
+        self._gantt_baseline_error = ""
         self._activity_sort_key = "schedule"
         self._activity_sort_direction = 0
         self._selected_activity_id = ""
@@ -308,6 +320,22 @@ class ProjectManagementSchedulingWorkspaceController(
     @Property(bool, notify=showDependencyLinesChanged)
     def showDependencyLines(self) -> bool:
         return self._show_dependency_lines
+
+    @Property(bool, notify=highlightCriticalTasksChanged)
+    def highlightCriticalTasks(self) -> bool:
+        return self._highlight_critical_tasks
+
+    @Property(str, notify=ganttSelectedBaselineIdChanged)
+    def ganttSelectedBaselineId(self) -> str:
+        return self._gantt_selected_baseline_id
+
+    @Property(bool, notify=ganttBaselineLoadingChanged)
+    def ganttBaselineLoading(self) -> bool:
+        return self._gantt_baseline_loading
+
+    @Property(str, notify=ganttBaselineErrorChanged)
+    def ganttBaselineError(self) -> str:
+        return self._gantt_baseline_error
 
     @Property(str, notify=activitySortKeyChanged)
     def activitySortKey(self) -> str:
@@ -598,6 +626,22 @@ class ProjectManagementSchedulingWorkspaceController(
             return
         self._show_dependency_lines = normalized
         self.showDependencyLinesChanged.emit()
+
+    @Slot(bool)
+    def setHighlightCriticalTasks(self, enabled: bool) -> None:
+        normalized = bool(enabled)
+        if normalized == self._highlight_critical_tasks:
+            return
+        self._highlight_critical_tasks = normalized
+        self.highlightCriticalTasksChanged.emit()
+
+    @Slot(str)
+    def selectGanttBaseline(self, baseline_id: str) -> None:
+        select_gantt_baseline(self, baseline_id)
+
+    @Slot()
+    def retryGanttBaseline(self) -> None:
+        retry_gantt_baseline(self)
 
     @Slot()
     def clearFilters(self) -> None:
