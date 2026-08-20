@@ -1,7 +1,10 @@
 """ProjectManagementSchedulingDesktopApi — thin scheduling desktop facade."""
 
 from __future__ import annotations
+import logging
 from datetime import date
+
+logger = logging.getLogger(__name__)
 
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 from src.core.modules.project_management.application.tasks import TaskService
@@ -64,6 +67,10 @@ from src.core.modules.project_management.api.desktop.scheduling.builders.levelin
 )
 from src.core.modules.project_management.api.desktop.scheduling.builders.constraint_builder import build_constraint_violations
 from src.core.modules.project_management.api.desktop.scheduling.builders.change_impact_builder import build_change_impact
+from src.core.modules.project_management.api.desktop.scheduling.models.change_impact import ScheduleImpactReportDto
+from src.core.modules.project_management.api.desktop.scheduling.serializers.change_impact_serializer import (
+    serialize_schedule_impact_report,
+)
 from src.core.modules.project_management.api.desktop.scheduling.serializers.dependency_serializer import serialize_dependency
 from src.core.modules.project_management.api.desktop.scheduling.services.calendar_adapter_service import (
     unwrap_platform_calendar_result,
@@ -384,6 +391,59 @@ class ProjectManagementSchedulingDesktopApi:
             project_id, task_id,
             proposed_start, proposed_finish, proposed_duration_days,
             change_impact_service=self._change_impact_service,
+        )
+
+    def preview_task_schedule_impact(
+        self,
+        task_id: str,
+        project_id: str,
+        *,
+        delay_working_days: int = 1,
+    ) -> ScheduleImpactReportDto:
+        """Same working-day-delay simulation Task Detail's Schedule Impact
+        uses (`ProjectManagementTasksDesktopApi.preview_task_schedule_impact`),
+        exposed here so the Gantt Inspector's "Analyze Impact" trigger can
+        call the richer, already-existing serialization (critical-path
+        change, conflict count, blocked-by-deadline) instead of
+        analyse_change_impact's narrower DTO -- same core
+        ScheduleChangeImpactService, no new schedule-impact math."""
+        normalized_task_id = str(task_id or "").strip()
+        normalized_project_id = str(project_id or "").strip()
+        unavailable = serialize_schedule_impact_report(
+            task_id=normalized_task_id,
+            project_id=normalized_project_id,
+            simulated_delay_days=delay_working_days,
+        )
+        if (
+            not normalized_task_id
+            or not normalized_project_id
+            or self._task_service is None
+            or self._change_impact_service is None
+        ):
+            return unavailable
+        try:
+            task = self._task_service.get_task(normalized_task_id)
+            if task is None or task.start_date is None:
+                return unavailable
+            report = self._change_impact_service.analyse_working_day_delay(
+                project_id=normalized_project_id,
+                changed_task_id=normalized_task_id,
+                current_start=task.start_date,
+                delay_working_days=delay_working_days,
+            )
+        except Exception:
+            logger.exception(
+                "preview_task_schedule_impact failed (task_id=%s, project_id=%s, delay_working_days=%s)",
+                normalized_task_id,
+                normalized_project_id,
+                delay_working_days,
+            )
+            return unavailable
+        return serialize_schedule_impact_report(
+            task_id=normalized_task_id,
+            project_id=normalized_project_id,
+            simulated_delay_days=delay_working_days,
+            report=report,
         )
 
     # ── Internal guards ───────────────────────────────────────────────────────

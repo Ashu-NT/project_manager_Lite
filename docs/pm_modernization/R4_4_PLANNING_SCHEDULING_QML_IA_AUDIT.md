@@ -1034,13 +1034,11 @@ to reflect eight product decisions made after reviewing the audit:
    Path, Dependency Lines, Baseline overlay, Zoom, Timescale) are view
    controls/overlays *within* the Gantt page, not a fourth navigation level.
 
-**Flagged gap the amendment does not address:** the original audit's 8th
-tab, **Activity Feed**, is not mentioned in either the new primary or
-secondary list. Per its own low-frequency, narrative-log character (§15 of
-the original evidence), it is provisionally placed in the **secondary**
-tier below, pending explicit product confirmation — this is this author's
-judgment call filling a gap, not a decision the amendment made, and is
-called out again in the revised §45/uncertain-decisions list.
+**Activity Feed placement — closed by the FINAL PRODUCT DECISIONS section
+below (decision 1):** confirmed as a secondary destination, alongside
+Baselines and Calendars. It is project-level historical/narrative context,
+not a Diagnostics concern, and is not restored inside selected-activity
+detail.
 
 ---
 
@@ -1130,8 +1128,9 @@ Overview tab's own content, below the persistent header
 
 Then navigate to:
   Gantt · Resource Leveling · Diagnostics       (primary tier)
-  Baselines · Calendars (· Activity Feed, provisionally — see amendment
-  note above)                                    (secondary tier)
+  Baselines · Calendars · Activity Feed          (secondary tier, confirmed
+                                                   — FINAL PRODUCT DECISIONS
+                                                   decision 1)
 ```
 
 Note the change from the original §29: the Baseline/Calendar *selectors*
@@ -1379,7 +1378,7 @@ cross-project use case that would justify reclassifying it as R5 territory.
 | `SchedulingDetailPanel.qml` / `SectionDetailPage` full-page container | Own file/pattern | — | **REMOVE** (superseded by the new `InspectorPanel` instance) | §32's migration determination: replacing, not trimming, is the smaller maintainable path |
 | Baselines tab | Primary-tier tab | Secondary-tier tab | **MOVE** (visual tier, not physical relocation) | Periodic-governance cadence vs. daily tabs (§16, §20) — unchanged |
 | Calendars tab | Primary-tier tab | Secondary-tier tab | **MOVE** (visual tier) | Same rationale; also read-only/administrative in nature (§16) — unchanged |
-| **Activity Feed tab** | Primary-tier tab (implicit, original 8-tab list) | Secondary tier | **MOVE** (provisional — flagged gap) | Not addressed by the amendment's decisions; placed here as this author's judgment call pending product confirmation (see amendment note above) |
+| **Activity Feed tab** | Primary-tier tab (implicit, original 8-tab list) | Secondary tier | **MOVE** (confirmed) | FINAL PRODUCT DECISIONS decision 1: confirmed secondary destination — project-level historical/narrative context, not a Diagnostics concern |
 | "Archive" baseline action | Baselines tab | Baselines tab | **RENAME** (label or underlying call, TBD at implementation) | Calls `deleteBaseline` — label/intent mismatch (§7) — unchanged |
 | Resource Leveling tab | Own top-level tab | Unchanged as a tab, **expanded content** (absorbs Resources) | **KEEP + MERGE-TARGET** | Clean, isolated, performance-hardened; now also the model example and the Resources merge destination (§14, §25, decision 4) |
 | Resource Leveling `InspectorPanel` | Inside its own tab | Unchanged | **KEEP** | Well-scoped, no crowding contribution (§9); same shared component reused for the new Gantt inspector (§32) |
@@ -1452,8 +1451,9 @@ SchedulingWorkspacePage.qml                       [unchanged root, same route]
 │   └── panels/SchedulingDiagnosticsPanel.qml       [redundant rows removed;
 │                                                     naming collision fixed —
 │                                                     unchanged file identity]
-├── (secondary tier — exact QML mechanism is still an open implementation
-│    decision, §33/§44; shown here as a concept, not a new file)
+├── (secondary tier — surfaced via a new shared "More ▾" affordance,
+│    App/Widgets/NavOverflowMenu.qml, per FINAL PRODUCT DECISIONS decision 2;
+│    not a second persistent tab row)
 │   ├── panels/SchedulingBaselinesPanel.qml         [unchanged content; gains
 │   │                                                 the Baseline selector
 │   │                                                 moved from the old
@@ -1463,10 +1463,10 @@ SchedulingWorkspacePage.qml                       [unchanged root, same route]
 │   │                                                 moved from the old
 │   │                                                 global action bar]
 │   └── panels/SchedulingActivityFeedPanel.qml      [unchanged content;
-│                                                     placement here is
-│                                                     provisional — flagged
-│                                                     gap, not an amendment
-│                                                     decision]
+│                                                     placement confirmed
+│                                                     secondary tier, FINAL
+│                                                     PRODUCT DECISIONS
+│                                                     decision 1]
 └── dialogs/SchedulingDialogHost.qml                [unchanged]
 
 ── Removed entirely (not merely hidden) ──
@@ -1631,8 +1631,8 @@ No tests were modified as part of producing this audit.
 │  Constraint &amp; Schedule Violations table (renamed, deduplicated)          │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
-`*` Activity Feed's tier placement is a flagged gap, not an amendment
-decision — see the amendment note and §45's uncertain-decisions list.
+`*` Activity Feed's tier placement is confirmed secondary (FINAL PRODUCT
+DECISIONS decision 1).
 
 ---
 
@@ -1651,30 +1651,32 @@ decision — see the amendment note and §45's uncertain-decisions list.
 │  [ needs-attention list, scrollable ]              │
 └─────────────────────────────────────────────────────┘
 
-┌ Gantt tab (narrow width) ──────────────────────────┐
-│ [Search][Filter][Customize]  view-control overlays  │
-│ Grid and Timeline fall back to a SINGLE column       │
-│ (stacked, not side-by-side) below the combined       │
-│ 840px floor — an explicit implementation requirement │
-│ this audit surfaces but does not design (open        │
-│ question, see below)                                 │
-└───────────────────────────────────────────────────────┘
+┌ Gantt tab (narrow width, below compactContentBreakpoint=1024) ─────┐
+│ [Search][Filter][Customize]  [Grid|Timeline] view-mode toggle       │
+│ (Split option hidden below the breakpoint — FINAL PRODUCT DECISIONS │
+│ decision 4). Only ONE of Grid or Timeline consumes the primary      │
+│ content width at a time; no vertical stacking of both.              │
+└──────────────────────────────────────────────────────────────────────┘
 
 ┌ Resource Leveling tab (narrow width) ──────────────┐
 │ Current Resource Load (stacked above conflicts)     │
 │ [Preview]   before/after metrics (stacked, not row) │
-│ Proposed-moves table (full width; Inspector becomes  │
-│ a bottom sheet or a second screen, not a side panel — │
-│ open question, see below)                             │
+│ Proposed-moves table (full width)                    │
 └────────────────────────────────────────────────────────┘
+
+(Gantt-tab InspectorPanel, below the breakpoint: hosted inside
+App/Widgets/SlideOverPanel.qml as a scrimmed slide-in-from-right overlay
+instead of a fixed side slot — FINAL PRODUCT DECISIONS decision 5. Above the
+breakpoint it renders exactly as Resource Leveling's InspectorPanel does
+today, a fixed-width side panel.)
 ```
 
 At 1024×640, the Gantt tab's grid/timeline split, the Resource Leveling
 tab's moves-table/inspector split, and the new Gantt-tab InspectorPanel all
-need a real responsive fallback (stacking instead of side-by-side) that does
-not exist in the current implementation (§18) — this audit surfaces the
-requirement but, consistent with the R4.4/R4.5 boundary (§37) and the "no
-implementation" instruction, does not design the fallback mechanism itself.
+need a real responsive fallback — this is now locked (not an open question)
+by FINAL PRODUCT DECISIONS decisions 4 and 5: a Grid/Timeline view-mode
+toggle for the Gantt tab, and a `SlideOverPanel`-hosted Inspector below the
+shared `compactContentBreakpoint`.
 
 ---
 
@@ -1722,8 +1724,9 @@ implementation" instruction, does not design the fallback mechanism itself.
     (§17, §37).
 12. **Which current sections should disappear from the default landing
     screen?** The KPI strip still moves to the new Overview tab; Baselines,
-    Calendars, and (provisionally) Activity Feed move to the secondary
-    tier — but the Project/Refresh/Run-CPM controls now persist across all
+    Calendars, and Activity Feed (confirmed, FINAL PRODUCT DECISIONS
+    decision 1) move to the secondary tier — but the Project/Refresh/Run-CPM
+    controls now persist across all
     four primary tabs rather than being Overview-exclusive (§28, §29,
     decision 3 — this is the one respect in which the amended answer differs
     from the original).

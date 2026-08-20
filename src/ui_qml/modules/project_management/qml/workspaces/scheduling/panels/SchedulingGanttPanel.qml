@@ -124,13 +124,16 @@ Item {
                     spacing: 2
 
                     AppControls.Label {
-                        text: "Affected tasks: " + String(root._scheduleImpact.affectedCount || 0)
+                        Layout.fillWidth: true
+                        text: String(root._scheduleImpact.summary || "")
+                        wrapMode: Text.WordWrap
                         color: Theme.AppTheme.textSecondary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.typeSupportingTextSize
                     }
                     AppControls.Label {
-                        text: "Project finish shift: " + String(root._scheduleImpact.maxProjectFinishShiftDays || 0) + " day(s)"
+                        text: "Critical path change: " + (root._scheduleImpact.criticalPathChanged ? "Yes" : "No")
+                            + " · Conflicts: " + String(root._scheduleImpact.conflictCount || 0)
                         color: Theme.AppTheme.textSecondary
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.typeSupportingTextSize
@@ -146,6 +149,15 @@ Item {
                         visible: Boolean(root._scheduleImpact.requiresApproval)
                         text: "Requires approval before applying."
                         color: Theme.AppTheme.warning
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.typeSupportingTextSize
+                    }
+                    AppControls.Label {
+                        Layout.fillWidth: true
+                        visible: Boolean(root._scheduleImpact.blockedByDeadline)
+                        text: String(root._scheduleImpact.blockedReason || "Blocked by a deadline constraint.")
+                        wrapMode: Text.WordWrap
+                        color: Theme.AppTheme.danger
                         font.family: Theme.AppTheme.fontFamily
                         font.pixelSize: Theme.AppTheme.typeSupportingTextSize
                     }
