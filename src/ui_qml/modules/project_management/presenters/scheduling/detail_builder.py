@@ -88,18 +88,15 @@ def build_constraints_collection(selected_activity: Any) -> SchedulingCollection
 def build_detail_view_model(
     *,
     selected_activity: Any,
-    calendar_label: str,
     dependency_rows: Any,
     resource_load: Any,
-    baseline_rows: Any,
 ) -> SchedulingDetailViewModel:
     if selected_activity is None:
         return SchedulingDetailViewModel(
             title="No activity selected",
-            empty_state="Select an activity from the schedule table to inspect logic, constraints, resource pressure, and baseline context.",
+            empty_state="Select an activity from the schedule table to inspect logic, constraints, and resource pressure.",
         )
     related_resource = resource_load[0] if resource_load else None
-    latest_baseline = baseline_rows[0] if baseline_rows else None
     return SchedulingDetailViewModel(
         id=selected_activity.id,
         title=selected_activity.name,
@@ -147,11 +144,6 @@ def build_detail_view_model(
                 supporting_text=constraint_label_for_activity(selected_activity),
             ),
             SchedulingDetailFieldViewModel(
-                label="Calendar",
-                value=calendar_label,
-                supporting_text="Current planning calendar.",
-            ),
-            SchedulingDetailFieldViewModel(
                 label="Dependencies",
                 value=str(len(dependency_rows)),
                 supporting_text="Active predecessor/successor links.",
@@ -163,15 +155,6 @@ def build_detail_view_model(
                     related_resource.utilization_label
                     if related_resource
                     else "No resource load data"
-                ),
-            ),
-            SchedulingDetailFieldViewModel(
-                label="Latest baseline",
-                value=latest_baseline.name if latest_baseline else "None",
-                supporting_text=(
-                    latest_baseline.created_at_label
-                    if latest_baseline
-                    else "No baseline stored"
                 ),
             ),
         ),

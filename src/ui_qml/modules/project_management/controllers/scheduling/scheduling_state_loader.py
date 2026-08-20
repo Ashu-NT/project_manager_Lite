@@ -130,7 +130,7 @@ def load_workspace_state(controller) -> None:
             len(controller._schedule.get("items", []) or []),
             controller._activity_total_count,
             len(controller._diagnostics.get("items", []) or []),
-            len(controller._delayed_activities.get("items", []) or []),
+            len(controller._delayed_activity_rows or []),
             len(controller._resource_loading.get("items", []) or []),
         )
         controller._set_is_loading(False)

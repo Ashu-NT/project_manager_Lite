@@ -35,16 +35,6 @@ def set_baselines_search_text(controller, text: str) -> None:
     controller._table_models.baseline_register.set_rows(controller.filteredBaselineRegisterRows)
 
 
-def set_delays_search_text(controller, text: str) -> None:
-    v = (text or "").strip()
-    if v == controller._delays_search_text:
-        return
-    controller._delays_search_text = v
-    controller.delaysSearchTextChanged.emit()
-    controller.filteredDelayedRowsChanged.emit()
-    controller._table_models.delayed.set_rows(controller.filteredDelayedRows)
-
-
 def set_calendars_search_text(controller, text: str) -> None:
     v = (text or "").strip()
     if v == controller._calendars_search_text:
@@ -58,7 +48,6 @@ def set_calendars_search_text(controller, text: str) -> None:
 __all__ = [
     "set_baselines_search_text",
     "set_calendars_search_text",
-    "set_delays_search_text",
     "set_diagnostics_search_text",
     "set_resources_search_text",
 ]

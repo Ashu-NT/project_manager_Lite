@@ -1,5 +1,7 @@
 ﻿module ProjectManagement.SchedulingPanels
+SchedulingOverviewPanel 1.0 SchedulingOverviewPanel.qml
 SchedulingGanttPanel 1.0 SchedulingGanttPanel.qml
+SchedulingResourceLevelingPanel 1.0 SchedulingResourceLevelingPanel.qml
 SchedulingDiagnosticsPanel 1.0 SchedulingDiagnosticsPanel.qml
 SchedulingBaselinesPanel 1.0 SchedulingBaselinesPanel.qml
 SchedulingCalendarsPanel 1.0 SchedulingCalendarsPanel.qml

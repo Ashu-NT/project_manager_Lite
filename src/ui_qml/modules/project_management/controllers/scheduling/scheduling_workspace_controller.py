@@ -43,7 +43,6 @@ from .scheduling_property_updates import (
     set_constraint_violations,
     set_constraints,
     set_critical_path,
-    set_delayed_activities,
     set_delayed_activity_rows,
     set_dependencies,
     set_dependency_rows,
@@ -94,7 +93,6 @@ from .scheduling_state_loader import load_workspace_state
 from .scheduling_tab_search_actions import (
     set_baselines_search_text,
     set_calendars_search_text,
-    set_delays_search_text,
     set_diagnostics_search_text,
     set_resources_search_text,
 )
@@ -143,7 +141,6 @@ class ProjectManagementSchedulingWorkspaceController(
     timelineChanged = Signal()
     criticalPathChanged = Signal()
     diagnosticsChanged = Signal()
-    delayedActivitiesChanged = Signal()
     resourceLoadingChanged = Signal()
     baselineRegisterChanged = Signal()
     dependenciesChanged = Signal()
@@ -164,14 +161,12 @@ class ProjectManagementSchedulingWorkspaceController(
     diagnosticsSearchTextChanged = Signal()
     resourcesSearchTextChanged = Signal()
     baselinesSearchTextChanged = Signal()
-    delaysSearchTextChanged = Signal()
     calendarsSearchTextChanged = Signal()
     filteredDiagnosticsRowsChanged = Signal()
     filteredViolationRowsChanged = Signal()
     filteredResourceRowsChanged = Signal()
     filteredBaselineCompareRowsChanged = Signal()
     filteredBaselineRegisterRowsChanged = Signal()
-    filteredDelayedRowsChanged = Signal()
     filteredHolidayRowsChanged = Signal()
     selectedActivityChanged = Signal()
     selectedActivityIdChanged = Signal()
@@ -232,7 +227,6 @@ class ProjectManagementSchedulingWorkspaceController(
         self._timeline: dict[str, object] = default_collection()
         self._critical_path: dict[str, object] = default_collection()
         self._diagnostics: dict[str, object] = default_collection()
-        self._delayed_activities: dict[str, object] = default_collection()
         self._resource_loading: dict[str, object] = default_collection()
         self._baseline_register: dict[str, object] = default_collection()
         self._dependencies: dict[str, object] = default_collection()
@@ -253,7 +247,6 @@ class ProjectManagementSchedulingWorkspaceController(
         self._diagnostics_search_text = ""
         self._resources_search_text = ""
         self._baselines_search_text = ""
-        self._delays_search_text = ""
         self._calendars_search_text = ""
         self._selected_activity: dict[str, object] = default_selected_activity()
         self._calculator_result = ""
@@ -371,10 +364,6 @@ class ProjectManagementSchedulingWorkspaceController(
     def diagnostics(self) -> dict[str, object]:
         return self._diagnostics
 
-    @Property("QVariantMap", notify=delayedActivitiesChanged)
-    def delayedActivities(self) -> dict[str, object]:
-        return self._delayed_activities
-
     @Property("QVariantMap", notify=resourceLoadingChanged)
     def resourceLoading(self) -> dict[str, object]:
         return self._resource_loading
@@ -459,10 +448,6 @@ class ProjectManagementSchedulingWorkspaceController(
     def baselinesSearchText(self) -> str:
         return self._baselines_search_text
 
-    @Property(str, notify=delaysSearchTextChanged)
-    def delaysSearchText(self) -> str:
-        return self._delays_search_text
-
     @Property(str, notify=calendarsSearchTextChanged)
     def calendarsSearchText(self) -> str:
         return self._calendars_search_text
@@ -493,11 +478,6 @@ class ProjectManagementSchedulingWorkspaceController(
     def filteredBaselineRegisterRows(self) -> list[dict[str, object]]:
         return filter_rows(self._baseline_register_rows, self._baselines_search_text,
                            ["baseline", "created", "approvedBy", "status"])
-
-    @Property("QVariantList", notify=filteredDelayedRowsChanged)
-    def filteredDelayedRows(self) -> list[dict[str, object]]:
-        return filter_rows(self._delayed_activity_rows, self._delays_search_text,
-                           ["activity", "finish", "deadline", "delay", "progress", "status"])
 
     @Property("QVariantList", notify=filteredHolidayRowsChanged)
     def filteredHolidayRows(self) -> list[dict[str, object]]:
@@ -549,10 +529,6 @@ class ProjectManagementSchedulingWorkspaceController(
     @Property(QObject, constant=True)
     def baselineRegisterTableModel(self) -> DynamicTableModel:
         return self._table_models.baseline_register
-
-    @Property(QObject, constant=True)
-    def delayedTableModel(self) -> DynamicTableModel:
-        return self._table_models.delayed
 
     @Property(QObject, constant=True)
     def holidayTableModel(self) -> DynamicTableModel:
@@ -683,10 +659,6 @@ class ProjectManagementSchedulingWorkspaceController(
         set_baselines_search_text(self, text)
 
     @Slot(str)
-    def setDelaysSearchText(self, text: str) -> None:
-        set_delays_search_text(self, text)
-
-    @Slot(str)
     def setCalendarsSearchText(self, text: str) -> None:
         set_calendars_search_text(self, text)
 
@@ -778,7 +750,6 @@ class ProjectManagementSchedulingWorkspaceController(
     def _set_timeline(self, v): set_timeline(self, v)
     def _set_critical_path(self, v): set_critical_path(self, v)
     def _set_diagnostics(self, v): set_diagnostics(self, v)
-    def _set_delayed_activities(self, v): set_delayed_activities(self, v)
     def _set_resource_loading(self, v): set_resource_loading(self, v)
     def _set_baseline_register(self, v): set_baseline_register(self, v)
     def _set_dependencies(self, v): set_dependencies(self, v)

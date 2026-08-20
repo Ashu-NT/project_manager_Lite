@@ -196,18 +196,10 @@ SchedulingPanelFrame {
                                     opacity: 0.9
                                 }
 
-                                Rectangle {
-                                    visible: Boolean(_row._state.baselinePlaceholder)
-                                    x: root._barLeft(_row._state, _laneHost.width)
-                                    y: Math.round((_laneHost.height - 10) / 2)
-                                    width: root._barWidth(_row._state, _laneHost.width)
-                                    height: 10
-                                    radius: 5
-                                    color: Qt.rgba(0, 0, 0, 0)
-                                    border.color: Theme.AppTheme.subtleBorder
-                                    border.width: 1
-                                    opacity: 0.6
-                                }
+                                // No baseline overlay is rendered here: R4.4 removed the
+                                // fabricated always-on "baselinePlaceholder" ghost outline
+                                // (it never reflected real baseline data). Real baseline
+                                // visualization is explicit R4.5 scope.
 
                                 Rectangle {
                                     x: root._barLeft(_row._state, _laneHost.width)

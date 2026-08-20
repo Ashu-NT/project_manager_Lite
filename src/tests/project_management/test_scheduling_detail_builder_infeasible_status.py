@@ -45,10 +45,8 @@ def _activity(**overrides):
 def _build(activity):
     return build_detail_view_model(
         selected_activity=activity,
-        calendar_label="Standard",
         dependency_rows=[],
         resource_load=[],
-        baseline_rows=[],
     )
 
 

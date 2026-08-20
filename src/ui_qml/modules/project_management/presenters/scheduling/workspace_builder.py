@@ -393,10 +393,8 @@ def build_workspace_state(
         ),
         selected_activity_detail=build_detail_view_model(
             selected_activity=selected_activity,
-            calendar_label=cal_label,
             dependency_rows=activity_dependencies,
             resource_load=resource_load,
-            baseline_rows=baseline_rows,
         ),
     )
 

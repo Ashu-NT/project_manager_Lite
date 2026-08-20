@@ -20,7 +20,6 @@ class SchedulingTableModels:
     resources_loading: DynamicTableModel
     baseline_compare: DynamicTableModel
     baseline_register: DynamicTableModel
-    delayed: DynamicTableModel
     holiday: DynamicTableModel
     leveling_moves: DynamicTableModel
 
@@ -38,7 +37,6 @@ def create_scheduling_table_models(parent: QObject) -> SchedulingTableModels:
         resources_loading=DynamicTableModel(parent),
         baseline_compare=DynamicTableModel(parent),
         baseline_register=DynamicTableModel(parent),
-        delayed=DynamicTableModel(parent),
         holiday=DynamicTableModel(parent),
         leveling_moves=DynamicTableModel(parent),
     )

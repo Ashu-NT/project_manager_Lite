@@ -52,7 +52,6 @@ def hydrate_visible_panel_models(
     controller._set_timeline(panels["timeline"])
     controller._set_critical_path(panels["critical_path"])
     controller._set_diagnostics(panels["diagnostics"])
-    controller._set_delayed_activities(panels["delayed"])
     controller._set_resource_loading(panels["resource_loading"])
     controller._set_baseline_register(panels["baseline_register"])
     controller._set_dependencies(panels["dependencies"])
