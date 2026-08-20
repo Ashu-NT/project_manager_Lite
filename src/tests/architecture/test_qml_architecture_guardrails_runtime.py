@@ -26,6 +26,14 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         str(UI_QML_ROOT / "modules" / "project_management" / "qml"),
         str(UI_QML_ROOT / "modules" / "inventory_procurement" / "qml"),
     ]
+    scheduling_root = (
+        UI_QML_ROOT
+        / "modules"
+        / "project_management"
+        / "qml"
+        / "workspaces"
+        / "scheduling"
+    )
 
     targets = [
         UI_QML_ROOT / "platform" / "qml" / "workspace" / "PlatformWorkspacePage.qml",
@@ -69,9 +77,6 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT
         / "modules/project_management/qml/workspaces/register/dialogs"
         / "RegisterEntryEditorDialog.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "scheduling" / "SchedulingWorkspacePage.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "scheduling" / "SchedulingCalendarSection.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "scheduling" / "SchedulingBaselineSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "tasks" / "TasksWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "tasks" / "TasksAssignmentsSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "tasks" / "TasksBulkActionsSection.qml",
@@ -99,6 +104,7 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "pricing" / "PricingStockSection.qml",
         UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "pricing" / "PricingSupplierPricingSection.qml",
     ]
+    targets.extend(sorted(scheduling_root.rglob("*.qml")))
 
     command = [qmllint_path]
     for import_path in import_paths:
@@ -110,6 +116,8 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         command,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
         cwd=str(ROOT),
     )
