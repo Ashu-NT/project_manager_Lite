@@ -21,7 +21,7 @@ from .scheduling_property_updates import (
 
 
 def set_active_panel(controller, panel_id: str) -> None:
-    normalized = (panel_id or "").strip() or "activity_timeline"
+    normalized = (panel_id or "").strip() or "overview"
     if normalized == controller._active_panel_id:
         return
     controller._active_panel_id = normalized

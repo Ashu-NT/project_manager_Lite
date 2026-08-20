@@ -56,7 +56,7 @@ Item {
     SchedulingPanelFrame {
         anchors.fill: parent
         title: "Baselines"
-        subtitle: "Create, compare, archive, and review schedule freeze points for governance."
+        subtitle: "Create, compare, delete, and review schedule freeze points for governance."
 
         ScrollView {
             Layout.fillWidth: true
@@ -79,8 +79,36 @@ Item {
                             { "id": "submit",  "label": "Submit",  "icon": "approve", "enabled": root.selectedBaselineRegisterStatus === "draft" && root.selectedBaselineRegisterId.length > 0 },
                             { "id": "approve", "label": "Approve", "icon": "approve", "enabled": canApprove && root.selectedBaselineRegisterStatus === "submitted" && root.selectedBaselineRegisterId.length > 0 },
                             { "id": "reject",  "label": "Reject",  "icon": "reject",  "danger": true, "enabled": canApprove && root.selectedBaselineRegisterStatus === "submitted" && root.selectedBaselineRegisterId.length > 0 },
-                            { "id": "archive", "label": "Archive", "icon": "delete",  "danger": true, "enabled": root.selectedBaselineRegisterId.length > 0 }
+                            { "id": "delete", "label": "Delete", "icon": "delete",  "danger": true, "enabled": root.selectedBaselineRegisterId.length > 0 }
                         ]
+                    }
+
+                    RowLayout {
+                        spacing: Theme.AppTheme.spacingXs
+
+                        AppControls.Label {
+                            text: "Current:"
+                            color: Theme.AppTheme.textMuted
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                        }
+
+                        AppControls.ComboBox {
+                            Layout.preferredWidth: 180
+                            model: root.workspaceController ? (root.workspaceController.baselineOptions || []) : []
+                            textRole: "label"
+                            enabled: !(root.workspaceController ? root.workspaceController.isBusy : false)
+                                && (root.workspaceController ? (root.workspaceController.baselineOptions || []).length > 0 : false)
+                            currentIndex: root._optionIndex(
+                                root.workspaceController ? (root.workspaceController.baselineOptions || []) : [],
+                                root.workspaceController ? root.workspaceController.selectedBaselineId : ""
+                            )
+                            onActivated: function(index) {
+                                const options = root.workspaceController ? (root.workspaceController.baselineOptions || []) : []
+                                if (root.workspaceController !== null && options[index])
+                                    root.workspaceController.selectBaseline(String(options[index].value || ""))
+                            }
+                        }
                     }
 
                     AppControls.ComboBox {
@@ -137,7 +165,7 @@ Item {
                             root.workspaceController.approveBaseline(root.selectedBaselineRegisterId)
                         } else if (actionId === "reject" && root.selectedBaselineRegisterId.length > 0) {
                             root.workspaceController.rejectBaseline(root.selectedBaselineRegisterId)
-                        } else if (actionId === "archive" && root.selectedBaselineRegisterId.length > 0) {
+                        } else if (actionId === "delete" && root.selectedBaselineRegisterId.length > 0) {
                             root.workspaceController.deleteBaseline(root.selectedBaselineRegisterId)
                         }
                     }

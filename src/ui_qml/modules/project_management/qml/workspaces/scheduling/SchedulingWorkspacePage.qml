@@ -8,6 +8,7 @@ import App.Layouts 1.0 as AppLayouts
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
+import Shell.Context 1.0 as ShellContexts
 import "panels" as Panels
 import "dialogs" as Dialogs
 import "components" as Components
@@ -16,6 +17,7 @@ AppLayouts.WorkspaceFrame {
     id: root
 
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
+    property ShellContexts.ShellContext shellModel
     property ProjectManagementControllers.ProjectManagementSchedulingWorkspaceController workspaceController: root.pmCatalog
         ? root.pmCatalog.schedulingWorkspace
         : null
@@ -30,9 +32,6 @@ AppLayouts.WorkspaceFrame {
     readonly property var baselinesModel: root.workspaceController
         ? root.workspaceController.baselines
         : ({ "options": [], "selectedBaselineAId": "", "selectedBaselineBId": "", "includeUnchanged": false, "summaryText": "", "emptyState": "", "rows": [] })
-    readonly property var baselineRegisterModel: root.workspaceController
-        ? root.workspaceController.baselineRegister
-        : ({ "title": "", "subtitle": "", "items": [], "emptyState": "No baseline register entries are available." })
     readonly property var calendarModel: root.workspaceController
         ? root.workspaceController.calendar
         : ({ "summaryText": "", "workingDays": [], "hoursPerDay": "8", "holidays": [], "emptyState": "No calendar data is available." })
@@ -42,23 +41,6 @@ AppLayouts.WorkspaceFrame {
     readonly property var activityFeedModel: root.workspaceController
         ? root.workspaceController.activityFeed
         : ({ "title": "", "subtitle": "", "items": [], "emptyState": "No planning activity has been recorded." })
-    readonly property var delayedRows: root.workspaceController ? (root.workspaceController.delayedActivityRows || []) : []
-    readonly property var dependenciesModel: root.workspaceController
-        ? root.workspaceController.dependencies
-        : ({ "title": "", "subtitle": "", "items": [], "emptyState": "No dependencies are linked to the selected activity." })
-    readonly property var dependencyRows: root.workspaceController ? (root.workspaceController.dependencyRows || []) : []
-    readonly property var constraintsModel: root.workspaceController
-        ? root.workspaceController.constraints
-        : ({ "title": "", "subtitle": "", "items": [], "emptyState": "No constraints are recorded for the selected activity." })
-    readonly property var constraintRows:            root.workspaceController ? (root.workspaceController.constraintRows || []) : []
-    readonly property var resourceLoadingModel: root.workspaceController
-        ? root.workspaceController.resourceLoading
-        : ({ "title": "", "subtitle": "", "items": [], "emptyState": "No resource load data is available." })
-    readonly property var resourceRows:              root.workspaceController ? (root.workspaceController.resourceLoadingRows || []) : []
-    readonly property var baselineCompareRows:       root.workspaceController ? (root.workspaceController.baselineCompareRows || []) : []
-    readonly property var baselineRegisterRows:      root.workspaceController ? (root.workspaceController.baselineRegisterRows || []) : []
-    readonly property var calendarSummaryRows:       root.workspaceController ? (root.workspaceController.calendarSummaryRows || []) : []
-    readonly property var holidayRows:               root.workspaceController ? (root.workspaceController.holidayRows || []) : []
     readonly property var timelineModel: root.workspaceController
         ? root.workspaceController.timeline
         : ({ "title": "", "subtitle": "", "items": [], "emptyState": "No timeline items are available." })
@@ -91,19 +73,9 @@ AppLayouts.WorkspaceFrame {
     Item {
         anchors.fill: parent
 
-        // ── Panel view ────────────────────────────────────────────────────
-        Item {
-            anchors.fill: parent
-            visible: !state.detailOpen
-
             ColumnLayout {
                 anchors.fill: parent
                 spacing: Theme.AppTheme.spacingSm
-
-                AppWidgets.KpiStrip {
-                    Layout.fillWidth: true
-                    metrics: root.overviewModel.metrics || []
-                }
 
                 AppWidgets.LoadingOverlay {
                     Layout.fillWidth: true
@@ -128,86 +100,23 @@ AppLayouts.WorkspaceFrame {
 
                 AppWidgets.InlineMessage {
                     Layout.fillWidth: true
-                    visible: !state.detailOpen
-                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                    visible: String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
                     tone: "danger"
                     message: root.workspaceController ? root.workspaceController.errorMessage : ""
                 }
 
                 AppWidgets.InlineMessage {
                     Layout.fillWidth: true
-                    visible: !state.detailOpen
-                        && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
+                    visible: String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
                         && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
                     tone: "success"
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
 
-                // ── Action bar (project / baseline / calendar selectors) ──
-                Components.SchedulingActionBar {
+                // ── Persistent Planning context header (Project / Refresh / Run CPM) ──
+                Components.SchedulingPlanningContextHeader {
                     Layout.fillWidth: true
-                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                    actions: [
-                        { "id": "refresh",  "label": "Refresh", "icon": "refresh", "enabled": true },
-                        { "id": "run_cpm",  "label": "Run CPM", "icon": "approve",
-                          "enabled": String(root.workspaceController ? root.workspaceController.selectedProjectId : "").length > 0 }
-                    ]
-
-                    AppControls.ComboBox {
-                        Layout.preferredWidth: 210
-                        model:      root.workspaceController ? (root.workspaceController.projectOptions  || []) : []
-                        textRole:   "label"
-                        enabled:    !(root.workspaceController ? root.workspaceController.isBusy : false)
-                        currentIndex: state.optionIndexForValue(
-                            root.workspaceController ? (root.workspaceController.projectOptions || []) : [],
-                            root.workspaceController ? root.workspaceController.selectedProjectId : ""
-                        )
-                        onActivated: function(index) {
-                            const opts = root.workspaceController ? (root.workspaceController.projectOptions || []) : []
-                            if (root.workspaceController !== null && opts[index])
-                                root.workspaceController.selectProject(String(opts[index].value || ""))
-                        }
-                    }
-
-                    AppControls.ComboBox {
-                        Layout.preferredWidth: 180
-                        model:    root.workspaceController ? (root.workspaceController.baselineOptions || []) : []
-                        textRole: "label"
-                        enabled:  !(root.workspaceController ? root.workspaceController.isBusy : false)
-                            && (root.workspaceController ? (root.workspaceController.baselineOptions || []).length > 0 : false)
-                        currentIndex: state.optionIndexForValue(
-                            root.workspaceController ? (root.workspaceController.baselineOptions || []) : [],
-                            root.workspaceController ? root.workspaceController.selectedBaselineId : ""
-                        )
-                        onActivated: function(index) {
-                            const opts = root.workspaceController ? (root.workspaceController.baselineOptions || []) : []
-                            if (root.workspaceController !== null && opts[index])
-                                root.workspaceController.selectBaseline(String(opts[index].value || ""))
-                        }
-                    }
-
-                    AppControls.ComboBox {
-                        Layout.preferredWidth: 170
-                        model:    root.workspaceController ? (root.workspaceController.calendarOptions || []) : []
-                        textRole: "label"
-                        enabled:  !(root.workspaceController ? root.workspaceController.isBusy : false)
-                            && (root.workspaceController ? (root.workspaceController.calendarOptions || []).length > 0 : false)
-                        currentIndex: state.optionIndexForValue(
-                            root.workspaceController ? (root.workspaceController.calendarOptions || []) : [],
-                            root.workspaceController ? root.workspaceController.selectedCalendarId : "default"
-                        )
-                        onActivated: function(index) {
-                            const opts = root.workspaceController ? (root.workspaceController.calendarOptions || []) : []
-                            if (root.workspaceController !== null && opts[index])
-                                root.workspaceController.selectCalendar(String(opts[index].value || "default"))
-                        }
-                    }
-
-                    onActionTriggered: function(actionId) {
-                        if (root.workspaceController === null) return
-                        if      (actionId === "refresh")  root.workspaceController.refresh()
-                        else if (actionId === "run_cpm")  root.workspaceController.recalculateSchedule()
-                    }
+                    workspaceController: root.workspaceController
                 }
 
                 // ── Panel tab strip ───────────────────────────────────────
@@ -226,7 +135,7 @@ AppLayouts.WorkspaceFrame {
                         spacing: Theme.AppTheme.spacingSm
 
                         Repeater {
-                            model: state.panelTabs
+                            model: state.primaryPanelTabs
 
                             delegate: Rectangle {
                                 id: tabButton
@@ -286,9 +195,16 @@ AppLayouts.WorkspaceFrame {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape:  Qt.PointingHandCursor
-                                    onClicked: state.activePanelId = String(tabButton.modelData.id || "activity_timeline")
+                                    onClicked: state.activePanelId = String(tabButton.modelData.id || "overview")
                                 }
                             }
+                        }
+
+                        AppWidgets.NavOverflowMenu {
+                            items:        state.secondaryPanelTabs
+                            activeId:     state.activePanelId
+                            triggerLabel: "More"
+                            onItemSelected: function(itemId) { state.activePanelId = itemId }
                         }
                     }
                 }
@@ -302,30 +218,36 @@ AppLayouts.WorkspaceFrame {
                         anchors.fill: parent
                         currentIndex: state.panelIndex(state.activePanelId)
 
-                        Panels.SchedulingActivityTimelinePanel {
+                        Panels.SchedulingOverviewPanel {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             workspaceController: root.workspaceController
-                            activityColumns:     state.activityColumns
-                            activityTableId:     state.activityTableId
-                            timelineModel:       root.timelineModel
-                            onActivityColumnsStateChanged: function(cols)   { state.activityColumns = cols }
-                            onActivityDetailRequested: function(activityId) { state.openActivityDetail(activityId) }
+                            overviewModel:       root.overviewModel
                         }
 
-                        Panels.SchedulingDiagnosticsPanel {
+                        Panels.SchedulingGanttPanel {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            workspaceController: root.workspaceController
-                        }
-
-                        Panels.SchedulingResourcesPanel {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            workspaceController: root.workspaceController
+                            workspaceController:   root.workspaceController
+                            activityColumns:       state.activityColumns
+                            activityTableId:       state.activityTableId
+                            timelineModel:         root.timelineModel
+                            selectedActivityModel: root.selectedActivityModel
+                            shellModel:            root.shellModel
+                            onActivityColumnsStateChanged: function(cols) { state.activityColumns = cols }
+                            onActivityDetailRequested: function(activityId) {
+                                if (root.workspaceController !== null) root.workspaceController.selectActivity(activityId)
+                                if (root.shellModel) root.shellModel.selectRoute("project_management.tasks")
+                            }
                         }
 
                         Panels.SchedulingResourceLevelingPanel {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            workspaceController: root.workspaceController
+                        }
+
+                        Panels.SchedulingDiagnosticsPanel {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             workspaceController: root.workspaceController
@@ -341,14 +263,6 @@ AppLayouts.WorkspaceFrame {
                             selectedBaselineRegisterStatus:  state.selectedBaselineRegisterStatus
                             onSelectedBaselineRegisterSelectionChanged: function(id) { state.selectedBaselineRegisterId = id }
                             onCreateBaselineRequested: dialogHostLoader.invoke("openCreateBaselineDialog")
-                        }
-
-                        Panels.SchedulingDelaysPanel {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            workspaceController: root.workspaceController
-                            delayedRows:         root.delayedRows
-                            onActivityDetailRequested: function(activityId) { state.openActivityDetail(activityId) }
                         }
 
                         Panels.SchedulingCalendarsPanel {
@@ -369,89 +283,6 @@ AppLayouts.WorkspaceFrame {
                     }
                 }
             }
-        }
 
-        // ── Detail page ───────────────────────────────────────────────────
-        Loader {
-            id: detailPageLoader
-            anchors.fill: parent
-            active:       state.detailOpen
-            visible:      state.detailOpen && status === Loader.Ready
-            asynchronous: true
-            sourceComponent: _detailPageComponent
-        }
-
-        Component {
-            id: _detailPageComponent
-
-            AppWidgets.SectionDetailPage {
-                open:        true
-                anchors.fill: parent
-                showHeader:  false
-                showEdit:    false
-                showDelete:  false
-                isBusy:      root.workspaceController ? root.workspaceController.isBusy : false
-                sections:    ["Overview", "Dependencies", "Constraints", "Calendars", "Baselines", "Resources", "Activity Feed", "Change Impact"]
-                z:           20
-                Component.onCompleted: scrollToSection(state.pendingDetailSection)
-
-                AppWidgets.ContextualActionToolbar {
-                    detailPagePinned: true
-                    width:     parent ? parent.width : 0
-                    showBack:  true
-                    title:     root.selectedActivityModel.title    || "Activity Details"
-                    subtitle:  root.selectedActivityModel.statusLabel || root.selectedActivityModel.subtitle || ""
-                    busy:      root.workspaceController ? root.workspaceController.isBusy : false
-                    actions:   []
-                    onBackRequested: state.detailOpen = false
-                }
-
-                AppWidgets.SectionScopedInlineMessage {
-                    width:   parent ? parent.width : 0
-                    requestedVisible: state.detailOpen
-                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
-                    tone:    "danger"
-                    message: root.workspaceController ? root.workspaceController.errorMessage : ""
-                }
-                AppWidgets.SectionScopedInlineMessage {
-                    width:   parent ? parent.width : 0
-                    requestedVisible: state.detailOpen
-                        && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
-                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
-                    tone:    "success"
-                    message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
-                }
-
-                Panels.SchedulingDetailPanel {
-                    width:                          parent ? parent.width : 0
-                    detailPage:                     detailPageLoader.item
-                    activityDetail:                 root.selectedActivityModel
-                    dependenciesModel:              root.dependenciesModel
-                    dependencyRows:                 root.dependencyRows
-                    dependencyTableModel:           root.workspaceController ? root.workspaceController.dependencyTableModel : null
-                    constraintsModel:               root.constraintsModel
-                    constraintRows:                 root.constraintRows
-                    constraintTableModel:           root.workspaceController ? root.workspaceController.constraintTableModel : null
-                    calendarModel:                  root.calendarModel
-                    calendarSummaryRows:            root.calendarSummaryRows
-                    calendarSummaryTableModel:      root.workspaceController ? root.workspaceController.calendarSummaryTableModel : null
-                    holidayRows:                    root.holidayRows
-                    holidayTableModel:              root.workspaceController ? root.workspaceController.holidayTableModel : null
-                    baselinesModel:                 root.baselinesModel
-                    baselineCompareRows:            root.baselineCompareRows
-                    baselineCompareTableModel:      root.workspaceController ? root.workspaceController.baselineCompareTableModel : null
-                    baselineRegisterModel:          root.baselineRegisterModel
-                    baselineRegisterRows:           root.baselineRegisterRows
-                    baselineRegisterTableModel:     root.workspaceController ? root.workspaceController.baselineRegisterTableModel : null
-                    resourceLoadingModel:           root.resourceLoadingModel
-                    resourceRows:                   root.resourceRows
-                    resourcesLoadingTableModel:     root.workspaceController ? root.workspaceController.resourcesLoadingTableModel : null
-                    scheduleImpactTasksTableModel:  root.workspaceController ? root.workspaceController.scheduleImpactTasksTableModel : null
-                    activityFeedModel:              root.activityFeedModel
-                    scheduleImpactModel:            root.workspaceController ? (root.workspaceController.scheduleImpact || {}) : ({})
-                    workspaceController:            root.workspaceController
-                }
-            }
-        }
     }
 }

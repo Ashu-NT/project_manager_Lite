@@ -51,39 +51,30 @@ def _item(**overrides):
     return SimpleNamespace(**base)
 
 
-class TestDiagnosticsInfeasibleRow:
-    def test_infeasible_flag_drives_the_row_not_negative_float_alone(self):
-        """A backend-flagged infeasible item counts even though this
-        fake's total_float_days happens to be 0 -- proving the row is
-        NOT re-deriving from total_float_days < 0."""
-        items = [_item(total_float_days=0, is_infeasible=True)]
+class TestDiagnosticsConstraintsRow:
+    """R4.4 Planning IA dedup (migration step 6): the diagnostics collection
+    no longer carries a per-row infeasible/critical/delayed/overloads count --
+    those are the Overview KPI strip's job (see TestOverviewInfeasibleMetric
+    below). It keeps only the "constraints" (deadline-breach) row, which the
+    KPI strip does not report.
+    """
+
+    def test_constraints_row_counts_deadline_breaches(self):
+        items = [_item(deadline="2026-01-01", late_by_days=2)]
         collection = build_diagnostics_collection(
             schedule_items=items, filtered_schedule=items, dependency_rows=[], resource_load=[]
         )
-        row = next(r for r in collection.items if r.id == "infeasible")
+        row = next(r for r in collection.items if r.id == "constraints")
 
         assert row.subtitle == "1"
         assert row.status_label == "Danger"
 
-    def test_negative_float_without_the_flag_does_not_count(self):
-        """The inverse: a negative total_float_days with is_infeasible
-        NOT set must not count either -- confirms the row reads the
-        flag, not the number."""
-        items = [_item(total_float_days=-3, is_infeasible=False)]
+    def test_no_deadline_breaches_reports_stable(self):
+        items = [_item(deadline=None, late_by_days=None)]
         collection = build_diagnostics_collection(
             schedule_items=items, filtered_schedule=items, dependency_rows=[], resource_load=[]
         )
-        row = next(r for r in collection.items if r.id == "infeasible")
-
-        assert row.subtitle == "0"
-        assert row.status_label == "Stable"
-
-    def test_no_infeasible_activities_reports_stable(self):
-        items = [_item(is_infeasible=False)]
-        collection = build_diagnostics_collection(
-            schedule_items=items, filtered_schedule=items, dependency_rows=[], resource_load=[]
-        )
-        row = next(r for r in collection.items if r.id == "infeasible")
+        row = next(r for r in collection.items if r.id == "constraints")
 
         assert row.subtitle == "0"
         assert row.status_label == "Stable"

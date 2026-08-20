@@ -11,6 +11,9 @@ SchedulingPanelFrame {
     id: root
 
     property var timelineModel: ({ "title": "", "subtitle": "", "items": [], "emptyState": "" })
+    property string selectedActivityId: ""
+
+    signal activitySelected(string activityId)
 
     readonly property var _items: root.timelineModel.items || []
     readonly property int _windowDays: {
@@ -134,6 +137,22 @@ SchedulingPanelFrame {
                         height: 28
 
                         readonly property var _state: modelData.state || ({})
+                        readonly property bool _selected: root.selectedActivityId.length > 0
+                            && String(_row.modelData.id || "") === root.selectedActivityId
+
+                        Rectangle {
+                            anchors.fill: parent
+                            visible: _row._selected
+                            radius: Theme.AppTheme.radiusSm
+                            color: Theme.AppTheme.navSelectedBackground
+                            opacity: 0.5
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.activitySelected(String(_row.modelData.id || ""))
+                        }
 
                         RowLayout {
                             anchors.fill: parent

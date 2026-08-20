@@ -60,17 +60,17 @@ def hydrate_visible_panel_models(
     controller._set_constraint_violations(panels["constraint_violations"])
     controller._set_activity_feed(panels["activity_feed"])
 
-    if panel_id == "activity_timeline":
+    if panel_id in ("gantt", "overview"):
         controller._set_schedule_rows(build_schedule_rows(panels["schedule"]))
 
     if panel_id == "diagnostics":
         controller._set_diagnostics_rows(build_diagnostics_rows(panels["diagnostics"]))
         controller._set_violation_rows(build_violation_rows(panels["constraint_violations"]))
 
-    if panel_id == "delays":
+    if panel_id == "overview":
         controller._set_delayed_activity_rows(build_delayed_rows(panels["delayed"]))
 
-    if panel_id == "resources" or detail_active:
+    if panel_id in ("resource_leveling", "overview") or detail_active:
         controller._set_resource_loading_rows(build_resource_rows(panels["resource_loading"]))
 
     if panel_id == "baselines" or detail_active:

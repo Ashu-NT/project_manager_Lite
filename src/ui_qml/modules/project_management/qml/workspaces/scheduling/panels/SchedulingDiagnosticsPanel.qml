@@ -44,20 +44,6 @@ Item {
                 width: parent.width
                 spacing: Theme.AppTheme.spacingSm
 
-                SchedulingActionBar {
-                    Layout.fillWidth: true
-                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                    actions: [
-                        { "id": "refresh", "label": "Refresh Diagnostics", "icon": "refresh", "enabled": true },
-                        { "id": "run_cpm", "label": "Run CPM",             "icon": "approve",  "enabled": true }
-                    ]
-                    onActionTriggered: function(actionId) {
-                        if (root.workspaceController === null) return
-                        if (actionId === "refresh") root.workspaceController.refresh()
-                        else if (actionId === "run_cpm") root.workspaceController.recalculateSchedule()
-                    }
-                }
-
                 AppWidgets.TableToolbar {
                     id: diagnosticsToolbar
                     Layout.fillWidth: true
@@ -83,7 +69,7 @@ Item {
 
                 AppControls.Label {
                     Layout.fillWidth: true
-                    text: "Constraint Violations"
+                    text: "Constraint Overruns"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.smallSize

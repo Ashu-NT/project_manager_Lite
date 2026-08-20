@@ -104,7 +104,9 @@ def build_detail_view_model(
         id=selected_activity.id,
         title=selected_activity.name,
         status_label=(
-            "Critical" if selected_activity.is_critical else selected_activity.status_label
+            "Infeasible" if getattr(selected_activity, "is_infeasible", False)
+            else "Critical" if selected_activity.is_critical
+            else selected_activity.status_label
         ),
         subtitle=f"{format_date(selected_activity.start_date)} -> {format_date(selected_activity.finish_date)}",
         description=selected_activity.description or "Schedule activity selected for planning inspection.",

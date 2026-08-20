@@ -14,23 +14,27 @@ Item {
     property var activityColumns: []
 
     // ── UI state ──────────────────────────────────────────────────────────
-    property string activePanelId: "activity_timeline"
+    property string activePanelId: "overview"
     property string feedSearchText: ""
     property string selectedBaselineRegisterId: ""
-    property bool detailOpen: false
-    property int pendingDetailSection: 0
 
     // ── Panel tabs ────────────────────────────────────────────────────────
-    readonly property var panelTabs: [
-        { "id": "activity_timeline", "label": "Activity & Timeline" },
-        { "id": "diagnostics",       "label": "Diagnostics"         },
-        { "id": "resources",         "label": "Resources"           },
+    // Primary tier: always-visible tab chips. Secondary tier: demoted
+    // behind the "More" NavOverflowMenu affordance (migration step 13).
+    // `panelTabs` stays the full flat list -- it drives the StackLayout's
+    // currentIndex, which doesn't care which tier a tab renders in.
+    readonly property var primaryPanelTabs: [
+        { "id": "overview",          "label": "Overview"            },
+        { "id": "gantt",             "label": "Gantt"                },
         { "id": "resource_leveling", "label": "Resource Leveling"   },
+        { "id": "diagnostics",       "label": "Diagnostics"         }
+    ]
+    readonly property var secondaryPanelTabs: [
         { "id": "baselines",         "label": "Baselines"           },
-        { "id": "delays",            "label": "Delays"              },
         { "id": "calendars",         "label": "Calendars"           },
         { "id": "activity_feed",     "label": "Activity Feed"       }
     ]
+    readonly property var panelTabs: root.primaryPanelTabs.concat(root.secondaryPanelTabs)
 
     // ── Computed ──────────────────────────────────────────────────────────
     readonly property string selectedBaselineRegisterStatus: {
@@ -56,13 +60,6 @@ Item {
             if (String(list[i].value || "") === String(value || "")) return i
         }
         return list.length > 0 ? 0 : -1
-    }
-
-    function openActivityDetail(activityId) {
-        if (root.workspaceController === null || !String(activityId || "").length) return
-        root.workspaceController.activateActivity(String(activityId || ""))
-        root.pendingDetailSection = 0
-        root.detailOpen = true
     }
 
     // ── Column management ─────────────────────────────────────────────────

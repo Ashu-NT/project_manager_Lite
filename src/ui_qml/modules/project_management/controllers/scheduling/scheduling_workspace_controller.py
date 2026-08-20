@@ -261,7 +261,7 @@ class ProjectManagementSchedulingWorkspaceController(
         self._schedule_impact: dict[str, object] = default_schedule_impact()
         self._leveling_proposal: dict[str, object] = default_leveling_proposal()
         self._leveling_move_rows: list[dict[str, object]] = []
-        self._active_panel_id = "activity_timeline"
+        self._active_panel_id = "overview"
         bind_scheduling_domain_events(self)
         self.refresh()
 

@@ -11,6 +11,7 @@ from src.ui_qml.modules.project_management.controllers.common import (
 )
 
 from .panel_hydrator import hydrate_visible_panel_models, serialize_workspace_panels
+from .state import default_schedule_impact
 from .scheduling_property_updates import (
     set_activity_page,
     set_activity_page_size,
@@ -51,6 +52,13 @@ def load_workspace_state(controller) -> None:
     )
     controller._set_is_loading(True)
     success = False
+    # Any full workspace reload can shift schedule dates (recalculation,
+    # leveling apply, baseline/calendar/project change) -- a previously
+    # computed Schedule Impact result is no longer trustworthy afterward,
+    # so the Gantt Inspector's lazy "Analyze Impact" must be re-triggered.
+    if controller._schedule_impact.get("available"):
+        controller._schedule_impact = default_schedule_impact()
+        controller.scheduleImpactChanged.emit()
     try:
         controller._set_error_message("")
         controller._set_feedback_message("")

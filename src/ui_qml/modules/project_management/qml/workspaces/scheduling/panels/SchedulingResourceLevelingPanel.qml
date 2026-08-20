@@ -29,11 +29,19 @@ Item {
         { "key": "resourcesLabel", "label": "Resources",  "flex": 1.2 },
         { "key": "statusLabel",    "label": "Status",     "flex": 0.8, "type": "status" }
     ]
+    readonly property var _resourceColumns: [
+        { "key": "resource",     "label": "Resource",     "flex": 1.5, "sortable": true },
+        { "key": "allocation",   "label": "Allocation",   "flex": 0.8 },
+        { "key": "capacity",     "label": "Capacity",     "flex": 0.8 },
+        { "key": "utilization",  "label": "Utilization",  "flex": 0.8 },
+        { "key": "tasks",        "label": "Tasks",        "flex": 0,   "minWidth": 64 },
+        { "key": "status",       "label": "Status",       "flex": 0.8, "type": "status" }
+    ]
 
     SchedulingPanelFrame {
         anchors.fill: parent
         title: "Resource Leveling"
-        subtitle: "Preview resource-capacity fixes before applying them to the schedule."
+        subtitle: "Current resource load, then preview and apply capacity fixes to the schedule."
 
         ScrollView {
             Layout.fillWidth: true
@@ -45,6 +53,55 @@ Item {
             ColumnLayout {
                 width: parent.width
                 spacing: Theme.AppTheme.spacingSm
+
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    text: "Current Resource Load"
+                    color: Theme.AppTheme.textPrimary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    font.bold: true
+                }
+
+                AppWidgets.TableToolbar {
+                    id: resourcesToolbar
+                    Layout.fillWidth: true
+                    searchText: root.workspaceController ? root.workspaceController.resourcesSearchText : ""
+                    searchPlaceholder: "Search resources..."
+                    showCustomize: true
+                    showExport: false
+                    showRefresh: false
+                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
+                    onSearchChanged: function(text) { if (root.workspaceController) root.workspaceController.setResourcesSearchText(text) }
+                    onCustomizeClicked: resourcesTable.openColumnCustomizer(resourcesToolbar.customizeButtonItem)
+                }
+
+                AppWidgets.DataTable {
+                    id: resourcesTable
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 320
+                    columns: root._resourceColumns
+                    sourceModel: root.workspaceController ? root.workspaceController.resourcesLoadingTableModel : null
+                    loading: root.workspaceController ? root.workspaceController.isLoading : false
+                    emptyText: root.workspaceController ? (root.workspaceController.resourceLoading.emptyState || "No resource load data is available.") : "No resource load data is available."
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 1
+                    Layout.topMargin: Theme.AppTheme.spacingXs
+                    Layout.bottomMargin: Theme.AppTheme.spacingXs
+                    color: Theme.AppTheme.divider
+                }
+
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    text: "Leveling Preview"
+                    color: Theme.AppTheme.textPrimary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.smallSize
+                    font.bold: true
+                }
 
                 SchedulingActionBar {
                     Layout.fillWidth: true
