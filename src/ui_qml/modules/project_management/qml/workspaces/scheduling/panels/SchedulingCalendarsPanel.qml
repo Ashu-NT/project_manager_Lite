@@ -66,8 +66,7 @@ Item {
                     Layout.fillWidth: true
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     actions: [
-                        { "id": "calculate", "label": "Calculate Days", "icon": "refresh", "enabled": true },
-                        { "id": "refresh",   "label": "Refresh",        "icon": "refresh", "enabled": true }
+                        { "id": "calculate", "label": "Calculate Days", "icon": "refresh", "enabled": true }
                     ]
 
                     AppControls.ComboBox {
@@ -95,8 +94,6 @@ Item {
                                 "startDate": calcStartField.text,
                                 "workingDays": calcDaysField.text
                             })
-                        } else if (actionId === "refresh") {
-                            root.workspaceController.refresh()
                         }
                     }
                 }

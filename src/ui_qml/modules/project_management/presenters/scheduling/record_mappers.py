@@ -107,7 +107,6 @@ def to_timeline_record(item: Any, *, timeline_items: Any) -> SchedulingRecordVie
             "milestone": milestone,
             "critical": bool(item.is_critical),
             "progressPercent": float(item.percent_complete or 0.0),
-            "baselinePlaceholder": True,
             "startDateLabel": format_date(item.start_date),
             "finishDateLabel": format_date(item.finish_date),
             "windowStartLabel": format_date(bounds[0]),

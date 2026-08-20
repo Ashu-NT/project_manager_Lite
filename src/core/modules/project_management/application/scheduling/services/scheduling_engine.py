@@ -33,9 +33,6 @@ from src.core.modules.project_management.application.scheduling.cpm.date_compute
 from src.core.modules.project_management.application.scheduling.cpm.graph import (
     build_project_dependency_graph,
 )
-from src.core.modules.project_management.application.scheduling.leveling.leveling_mixin import (
-    ResourceLevelingMixin,
-)
 from src.core.modules.project_management.application.scheduling.models.cpm import CPMTaskInfo
 from src.core.modules.project_management.application.scheduling.cpm.passes import (
     run_backward_pass,
@@ -53,7 +50,7 @@ from src.core.modules.project_management.application.scheduling.calendars.workin
 )
 
 
-class SchedulingEngine(ResourceLevelingMixin):
+class SchedulingEngine:
     """
     CPM-style scheduling engine:
     - Forward pass: ES/EF

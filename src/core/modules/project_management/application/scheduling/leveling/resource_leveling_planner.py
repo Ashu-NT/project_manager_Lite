@@ -26,6 +26,9 @@ from src.core.platform.contract.port.time_management.calendar.calendar_protocol 
 )
 from src.core.modules.project_management.domain.tasks.task import Task, TaskAssignment, TaskDependency
 from src.core.modules.project_management.application.scheduling.cpm.pure_cpm import run_cpm
+from src.core.modules.project_management.application.scheduling.leveling.calendar_cache import (
+    build_memoizing_window_for_tasks,
+)
 from src.core.modules.project_management.application.scheduling.leveling.leveling import (
     build_resource_conflicts,
 )
@@ -73,12 +76,22 @@ class ResourceLevelingPlanner:
         resource_threshold_by_id: dict[str, float] | None = None,
     ) -> LevelingProposal:
         schedule_fingerprint = compute_schedule_fingerprint(tasks_by_id, deps, assignments)
-        before_result = run_cpm(self._calendar, tasks_by_id, deps)
+        # R4.4W.1: profiling found run_cpm's own canonical calendar calls
+        # (working_days_between/add_working_days/is_working_day, once per
+        # task) dominate Preview cost at scale -- none of it cached, each
+        # re-querying the enterprise resolver from scratch. This wraps the
+        # SAME authoritative calendar for the scope of this one Preview,
+        # bulk-resolving working-day facts once instead of once per task.
+        # Same facts, same semantics -- see calendar_cache.py.
+        calendar = build_memoizing_window_for_tasks(
+            self._calendar, tasks_by_id, search_horizon_working_days=self._search_horizon_working_days
+        )
+        before_result = run_cpm(calendar, tasks_by_id, deps)
         before_computed = {tid: info.task for tid, info in before_result.schedule.items()}
         conflicts_before = build_resource_conflicts(
             tasks_by_id=before_computed,
             assignments=assignments,
-            calendar=self._calendar,
+            calendar=calendar,
             resource_name_by_id=resource_name_by_id,
             threshold_percent=self._threshold_percent,
             threshold_by_resource_id=resource_threshold_by_id,
@@ -92,12 +105,12 @@ class ResourceLevelingPlanner:
 
         moves_made = 0
         while moves_made < self._max_moves:
-            current_result = run_cpm(self._calendar, working_tasks, deps)
+            current_result = run_cpm(calendar, working_tasks, deps)
             current_computed = {tid: info.task for tid, info in current_result.schedule.items()}
             conflicts = build_resource_conflicts(
                 tasks_by_id=current_computed,
                 assignments=assignments,
-                calendar=self._calendar,
+                calendar=calendar,
                 resource_name_by_id=resource_name_by_id,
                 threshold_percent=self._threshold_percent,
                 threshold_by_resource_id=resource_threshold_by_id,
@@ -125,6 +138,7 @@ class ResourceLevelingPlanner:
                 was_infeasible = bool(info.is_infeasible)
 
                 move = self._search_placement(
+                    calendar=calendar,
                     task_id=task_id,
                     base_task=base_task,
                     working_tasks=working_tasks,
@@ -164,12 +178,12 @@ class ResourceLevelingPlanner:
                     )
                 )
 
-        final_result = run_cpm(self._calendar, working_tasks, deps)
+        final_result = run_cpm(calendar, working_tasks, deps)
         final_computed = {tid: info.task for tid, info in final_result.schedule.items()}
         conflicts_after = build_resource_conflicts(
             tasks_by_id=final_computed,
             assignments=assignments,
-            calendar=self._calendar,
+            calendar=calendar,
             resource_name_by_id=resource_name_by_id,
             threshold_percent=self._threshold_percent,
             threshold_by_resource_id=resource_threshold_by_id,
@@ -253,6 +267,7 @@ class ResourceLevelingPlanner:
     def _search_placement(
         self,
         *,
+        calendar,
         task_id: str,
         base_task: Task,
         working_tasks: dict[str, Task],
@@ -269,12 +284,12 @@ class ResourceLevelingPlanner:
             return None
 
         for shift in range(1, self._search_horizon_working_days + 1):
-            candidate_start = self._calendar.add_working_days(from_start, shift)
+            candidate_start = calendar.add_working_days(from_start, shift)
             if decision.start_ceiling is not None and candidate_start > decision.start_ceiling:
                 break  # every later shift only gets further past the ceiling
             duration = int(base_task.duration_days or 0)
             candidate_finish = (
-                self._calendar.add_working_days(candidate_start, duration)
+                calendar.add_working_days(candidate_start, duration)
                 if duration > 0
                 else candidate_start
             )
@@ -283,7 +298,7 @@ class ResourceLevelingPlanner:
 
             trial_tasks = dict(working_tasks)
             trial_tasks[task_id] = replace(base_task, resource_leveling_not_before=candidate_start)
-            trial_result = run_cpm(self._calendar, trial_tasks, deps)
+            trial_result = run_cpm(calendar, trial_tasks, deps)
             trial_info = trial_result.schedule.get(task_id)
             if trial_info is None or trial_info.earliest_start != candidate_start:
                 # The floor didn't actually land the task at candidate_start
@@ -297,7 +312,7 @@ class ResourceLevelingPlanner:
             trial_conflicts = build_resource_conflicts(
                 tasks_by_id=trial_computed,
                 assignments=assignments,
-                calendar=self._calendar,
+                calendar=calendar,
                 resource_name_by_id=resource_name_by_id,
                 threshold_percent=self._threshold_percent,
                 threshold_by_resource_id=resource_threshold_by_id,
@@ -321,7 +336,7 @@ class ResourceLevelingPlanner:
                     f"exceeds its deadline of {decision.deadline.isoformat()}."
                 )
 
-            old_finish = self._calendar.add_working_days(from_start, duration) if duration > 0 else from_start
+            old_finish = calendar.add_working_days(from_start, duration) if duration > 0 else from_start
             resource_ids = tuple(sorted({a.resource_id for a in assignments if a.task_id == task_id}))
             return ProposedTaskMove(
                 task_id=task_id,

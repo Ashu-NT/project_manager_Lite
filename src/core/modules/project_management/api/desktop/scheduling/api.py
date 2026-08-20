@@ -1,7 +1,10 @@
 """ProjectManagementSchedulingDesktopApi — thin scheduling desktop facade."""
 
 from __future__ import annotations
+import logging
 from datetime import date
+
+logger = logging.getLogger(__name__)
 
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
 from src.core.modules.project_management.application.tasks import TaskService
@@ -26,6 +29,7 @@ from src.core.modules.project_management.api.desktop.scheduling.models import (
     SchedulingConstraintViolationDto,
     SchedulingDependencyDto,
     SchedulingDependencyTypeDescriptor,
+    SchedulingLevelingProposalDto,
     SchedulingProjectDependencyDto,
     SchedulingProjectOptionDescriptor,
     SchedulingResourceLoadDto,
@@ -57,8 +61,16 @@ from src.core.modules.project_management.api.desktop.scheduling.builders.baselin
     build_variance_rows,
 )
 from src.core.modules.project_management.api.desktop.scheduling.builders.resource_load_builder import build_resource_load
+from src.core.modules.project_management.api.desktop.scheduling.builders.leveling_builder import (
+    build_resource_leveling_preview,
+    empty_leveling_proposal_dto,
+)
 from src.core.modules.project_management.api.desktop.scheduling.builders.constraint_builder import build_constraint_violations
 from src.core.modules.project_management.api.desktop.scheduling.builders.change_impact_builder import build_change_impact
+from src.core.modules.project_management.api.desktop.scheduling.models.change_impact import ScheduleImpactReportDto
+from src.core.modules.project_management.api.desktop.scheduling.serializers.change_impact_serializer import (
+    serialize_schedule_impact_report,
+)
 from src.core.modules.project_management.api.desktop.scheduling.serializers.dependency_serializer import serialize_dependency
 from src.core.modules.project_management.api.desktop.scheduling.services.calendar_adapter_service import (
     unwrap_platform_calendar_result,
@@ -106,6 +118,11 @@ class ProjectManagementSchedulingDesktopApi:
         self._reporting_service = reporting_service
         self._change_impact_service = change_impact_service
         self._constraint_validator = constraint_validator
+        # Last-previewed leveling proposal per project, keyed so Apply can
+        # hand the EXACT snapshot Preview reasoned about back to
+        # apply_resource_leveling_plan without a lossy QML round-trip --
+        # Apply still revalidates it against a fresh DB read (R4.4L).
+        self._pending_leveling_proposals: dict[str, object] = {}
 
     # ── Project / Activity options ────────────────────────────────────────────
 
@@ -324,6 +341,32 @@ class ProjectManagementSchedulingDesktopApi:
     def list_resource_load(self, project_id: str) -> tuple[SchedulingResourceLoadDto, ...]:
         return build_resource_load((project_id or "").strip(), self._reporting_service)
 
+    # ── Resource leveling ─────────────────────────────────────────────────────
+
+    def preview_resource_leveling(self, project_id: str) -> SchedulingLevelingProposalDto:
+        normalized_id = (project_id or "").strip()
+        if not normalized_id:
+            return empty_leveling_proposal_dto()
+        result = build_resource_leveling_preview(normalized_id, self._task_service, self._work_calendar_engine)
+        if result is None:
+            return empty_leveling_proposal_dto(normalized_id)
+        proposal, dto = result
+        # Cached on this instance rather than round-tripped through QML --
+        # Apply revalidates it against a fresh DB snapshot anyway (R4.4L),
+        # so QML only ever needs the display DTO, not the raw domain moves.
+        self._pending_leveling_proposals[normalized_id] = proposal
+        return dto
+
+    def apply_resource_leveling(self, project_id: str) -> tuple[SchedulingTaskDto, ...]:
+        normalized_id = (project_id or "").strip()
+        if not normalized_id:
+            raise ValueError("Select a project before applying resource leveling.")
+        proposal = self._pending_leveling_proposals.pop(normalized_id, None)
+        if proposal is None:
+            raise ValueError("Preview resource leveling before applying it.")
+        require_task_method(self._task_service, "apply_resource_leveling_plan")(normalized_id, proposal)
+        return self.list_schedule(normalized_id)
+
     # ── Constraints ───────────────────────────────────────────────────────────
 
     def list_constraint_violations(self, project_id: str) -> tuple[SchedulingConstraintViolationDto, ...]:
@@ -348,6 +391,59 @@ class ProjectManagementSchedulingDesktopApi:
             project_id, task_id,
             proposed_start, proposed_finish, proposed_duration_days,
             change_impact_service=self._change_impact_service,
+        )
+
+    def preview_task_schedule_impact(
+        self,
+        task_id: str,
+        project_id: str,
+        *,
+        delay_working_days: int = 1,
+    ) -> ScheduleImpactReportDto:
+        """Same working-day-delay simulation Task Detail's Schedule Impact
+        uses (`ProjectManagementTasksDesktopApi.preview_task_schedule_impact`),
+        exposed here so the Gantt Inspector's "Analyze Impact" trigger can
+        call the richer, already-existing serialization (critical-path
+        change, conflict count, blocked-by-deadline) instead of
+        analyse_change_impact's narrower DTO -- same core
+        ScheduleChangeImpactService, no new schedule-impact math."""
+        normalized_task_id = str(task_id or "").strip()
+        normalized_project_id = str(project_id or "").strip()
+        unavailable = serialize_schedule_impact_report(
+            task_id=normalized_task_id,
+            project_id=normalized_project_id,
+            simulated_delay_days=delay_working_days,
+        )
+        if (
+            not normalized_task_id
+            or not normalized_project_id
+            or self._task_service is None
+            or self._change_impact_service is None
+        ):
+            return unavailable
+        try:
+            task = self._task_service.get_task(normalized_task_id)
+            if task is None or task.start_date is None:
+                return unavailable
+            report = self._change_impact_service.analyse_working_day_delay(
+                project_id=normalized_project_id,
+                changed_task_id=normalized_task_id,
+                current_start=task.start_date,
+                delay_working_days=delay_working_days,
+            )
+        except Exception:
+            logger.exception(
+                "preview_task_schedule_impact failed (task_id=%s, project_id=%s, delay_working_days=%s)",
+                normalized_task_id,
+                normalized_project_id,
+                delay_working_days,
+            )
+            return unavailable
+        return serialize_schedule_impact_report(
+            task_id=normalized_task_id,
+            project_id=normalized_project_id,
+            simulated_delay_days=delay_working_days,
+            report=report,
         )
 
     # ── Internal guards ───────────────────────────────────────────────────────

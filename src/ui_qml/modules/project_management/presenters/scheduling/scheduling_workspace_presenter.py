@@ -13,6 +13,7 @@ from src.ui_qml.modules.project_management.view_models.scheduling import (
 
 from .baseline_builder import build_baseline_variance_collection
 from .command_handler import (
+    apply_resource_leveling,
     approve_baseline,
     calculate_working_days,
     create_baseline,
@@ -24,6 +25,7 @@ from .command_handler import (
     submit_baseline,
     update_dependency,
 )
+from .leveling_builder import build_resource_leveling_state
 from .workspace_builder import build_workspace_state
 
 class ProjectSchedulingWorkspacePresenter:
@@ -97,6 +99,12 @@ class ProjectSchedulingWorkspacePresenter:
 
     def recalculate_schedule(self, project_id: str) -> None:
         recalculate_schedule(self._desktop_api, project_id)
+
+    def preview_resource_leveling(self, project_id: str) -> dict[str, object]:
+        return build_resource_leveling_state(self._desktop_api, project_id)
+
+    def apply_resource_leveling(self, project_id: str) -> None:
+        apply_resource_leveling(self._desktop_api, project_id)
 
     def create_dependency(self, payload: dict[str, Any]) -> None:
         create_dependency(self._desktop_api, payload)

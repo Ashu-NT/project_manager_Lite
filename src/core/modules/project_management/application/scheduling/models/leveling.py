@@ -21,29 +21,6 @@ class ResourceConflict:
     entries: list[ResourceConflictEntry]
 
 
-@dataclass
-class ResourceLevelingAction:
-    task_id: str
-    task_name: str
-    resource_id: str | None
-    resource_name: str | None
-    conflict_date: date | None
-    shift_working_days: int
-    old_start: date | None
-    old_end: date | None
-    new_start: date | None
-    new_end: date | None
-    reason: str
-
-
-@dataclass
-class ResourceLevelingResult:
-    conflicts_before: int
-    conflicts_after: int
-    iterations: int
-    actions: list[ResourceLevelingAction]
-
-
 # ── R4.4K: pure, in-memory leveling proposal (Preview never persists) ──
 
 
@@ -110,8 +87,6 @@ class LevelingProposal:
 __all__ = [
     "ResourceConflict",
     "ResourceConflictEntry",
-    "ResourceLevelingAction",
-    "ResourceLevelingResult",
     "ProposedTaskMove",
     "UnresolvedConflict",
     "LevelingProposal",

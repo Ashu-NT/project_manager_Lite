@@ -183,13 +183,6 @@ def set_diagnostics(controller, v: dict) -> None:
     controller.diagnosticsChanged.emit()
 
 
-def set_delayed_activities(controller, v: dict) -> None:
-    if v == controller._delayed_activities:
-        return
-    controller._delayed_activities = v
-    controller.delayedActivitiesChanged.emit()
-
-
 def set_resource_loading(controller, v: dict) -> None:
     if v == controller._resource_loading:
         return
@@ -254,8 +247,6 @@ def set_delayed_activity_rows(controller, rows: list) -> None:
         return
     controller._delayed_activity_rows = rows
     controller.delayedActivityRowsChanged.emit()
-    controller.filteredDelayedRowsChanged.emit()
-    controller._table_models.delayed.set_rows(controller.filteredDelayedRows)
 
 
 def set_resource_loading_rows(controller, rows: list) -> None:
@@ -265,6 +256,21 @@ def set_resource_loading_rows(controller, rows: list) -> None:
     controller.resourceLoadingRowsChanged.emit()
     controller.filteredResourceRowsChanged.emit()
     controller._table_models.resources_loading.set_rows(controller.filteredResourceRows)
+
+
+def set_leveling_proposal(controller, v: dict) -> None:
+    if v == controller._leveling_proposal:
+        return
+    controller._leveling_proposal = v
+    controller.levelingProposalChanged.emit()
+
+
+def set_leveling_move_rows(controller, rows: list) -> None:
+    if rows == controller._leveling_move_rows:
+        return
+    controller._leveling_move_rows = rows
+    controller.levelingMoveRowsChanged.emit()
+    controller._table_models.leveling_moves.set_rows(rows)
 
 
 def set_baseline_compare_rows(controller, rows: list) -> None:
@@ -370,7 +376,6 @@ __all__ = [
     "set_constraint_violations",
     "set_constraints",
     "set_critical_path",
-    "set_delayed_activities",
     "set_delayed_activity_rows",
     "set_dependencies",
     "set_dependency_rows",
@@ -379,6 +384,8 @@ __all__ = [
     "set_diagnostics",
     "set_diagnostics_rows",
     "set_holiday_rows",
+    "set_leveling_proposal",
+    "set_leveling_move_rows",
     "set_overview",
     "set_project_options",
     "set_resource_loading",

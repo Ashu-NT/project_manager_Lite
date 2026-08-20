@@ -126,6 +126,11 @@ Item {
                                 _capabilityLoader.item.pmCatalog = Qt.binding(function() {
                                     return root.pmCatalog
                                 })
+                                if ("shellModel" in _capabilityLoader.item) {
+                                    _capabilityLoader.item.shellModel = Qt.binding(function() {
+                                        return root.shellModel
+                                    })
+                                }
                             }
                         }
                     }

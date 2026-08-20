@@ -28,15 +28,12 @@ from src.core.modules.project_management.application.scheduling.forecasting impo
     TaskImpact,
 )
 from src.core.modules.project_management.application.scheduling.leveling import (
-    ResourceLevelingEngine,
-    ResourceLevelingMixin,
+    ResourceLevelingPlanner,
 )
 from src.core.modules.project_management.application.scheduling.models import (
     CPMTaskInfo,
     ResourceConflict,
     ResourceConflictEntry,
-    ResourceLevelingAction,
-    ResourceLevelingResult,
 )
 from src.core.modules.project_management.application.scheduling.services import SchedulingEngine
 from src.core.platform.contract.port.time_management.calendar.calendar_protocol import CalendarProtocol
@@ -47,8 +44,6 @@ __all__ = [
     "CPMTaskInfo",
     "ResourceConflict",
     "ResourceConflictEntry",
-    "ResourceLevelingAction",
-    "ResourceLevelingResult",
     # CPM
     "CPMResult",
     "run_cpm",
@@ -61,8 +56,7 @@ __all__ = [
     "run_backward_pass",
     "run_forward_pass",
     # Leveling
-    "ResourceLevelingEngine",
-    "ResourceLevelingMixin",
+    "ResourceLevelingPlanner",
     # Calendars
     "BoundProjectCalendar",
     "ProjectCalendarAdapter",

@@ -1,3 +1,4 @@
 module workspaces.scheduling.components
 SchedulingActionBar 1.0 SchedulingActionBar.qml
 SchedulingPanelFrame 1.0 SchedulingPanelFrame.qml
+SchedulingPlanningContextHeader 1.0 SchedulingPlanningContextHeader.qml

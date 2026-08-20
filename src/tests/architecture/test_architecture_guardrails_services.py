@@ -132,15 +132,20 @@ def test_scheduling_engine_is_orchestrator_only():
 
 
 def test_scheduling_leveling_is_split_from_engine():
-    engine_path = (
-        ROOT / "src" / "core" / "modules" / "project_management" / "application" / "scheduling"
-        / "services" / "scheduling_engine.py"
+    """Resource leveling moved off SchedulingEngine entirely (R4.4Y):
+    the one authoritative leveling component, ResourceLevelingPlanner,
+    is a pure, in-memory application-layer class -- not a mixin
+    SchedulingEngine inherits, so there is no split-file convention
+    left to guard here."""
+    from src.core.modules.project_management.application.scheduling.leveling.resource_leveling_planner import (
+        ResourceLevelingPlanner,
     )
-    text = engine_path.read_text(encoding="utf-8", errors="ignore")
+    from src.core.modules.project_management.application.scheduling.services.scheduling_engine import (
+        SchedulingEngine,
+    )
 
-    assert "from src.core.modules.project_management.application.scheduling.leveling.leveling_mixin import (" in text
-    assert "ResourceLevelingMixin," in text
-    assert "class SchedulingEngine(ResourceLevelingMixin)" in text
+    assert not issubclass(SchedulingEngine, ResourceLevelingPlanner)
+    assert ResourceLevelingPlanner not in SchedulingEngine.__mro__
 
 
 def test_main_qt_uses_qml_shell_entrypoint():

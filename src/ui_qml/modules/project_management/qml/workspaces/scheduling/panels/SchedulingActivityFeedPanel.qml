@@ -31,18 +31,6 @@ Item {
                 width: parent.width
                 spacing: Theme.AppTheme.spacingSm
 
-                SchedulingActionBar {
-                    Layout.fillWidth: true
-                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-                    actions: [
-                        { "id": "refresh", "label": "Refresh", "icon": "refresh", "enabled": true }
-                    ]
-                    onActionTriggered: function(actionId) {
-                        if (actionId === "refresh" && root.workspaceController !== null)
-                            root.workspaceController.refresh()
-                    }
-                }
-
                 AppWidgets.TableToolbar {
                     Layout.fillWidth: true
                     searchText: root.feedSearchText

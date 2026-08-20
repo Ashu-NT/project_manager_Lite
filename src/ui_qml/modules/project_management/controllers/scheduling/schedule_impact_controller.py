@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from .date_parsing import parse_iso_date
+from src.ui_qml.modules.project_management.presenters.tasks.schedule_impact_builder import (
+    build_task_schedule_impact_preview_state,
+)
 
 
 def format_impact_tasks(tasks: list) -> list:
@@ -27,60 +29,37 @@ def compute_schedule_impact(
     payload: dict,
     fallback_task_id: str,
     fallback_project_id: str,
+    *,
+    delay_working_days: int = 1,
 ) -> tuple[dict[str, object] | None, bool, str]:
-    """Returns (impact_dict, ok, error_message)."""
+    """Returns (impact_dict, ok, error_message).
+
+    Wired onto the same richer Schedule Impact serialization Task Detail's
+    "Analyze Impact" trigger uses (FINAL PRODUCT DECISIONS decision 6) --
+    a working-day-delay simulation via the shared ScheduleChangeImpactService
+    (ProjectManagementSchedulingDesktopApi.preview_task_schedule_impact),
+    not analyse_change_impact's narrower DTO. `delay_working_days` defaults
+    to 1, matching Task Detail's own default/minimum (see
+    TasksScheduleImpactSection.qml) since the Gantt Inspector's trigger has
+    no delay-days input of its own.
+    """
     task_id = str((payload or {}).get("taskId") or fallback_task_id or "")
     project_id = str((payload or {}).get("projectId") or fallback_project_id or "")
     if not task_id or not project_id:
         return None, False, "No activity or project selected."
 
-    proposed_start = parse_iso_date((payload or {}).get("proposedStart"))
-    proposed_finish = parse_iso_date((payload or {}).get("proposedFinish"))
-    raw_duration = (payload or {}).get("proposedDurationDays")
-    proposed_duration_days = int(raw_duration) if raw_duration else None
-
     try:
-        dto = presenter._desktop_api.analyse_change_impact(
-            project_id=project_id,
+        impact = build_task_schedule_impact_preview_state(
+            presenter._desktop_api,
             task_id=task_id,
-            proposed_start=proposed_start,
-            proposed_finish=proposed_finish,
-            proposed_duration_days=proposed_duration_days,
+            project_id=project_id,
+            delay_working_days=delay_working_days,
         )
     except Exception as exc:
         return None, False, str(exc)
 
-    if dto is None:
-        impact: dict[str, object] = {
-            "taskId": task_id,
-            "affectedCount": 0,
-            "maxProjectFinishShiftDays": 0,
-            "requiresApproval": False,
-            "newlyCriticalCount": 0,
-            "noLongerCriticalCount": 0,
-            "affectedTasks": [],
-            "available": False,
-        }
-    else:
-        impact = {
-            "taskId": dto.task_id,
-            "affectedCount": dto.affected_count,
-            "maxProjectFinishShiftDays": dto.max_project_finish_shift_days,
-            "requiresApproval": dto.requires_approval,
-            "newlyCriticalCount": dto.newly_critical_count,
-            "noLongerCriticalCount": dto.no_longer_critical_count,
-            "affectedTasks": [
-                {
-                    "taskId": t.task_id,
-                    "taskName": t.task_name,
-                    "startShiftDays": t.start_shift_days,
-                    "finishShiftDays": t.finish_shift_days,
-                    "isCritical": t.is_critical,
-                }
-                for t in dto.affected_tasks
-            ],
-            "available": True,
-        }
+    impact["available"] = bool(impact.get("isAvailable"))
+    impact["affectedTasks"] = impact.get("rows", [])
     return impact, True, ""
 
 

@@ -7,8 +7,6 @@ from src.ui_qml.modules.project_management.view_models.scheduling import (
     SchedulingRecordViewModel,
 )
 
-from .overview_builder import count_open_ends
-
 def build_diagnostics_collection(
     *,
     schedule_items: Any,
@@ -16,68 +14,26 @@ def build_diagnostics_collection(
     dependency_rows: Any,
     resource_load: Any,
 ) -> SchedulingCollectionViewModel:
-    open_ends = count_open_ends(schedule_items, dependency_rows)
-    # R4.4 constraint-aware backward CPM: reads the backend-owned
-    # is_infeasible flag directly, never re-derives it from
-    # total_float_days < 0 -- see SchedulingTaskDto.is_infeasible.
-    infeasible_count = sum(1 for item in schedule_items if item.is_infeasible)
-    delayed = sum(1 for item in filtered_schedule if (item.late_by_days or 0) > 0)
+    # Critical/Open-ends/Infeasible/Delayed/Overloads are already reported by
+    # the Overview KPI strip (overview_builder.build_overview) -- this
+    # collection only carries the one diagnostic the KPI strip does not:
+    # deadline breaches. Deadline lateness is not itself a constraint type,
+    # so this row is titled/labeled distinctly from the real per-constraint-
+    # type "Constraint Overruns" table below it in
+    # SchedulingDiagnosticsPanel.qml.
     constraints = sum(
         1
         for item in schedule_items
         if item.deadline is not None and (item.late_by_days or 0) > 0
     )
-    overloads = sum(
-        1 for item in resource_load if float(item.utilization_percent or 0.0) > 100.0
-    )
     rows = (
         SchedulingRecordViewModel(
-            id="critical",
-            title="Critical Path Length",
-            status_label="Critical",
-            subtitle=str(sum(1 for item in schedule_items if item.is_critical)),
-            supporting_text="Activities on the current zero-float path.",
-            meta_text="CPM",
-        ),
-        SchedulingRecordViewModel(
-            id="open-ends",
-            title="Open Ends",
-            status_label="Warning" if open_ends else "Stable",
-            subtitle=str(open_ends),
-            supporting_text="Activities missing a predecessor or successor.",
-            meta_text="Network quality",
-        ),
-        SchedulingRecordViewModel(
-            id="infeasible",
-            title="Infeasible Activities",
-            status_label="Danger" if infeasible_count else "Stable",
-            subtitle=str(infeasible_count),
-            supporting_text="Activities whose dependencies and scheduling constraints cannot all be satisfied.",
-            meta_text="Schedule pressure",
-        ),
-        SchedulingRecordViewModel(
-            id="delayed",
-            title="Delayed Activities",
-            status_label="Warning" if delayed else "Stable",
-            subtitle=str(delayed),
-            supporting_text="Filtered activities already late.",
-            meta_text="Execution risk",
-        ),
-        SchedulingRecordViewModel(
             id="constraints",
-            title="Constraint Violations",
+            title="Deadline Breaches",
             status_label="Danger" if constraints else "Stable",
             subtitle=str(constraints),
             supporting_text="Activities missing their current deadline guard.",
             meta_text="Deadline control",
-        ),
-        SchedulingRecordViewModel(
-            id="overloads",
-            title="Resource Conflicts",
-            status_label="Danger" if overloads else "Stable",
-            subtitle=str(overloads),
-            supporting_text="Resources above effective capacity.",
-            meta_text="Loading pressure",
         ),
     )
     return SchedulingCollectionViewModel(

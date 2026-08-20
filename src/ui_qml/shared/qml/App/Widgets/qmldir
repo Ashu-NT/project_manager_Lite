@@ -22,6 +22,7 @@ LazySectionLoader 1.0 LazySectionLoader.qml
 LazyObjectLoader 1.0 LazyObjectLoader.qml
 LoadingOverlay 1.0 LoadingOverlay.qml
 MetricCard 1.0 MetricCard.qml
+NavOverflowMenu 1.0 NavOverflowMenu.qml
 OverviewSectionCard 1.0 OverviewSectionCard.qml
 PageHeader 1.0 PageHeader.qml
 PermissionState 1.0 PermissionState.qml

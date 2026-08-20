@@ -81,6 +81,15 @@ def recalculate_schedule(
         raise ValueError("Select a project before recalculating the schedule.")
     desktop_api.recalculate_schedule(normalized_id)
 
+def apply_resource_leveling(
+    desktop_api: ProjectManagementSchedulingDesktopApi,
+    project_id: str,
+) -> None:
+    normalized_id = (project_id or "").strip()
+    if not normalized_id:
+        raise ValueError("Select a project before applying resource leveling.")
+    desktop_api.apply_resource_leveling(normalized_id)
+
 def create_dependency(
     desktop_api: ProjectManagementSchedulingDesktopApi,
     payload: dict[str, Any],
@@ -162,6 +171,7 @@ __all__ = [
     "approve_baseline",
     "reject_baseline",
     "recalculate_schedule",
+    "apply_resource_leveling",
     "create_dependency",
     "update_dependency",
     "delete_dependency",
