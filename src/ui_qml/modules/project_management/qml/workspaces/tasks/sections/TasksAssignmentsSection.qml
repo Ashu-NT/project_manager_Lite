@@ -187,8 +187,7 @@ Item {
 
             Item {
                 Layout.fillWidth: true
-                Layout.preferredHeight: root._tableH + assignmentPagination.implicitHeight
-                Layout.alignment: Qt.AlignTop
+                Layout.fillHeight: true
 
                 AppWidgets.DataTable {
                     anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: assignmentPagination.top
@@ -237,7 +236,6 @@ Item {
                 Layout.fillHeight: true
                 visible: root._selectedItem !== null
                 Layout.preferredWidth: visible ? Theme.AppTheme.inspectorWidth : 0
-                Layout.alignment: Qt.AlignTop
                 title: root._selectedItem ? String(root._selectedItem.title || "") : ""
                 statusLabel: String(root._selectedState.capacityStatusLabel || "")
                 showEditAction: false

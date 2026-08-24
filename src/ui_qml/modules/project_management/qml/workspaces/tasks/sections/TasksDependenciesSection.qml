@@ -92,8 +92,7 @@ Item {
             spacing: Theme.AppTheme.spacingMd
             Item {
                 Layout.fillWidth: true
-                Layout.preferredHeight: root._tableHeight + pagination.implicitHeight
-                Layout.alignment: Qt.AlignTop
+                Layout.fillHeight: true
                 AppWidgets.DataTable {
                     anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: pagination.top
                     columns: [{key:"direction",label:"Direction",minWidth:105,flex:0,type:"status",sortable:true},
@@ -124,7 +123,7 @@ Item {
             AppWidgets.InspectorPanel {
                 id: dependencyInspector
                 Layout.preferredWidth: visible ? Theme.AppTheme.inspectorWidth : 0
-                Layout.alignment: Qt.AlignTop
+                Layout.fillHeight: true
                 visible: root._selectedItem !== null; title: root._selectedItem ? String(root._selectedItem.linkedTask || "") : ""
                 statusLabel: root._selectedItem ? String(root._selectedItem.direction || "") : ""
                 sections: root._selectedItem ? [{"label":"Relationship","value":String(root._selectedItem.dependencyType || "")},
