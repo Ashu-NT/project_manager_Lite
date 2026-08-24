@@ -62,6 +62,15 @@ class ResourceDetailViewModel:
     fields: tuple[ResourceDetailFieldViewModel, ...] = field(default_factory=tuple)
     state: dict[str, Any] = field(default_factory=dict)
 
+
+@dataclass(frozen=True)
+class ResourceInspectorViewModel:
+    id: str = ""
+    title: str = ""
+    status_label: str = ""
+    fields: tuple[ResourceDetailFieldViewModel, ...] = field(default_factory=tuple)
+    state: dict[str, Any] = field(default_factory=dict)
+
 @dataclass(frozen=True)
 class ResourceSkillViewModel:
     id: str
@@ -132,6 +141,7 @@ __all__ = [
     "ResourceDetailFieldViewModel",
     "ResourceDetailViewModel",
     "ResourceEmployeeOptionViewModel",
+    "ResourceInspectorViewModel",
     "ResourceRecordViewModel",
     "ResourceSelectorOptionViewModel",
     "ResourceSkillViewModel",

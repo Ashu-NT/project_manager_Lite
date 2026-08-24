@@ -22,6 +22,16 @@ def default_selected_resource() -> dict[str, object]:
     }
 
 
+def default_resource_inspector() -> dict[str, object]:
+    return {
+        "id": "",
+        "title": "",
+        "statusLabel": "",
+        "fields": [],
+        "state": {},
+    }
+
+
 def default_resource_availability() -> dict[str, object]:
     return {
         "resourceId": "",
@@ -39,6 +49,7 @@ def default_resource_availability() -> dict[str, object]:
 __all__ = [
     "default_overview",
     "default_resource_availability",
+    "default_resource_inspector",
     "default_resources",
     "default_selected_resource",
 ]

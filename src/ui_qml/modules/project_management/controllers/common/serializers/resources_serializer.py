@@ -6,6 +6,7 @@ from src.ui_qml.modules.project_management.view_models.resources import (
     ResourceCertificationViewModel,
     ResourceDetailViewModel,
     ResourceEmployeeOptionViewModel,
+    ResourceInspectorViewModel,
     ResourceRecordViewModel,
     ResourceSkillViewModel,
 )
@@ -167,12 +168,32 @@ def serialize_resource_detail_view_model(
     }
 
 
+def serialize_resource_inspector_view_model(
+    view_model: ResourceInspectorViewModel,
+) -> dict[str, object]:
+    return {
+        "id": view_model.id,
+        "title": view_model.title,
+        "statusLabel": view_model.status_label,
+        "fields": [
+            {
+                "label": field.label,
+                "value": field.value,
+                "supportingText": field.supporting_text,
+            }
+            for field in view_model.fields
+        ],
+        "state": dict(view_model.state),
+    }
+
+
 __all__ = [
     "serialize_resource_availability_view_model",
     "serialize_resource_catalog_overview_view_model",
     "serialize_resource_certification_view_models",
     "serialize_resource_detail_view_model",
     "serialize_resource_employee_option_view_models",
+    "serialize_resource_inspector_view_model",
     "serialize_resource_record_view_models",
     "serialize_resource_skill_view_models",
 ]

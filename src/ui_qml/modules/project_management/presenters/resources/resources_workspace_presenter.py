@@ -29,6 +29,7 @@ from .command_handler import (
 from .skills_builder import add_skill, build_skills_state, remove_skill
 from .workspace_builder import build_workspace_state
 from .resource_mapper import to_resource_record_view_model
+from .detail_builder import build_detail_view_model, build_inspector_view_model
 
 class ProjectResourcesWorkspacePresenter:
     def __init__(
@@ -89,6 +90,16 @@ class ProjectResourcesWorkspacePresenter:
                 break
             page += 1
         return tuple(records)
+
+    def build_resource_inspector(self, resource_id: str):
+        return build_inspector_view_model(
+            self._desktop_api.get_resource_inspector(resource_id)
+        )
+
+    def build_resource_detail(self, resource_id: str):
+        return build_detail_view_model(
+            self._desktop_api.get_resource_summary(resource_id)
+        )
 
     def suggest_code(self, payload: dict[str, Any]) -> str:
         return suggest_code(self._desktop_api, payload)

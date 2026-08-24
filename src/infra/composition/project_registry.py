@@ -333,6 +333,7 @@ def build_project_management_service_bundle(
     # RateCardResolver (RateSelectionSnapshot.resolved_at) — one time source,
     # not two independent ways of asking "what time is it."
     system_clock = SystemClock()
+    resource_read_reader = SqlAlchemyResourceCatalogReader(session=session)
     resource_service = ResourceService(
         session,
         repositories.resource_repo,
@@ -348,7 +349,9 @@ def build_project_management_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         project_rate_card_repo=repositories.project_rate_card_repo,
         clock=system_clock,
-        resource_catalog_reader=SqlAlchemyResourceCatalogReader(session=session),
+        resource_catalog_reader=resource_read_reader,
+        resource_inspector_reader=resource_read_reader,
+        resource_summary_reader=resource_read_reader,
     )
     financial_configuration_service = FinancialConfigurationService(
         session=session,

@@ -58,6 +58,36 @@ class ResourceStateSettersMixin:
         self._selected_resource = selected_resource
         self.selectedResourceChanged.emit()
 
+    def _set_resource_inspector(self, inspector: dict[str, object]) -> None:
+        if inspector == self._resource_inspector:
+            return
+        self._resource_inspector = inspector
+        self.resourceInspectorChanged.emit()
+
+    def _set_inspector_loading(self, value: bool) -> None:
+        if value == self._inspector_loading:
+            return
+        self._inspector_loading = value
+        self.inspectorLoadingChanged.emit()
+
+    def _set_inspector_error(self, value: str) -> None:
+        if value == self._inspector_error:
+            return
+        self._inspector_error = value
+        self.inspectorErrorChanged.emit()
+
+    def _set_detail_loading(self, value: bool) -> None:
+        if value == self._detail_loading:
+            return
+        self._detail_loading = value
+        self.detailLoadingChanged.emit()
+
+    def _set_detail_error(self, value: str) -> None:
+        if value == self._detail_error:
+            return
+        self._detail_error = value
+        self.detailErrorChanged.emit()
+
     def _set_selected_resource_id(self, selected_resource_id: str) -> None:
         if selected_resource_id == self._selected_resource_id:
             return

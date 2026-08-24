@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 from src.core.modules.project_management.access.scope_permissions import (
     require_any_project_permission,
 )
@@ -13,6 +15,10 @@ from src.core.modules.project_management.application.common.pagination import (
 from src.core.modules.project_management.contracts.reads.resources import (
     ResourceCatalogReadPage,
     ResourceCatalogReader,
+    ResourceInspectorFact,
+    ResourceInspectorReader,
+    ResourceSummaryFact,
+    ResourceSummaryReader,
 )
 from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.domain.enums import CostType
@@ -21,12 +27,17 @@ from src.core.platform.application.security.authorization.enforcement.permission
     require_any_permission,
     require_permission,
 )
+from src.core.platform.application.security.authorization.enforcement.session_authorization_engine import (
+    get_authorization_engine,
+)
 from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 
 
 class ResourceQueryMixin:
     _resource_repo: ResourceRepository
     _resource_catalog_reader: ResourceCatalogReader | None
+    _resource_inspector_reader: ResourceInspectorReader | None
+    _resource_summary_reader: ResourceSummaryReader | None
 
     def list_resources(self) -> list[Resource]:
         require_permission(self._user_session, "resource.read", operation_label="list resources")
@@ -61,7 +72,8 @@ class ResourceQueryMixin:
                 "department",
                 "site",
                 "role",
-                "utilizationValue",
+                "workerTypeLabel",
+                "capacityPercent",
             },
             default_key="catalog",
         )
@@ -88,6 +100,68 @@ class ResourceQueryMixin:
             read_kwargs["page"] = normalized_page
             result = self._resource_catalog_reader.read_page(**read_kwargs)
         return result
+
+    def get_resource_inspector(self, resource_id: str) -> ResourceInspectorFact:
+        require_permission(
+            self._user_session,
+            "resource.read",
+            operation_label="view resource inspector",
+        )
+        if self._resource_inspector_reader is None or self._tenant_context_service is None:
+            raise RuntimeError("Resource Inspector reader is not configured.")
+        normalized_id = str(resource_id or "").strip()
+        if not normalized_id:
+            raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view resource inspector"
+        )
+        fact = self._resource_inspector_reader.read_inspector(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            resource_id=normalized_id,
+        )
+        if fact is None:
+            raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
+        can_manage = get_authorization_engine().has_permission(
+            self._user_session,
+            "resource.manage",
+            resource=fact,
+        )
+        return replace(
+            fact,
+            can_read=True,
+            can_manage=can_manage,
+            can_deactivate=can_manage and fact.is_active,
+            can_reactivate=can_manage and not fact.is_active,
+        )
+
+    def get_resource_summary(self, resource_id: str) -> ResourceSummaryFact:
+        require_permission(
+            self._user_session,
+            "resource.read",
+            operation_label="view resource summary",
+        )
+        if self._resource_summary_reader is None or self._tenant_context_service is None:
+            raise RuntimeError("Resource summary reader is not configured.")
+        normalized_id = str(resource_id or "").strip()
+        if not normalized_id:
+            raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view resource summary"
+        )
+        fact = self._resource_summary_reader.read_summary(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            resource_id=normalized_id,
+        )
+        if fact is None:
+            raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
+        can_manage = get_authorization_engine().has_permission(
+            self._user_session,
+            "resource.manage",
+            resource=fact,
+        )
+        return replace(fact, can_read=True, can_manage=can_manage)
 
     def list_for_project_workspace(
         self,

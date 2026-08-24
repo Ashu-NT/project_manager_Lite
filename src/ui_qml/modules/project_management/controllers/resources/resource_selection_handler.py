@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QTimer
+from .resource_read_handler import (
+    clear_resource_read_state,
+    load_resource_detail,
+    load_resource_inspector,
+)
+from .resource_state import default_selected_resource
 
 
 def set_search_text(controller, search_text: str) -> None:
@@ -35,12 +40,16 @@ def select_resource(controller, resource_id: str) -> None:
     if normalized == controller._selected_resource_id:
         return
     controller._set_selected_resource_id(normalized)
+    controller._set_selected_resource(default_selected_resource())
+    if normalized:
+        load_resource_inspector(controller, normalized)
+    else:
+        clear_resource_read_state(controller)
 
 
 def activate_resource(controller, resource_id: str) -> None:
     select_resource(controller, resource_id)
-    QTimer.singleShot(0, controller.refresh)
-    QTimer.singleShot(0, controller.loadResourceAssignments)
+    load_resource_detail(controller, resource_id)
 
 
 def set_resource_page(controller, page: int) -> None:

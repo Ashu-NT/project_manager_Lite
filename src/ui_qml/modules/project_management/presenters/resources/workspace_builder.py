@@ -9,8 +9,6 @@ from src.ui_qml.modules.project_management.view_models.resources import (
     ResourceSelectorOptionViewModel,
 )
 
-from .availability_builder import build_availability_view_model
-from .detail_builder import build_detail_view_model
 from .filtering import (
     build_empty_state,
     normalize_active_filter,
@@ -73,10 +71,6 @@ def build_workspace_state(
     resolved_selected_resource_id = resolve_selected_resource_id(
         selected_resource_id, resource_page.items
     )
-    selected_resource = next(
-        (resource for resource in resource_page.items if resource.id == resolved_selected_resource_id),
-        None,
-    )
     return ResourceCatalogWorkspaceViewModel(
         overview=build_overview(
             total=resource_page.total,
@@ -96,8 +90,6 @@ def build_workspace_state(
             to_resource_record_view_model(resource) for resource in resource_page.items
         ),
         selected_resource_id=resolved_selected_resource_id,
-        selected_resource_detail=build_detail_view_model(desktop_api, selected_resource),
-        resource_availability=build_availability_view_model(desktop_api, resolved_selected_resource_id),
         empty_state=build_empty_state(
             total=resource_page.total,
             filtered_total=resource_page.filtered_total,

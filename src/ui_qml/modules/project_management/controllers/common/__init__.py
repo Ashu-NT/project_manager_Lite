@@ -48,6 +48,7 @@ from src.ui_qml.modules.project_management.controllers.common.serializers.resour
     serialize_resource_certification_view_models,
     serialize_resource_detail_view_model,
     serialize_resource_employee_option_view_models,
+    serialize_resource_inspector_view_model,
     serialize_resource_record_view_models,
     serialize_resource_skill_view_models,
 )
@@ -141,6 +142,7 @@ __all__ = [
     "serialize_resource_certification_view_models",
     "serialize_resource_detail_view_model",
     "serialize_resource_employee_option_view_models",
+    "serialize_resource_inspector_view_model",
     "serialize_resource_record_view_models",
     "serialize_resource_skill_view_models",
     "serialize_scheduling_baselines_view_model",

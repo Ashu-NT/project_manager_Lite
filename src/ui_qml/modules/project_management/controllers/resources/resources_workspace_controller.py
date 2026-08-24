@@ -6,9 +6,7 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
-    serialize_resource_availability_view_model,
     serialize_resource_catalog_overview_view_model,
-    serialize_resource_detail_view_model,
     serialize_resource_employee_option_view_models,
     serialize_resource_record_view_models,
     serialize_selector_options,
@@ -22,6 +20,7 @@ from src.ui_qml.modules.project_management.presenters import (
 from .resource_state import (
     default_overview,
     default_resource_availability,
+    default_resource_inspector,
     default_resources,
     default_selected_resource,
 )
@@ -61,6 +60,11 @@ from .resource_skills_handler import (
 )
 from .resource_assignments_handler import load_resource_assignments
 from .resource_export_handler import export_resources
+from .resource_read_handler import (
+    load_resource_detail,
+    load_resource_inspector,
+    refresh_selected_resource_reads,
+)
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -80,6 +84,11 @@ class ProjectManagementResourcesWorkspaceController(
     searchTextChanged = Signal()
     resourcesChanged = Signal()
     selectedResourceChanged = Signal()
+    resourceInspectorChanged = Signal()
+    inspectorLoadingChanged = Signal()
+    inspectorErrorChanged = Signal()
+    detailLoadingChanged = Signal()
+    detailErrorChanged = Signal()
     selectedResourceIdChanged = Signal()
     resourcePageChanged = Signal()
     resourcePageSizeChanged = Signal()
@@ -117,6 +126,13 @@ class ProjectManagementResourcesWorkspaceController(
         self._table_models: ResourceTableModels = create_resource_table_models(self)
         self._resources: dict[str, object] = default_resources()
         self._selected_resource: dict[str, object] = default_selected_resource()
+        self._resource_inspector: dict[str, object] = default_resource_inspector()
+        self._inspector_loading = False
+        self._inspector_error = ""
+        self._detail_loading = False
+        self._detail_error = ""
+        self._inspector_request_id = 0
+        self._detail_request_id = 0
         self._selected_resource_id = ""
         self._resource_page = 1
         self._resource_page_size = 25
@@ -174,6 +190,26 @@ class ProjectManagementResourcesWorkspaceController(
     @Property("QVariantMap", notify=selectedResourceChanged)
     def selectedResource(self) -> dict[str, object]:
         return self._selected_resource
+
+    @Property("QVariantMap", notify=resourceInspectorChanged)
+    def resourceInspector(self) -> dict[str, object]:
+        return self._resource_inspector
+
+    @Property(bool, notify=inspectorLoadingChanged)
+    def inspectorLoading(self) -> bool:
+        return self._inspector_loading
+
+    @Property(str, notify=inspectorErrorChanged)
+    def inspectorError(self) -> str:
+        return self._inspector_error
+
+    @Property(bool, notify=detailLoadingChanged)
+    def detailLoading(self) -> bool:
+        return self._detail_loading
+
+    @Property(str, notify=detailErrorChanged)
+    def detailError(self) -> str:
+        return self._detail_error
 
     @Property(str, notify=selectedResourceIdChanged)
     def selectedResourceId(self) -> str:
@@ -282,19 +318,13 @@ class ProjectManagementResourcesWorkspaceController(
                 }
             )
             self._set_selected_resource_id(workspace_state.selected_resource_id)
-            self._set_selected_resource(
-                serialize_resource_detail_view_model(workspace_state.selected_resource_detail)
-            )
             self._set_empty_state(workspace_state.empty_state)
             self._set_resource_total_count(workspace_state.total_count)
             self._set_resource_page(workspace_state.page)
             self._set_resource_page_size(workspace_state.page_size)
             self._set_resource_sort_key(workspace_state.sort_key)
             self._set_resource_sort_direction(1 if workspace_state.sort_direction == "desc" else 0)
-            self._set_resource_availability(
-                serialize_resource_availability_view_model(workspace_state.resource_availability)
-            )
-            reload_skills_and_certs(self, workspace_state.selected_resource_id)
+            refresh_selected_resource_reads(self)
         except Exception as exc:  # pragma: no cover - defensive fallback
             self._set_error_message(str(exc))
         finally:
@@ -321,6 +351,14 @@ class ProjectManagementResourcesWorkspaceController(
     @Slot(str)
     def activateResource(self, resource_id: str) -> None:
         activate_resource(self, resource_id)
+
+    @Slot(str)
+    def loadResourceInspector(self, resource_id: str) -> None:
+        load_resource_inspector(self, resource_id)
+
+    @Slot(str, result=bool)
+    def loadResourceDetail(self, resource_id: str) -> bool:
+        return load_resource_detail(self, resource_id)
 
     @Slot(str)
     def loadSkillsAndCerts(self, resource_id: str) -> None:

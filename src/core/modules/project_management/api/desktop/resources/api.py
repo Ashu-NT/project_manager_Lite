@@ -41,6 +41,8 @@ from src.core.modules.project_management.api.desktop.resources.models.options im
 from src.core.modules.project_management.api.desktop.resources.models.resources import (
     ResourceCatalogPageDesktopDto,
     ResourceDesktopDto,
+    ResourceInspectorDesktopDto,
+    ResourceSummaryDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.resources.models.skills import (
     ResourceSkillDesktopDto,
@@ -50,6 +52,9 @@ from src.core.modules.project_management.api.desktop.resources.serializers.certi
 )
 from src.core.modules.project_management.api.desktop.resources.serializers.resource_serializer import (
     serialize_resource,
+    serialize_resource_catalog_item,
+    serialize_resource_inspector,
+    serialize_resource_summary,
 )
 from src.core.modules.project_management.api.desktop.resources.serializers.skill_serializer import (
     serialize_skill,
@@ -140,28 +145,8 @@ class ProjectManagementResourcesDesktopApi:
             sort_key=sort_key,
             sort_direction=sort_direction,
         )
-        items: list[ResourceDesktopDto] = []
-        for item in result.items:
-            employee_lookup: dict[str, ResourceEmployeeOptionDescriptor] = {}
-            employee_id = str(getattr(item.resource, "employee_id", "") or "")
-            if employee_id:
-                context = " | ".join(
-                    value for value in (item.department_label, item.site_label) if value
-                ) or "-"
-                employee_lookup[employee_id] = ResourceEmployeeOptionDescriptor(
-                    value=employee_id,
-                    label=item.employee_name or item.resource.name,
-                    name=item.employee_name or item.resource.name,
-                    title=item.employee_title,
-                    contact=item.employee_contact,
-                    context=context,
-                    department=item.department_label,
-                    site=item.site_label,
-                    is_active=bool(item.resource.is_active),
-                )
-            items.append(serialize_resource(item.resource, employee_lookup=employee_lookup))
         return ResourceCatalogPageDesktopDto(
-            items=tuple(items),
+            items=tuple(serialize_resource_catalog_item(item) for item in result.items),
             filtered_total=result.filtered_total,
             total=result.summary.total,
             active=result.summary.active,
@@ -173,6 +158,14 @@ class ProjectManagementResourcesDesktopApi:
             sort_key=result.sort.key,
             sort_direction=result.sort.direction.value,
         )
+
+    def get_resource_inspector(self, resource_id: str) -> ResourceInspectorDesktopDto:
+        fact = self._require_resource_service().get_resource_inspector(resource_id)
+        return serialize_resource_inspector(fact)
+
+    def get_resource_summary(self, resource_id: str) -> ResourceSummaryDesktopDto:
+        fact = self._require_resource_service().get_resource_summary(resource_id)
+        return serialize_resource_summary(fact)
 
     def create_resource(self, command: ResourceCreateCommand) -> ResourceDesktopDto:
         service = self._require_resource_service()
