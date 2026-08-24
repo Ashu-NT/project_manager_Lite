@@ -10,8 +10,32 @@ class ResourceAddCertificationCommand:
     certification_name: str
     issued_date: str | None = None
     expiry_date: str | None = None
-    issuing_body: str = ""
+    certificate_number: str = ""
+    issuer: str = ""
     notes: str = ""
 
 
-__all__ = ["ResourceAddCertificationCommand"]
+@dataclass(frozen=True)
+class ResourceUpdateCertificationCommand:
+    cert_id: str
+    expected_version: int
+    certification_code: str
+    certification_name: str
+    issued_date: str | None = None
+    expiry_date: str | None = None
+    certificate_number: str = ""
+    issuer: str = ""
+    notes: str = ""
+
+
+@dataclass(frozen=True)
+class ResourceRemoveCertificationCommand:
+    cert_id: str
+    expected_version: int
+
+
+__all__ = [
+    "ResourceAddCertificationCommand",
+    "ResourceRemoveCertificationCommand",
+    "ResourceUpdateCertificationCommand",
+]

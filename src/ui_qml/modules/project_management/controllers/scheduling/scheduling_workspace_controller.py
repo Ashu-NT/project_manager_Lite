@@ -15,6 +15,22 @@ from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from .activity_log_service import ActivityLogService
 from .domain_event_binder import bind_scheduling_domain_events
 from .filter_service import filter_rows
+from .gantt_list_model import GanttListModel
+from .gantt_baseline_actions import (
+    retry_gantt_baseline,
+    select_gantt_baseline,
+)
+from .gantt_time_axis_controller import GanttTimeAxisController
+from .gantt_view_state import (
+    gantt_zoom_in,
+    gantt_zoom_out,
+    persist_gantt_view_preferences,
+    reset_gantt_zoom,
+    restore_gantt_view_preferences,
+    set_gantt_requested_view_mode,
+    set_gantt_split_ratio,
+    set_gantt_timescale,
+)
 from .leveling_actions import apply_resource_leveling, preview_resource_leveling
 from .mutation_handler import SchedulingMutationHandler
 from .scheduling_calculation_actions import (
@@ -24,11 +40,8 @@ from .scheduling_calculation_actions import (
 )
 from .scheduling_property_updates import (
     set_activity_feed,
-    set_activity_page,
-    set_activity_page_size,
     set_activity_sort_direction,
     set_activity_sort_key,
-    set_activity_total_count,
     set_baseline_compare_rows,
     set_baseline_options,
     set_baseline_register,
@@ -39,15 +52,8 @@ from .scheduling_property_updates import (
     set_calendar_options,
     set_calendar_summary_rows,
     set_calculator_result,
-    set_constraint_rows,
     set_constraint_violations,
-    set_constraints,
-    set_critical_path,
     set_delayed_activity_rows,
-    set_dependencies,
-    set_dependency_rows,
-    set_dependency_task_options,
-    set_dependency_type_options,
     set_diagnostics,
     set_diagnostics_rows,
     set_holiday_rows,
@@ -55,11 +61,7 @@ from .scheduling_property_updates import (
     set_project_options,
     set_resource_loading,
     set_resource_loading_rows,
-    set_schedule,
-    set_schedule_rows,
     set_search_text,
-    set_selected_activity,
-    set_selected_activity_id,
     set_selected_baseline_id,
     set_selected_calendar_id,
     set_selected_project_id,
@@ -67,11 +69,9 @@ from .scheduling_property_updates import (
     set_show_critical_only,
     set_show_delayed_only,
     set_status_options,
-    set_timeline,
     set_violation_rows,
 )
 from .scheduling_selection_actions import (
-    activate_activity,
     apply_search_text,
     apply_show_critical_only,
     apply_show_delayed_only,
@@ -85,9 +85,8 @@ from .scheduling_selection_actions import (
     select_project,
     set_active_panel,
     set_activity_sort,
+    set_hierarchy_expanded,
     set_include_unchanged,
-    set_page,
-    set_page_size,
 )
 from .scheduling_state_loader import load_workspace_state
 from .scheduling_tab_search_actions import (
@@ -120,8 +119,6 @@ class ProjectManagementSchedulingWorkspaceController(
     projectOptionsChanged = Signal()
     calendarOptionsChanged = Signal()
     baselineOptionsChanged = Signal()
-    dependencyTypeOptionsChanged = Signal()
-    dependencyTaskOptionsChanged = Signal()
     statusOptionsChanged = Signal()
     selectedProjectIdChanged = Signal()
     selectedCalendarIdChanged = Signal()
@@ -130,31 +127,27 @@ class ProjectManagementSchedulingWorkspaceController(
     searchTextChanged = Signal()
     showCriticalOnlyChanged = Signal()
     showDelayedOnlyChanged = Signal()
-    activityPageChanged = Signal()
-    activityPageSizeChanged = Signal()
-    activityTotalCountChanged = Signal()
+    showDependencyLinesChanged = Signal()
+    highlightCriticalTasksChanged = Signal()
+    ganttSelectedBaselineIdChanged = Signal()
+    ganttBaselineLoadingChanged = Signal()
+    ganttBaselineErrorChanged = Signal()
+    ganttRequestedViewModeChanged = Signal()
+    ganttSplitRatioChanged = Signal()
     activitySortKeyChanged = Signal()
     activitySortDirectionChanged = Signal()
     calendarChanged = Signal()
     baselinesChanged = Signal()
-    scheduleChanged = Signal()
-    timelineChanged = Signal()
-    criticalPathChanged = Signal()
     diagnosticsChanged = Signal()
     resourceLoadingChanged = Signal()
     baselineRegisterChanged = Signal()
-    dependenciesChanged = Signal()
-    constraintsChanged = Signal()
     constraintViolationsChanged = Signal()
     activityFeedChanged = Signal()
-    scheduleRowsChanged = Signal()
     diagnosticsRowsChanged = Signal()
     delayedActivityRowsChanged = Signal()
     resourceLoadingRowsChanged = Signal()
     baselineCompareRowsChanged = Signal()
     baselineRegisterRowsChanged = Signal()
-    dependencyRowsChanged = Signal()
-    constraintRowsChanged = Signal()
     violationRowsChanged = Signal()
     calendarSummaryRowsChanged = Signal()
     holidayRowsChanged = Signal()
@@ -191,6 +184,8 @@ class ProjectManagementSchedulingWorkspaceController(
             scheduling_workspace_presenter or ProjectSchedulingWorkspacePresenter()
         )
         self._table_models = create_scheduling_table_models(self)
+        self._gantt_model = GanttListModel(self)
+        self._gantt_time_axis = GanttTimeAxisController(self)
         self._activity_log_svc = ActivityLogService()
         self._mutations = SchedulingMutationHandler(
             presenter=self._scheduling_workspace_presenter,
@@ -205,8 +200,6 @@ class ProjectManagementSchedulingWorkspaceController(
         self._project_options: list[dict[str, str]] = []
         self._calendar_options: list[dict[str, str]] = []
         self._baseline_options: list[dict[str, str]] = []
-        self._dependency_type_options: list[dict[str, str]] = []
-        self._dependency_task_options: list[dict[str, str]] = []
         self._status_options: list[dict[str, str]] = []
         self._selected_project_id = ""
         self._selected_calendar_id = "default"
@@ -215,32 +208,28 @@ class ProjectManagementSchedulingWorkspaceController(
         self._search_text = ""
         self._show_critical_only = False
         self._show_delayed_only = False
-        self._activity_page = 1
-        self._activity_page_size = 25
-        self._activity_total_count = 0
+        self._show_dependency_lines = True
+        self._highlight_critical_tasks = True
+        self._gantt_selected_baseline_id = ""
+        self._gantt_baseline_loading = False
+        self._gantt_baseline_error = ""
+        self._gantt_requested_view_mode = "split"
+        self._gantt_split_ratio = 0.5
         self._activity_sort_key = "schedule"
         self._activity_sort_direction = 0
         self._selected_activity_id = ""
         self._calendar: dict[str, object] = default_calendar()
         self._baselines: dict[str, object] = default_baselines()
-        self._schedule: dict[str, object] = default_collection()
-        self._timeline: dict[str, object] = default_collection()
-        self._critical_path: dict[str, object] = default_collection()
         self._diagnostics: dict[str, object] = default_collection()
         self._resource_loading: dict[str, object] = default_collection()
         self._baseline_register: dict[str, object] = default_collection()
-        self._dependencies: dict[str, object] = default_collection()
-        self._constraints: dict[str, object] = default_collection()
         self._constraint_violations: dict[str, object] = default_collection()
         self._activity_feed: dict[str, object] = default_collection()
-        self._schedule_rows: list[dict[str, object]] = []
         self._diagnostics_rows: list[dict[str, object]] = []
         self._delayed_activity_rows: list[dict[str, object]] = []
         self._resource_loading_rows: list[dict[str, object]] = []
         self._baseline_compare_rows: list[dict[str, object]] = []
         self._baseline_register_rows: list[dict[str, object]] = []
-        self._dependency_rows: list[dict[str, object]] = []
-        self._constraint_rows: list[dict[str, object]] = []
         self._violation_rows: list[dict[str, object]] = []
         self._calendar_summary_rows: list[dict[str, object]] = []
         self._holiday_rows: list[dict[str, object]] = []
@@ -255,6 +244,7 @@ class ProjectManagementSchedulingWorkspaceController(
         self._leveling_proposal: dict[str, object] = default_leveling_proposal()
         self._leveling_move_rows: list[dict[str, object]] = []
         self._active_panel_id = "overview"
+        restore_gantt_view_preferences(self)
         bind_scheduling_domain_events(self)
         self.refresh()
 
@@ -275,14 +265,6 @@ class ProjectManagementSchedulingWorkspaceController(
     @Property("QVariantList", notify=baselineOptionsChanged)
     def baselineOptions(self) -> list[dict[str, str]]:
         return self._baseline_options
-
-    @Property("QVariantList", notify=dependencyTypeOptionsChanged)
-    def dependencyTypeOptions(self) -> list[dict[str, str]]:
-        return self._dependency_type_options
-
-    @Property("QVariantList", notify=dependencyTaskOptionsChanged)
-    def dependencyTaskOptions(self) -> list[dict[str, str]]:
-        return self._dependency_task_options
 
     @Property("QVariantList", notify=statusOptionsChanged)
     def statusOptions(self) -> list[dict[str, str]]:
@@ -318,17 +300,33 @@ class ProjectManagementSchedulingWorkspaceController(
     def showDelayedOnly(self) -> bool:
         return self._show_delayed_only
 
-    @Property(int, notify=activityPageChanged)
-    def activityPage(self) -> int:
-        return self._activity_page
+    @Property(bool, notify=showDependencyLinesChanged)
+    def showDependencyLines(self) -> bool:
+        return self._show_dependency_lines
 
-    @Property(int, notify=activityPageSizeChanged)
-    def activityPageSize(self) -> int:
-        return self._activity_page_size
+    @Property(bool, notify=highlightCriticalTasksChanged)
+    def highlightCriticalTasks(self) -> bool:
+        return self._highlight_critical_tasks
 
-    @Property(int, notify=activityTotalCountChanged)
-    def activityTotalCount(self) -> int:
-        return self._activity_total_count
+    @Property(str, notify=ganttSelectedBaselineIdChanged)
+    def ganttSelectedBaselineId(self) -> str:
+        return self._gantt_selected_baseline_id
+
+    @Property(bool, notify=ganttBaselineLoadingChanged)
+    def ganttBaselineLoading(self) -> bool:
+        return self._gantt_baseline_loading
+
+    @Property(str, notify=ganttBaselineErrorChanged)
+    def ganttBaselineError(self) -> str:
+        return self._gantt_baseline_error
+
+    @Property(str, notify=ganttRequestedViewModeChanged)
+    def ganttRequestedViewMode(self) -> str:
+        return self._gantt_requested_view_mode
+
+    @Property(float, notify=ganttSplitRatioChanged)
+    def ganttSplitRatio(self) -> float:
+        return self._gantt_split_ratio
 
     @Property(str, notify=activitySortKeyChanged)
     def activitySortKey(self) -> str:
@@ -348,18 +346,6 @@ class ProjectManagementSchedulingWorkspaceController(
     def baselines(self) -> dict[str, object]:
         return self._baselines
 
-    @Property("QVariantMap", notify=scheduleChanged)
-    def schedule(self) -> dict[str, object]:
-        return self._schedule
-
-    @Property("QVariantMap", notify=timelineChanged)
-    def timeline(self) -> dict[str, object]:
-        return self._timeline
-
-    @Property("QVariantMap", notify=criticalPathChanged)
-    def criticalPath(self) -> dict[str, object]:
-        return self._critical_path
-
     @Property("QVariantMap", notify=diagnosticsChanged)
     def diagnostics(self) -> dict[str, object]:
         return self._diagnostics
@@ -372,14 +358,6 @@ class ProjectManagementSchedulingWorkspaceController(
     def baselineRegister(self) -> dict[str, object]:
         return self._baseline_register
 
-    @Property("QVariantMap", notify=dependenciesChanged)
-    def dependencies(self) -> dict[str, object]:
-        return self._dependencies
-
-    @Property("QVariantMap", notify=constraintsChanged)
-    def constraints(self) -> dict[str, object]:
-        return self._constraints
-
     @Property("QVariantMap", notify=constraintViolationsChanged)
     def constraintViolations(self) -> dict[str, object]:
         return self._constraint_violations
@@ -389,10 +367,6 @@ class ProjectManagementSchedulingWorkspaceController(
         return self._activity_feed
 
     # ── Raw row list properties ───────────────────────────────────────
-
-    @Property("QVariantList", notify=scheduleRowsChanged)
-    def scheduleRows(self) -> list[dict[str, object]]:
-        return self._schedule_rows
 
     @Property("QVariantList", notify=diagnosticsRowsChanged)
     def diagnosticsRows(self) -> list[dict[str, object]]:
@@ -413,14 +387,6 @@ class ProjectManagementSchedulingWorkspaceController(
     @Property("QVariantList", notify=baselineRegisterRowsChanged)
     def baselineRegisterRows(self) -> list[dict[str, object]]:
         return self._baseline_register_rows
-
-    @Property("QVariantList", notify=dependencyRowsChanged)
-    def dependencyRows(self) -> list[dict[str, object]]:
-        return self._dependency_rows
-
-    @Property("QVariantList", notify=constraintRowsChanged)
-    def constraintRows(self) -> list[dict[str, object]]:
-        return self._constraint_rows
 
     @Property("QVariantList", notify=violationRowsChanged)
     def violationRows(self) -> list[dict[str, object]]:
@@ -487,20 +453,16 @@ class ProjectManagementSchedulingWorkspaceController(
     # ── Table model properties ────────────────────────────────────────
 
     @Property(QObject, constant=True)
-    def scheduleTableModel(self) -> DynamicTableModel:
-        return self._table_models.schedule
+    def ganttRowsModel(self) -> GanttListModel:
+        return self._gantt_model
+
+    @Property(GanttTimeAxisController, constant=True)
+    def ganttTimeAxis(self) -> GanttTimeAxisController:
+        return self._gantt_time_axis
 
     @Property(QObject, constant=True)
     def scheduleImpactTasksTableModel(self) -> DynamicTableModel:
         return self._table_models.schedule_impact_tasks
-
-    @Property(QObject, constant=True)
-    def dependencyTableModel(self) -> DynamicTableModel:
-        return self._table_models.dependency
-
-    @Property(QObject, constant=True)
-    def constraintTableModel(self) -> DynamicTableModel:
-        return self._table_models.constraint
 
     @Property(QObject, constant=True)
     def calendarSummaryTableModel(self) -> DynamicTableModel:
@@ -620,6 +582,56 @@ class ProjectManagementSchedulingWorkspaceController(
     def setShowDelayedOnly(self, enabled: bool) -> None:
         apply_show_delayed_only(self, enabled)
 
+    @Slot(bool)
+    def setShowDependencyLines(self, enabled: bool) -> None:
+        normalized = bool(enabled)
+        if normalized == self._show_dependency_lines:
+            return
+        self._show_dependency_lines = normalized
+        self.showDependencyLinesChanged.emit()
+        persist_gantt_view_preferences(self)
+
+    @Slot(bool)
+    def setHighlightCriticalTasks(self, enabled: bool) -> None:
+        normalized = bool(enabled)
+        if normalized == self._highlight_critical_tasks:
+            return
+        self._highlight_critical_tasks = normalized
+        self.highlightCriticalTasksChanged.emit()
+        persist_gantt_view_preferences(self)
+
+    @Slot(str)
+    def setGanttRequestedViewMode(self, view_mode: str) -> None:
+        set_gantt_requested_view_mode(self, view_mode)
+
+    @Slot(float)
+    def setGanttSplitRatio(self, ratio: float) -> None:
+        set_gantt_split_ratio(self, ratio)
+
+    @Slot(str, result=bool)
+    def setGanttTimescale(self, timescale: str) -> bool:
+        return set_gantt_timescale(self, timescale)
+
+    @Slot(result=bool)
+    def ganttZoomIn(self) -> bool:
+        return gantt_zoom_in(self)
+
+    @Slot(result=bool)
+    def ganttZoomOut(self) -> bool:
+        return gantt_zoom_out(self)
+
+    @Slot(result=bool)
+    def resetGanttZoom(self) -> bool:
+        return reset_gantt_zoom(self)
+
+    @Slot(str)
+    def selectGanttBaseline(self, baseline_id: str) -> None:
+        select_gantt_baseline(self, baseline_id)
+
+    @Slot()
+    def retryGanttBaseline(self) -> None:
+        retry_gantt_baseline(self)
+
     @Slot()
     def clearFilters(self) -> None:
         clear_filters(self)
@@ -628,21 +640,13 @@ class ProjectManagementSchedulingWorkspaceController(
     def selectActivity(self, activity_id: str) -> None:
         select_activity(self, activity_id)
 
-    @Slot(str)
-    def activateActivity(self, activity_id: str) -> None:
-        activate_activity(self, activity_id)
-
-    @Slot(int)
-    def setActivityPage(self, page: int) -> None:
-        set_page(self, page)
-
-    @Slot(int)
-    def setActivityPageSize(self, page_size: int) -> None:
-        set_page_size(self, page_size)
-
     @Slot(str, int)
     def setActivitySort(self, sort_key: str, sort_direction: int) -> None:
         set_activity_sort(self, sort_key, sort_direction)
+
+    @Slot(str, bool)
+    def setGanttExpanded(self, task_id: str, expanded: bool) -> None:
+        set_hierarchy_expanded(self, task_id, expanded)
 
     # ── Tab-local search text slots ───────────────────────────────────
 
@@ -696,18 +700,6 @@ class ProjectManagementSchedulingWorkspaceController(
     def applyResourceLeveling(self) -> dict[str, object]:
         return apply_resource_leveling(self)
 
-    @Slot("QVariantMap", result="QVariantMap")
-    def createDependency(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._mutations.create_dependency(payload)
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def updateDependency(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._mutations.update_dependency(payload)
-
-    @Slot(str, result="QVariantMap")
-    def deleteDependency(self, dependency_id: str) -> dict[str, object]:
-        return self._mutations.delete_dependency(dependency_id)
-
     # ── Calculation slots ─────────────────────────────────────────────
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -728,8 +720,6 @@ class ProjectManagementSchedulingWorkspaceController(
     def _set_project_options(self, v): set_project_options(self, v)
     def _set_calendar_options(self, v): set_calendar_options(self, v)
     def _set_baseline_options(self, v): set_baseline_options(self, v)
-    def _set_dependency_type_options(self, v): set_dependency_type_options(self, v)
-    def _set_dependency_task_options(self, v): set_dependency_task_options(self, v)
     def _set_status_options(self, v): set_status_options(self, v)
     def _set_selected_project_id(self, v): set_selected_project_id(self, v)
     def _set_selected_calendar_id(self, v): set_selected_calendar_id(self, v)
@@ -738,36 +728,23 @@ class ProjectManagementSchedulingWorkspaceController(
     def _set_search_text(self, v): set_search_text(self, v)
     def _set_show_critical_only(self, v): set_show_critical_only(self, v)
     def _set_show_delayed_only(self, v): set_show_delayed_only(self, v)
-    def _set_activity_page(self, v): set_activity_page(self, v)
-    def _set_activity_page_size(self, v): set_activity_page_size(self, v)
-    def _set_activity_total_count(self, v): set_activity_total_count(self, v)
     def _set_activity_sort_key(self, v): set_activity_sort_key(self, v)
     def _set_activity_sort_direction(self, v): set_activity_sort_direction(self, v)
-    def _set_selected_activity_id(self, v): set_selected_activity_id(self, v)
     def _set_calendar(self, v): set_calendar(self, v)
     def _set_baselines(self, v): set_baselines(self, v)
-    def _set_schedule(self, v): set_schedule(self, v)
-    def _set_timeline(self, v): set_timeline(self, v)
-    def _set_critical_path(self, v): set_critical_path(self, v)
     def _set_diagnostics(self, v): set_diagnostics(self, v)
     def _set_resource_loading(self, v): set_resource_loading(self, v)
     def _set_baseline_register(self, v): set_baseline_register(self, v)
-    def _set_dependencies(self, v): set_dependencies(self, v)
-    def _set_constraints(self, v): set_constraints(self, v)
     def _set_constraint_violations(self, v): set_constraint_violations(self, v)
     def _set_activity_feed(self, v): set_activity_feed(self, v)
-    def _set_schedule_rows(self, rows): set_schedule_rows(self, rows)
     def _set_diagnostics_rows(self, rows): set_diagnostics_rows(self, rows)
     def _set_delayed_activity_rows(self, rows): set_delayed_activity_rows(self, rows)
     def _set_resource_loading_rows(self, rows): set_resource_loading_rows(self, rows)
     def _set_baseline_compare_rows(self, rows): set_baseline_compare_rows(self, rows)
     def _set_baseline_register_rows(self, rows): set_baseline_register_rows(self, rows)
-    def _set_dependency_rows(self, rows): set_dependency_rows(self, rows)
-    def _set_constraint_rows(self, rows): set_constraint_rows(self, rows)
     def _set_violation_rows(self, rows): set_violation_rows(self, rows)
     def _set_calendar_summary_rows(self, rows): set_calendar_summary_rows(self, rows)
     def _set_holiday_rows(self, rows): set_holiday_rows(self, rows)
-    def _set_selected_activity(self, v): set_selected_activity(self, v)
     def _set_calculator_result(self, v): set_calculator_result(self, v)
     def _set_baseline_variance_rows(self, rows): set_baseline_variance_rows(self, rows)
 

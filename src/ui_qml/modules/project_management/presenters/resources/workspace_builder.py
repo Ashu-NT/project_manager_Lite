@@ -6,11 +6,10 @@ from src.core.modules.project_management.api.desktop import (
 from src.ui_qml.modules.project_management.view_models.resources import (
     ResourceCatalogWorkspaceViewModel,
     ResourceEmployeeOptionViewModel,
+    ResourceScopeOptionViewModel,
     ResourceSelectorOptionViewModel,
 )
 
-from .availability_builder import build_availability_view_model
-from .detail_builder import build_detail_view_model
 from .filtering import (
     build_empty_state,
     normalize_active_filter,
@@ -54,6 +53,8 @@ def build_workspace_state(
             context=option.context,
             department=option.department,
             site=option.site,
+            department_id=option.department_id,
+            site_id=option.site_id,
             is_active=option.is_active,
         )
         for option in desktop_api.list_employees()
@@ -70,12 +71,30 @@ def build_workspace_state(
         sort_key=sort_key,
         sort_direction=sort_direction,
     )
+    kind_options = tuple(
+        ResourceSelectorOptionViewModel(value=option.value, label=option.label)
+        for option in desktop_api.list_resource_kinds()
+    )
+    department_options = tuple(
+        ResourceScopeOptionViewModel(
+            value=option.value,
+            label=option.label,
+            is_active=option.is_active,
+            site_id=option.site_id,
+        )
+        for option in desktop_api.list_departments()
+    )
+    site_options = tuple(
+        ResourceScopeOptionViewModel(
+            value=option.value,
+            label=option.label,
+            is_active=option.is_active,
+            site_id=option.site_id,
+        )
+        for option in desktop_api.list_sites()
+    )
     resolved_selected_resource_id = resolve_selected_resource_id(
         selected_resource_id, resource_page.items
-    )
-    selected_resource = next(
-        (resource for resource in resource_page.items if resource.id == resolved_selected_resource_id),
-        None,
     )
     return ResourceCatalogWorkspaceViewModel(
         overview=build_overview(
@@ -87,7 +106,10 @@ def build_workspace_state(
             average_capacity=resource_page.average_capacity,
         ),
         worker_type_options=worker_type_options,
+        kind_options=kind_options,
         category_options=category_options,
+        department_options=department_options,
+        site_options=site_options,
         employee_options=employee_options,
         selected_active_filter=normalized_active_filter,
         selected_category_filter=normalized_category_filter,
@@ -96,8 +118,6 @@ def build_workspace_state(
             to_resource_record_view_model(resource) for resource in resource_page.items
         ),
         selected_resource_id=resolved_selected_resource_id,
-        selected_resource_detail=build_detail_view_model(desktop_api, selected_resource),
-        resource_availability=build_availability_view_model(desktop_api, resolved_selected_resource_id),
         empty_state=build_empty_state(
             total=resource_page.total,
             filtered_total=resource_page.filtered_total,

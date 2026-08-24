@@ -6,9 +6,22 @@ from src.ui_qml.modules.project_management.view_models.resources import (
     ResourceCertificationViewModel,
     ResourceDetailViewModel,
     ResourceEmployeeOptionViewModel,
+    ResourceInspectorViewModel,
     ResourceRecordViewModel,
     ResourceSkillViewModel,
 )
+
+
+def _hours_label(value: float) -> str:
+    return f"{value:,.1f} h"
+
+
+def _availability_day_status(day) -> str:
+    if day.overallocated:
+        return "Over capacity"
+    if day.effective_capacity_hours <= 0:
+        return "Non-working"
+    return "Within capacity"
 
 
 def serialize_resource_catalog_overview_view_model(
@@ -41,6 +54,8 @@ def serialize_resource_employee_option_view_models(
             "context": view_model.context,
             "department": view_model.department,
             "site": view_model.site,
+            "departmentId": view_model.department_id,
+            "siteId": view_model.site_id,
             "isActive": view_model.is_active,
         }
         for view_model in view_models
@@ -60,18 +75,16 @@ def serialize_resource_record_view_models(
             "supportingText": view_model.supporting_text,
             "metaText": view_model.meta_text,
             "role": str(view_model.state.get("role", "") or ""),
+            "organization": str(view_model.state.get("organization", "") or ""),
             "department": str(view_model.state.get("department", "") or ""),
             "site": str(view_model.state.get("site", "") or ""),
             "workerTypeLabel": str(view_model.state.get("workerTypeLabel", "") or ""),
             "costTypeLabel": str(view_model.state.get("costTypeLabel", "") or ""),
-            "hourlyRateLabel": str(view_model.state.get("hourlyRateLabel", "") or ""),
+            "capacityPercent": float(view_model.state.get("capacityPercent", 0.0) or 0.0),
+            "capacityLabel": str(view_model.state.get("capacityLabel", "") or ""),
             "canPrimaryAction": view_model.can_primary_action,
             "canSecondaryAction": view_model.can_secondary_action,
             "canTertiaryAction": view_model.can_tertiary_action,
-            "utilizationValue": {
-                "value": float(view_model.state.get("capacityPercent", "0") or "0") / 100.0,
-                "label": view_model.state.get("capacityLabel", "—"),
-            },
             "state": dict(view_model.state),
         }
         for view_model in view_models
@@ -93,6 +106,7 @@ def serialize_resource_skill_view_models(
             "proficiency": vm.proficiency,
             "proficiencyLabel": vm.proficiency_label,
             "notes": vm.notes,
+            "version": vm.version,
         }
         for vm in view_models
     ]
@@ -112,10 +126,12 @@ def serialize_resource_certification_view_models(
             "certificationName": vm.certification_name,
             "issuedDate": vm.issued_date or "",
             "expiryDate": vm.expiry_date or "",
-            "issuingBody": vm.issuing_body,
+            "certificateNumber": vm.certificate_number,
+            "issuer": vm.issuer,
             "notes": vm.notes,
             "certStatus": vm.cert_status,
             "certStatusLabel": vm.cert_status_label,
+            "version": vm.version,
         }
         for vm in view_models
     ]
@@ -126,19 +142,41 @@ def serialize_resource_availability_view_model(
 ) -> dict[str, object]:
     return {
         "resourceId": vm.resource_id,
-        "peakLoadPercent": vm.peak_load_percent,
-        "averageLoadPercent": vm.average_load_percent,
-        "overloadedDays": vm.overloaded_days,
-        "availableDays": vm.available_days,
-        "isAvailable": vm.is_available,
+        "startDate": vm.start_date,
+        "endDate": vm.end_date,
         "fromDateLabel": vm.from_date_label,
         "toDateLabel": vm.to_date_label,
+        "calendarSourceLabel": vm.calendar_source_label,
+        "capacityPercent": vm.capacity_percent,
+        "baseCapacityHours": vm.base_capacity_hours,
+        "effectiveCapacityHours": vm.effective_capacity_hours,
+        "plannedCommitmentHours": vm.planned_commitment_hours,
+        "allocatedPlannedHours": vm.allocated_planned_hours,
+        "remainingCapacityHours": vm.remaining_capacity_hours,
+        "utilizationPercent": vm.utilization_percent,
+        "utilizationLabel": vm.utilization_label,
+        "overallocated": vm.overallocated,
+        "conflictDays": vm.conflict_days,
+        "projectCount": vm.project_count,
+        "assignmentCount": vm.assignment_count,
         "days": [
             {
+                "id": d.work_date,
+                "workDate": d.work_date,
                 "dateLabel": d.date_label,
-                "allocationPercent": d.allocation_percent,
-                "allocationLabel": d.allocation_label,
-                "overloaded": d.overloaded,
+                "baseCapacityHours": d.base_capacity_hours,
+                "baseCapacityLabel": _hours_label(d.base_capacity_hours),
+                "effectiveCapacityHours": d.effective_capacity_hours,
+                "effectiveCapacityLabel": _hours_label(d.effective_capacity_hours),
+                "plannedCommitmentHours": d.planned_commitment_hours,
+                "plannedCommitmentLabel": _hours_label(d.planned_commitment_hours),
+                "remainingCapacityHours": d.remaining_capacity_hours,
+                "remainingCapacityLabel": _hours_label(d.remaining_capacity_hours),
+                "utilizationPercent": d.utilization_percent,
+                "utilizationLabel": d.utilization_label,
+                "overallocated": d.overallocated,
+                "statusLabel": _availability_day_status(d),
+                "assignmentCount": d.assignment_count,
             }
             for d in vm.days
         ],
@@ -167,12 +205,32 @@ def serialize_resource_detail_view_model(
     }
 
 
+def serialize_resource_inspector_view_model(
+    view_model: ResourceInspectorViewModel,
+) -> dict[str, object]:
+    return {
+        "id": view_model.id,
+        "title": view_model.title,
+        "statusLabel": view_model.status_label,
+        "fields": [
+            {
+                "label": field.label,
+                "value": field.value,
+                "supportingText": field.supporting_text,
+            }
+            for field in view_model.fields
+        ],
+        "state": dict(view_model.state),
+    }
+
+
 __all__ = [
     "serialize_resource_availability_view_model",
     "serialize_resource_catalog_overview_view_model",
     "serialize_resource_certification_view_models",
     "serialize_resource_detail_view_model",
     "serialize_resource_employee_option_view_models",
+    "serialize_resource_inspector_view_model",
     "serialize_resource_record_view_models",
     "serialize_resource_skill_view_models",
 ]

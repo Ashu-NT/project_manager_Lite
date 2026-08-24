@@ -5,7 +5,6 @@ from collections.abc import Iterable
 from src.ui_qml.modules.inventory_procurement.routes import (
     build_inventory_procurement_routes,
 )
-from src.ui_qml.modules.maintenance.routes import build_maintenance_routes
 from src.ui_qml.modules.project_management.routes import build_project_management_routes
 from src.ui_qml.platform.routes import build_platform_routes
 from src.ui_qml.shell.routes import QmlRoute, build_shell_routes
@@ -42,7 +41,6 @@ def build_qml_route_registry() -> QmlRouteRegistry:
             *build_platform_routes(),
             *build_project_management_routes(),
             *build_inventory_procurement_routes(),
-            *build_maintenance_routes(),
         ]
     )
 

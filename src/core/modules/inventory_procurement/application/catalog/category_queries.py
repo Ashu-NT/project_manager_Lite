@@ -43,7 +43,6 @@ def search_categories(
     category_type: str | None = None,
     equipment_only: bool | None = None,
     project_usage_only: bool | None = None,
-    maintenance_usage_only: bool | None = None,
 ) -> list[InventoryItemCategory]:
     normalized_search = normalize_optional_text(search_text).lower()
     rows = list_categories(owner, active_only=active_only, category_type=category_type)
@@ -56,10 +55,6 @@ def search_categories(
         if project_usage_only is True and not category.supports_project_usage:
             continue
         if project_usage_only is False and category.supports_project_usage:
-            continue
-        if maintenance_usage_only is True and not category.supports_maintenance_usage:
-            continue
-        if maintenance_usage_only is False and category.supports_maintenance_usage:
             continue
         if normalized_search:
             haystack = " ".join(
@@ -116,19 +111,10 @@ def list_project_resource_categories(
     return search_categories(owner, active_only=active_only, project_usage_only=True)
 
 
-def list_maintenance_categories(
-    owner: Any,
-    *,
-    active_only: bool | None = True,
-) -> list[InventoryItemCategory]:
-    return search_categories(owner, active_only=active_only, maintenance_usage_only=True)
-
-
 __all__ = [
     "find_category_by_code",
     "get_category",
     "list_categories",
-    "list_maintenance_categories",
     "list_project_resource_categories",
     "search_categories",
 ]

@@ -40,7 +40,6 @@ Item {
     readonly property bool _isActive: root._state.isActive === true
     readonly property bool _inventoryEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("inventory_procurement") : false
     readonly property bool _pmEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("project_management") : false
-    readonly property bool _maintenanceEnabled: root.platformCatalog ? root.platformCatalog.isModuleEnabled("maintenance_management") : false
     readonly property string _siteId: String(root._state.siteId || root._state.id || root.site.id || "")
     readonly property bool _hasCalendarAssignment: String(root.siteCalendarAssignment && root.siteCalendarAssignment.assignmentId ? root.siteCalendarAssignment.assignmentId : "").length > 0
     readonly property var _departmentRows: {
@@ -73,17 +72,11 @@ Item {
             { "label": "Departments", "count": root._departmentRows.length },
             { "label": "Employees", "count": root._employeeRows.length }
         ]
-        if (root._maintenanceEnabled) {
-            sections.push({ "label": "Structures" })
-        }
         if (root._inventoryEnabled) {
             sections.push({ "label": "Warehouses" })
         }
         if (root._pmEnabled) {
             sections.push({ "label": "Projects" })
-        }
-        if (root._maintenanceEnabled) {
-            sections.push({ "label": "Assets" })
         }
         sections.push({ "label": "Calendar" })
         sections.push({ "label": "Documents" })
@@ -102,14 +95,10 @@ Item {
             return "Shared departments mapped to this site through the platform department master."
         case "Employees":
             return "Employees aligned to this site through the shared employee master."
-        case "Structures":
-            return "Maintenance-owned location and structure hierarchy delegated from the shared site master."
         case "Warehouses":
             return "Inventory & Procurement warehouse alignment delegated from the shared site master."
         case "Projects":
             return "Project Management project/site alignment delegated to the PM module."
-        case "Assets":
-            return "Maintenance-owned asset and location alignment delegated from the shared site master."
         case "Calendar":
             return "Site-level calendar assignment and working schedule inherited from the global calendar hierarchy."
         case "Documents":
@@ -344,7 +333,7 @@ Item {
 
                                         AppControls.Label {
                                             Layout.fillWidth: true
-                                            text: String(root._state.description || root._state.notes || "This shared platform site anchors downstream PM, maintenance, and inventory records without duplicating those module-owned operational structures here.")
+                                            text: String(root._state.description || root._state.notes || "This shared platform site anchors downstream PM and inventory records without duplicating those module-owned operational structures here.")
                                             color: Theme.AppTheme.textSecondary
                                             font.pixelSize: Theme.AppTheme.smallSize
                                             wrapMode: Text.WrapAtWordBoundaryOrAnywhere
@@ -424,34 +413,6 @@ Item {
 
         Item {
             width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Structures" ? structuresLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: structuresLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Structures"
-                keepLoaded: true
-                loadingMessage: "Loading site structures..."
-                sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "Structures"
-                        infoMessage: "Maintenance is enabled for this tenant. Physical locations, structures, and systems stay maintenance-owned and are not duplicated in Platform admin."
-                        cardTitle: "Maintenance Boundary"
-                        notes: [
-                            "Use the Maintenance module to manage location hierarchies, structures, and systems anchored to this site.",
-                            "Platform admin keeps the shared site master authoritative while maintenance owns the operational asset geography below it."
-                        ]
-                    }
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
             implicitHeight: root._activeSectionLabel === "Warehouses" ? warehousesLoader.implicitHeight : 0
             height: implicitHeight
             visible: implicitHeight > 0
@@ -500,34 +461,6 @@ Item {
                         notes: [
                             "Use the Project Management module to review projects, work packages, schedules, and delivery records linked to this site.",
                             "Platform admin keeps the site reference authoritative while PM owns the project and task execution layer."
-                        ]
-                    }
-                }
-            }
-        }
-
-        Item {
-            width: parent ? parent.width : root.width
-            implicitHeight: root._activeSectionLabel === "Assets" ? assetsLoader.implicitHeight : 0
-            height: implicitHeight
-            visible: implicitHeight > 0
-
-            AppWidgets.LazySectionLoader {
-                id: assetsLoader
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                active: root._activeSectionLabel === "Assets"
-                keepLoaded: true
-                loadingMessage: "Loading site asset guidance..."
-                sourceComponent: Component {
-                    AdminInformationalDetailSection {
-                        sectionLabel: "Assets"
-                        infoMessage: "Maintenance is enabled for this tenant. Asset libraries, systems, and operational equipment stay maintenance-owned and reference the shared site master."
-                        cardTitle: "Asset Boundary"
-                        notes: [
-                            "Use the Maintenance module to manage asset libraries and operational equipment assigned to this site.",
-                            "Platform admin keeps the site and organization master record stable while maintenance owns asset execution detail."
                         ]
                     }
                 }

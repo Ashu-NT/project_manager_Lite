@@ -133,7 +133,7 @@ Gaps:
 Execution notes:
 - all new PM services must accept platform/shared references instead of cloning
   platform concepts
-- optional links to inventory, maintenance, and other modules must be hidden or
+- optional links to inventory and other modules must be hidden or
   disabled when entitlement/capability is absent
 
 Dependencies:
@@ -972,8 +972,6 @@ Large dataset handling:
 Cross-module integration remains explicit, capability-gated, and failure-tolerant.
 
 Ownership boundaries:
-- Maintenance: PM may reference maintenance-linked work, but maintenance owns
-  assets, work orders, and CMMS execution state
 - Inventory & Procurement: PM may consume reservations, demand, requisitions,
   receipts, and cost signals, but inventory/procurement owns stock truth and
   purchasing workflow

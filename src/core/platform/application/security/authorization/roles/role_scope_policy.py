@@ -15,15 +15,11 @@ _SITE_SCOPE_ROLE_NAMES = frozenset({"site_viewer", "site_operator", "site_manage
 _STOREROOM_SCOPE_ROLE_NAMES = frozenset(
     {"storeroom_viewer", "storeroom_operator", "storeroom_manager"}
 )
-_MAINTENANCE_SCOPE_ROLE_NAMES = frozenset(
-    {"maintenance_viewer", "maintenance_operator", "maintenance_scope_manager"}
-)
 EXPLICIT_SCOPE_ROLE_NAMES = (
     _ORGANIZATION_SCOPE_ROLE_NAMES
     | _PROJECT_SCOPE_ROLE_NAMES
     | _SITE_SCOPE_ROLE_NAMES
     | _STOREROOM_SCOPE_ROLE_NAMES
-    | _MAINTENANCE_SCOPE_ROLE_NAMES
 )
 
 
@@ -54,8 +50,6 @@ def system_role_scope_type(role_name: str) -> str:
         return "site"
     if normalized in _STOREROOM_SCOPE_ROLE_NAMES:
         return "storeroom"
-    if normalized in _MAINTENANCE_SCOPE_ROLE_NAMES:
-        return "maintenance"
     return ROLE_SCOPE_TENANT
 
 

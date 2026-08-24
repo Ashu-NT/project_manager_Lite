@@ -225,6 +225,19 @@ def test_pm_secondary_repositories_reject_cross_organization_writes(services):
         dependency_repo.add(PortfolioProjectDependency(id="portfolio-dependency-blocked", predecessor_project_id=seeded["project_b"], successor_project_id=seeded["project_b_secondary"]))
 
 
+def test_resource_capability_counts_preserve_organization_scope(services):
+    seeded = _seed_pm_secondary_scope_rows(services)
+    services["organization_service"].set_active_organization(seeded["default_org"].id)
+    resource_service = services["resource_service"]
+    skill_repo = resource_service._skill_repo
+    cert_repo = resource_service._cert_repo
+
+    assert skill_repo.count_by_resource(seeded["resource_a"]) == 1
+    assert cert_repo.count_by_resource(seeded["resource_a"]) == 1
+    assert skill_repo.count_by_resource(seeded["resource_b"]) == 0
+    assert cert_repo.count_by_resource(seeded["resource_b"]) == 0
+
+
 def test_task_comment_repository_rejects_stale_atomic_update(services):
     seeded = _seed_priority_pm_rows(services)
     services["organization_service"].set_active_organization(seeded["default_org"].id)

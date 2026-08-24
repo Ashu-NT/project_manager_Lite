@@ -36,6 +36,8 @@ class ActivityEntryORM(Base):
     details_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}", server_default="{}")
     context_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}", server_default="{}")
     parent_entity_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    related_entity_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    related_entity_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     icon: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     color: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     visibility: Mapped[str] = mapped_column(String(32), nullable=False, default="workspace", server_default="workspace")
@@ -47,6 +49,12 @@ Index("idx_activity_entity", ActivityEntryORM.entity_type, ActivityEntryORM.enti
 Index("idx_activity_workspace", ActivityEntryORM.workspace_id, ActivityEntryORM.timestamp)
 Index("idx_activity_module_entity", ActivityEntryORM.module, ActivityEntryORM.entity_type, ActivityEntryORM.entity_id)
 Index("idx_activity_actor", ActivityEntryORM.actor_id, ActivityEntryORM.timestamp)
+Index(
+    "idx_activity_related",
+    ActivityEntryORM.related_entity_type,
+    ActivityEntryORM.related_entity_id,
+    ActivityEntryORM.timestamp,
+)
 
 
 __all__ = ["ActivityEntryORM"]

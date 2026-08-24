@@ -13,7 +13,6 @@ from src.core.shared.audit import record_audit_entry
 from src.core.shared.events.domain_events import domain_events
 
 from .department_context import active_organization
-from .department_location_service import validate_default_location_id
 from .department_utils import resolve_name
 from .department_validation import (
     validate_manager_employee_id,
@@ -33,7 +32,6 @@ def create_department(
     display_name: str | None = None,
     description: str = "",
     site_id: str | None = None,
-    default_location_id: str | None = None,
     parent_department_id: str | None = None,
     department_type: str = "",
     cost_center_code: str = "",
@@ -49,7 +47,6 @@ def create_department(
         name=resolve_name(name=name, display_name=display_name),
         description=description,
         site_id=site_id,
-        default_location_id=default_location_id,
         parent_department_id=parent_department_id,
         department_type=department_type,
         cost_center_code=cost_center_code,
@@ -63,12 +60,6 @@ def create_department(
             code="DEPARTMENT_CODE_EXISTS",
         )
     department.site_id = validate_site_id(service, department.site_id, organization_id=organization.id)
-    department.default_location_id = validate_default_location_id(
-        service,
-        department.default_location_id,
-        organization_id=organization.id,
-        site_id=department.site_id,
-    )
     department.parent_department_id = validate_parent_department_id(
         service,
         department.parent_department_id,
@@ -96,7 +87,6 @@ def create_department(
                 "department_code": department.department_code,
                 "name": department.name,
                 "site_id": department.site_id or "",
-                "default_location_id": department.default_location_id or "",
                 "department_type": department.department_type,
                 "is_active": str(department.is_active),
             },
@@ -126,7 +116,6 @@ def update_department(
     display_name: str | None = None,
     description: str | None = None,
     site_id: str | None = None,
-    default_location_id: str | None = None,
     parent_department_id: str | None = None,
     department_type: str | None = None,
     cost_center_code: str | None = None,
@@ -152,21 +141,6 @@ def update_department(
     if site_id is not None:
         target_site_id = validate_site_id(service, site_id, organization_id=organization.id)
 
-    if default_location_id is not None:
-        target_default_location_id = validate_default_location_id(
-            service,
-            default_location_id,
-            organization_id=organization.id,
-            site_id=target_site_id,
-        )
-    else:
-        target_default_location_id = validate_default_location_id(
-            service,
-            department.default_location_id,
-            organization_id=organization.id,
-            site_id=target_site_id,
-        )
-
     target_parent_department_id = department.parent_department_id
     if parent_department_id is not None:
         target_parent_department_id = validate_parent_department_id(
@@ -190,7 +164,6 @@ def update_department(
         ),
         description=description if description is not None else department.description,
         site_id=target_site_id,
-        default_location_id=target_default_location_id,
         parent_department_id=target_parent_department_id,
         department_type=department_type if department_type is not None else department.department_type,
         cost_center_code=cost_center_code if cost_center_code is not None else department.cost_center_code,
@@ -225,7 +198,6 @@ def update_department(
                 "department_code": candidate.department_code,
                 "name": candidate.name,
                 "site_id": candidate.site_id or "",
-                "default_location_id": candidate.default_location_id or "",
                 "department_type": candidate.department_type,
                 "is_active": str(candidate.is_active),
             },

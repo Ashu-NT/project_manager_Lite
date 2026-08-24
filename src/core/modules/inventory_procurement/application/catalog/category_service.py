@@ -59,7 +59,6 @@ class ItemCategoryService:
         category_type: str | None = None,
         equipment_only: bool | None = None,
         project_usage_only: bool | None = None,
-        maintenance_usage_only: bool | None = None,
     ) -> list[InventoryItemCategory]:
         return category_queries.search_categories(
             self,
@@ -68,7 +67,6 @@ class ItemCategoryService:
             category_type=category_type,
             equipment_only=equipment_only,
             project_usage_only=project_usage_only,
-            maintenance_usage_only=maintenance_usage_only,
         )
 
     def get_category(self, category_id: str) -> InventoryItemCategory:
@@ -96,16 +94,6 @@ class ItemCategoryService:
             active_only=active_only,
         )
 
-    def list_maintenance_categories(
-        self,
-        *,
-        active_only: bool | None = True,
-    ) -> list[InventoryItemCategory]:
-        return category_queries.list_maintenance_categories(
-            self,
-            active_only=active_only,
-        )
-
     def create_category(
         self,
         *,
@@ -115,7 +103,6 @@ class ItemCategoryService:
         category_type: str = "MATERIAL",
         is_equipment: bool = False,
         supports_project_usage: bool = False,
-        supports_maintenance_usage: bool = False,
         is_active: bool = True,
     ) -> InventoryItemCategory:
         return category_commands.create_category(
@@ -126,7 +113,6 @@ class ItemCategoryService:
             category_type=category_type,
             is_equipment=is_equipment,
             supports_project_usage=supports_project_usage,
-            supports_maintenance_usage=supports_maintenance_usage,
             is_active=is_active,
         )
 
@@ -140,7 +126,6 @@ class ItemCategoryService:
         category_type: str | None = None,
         is_equipment: bool | None = None,
         supports_project_usage: bool | None = None,
-        supports_maintenance_usage: bool | None = None,
         is_active: bool | None = None,
         expected_version: int | None = None,
     ) -> InventoryItemCategory:
@@ -153,7 +138,6 @@ class ItemCategoryService:
             category_type=category_type,
             is_equipment=is_equipment,
             supports_project_usage=supports_project_usage,
-            supports_maintenance_usage=supports_maintenance_usage,
             is_active=is_active,
             expected_version=expected_version,
         )

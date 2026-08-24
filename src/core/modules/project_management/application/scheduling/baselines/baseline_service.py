@@ -152,7 +152,7 @@ class BaselineService(ProjectManagementModuleGuardMixin):
         tasks = select_leaf_tasks(self._tasks.list_by_project(project_id))
         if not tasks:
             raise ValidationError("Cannot baseline: project has no tasks.")
-        task_name_by_id = {task.id: task.name for task in tasks}
+        task_by_id = {task.id: task for task in tasks}
 
         # -------------------------
         # Baselines consume the latest immutable planned-cost snapshot at the
@@ -212,11 +212,12 @@ class BaselineService(ProjectManagementModuleGuardMixin):
                 BaselineTask.create(
                     baseline_id=baseline.id,
                     task_id=tid,
-                    task_name=task_name_by_id.get(tid),
+                    task_name=task_by_id[tid].name,
                     baseline_start=bs,
                     baseline_finish=bf,
                     baseline_duration_days=dur,
                     baseline_planned_cost=planned_cost,
+                    baseline_is_milestone=task_by_id[tid].is_milestone,
                 )
             )
 
@@ -264,6 +265,35 @@ class BaselineService(ProjectManagementModuleGuardMixin):
             operation_label="list baselines",
         )
         return self._baselines.list_for_project(project_id)
+
+    def list_baseline_tasks(
+        self,
+        baseline_id: str,
+        *,
+        expected_project_id: str | None = None,
+    ) -> list[BaselineTask]:
+        """Return one authorized, tenant-scoped baseline snapshot read."""
+        require_permission(
+            self._user_session,
+            "project.read",
+            operation_label="view baseline task snapshots",
+        )
+        baseline = self._baselines.get_baseline(baseline_id)
+        if baseline is None or (
+            expected_project_id is not None
+            and baseline.project_id != expected_project_id
+        ):
+            raise NotFoundError("Baseline not found.", code="BASELINE_NOT_FOUND")
+        require_project_permission(
+            self._user_session,
+            baseline.project_id,
+            "project.read",
+            operation_label="view baseline task snapshots",
+        )
+        return sorted(
+            self._baselines.list_tasks(baseline.id),
+            key=lambda item: (item.task_id, item.id),
+        )
 
     def delete_baseline(self, baseline_id: str) -> None:
         require_permission(self._user_session, "baseline.manage", operation_label="delete baseline")

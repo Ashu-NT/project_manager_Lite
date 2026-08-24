@@ -6,9 +6,7 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
-    serialize_resource_availability_view_model,
     serialize_resource_catalog_overview_view_model,
-    serialize_resource_detail_view_model,
     serialize_resource_employee_option_view_models,
     serialize_resource_record_view_models,
     serialize_selector_options,
@@ -22,6 +20,8 @@ from src.ui_qml.modules.project_management.presenters import (
 from .resource_state import (
     default_overview,
     default_resource_availability,
+    default_resource_context_page,
+    default_resource_inspector,
     default_resources,
     default_selected_resource,
 )
@@ -38,17 +38,11 @@ from .resource_selection_handler import (
     set_resource_sort,
     set_search_text,
 )
-from .resource_bulk_handler import (
-    bulk_delete_resources,
-    clear_resource_bulk_selection,
-    select_visible_resources,
-    set_resource_bulk_selection,
-)
 from .resource_mutation_handler import (
     create_resource,
-    delete_resource,
+    deactivate_resource,
     generate_entity_code,
-    toggle_resource_active,
+    reactivate_resource,
     update_resource,
 )
 from .resource_skills_handler import (
@@ -58,9 +52,25 @@ from .resource_skills_handler import (
     reload_skills_and_certs,
     remove_certification,
     remove_skill,
+    update_certification,
+    update_skill,
 )
-from .resource_assignments_handler import load_resource_assignments
+from .resource_context_handler import (
+    load_resource_activity,
+    load_resource_assignments,
+    load_resource_projects,
+)
+from .resource_availability_handler import load_resource_availability
 from .resource_export_handler import export_resources
+from .resource_read_handler import (
+    load_resource_detail,
+    load_resource_inspector,
+    refresh_selected_resource_reads,
+)
+from src.ui_qml.shared.models.currency_options import (
+    CURRENCY_OPTIONS,
+    DEFAULT_CURRENCY_CODE,
+)
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -73,6 +83,9 @@ class ProjectManagementResourcesWorkspaceController(
 ):
     overviewChanged = Signal()
     workerTypeOptionsChanged = Signal()
+    kindOptionsChanged = Signal()
+    departmentOptionsChanged = Signal()
+    siteOptionsChanged = Signal()
     categoryOptionsChanged = Signal()
     employeeOptionsChanged = Signal()
     selectedActiveFilterChanged = Signal()
@@ -80,18 +93,28 @@ class ProjectManagementResourcesWorkspaceController(
     searchTextChanged = Signal()
     resourcesChanged = Signal()
     selectedResourceChanged = Signal()
+    resourceInspectorChanged = Signal()
+    inspectorLoadingChanged = Signal()
+    inspectorErrorChanged = Signal()
+    detailLoadingChanged = Signal()
+    detailErrorChanged = Signal()
     selectedResourceIdChanged = Signal()
     resourcePageChanged = Signal()
     resourcePageSizeChanged = Signal()
     resourceTotalCountChanged = Signal()
     resourceSortKeyChanged = Signal()
     resourceSortDirectionChanged = Signal()
-    selectedResourceIdsChanged = Signal()
-    selectedResourceCountChanged = Signal()
     resourceSkillsChanged = Signal()
     resourceCertificationsChanged = Signal()
+    resourceSkillCountChanged = Signal()
+    resourceCertificationCountChanged = Signal()
     resourceAvailabilityChanged = Signal()
+    resourceProjectsChanged = Signal()
+    resourceProjectsLoadingChanged = Signal()
     resourceAssignmentsChanged = Signal()
+    resourceAssignmentsLoadingChanged = Signal()
+    resourceActivityChanged = Signal()
+    resourceActivityLoadingChanged = Signal()
 
     def __init__(
         self,
@@ -109,6 +132,9 @@ class ProjectManagementResourcesWorkspaceController(
         )
         self._overview: dict[str, object] = default_overview()
         self._worker_type_options: list[dict[str, object]] = []
+        self._kind_options: list[dict[str, object]] = []
+        self._department_options: list[dict[str, object]] = []
+        self._site_options: list[dict[str, object]] = []
         self._category_options: list[dict[str, object]] = []
         self._employee_options: list[dict[str, object]] = []
         self._selected_active_filter = "all"
@@ -117,21 +143,88 @@ class ProjectManagementResourcesWorkspaceController(
         self._table_models: ResourceTableModels = create_resource_table_models(self)
         self._resources: dict[str, object] = default_resources()
         self._selected_resource: dict[str, object] = default_selected_resource()
+        self._resource_inspector: dict[str, object] = default_resource_inspector()
+        self._inspector_loading = False
+        self._inspector_error = ""
+        self._detail_loading = False
+        self._detail_error = ""
+        self._inspector_request_id = 0
+        self._detail_request_id = 0
         self._selected_resource_id = ""
         self._resource_page = 1
         self._resource_page_size = 25
         self._resource_total_count = 0
         self._resource_sort_key = "catalog"
         self._resource_sort_direction = 0
-        self._selected_resource_ids: list[str] = []
-        self._selected_resource_count = 0
         self._resource_skills: list[dict[str, object]] = []
         self._resource_certifications: list[dict[str, object]] = []
-        self._resource_assignments: list[dict[str, object]] = []
+        self._resource_skill_count = 0
+        self._resource_certification_count = 0
+        self._resource_projects = default_resource_context_page()
+        self._resource_projects_loading = False
+        self._resource_projects_loaded_for = ""
+        self._resource_projects_request_id = 0
+        self._resource_projects_search = ""
+        self._resource_projects_active = "all"
+        self._resource_projects_status = "all"
+        self._resource_projects_page = 1
+        self._resource_projects_page_size = 25
+        self._resource_projects_total = 0
+        self._resource_projects_sort_key = "projectName"
+        self._resource_projects_sort_direction = 0
+        self._resource_assignments = default_resource_context_page()
+        self._resource_assignments_loading = False
+        self._resource_assignments_loaded_for = ""
+        self._resource_assignments_request_id = 0
+        self._resource_assignments_search = ""
+        self._resource_assignments_project_id = ""
+        self._resource_assignments_task_status = "all"
+        self._resource_assignments_status = "all"
+        self._resource_assignments_lifecycle = "current"
+        self._resource_assignments_start_date = ""
+        self._resource_assignments_end_date = ""
+        self._resource_assignments_page = 1
+        self._resource_assignments_page_size = 25
+        self._resource_assignments_total = 0
+        self._resource_assignments_sort_key = "scheduledStart"
+        self._resource_assignments_sort_direction = 0
+        self._resource_activity = default_resource_context_page()
+        self._resource_activity_loading = False
+        self._resource_activity_loaded_for = ""
+        self._resource_activity_request_id = 0
+        self._resource_activity_category = "all"
+        self._resource_activity_start_date = ""
+        self._resource_activity_end_date = ""
+        self._resource_activity_page = 1
+        self._resource_activity_page_size = 25
+        self._resource_activity_total = 0
         self._resource_availability: dict[str, object] = default_resource_availability()
 
         bind_resource_domain_events(self)
         self.refresh()
+
+    def _clear_resource_projects(self) -> None:
+        self._resource_projects = default_resource_context_page()
+        self._resource_projects_loaded_for = ""
+        self._resource_projects_total = 0
+        self._resource_projects_page = 1
+        self._table_models.resource_projects.set_rows([])
+        self.resourceProjectsChanged.emit()
+
+    def _clear_resource_assignments(self) -> None:
+        self._resource_assignments = default_resource_context_page()
+        self._resource_assignments_loaded_for = ""
+        self._resource_assignments_total = 0
+        self._resource_assignments_page = 1
+        self._table_models.resource_assignments.set_rows([])
+        self.resourceAssignmentsChanged.emit()
+
+    def _clear_resource_activity(self) -> None:
+        self._resource_activity = default_resource_context_page()
+        self._resource_activity_loaded_for = ""
+        self._resource_activity_total = 0
+        self._resource_activity_page = 1
+        self.resourceActivityChanged.emit()
 
     # ── Properties ───────────────────────────────────────────────────────
 
@@ -142,6 +235,26 @@ class ProjectManagementResourcesWorkspaceController(
     @Property("QVariantList", notify=workerTypeOptionsChanged)
     def workerTypeOptions(self) -> list[dict[str, object]]:
         return self._worker_type_options
+
+    @Property("QVariantList", notify=kindOptionsChanged)
+    def kindOptions(self) -> list[dict[str, object]]:
+        return self._kind_options
+
+    @Property("QVariantList", notify=departmentOptionsChanged)
+    def departmentOptions(self) -> list[dict[str, object]]:
+        return self._department_options
+
+    @Property("QVariantList", notify=siteOptionsChanged)
+    def siteOptions(self) -> list[dict[str, object]]:
+        return self._site_options
+
+    @Property("QVariantList", constant=True)
+    def currencyOptions(self) -> list[dict[str, str]]:
+        return CURRENCY_OPTIONS
+
+    @Property(str, constant=True)
+    def defaultCurrencyCode(self) -> str:
+        return DEFAULT_CURRENCY_CODE
 
     @Property("QVariantList", notify=categoryOptionsChanged)
     def categoryOptions(self) -> list[dict[str, object]]:
@@ -175,6 +288,26 @@ class ProjectManagementResourcesWorkspaceController(
     def selectedResource(self) -> dict[str, object]:
         return self._selected_resource
 
+    @Property("QVariantMap", notify=resourceInspectorChanged)
+    def resourceInspector(self) -> dict[str, object]:
+        return self._resource_inspector
+
+    @Property(bool, notify=inspectorLoadingChanged)
+    def inspectorLoading(self) -> bool:
+        return self._inspector_loading
+
+    @Property(str, notify=inspectorErrorChanged)
+    def inspectorError(self) -> str:
+        return self._inspector_error
+
+    @Property(bool, notify=detailLoadingChanged)
+    def detailLoading(self) -> bool:
+        return self._detail_loading
+
+    @Property(str, notify=detailErrorChanged)
+    def detailError(self) -> str:
+        return self._detail_error
+
     @Property(str, notify=selectedResourceIdChanged)
     def selectedResourceId(self) -> str:
         return self._selected_resource_id
@@ -199,14 +332,6 @@ class ProjectManagementResourcesWorkspaceController(
     def resourceSortDirection(self) -> int:
         return self._resource_sort_direction
 
-    @Property("QVariantList", notify=selectedResourceIdsChanged)
-    def selectedResourceIds(self) -> list[str]:
-        return list(self._selected_resource_ids)
-
-    @Property(int, notify=selectedResourceCountChanged)
-    def selectedResourceCount(self) -> int:
-        return self._selected_resource_count
-
     @Property("QVariantList", notify=resourceSkillsChanged)
     def resourceSkills(self) -> list[dict[str, object]]:
         return list(self._resource_skills)
@@ -214,6 +339,14 @@ class ProjectManagementResourcesWorkspaceController(
     @Property("QVariantList", notify=resourceCertificationsChanged)
     def resourceCertifications(self) -> list[dict[str, object]]:
         return list(self._resource_certifications)
+
+    @Property(int, notify=resourceSkillCountChanged)
+    def resourceSkillCount(self) -> int:
+        return self._resource_skill_count
+
+    @Property(int, notify=resourceCertificationCountChanged)
+    def resourceCertificationCount(self) -> int:
+        return self._resource_certification_count
 
     @Property(QObject, constant=True)
     def resourceSkillsTableModel(self) -> DynamicTableModel:
@@ -227,9 +360,90 @@ class ProjectManagementResourcesWorkspaceController(
     def resourceAssignmentsTableModel(self) -> DynamicTableModel:
         return self._table_models.resource_assignments
 
-    @Property("QVariantList", notify=resourceAssignmentsChanged)
-    def resourceAssignments(self) -> list[dict[str, object]]:
-        return list(self._resource_assignments)
+    @Property(QObject, constant=True)
+    def resourceProjectsTableModel(self) -> DynamicTableModel:
+        return self._table_models.resource_projects
+
+    @Property("QVariantMap", notify=resourceProjectsChanged)
+    def resourceProjects(self) -> dict[str, object]: return self._resource_projects
+
+    @Property(bool, notify=resourceProjectsLoadingChanged)
+    def resourceProjectsLoading(self) -> bool: return self._resource_projects_loading
+
+    @Property(str, notify=resourceProjectsChanged)
+    def resourceProjectsSearch(self) -> str: return self._resource_projects_search
+
+    @Property(str, notify=resourceProjectsChanged)
+    def resourceProjectsActive(self) -> str: return self._resource_projects_active
+
+    @Property(str, notify=resourceProjectsChanged)
+    def resourceProjectsStatus(self) -> str: return self._resource_projects_status
+
+    @Property(int, notify=resourceProjectsChanged)
+    def resourceProjectsPage(self) -> int: return self._resource_projects_page
+
+    @Property(int, notify=resourceProjectsChanged)
+    def resourceProjectsPageSize(self) -> int: return self._resource_projects_page_size
+
+    @Property(int, notify=resourceProjectsChanged)
+    def resourceProjectsTotal(self) -> int: return self._resource_projects_total
+
+    @Property(str, notify=resourceProjectsChanged)
+    def resourceProjectsSortKey(self) -> str: return self._resource_projects_sort_key
+
+    @Property(int, notify=resourceProjectsChanged)
+    def resourceProjectsSortDirection(self) -> int: return self._resource_projects_sort_direction
+
+    @Property("QVariantMap", notify=resourceAssignmentsChanged)
+    def resourceAssignments(self) -> dict[str, object]: return self._resource_assignments
+
+    @Property(bool, notify=resourceAssignmentsLoadingChanged)
+    def resourceAssignmentsLoading(self) -> bool: return self._resource_assignments_loading
+
+    @Property(str, notify=resourceAssignmentsChanged)
+    def resourceAssignmentsSearch(self) -> str: return self._resource_assignments_search
+
+    @Property(str, notify=resourceAssignmentsChanged)
+    def resourceAssignmentsTaskStatus(self) -> str: return self._resource_assignments_task_status
+
+    @Property(str, notify=resourceAssignmentsChanged)
+    def resourceAssignmentsStatus(self) -> str: return self._resource_assignments_status
+
+    @Property(str, notify=resourceAssignmentsChanged)
+    def resourceAssignmentsLifecycle(self) -> str: return self._resource_assignments_lifecycle
+
+    @Property(int, notify=resourceAssignmentsChanged)
+    def resourceAssignmentsPage(self) -> int: return self._resource_assignments_page
+
+    @Property(int, notify=resourceAssignmentsChanged)
+    def resourceAssignmentsPageSize(self) -> int: return self._resource_assignments_page_size
+
+    @Property(int, notify=resourceAssignmentsChanged)
+    def resourceAssignmentsTotal(self) -> int: return self._resource_assignments_total
+
+    @Property(str, notify=resourceAssignmentsChanged)
+    def resourceAssignmentsSortKey(self) -> str: return self._resource_assignments_sort_key
+
+    @Property(int, notify=resourceAssignmentsChanged)
+    def resourceAssignmentsSortDirection(self) -> int: return self._resource_assignments_sort_direction
+
+    @Property("QVariantMap", notify=resourceActivityChanged)
+    def resourceActivity(self) -> dict[str, object]: return self._resource_activity
+
+    @Property(bool, notify=resourceActivityLoadingChanged)
+    def resourceActivityLoading(self) -> bool: return self._resource_activity_loading
+
+    @Property(str, notify=resourceActivityChanged)
+    def resourceActivityCategory(self) -> str: return self._resource_activity_category
+
+    @Property(int, notify=resourceActivityChanged)
+    def resourceActivityPage(self) -> int: return self._resource_activity_page
+
+    @Property(int, notify=resourceActivityChanged)
+    def resourceActivityPageSize(self) -> int: return self._resource_activity_page_size
+
+    @Property(int, notify=resourceActivityChanged)
+    def resourceActivityTotal(self) -> int: return self._resource_activity_total
 
     @Property("QVariantMap", notify=resourceAvailabilityChanged)
     def resourceAvailability(self) -> dict[str, object]:
@@ -264,6 +478,25 @@ class ProjectManagementResourcesWorkspaceController(
             self._set_worker_type_options(
                 serialize_selector_options(workspace_state.worker_type_options)
             )
+            self._set_kind_options(serialize_selector_options(workspace_state.kind_options))
+            self._set_department_options([
+                {
+                    "value": option.value,
+                    "label": option.label,
+                    "isActive": option.is_active,
+                    "siteId": option.site_id,
+                }
+                for option in workspace_state.department_options
+            ])
+            self._set_site_options([
+                {
+                    "value": option.value,
+                    "label": option.label,
+                    "isActive": option.is_active,
+                    "siteId": option.site_id,
+                }
+                for option in workspace_state.site_options
+            ])
             self._set_category_options(
                 serialize_selector_options(workspace_state.category_options)
             )
@@ -282,19 +515,13 @@ class ProjectManagementResourcesWorkspaceController(
                 }
             )
             self._set_selected_resource_id(workspace_state.selected_resource_id)
-            self._set_selected_resource(
-                serialize_resource_detail_view_model(workspace_state.selected_resource_detail)
-            )
             self._set_empty_state(workspace_state.empty_state)
             self._set_resource_total_count(workspace_state.total_count)
             self._set_resource_page(workspace_state.page)
             self._set_resource_page_size(workspace_state.page_size)
             self._set_resource_sort_key(workspace_state.sort_key)
             self._set_resource_sort_direction(1 if workspace_state.sort_direction == "desc" else 0)
-            self._set_resource_availability(
-                serialize_resource_availability_view_model(workspace_state.resource_availability)
-            )
-            reload_skills_and_certs(self, workspace_state.selected_resource_id)
+            refresh_selected_resource_reads(self)
         except Exception as exc:  # pragma: no cover - defensive fallback
             self._set_error_message(str(exc))
         finally:
@@ -318,17 +545,188 @@ class ProjectManagementResourcesWorkspaceController(
     def selectResource(self, resource_id: str) -> None:
         select_resource(self, resource_id)
 
+    @Slot(str, result=bool)
+    def activateResource(self, resource_id: str) -> bool:
+        return activate_resource(self, resource_id)
+
     @Slot(str)
-    def activateResource(self, resource_id: str) -> None:
-        activate_resource(self, resource_id)
+    def loadResourceInspector(self, resource_id: str) -> None:
+        load_resource_inspector(self, resource_id)
+
+    @Slot(str, result=bool)
+    def loadResourceDetail(self, resource_id: str) -> bool:
+        return load_resource_detail(self, resource_id)
 
     @Slot(str)
     def loadSkillsAndCerts(self, resource_id: str) -> None:
         load_skills_and_certs(self, resource_id)
 
     @Slot()
+    def loadResourceProjects(self) -> None:
+        load_resource_projects(self)
+
+    @Slot()
     def loadResourceAssignments(self) -> None:
         load_resource_assignments(self)
+
+    @Slot()
+    def loadResourceActivity(self) -> None:
+        load_resource_activity(self)
+
+    @Slot()
+    def refreshResourceProjects(self) -> None:
+        load_resource_projects(self, force=True)
+
+    @Slot()
+    def refreshResourceAssignments(self) -> None:
+        load_resource_assignments(self, force=True)
+
+    @Slot()
+    def refreshResourceActivity(self) -> None:
+        load_resource_activity(self, force=True)
+
+    @Slot(str)
+    def setResourceProjectsSearch(self, value: str) -> None:
+        value = str(value or "").strip()
+        if value == self._resource_projects_search: return
+        self._resource_projects_search = value
+        self._resource_projects_page = 1
+        self.resourceProjectsChanged.emit()
+        load_resource_projects(self, force=True)
+
+    @Slot(str)
+    def setResourceProjectsActive(self, value: str) -> None:
+        value = str(value or "all").strip().lower()
+        if value == self._resource_projects_active: return
+        self._resource_projects_active = value
+        self._resource_projects_page = 1
+        self.resourceProjectsChanged.emit()
+        load_resource_projects(self, force=True)
+
+    @Slot(str)
+    def setResourceProjectsStatus(self, value: str) -> None:
+        value = str(value or "all").strip().upper()
+        if value == self._resource_projects_status.upper(): return
+        self._resource_projects_status = value
+        self._resource_projects_page = 1
+        self.resourceProjectsChanged.emit()
+        load_resource_projects(self, force=True)
+
+    @Slot(int)
+    def setResourceProjectsPage(self, value: int) -> None:
+        value = max(1, int(value))
+        if value == self._resource_projects_page: return
+        self._resource_projects_page = value
+        self.resourceProjectsChanged.emit()
+        load_resource_projects(self, force=True)
+
+    @Slot(int)
+    def setResourceProjectsPageSize(self, value: int) -> None:
+        value = max(1, int(value))
+        if value == self._resource_projects_page_size: return
+        self._resource_projects_page_size = value
+        self._resource_projects_page = 1
+        self.resourceProjectsChanged.emit()
+        load_resource_projects(self, force=True)
+
+    @Slot(str, int)
+    def setResourceProjectsSort(self, key: str, direction: int) -> None:
+        self._resource_projects_sort_key = str(key or "projectName")
+        self._resource_projects_sort_direction = int(direction)
+        self._resource_projects_page = 1
+        self.resourceProjectsChanged.emit()
+        load_resource_projects(self, force=True)
+
+    @Slot(str)
+    def setResourceAssignmentsSearch(self, value: str) -> None:
+        value = str(value or "").strip()
+        if value == self._resource_assignments_search: return
+        self._resource_assignments_search = value
+        self._resource_assignments_page = 1
+        self.resourceAssignmentsChanged.emit()
+        load_resource_assignments(self, force=True)
+
+    @Slot(str, str, str)
+    def setResourceAssignmentsFilters(self, lifecycle: str, task_status: str, assignment_status: str) -> None:
+        values = (
+            str(lifecycle or "current").lower(),
+            str(task_status or "all").upper(),
+            str(assignment_status or "all").lower(),
+        )
+        if values == (
+            self._resource_assignments_lifecycle,
+            self._resource_assignments_task_status,
+            self._resource_assignments_status,
+        ): return
+        self._resource_assignments_lifecycle, self._resource_assignments_task_status, self._resource_assignments_status = values
+        self._resource_assignments_page = 1
+        self.resourceAssignmentsChanged.emit()
+        load_resource_assignments(self, force=True)
+
+    @Slot(str, str)
+    def setResourceAssignmentsDateRange(self, start_date: str, end_date: str) -> None:
+        values = (str(start_date or "").strip(), str(end_date or "").strip())
+        if values == (self._resource_assignments_start_date, self._resource_assignments_end_date): return
+        self._resource_assignments_start_date, self._resource_assignments_end_date = values
+        self._resource_assignments_page = 1
+        self.resourceAssignmentsChanged.emit()
+        load_resource_assignments(self, force=True)
+
+    @Slot(int)
+    def setResourceAssignmentsPage(self, value: int) -> None:
+        self._resource_assignments_page = max(1, int(value))
+        self.resourceAssignmentsChanged.emit()
+        load_resource_assignments(self, force=True)
+
+    @Slot(int)
+    def setResourceAssignmentsPageSize(self, value: int) -> None:
+        self._resource_assignments_page_size = max(1, int(value))
+        self._resource_assignments_page = 1
+        self.resourceAssignmentsChanged.emit()
+        load_resource_assignments(self, force=True)
+
+    @Slot(str, int)
+    def setResourceAssignmentsSort(self, key: str, direction: int) -> None:
+        self._resource_assignments_sort_key = str(key or "scheduledStart")
+        self._resource_assignments_sort_direction = int(direction)
+        self._resource_assignments_page = 1
+        self.resourceAssignmentsChanged.emit()
+        load_resource_assignments(self, force=True)
+
+    @Slot(str)
+    def setResourceActivityCategory(self, value: str) -> None:
+        value = str(value or "all").strip().lower()
+        if value == self._resource_activity_category: return
+        self._resource_activity_category = value
+        self._resource_activity_page = 1
+        self.resourceActivityChanged.emit()
+        load_resource_activity(self, force=True)
+
+    @Slot(str, str)
+    def setResourceActivityDateRange(self, start_date: str, end_date: str) -> None:
+        values = (str(start_date or "").strip(), str(end_date or "").strip())
+        if values == (self._resource_activity_start_date, self._resource_activity_end_date): return
+        self._resource_activity_start_date, self._resource_activity_end_date = values
+        self._resource_activity_page = 1
+        self.resourceActivityChanged.emit()
+        load_resource_activity(self, force=True)
+
+    @Slot(int)
+    def setResourceActivityPage(self, value: int) -> None:
+        self._resource_activity_page = max(1, int(value))
+        self.resourceActivityChanged.emit()
+        load_resource_activity(self, force=True)
+
+    @Slot(int)
+    def setResourceActivityPageSize(self, value: int) -> None:
+        self._resource_activity_page_size = max(1, int(value))
+        self._resource_activity_page = 1
+        self.resourceActivityChanged.emit()
+        load_resource_activity(self, force=True)
+
+    @Slot(str, str)
+    def loadResourceAvailability(self, start_date: str, end_date: str) -> None:
+        load_resource_availability(self, start_date, end_date)
 
     @Slot(int)
     def setResourcePage(self, page: int) -> None:
@@ -344,39 +742,31 @@ class ProjectManagementResourcesWorkspaceController(
 
     # ── Bulk ─────────────────────────────────────────────────────────────
 
-    @Slot(str, bool)
-    def setResourceBulkSelection(self, resource_id: str, selected: bool) -> None:
-        set_resource_bulk_selection(self, resource_id, selected)
-
-    @Slot()
-    def clearResourceBulkSelection(self) -> None:
-        clear_resource_bulk_selection(self)
-
-    @Slot()
-    def selectVisibleResources(self) -> None:
-        select_visible_resources(self)
-
-    @Slot("QVariantList", result="QVariantMap")
-    def bulkDeleteResources(self, resource_ids: list) -> dict[str, object]:
-        return bulk_delete_resources(self, resource_ids)
-
     # ── Skills / Certifications ──────────────────────────────────────────
 
     @Slot("QVariantMap", result="QVariantMap")
     def addSkill(self, payload: dict[str, object]) -> dict[str, object]:
         return add_skill(self, payload)
 
-    @Slot(str, result="QVariantMap")
-    def removeSkill(self, skill_id: str) -> dict[str, object]:
-        return remove_skill(self, skill_id)
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateSkill(self, payload: dict[str, object]) -> dict[str, object]:
+        return update_skill(self, payload)
+
+    @Slot(str, int, result="QVariantMap")
+    def removeSkill(self, skill_id: str, expected_version: int) -> dict[str, object]:
+        return remove_skill(self, skill_id, expected_version)
 
     @Slot("QVariantMap", result="QVariantMap")
     def addCertification(self, payload: dict[str, object]) -> dict[str, object]:
         return add_certification(self, payload)
 
-    @Slot(str, result="QVariantMap")
-    def removeCertification(self, cert_id: str) -> dict[str, object]:
-        return remove_certification(self, cert_id)
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateCertification(self, payload: dict[str, object]) -> dict[str, object]:
+        return update_certification(self, payload)
+
+    @Slot(str, int, result="QVariantMap")
+    def removeCertification(self, cert_id: str, expected_version: int) -> dict[str, object]:
+        return remove_certification(self, cert_id, expected_version)
 
     # ── Export ───────────────────────────────────────────────────────────
 
@@ -399,12 +789,12 @@ class ProjectManagementResourcesWorkspaceController(
         return update_resource(self, payload)
 
     @Slot(str, int, result="QVariantMap")
-    def toggleResourceActive(self, resource_id: str, expected_version: int) -> dict[str, object]:
-        return toggle_resource_active(self, resource_id, expected_version)
+    def deactivateResource(self, resource_id: str, expected_version: int) -> dict[str, object]:
+        return deactivate_resource(self, resource_id, expected_version)
 
-    @Slot(str, result="QVariantMap")
-    def deleteResource(self, resource_id: str) -> dict[str, object]:
-        return delete_resource(self, resource_id)
+    @Slot(str, int, result="QVariantMap")
+    def reactivateResource(self, resource_id: str, expected_version: int) -> dict[str, object]:
+        return reactivate_resource(self, resource_id, expected_version)
 
 
 __all__ = ["ProjectManagementResourcesWorkspaceController"]

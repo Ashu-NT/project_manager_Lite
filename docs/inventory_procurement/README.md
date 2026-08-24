@@ -2,10 +2,10 @@
 
 Status: phase-1 implemented and materially hardened
 Implementation state: item category master, item master, storerooms, stock balances and ledger, reservations, requisitions, purchase orders, receiving, shared site/party reads, shared documents, shared approvals, audit hooks, UI workspaces, and module-owned inventory import/export/reporting services now exist in the codebase.
-Enterprise foundation now also includes storage-location hierarchy under storerooms (`warehouse/zone/bin` style operating structures), explicit reorder-policy records, cycle-count records with adjustment completion flow, and an entitlement-aware inventory foundation snapshot so cross-module links to maintenance, project management, documents, and approvals only surface when the subscribed runtime actually enables them.
-Recent hardening delivered beyond the initial phase: configured `order_uom` / `issue_uom` conversion now flows through stock transactions, reservations, requisitions, purchase orders, approvals, and receipts; inventory now also ships CSV import for `items`, `storerooms`, `requisitions`, `purchase_orders`, and `receipts`, raw CSV export for `items`, `storerooms`, `requisitions`, `purchase_orders`, and `receipts`, plus stock/procurement reports in CSV and Excel. Receiving now enforces lot, serial, and shelf-life controls, storerooms can require reservation-backed issues and supplier-reference-backed receipts, maintenance-facing source-reference types are validated consistently across reservations and requisitions, and inventory now exposes an explicit maintenance-material contract for availability, reservation, issue, return, shortage escalation, and domain-event refresh.
-Inventory also now owns a governed item category master for consumables, spares, equipment, and other stocked classifications, including project-usage and maintenance-usage flags for future cross-module consumption.
-Still pending before a fuller enterprise-complete rollout: richer warehouse execution such as directed/bin policies and inspection flows, broader serial/lot lifecycle traceability beyond receipt capture, and maintenance-module-side adoption of the new inventory material contract once maintenance runtime workflows land.
+Enterprise foundation now also includes storage-location hierarchy under storerooms (`warehouse/zone/bin` style operating structures), explicit reorder-policy records, cycle-count records with adjustment completion flow, and an entitlement-aware inventory foundation snapshot for project, document, and approval links.
+Recent hardening delivered beyond the initial phase: configured `order_uom` / `issue_uom` conversion now flows through stock transactions, reservations, requisitions, purchase orders, approvals, and receipts; inventory also ships CSV import/export and stock/procurement reports. Receiving enforces lot, serial, and shelf-life controls, and storerooms can require reservation-backed issues and supplier-reference-backed receipts.
+Inventory also owns a governed item category master for consumables, spares, equipment, and other stocked classifications, including project-usage flags for cross-module consumption.
+Still pending before a fuller enterprise-complete rollout: richer warehouse execution such as directed/bin policies and inspection flows, and broader serial/lot lifecycle traceability beyond receipt capture.
 
 ## Current Execution Plan
 
@@ -20,7 +20,6 @@ Next up:
 
 1. directed warehouse execution and richer receiving inspection policy
 2. serial and lot traceability beyond receipt capture
-3. maintenance module-side consumption of the inventory material contract once maintenance runtime workflows land
 
 ## Purpose
 
@@ -81,7 +80,6 @@ The module owns inventory and procurement workflow truth:
 
 ### Other Modules Consume By Reference
 
-- `maintenance_management` must reference item category, item, storeroom, reservation, requisition, purchase-order, and receipt records
 - no other module may create a shadow item master or stock ledger
 
 ## First Implementation Scope
@@ -193,7 +191,6 @@ Important rules:
 
 - `site_id` references platform `site`
 - `manager_party_id` is optional and references platform `party`
-- a future link to a maintenance `location` must be by reference only, after Maintenance exists
 
 ### 3. `stock_balance`
 
@@ -832,18 +829,6 @@ Exit criteria:
 - stock positions remain explainable from transaction history
 - operational execution remains separate from procurement and reservation review
 
-### Slice 6. Maintenance Integration
-
-Build later:
-
-- maintenance demand references inventory items and storerooms
-- maintenance reservations and PO demand use inventory-owned records by reference
-
-Exit criteria:
-
-- no stock ledger exists inside Maintenance
-- maintenance consumes inventory through IDs, business keys, and events only
-
 ## First Acceptance Criteria
 
 Inventory phase 1 should be considered valid only if all of the following are true:
@@ -855,7 +840,6 @@ Inventory phase 1 should be considered valid only if all of the following are tr
 - inventory mutations are written to platform audit
 - item and storeroom writes stay inside the inventory module
 - balances come from inventory-owned transaction logic
-- future maintenance integration can reference inventory without owning stock logic
 
 ## Sources Used To Ground This Plan
 

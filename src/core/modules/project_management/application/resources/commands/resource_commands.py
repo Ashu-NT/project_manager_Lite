@@ -1,34 +1,23 @@
 # src/core/modules/project_management/application/resources/commands/resource_commands.py
 from __future__ import annotations
 
-import logging
 from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal
 
-from sqlalchemy.exc import IntegrityError
-
-from src.core.modules.project_management.domain.enums import CostType, WorkerType
+from src.core.modules.project_management.domain.enums import CostType, ResourceKind, WorkerType
 from src.core.modules.project_management.domain.financials.rate_cards import (
     RateCardLine,
     RateLineOrigin,
     RateType,
 )
 from src.core.modules.project_management.domain.resources.resource import Resource
-from src.core.modules.project_management.contracts.repositories.projects.project import ProjectResourceRepository
-from src.core.modules.project_management.contracts.repositories.tasks.task import AssignmentRepository
-from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
-from src.core.platform.contract.repositories.time_management.time.contracts import TimeEntryRepository
-from src.core.platform.contract.repositories.master_data.employee.contracts import EmployeeRepository
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError, ValidationError
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.shared.activity import record_activity
-from src.core.shared.events.domain_events import domain_events
 from src.core.modules.project_management.application.common.currency_policy import (
     resolve_pm_currency,
 )
-
-logger = logging.getLogger(__name__)
 
 def _employee_contact(employee) -> str:
     return (getattr(employee, "email", None) or getattr(employee, "phone", None) or "").strip()
@@ -45,56 +34,47 @@ class ResourceCommandMixin:
         return tenant_context.require_active_tenant_id(operation_label=operation_label)
 
     def _resolve_resource_code(self, code: str, name: str, *, exclude_id: str | None = None) -> str:
-        """Normalize a manual code or auto-generate a unique one (global scope)."""
+        """Normalize or generate a code unique in the active tenant/org scope."""
         from src.core.platform.common.code_generation import (
             CodeGenerator,
             assert_code_unique,
             normalize_manual_code,
         )
 
-        existing = {
-            str(getattr(resource, "code", "") or "").upper()
-            for resource in self._resource_repo.list()
-            if exclude_id is None or resource.id != exclude_id
-        }
         manual = normalize_manual_code(code)
         if manual:
             assert_code_unique(
                 manual,
-                exists=lambda candidate: candidate.upper() in existing,
+                exists=lambda candidate: self._resource_repo.code_exists(
+                    candidate,
+                    exclude_id=exclude_id,
+                ),
                 label="Resource code",
             )
             return manual
         return CodeGenerator().generate(
             "resource",
-            exists=lambda candidate: candidate.upper() in existing,
+            exists=lambda candidate: self._resource_repo.code_exists(
+                candidate,
+                exclude_id=exclude_id,
+            ),
             name=(name or "").strip() or None,
             use_year=not bool((name or "").strip()),
         )
 
     @staticmethod
     def _resolved_worker_type(value: WorkerType | str | None) -> WorkerType:
-        return Resource.create(name="Worker Type Probe", worker_type=value).worker_type
-
-    @staticmethod
-    def _is_resource_code_integrity_error(exc: IntegrityError) -> bool:
-        message = " ".join(
-            part
-            for part in [
-                str(getattr(exc, "orig", "") or ""),
-                str(getattr(exc, "statement", "") or ""),
-                str(exc),
-            ]
-            if part
-        ).lower()
-        return "ux_resources_code" in message or "resources.resource_code" in message
-
-    @staticmethod
-    def _raise_resource_code_duplicate(code: str, exc: IntegrityError) -> None:
-        raise ValidationError(
-            f"Resource code '{code}' already exists.",
-            code="CODE_DUPLICATE",
-        ) from exc
+        if value is None:
+            return WorkerType.EXTERNAL
+        if isinstance(value, WorkerType):
+            return value
+        try:
+            return WorkerType(str(value).strip().upper())
+        except ValueError as exc:
+            raise ValidationError(
+                "Worker type must be EMPLOYEE or EXTERNAL.",
+                code="RESOURCE_WORKER_TYPE_INVALID",
+            ) from exc
 
     def _current_legacy_rate_line(self, resource_id: str) -> RateCardLine | None:
         rate_card_repo = getattr(self, "_project_rate_card_repo", None)
@@ -184,51 +164,157 @@ class ResourceCommandMixin:
         if new_rate > 0:
             self._create_legacy_rate_line(resource, effective_from=effective_on)
 
+    def _resolve_master_scope(
+        self,
+        *,
+        kind: ResourceKind | str,
+        worker_type: WorkerType | str,
+        employee_id: str | None,
+        department_id: str | None,
+        site_id: str | None,
+        exclude_resource_id: str | None = None,
+    ) -> tuple[ResourceKind, WorkerType, object | None, str | None, str | None]:
+        resolved_kind = kind if isinstance(kind, ResourceKind) else ResourceKind(str(kind).upper())
+        resolved_worker_type = self._resolved_worker_type(worker_type)
+        organization_id = self._active_organization_id(operation_label="validate resource scope")
+        employee = None
+
+        if resolved_kind == ResourceKind.PERSON and resolved_worker_type == WorkerType.EMPLOYEE:
+            if not employee_id:
+                raise ValidationError(
+                    "Employee resources require an employee selection.",
+                    code="RESOURCE_EMPLOYEE_REQUIRED",
+                )
+            if self._employee_repo is None:
+                raise BusinessRuleError(
+                    "The employee directory is not configured.",
+                    code="EMPLOYEE_DIRECTORY_REQUIRED",
+                )
+            employee = self._employee_repo.get(employee_id)
+            if employee is None or getattr(employee, "organization_id", None) != organization_id:
+                raise ValidationError(
+                    "Selected employee was not found in the active organization.",
+                    code="EMPLOYEE_NOT_FOUND",
+                )
+            if not getattr(employee, "is_active", True):
+                raise ValidationError("Selected employee is inactive.", code="EMPLOYEE_INACTIVE")
+            if self._resource_repo.employee_link_exists(
+                employee.id,
+                exclude_id=exclude_resource_id,
+            ):
+                raise ValidationError(
+                    "The selected employee is already linked to another resource.",
+                    code="RESOURCE_EMPLOYEE_DUPLICATE",
+                )
+            department_id = getattr(employee, "department_id", None)
+            site_id = getattr(employee, "site_id", None)
+        elif employee_id:
+            raise ValidationError(
+                "Only employee-engaged person resources may link to an employee.",
+                code="RESOURCE_EMPLOYEE_LINK_INVALID",
+            )
+
+        if department_id:
+            department_service = getattr(self, "_department_service", None)
+            if department_service is None:
+                raise BusinessRuleError(
+                    "The department directory is not configured.",
+                    code="DEPARTMENT_DIRECTORY_REQUIRED",
+                )
+            department = department_service.get_department(department_id)
+            if not getattr(department, "is_active", True):
+                raise ValidationError(
+                    "Selected department is inactive.",
+                    code="DEPARTMENT_INACTIVE",
+                )
+            department_site_id = getattr(department, "site_id", None)
+            if site_id and department_site_id and site_id != department_site_id:
+                raise ValidationError(
+                    "Selected site does not match the department site.",
+                    code="RESOURCE_SITE_DEPARTMENT_MISMATCH",
+                )
+
+        if site_id:
+            site_service = getattr(self, "_site_service", None)
+            if site_service is None:
+                raise BusinessRuleError(
+                    "The site directory is not configured.",
+                    code="SITE_DIRECTORY_REQUIRED",
+                )
+            site = site_service.get_site(site_id)
+            if not getattr(site, "is_active", True):
+                raise ValidationError("Selected site is inactive.", code="SITE_INACTIVE")
+
+        return resolved_kind, resolved_worker_type, employee, department_id, site_id
+
+    @staticmethod
+    def _require_expected_version(resource: Resource, expected_version: int) -> None:
+        if resource.version != expected_version:
+            raise ConcurrencyError(
+                "Resource changed since you opened it. Reload and try again.",
+                code="STALE_WRITE",
+            )
+
+    def _stage_activity(self, resource: Resource, *, action: str) -> None:
+        record_activity(
+            self,
+            action=action,
+            entity_type="resource",
+            entity_id=resource.id,
+            module="project_management",
+            details={
+                "name": resource.name,
+                "kind": resource.kind.value,
+                "version": resource.version,
+                "capacity_percent": resource.capacity_percent,
+                "worker_type": resource.worker_type.value,
+                "employee_id": resource.employee_id or "",
+            },
+            commit=False,
+        )
+
     def create_resource(
         self,
         name: str,
         role: str = "",
+        *,
+        code: str = "",
+        kind: ResourceKind | str = ResourceKind.PERSON,
         hourly_rate: Decimal | int | str = Decimal("0"),
-        is_active: bool = True,
         cost_type: CostType = CostType.LABOR,
         currency_code: str | None = None,
         capacity_percent: float = 100.0,
+        is_active: bool = True,
         address: str = "",
         contact: str = "",
         worker_type: WorkerType | str = WorkerType.EXTERNAL,
         employee_id: str | None = None,
-        code: str = "",
+        department_id: str | None = None,
+        site_id: str | None = None,
         rate_effective_on: date | None = None,
     ) -> Resource:
         require_permission(self._user_session, "resource.manage", operation_label="create resource")
         organization_id = self._active_organization_id(operation_label="create resource")
-        resolved_worker_type = self._resolved_worker_type(worker_type)
-        resolved_name = name
-        resolved_role = role
-        resolved_contact = contact
-        resolved_employee_id = employee_id
-        if resolved_worker_type == WorkerType.EMPLOYEE:
-            if not resolved_employee_id:
-                raise ValidationError("Employee resource requires an employee selection.")
-            if self._employee_repo is None:
-                raise ValidationError("Employee directory is not available.")
-            employee = self._employee_repo.get(resolved_employee_id)
-            if employee is None:
-                raise ValidationError("Selected employee was not found.", code="EMPLOYEE_NOT_FOUND")
-            if not getattr(employee, "is_active", True):
-                raise ValidationError("Selected employee is inactive.", code="EMPLOYEE_INACTIVE")
-            resolved_name = employee.full_name
-            resolved_role = employee.title or resolved_role
-            resolved_contact = _employee_contact(employee) or resolved_contact
-            resolved_employee_id = employee.id
-        else:
-            resolved_employee_id = None
+        kind, worker_type, employee, department_id, site_id = self._resolve_master_scope(
+            kind=kind,
+            worker_type=worker_type,
+            employee_id=employee_id,
+            department_id=department_id,
+            site_id=site_id,
+        )
+        if employee is not None:
+            name = employee.full_name
+            role = employee.title or role
+            contact = _employee_contact(employee) or contact
+            employee_id = employee.id
+
         resource = Resource.create(
-            name=resolved_name,
+            name=name,
             code="",
-            role=resolved_role,
+            kind=kind,
+            role=role,
             hourly_rate=hourly_rate,
-            is_active=is_active,
+            is_active=bool(is_active),
             cost_type=cost_type,
             currency_code=resolve_pm_currency(
                 tenant_context_service=getattr(self, "_tenant_context_service", None),
@@ -237,239 +323,179 @@ class ResourceCommandMixin:
             ),
             capacity_percent=capacity_percent,
             address=address,
-            contact=resolved_contact,
-            worker_type=resolved_worker_type,
-            employee_id=resolved_employee_id,
+            contact=contact,
+            worker_type=worker_type,
+            employee_id=employee_id,
             organization_id=organization_id,
+            department_id=department_id,
+            site_id=site_id,
         )
         resource.code = self._resolve_resource_code(code, resource.name)
-        try:
-            self._resource_repo.add(resource)
-            if resource.hourly_rate > 0:
-                clock = getattr(self, "_clock", None)
-                effective_on = rate_effective_on or (
-                    clock.today() if clock is not None else None
+        self._resource_repo.add(resource)
+        if resource.hourly_rate > 0:
+            clock = getattr(self, "_clock", None)
+            effective_on = rate_effective_on or (clock.today() if clock is not None else None)
+            if effective_on is None:
+                raise BusinessRuleError(
+                    "A clock is required to seed a resource's labor rate.",
+                    code="RATE_CLOCK_REQUIRED",
                 )
-                if effective_on is None:
-                    raise BusinessRuleError(
-                        "A clock is required to seed a resource's legacy rate line.",
-                        code="RATE_CLOCK_REQUIRED",
-                    )
-                self._create_legacy_rate_line(resource, effective_from=effective_on)
-            self._session.commit()
-            record_activity(
-                self,
-                action="resource.create",
-                entity_type="resource",
-                entity_id=resource.id,
-                module="project_management",
-                details={
-                    "name": resource.name,
-                    "role": resource.role,
-                    "capacity_percent": resource.capacity_percent,
-                    "worker_type": resource.worker_type.value,
-                    "employee_id": resource.employee_id or "",
-                },
-            )
-            logger.info(f"Created resource {resource.id} - {resource.name}")
-        except IntegrityError as exc:
-            self._session.rollback()
-            if self._is_resource_code_integrity_error(exc):
-                self._raise_resource_code_duplicate(resource.code, exc)
-            logger.error(f"Error creating resource: {exc}")
-            raise
-        except Exception as e:
-            self._session.rollback()
-            logger.error(f"Error creating resource: {e}")
-            raise
-        domain_events.resources_changed.emit(resource.id)
+            self._create_legacy_rate_line(resource, effective_from=effective_on)
+        self._stage_activity(resource, action="resource.created")
+        self._session.flush()
         return resource
 
     def update_resource(
         self,
+        *,
         resource_id: str,
-        name: str | None = None,
-        role: str | None = None,
-        hourly_rate: Decimal | int | str | None = None,
-        is_active: bool | None = None,
-        cost_type: CostType | None = None,
-        currency_code: str | None = None,
-        capacity_percent: float | None = None,
-        address: str | None = None,
-        contact: str | None = None,
-        worker_type: WorkerType | str | None = None,
-        employee_id: str | None = None,
-        expected_version: int | None = None,
-        code: str | None = None,
+        expected_version: int,
+        name: str,
+        code: str,
+        kind: ResourceKind | str,
+        role: str,
+        hourly_rate: Decimal | int | str,
+        cost_type: CostType,
+        currency_code: str | None,
+        capacity_percent: float,
+        address: str,
+        contact: str,
+        worker_type: WorkerType | str,
+        employee_id: str | None,
+        department_id: str | None,
+        site_id: str | None,
         effective_on: date | None = None,
     ) -> Resource:
         require_permission(self._user_session, "resource.manage", operation_label="update resource")
         resource = self._resource_repo.get(resource_id)
-        if not resource:
+        if resource is None:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
-
-        if expected_version is not None and resource.version != expected_version:
-            raise ConcurrencyError(
-                "Resource changed since you opened it. Refresh and try again.",
-                code="STALE_WRITE",
+        self._require_expected_version(resource, expected_version)
+        kind, worker_type, employee, department_id, site_id = self._resolve_master_scope(
+            kind=kind,
+            worker_type=worker_type,
+            employee_id=employee_id,
+            department_id=department_id,
+            site_id=site_id,
+            exclude_resource_id=resource.id,
+        )
+        if kind != resource.kind and self._resource_repo.reference_summary(
+            resource.id
+        ).has_operational_references:
+            raise BusinessRuleError(
+                "Resource kind cannot change after the resource is used by project work.",
+                code="RESOURCE_KIND_CHANGE_REFERENCED",
             )
+        if employee is not None:
+            name = employee.full_name
+            role = employee.title or role
+            contact = _employee_contact(employee) or contact
+            employee_id = employee.id
 
-        resolved_worker_type = (
-            self._resolved_worker_type(worker_type)
-            if worker_type is not None
-            else getattr(resource, "worker_type", WorkerType.EXTERNAL)
-        )
-        resolved_employee_id = (
-            employee_id
-            if worker_type is not None or employee_id is not None
-            else getattr(resource, "employee_id", None)
-        )
         candidate = replace(
             resource,
-            name=resource.name if name is None else name,
-            role=resource.role if role is None else role,
-            hourly_rate=resource.hourly_rate if hourly_rate is None else hourly_rate,
-            is_active=resource.is_active if is_active is None else is_active,
-            cost_type=resource.cost_type if cost_type is None else cost_type,
-            currency_code=(
-                resource.currency_code
-                if currency_code is None
-                else resolve_pm_currency(
-                    tenant_context_service=getattr(self, "_tenant_context_service", None),
-                    operation_label="update resource currency",
-                    explicit=currency_code,
-                )
+            name=name,
+            code=self._resolve_resource_code(code, name, exclude_id=resource.id),
+            kind=kind,
+            role=role,
+            hourly_rate=hourly_rate,
+            cost_type=cost_type,
+            currency_code=resolve_pm_currency(
+                tenant_context_service=getattr(self, "_tenant_context_service", None),
+                operation_label="update resource currency",
+                explicit=currency_code,
             ),
-            capacity_percent=resource.capacity_percent if capacity_percent is None else capacity_percent,
-            address=resource.address if address is None else address,
-            contact=resource.contact if contact is None else contact,
-            worker_type=resolved_worker_type,
-            employee_id=resolved_employee_id,
+            capacity_percent=capacity_percent,
+            address=address,
+            contact=contact,
+            worker_type=worker_type,
+            employee_id=employee_id,
+            department_id=department_id,
+            site_id=site_id,
         )
-        if resolved_worker_type == WorkerType.EMPLOYEE:
-            if not resolved_employee_id:
-                raise ValidationError("Employee resource requires an employee selection.")
-            if self._employee_repo is None:
-                raise ValidationError("Employee directory is not available.")
-            employee = self._employee_repo.get(resolved_employee_id)
-            if employee is None:
-                raise ValidationError("Selected employee was not found.", code="EMPLOYEE_NOT_FOUND")
-            if not getattr(employee, "is_active", True):
-                raise ValidationError("Selected employee is inactive.", code="EMPLOYEE_INACTIVE")
-            candidate = replace(
-                candidate,
-                name=employee.full_name,
-                role=employee.title or candidate.role,
-                contact=_employee_contact(employee) or candidate.contact,
-                employee_id=employee.id,
-            )
-        else:
-            candidate = replace(candidate, employee_id=None)
-        if code is not None and code.strip():
-            candidate = replace(
-                candidate,
-                code=self._resolve_resource_code(code, candidate.name, exclude_id=resource.id),
-            )
-
         rate_affecting_change = (
             candidate.hourly_rate != resource.hourly_rate
             or candidate.currency_code != resource.currency_code
         )
-        resolved_effective_on = effective_on
-        if rate_affecting_change:
-            if expected_version is None:
-                raise ValidationError(
-                    "expected_version is required when changing the resource rate "
-                    "or currency.",
-                    code="RESOURCE_RATE_VERSION_REQUIRED",
+        if rate_affecting_change and effective_on is None:
+            clock = getattr(self, "_clock", None)
+            if clock is None:
+                raise BusinessRuleError(
+                    "A clock is required to date a resource rate change.",
+                    code="RATE_CLOCK_REQUIRED",
                 )
-            if resolved_effective_on is None:
-                clock = getattr(self, "_clock", None)
-                if clock is None:
-                    raise BusinessRuleError(
-                        "A clock is required to date a resource rate change.",
-                        code="RATE_CLOCK_REQUIRED",
-                    )
-                resolved_effective_on = clock.today()
+            effective_on = clock.today()
 
-        try:
-            self._resource_repo.update(candidate)
-            if rate_affecting_change:
-                self._supersede_legacy_rate_line(
-                    resource=candidate,
-                    previous_hourly_rate=resource.hourly_rate,
-                    effective_on=resolved_effective_on,
-                )
-            self._session.commit()
-            record_activity(
-                self,
-                action="resource.update",
-                entity_type="resource",
-                entity_id=candidate.id,
-                module="project_management",
-                details={
-                    "name": candidate.name,
-                    "role": candidate.role,
-                    "capacity_percent": candidate.capacity_percent,
-                    "worker_type": candidate.worker_type.value,
-                    "employee_id": candidate.employee_id or "",
-                },
+        self._resource_repo.update(candidate)
+        if rate_affecting_change:
+            self._supersede_legacy_rate_line(
+                resource=candidate,
+                previous_hourly_rate=resource.hourly_rate,
+                effective_on=effective_on,
             )
-        except IntegrityError as exc:
-            self._session.rollback()
-            if self._is_resource_code_integrity_error(exc):
-                self._raise_resource_code_duplicate(candidate.code, exc)
-            raise
-        except Exception as e:
-            self._session.rollback()
-            raise e
-        domain_events.resources_changed.emit(candidate.id)
+        self._stage_activity(candidate, action="resource.updated")
+        self._session.flush()
         return candidate
 
-    def delete_resource(self, resource_id: str) -> None:
-        require_permission(self._user_session, "resource.manage", operation_label="delete resource")
+    def _change_resource_lifecycle(
+        self,
+        *,
+        resource_id: str,
+        expected_version: int,
+        active: bool,
+    ) -> Resource:
+        operation = "reactivate" if active else "deactivate"
+        require_permission(
+            self._user_session,
+            "resource.manage",
+            operation_label=f"{operation} resource",
+        )
         resource = self._resource_repo.get(resource_id)
-        if not resource:
+        if resource is None:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
-
-        # Historical actual work must not disappear because the resource
-        # itself is deleted -- this path previously cascade-deleted every
-        # assignment's time entries unconditionally, silently bypassing the
-        # same "preserve historical actuals" invariant enforced on the more
-        # targeted ProjectResource/TaskAssignment removal paths. Deactivate
-        # (is_active=False) instead once any actual hours have been logged.
-        assignments = self._assignment_repo.list_by_resource(resource_id)
-        if any(a.hours_logged and a.hours_logged > 0 for a in assignments):
+        self._require_expected_version(resource, expected_version)
+        if resource.is_active == active:
+            state = "active" if active else "inactive"
             raise BusinessRuleError(
-                "This resource has recorded actual time on one or more tasks. "
-                "Deactivate the resource instead of deleting it, to preserve "
-                "the historical record.",
-                code="RESOURCE_HAS_HISTORICAL_ACTUALS",
+                f"Resource is already {state}.",
+                code="RESOURCE_LIFECYCLE_NO_CHANGE",
             )
+        candidate = replace(resource, is_active=active)
+        self._resource_repo.update(candidate)
+        self._stage_activity(candidate, action=f"resource.{operation}d")
+        self._session.flush()
+        return candidate
 
-        try:
-            # delete assignments and Project- Resource first
-            for a in assignments:
-                if self._time_entry_repo is not None:
-                    self._time_entry_repo.delete_by_assignment(a.id)
-                self._assignment_repo.delete(a.id)
-            if self._project_resource_repo is not None:
-                self._project_resource_repo.delete_by_resource(resource_id)
+    def deactivate_resource(self, *, resource_id: str, expected_version: int) -> Resource:
+        return self._change_resource_lifecycle(
+            resource_id=resource_id,
+            expected_version=expected_version,
+            active=False,
+        )
 
-            self._resource_repo.delete(resource_id)
-            self._session.commit()
-            record_activity(
-                self,
-                action="resource.delete",
-                entity_type="resource",
-                entity_id=resource.id,
-                module="project_management",
-                details={"name": resource.name},
+    def reactivate_resource(self, *, resource_id: str, expected_version: int) -> Resource:
+        return self._change_resource_lifecycle(
+            resource_id=resource_id,
+            expected_version=expected_version,
+            active=True,
+        )
+
+    def purge_resource(self, *, resource_id: str, expected_version: int) -> Resource:
+        require_permission(self._user_session, "resource.manage", operation_label="purge resource")
+        resource = self._resource_repo.get(resource_id)
+        if resource is None:
+            raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
+        self._require_expected_version(resource, expected_version)
+        references = self._resource_repo.reference_summary(resource.id)
+        if references.has_any_references:
+            raise BusinessRuleError(
+                "Referenced resources cannot be purged. Deactivate this resource instead.",
+                code="RESOURCE_REFERENCED_CANNOT_PURGE",
             )
-        except Exception as e:
-            self._session.rollback()
-            raise e
-        domain_events.resources_changed.emit(resource_id)
+        self._resource_repo.delete(resource.id)
+        self._stage_activity(resource, action="resource.purged")
+        self._session.flush()
+        return resource
 
 
 __all__ = ["ResourceCommandMixin"]

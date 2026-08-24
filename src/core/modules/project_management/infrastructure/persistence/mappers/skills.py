@@ -46,7 +46,8 @@ def cert_to_orm(cert: ResourceCertification) -> ResourceCertificationORM:
         certification_name=cert.certification_name,
         issued_date=cert.issued_date,
         expiry_date=cert.expiry_date,
-        issuing_authority=cert.issuing_body or None,
+        certificate_number=cert.certificate_number or None,
+        issuer=cert.issuer or None,
         notes=cert.notes or None,
         version=cert.version,
     )
@@ -60,7 +61,8 @@ def cert_from_orm(obj: ResourceCertificationORM) -> ResourceCertification:
         certification_name=obj.certification_name,
         issued_date=obj.issued_date,
         expiry_date=obj.expiry_date,
-        issuing_body=obj.issuing_authority or "",
+        certificate_number=obj.certificate_number or "",
+        issuer=obj.issuer or "",
         notes=obj.notes or "",
         version=obj.version,
     )

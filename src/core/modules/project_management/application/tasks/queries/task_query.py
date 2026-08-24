@@ -21,10 +21,14 @@ from src.core.modules.project_management.application.tasks.workspace_filters imp
     build_task_workspace_criteria,
 )
 from src.core.modules.project_management.contracts.reads.tasks import (
+    TaskActivityPage,
+    TaskAssignmentReadPage,
+    TaskDependencyReadPage,
     TaskWorkspaceReadPage,
     TaskWorkspaceReader,
 )
 from src.core.modules.project_management.contracts.reads import ReadSort
+from src.core.platform.application.security.authorization import get_authorization_engine
 
 
 class TaskQueryMixin:
@@ -44,6 +48,123 @@ class TaskQueryMixin:
             operation_label="view task",
         )
         return task
+
+    def _require_detail_task(self, task_id: str, operation_label: str) -> Task:
+        task = self.get_task(str(task_id or "").strip())
+        if task is None:
+            raise ValidationError("Task not found.", code="TASK_NOT_FOUND")
+        return task
+
+    def query_task_assignments_page(
+        self, task_id: str, *, search_text: str = "", response_status: str = "all",
+        page: int = 1, page_size: int = 25, sort_key: str = "resourceName",
+        sort_direction: str = "asc",
+    ) -> TaskAssignmentReadPage:
+        task = self._require_detail_task(task_id, "view task assignments")
+        require_project_permission(self._user_session, task.project_id, "task.read",
+                                   operation_label="view task assignments")
+        if self._task_workspace_reader is None or self._tenant_context_service is None:
+            raise RuntimeError("Task workspace reader is not configured.")
+        request = PageRequest(page=page, page_size=page_size)
+        sort = ReadSort.normalize(key=sort_key, direction=sort_direction,
+            allowed_keys={"resourceName", "resourceCode", "role", "allocationPercent",
+                          "plannedHours", "actualHours", "remainingHours", "responseStatus"},
+            default_key="resourceName")
+        normalized_status = str(response_status or "all").strip().lower()
+        status = normalized_status if normalized_status in {"pending", "accepted", "declined"} else None
+        scope = self._tenant_context_service.require_active_scope_ids(operation_label="view task assignments")
+        kwargs = dict(tenant_id=scope.tenant_id, organization_id=scope.organization_id,
+                      task_id=task.id, search_text=str(search_text or "").strip(),
+                      response_status=status, page=request.page, page_size=request.page_size, sort=sort)
+        result = self._task_workspace_reader.read_assignments_page(**kwargs)
+        normalized_page = normalize_page_for_total(page=result.page, page_size=result.page_size,
+                                                   total=result.filtered_total)
+        if normalized_page != result.page:
+            kwargs["page"] = normalized_page
+            result = self._task_workspace_reader.read_assignments_page(**kwargs)
+        engine = get_authorization_engine()
+        can_manage = engine.has_permission(
+            self._user_session, "task.manage"
+        ) and engine.has_scope_permission(
+            self._user_session, "project", task.project_id, "task.manage"
+        )
+        principal = self._user_session.principal if self._user_session is not None else None
+        principal_user_id = str(getattr(principal, "user_id", "") or "").strip()
+        return replace(
+            result,
+            items=tuple(
+                replace(
+                    item,
+                    can_manage=bool(can_manage),
+                    can_accept=bool(
+                        principal_user_id
+                        and principal_user_id == str(item.assignee_user_id or "")
+                        and item.response_status == "pending"
+                    ),
+                    can_decline=bool(
+                        principal_user_id
+                        and principal_user_id == str(item.assignee_user_id or "")
+                        and item.response_status == "pending"
+                    ),
+                )
+                for item in result.items
+            ),
+        )
+
+    def query_task_dependencies_page(
+        self, task_id: str, *, search_text: str = "", direction: str = "all",
+        dependency_type: str = "all", page: int = 1, page_size: int = 25,
+        sort_key: str = "linkedTask", sort_direction: str = "asc",
+    ) -> TaskDependencyReadPage:
+        task = self._require_detail_task(task_id, "view task dependencies")
+        require_project_permission(self._user_session, task.project_id, "task.read",
+                                   operation_label="view task dependencies")
+        if self._task_workspace_reader is None or self._tenant_context_service is None:
+            raise RuntimeError("Task workspace reader is not configured.")
+        request = PageRequest(page=page, page_size=page_size)
+        sort = ReadSort.normalize(key=sort_key, direction=sort_direction,
+            allowed_keys={"direction", "linkedTask", "taskCode", "dependencyType", "lagDays",
+                          "startDate", "endDate", "statusLabel"}, default_key="linkedTask")
+        normalized_direction = str(direction or "all").strip().upper()
+        if normalized_direction not in {"ALL", "PREDECESSOR", "SUCCESSOR"}: normalized_direction = "ALL"
+        normalized_type = str(dependency_type or "all").strip().upper()
+        dep_type = normalized_type if normalized_type in {"FS", "FF", "SS", "SF"} else None
+        scope = self._tenant_context_service.require_active_scope_ids(operation_label="view task dependencies")
+        kwargs = dict(tenant_id=scope.tenant_id, organization_id=scope.organization_id,
+                      task_id=task.id, search_text=str(search_text or "").strip(),
+                      direction=normalized_direction, dependency_type=dep_type,
+                      page=request.page, page_size=request.page_size, sort=sort)
+        result = self._task_workspace_reader.read_dependencies_page(**kwargs)
+        normalized_page = normalize_page_for_total(page=result.page, page_size=result.page_size,
+                                                   total=result.filtered_total)
+        if normalized_page != result.page:
+            kwargs["page"] = normalized_page
+            result = self._task_workspace_reader.read_dependencies_page(**kwargs)
+        return result
+
+    def query_task_activity_page(
+        self, task_id: str, *, search_text: str = "", category: str = "all",
+        page: int = 1, page_size: int = 25,
+    ) -> TaskActivityPage:
+        task = self._require_detail_task(task_id, "view task activity")
+        require_project_permission(self._user_session, task.project_id, "task.read",
+                                   operation_label="view task activity")
+        if self._task_workspace_reader is None or self._tenant_context_service is None:
+            raise RuntimeError("Task workspace reader is not configured.")
+        request = PageRequest(page=page, page_size=page_size)
+        normalized_category = str(category or "all").strip().lower()
+        if normalized_category not in {"all", "task", "assignments"}: normalized_category = "all"
+        scope = self._tenant_context_service.require_active_scope_ids(operation_label="view task activity")
+        kwargs = dict(tenant_id=scope.tenant_id, organization_id=scope.organization_id,
+                      task_id=task.id, search_text=str(search_text or "").strip(),
+                      category=normalized_category, page=request.page, page_size=request.page_size)
+        result = self._task_workspace_reader.read_activity_page(**kwargs)
+        normalized_page = normalize_page_for_total(page=result.page, page_size=result.page_size,
+                                                   total=result.filtered_total)
+        if normalized_page != result.page:
+            kwargs["page"] = normalized_page
+            result = self._task_workspace_reader.read_activity_page(**kwargs)
+        return result
 
     def list_tasks_for_project(self, project_id: str) -> list[Task]:
         require_permission(self._user_session, "task.read", operation_label="list project tasks")
@@ -89,11 +210,15 @@ class TaskQueryMixin:
             allowed_keys={
                 "wbsCode",
                 "title",
+                "taskName",
                 "statusLabel",
                 "projectName",
                 "priorityLabel",
+                "priority",
                 "startDateLabel",
+                "startDate",
                 "endDateLabel",
+                "endDate",
                 "progressValue",
             },
             default_key="wbsCode",

@@ -8,8 +8,6 @@ from src.core.modules.project_management.api.desktop import (
     SchedulingBaselineCreateCommand,
     SchedulingBaselineRejectCommand,
     SchedulingBaselineSubmitCommand,
-    SchedulingDependencyCreateCommand,
-    SchedulingDependencyUpdateCommand,
     SchedulingWorkingDayCalculationCommand,
 )
 
@@ -90,55 +88,6 @@ def apply_resource_leveling(
         raise ValueError("Select a project before applying resource leveling.")
     desktop_api.apply_resource_leveling(normalized_id)
 
-def create_dependency(
-    desktop_api: ProjectManagementSchedulingDesktopApi,
-    payload: dict[str, Any],
-) -> None:
-    desktop_api.create_dependency(
-        SchedulingDependencyCreateCommand(
-            task_id=require_text(payload, "taskId", "Select an activity first."),
-            related_activity_id=require_text(
-                payload,
-                "relatedActivityId",
-                "Select a related activity.",
-            ),
-            relationship_direction=require_text(
-                payload,
-                "relationshipDirection",
-                "Choose a dependency direction.",
-            ),
-            dependency_type=optional_text(payload, "dependencyType") or "FS",
-            lag_days=require_int(payload, "lagDays", "Lag must be a whole number."),
-        )
-    )
-
-def update_dependency(
-    desktop_api: ProjectManagementSchedulingDesktopApi,
-    payload: dict[str, Any],
-) -> None:
-    current_task_id = require_text(payload, "taskId", "Select an activity first.")
-    desktop_api.update_dependency(
-        SchedulingDependencyUpdateCommand(
-            dependency_id=require_text(
-                payload,
-                "dependencyId",
-                "Select a dependency to update.",
-            ),
-            dependency_type=optional_text(payload, "dependencyType") or "FS",
-            lag_days=require_int(payload, "lagDays", "Lag must be a whole number."),
-        ),
-        current_task_id=current_task_id,
-    )
-
-def delete_dependency(
-    desktop_api: ProjectManagementSchedulingDesktopApi,
-    dependency_id: str,
-) -> None:
-    normalized_id = (dependency_id or "").strip()
-    if not normalized_id:
-        raise ValueError("Select a dependency before deleting it.")
-    desktop_api.delete_dependency(normalized_id)
-
 def calculate_working_days(
     desktop_api: ProjectManagementSchedulingDesktopApi,
     payload: dict[str, Any],
@@ -172,8 +121,5 @@ __all__ = [
     "reject_baseline",
     "recalculate_schedule",
     "apply_resource_leveling",
-    "create_dependency",
-    "update_dependency",
-    "delete_dependency",
     "calculate_working_days",
 ]

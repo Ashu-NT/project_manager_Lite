@@ -1,25 +1,42 @@
 from __future__ import annotations
 
-from sqlalchemy import String, case, cast, func, or_, select
-from sqlalchemy.orm import Session
+from decimal import Decimal
+
+from sqlalchemy import case, func, or_, select
+from sqlalchemy.orm import Session, aliased
 
 from src.core.modules.project_management.contracts.reads.resources import (
     ResourceCatalogReadItem,
     ResourceCatalogReadPage,
     ResourceCatalogSummary,
+    ResourceInspectorFact,
+    ResourceSummaryFact,
 )
 from src.core.modules.project_management.contracts.reads.sorting import ReadSort
-from src.core.modules.project_management.infrastructure.persistence.reads.sorting import stable_order_by
 from src.core.modules.project_management.domain.enums import CostType, WorkerType
-from src.core.modules.project_management.infrastructure.persistence.mappers.resource import (
-    resource_from_orm,
+from src.core.modules.project_management.infrastructure.persistence.orm.project import (
+    ProjectORM,
+    ProjectResourceORM,
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
+from src.core.modules.project_management.infrastructure.persistence.orm.task import (
+    TaskAssignmentORM,
+    TaskORM,
+)
+from src.core.modules.project_management.infrastructure.persistence.reads.sorting import stable_order_by
 from src.core.platform.infrastructure.persistence.orm.master_data.department.departments import (
     DepartmentORM,
 )
 from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import EmployeeORM
+from src.core.platform.infrastructure.persistence.orm.master_data.org.org import OrganizationORM
 from src.core.platform.infrastructure.persistence.orm.master_data.site.sites import SiteORM
+
+
+ResourceDepartment = aliased(DepartmentORM, name="resource_department")
+EmployeeDepartment = aliased(DepartmentORM, name="employee_department")
+ResourceSite = aliased(SiteORM, name="resource_site")
+EmployeeSite = aliased(SiteORM, name="employee_site")
+DepartmentSite = aliased(SiteORM, name="department_site")
 
 
 def _contains_pattern(value: str) -> str:
@@ -27,7 +44,82 @@ def _contains_pattern(value: str) -> str:
     return f"%{escaped.lower()}%"
 
 
+def _with_resource_context_joins(statement):
+    return (
+        statement.outerjoin(
+            OrganizationORM,
+            (OrganizationORM.id == ResourceORM.organization_id)
+            & (OrganizationORM.tenant_id == ResourceORM.tenant_id),
+        )
+        .outerjoin(
+            EmployeeORM,
+            (EmployeeORM.id == ResourceORM.employee_id)
+            & (EmployeeORM.tenant_id == ResourceORM.tenant_id)
+            & (EmployeeORM.organization_id == ResourceORM.organization_id),
+        )
+        .outerjoin(
+            ResourceDepartment,
+            (ResourceDepartment.id == ResourceORM.department_id)
+            & (ResourceDepartment.tenant_id == ResourceORM.tenant_id)
+            & (ResourceDepartment.organization_id == ResourceORM.organization_id),
+        )
+        .outerjoin(
+            EmployeeDepartment,
+            (EmployeeDepartment.id == EmployeeORM.department_id)
+            & (EmployeeDepartment.tenant_id == ResourceORM.tenant_id)
+            & (EmployeeDepartment.organization_id == ResourceORM.organization_id),
+        )
+        .outerjoin(
+            ResourceSite,
+            (ResourceSite.id == ResourceORM.site_id)
+            & (ResourceSite.tenant_id == ResourceORM.tenant_id)
+            & (ResourceSite.organization_id == ResourceORM.organization_id),
+        )
+        .outerjoin(
+            EmployeeSite,
+            (EmployeeSite.id == EmployeeORM.site_id)
+            & (EmployeeSite.tenant_id == ResourceORM.tenant_id)
+            & (EmployeeSite.organization_id == ResourceORM.organization_id),
+        )
+        .outerjoin(
+            DepartmentSite,
+            (DepartmentSite.id == ResourceDepartment.site_id)
+            & (DepartmentSite.tenant_id == ResourceORM.tenant_id)
+            & (DepartmentSite.organization_id == ResourceORM.organization_id),
+        )
+    )
+
+
+def _department_id_expression():
+    return func.coalesce(ResourceORM.department_id, EmployeeORM.department_id)
+
+
+def _department_label_expression():
+    return func.coalesce(
+        ResourceDepartment.name,
+        EmployeeDepartment.name,
+        EmployeeORM.department,
+        "",
+    )
+
+
+def _site_id_expression():
+    return func.coalesce(ResourceORM.site_id, EmployeeORM.site_id, ResourceDepartment.site_id)
+
+
+def _site_label_expression():
+    return func.coalesce(
+        ResourceSite.name,
+        EmployeeSite.name,
+        DepartmentSite.name,
+        EmployeeORM.site_name,
+        "",
+    )
+
+
 class SqlAlchemyResourceCatalogReader:
+    """Bounded scalar projections for the Resource catalog and detail foundation."""
+
     def __init__(self, *, session: Session) -> None:
         self._session = session
 
@@ -72,75 +164,56 @@ class SqlAlchemyResourceCatalogReader:
         normalized_search = str(search_text or "").strip()
         if normalized_search:
             pattern = _contains_pattern(normalized_search)
-            search_columns = (
-                ResourceORM.name,
-                ResourceORM.role,
-                ResourceORM.resource_code,
-                ResourceORM.address,
-                ResourceORM.contact,
-                ResourceORM.currency_code,
-                EmployeeORM.full_name,
-                EmployeeORM.title,
-                EmployeeORM.email,
-                EmployeeORM.phone,
-                EmployeeORM.department,
-                EmployeeORM.site_name,
-                DepartmentORM.name,
-                SiteORM.name,
-            )
             filtered.append(
                 or_(
-                    *(
-                        func.lower(func.coalesce(column, "")).like(pattern, escape="\\")
-                        for column in search_columns
+                    func.lower(func.coalesce(ResourceORM.resource_code, "")).like(
+                        pattern, escape="\\"
                     ),
-                    func.lower(cast(ResourceORM.worker_type, String)).like(pattern, escape="\\"),
-                    func.lower(cast(ResourceORM.cost_type, String)).like(pattern, escape="\\"),
+                    func.lower(ResourceORM.name).like(pattern, escape="\\"),
+                    func.lower(func.coalesce(ResourceORM.role, "")).like(
+                        pattern, escape="\\"
+                    ),
                 )
             )
 
-        joins = (
-            (EmployeeORM, (EmployeeORM.id == ResourceORM.employee_id)
-             & (EmployeeORM.tenant_id == ResourceORM.tenant_id)
-             & (EmployeeORM.organization_id == ResourceORM.organization_id)),
-            (DepartmentORM, (DepartmentORM.id == EmployeeORM.department_id)
-             & (DepartmentORM.tenant_id == ResourceORM.tenant_id)
-             & (DepartmentORM.organization_id == ResourceORM.organization_id)),
-            (SiteORM, (SiteORM.id == EmployeeORM.site_id)
-             & (SiteORM.tenant_id == ResourceORM.tenant_id)
-             & (SiteORM.organization_id == ResourceORM.organization_id)),
+        filtered_total = int(
+            self._session.scalar(select(func.count(ResourceORM.id)).where(*filtered)) or 0
         )
-        count_stmt = select(func.count(ResourceORM.id)).select_from(ResourceORM)
-        for target, condition in joins:
-            count_stmt = count_stmt.outerjoin(target, condition)
-        filtered_total = int(self._session.scalar(count_stmt.where(*filtered)) or 0)
-
-        rows_stmt = select(
-            ResourceORM,
-            EmployeeORM.full_name,
-            EmployeeORM.title,
-            EmployeeORM.email,
-            EmployeeORM.phone,
-            func.coalesce(DepartmentORM.name, EmployeeORM.department, ""),
-            func.coalesce(SiteORM.name, EmployeeORM.site_name, ""),
-        ).select_from(ResourceORM)
-        for target, condition in joins:
-            rows_stmt = rows_stmt.outerjoin(target, condition)
+        rows_stmt = _with_resource_context_joins(
+            select(
+                ResourceORM.id,
+                ResourceORM.resource_code,
+                ResourceORM.name,
+                ResourceORM.kind,
+                ResourceORM.role,
+                ResourceORM.worker_type,
+                ResourceORM.cost_type,
+                ResourceORM.is_active,
+                ResourceORM.capacity_percent,
+                ResourceORM.organization_id,
+                OrganizationORM.display_name,
+                _department_id_expression(),
+                _department_label_expression(),
+                _site_id_expression(),
+                _site_label_expression(),
+                ResourceORM.employee_id,
+                EmployeeORM.full_name,
+                EmployeeORM.title,
+                ResourceORM.version,
+            ).select_from(ResourceORM)
+        )
         sort_expressions = {
             "title": (func.lower(ResourceORM.name),),
             "resourceCode": (func.lower(func.coalesce(ResourceORM.resource_code, "")),),
             "statusLabel": (ResourceORM.is_active,),
-            "department": (func.lower(func.coalesce(DepartmentORM.name, EmployeeORM.department, "")),),
-            "site": (func.lower(func.coalesce(SiteORM.name, EmployeeORM.site_name, "")),),
+            "department": (func.lower(_department_label_expression()),),
+            "site": (func.lower(_site_label_expression()),),
             "role": (func.lower(func.coalesce(ResourceORM.role, "")),),
-            "utilizationValue": (ResourceORM.capacity_percent,),
+            "workerTypeLabel": (ResourceORM.worker_type,),
+            "capacityPercent": (ResourceORM.capacity_percent,),
         }
         order_by = (
-            (
-                ResourceORM.is_active.desc(),
-                func.lower(ResourceORM.name).asc(),
-                ResourceORM.id.asc(),
-            )
+            (ResourceORM.is_active.desc(), func.lower(ResourceORM.name).asc(), ResourceORM.id.asc())
             if sort.key == "catalog"
             else stable_order_by(
                 sort=sort,
@@ -158,20 +231,183 @@ class SqlAlchemyResourceCatalogReader:
         return ResourceCatalogReadPage(
             items=tuple(
                 ResourceCatalogReadItem(
-                    resource=resource_from_orm(row),
-                    employee_name=str(employee_name or ""),
-                    employee_title=str(employee_title or ""),
-                    employee_contact=str(email or phone or ""),
-                    department_label=str(department or ""),
-                    site_label=str(site or ""),
+                    resource_id=str(row[0]),
+                    code=str(row[1] or ""),
+                    name=str(row[2] or ""),
+                    kind=str(getattr(row[3], "value", row[3]) or "PERSON"),
+                    role=str(row[4] or ""),
+                    worker_type=str(getattr(row[5], "value", row[5]) or ""),
+                    cost_type=str(getattr(row[6], "value", row[6]) or ""),
+                    is_active=bool(row[7]),
+                    capacity_percent=float(row[8] or 0.0),
+                    organization_id=str(row[9]),
+                    organization_label=str(row[10] or ""),
+                    department_id=str(row[11]) if row[11] else None,
+                    department_label=str(row[12] or ""),
+                    site_id=str(row[13]) if row[13] else None,
+                    site_label=str(row[14] or ""),
+                    employee_id=str(row[15]) if row[15] else None,
+                    employee_name=str(row[16] or ""),
+                    employee_title=str(row[17] or ""),
+                    version=int(row[18] or 1),
                 )
-                for row, employee_name, employee_title, email, phone, department, site in rows
+                for row in rows
             ),
             filtered_total=filtered_total,
             page=page,
             page_size=page_size,
             summary=summary,
             sort=sort,
+        )
+
+    def read_inspector(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        resource_id: str,
+    ) -> ResourceInspectorFact | None:
+        project_count = (
+            select(func.count(ProjectResourceORM.id))
+            .join(ProjectORM, ProjectORM.id == ProjectResourceORM.project_id)
+            .where(
+                ProjectResourceORM.resource_id == ResourceORM.id,
+                ProjectResourceORM.is_active.is_(True),
+                ProjectORM.tenant_id == tenant_id,
+                ProjectORM.organization_id == organization_id,
+            )
+            .correlate(ResourceORM)
+            .scalar_subquery()
+        )
+        assignment_count = (
+            select(func.count(TaskAssignmentORM.id))
+            .join(TaskORM, TaskORM.id == TaskAssignmentORM.task_id)
+            .join(ProjectORM, ProjectORM.id == TaskORM.project_id)
+            .where(
+                TaskAssignmentORM.resource_id == ResourceORM.id,
+                ProjectORM.tenant_id == tenant_id,
+                ProjectORM.organization_id == organization_id,
+            )
+            .correlate(ResourceORM)
+            .scalar_subquery()
+        )
+        statement = _with_resource_context_joins(
+            select(
+                ResourceORM.id,
+                ResourceORM.resource_code,
+                ResourceORM.name,
+                ResourceORM.kind,
+                ResourceORM.role,
+                ResourceORM.worker_type,
+                ResourceORM.is_active,
+                ResourceORM.capacity_percent,
+                ResourceORM.organization_id,
+                OrganizationORM.display_name,
+                _department_id_expression(),
+                _department_label_expression(),
+                _site_id_expression(),
+                _site_label_expression(),
+                ResourceORM.employee_id,
+                EmployeeORM.full_name,
+                project_count,
+                assignment_count,
+                ResourceORM.version,
+            ).select_from(ResourceORM)
+        ).where(
+            ResourceORM.id == resource_id,
+            ResourceORM.tenant_id == tenant_id,
+            ResourceORM.organization_id == organization_id,
+        )
+        row = self._session.execute(statement).one_or_none()
+        if row is None:
+            return None
+        return ResourceInspectorFact(
+            resource_id=str(row[0]),
+            code=str(row[1] or ""),
+            name=str(row[2] or ""),
+            kind=str(getattr(row[3], "value", row[3]) or "PERSON"),
+            role=str(row[4] or ""),
+            worker_type=str(getattr(row[5], "value", row[5]) or ""),
+            is_active=bool(row[6]),
+            capacity_percent=float(row[7] or 0.0),
+            organization_id=str(row[8]),
+            organization_label=str(row[9] or ""),
+            department_id=str(row[10]) if row[10] else None,
+            department_label=str(row[11] or ""),
+            site_id=str(row[12]) if row[12] else None,
+            site_label=str(row[13] or ""),
+            employee_id=str(row[14]) if row[14] else None,
+            employee_name=str(row[15] or ""),
+            project_count=int(row[16] or 0),
+            assignment_count=int(row[17] or 0),
+            version=int(row[18] or 1),
+        )
+
+    def read_summary(
+        self,
+        *,
+        tenant_id: str,
+        organization_id: str,
+        resource_id: str,
+    ) -> ResourceSummaryFact | None:
+        statement = _with_resource_context_joins(
+            select(
+                ResourceORM.id,
+                ResourceORM.resource_code,
+                ResourceORM.name,
+                ResourceORM.kind,
+                ResourceORM.role,
+                ResourceORM.worker_type,
+                ResourceORM.cost_type,
+                ResourceORM.hourly_rate,
+                ResourceORM.currency_code,
+                ResourceORM.is_active,
+                ResourceORM.capacity_percent,
+                ResourceORM.address,
+                ResourceORM.contact,
+                ResourceORM.organization_id,
+                OrganizationORM.display_name,
+                _department_id_expression(),
+                _department_label_expression(),
+                _site_id_expression(),
+                _site_label_expression(),
+                ResourceORM.employee_id,
+                EmployeeORM.full_name,
+                EmployeeORM.title,
+                ResourceORM.version,
+            ).select_from(ResourceORM)
+        ).where(
+            ResourceORM.id == resource_id,
+            ResourceORM.tenant_id == tenant_id,
+            ResourceORM.organization_id == organization_id,
+        )
+        row = self._session.execute(statement).one_or_none()
+        if row is None:
+            return None
+        return ResourceSummaryFact(
+            resource_id=str(row[0]),
+            code=str(row[1] or ""),
+            name=str(row[2] or ""),
+            kind=str(getattr(row[3], "value", row[3]) or "PERSON"),
+            role=str(row[4] or ""),
+            worker_type=str(getattr(row[5], "value", row[5]) or ""),
+            cost_type=str(getattr(row[6], "value", row[6]) or ""),
+            hourly_rate=Decimal(str(row[7] or 0)),
+            currency_code=str(row[8]).upper() if row[8] else None,
+            is_active=bool(row[9]),
+            capacity_percent=float(row[10] or 0.0),
+            address=str(row[11] or ""),
+            contact=str(row[12] or ""),
+            organization_id=str(row[13]),
+            organization_label=str(row[14] or ""),
+            department_id=str(row[15]) if row[15] else None,
+            department_label=str(row[16] or ""),
+            site_id=str(row[17]) if row[17] else None,
+            site_label=str(row[18] or ""),
+            employee_id=str(row[19]) if row[19] else None,
+            employee_name=str(row[20] or ""),
+            employee_title=str(row[21] or ""),
+            version=int(row[22] or 1),
         )
 
 

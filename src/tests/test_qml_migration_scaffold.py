@@ -51,16 +51,7 @@ def test_qml_main_window_navigation_uses_registry_routes():
     assert [item.title for item in navigation] == [
         "QML Home",
         "Platform",
-        "Projects",
-        "Tasks",
-        "Scheduling",
-        "Resources",
-        "Financials",
-        "Portfolio",
-        "Register",
-        "Collaboration",
-        "Timesheets",
-        "Dashboard",
+        "Project Management",
         "Inventory Dashboard",
         "Catalog",
         "Inventory",
@@ -69,13 +60,6 @@ def test_qml_main_window_navigation_uses_registry_routes():
         "Pricing",
         "Stock Movements",
         "Warehouses & Locations",
-        "Maintenance Dashboard",
-        "Assets",
-        "Work Requests",
-        "Work Orders",
-        "Preventive",
-        "Reliability",
-        "Planner",
     ]
 
 

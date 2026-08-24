@@ -1,5 +1,5 @@
 """Live user report against DataTable (the shared widget behind Projects,
-Tasks, Portfolio, and most Platform/Maintenance/Inventory list pages):
+Tasks, Portfolio, and most Platform/Inventory list pages):
 clicking anywhere other than the inspector panel should close it -- i.e.
 clicking blank space in the list clears row selection -- but this stopped
 working. Root cause: `_emptySpaceCatcher`'s `anchors.fill: parent` resolved

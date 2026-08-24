@@ -6,7 +6,6 @@ from src.core.platform.api.desktop.master_data.department.department import Plat
 from src.core.platform.api.desktop.master_data.department.models.department import (
     DepartmentCreateCommand,
     DepartmentDto,
-    DepartmentLocationReferenceDto,
     DepartmentUpdateCommand,
 )
 from src.core.platform.api.desktop.master_data.site.site import PlatformSiteDesktopApi
@@ -45,7 +44,6 @@ class PlatformDepartmentCatalogPresenter:
         context_result = self._department_api.get_context()
         departments_result = self._department_api.list_departments(active_only=None)
         site_lookup = self._site_lookup()
-        location_lookup = self._location_lookup()
         if not departments_result.ok or departments_result.data is None:
             message = (
                 departments_result.error.message
@@ -71,7 +69,6 @@ class PlatformDepartmentCatalogPresenter:
                 self._serialize_department(
                     row,
                     site_lookup=site_lookup,
-                    location_lookup=location_lookup,
                 )
                 for row in departments_result.data
             ),
@@ -88,21 +85,6 @@ class PlatformDepartmentCatalogPresenter:
                 label=row.name,
                 value=row.id,
                 supporting_text=f"{row.site_code} | {row.city or '-'}",
-            )
-            for row in result.data
-        )
-
-    def build_location_options(self) -> tuple[dict[str, str], ...]:
-        if self._department_api is None:
-            return ()
-        result = self._department_api.list_location_references(active_only=True)
-        if not result.ok or result.data is None:
-            return ()
-        return tuple(
-            option_item(
-                label=row.name,
-                value=row.id,
-                supporting_text=f"{row.location_code} | Site {row.site_id}",
             )
             for row in result.data
         )
@@ -148,7 +130,6 @@ class PlatformDepartmentCatalogPresenter:
                 name=string_value(payload, "name"),
                 description=string_value(payload, "description"),
                 site_id=optional_string_value(payload, "siteId"),
-                default_location_id=optional_string_value(payload, "defaultLocationId"),
                 parent_department_id=optional_string_value(payload, "parentDepartmentId"),
                 department_type=string_value(payload, "departmentType"),
                 cost_center_code=string_value(payload, "costCenterCode"),
@@ -167,7 +148,6 @@ class PlatformDepartmentCatalogPresenter:
                 name=string_value(payload, "name"),
                 description=string_value(payload, "description"),
                 site_id=optional_string_value(payload, "siteId"),
-                default_location_id=optional_string_value(payload, "defaultLocationId"),
                 parent_department_id=optional_string_value(payload, "parentDepartmentId"),
                 department_type=string_value(payload, "departmentType"),
                 cost_center_code=string_value(payload, "costCenterCode"),
@@ -205,32 +185,19 @@ class PlatformDepartmentCatalogPresenter:
             for row in result.data
         }
 
-    def _location_lookup(self) -> dict[str, str]:
-        if self._department_api is None:
-            return {}
-        result = self._department_api.list_location_references(active_only=True)
-        if not result.ok or result.data is None:
-            return {}
-        return {
-            row.id: f"{row.location_code} - {row.name}"
-            for row in result.data
-        }
-
     @staticmethod
     def _serialize_department(
         row: DepartmentDto,
         *,
         site_lookup: dict[str, str],
-        location_lookup: dict[str, str],
     ) -> PlatformWorkspaceActionItemViewModel:
         site_label = site_lookup.get(row.site_id or "", "No site")
-        location_label = location_lookup.get(row.default_location_id or "", "No default location")
         return PlatformWorkspaceActionItemViewModel(
             id=row.id,
             title=row.name,
             status_label="Active" if row.is_active else "Inactive",
             subtitle=f"{row.department_code} | {row.department_type or 'Department'}",
-            supporting_text=f"Site: {site_label} | Location: {location_label}",
+            supporting_text=f"Site: {site_label}",
             meta_text=f"Cost center: {row.cost_center_code or '-'}",
             can_primary_action=True,
             can_secondary_action=True,
@@ -242,8 +209,6 @@ class PlatformDepartmentCatalogPresenter:
                 "description": row.description,
                 "siteId": row.site_id or "",
                 "siteName": site_label,
-                "defaultLocationId": row.default_location_id or "",
-                "defaultLocationLabel": location_label,
                 "parentDepartmentId": row.parent_department_id or "",
                 "departmentType": row.department_type,
                 "costCenterCode": row.cost_center_code,

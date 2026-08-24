@@ -29,6 +29,7 @@ class SkillValidationMode(str, Enum):
 
 
 class CertificationStatus(str, Enum):
+    NO_EXPIRY = "no-expiry"
     VALID = "valid"
     EXPIRING_SOON = "expiring-soon"
     EXPIRED = "expired"
@@ -214,7 +215,8 @@ class ResourceCertification:
     certification_name: str
     issued_date: date | None = None
     expiry_date: date | None = None
-    issuing_body: str = ""
+    certificate_number: str = ""
+    issuer: str = ""
     notes: str = ""
     version: int = 1
 
@@ -259,7 +261,7 @@ class ResourceCertification:
     def _validate_dates(cls, value: object) -> date | None:
         return _normalize_optional_date(value)
 
-    @field_validator("issuing_body", "notes", mode="before")
+    @field_validator("certificate_number", "issuer", "notes", mode="before")
     @classmethod
     def _normalize_optional_text_fields(cls, value: object) -> str:
         return normalize_optional_text(value)
@@ -293,7 +295,8 @@ class ResourceCertification:
         certification_name: str,
         issued_date: date | None = None,
         expiry_date: date | None = None,
-        issuing_body: str = "",
+        certificate_number: str = "",
+        issuer: str = "",
         notes: str = "",
     ) -> "ResourceCertification":
         return ResourceCertification(
@@ -303,7 +306,8 @@ class ResourceCertification:
             certification_name=certification_name,
             issued_date=issued_date,
             expiry_date=expiry_date,
-            issuing_body=issuing_body,
+            certificate_number=certificate_number,
+            issuer=issuer,
             notes=notes,
         )
 
@@ -328,9 +332,9 @@ class ResourceCertification:
         """Return the certification lifecycle state on a given date."""
         if expiring_within_days < 0:
             raise ValueError("expiring_within_days cannot be negative")
-        if self.expiry_date is None or (
-            self.expiry_date - check_date
-        ).days > expiring_within_days:
+        if self.expiry_date is None:
+            return CertificationStatus.NO_EXPIRY
+        if (self.expiry_date - check_date).days > expiring_within_days:
             return CertificationStatus.VALID
         if self.expiry_date < check_date:
             return CertificationStatus.EXPIRED

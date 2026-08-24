@@ -1,7 +1,10 @@
 # ADR-002: Maintenance Owns Location and System
 
-- Status: accepted
+- Status: superseded for the current product package
 - Date: 2026-03-19
+
+The Maintenance bounded context and its location/system ownership were removed on 2026-08-20.
+This ADR is retained only as a historical decision record.
 
 ## Context
 

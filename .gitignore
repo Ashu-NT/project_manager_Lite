@@ -21,6 +21,7 @@ dist/
 *.db
 *.sqlite
 *.sqlite3
+tmp_alembic_*/
 
 # IDE
 .vscode/
@@ -38,3 +39,4 @@ tmp_reports/
 .pytest_tmp/
 .pytest_workspaces/
 main.py
+.pytest_appdata/

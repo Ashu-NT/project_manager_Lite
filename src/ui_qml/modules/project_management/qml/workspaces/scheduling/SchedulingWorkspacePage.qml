@@ -1,14 +1,12 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Layouts 1.0 as AppLayouts
 import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
-import Shell.Context 1.0 as ShellContexts
 import "panels" as Panels
 import "dialogs" as Dialogs
 import "components" as Components
@@ -17,7 +15,9 @@ AppLayouts.WorkspaceFrame {
     id: root
 
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
-    property ShellContexts.ShellContext shellModel
+    readonly property ProjectManagementControllers.PMWorkspaceNavigationController pmNavigation: root.pmCatalog
+        ? root.pmCatalog.pmNavigation
+        : null
     property ProjectManagementControllers.ProjectManagementSchedulingWorkspaceController workspaceController: root.pmCatalog
         ? root.pmCatalog.schedulingWorkspace
         : null
@@ -41,9 +41,6 @@ AppLayouts.WorkspaceFrame {
     readonly property var activityFeedModel: root.workspaceController
         ? root.workspaceController.activityFeed
         : ({ "title": "", "subtitle": "", "items": [], "emptyState": "No planning activity has been recorded." })
-    readonly property var timelineModel: root.workspaceController
-        ? root.workspaceController.timeline
-        : ({ "title": "", "subtitle": "", "items": [], "emptyState": "No timeline items are available." })
 
     title:    root.overviewModel.title    || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
@@ -61,7 +58,6 @@ AppLayouts.WorkspaceFrame {
         sourceComponent: Component {
             Dialogs.SchedulingDialogHost {
                 selectedProjectId:    root.workspaceController ? root.workspaceController.selectedProjectId : ""
-                selectedActivityData: root.selectedActivityModel
                 onCreateBaselineRequested: function(payload) {
                     if (root.workspaceController !== null) root.workspaceController.createBaseline(payload)
                 }
@@ -231,13 +227,13 @@ AppLayouts.WorkspaceFrame {
                             workspaceController:   root.workspaceController
                             activityColumns:       state.activityColumns
                             activityTableId:       state.activityTableId
-                            timelineModel:         root.timelineModel
                             selectedActivityModel: root.selectedActivityModel
-                            shellModel:            root.shellModel
                             onActivityColumnsStateChanged: function(cols) { state.activityColumns = cols }
                             onActivityDetailRequested: function(activityId) {
                                 if (root.workspaceController !== null) root.workspaceController.selectActivity(activityId)
-                                if (root.shellModel) root.shellModel.selectRoute("project_management.tasks")
+                                if (root.pmNavigation) {
+                                    root.pmNavigation.openEntity("tasks", activityId, "")
+                                }
                             }
                         }
 

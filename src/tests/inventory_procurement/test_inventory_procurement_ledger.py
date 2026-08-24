@@ -233,13 +233,13 @@ def test_inventory_ledger_enforces_reservation_required_issue_policy(services):
         stock_item_id=item.id,
         storeroom_id=storeroom.id,
         reserved_qty=1,
-        source_reference_type="maintenance_work_order",
+        source_reference_type="project_task",
         source_reference_id="MWO-LEDGER-001",
     )
     issued = services["inventory_reservation_service"].issue_reserved_stock(
         reservation.id,
         quantity=1,
-        note="Issue against reserved maintenance demand",
+        note="Issue against reserved project demand",
     )
     balance = stock_service.get_balance_for_stock_position(stock_item_id=item.id, storeroom_id=storeroom.id)
 

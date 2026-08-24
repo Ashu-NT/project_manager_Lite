@@ -10,6 +10,8 @@ from src.core.modules.project_management.contracts.reads.resources import (
     ResourceCatalogReadItem,
     ResourceCatalogReadPage,
     ResourceCatalogSummary,
+    ResourceInspectorFact,
+    ResourceSummaryFact,
 )
 from src.core.modules.project_management.contracts.reads import ReadSort
 
@@ -62,7 +64,22 @@ class _FakeResourceService:
         offset = (page - 1) * page_size
         return ResourceCatalogReadPage(
             items=tuple(
-                ResourceCatalogReadItem(resource=resource)
+                ResourceCatalogReadItem(
+                    resource_id=resource.id,
+                    code=getattr(resource, "code", "") or "",
+                    name=resource.name,
+                    role=resource.role,
+                    worker_type=resource.worker_type.value,
+                    cost_type=resource.cost_type.value,
+                    is_active=resource.is_active,
+                    capacity_percent=resource.capacity_percent,
+                    organization_id="org-1",
+                    department_label="Operations" if resource.employee_id else "",
+                    site_label="Plant North" if resource.employee_id else "",
+                    employee_id=resource.employee_id,
+                    employee_name=resource.name if resource.employee_id else "",
+                    version=resource.version,
+                )
                 for resource in filtered[offset:offset + page_size]
             ),
             filtered_total=len(filtered),
@@ -86,6 +103,48 @@ class _FakeResourceService:
                 ),
             ),
             sort=sort,
+        )
+
+    def get_resource_inspector(self, resource_id: str) -> ResourceInspectorFact:
+        resource = self._resources[resource_id]
+        return ResourceInspectorFact(
+            resource_id=resource.id,
+            code=getattr(resource, "code", "") or "",
+            name=resource.name,
+            role=resource.role,
+            worker_type=resource.worker_type.value,
+            is_active=resource.is_active,
+            capacity_percent=resource.capacity_percent,
+            organization_id="org-1",
+            organization_label="Operations",
+            version=resource.version,
+            can_read=True,
+            can_manage=True,
+            can_deactivate=resource.is_active,
+            can_reactivate=not resource.is_active,
+        )
+
+    def get_resource_summary(self, resource_id: str) -> ResourceSummaryFact:
+        resource = self._resources[resource_id]
+        return ResourceSummaryFact(
+            resource_id=resource.id,
+            code=getattr(resource, "code", "") or "",
+            name=resource.name,
+            role=resource.role,
+            worker_type=resource.worker_type.value,
+            cost_type=resource.cost_type.value,
+            hourly_rate=resource.hourly_rate,
+            currency_code=resource.currency_code,
+            is_active=resource.is_active,
+            capacity_percent=resource.capacity_percent,
+            address=resource.address,
+            contact=resource.contact,
+            organization_id="org-1",
+            organization_label="Operations",
+            employee_id=resource.employee_id,
+            version=resource.version,
+            can_read=True,
+            can_manage=True,
         )
 
 
@@ -169,12 +228,28 @@ def test_project_management_workspace_catalog_exposes_typed_resources_controller
     assert controller.categoryOptions[1]["value"] == "LABOR"
     assert controller.employeeOptions[0]["context"] == "Operations | Plant North"
     assert controller.resources["items"][0]["title"] == "Electrical Crew"
+    assert controller.selectedResourceId == ""
+    assert controller.selectedResource["id"] == ""
+
+    controller.selectResource("res-1")
+
+    assert controller.resourceInspector["title"] == "Electrical Crew"
+    assert controller.selectedResource["id"] == ""
+
+    controller.refresh()
+
+    assert controller.selectedResourceId == "res-1"
+    assert controller.resourceInspector["title"] == "Electrical Crew"
+
+    assert controller.activateResource("res-1") is True
     assert controller.selectedResource["title"] == "Electrical Crew"
 
     controller.setActiveFilter("inactive")
 
     assert controller.selectedActiveFilter == "inactive"
     assert [item["title"] for item in controller.resources["items"]] == ["Alex Taylor"]
+    assert controller.selectedResourceId == ""
+    assert controller.resourceInspector["id"] == ""
 
     controller.setSearchText("crew")
 

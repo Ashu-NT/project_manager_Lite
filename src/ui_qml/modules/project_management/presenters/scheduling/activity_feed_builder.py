@@ -32,7 +32,7 @@ def build_activity_feed_collection(
         top_delay = delayed_items[0]
         rows.append(
             SchedulingRecordViewModel(
-                id=f"delay:{top_delay.id}",
+                id=f"delay:{top_delay.task_id}",
                 title=f"{top_delay.name} is late",
                 status_label="Warning",
                 subtitle=f"Late by {int_label(top_delay.late_by_days)} day(s)",

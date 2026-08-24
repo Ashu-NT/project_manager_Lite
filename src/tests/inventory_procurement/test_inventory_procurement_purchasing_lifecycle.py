@@ -52,7 +52,7 @@ def _create_approved_purchase_order(services):
     requisition = procurement.create_requisition(
         requesting_site_id=site.id,
         requesting_storeroom_id=storeroom.id,
-        purpose="Source maintenance motor",
+        purpose="Source replacement motor",
         needed_by_date=date(2026, 4, 10),
     )
     requisition_line = procurement.add_requisition_line(

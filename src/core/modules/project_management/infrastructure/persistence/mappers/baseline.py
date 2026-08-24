@@ -52,6 +52,7 @@ def baseline_task_from_orm(obj: BaselineTaskORM) -> BaselineTask:
         baseline_start=obj.baseline_start,
         baseline_finish=obj.baseline_finish,
         baseline_duration_days=obj.baseline_duration_days,
+        baseline_is_milestone=obj.baseline_is_milestone,
         baseline_planned_cost=obj.baseline_planned_cost,
     )
 
@@ -65,6 +66,7 @@ def baseline_task_to_orm(task: BaselineTask) -> BaselineTaskORM:
         baseline_start=task.baseline_start,
         baseline_finish=task.baseline_finish,
         baseline_duration_days=task.baseline_duration_days,
+        baseline_is_milestone=task.baseline_is_milestone,
         baseline_planned_cost=task.baseline_planned_cost,
     )
 

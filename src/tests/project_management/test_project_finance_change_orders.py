@@ -453,7 +453,7 @@ def test_financial_change_migration_is_reversible_and_constrained(tmp_path) -> N
     assert "source_reference_type" not in impact_columns
     engine.dispose()
 
-    command.downgrade(config, "w0x1y2z3a4b5")
+    command.downgrade(config, "base")
     engine = sa.create_engine(config.get_main_option("sqlalchemy.url"), future=True)
     tables = set(sa.inspect(engine).get_table_names())
     assert "project_finance_change_requests" not in tables

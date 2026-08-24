@@ -117,7 +117,7 @@ def test_document_link_dto_normalizes_and_validates_fields() -> None:
     link = DocumentLink.create(
         organization_id="  org-1  ",
         document_id="  doc-1  ",
-        module_code="  MAINTENANCE_MANAGEMENT  ",
+        module_code="  INVENTORY_PROCUREMENT  ",
         entity_type="  asset  ",
         entity_id="  asset-001  ",
         link_role="  reference  ",
@@ -125,7 +125,7 @@ def test_document_link_dto_normalizes_and_validates_fields() -> None:
 
     assert link.organization_id == "org-1"
     assert link.document_id == "doc-1"
-    assert link.module_code == "maintenance_management"
+    assert link.module_code == "inventory_procurement"
     assert link.entity_type == "asset"
     assert link.entity_id == "asset-001"
     assert link.link_role == "reference"

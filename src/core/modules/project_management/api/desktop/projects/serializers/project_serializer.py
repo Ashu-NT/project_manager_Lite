@@ -15,9 +15,13 @@ def serialize_project(
     department_lookup: Mapping[str, str] | None = None,
     financial_currency_code: str = "",
     approved_budget: Decimal | None = None,
+    approved_budget_currency: str = "",
+    approved_budget_visible: bool = False,
     client_label: str = "",
 ) -> ProjectDesktopDto:
     resolved_currency = str(financial_currency_code or "").strip().upper()
+    resolved_budget_currency = str(approved_budget_currency or "").strip().upper()
+    visible_budget = approved_budget if approved_budget_visible else None
     normalized_site_id = str(getattr(project, "site_id", "") or "").strip() or None
     resolved_site_label = (
         (site_lookup or {}).get(normalized_site_id or "", "")
@@ -47,9 +51,17 @@ def serialize_project(
         client_name=project.client_name,
         client_contact=project.client_contact,
         approved_budget=(
-            None if approved_budget is None else canonical_decimal_text(approved_budget)
+            None if visible_budget is None else canonical_decimal_text(visible_budget)
         ),
-        approved_budget_label=format_budget(approved_budget, resolved_currency or None),
+        approved_budget_label=(
+            format_budget(visible_budget, resolved_budget_currency or None)
+            if approved_budget_visible
+            else ""
+        ),
+        approved_budget_currency=(
+            resolved_budget_currency if approved_budget_visible else ""
+        ),
+        approved_budget_visible=approved_budget_visible,
         financial_currency_code=resolved_currency,
         organization_id=getattr(project, "organization_id", None),
         site_id=normalized_site_id,

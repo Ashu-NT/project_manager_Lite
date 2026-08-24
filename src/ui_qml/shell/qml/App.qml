@@ -9,7 +9,6 @@ ApplicationWindow {
     property var platformCatalog
     property var pmCatalog
     property var inventoryCatalog
-    property var maintenanceCatalog
 
     width: 1280
     height: 800
@@ -39,6 +38,5 @@ ApplicationWindow {
         platformCatalog: app.platformCatalog
         pmCatalog: app.pmCatalog
         inventoryCatalog: app.inventoryCatalog
-        maintenanceCatalog: app.maintenanceCatalog
     }
 }

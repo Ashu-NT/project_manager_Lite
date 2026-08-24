@@ -13,8 +13,6 @@ DEFAULT_PERMISSIONS: dict[str, str] = {
     "employee.manage": "Create and edit employee directory records",
     "inventory.read": "View inventory and procurement workspaces",
     "inventory.manage": "Create and edit inventory and procurement records",
-    "maintenance.read": "View maintenance master data and operational records",
-    "maintenance.manage": "Create and edit maintenance master data and operational records",
     "site.read": "View shared site directory records",
     "department.read": "View shared department directory records",
     "party.read": "View shared supplier, vendor, and contractor directory records",
@@ -176,20 +174,6 @@ _INVENTORY_MANAGER = {
     "report.export",
     "import.manage",
     "approval.request",
-}
-
-_MAINTENANCE_MANAGER = {
-    "maintenance.read",
-    "maintenance.manage",
-    "time.read",
-    "time.manage",
-    "site.read",
-    "employee.read",
-    "party.read",
-    "report.view",
-    "report.export",
-    "approval.request",
-    "import.manage",
 }
 
 _PAYROLL_MANAGER = {
@@ -379,18 +363,6 @@ _STOREROOM_MANAGER = _STOREROOM_OPERATOR | {
     "report.view",
 }
 
-_MAINTENANCE_VIEWER = {
-    "maintenance.read",
-}
-
-_MAINTENANCE_OPERATOR = _MAINTENANCE_VIEWER | {
-    "maintenance.manage",
-}
-
-_MAINTENANCE_SCOPE_MANAGER = _MAINTENANCE_OPERATOR | {
-    "report.view",
-}
-
 DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
     "viewer": set(_VIEWER),
     "team_member": set(_TEAM_MEMBER),
@@ -400,8 +372,6 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
     "finance": set(_FINANCE_CONTROLLER),
     "finance_controller": set(_FINANCE_CONTROLLER),
     "inventory_manager": set(_INVENTORY_MANAGER),
-    "maintenance_manager": set(_MAINTENANCE_MANAGER),
-    "maintenance_admin": set(_MAINTENANCE_MANAGER),
     "payroll_manager": set(_PAYROLL_MANAGER),
     "portfolio_manager": set(_PORTFOLIO_MANAGER),
     "approver": set(_APPROVER),
@@ -423,14 +393,11 @@ DEFAULT_ROLE_PERMISSIONS: dict[str, set[str]] = {
     "storeroom_viewer": set(_STOREROOM_VIEWER),
     "storeroom_operator": set(_STOREROOM_OPERATOR),
     "storeroom_manager": set(_STOREROOM_MANAGER),
-    "maintenance_viewer": set(_MAINTENANCE_VIEWER),
-    "maintenance_operator": set(_MAINTENANCE_OPERATOR),
-    "maintenance_scope_manager": set(_MAINTENANCE_SCOPE_MANAGER),
     "admin": set(DEFAULT_PERMISSIONS.keys()),
 }
 
 SYSTEM_ROLE_POLICY_NAME = "system-role-permissions"
-SYSTEM_ROLE_POLICY_VERSION = 9
+SYSTEM_ROLE_POLICY_VERSION = 10
 
 __all__ = [
     "DEFAULT_PERMISSIONS",

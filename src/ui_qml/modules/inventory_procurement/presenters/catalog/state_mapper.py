@@ -11,7 +11,6 @@ def build_category_state(category) -> dict[str, object]:
         "categoryTypeLabel": category.category_type_label,
         "isEquipment": category.is_equipment,
         "supportsProjectUsage": category.supports_project_usage,
-        "supportsMaintenanceUsage": category.supports_maintenance_usage,
         "isActive": category.is_active,
         "activeLabel": category.active_label,
         "version": category.version,

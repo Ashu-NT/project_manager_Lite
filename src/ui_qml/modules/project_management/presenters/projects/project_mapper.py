@@ -24,6 +24,10 @@ def build_project_state(project: Any) -> dict[str, object]:
         "endDateLabel": format_date_label(project.end_date),
         "approvedBudget": "" if project.approved_budget is None else project.approved_budget,
         "approvedBudgetLabel": project.approved_budget_label,
+        "approvedBudgetCurrency": getattr(project, "approved_budget_currency", "") or "",
+        "approvedBudgetVisible": bool(
+            getattr(project, "approved_budget_visible", False)
+        ),
         "financialCurrencyCode": project.financial_currency_code or "",
         "organizationId": getattr(project, "organization_id", None) or "",
         "siteId": getattr(project, "site_id", None) or "",
@@ -39,15 +43,17 @@ def to_project_record(project: Any) -> ProjectRecordViewModel:
     client_text = state["clientLabel"] or "No client assigned"
     contact_text = state["clientContact"] or "No client contact recorded"
     site_text = state["siteLabel"] or "No site assigned"
+    supporting_parts = [
+        f"Schedule: {state['startDateLabel']} -> {state['endDateLabel']}"
+    ]
+    if state["approvedBudgetVisible"]:
+        supporting_parts.append(f"Approved budget: {state['approvedBudgetLabel']}")
     return ProjectRecordViewModel(
         id=project.id,
         title=project.name,
         status_label=project.status_label,
         subtitle=f"{client_text} | {site_text}",
-        supporting_text=(
-            f"Schedule: {state['startDateLabel']} -> {state['endDateLabel']} | "
-            f"Approved budget: {state['approvedBudgetLabel']}"
-        ),
+        supporting_text=" | ".join(supporting_parts),
         meta_text=contact_text if contact_text != "No client contact recorded" else (
             project.description or "No project description has been added yet."
         ),

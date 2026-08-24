@@ -36,7 +36,6 @@ class InventoryItemCategory:
     category_type: str = "MATERIAL"
     is_equipment: bool = False
     supports_project_usage: bool = False
-    supports_maintenance_usage: bool = False
     is_active: bool = True
     created_at: datetime | None = None
     updated_at: datetime | None = None
@@ -121,7 +120,6 @@ class InventoryItemCategory:
         category_type: str = "MATERIAL",
         is_equipment: bool = False,
         supports_project_usage: bool = False,
-        supports_maintenance_usage: bool = False,
         is_active: bool = True,
     ) -> "InventoryItemCategory":
         now = datetime.now(timezone.utc)
@@ -134,7 +132,6 @@ class InventoryItemCategory:
             category_type=category_type,
             is_equipment=is_equipment,
             supports_project_usage=supports_project_usage,
-            supports_maintenance_usage=supports_maintenance_usage,
             is_active=is_active,
             created_at=now,
             updated_at=now,

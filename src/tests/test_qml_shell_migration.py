@@ -36,16 +36,7 @@ def test_qml_shell_navigation_view_models_are_built_from_registry() -> None:
     assert [(item.route_id, item.title) for item in items] == [
         ("shell.home", "QML Home"),
         ("platform.workspace", "Platform"),
-        ("project_management.projects", "Projects"),
-        ("project_management.tasks", "Tasks"),
-        ("project_management.scheduling", "Scheduling"),
-        ("project_management.resources", "Resources"),
-        ("project_management.financials", "Financials"),
-        ("project_management.portfolio", "Portfolio"),
-        ("project_management.register", "Register"),
-        ("project_management.collaboration", "Collaboration"),
-        ("project_management.timesheets", "Timesheets"),
-        ("project_management.dashboard", "Dashboard"),
+        ("project_management.workspace", "Project Management"),
         ("inventory_procurement.dashboard", "Inventory Dashboard"),
         ("inventory_procurement.catalog", "Catalog"),
         ("inventory_procurement.inventory", "Inventory"),
@@ -54,13 +45,6 @@ def test_qml_shell_navigation_view_models_are_built_from_registry() -> None:
         ("inventory_procurement.pricing", "Pricing"),
         ("inventory_procurement.movements", "Stock Movements"),
         ("inventory_procurement.warehouses", "Warehouses & Locations"),
-        ("maintenance_management.dashboard", "Maintenance Dashboard"),
-        ("maintenance_management.assets", "Assets"),
-        ("maintenance_management.work_requests", "Work Requests"),
-        ("maintenance_management.work_orders", "Work Orders"),
-        ("maintenance_management.preventive", "Preventive"),
-        ("maintenance_management.reliability", "Reliability"),
-        ("maintenance_management.planner", "Planner"),
     ]
 
 
@@ -75,16 +59,7 @@ def test_qml_shell_context_exposes_navigation_for_qml_binding() -> None:
     assert [item["routeId"] for item in context.navigationItems] == [
         "shell.home",
         "platform.workspace",
-        "project_management.projects",
-        "project_management.tasks",
-        "project_management.scheduling",
-        "project_management.resources",
-        "project_management.financials",
-        "project_management.portfolio",
-        "project_management.register",
-        "project_management.collaboration",
-        "project_management.timesheets",
-        "project_management.dashboard",
+        "project_management.workspace",
         "inventory_procurement.dashboard",
         "inventory_procurement.catalog",
         "inventory_procurement.inventory",
@@ -93,13 +68,6 @@ def test_qml_shell_context_exposes_navigation_for_qml_binding() -> None:
         "inventory_procurement.pricing",
         "inventory_procurement.movements",
         "inventory_procurement.warehouses",
-        "maintenance_management.dashboard",
-        "maintenance_management.assets",
-        "maintenance_management.work_requests",
-        "maintenance_management.work_orders",
-        "maintenance_management.preventive",
-        "maintenance_management.reliability",
-        "maintenance_management.planner",
     ]
     assert context.navigationItems[0]["qmlSource"] == route_by_id["shell.home"].qml_path.as_uri()
 
@@ -256,7 +224,6 @@ def test_qml_engine_registers_named_import_roots() -> None:
     assert Path("src/ui_qml/platform/qml").resolve() in import_roots
     assert Path("src/ui_qml/modules/project_management/qml").resolve() in import_roots
     assert Path("src/ui_qml/modules/inventory_procurement/qml").resolve() in import_roots
-    assert Path("src/ui_qml/modules/maintenance/qml").resolve() in import_roots
 
 
 def test_qml_shell_replaces_widget_entrypoint() -> None:

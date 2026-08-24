@@ -28,7 +28,6 @@ The platform contains multiple enterprise modules:
 
 - Platform (shared services)
 - Project Management
-- Maintenance
 - Inventory & Procurement
 
 There are also shared enterprise capabilities:
@@ -106,7 +105,6 @@ Structure:
 Groups:
 - Platform
 - Project Management
-- Maintenance
 - Inventory & Procurement
 
 Characteristics:
@@ -299,7 +297,7 @@ The current problem:
 - The QML UI looks too boxed.
 - There are too many nested borders, rectangles, and card outlines.
 - The layout feels developer-built instead of product-designed.
-- I need a clean enterprise UI/UX system applied across Platform, Project Management, Maintenance, and Inventory & Procurement modules.
+- I need a clean enterprise UI/UX system applied across Platform, Project Management, and Inventory & Procurement modules.
 
 High-level architecture:
 - Final desktop UI lives in src/ui_qml/*
@@ -348,7 +346,6 @@ Repository conventions to preserve:
 - Shared layouts: App.Layouts
 - Platform QML: src/ui_qml/platform/*
 - Project Management QML: src/ui_qml/modules/project_management/*
-- Maintenance QML: src/ui_qml/modules/maintenance/*
 - Inventory & Procurement QML: src/ui_qml/modules/inventory_procurement/*
 - Controllers are exposed through named QML controller modules.
 - Workspaces are loaded through the shell route/loader system.
@@ -516,14 +513,6 @@ Navigation groups:
   - Register
   - Collaboration
   - Timesheets
-- Maintenance
-  - Dashboard
-  - Assets
-  - Work Requests
-  - Work Orders
-  - Preventive
-  - Reliability
-  - Task Templates
 - Inventory & Procurement
   - Dashboard
   - Catalog
@@ -824,7 +813,6 @@ The UI should feel optimized for:
 - operators
 - procurement users
 - coordinators
-- maintenance supervisors
 - administrators
 
 
@@ -1079,8 +1067,6 @@ Example table preference keys:
 - platform.audit.table
 - project_management.projects.table
 - project_management.tasks.table
-- maintenance.preventive.plans.table
-- maintenance.work_orders.table
 - inventory_procurement.items.table
 - inventory_procurement.purchase_orders.table
 
@@ -1220,50 +1206,6 @@ Timesheets:
 - Entries section + review queue.
 - Period/project/assignment filters.
 - Approve/reject/lock actions only through existing API/controller.
-
-3. Maintenance module
-Dashboard:
-- Backlog, due work, asset health, reliability KPIs.
-- Use metrics and operational lists.
-
-Assets:
-- Asset hierarchy/list on left.
-- Asset detail on right.
-- Maintenance history, documents, reliability below if exposed.
-
-Work Requests:
-- Queue/review layout.
-- Selected request detail.
-- Convert/approve/reject actions if existing.
-
-Work Orders:
-- Master-detail or workflow layout.
-- Show tasks, labor, materials, status, schedule.
-- Use strong status badges and clear action area.
-
-Preventive:
-- Keep existing tabs: Queue, Plans, Templates.
-- Queue tab:
-  - filters at top
-  - generation queue list
-  - selected plan detail
-  - forecast and latest generation results below
-- Plans tab:
-  - filters/search/actions
-  - plan list + selected plan detail
-  - plan tasks + selected task detail
-- Templates tab:
-  - template filters/search/actions
-  - template list + detail
-  - step list + selected step detail
-- Improve spacing, borders, hierarchy; do not change workflows.
-
-Reliability:
-- Asset health, downtime, failure codes, sensor exceptions.
-- Use summary metrics + lists/details.
-
-Task Templates:
-- Template master-detail with steps below.
 
 4. Inventory & Procurement module
 Dashboard:
@@ -1468,7 +1410,7 @@ After implementation:
 - run qmllint across src/ui_qml/**/*.qml if configured
 - run QML offscreen loading tests
 - run architecture guardrail tests
-- run relevant platform/project/maintenance/inventory tests
+- run relevant platform/project/inventory tests
 - fix import errors, missing properties, style warnings, and broken bindings
 
 Suggested commands to try:
@@ -1522,7 +1464,6 @@ Before converting list/card views to tables, design a reusable customizable Data
 6. Improve one representative workspace per module first:
    - Platform admin/control/settings
    - Project Management dashboard/projects/tasks
-   - Maintenance preventive
    - Inventory catalog/inventory/procurement
 7. Reuse the improved components across other workspaces.
 8. Add small presenter/controller/API state only where necessary and cleanly justified.
@@ -1567,7 +1508,6 @@ Users should feel comfortable managing:
 - thousands of records
 - operational queues
 - approvals
-- maintenance planning
 - procurement workflows
 - project execution
 - inventory operations

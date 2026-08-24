@@ -28,6 +28,7 @@ def test_record_assignment_action_links_parent_entity_id_to_task():
         action="assignment.add",
         assignment_id="assign-1",
         project_id="proj-1",
+        resource_id="resource-1",
         task_id="task-1",
         task_name="Cable Pull",
         resource_name="Alex Taylor",
@@ -39,6 +40,7 @@ def test_record_assignment_action_links_parent_entity_id_to_task():
     assert call["entity_id"] == "assign-1"
     assert call["parent_entity_id"] == "task-1"
     assert call["workspace_id"] == "proj-1"
+    assert call["details"]["resource_id"] == "resource-1"
 
 
 def test_record_assignment_action_without_task_id_leaves_parent_entity_id_none():
@@ -50,6 +52,7 @@ def test_record_assignment_action_without_task_id_leaves_parent_entity_id_none()
         action="assignment.add",
         assignment_id="assign-1",
         project_id="proj-1",
+        resource_id="resource-1",
         task_name="Cable Pull",
         resource_name="Alex Taylor",
     )

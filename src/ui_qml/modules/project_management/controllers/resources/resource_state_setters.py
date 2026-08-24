@@ -15,6 +15,24 @@ class ResourceStateSettersMixin:
         self._worker_type_options = worker_type_options
         self.workerTypeOptionsChanged.emit()
 
+    def _set_kind_options(self, options: list[dict[str, object]]) -> None:
+        if options == self._kind_options:
+            return
+        self._kind_options = options
+        self.kindOptionsChanged.emit()
+
+    def _set_department_options(self, options: list[dict[str, object]]) -> None:
+        if options == self._department_options:
+            return
+        self._department_options = options
+        self.departmentOptionsChanged.emit()
+
+    def _set_site_options(self, options: list[dict[str, object]]) -> None:
+        if options == self._site_options:
+            return
+        self._site_options = options
+        self.siteOptionsChanged.emit()
+
     def _set_category_options(self, category_options: list[dict[str, object]]) -> None:
         if category_options == self._category_options:
             return
@@ -58,6 +76,36 @@ class ResourceStateSettersMixin:
         self._selected_resource = selected_resource
         self.selectedResourceChanged.emit()
 
+    def _set_resource_inspector(self, inspector: dict[str, object]) -> None:
+        if inspector == self._resource_inspector:
+            return
+        self._resource_inspector = inspector
+        self.resourceInspectorChanged.emit()
+
+    def _set_inspector_loading(self, value: bool) -> None:
+        if value == self._inspector_loading:
+            return
+        self._inspector_loading = value
+        self.inspectorLoadingChanged.emit()
+
+    def _set_inspector_error(self, value: str) -> None:
+        if value == self._inspector_error:
+            return
+        self._inspector_error = value
+        self.inspectorErrorChanged.emit()
+
+    def _set_detail_loading(self, value: bool) -> None:
+        if value == self._detail_loading:
+            return
+        self._detail_loading = value
+        self.detailLoadingChanged.emit()
+
+    def _set_detail_error(self, value: str) -> None:
+        if value == self._detail_error:
+            return
+        self._detail_error = value
+        self.detailErrorChanged.emit()
+
     def _set_selected_resource_id(self, selected_resource_id: str) -> None:
         if selected_resource_id == self._selected_resource_id:
             return
@@ -93,16 +141,6 @@ class ResourceStateSettersMixin:
             return
         self._resource_sort_direction = value
         self.resourceSortDirectionChanged.emit()
-
-    def _set_selected_resource_ids(self, selected_ids: list[str]) -> None:
-        if selected_ids == self._selected_resource_ids:
-            return
-        self._selected_resource_ids = selected_ids
-        count = len(selected_ids)
-        self.selectedResourceIdsChanged.emit()
-        if count != self._selected_resource_count:
-            self._selected_resource_count = count
-            self.selectedResourceCountChanged.emit()
 
     def _set_resource_availability(self, availability: dict[str, object]) -> None:
         if availability == self._resource_availability:

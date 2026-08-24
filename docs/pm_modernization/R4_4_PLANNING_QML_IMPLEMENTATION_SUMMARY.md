@@ -6,8 +6,10 @@ work). This document covers the **QML tab-consolidation / information
 architecture pass** driven by `R4_4_PLANNING_SCHEDULING_QML_IA_AUDIT.md`,
 and closes out R4.4X (validation) / R4.4Y (cleanup) / R4.4Z (documentation).
 
-Status at time of writing: implementation complete, validated, **not
-committed** (working-tree change on `refactor/safe-start`).
+Final status: implementation and exit-gate validation complete; **R4.4 is
+CLOSED**. The implementation is present in team commits on
+`refactor/safe-start`. This completion pass did not create a commit; exact
+external HEAD movement is recorded in section 20.
 
 ---
 
@@ -253,52 +255,131 @@ See §7 above and `R4_4_PLANNING_SCHEDULING_IMPLEMENTATION_SUMMARY.md` §4 for
 the full root-cause/fix writeup (`MemoizingCalendarWindow`, scoped to
 `ResourceLevelingPlanner.build_proposal` only).
 
-## 16. Test evidence (2026-08-20 validation pass)
+## 16. Final validation evidence (2026-08-20)
 
-- `src/tests/project_management -k "scheduling or leveling"` — **118
-  passed**, 0 failed
-- `src/tests/project_management/dependency/test_resource_leveling_planner_performance.py`
-  — **3 passed** (benchmark, see §7)
-- `src/tests/architecture/test_qml_architecture_guardrails_runtime.py`,
-  `test_qml_architecture_guardrails_layers.py`,
-  `test_qml_architecture_guardrails_workspaces.py`,
-  `src/tests/test_qml_offscreen_loading.py` — **35 passed, 2 failed**
-  (both pre-existing/unrelated — see §17)
-- `pyside6-qmllint` over every changed/added scheduling QML file — **0
-  errors, 0 warnings blocking**; 2 `Info`-level unused-import notices
-  (`SchedulingWorkspacePage.qml`, `SchedulingTimelinePanel.qml`) and 1
-  `Warning`-level unqualified-`modelData`-access notice
-  (`SchedulingCalendarsPanel.qml:160`) — cosmetic, non-blocking, left as
-  minor cleanup opportunities rather than in-scope fixes for this pass
-- Full `src/tests/project_management/` regression suite — run in progress
-  at time of writing; see follow-up note if not yet complete when this
-  document is read
+| Validation set | Result | Classification |
+|---|---:|---|
+| PM scheduling/leveling focus: `src/tests/project_management -k "scheduling or leveling"` | **118 passed** | PASS |
+| Dependency, constraint, leveling, and Schedule Impact matrix (performance file run separately) | **283 passed** | PASS |
+| R4.4W.1 performance benchmark | **3 passed** | PASS |
+| Planning IA + five-viewport offscreen contract | **8 passed** | PASS |
+| Direct `pyside6-qmllint` over all 15 Scheduling QML files | **0 errors, 0 warnings, 0 info notices** | PASS |
+| QML architecture guardrails + registered-route offscreen loading | **28 passed, 2 failed** | Two known unrelated failures; see section 17 |
+| Broad PM module regression, first run | **1125 passed, 37 failed** | 36 failures were sandbox user-data write denials |
+| Affected broad-regression files rerun with workspace-local `APPDATA` | **61 passed, 1 failed** | The remaining failure is the known unrelated Finance offset defect |
+
+The broad-regression reconciliation is therefore **1161 passing, 1 known
+unrelated failure** after removing sandbox-only path failures. The focused
+R4.4 matrices are fully green.
+
+Final R4.4W.1 measurements from the current machine:
+
+| Tasks | Elapsed | Budget | Result |
+|---:|---:|---:|---|
+| 100 | 0.034 s | 1.0 s | PASS |
+| 1,000 | 0.317 s | 3.0 s | PASS |
+| 5,000 | 1.660 s | 10.0 s | PASS |
+
+The preview-scoped `MemoizingCalendarWindow` optimization remains active.
+No additional optimization pass was started.
 
 ## 17. Known unrelated failures
 
-Two pre-existing architecture-guardrail failures, confirmed unrelated to
-the Planning/Scheduling QML IA change (neither file was touched by this
-pass):
+1. **Portfolio architecture guardrail:** `ScenariosTab.qml:8` uses a
+   parent-relative import. This file and Portfolio behavior are outside
+   R4.4 Planning.
+2. **Platform architecture guardrail:** the stale
+   `src/ui_qml/platform/controllers/admin` directory remains. Platform
+   cleanup is outside R4.4 Planning.
+3. **Project Finance regression:**
+   `test_financial_desktop_maps_paged_canonical_commitment_lines` expects
+   offset 10, while the Financials desktop adapter passes offset 0. No R4.4
+   Planning file participates in this path.
 
-1. `test_qml_architecture_guardrails_layers.py::test_qml_files_do_not_use_parent_relative_imports`
-   — `src/ui_qml/modules/project_management/qml/workspaces/portfolio/tabs/ScenariosTab.qml:8`
-   uses a parent-relative `import "../..."`.
-2. `test_qml_architecture_guardrails_workspaces.py::test_platform_admin_workspace_controller_uses_split_entrypoint`
-   — stale `src/ui_qml/platform/controllers/admin` directory still exists.
+The first broad run also produced Windows sandbox permission failures while
+tests attempted to write under the real user profile. Rerunning the affected
+files with `APPDATA` redirected into the workspace proved those 36 failures
+were infrastructure-only.
 
-Both are Portfolio/Platform-module issues outside R4.4 Planning scope and
-were not introduced by this work.
+## 18. R4.4Y cleanup closure
 
-## 18. Exact R4.5 boundary
+The final reachability pass confirms:
 
-Deliberately **not implemented** in R4.4, and no placeholder/stub controls
-were added for any of them:
+- `baselinePlaceholder` exists only in an explanatory QML comment. No
+  Python/QML field, binding, ghost, outline, or baseline rectangle is live.
+- The old Delays, Planning Resources, activity timeline, and full-page
+  Scheduling Detail panels remain deleted with no production references.
+- The shared qmllint guardrail no longer names deleted
+  `SchedulingCalendarSection.qml` or `SchedulingBaselineSection.qml`
+  artifacts. It now discovers and lints every live Scheduling QML file.
+- The qmllint harness decodes Windows subprocess output defensively.
+- Unused Scheduling imports and the unqualified calendar delegate binding
+  were removed; direct qmllint is silent.
+- No backend/service functionality used outside Planning was removed.
 
-- Dependency-line rendering
-- Real baseline-bar/overlay rendering
-- Zoom
-- Variable timescale
-- Deeper Gantt timeline interaction/synchronization/polish
-- Any other Gantt-specific polish already identified by the QML IA audit
+Deleted consolidation artifacts remain:
 
-R4.5 work has not started. R5 work has not started.
+- `SchedulingActivityTimelinePanel.qml`
+- `SchedulingDelaysPanel.qml`
+- `SchedulingDetailPanel.qml`
+- `SchedulingResourcesPanel.qml`
+
+## 19. Final R4.4 exit gate
+
+| # | Exit criterion | Status | Evidence |
+|---:|---|---|---|
+| 1 | Canonical dependency scheduling remains authoritative | **PASS** | Dependency matrix green |
+| 2 | Task constraints remain authoritative | **PASS** | Constraint persistence/governance/API tests green |
+| 3 | Constraint-aware backward CPM remains authoritative | **PASS** | Backward CPM matrix green |
+| 4 | Negative float/infeasibility remains truthful | **PASS** | Infeasibility presenter/detail tests green |
+| 5 | Calendar/capacity authority remains intact | **PASS** | Calendar integration and multi-resource tests green |
+| 6 | One resource-leveling implementation remains | **PASS** | `ResourceLevelingPlanner` is the sole live implementation |
+| 7 | Leveling Preview is pure | **PASS** | Preview non-persistence tests green |
+| 8 | Apply is atomic | **PASS** | Apply rollback/atomicity tests green |
+| 9 | Apply -> run_cpm convergence holds | **PASS** | Preview/Apply/reload/idempotence tests green |
+| 10 | 5,000-task Preview remains acceptable after W.1 | **PASS** | 1.660 s against 10 s gate |
+| 11 | Planning has four primary destinations only | **PASS** | Overview, Gantt, Resource Leveling, Diagnostics |
+| 12 | Baselines/Calendars/Activity Feed are secondary | **PASS** | Nav overflow contract and active indication tested |
+| 13 | No extra PM Level-1 route | **PASS** | Single canonical Scheduling route retained |
+| 14 | Planning header is minimal | **PASS** | Project, Refresh, Run CPM only |
+| 15 | Overview owns aggregate health | **PASS** | Six authoritative KPIs; no duplicate diagnostics aggregate |
+| 16 | Gantt is first-class | **PASS** | Integrated grid/timeline destination |
+| 17 | Gantt has no fake controls | **PASS** | No Dependency Lines, Zoom, or Timescale control |
+| 18 | Gantt has no fake baseline rendering | **PASS** | No live placeholder field or ghost/outline |
+| 19 | Selected activity uses contextual Inspector | **PASS** | Inline/slide-over inspector contract tested |
+| 20 | Old full-page activity-detail production flow is removed | **PASS** | Deleted panel and zero production references |
+| 21 | Schedule Impact is lazy | **PASS** | Only explicit Analyze Impact invokes computation |
+| 22 | Resource Load is integrated into Resource Leveling | **PASS** | One combined panel |
+| 23 | Diagnostics is deduplicated | **PASS** | Diagnostics owns only complementary detail |
+| 24 | Delays standalone destination is removed | **PASS** | Delayed-only Gantt filter retained |
+| 25 | Calendar selector is correctly localized | **PASS** | Selector exists only in Calendars |
+| 26 | Activity Feed has one project-level surface | **PASS** | No selected-activity duplicate |
+| 27 | 1024x640 is usable | **PASS** | Route loads; compact split fallback and slide-over inspector enforced |
+| 28 | 1280x720 is polished | **PASS** | Route loads; normal desktop layout retained |
+| 29 | qmllint passes | **PASS** | All 15 Scheduling QML files lint silently |
+| 30 | Offscreen loading passes | **PASS** | Registered route plus five viewport sizes load |
+| 31 | Architecture tests pass | **PASS (R4.4 scope)** | 28 pass; two unrelated Portfolio/Platform failures documented |
+| 32 | Relevant regressions introduce no new unexplained failure | **PASS** | One remaining broad failure is known Finance-only |
+| 33 | R4.5 work has not started | **PASS** | No deferred Gantt feature implemented |
+| 34 | R5 work has not started | **PASS** | No R5 changes |
+| 35 | No placeholder/stub enterprise controls were introduced | **PASS** | Source and IA contract audit green |
+
+## 20. R4.5 handoff and closure
+
+Exact deferred R4.5 scope:
+
+- dependency-line rendering;
+- real baseline visualization;
+- zoom;
+- variable timescale;
+- Gantt grid/timeline synchronization and interaction;
+- deeper responsive/adaptive timeline work;
+- other Gantt-specific polish already identified by the audit.
+
+**R4.4 - CLOSED.**
+
+No R4.5 or R5 implementation was started by this pass. This completion pass
+did not invoke `git commit`. During validation, HEAD advanced externally
+from `d700568f` to team commits `88086a4c` and `4e5600ee`; those commits
+already contain the Planning test and lint cleanup. This report does not
+rewrite or amend that history.

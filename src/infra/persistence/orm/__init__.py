@@ -2,8 +2,6 @@
 
 from src.infra.persistence.orm.base import Base
 import src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant  # noqa: F401  — must precede org (FK dep)
-import src.core.modules.maintenance.infrastructure.persistence.orm.models  # noqa: F401
-import src.core.modules.maintenance.infrastructure.persistence.orm.preventive_runtime_models  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.master_data.org.org  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.master_data.employee.employee  # noqa: F401
 import src.core.platform.infrastructure.persistence.orm.master_data.site.sites  # noqa: F401
@@ -35,12 +33,17 @@ import src.core.modules.project_management.infrastructure.persistence.orm.foreca
 import src.core.modules.project_management.infrastructure.persistence.orm.finance_inbox  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.labor_posting  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.financial_configuration  # noqa: F401
+import src.core.modules.project_management.infrastructure.persistence.orm.rate_cards  # noqa: F401
+import src.core.modules.project_management.infrastructure.persistence.orm.budget  # noqa: F401
+import src.core.modules.project_management.infrastructure.persistence.orm.planned_cost  # noqa: F401
+import src.core.modules.project_management.infrastructure.persistence.orm.financial_change  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.billing  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.baseline  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.calendar_assignment  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.register  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.collaboration  # noqa: F401
 import src.core.modules.project_management.infrastructure.persistence.orm.portfolio  # noqa: F401
+import src.core.modules.project_management.infrastructure.persistence.orm.skills  # noqa: F401
 import src.core.modules.inventory_procurement.infrastructure.persistence.orm.catalog  # noqa: F401
 import src.core.modules.inventory_procurement.infrastructure.persistence.orm.inventory  # noqa: F401
 import src.core.modules.inventory_procurement.infrastructure.persistence.orm.procurement  # noqa: F401

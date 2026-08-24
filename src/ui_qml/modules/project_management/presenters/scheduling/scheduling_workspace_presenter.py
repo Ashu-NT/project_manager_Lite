@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from src.core.modules.project_management.api.desktop import (
+    GanttBaselineOverlayDto,
     ProjectManagementSchedulingDesktopApi,
     build_project_management_scheduling_desktop_api,
 )
@@ -17,13 +18,10 @@ from .command_handler import (
     approve_baseline,
     calculate_working_days,
     create_baseline,
-    create_dependency,
     delete_baseline,
-    delete_dependency,
     recalculate_schedule,
     reject_baseline,
     submit_baseline,
-    update_dependency,
 )
 from .leveling_builder import build_resource_leveling_state
 from .workspace_builder import build_workspace_state
@@ -48,8 +46,6 @@ class ProjectSchedulingWorkspacePresenter:
         search_text: str = "",
         show_critical_only: bool = False,
         show_delayed_only: bool = False,
-        page: int = 1,
-        page_size: int = 25,
         sort_key: str = "schedule",
         sort_direction: str = "asc",
         selected_activity_id: str | None = None,
@@ -67,14 +63,19 @@ class ProjectSchedulingWorkspacePresenter:
             search_text=search_text,
             show_critical_only=show_critical_only,
             show_delayed_only=show_delayed_only,
-            page=page,
-            page_size=page_size,
             sort_key=sort_key,
             sort_direction=sort_direction,
             selected_activity_id=selected_activity_id,
             include_unchanged=include_unchanged,
             activity_log=activity_log,
         )
+
+    def build_gantt_baseline_overlay(
+        self,
+        project_id: str,
+        baseline_id: str,
+    ) -> GanttBaselineOverlayDto:
+        return self._desktop_api.build_gantt_baseline_overlay(project_id, baseline_id)
 
     def create_baseline(self, payload: dict[str, Any]) -> None:
         create_baseline(self._desktop_api, payload)
@@ -105,15 +106,6 @@ class ProjectSchedulingWorkspacePresenter:
 
     def apply_resource_leveling(self, project_id: str) -> None:
         apply_resource_leveling(self._desktop_api, project_id)
-
-    def create_dependency(self, payload: dict[str, Any]) -> None:
-        create_dependency(self._desktop_api, payload)
-
-    def update_dependency(self, payload: dict[str, Any]) -> None:
-        update_dependency(self._desktop_api, payload)
-
-    def delete_dependency(self, dependency_id: str) -> None:
-        delete_dependency(self._desktop_api, dependency_id)
 
     def calculate_working_days(self, payload: dict[str, Any]) -> str:
         return calculate_working_days(self._desktop_api, payload)

@@ -1,6 +1,8 @@
 pragma ComponentBehavior: Bound
+
 import QtQuick
 import App.Widgets 1.0 as AppWidgets
+import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import workspaces.resources.sections 1.0
 
 Item {
@@ -8,25 +10,18 @@ Item {
 
     property var resourceDetail: ({
         "id": "", "title": "", "statusLabel": "", "subtitle": "",
-        "description": "", "emptyState": "Select a resource from the pool to review details or edit its setup.",
+        "description": "", "emptyState": "Select a resource to open its details.",
         "fields": [], "state": {}
     })
     property bool isBusy: false
     property var detailPage: null
     property var workspaceController: null
-    property var resourceAvailabilityModel: ({
-        "resourceId": "", "peakLoadPercent": 0, "averageLoadPercent": 0,
-        "overloadedDays": 0, "availableDays": 0, "isAvailable": true,
-        "fromDateLabel": "", "toDateLabel": "", "days": []
-    })
+    property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
+    property real availableHeight: 0
     property bool canManageSkills: false
-    property var resourceAssignmentsTableModel: null
     property string selectedSkillId: ""
     property string selectedCertificationId: ""
 
-    signal editRequested()
-    signal toggleRequested()
-    signal deleteRequested()
     signal addSkillRequested()
     signal addCertificationRequested()
     signal removeSkillRequested(string skillId)
@@ -37,19 +32,8 @@ Item {
     readonly property bool _hasResource: String(root.resourceDetail.id || "").length > 0
     readonly property int _idx: root.detailPage ? root.detailPage.activeSectionIndex : 0
 
-    function _clearContextSelections() {
-        if (root._idx !== 4 && root.selectedSkillId.length > 0) {
-            root.selectedSkillId = ""
-            root.skillSelectionChanged("")
-        }
-        if (root._idx !== 5 && root.selectedCertificationId.length > 0) {
-            root.selectedCertificationId = ""
-            root.certificationSelectionChanged("")
-        }
-    }
-
-    on_IdxChanged: root._clearContextSelections()
-    onResourceDetailChanged: {
+    function _clearCapabilitySelections() {
+        if (root._idx === 1) return
         if (root.selectedSkillId.length > 0) {
             root.selectedSkillId = ""
             root.skillSelectionChanged("")
@@ -60,28 +44,33 @@ Item {
         }
     }
 
-    readonly property int _activeSectionH: {
-        if (root._idx === 0) return _sec0.implicitHeight
-        if (root._idx === 1) return _sec1.implicitHeight
-        if (root._idx === 2) return _sec2.implicitHeight
-        if (root._idx === 3) return _sec3.implicitHeight
-        if (root._idx === 4) return _sec4.implicitHeight
-        if (root._idx === 5) return _sec5.implicitHeight
-        if (root._idx === 6) return _sec6.implicitHeight
-        if (root._idx === 7) return _sec8.implicitHeight
-        if (root._idx === 8) return _sec7.implicitHeight
+    on_IdxChanged: root._clearCapabilitySelections()
+    onResourceDetailChanged: {
+        root.selectedSkillId = ""
+        root.selectedCertificationId = ""
+        root.skillSelectionChanged("")
+        root.certificationSelectionChanged("")
+    }
+
+    readonly property int _activeSectionHeight: {
+        if (root._idx === 0) return overviewLoader.implicitHeight
+        if (root._idx === 1) return capabilityLoader.implicitHeight
+        if (root._idx === 2) return availabilityLoader.implicitHeight
+        if (root._idx === 3) return projectsLoader.implicitHeight
+        if (root._idx === 4) return assignmentsLoader.implicitHeight
+        if (root._idx === 5) return activityLoader.implicitHeight
         return 0
     }
 
-    implicitHeight: _activeSectionH
+    implicitHeight: root._activeSectionHeight
     height: implicitHeight
 
     AppWidgets.LazySectionLoader {
-        id: _sec0
+        id: overviewLoader
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === 0
-        loadingMessage: "Loading overview..."
+        loadingMessage: "Loading Resource overview..."
         sourceComponent: Component {
             ResourcesOverviewSection {
                 width: parent ? parent.width : 0
@@ -92,138 +81,99 @@ Item {
     }
 
     AppWidgets.LazySectionLoader {
-        id: _sec1
+        id: capabilityLoader
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === 1
-        loadingMessage: "Loading assignments..."
+        loadingMessage: "Loading Resource capability..."
         sourceComponent: Component {
-            ResourcesAssignmentsSection {
+            ResourcesCapabilitySection {
                 width: parent ? parent.width : 0
-                resourceDetail: root.resourceDetail
-                resourceAssignmentsTableModel: root.resourceAssignmentsTableModel
-                isBusy: root.isBusy
-            }
-        }
-    }
-
-    AppWidgets.LazySectionLoader {
-        id: _sec2
-        anchors.left: parent.left
-        anchors.right: parent.right
-        active: root._idx === 2
-        loadingMessage: "Loading capacity..."
-        sourceComponent: Component {
-            ResourcesCapacitySection {
-                width: parent ? parent.width : 0
-                resourceDetail: root.resourceDetail
-                isBusy: root.isBusy
-            }
-        }
-    }
-
-    AppWidgets.LazySectionLoader {
-        id: _sec3
-        anchors.left: parent.left
-        anchors.right: parent.right
-        active: root._idx === 3
-        loadingMessage: "Loading calendar..."
-        sourceComponent: Component {
-            ResourcesCalendarSection {
-                width: parent ? parent.width : 0
-                resourceDetail: root.resourceDetail
-                resourceAvailabilityModel: root.resourceAvailabilityModel
-                isBusy: root.isBusy
-            }
-        }
-    }
-
-    AppWidgets.LazySectionLoader {
-        id: _sec4
-        anchors.left: parent.left
-        anchors.right: parent.right
-        active: root._idx === 4
-        loadingMessage: "Loading skills..."
-        sourceComponent: Component {
-            ResourcesSkillsSection {
-                width: parent ? parent.width : 0
+                resourceId: String(root.resourceDetail.id || "")
                 workspaceController: root.workspaceController
                 hasResource: root._hasResource
                 canManageSkills: root.canManageSkills
                 isBusy: root.isBusy
                 onAddSkillRequested: root.addSkillRequested()
-                onSelectionChanged: function(skillId) {
+                onAddCertificationRequested: root.addCertificationRequested()
+                onSkillSelectionChanged: function(skillId) {
                     root.selectedSkillId = String(skillId || "")
                     root.skillSelectionChanged(root.selectedSkillId)
                 }
-                onRemoveSkillRequested: function(skillId) { root.removeSkillRequested(skillId) }
-            }
-        }
-    }
-
-    AppWidgets.LazySectionLoader {
-        id: _sec5
-        anchors.left: parent.left
-        anchors.right: parent.right
-        active: root._idx === 5
-        loadingMessage: "Loading certifications..."
-        sourceComponent: Component {
-            ResourcesCertificationsSection {
-                width: parent ? parent.width : 0
-                workspaceController: root.workspaceController
-                hasResource: root._hasResource
-                canManageSkills: root.canManageSkills
-                isBusy: root.isBusy
-                onAddCertificationRequested: root.addCertificationRequested()
-                onSelectionChanged: function(certId) {
+                onCertificationSelectionChanged: function(certId) {
                     root.selectedCertificationId = String(certId || "")
                     root.certificationSelectionChanged(root.selectedCertificationId)
                 }
-                onRemoveCertificationRequested: function(certId) { root.removeCertificationRequested(certId) }
+                onRemoveSkillRequested: function(skillId) {
+                    root.removeSkillRequested(skillId)
+                }
+                onRemoveCertificationRequested: function(certId) {
+                    root.removeCertificationRequested(certId)
+                }
             }
         }
     }
 
     AppWidgets.LazySectionLoader {
-        id: _sec6
+        id: availabilityLoader
         anchors.left: parent.left
         anchors.right: parent.right
-        active: root._idx === 6
-        loadingMessage: "Loading cost rates..."
+        active: root._idx === 2
+        loadingMessage: "Loading Resource availability..."
         sourceComponent: Component {
-            ResourcesCostRatesSection {
+            ResourcesAvailabilitySection {
                 width: parent ? parent.width : 0
-                resourceDetail: root.resourceDetail
+                resourceId: String(root.resourceDetail.id || "")
+                workspaceController: root.workspaceController
                 isBusy: root.isBusy
             }
         }
     }
 
     AppWidgets.LazySectionLoader {
-        id: _sec8
+        id: projectsLoader
         anchors.left: parent.left
         anchors.right: parent.right
-        active: root._idx === 7
-        loadingMessage: "Loading availability..."
+        active: root._idx === 3
         sourceComponent: Component {
-            ResourcesAvailabilitySection {
+            ResourcesProjectsSection {
                 width: parent ? parent.width : 0
-                hasResource: root._hasResource
-                availabilityModel: root.resourceAvailabilityModel
+                resourceId: String(root.resourceDetail.id || "")
+                workspaceController: root.workspaceController
+                pmCatalog: root.pmCatalog
+                availableHeight: root.availableHeight
             }
         }
     }
 
     AppWidgets.LazySectionLoader {
-        id: _sec7
+        id: assignmentsLoader
         anchors.left: parent.left
         anchors.right: parent.right
-        active: root._idx === 8
-        loadingMessage: "Loading activity..."
+        active: root._idx === 4
+        sourceComponent: Component {
+            ResourcesAssignmentsSection {
+                width: parent ? parent.width : 0
+                resourceId: String(root.resourceDetail.id || "")
+                workspaceController: root.workspaceController
+                pmCatalog: root.pmCatalog
+                availableHeight: root.availableHeight
+            }
+        }
+    }
+
+    AppWidgets.LazySectionLoader {
+        id: activityLoader
+        anchors.left: parent.left
+        anchors.right: parent.right
+        active: root._idx === 5
         sourceComponent: Component {
             ResourcesActivitySection {
                 width: parent ? parent.width : 0
-                resourceDetail: root.resourceDetail
+                resourceId: String(root.resourceDetail.id || "")
+                workspaceController: root.workspaceController
+                pmCatalog: root.pmCatalog
+                availableHeight: root.availableHeight
             }
         }
     }

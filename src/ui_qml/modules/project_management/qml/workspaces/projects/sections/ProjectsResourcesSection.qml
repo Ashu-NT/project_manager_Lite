@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
@@ -20,9 +19,16 @@ Item {
     property var assignableResourceOptions: []
     property string selectedProjectResourceId: ""
     property bool isBusy: false
+    property real availableHeight: 0
 
     readonly property bool _hasProject: String(root.projectDetail.id || "").length > 0
     readonly property int _resourceCount: (root.projectResourcesModel.items || []).length
+    readonly property int _tableHeight: Math.max(
+        120,
+        Theme.AppTheme.normalRowHeight
+            + Math.max(root._resourceCount, 1) * Theme.AppTheme.compactRowHeight
+            + 1
+    )
 
     function openEditSelected() {
         if (root.selectedProjectResourceId.length > 0) {
@@ -36,11 +42,12 @@ Item {
         }
     }
 
-    implicitHeight: _col.implicitHeight
+    implicitHeight: Math.max(_col.implicitHeight, root.availableHeight)
 
-    Column {
+    ColumnLayout {
         id: _col
         width: parent.width
+        height: root.implicitHeight
         spacing: 0
 
         Component.onCompleted: {
@@ -48,8 +55,34 @@ Item {
             if (ctrl) ctrl.loadAssignableResources()
         }
 
+        AppWidgets.TableToolbar {
+            Layout.fillWidth: true
+            searchText: String(root.projectResourcesModel.searchText || "")
+            searchPlaceholder: "Search resource, code, or role..."
+            showFilter: false
+            showRefresh: true
+            isBusy: root.isBusy
+            onSearchChanged: function(text) {
+                const ctrl = root.pmCatalog ? root.pmCatalog.projectsWorkspace : null
+                if (ctrl) ctrl.setProjectResourcesSearch(text)
+            }
+            onRefreshRequested: {
+                const ctrl = root.pmCatalog ? root.pmCatalog.projectsWorkspace : null
+                if (ctrl) ctrl.loadProjectResources()
+            }
+            AppControls.ComboBox {
+                implicitWidth: 125
+                textRole: "label"
+                model: [{"value":"all","label":"All staffing"},{"value":"active","label":"Active"},{"value":"inactive","label":"Inactive"}]
+                onActivated: function(index) {
+                    const ctrl = root.pmCatalog ? root.pmCatalog.projectsWorkspace : null
+                    if (ctrl) ctrl.setProjectResourcesActive(String(model[index].value))
+                }
+            }
+        }
+
         AppWidgets.ContextualActionToolbar {
-            width: parent.width
+            Layout.fillWidth: true
             title: "Resources"
             subtitle: root._resourceCount > 0 ? String(root._resourceCount) : ""
             busy: root.isBusy
@@ -59,29 +92,60 @@ Item {
         }
 
         AppWidgets.InlineMessage {
-            width: parent.width
+            Layout.fillWidth: true
             visible: String(root.sectionErrors["resources"] || "").length > 0
             tone: "danger"
             message: String(root.sectionErrors["resources"] || "")
         }
 
-        AppWidgets.DataTable {
-            width: parent.width
-            height: Math.min(360, Math.max(200, implicitHeight))
-            columns: [
-                { key: "title",          label: "Resource",      flex: 2, sortable: true },
-                { key: "subtitle",       label: "Role",          flex: 1.5 },
-                { key: "supportingText", label: "Planned Hours", flex: 1, minWidth: 100 },
-                { key: "metaText",       label: "Hourly Rate",   flex: 1, minWidth: 100 },
-                { key: "statusLabel",    label: "Status",        flex: 0, minWidth: 90, type: "status" }
-            ]
-            sourceModel: root.projectResourcesTableModel
-            selectedRowId: root.selectedProjectResourceId
-            loading: root.isBusy
-            emptyText: root.projectResourcesModel.emptyState || "No resources allocated to this project."
-            onRowSelected: function(rowId) {
-                const ctrl = root.pmCatalog ? root.pmCatalog.projectsWorkspace : null
-                if (ctrl) ctrl.selectProjectResource(rowId)
+        Item {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.preferredHeight: root._tableHeight + resourcePagination.implicitHeight
+
+            AppWidgets.DataTable {
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: resourcePagination.top
+                columns: [
+                    { key: "resourceName",   label: "Resource",      flex: 2, sortable: true },
+                    { key: "resourceCode",   label: "Code",          flex: 0, minWidth: 90, sortable: true },
+                    { key: "role",           label: "Role",          flex: 1.2, sortable: true },
+                    { key: "plannedHours",   label: "Project Plan",  flex: 0, minWidth: 105, sortable: true },
+                    { key: "allocatedHours", label: "To Tasks",      flex: 0, minWidth: 95, sortable: true },
+                    { key: "actualHours",    label: "Actual",        flex: 0, minWidth: 85, sortable: true },
+                    { key: "remainingHours", label: "Remaining",     flex: 0, minWidth: 95, sortable: true },
+                    { key: "statusLabel",    label: "Status",        flex: 0, minWidth: 90, type: "status" }
+                ]
+                sourceModel: root.projectResourcesTableModel
+                sortingMode: "server"
+                sortKey: String(root.projectResourcesModel.sortKey || "resourceName")
+                sortDirection: root.projectResourcesModel.sortDirection === "desc" ? Qt.DescendingOrder : Qt.AscendingOrder
+                selectedRowId: root.selectedProjectResourceId
+                loading: root.isBusy
+                emptyText: root.projectResourcesModel.emptyState || "No resources allocated to this project."
+                onRowSelected: function(rowId) {
+                    const ctrl = root.pmCatalog ? root.pmCatalog.projectsWorkspace : null
+                    if (ctrl) ctrl.selectProjectResource(rowId)
+                }
+                onSortRequested: function(key, direction) {
+                    const ctrl = root.pmCatalog ? root.pmCatalog.projectsWorkspace : null
+                    if (ctrl) ctrl.setProjectResourcesSort(key, direction)
+                }
+            }
+
+            AppWidgets.TablePaginationBar {
+                id: resourcePagination
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                currentPage: Number(root.projectResourcesModel.page || 1)
+                pageSize: Number(root.projectResourcesModel.pageSize || 25)
+                totalItems: Number(root.projectResourcesModel.total || 0)
+                busy: root.isBusy
+                onPageRequested: function(page) { root.pmCatalog.projectsWorkspace.setProjectResourcesPage(page) }
+                onPageSizeRequested: function(size) { root.pmCatalog.projectsWorkspace.setProjectResourcesPageSize(size) }
             }
         }
 

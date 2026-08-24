@@ -7,6 +7,9 @@ import App.Theme 1.0 as Theme
 AppWidgets.EntityDialog {
     id: root
 
+    property string modeTitle: "Add Skill"
+    property var skillData: ({})
+
     property var proficiencyOptions: [
         { value: "beginner",     label: "Beginner"     },
         { value: "intermediate", label: "Intermediate" },
@@ -16,11 +19,13 @@ AppWidgets.EntityDialog {
 
     signal submitted(var payload)
 
-    title:        "Add Skill"
-    subtitle:     "Record a skill or competency for this resource."
-    primaryText:  "Add Skill"
-    primaryIcon:  "add"
-    width: 480
+    title: root.modeTitle
+    subtitle: root.modeTitle === "Add Skill"
+        ? "Record a skill or competency for this resource."
+        : "Update this capability using its current version."
+    primaryText: root.modeTitle === "Add Skill" ? "Add Skill" : "Save Changes"
+    primaryIcon: root.modeTitle === "Add Skill" ? "add" : "save"
+    width: 560
 
     onOpened:   root._reset()
     onAccepted: root._submit()
@@ -35,10 +40,11 @@ AppWidgets.EntityDialog {
     }
 
     function _reset() {
-        skillCodeField.text = ""
-        skillNameField.text = ""
-        proficiencyCombo.currentIndex = 1
-        notesField.text = ""
+        const state = root.skillData || {}
+        skillCodeField.text = String(state.skillCode || "")
+        skillNameField.text = String(state.skillName || "")
+        proficiencyCombo.currentIndex = root._indexForValue(state.proficiency || "intermediate")
+        notesField.text = String(state.notes || "")
         root.errorMessage = ""
     }
 
@@ -49,6 +55,8 @@ AppWidgets.EntityDialog {
         }
         root.errorMessage = ""
         root.submitted({
+            "skillId": String((root.skillData || {}).id || ""),
+            "expectedVersion": Number((root.skillData || {}).version || 0),
             "skillCode": skillCodeField.text.trim(),
             "skillName": skillNameField.text.trim(),
             "proficiency": String((root.proficiencyOptions[proficiencyCombo.currentIndex] || { value: "intermediate" }).value),
@@ -59,8 +67,9 @@ AppWidgets.EntityDialog {
     // ── Form content ──────────────────────────────────────────────────────────
 
     GridLayout {
+        id: skillFormGrid
         Layout.fillWidth: true
-        columns: 2
+        columns: root.width > 460 ? 2 : 1
         columnSpacing: Theme.AppTheme.spacingMd
         rowSpacing: Theme.AppTheme.spacingSm
 
@@ -73,6 +82,7 @@ AppWidgets.EntityDialog {
 
         AppWidgets.FormField {
             Layout.fillWidth: true
+            required: true
             label: "Skill Name"
             AppControls.TextField { id: skillNameField; Layout.fillWidth: true; placeholderText: "e.g. Python Development"; Keys.onReturnPressed: root._submit() }
         }

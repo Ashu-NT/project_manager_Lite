@@ -15,11 +15,8 @@ from src.ui_qml.modules.project_management.view_models.scheduling import (
 
 from .activity_feed_builder import build_activity_feed_collection
 from .calendar_builder import build_calendar_view_model
-from .detail_builder import build_constraints_collection, build_detail_view_model
 from .diagnostics_builder import build_diagnostics_collection
 from .formatters import (
-    build_schedule_empty_state,
-    calendar_label as get_calendar_label,
     label_for_option,
 )
 from .option_resolver import (
@@ -34,15 +31,11 @@ from .record_mappers import (
     to_baseline_compare_record,
     to_baseline_register_record,
     to_constraint_violation_record,
-    to_critical_path_record,
     to_delayed_activity_record,
-    to_dependency_record,
     to_resource_load_record,
-    to_schedule_record,
-    to_timeline_record,
 )
 from .schedule_filter import matches_schedule_filters
-from .schedule_sort import normalize_schedule_sort, sort_schedule_items
+from .schedule_sort import normalize_schedule_sort
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +52,6 @@ def build_workspace_state(
     search_text: str = "",
     show_critical_only: bool = False,
     show_delayed_only: bool = False,
-    page: int = 1,
-    page_size: int = 25,
     sort_key: str = "schedule",
     sort_direction: str = "asc",
     selected_activity_id: str | None = None,
@@ -90,18 +81,6 @@ def build_workspace_state(
     )
     calendar_snapshot = desktop_api.get_calendar_snapshot(resolved_calendar_id)
 
-    schedule_items = (
-        desktop_api.list_schedule(resolved_project_id) if resolved_project_id else ()
-    )
-    dependency_rows = (
-        desktop_api.list_project_dependencies(resolved_project_id)
-        if resolved_project_id
-        else ()
-    )
-    dependency_type_options = tuple(
-        SchedulingSelectorOptionViewModel(value=option.value, label=option.label)
-        for option in desktop_api.list_dependency_types()
-    )
     baseline_options = (
         tuple(
             SchedulingSelectorOptionViewModel(value=option.value, label=option.label)
@@ -115,10 +94,25 @@ def build_workspace_state(
         if resolved_project_id
         else ()
     )
-    resolved_baseline_id = resolve_selected_option(
-        selected_baseline_id,
-        baseline_options,
-        default_value="",
+    requested_baseline_id = str(selected_baseline_id or "").strip()
+    baseline_ids = {option.value for option in baseline_options}
+    resolved_baseline_id = (
+        requested_baseline_id if requested_baseline_id in baseline_ids else ""
+    )
+    gantt_projection = (
+        desktop_api.build_gantt_projection(resolved_project_id)
+        if resolved_project_id
+        else None
+    )
+    schedule_items = (
+        tuple(row for row in gantt_projection.rows if not row.is_summary)
+        if gantt_projection is not None
+        else ()
+    )
+    dependency_rows = (
+        gantt_projection.dependency_edges
+        if gantt_projection is not None
+        else ()
     )
     resolved_baseline_a_id, resolved_baseline_b_id = resolve_baseline_ids(
         baseline_options=baseline_options,
@@ -145,43 +139,12 @@ def build_workspace_state(
         )
     )
     schedule_sort = normalize_schedule_sort(key=sort_key, direction=sort_direction)
-    ordered_schedule = sort_schedule_items(filtered_schedule, sort=schedule_sort)
     total_count = len(filtered_schedule)
-    resolved_page_size = max(10, int(page_size or 25))
-    resolved_page = max(1, int(page or 1))
-    total_pages = max(1, (total_count + resolved_page_size - 1) // resolved_page_size)
-    if resolved_page > total_pages:
-        resolved_page = total_pages
-    page_start = (resolved_page - 1) * resolved_page_size
-    page_end = page_start + resolved_page_size
-    paged_schedule = ordered_schedule[page_start:page_end]
 
     resolved_selected_activity_id = resolve_selected_activity_id(
         selected_activity_id,
         filtered_schedule=filtered_schedule,
-        paged_schedule=paged_schedule,
     )
-    selected_activity = next(
-        (item for item in filtered_schedule if item.id == resolved_selected_activity_id),
-        None,
-    )
-    dependency_task_options = (
-        tuple(
-            SchedulingSelectorOptionViewModel(value=option.value, label=option.label)
-            for option in desktop_api.list_activity_options(
-                resolved_project_id,
-                exclude_task_id=resolved_selected_activity_id,
-            )
-        )
-        if resolved_project_id and resolved_selected_activity_id
-        else ()
-    )
-    activity_dependencies = (
-        desktop_api.list_dependencies(resolved_selected_activity_id)
-        if resolved_selected_activity_id
-        else ()
-    )
-
     comparison_rows = ()
     comparison_summary = ""
     comparison_empty_state = ""
@@ -227,30 +190,21 @@ def build_workspace_state(
     log_method = logger.warning if duration_ms > 500 else logger.info
     log_method(
         "PM scheduling presenter build complete duration_ms=%.1f project=%s "
-        "schedule_count=%s filtered_count=%s paged_count=%s dependency_count=%s "
-        "baseline_count=%s resource_load_count=%s violation_count=%s page=%s "
-        "page_size=%s search=%s status_filter=%s critical_only=%s delayed_only=%s",
+        "schedule_count=%s filtered_count=%s dependency_count=%s baseline_count=%s "
+        "resource_load_count=%s violation_count=%s search=%s status_filter=%s "
+        "critical_only=%s delayed_only=%s",
         duration_ms,
         resolved_project_id,
         len(schedule_items),
         total_count,
-        len(paged_schedule),
         len(dependency_rows),
         len(baseline_options),
         len(resource_load),
         len(constraint_violations),
-        resolved_page,
-        resolved_page_size,
         normalized_search,
         resolved_status_filter,
         show_critical_only,
         show_delayed_only,
-    )
-
-    cal_label = get_calendar_label(calendar_options, resolved_calendar_id)
-    empty_state = build_schedule_empty_state(
-        resolved_project_id=resolved_project_id,
-        schedule_items=filtered_schedule,
     )
 
     return SchedulingWorkspaceViewModel(
@@ -268,8 +222,6 @@ def build_workspace_state(
         project_options=project_options,
         calendar_options=calendar_options,
         baseline_options=baseline_options,
-        dependency_type_options=dependency_type_options,
-        dependency_task_options=dependency_task_options,
         status_options=status_options,
         selected_project_id=resolved_project_id,
         selected_calendar_id=resolved_calendar_id,
@@ -278,12 +230,10 @@ def build_workspace_state(
         search_text=normalized_search,
         show_critical_only=show_critical_only,
         show_delayed_only=show_delayed_only,
-        page=resolved_page,
-        page_size=resolved_page_size,
-        total_count=total_count,
         sort_key=schedule_sort.key,
         sort_direction=schedule_sort.direction.value,
         selected_activity_id=resolved_selected_activity_id,
+        gantt_projection=gantt_projection,
         calendar=build_calendar_view_model(calendar_snapshot),
         baselines=SchedulingBaselineCompareViewModel(
             options=baseline_options,
@@ -293,38 +243,6 @@ def build_workspace_state(
             summary_text=comparison_summary,
             rows=tuple(to_baseline_compare_record(row) for row in comparison_rows),
             empty_state=comparison_empty_state,
-        ),
-        schedule=SchedulingCollectionViewModel(
-            title="Activities",
-            subtitle="Current planning window with CPM, float, constraint, and progress context.",
-            items=tuple(
-                to_schedule_record(
-                    item,
-                    row_index=page_start + index,
-                    calendar_label=cal_label,
-                )
-                for index, item in enumerate(paged_schedule, start=1)
-            ),
-            empty_state=empty_state,
-        ),
-        timeline=SchedulingCollectionViewModel(
-            title="Timeline",
-            subtitle="Current schedule bars, milestone markers, and baseline-ready planner lane.",
-            items=tuple(
-                to_timeline_record(item, timeline_items=paged_schedule)
-                for item in paged_schedule
-            ),
-            empty_state=empty_state,
-        ),
-        critical_path=SchedulingCollectionViewModel(
-            title="Critical Path",
-            subtitle="Zero-float activities driving the current finish date.",
-            items=tuple(to_critical_path_record(item) for item in critical_items[:12]),
-            empty_state=(
-                "No critical-path activities are available for the current filter."
-                if resolved_project_id
-                else "Select a project to review the critical path."
-            ),
         ),
         diagnostics=build_diagnostics_collection(
             schedule_items=schedule_items,
@@ -362,17 +280,6 @@ def build_workspace_state(
                 else "Select a project to review baselines."
             ),
         ),
-        dependencies=SchedulingCollectionViewModel(
-            title="Dependencies",
-            subtitle="Sequencing links for the selected activity.",
-            items=tuple(to_dependency_record(row) for row in activity_dependencies),
-            empty_state=(
-                "No dependencies are linked to the selected activity."
-                if resolved_selected_activity_id
-                else "Select an activity to review dependency logic."
-            ),
-        ),
-        constraints=build_constraints_collection(selected_activity),
         constraint_violations=SchedulingCollectionViewModel(
             title="Constraint Violations",
             subtitle="Hard and soft date-constraint violations detected by the schedule validator.",
@@ -390,11 +297,6 @@ def build_workspace_state(
             delayed_items=delayed_items,
             resource_load=resource_load,
             activity_log=activity_log,
-        ),
-        selected_activity_detail=build_detail_view_model(
-            selected_activity=selected_activity,
-            dependency_rows=activity_dependencies,
-            resource_load=resource_load,
         ),
     )
 

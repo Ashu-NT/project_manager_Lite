@@ -2,6 +2,10 @@
 
 Project Manager Lite — Enterprise Architecture Reference
 
+> **Scope correction (2026-08-20):** Maintenance is no longer a current product module. Any
+> Maintenance roles, permissions, services, QML, or tables described below are historical audit
+> or retained migration-schema context, not current runtime composition.
+
 ---
 
 ## Table of Contents

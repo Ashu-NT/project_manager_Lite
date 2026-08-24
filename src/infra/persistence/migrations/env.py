@@ -15,6 +15,24 @@ logger.debug("Alembic env loaded config_file=%s", config.config_file_name)
 target_metadata = Base.metadata
 
 
+def _compare_server_default(
+    _context,
+    _inspected_column,
+    _metadata_column,
+    inspected_default,
+    metadata_default,
+    _rendered_metadata_default,
+):
+    """Treat SQLite's reflected SQL literal for an empty string as equivalent."""
+    metadata_argument = getattr(metadata_default, "arg", metadata_default)
+    normalized_inspected = str(inspected_default or "").strip()
+    while normalized_inspected.startswith("(") and normalized_inspected.endswith(")"):
+        normalized_inspected = normalized_inspected[1:-1].strip()
+    if normalized_inspected == "''" and str(metadata_argument) == "":
+        return False
+    return None
+
+
 def _db_url() -> str:
     return config.get_main_option("sqlalchemy.url")
 
@@ -25,7 +43,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         render_as_batch=True,
         compare_type=True,
-        compare_server_default=True,
+        compare_server_default=_compare_server_default,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
@@ -48,7 +66,7 @@ def run_migrations_online() -> None:
             target_metadata=target_metadata,
             render_as_batch=True,
             compare_type=True,
-            compare_server_default=True,
+            compare_server_default=_compare_server_default,
         )
 
         with context.begin_transaction():

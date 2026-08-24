@@ -5,9 +5,11 @@ from src.core.modules.project_management.api.desktop.resources.formatters.enum_f
 )
 from src.core.modules.project_management.api.desktop.resources.models.options import (
     ResourceCategoryDescriptor,
+    ResourceKindDescriptor,
+    ResourceScopeOptionDescriptor,
     ResourceWorkerTypeDescriptor,
 )
-from src.core.modules.project_management.domain.enums import CostType, WorkerType
+from src.core.modules.project_management.domain.enums import CostType, ResourceKind, WorkerType
 
 
 def build_worker_type_options() -> tuple[ResourceWorkerTypeDescriptor, ...]:
@@ -30,4 +32,58 @@ def build_category_options() -> tuple[ResourceCategoryDescriptor, ...]:
     )
 
 
-__all__ = ["build_category_options", "build_worker_type_options"]
+def build_kind_options() -> tuple[ResourceKindDescriptor, ...]:
+    return tuple(
+        ResourceKindDescriptor(value=kind.value, label=format_enum_label(kind.value))
+        for kind in ResourceKind
+    )
+
+
+def build_department_options(service: object | None) -> tuple[ResourceScopeOptionDescriptor, ...]:
+    if service is None:
+        return (ResourceScopeOptionDescriptor(value="", label="No department", is_active=True),)
+    try:
+        rows = service.list_departments(active_only=None)
+    except Exception:
+        rows = ()
+    return (
+        ResourceScopeOptionDescriptor(value="", label="No department", is_active=True),
+        *(
+        ResourceScopeOptionDescriptor(
+            value=row.id,
+            label=row.name if row.is_active else f"{row.name} (Inactive)",
+            is_active=bool(row.is_active),
+            site_id=str(row.site_id or ""),
+        )
+        for row in rows
+        ),
+    )
+
+
+def build_site_options(service: object | None) -> tuple[ResourceScopeOptionDescriptor, ...]:
+    if service is None:
+        return (ResourceScopeOptionDescriptor(value="", label="No site", is_active=True),)
+    try:
+        rows = service.list_sites(active_only=None)
+    except Exception:
+        rows = ()
+    return (
+        ResourceScopeOptionDescriptor(value="", label="No site", is_active=True),
+        *(
+        ResourceScopeOptionDescriptor(
+            value=row.id,
+            label=row.name if row.is_active else f"{row.name} (Inactive)",
+            is_active=bool(row.is_active),
+        )
+        for row in rows
+        ),
+    )
+
+
+__all__ = [
+    "build_category_options",
+    "build_department_options",
+    "build_kind_options",
+    "build_site_options",
+    "build_worker_type_options",
+]

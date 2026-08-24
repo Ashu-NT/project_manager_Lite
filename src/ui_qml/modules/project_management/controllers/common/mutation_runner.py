@@ -5,6 +5,8 @@ from typing import Callable
 
 from PySide6.QtCore import QCoreApplication, QEventLoop, QTimer
 
+from src.core.platform.common.exceptions import ConcurrencyError, DomainError, ValidationError
+
 logger = logging.getLogger(__name__)
 
 
@@ -16,6 +18,7 @@ def run_mutation(
     set_is_busy,
     set_error_message,
     set_feedback_message,
+    safe_errors: bool = False,
 ) -> dict[str, object]:
     payload: dict[str, object] = {
         "ok": False,
@@ -28,11 +31,39 @@ def run_mutation(
             operation()
         except Exception as exc:
             logger.exception("Workspace mutation failed.")
+            message = str(exc)
+            code = str(getattr(exc, "code", "") or "")
+            category = "unexpected"
+            field_errors: dict[str, str] = {}
+            if isinstance(exc, ConcurrencyError):
+                category = "conflict"
+            elif isinstance(exc, ValidationError):
+                category = "validation"
+            elif isinstance(exc, DomainError):
+                category = "business"
+            elif safe_errors and callable(getattr(exc, "errors", None)):
+                category = "validation"
+                for item in exc.errors():
+                    location = item.get("loc") or ()
+                    field = str(location[-1]) if location else "form"
+                    field_errors[field] = str(item.get("msg") or "Invalid value.")
+                message = "Review the highlighted resource fields and try again."
+                code = "RESOURCE_INPUT_INVALID"
+            elif safe_errors and isinstance(exc, (TypeError, ValueError)):
+                category = "validation"
+                code = "RESOURCE_INPUT_INVALID"
+            elif safe_errors:
+                message = "The resource change could not be completed. Try again or reload the record."
+                code = "RESOURCE_MUTATION_FAILED"
             set_feedback_message("")
-            set_error_message(str(exc))
+            set_error_message(message)
             payload = {
                 "ok": False,
-                "message": str(exc),
+                "message": message,
+                "code": code,
+                "category": category,
+                "fieldErrors": field_errors,
+                "conflict": category == "conflict",
             }
         else:
             set_feedback_message(success_message)

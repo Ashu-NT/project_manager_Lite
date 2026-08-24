@@ -52,6 +52,15 @@ def optional_int(payload: dict[str, Any], key: str) -> int | None:
         return None
     return int(value)
 
+def require_int(payload: dict[str, Any], key: str, message: str) -> int:
+    value = payload.get(key)
+    if value in (None, ""):
+        raise ValueError(message)
+    try:
+        return int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(message) from exc
+
 def optional_bool(payload: dict[str, Any], key: str, *, default: bool) -> bool:
     value = payload.get(key)
     if value in (None, ""):

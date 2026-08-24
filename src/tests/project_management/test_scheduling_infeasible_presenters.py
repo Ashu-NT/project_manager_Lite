@@ -14,17 +14,11 @@ from src.ui_qml.modules.project_management.presenters.scheduling.diagnostics_bui
 from src.ui_qml.modules.project_management.presenters.scheduling.overview_builder import (
     build_overview,
 )
-from src.ui_qml.modules.project_management.presenters.scheduling.formatters import (
-    activity_criticality_label,
-)
-from src.ui_qml.modules.project_management.presenters.scheduling.record_mappers import (
-    to_schedule_record,
-)
 
 
 def _item(**overrides):
     base = dict(
-        id="task-1",
+        task_id="task-1",
         total_float_days=0,
         is_critical=False,
         is_infeasible=False,
@@ -82,7 +76,10 @@ class TestDiagnosticsConstraintsRow:
 
 class TestOverviewInfeasibleMetric:
     def test_infeasible_metric_counts_the_flag(self):
-        items = [_item(is_infeasible=True), _item(id="task-2", is_infeasible=False)]
+        items = [
+            _item(is_infeasible=True),
+            _item(task_id="task-2", is_infeasible=False),
+        ]
         overview = build_overview(
             resolved_project_id="project-1",
             schedule_items=items,
@@ -97,25 +94,3 @@ class TestOverviewInfeasibleMetric:
         metric = next(m for m in overview.metrics if m.label == "Infeasible")
 
         assert metric.value == "1"
-
-
-class TestActivityCriticalityLabel:
-    def test_infeasible_takes_precedence_over_critical(self):
-        item = _item(is_infeasible=True, is_critical=True)
-        assert activity_criticality_label(item) == "Infeasible"
-
-    def test_critical_without_infeasible_reports_critical(self):
-        item = _item(is_infeasible=False, is_critical=True)
-        assert activity_criticality_label(item) == "Critical"
-
-    def test_neither_reports_normal(self):
-        item = _item(is_infeasible=False, is_critical=False)
-        assert activity_criticality_label(item) == "Normal"
-
-
-class TestScheduleRecordCriticalLabel:
-    def test_infeasible_item_reports_infeasible_critical_label(self):
-        item = _item(is_infeasible=True, is_critical=True)
-        record = to_schedule_record(item, row_index=0, calendar_label="Default")
-
-        assert record.state["criticalLabel"] == "Infeasible"

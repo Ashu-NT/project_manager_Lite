@@ -17,6 +17,7 @@ def serialize_skill(skill) -> ResourceSkillDesktopDto:
         proficiency=proficiency_raw,
         proficiency_label=proficiency_raw.replace("_", " ").title(),
         notes=skill.notes or "",
+        version=int(skill.version),
     )
 
 

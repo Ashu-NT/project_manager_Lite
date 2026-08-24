@@ -31,25 +31,10 @@ INVENTORY_SOURCE_REFERENCE_TYPES: tuple[str, ...] = (
     "project",
     "task",
     "work_order",
-    "maintenance_task",
-    "maintenance_work_order",
-    "maintenance_request",
-    "maintenance_operation",
-    "maintenance_plan",
-    "maintenance_material_demand",
     "reservation",
     "requisition",
     "purchase_order",
 )
-MAINTENANCE_SOURCE_REFERENCE_TYPES: tuple[str, ...] = (
-    "maintenance_task",
-    "maintenance_work_order",
-    "maintenance_request",
-    "maintenance_operation",
-    "maintenance_plan",
-    "maintenance_material_demand",
-)
-
 EnumT = TypeVar("EnumT", bound=Enum)
 
 
@@ -243,33 +228,16 @@ def normalize_source_reference_type(value: str | None) -> str:
     return normalized
 
 
-def normalize_maintenance_source_reference_type(value: str | None) -> str:
-    normalized = normalize_optional_text(value).lower()
-    if not normalized:
-        raise ValidationError(
-            "Maintenance source reference type is required.",
-            code="INVENTORY_MAINTENANCE_SOURCE_REFERENCE_REQUIRED",
-        )
-    if normalized not in MAINTENANCE_SOURCE_REFERENCE_TYPES:
-        raise ValidationError(
-            "Maintenance source reference type is invalid.",
-            code="INVENTORY_MAINTENANCE_SOURCE_REFERENCE_INVALID",
-        )
-    return normalized
-
-
 __all__ = [
     "ITEM_CATEGORY_TYPES",
     "ITEM_STATUS_VALUES",
     "INVENTORY_SOURCE_REFERENCE_TYPES",
-    "MAINTENANCE_SOURCE_REFERENCE_TYPES",
     "PROCUREMENT_PRIORITY_VALUES",
     "STOREROOM_STATUS_VALUES",
     "normalize_currency_code",
     "normalize_enum",
     "normalize_inventory_code",
     "normalize_inventory_name",
-    "normalize_maintenance_source_reference_type",
     "normalize_item_category_type",
     "normalize_nonnegative_days",
     "normalize_nonnegative_quantity",

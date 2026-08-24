@@ -17,9 +17,6 @@ def build_overview(
     project_usage_count = sum(
         1 for category in all_categories if category.supports_project_usage
     )
-    maintenance_usage_count = sum(
-        1 for category in all_categories if category.supports_maintenance_usage
-    )
     active_item_count = sum(1 for item in all_items if item.is_active)
     stocked_item_count = sum(1 for item in all_items if item.is_stocked)
     purchasable_item_count = sum(1 for item in all_items if item.is_purchase_allowed)
@@ -41,11 +38,6 @@ def build_overview(
                 label="Project usage",
                 value=str(project_usage_count),
                 supporting_text="Categories available to project-side planning and execution.",
-            ),
-            InventoryCatalogMetricViewModel(
-                label="Maintenance usage",
-                value=str(maintenance_usage_count),
-                supporting_text="Categories available to maintenance spare and work-order flows.",
             ),
             InventoryCatalogMetricViewModel(
                 label="Active items",

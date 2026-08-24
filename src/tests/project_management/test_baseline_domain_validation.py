@@ -10,7 +10,7 @@ from src.core.modules.project_management.domain.scheduling.baseline import (
     BaselineVarianceRecord,
     ProjectBaseline,
 )
-from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import NotFoundError, ValidationError
 
 
 def test_project_baseline_dto_normalizes_and_validates_lifecycle_metadata():
@@ -179,3 +179,42 @@ def test_baseline_service_uses_domain_normalization_for_create_and_reject_flow(s
     rejected = baseline_service.reject_baseline(created.id, notes="  Need one more review.  ")
     assert rejected.status == BaselineStatus.REJECTED
     assert rejected.notes == "Need one more review."
+
+
+def test_baseline_captures_explicit_milestone_as_immutable_snapshot(services):
+    project_service = services["project_service"]
+    task_service = services["task_service"]
+    baseline_service = services["baseline_service"]
+
+    project = project_service.create_project("Milestone Snapshot Proof")
+    task = task_service.create_task(
+        project.id,
+        "Release Gate",
+        start_date=date(2026, 8, 1),
+        duration_days=0,
+        is_milestone=True,
+    )
+    baseline = baseline_service.create_baseline(
+        project.id,
+        "Milestone Freeze",
+        rate_as_of=date.today(),
+    )
+
+    first_read = baseline_service.list_baseline_tasks(
+        baseline.id,
+        expected_project_id=project.id,
+    )
+    task_service.update_task(task.id, is_milestone=False, duration_days=0)
+    second_read = baseline_service.list_baseline_tasks(
+        baseline.id,
+        expected_project_id=project.id,
+    )
+
+    assert first_read[0].baseline_is_milestone is True
+    assert second_read[0].baseline_is_milestone is True
+
+    with pytest.raises(NotFoundError):
+        baseline_service.list_baseline_tasks(
+            baseline.id,
+            expected_project_id="another-project",
+        )

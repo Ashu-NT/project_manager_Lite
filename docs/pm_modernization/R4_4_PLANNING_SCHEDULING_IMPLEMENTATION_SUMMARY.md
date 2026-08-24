@@ -388,10 +388,9 @@ untouched files exceeding their line budgets, predates this session).
 
 ## 7. R4.4 exit-gate self-assessment
 
-This session's original 36-item exit gate text is not present in the
-current working context to check off verbatim, so this is a reasonable
-self-assessment against everything actually documented above, not a
-fabricated recreation of that checklist.
+This backend self-assessment is reconciled with the authoritative 35-item
+R4.4X/Y/Z QML and IA exit gate in
+`R4_4_PLANNING_QML_IMPLEMENTATION_SUMMARY.md` section 19.
 
 | Area | Status |
 |---|---|
@@ -417,18 +416,34 @@ fabricated recreation of that checklist.
 | Performance at 100/1,000/5,000 tasks | **PASS (after remediation)** — real DB+calendar: 0.023 s / 0.290 s / 1.589 s; classified INTERACTIVE (§4.6) |
 | Dead/duplicate leveling code removed | **PASS** — §6 |
 | Documentation | **PASS** — this document |
-| Full regression suite green (scheduling/leveling scope) | **PASS** — full `src/tests/project_management` run: 1,146 passed, 5 failed. All 5 failures are outside R4.4's scope: 1 pre-existing (`test_financial_desktop_forecast_delegation.py`, a Financials pagination-offset assertion, confirmed unrelated earlier this session) + 4 new (`test_project_finance_rate_cards.py`, Financials rate-card/resource-currency logic — confirmed via `git show --stat` that none of this session's commits touch resource-service, rate-card, or currency code; see note below). Every scheduling/leveling/dependency/constraint test is green. |
-| No ALAP / no R4.5 / no R5 / no scheduling-semantics redesign / no commits by the assistant | **PASS** — none occurred (the user's own workflow committed this session's changes; the assistant made none) |
+| Full regression suite green (scheduling/leveling scope) | **PASS** — 118 focused scheduling/leveling tests, 283 dependency/constraint/impact tests, and 3 benchmark tests pass. The broad PM run reconciles to 1,161 passing and one known unrelated Finance pagination-offset failure after 36 sandbox user-data write failures passed with workspace-local `APPDATA`. |
+| No ALAP / no R4.5 / no R5 / no scheduling-semantics redesign | **PASS** — none occurred |
+| Final QML/IA exit gate | **PASS** — the exact 35-item table is in `R4_4_PLANNING_QML_IMPLEMENTATION_SUMMARY.md` section 19 |
 
 **Overall: R4.4 CLOSED.**
 
-**Note on the 4 `test_project_finance_rate_cards.py` failures:** these are in the
-Financials/rate-card subsystem, untouched by any R4.4 work this session
-(verified: every commit made during this session — `572f4ad0`,
-`477563eb`, `3d025743`, `4fa6bd9e` — touches only scheduling/leveling
-files). They were not present in this session's first full-suite
-baseline (`1122 passed, 1 failed` — only the pagination issue). They
-appear to be a genuine, separate regression from concurrent Financials
-work outside this session's charter and are flagged for the user's
-attention rather than "fixed" blind by an agent with no context on
-that in-progress feature.
+## 8. R4.4X/Y/Z final reconciliation
+
+The final QML/IA validation pass confirms that the backend closure above and
+the Planning workspace closure agree:
+
+- the fabricated Gantt baseline placeholder has no live field or rendering;
+- all 15 live Scheduling QML files pass direct qmllint with no output;
+- the registered Planning route loads offscreen at 1024x640, 1280x720,
+  1366x768, 1440x900, and 1920x1080;
+- the stale qmllint test targets for deleted Scheduling section files were
+  replaced with discovery of every live Scheduling QML file;
+- the final benchmark is 0.034 s / 0.317 s / 1.660 s for
+  100 / 1,000 / 5,000 tasks;
+- two unrelated architecture guardrails remain (Portfolio parent-relative
+  import and stale Platform admin directory);
+- one unrelated broad PM failure remains in the Finance commitment
+  pagination-offset contract.
+
+The complete test matrix, cleanup list, 35-item exit gate, and exact R4.5
+handoff are maintained in
+`R4_4_PLANNING_QML_IMPLEMENTATION_SUMMARY.md` sections 16-20.
+
+This completion pass did not invoke `git commit`. HEAD advanced externally
+during validation to team commits `88086a4c` and `4e5600ee`; no history was
+rewritten or amended here.

@@ -47,7 +47,6 @@ AppWidgets.EntityDialog {
         categoryTypeCombo.currentIndex = root.indexForValue(root.formCategoryTypeOptions, state.categoryType || "")
         equipmentCheck.checked = state.isEquipment === true
         projectUsageCheck.checked = state.supportsProjectUsage === true
-        maintenanceUsageCheck.checked = state.supportsMaintenanceUsage === true
         activeCheck.checked = state.isActive !== false
         root.errorMessage = ""
     }
@@ -61,7 +60,6 @@ AppWidgets.EntityDialog {
             "categoryType": String(selectedType.value || ""),
             "isEquipment": equipmentCheck.checked,
             "supportsProjectUsage": projectUsageCheck.checked,
-            "supportsMaintenanceUsage": maintenanceUsageCheck.checked,
             "isActive": activeCheck.checked
         }
     }
@@ -134,6 +132,5 @@ AppWidgets.EntityDialog {
 
     AppControls.CheckBox { id: equipmentCheck; text: "Category represents equipment or reusable asset types" }
     AppControls.CheckBox { id: projectUsageCheck; text: "Available for project-management usage" }
-    AppControls.CheckBox { id: maintenanceUsageCheck; text: "Available for maintenance usage" }
     AppControls.CheckBox { id: activeCheck; text: "Category is active" }
 }

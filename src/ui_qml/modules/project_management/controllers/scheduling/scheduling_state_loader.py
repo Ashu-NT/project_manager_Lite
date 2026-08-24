@@ -4,29 +4,27 @@ import logging
 from time import perf_counter
 
 from src.ui_qml.modules.project_management.controllers.common import (
-    serialize_scheduling_detail_view_model,
     serialize_scheduling_overview_view_model,
     serialize_selector_options,
     serialize_workspace_view_model,
 )
 
 from .panel_hydrator import hydrate_visible_panel_models, serialize_workspace_panels
+from .gantt_selection import set_gantt_selection
+from .gantt_baseline_actions import (
+    clear_gantt_baseline,
+    restore_gantt_baseline_after_workspace,
+)
+from .gantt_view_state import refresh_local_gantt_view
 from .state import default_schedule_impact
 from .scheduling_property_updates import (
-    set_activity_page,
-    set_activity_page_size,
     set_activity_sort_direction,
     set_activity_sort_key,
-    set_activity_total_count,
     set_baseline_options,
     set_calendar_options,
-    set_dependency_task_options,
-    set_dependency_type_options,
     set_overview,
     set_project_options,
     set_search_text,
-    set_selected_activity,
-    set_selected_activity_id,
     set_selected_baseline_id,
     set_selected_calendar_id,
     set_selected_project_id,
@@ -43,14 +41,14 @@ def load_workspace_state(controller) -> None:
     started = perf_counter()
     logger.info(
         "PM scheduling refresh begin project=%s calendar=%s baseline=%s panel=%s "
-        "status_filter=%s search=%s page=%s page_size=%s critical_only=%s delayed_only=%s",
+        "status_filter=%s search=%s critical_only=%s delayed_only=%s",
         controller._selected_project_id, controller._selected_calendar_id,
         controller._selected_baseline_id, controller._active_panel_id,
         controller._selected_status_filter, controller._search_text,
-        controller._activity_page, controller._activity_page_size,
         controller._show_critical_only, controller._show_delayed_only,
     )
     controller._set_is_loading(True)
+    clear_gantt_baseline(controller, clear_selection=False)
     success = False
     # Any full workspace reload can shift schedule dates (recalculation,
     # leveling apply, baseline/calendar/project change) -- a previously
@@ -75,8 +73,6 @@ def load_workspace_state(controller) -> None:
             search_text=controller._search_text,
             show_critical_only=controller._show_critical_only,
             show_delayed_only=controller._show_delayed_only,
-            page=controller._activity_page,
-            page_size=controller._activity_page_size,
             sort_key=controller._activity_sort_key,
             sort_direction="desc" if controller._activity_sort_direction else "asc",
             selected_activity_id=controller._selected_activity_id or None,
@@ -87,12 +83,6 @@ def load_workspace_state(controller) -> None:
         set_project_options(controller, serialize_selector_options(ws.project_options))
         set_calendar_options(controller, serialize_selector_options(ws.calendar_options))
         set_baseline_options(controller, serialize_selector_options(ws.baseline_options))
-        set_dependency_type_options(
-            controller, serialize_selector_options(ws.dependency_type_options)
-        )
-        set_dependency_task_options(
-            controller, serialize_selector_options(ws.dependency_task_options)
-        )
         set_status_options(controller, serialize_selector_options(ws.status_options))
         set_selected_project_id(controller, ws.selected_project_id)
         set_selected_calendar_id(controller, ws.selected_calendar_id)
@@ -101,21 +91,15 @@ def load_workspace_state(controller) -> None:
         set_search_text(controller, ws.search_text)
         set_show_critical_only(controller, ws.show_critical_only)
         set_show_delayed_only(controller, ws.show_delayed_only)
-        set_activity_page(controller, ws.page)
-        set_activity_page_size(controller, ws.page_size)
-        set_activity_total_count(controller, ws.total_count)
         set_activity_sort_key(controller, ws.sort_key)
         set_activity_sort_direction(controller, 1 if ws.sort_direction == "desc" else 0)
-        set_selected_activity_id(controller, ws.selected_activity_id)
+        controller._gantt_model.set_projection(ws.gantt_projection)
+        controller._gantt_time_axis.set_projection(ws.gantt_projection)
+        restore_gantt_baseline_after_workspace(controller)
         panels = serialize_workspace_panels(ws)
         hydrate_visible_panel_models(controller, panels)
-        set_selected_activity(
-            controller,
-            serialize_scheduling_detail_view_model(ws.selected_activity_detail),
-        )
-        controller._set_empty_state(
-            ws.schedule.empty_state or ws.selected_activity_detail.empty_state
-        )
+        refresh_local_gantt_view(controller)
+        set_gantt_selection(controller, ws.selected_activity_id)
         success = True
     except Exception as exc:  # pragma: no cover - defensive fallback
         logger.exception("PM scheduling refresh failed")
@@ -125,10 +109,9 @@ def load_workspace_state(controller) -> None:
         log_method = logger.warning if duration_ms > 500 else logger.info
         log_method(
             "PM scheduling refresh complete success=%s duration_ms=%.1f project=%s panel=%s "
-            "schedule_rows=%s total_count=%s diagnostics_rows=%s delayed_rows=%s resource_rows=%s",
+            "gantt_rows=%s diagnostics_rows=%s delayed_rows=%s resource_rows=%s",
             success, duration_ms, controller._selected_project_id, controller._active_panel_id,
-            len(controller._schedule.get("items", []) or []),
-            controller._activity_total_count,
+            controller._gantt_model.rowCountValue,
             len(controller._diagnostics.get("items", []) or []),
             len(controller._delayed_activity_rows or []),
             len(controller._resource_loading.get("items", []) or []),

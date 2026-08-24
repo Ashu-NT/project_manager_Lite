@@ -24,8 +24,6 @@ def matches_usage(category, usage_filter: str) -> bool:
         return bool(category.is_equipment)
     if usage_filter == "projects":
         return bool(category.supports_project_usage)
-    if usage_filter == "maintenance":
-        return bool(category.supports_maintenance_usage)
     return True
 
 
@@ -82,7 +80,7 @@ def normalize_active_filter(active_filter: str) -> str:
 
 def normalize_usage_filter(usage_filter: str) -> str:
     normalized_value = (usage_filter or "all").strip().lower()
-    if normalized_value in {"all", "equipment", "projects", "maintenance"}:
+    if normalized_value in {"all", "equipment", "projects"}:
         return normalized_value
     return "all"
 

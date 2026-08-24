@@ -1135,33 +1135,39 @@ def _engine_with_fk_enforcement(url: str):
     return engine
 
 
-def test_migration_creates_budget_tables_with_rls_and_cascades_line_delete(tmp_path) -> None:
+def test_fresh_baseline_creates_budget_tables_and_cascades_line_delete(tmp_path) -> None:
     database_path = tmp_path / "budget-migration.db"
     config = _alembic_config(database_path)
-    command.upgrade(config, "l0m1n2o3p4q5")
+    command.upgrade(config, "head")
     engine = _engine_with_fk_enforcement(config.get_main_option("sqlalchemy.url"))
 
     with engine.begin() as connection:
-        tenant_id, organization_id = connection.execute(
+        tenant_id = "migration-tenant"
+        organization_id = "migration-organization"
+        connection.execute(
             sa.text(
-                "SELECT o.tenant_id, o.id FROM organizations o "
-                "WHERE o.tenant_id IS NOT NULL ORDER BY o.id LIMIT 1"
-            )
-        ).one()
-        project_id = connection.execute(
+                "INSERT INTO tenants (id, tenant_code, display_name) VALUES "
+                "(:tenant_id, 'MIGRATION-TENANT', 'Migration Tenant')"
+            ),
+            {"tenant_id": tenant_id},
+        )
+        connection.execute(
             sa.text(
-                "INSERT INTO projects (id, tenant_id, organization_id, name, description, "
-                "status, planned_budget, currency, version) VALUES "
-                "('migration-project', :tenant_id, :organization_id, 'Migration Project', '', "
-                "'ACTIVE', 0.0, 'USD', 1) RETURNING id"
+                "INSERT INTO organizations "
+                "(id, tenant_id, organization_code, display_name) VALUES "
+                "(:organization_id, :tenant_id, 'MIGRATION-ORG', 'Migration Organization')"
             ),
             {"tenant_id": tenant_id, "organization_id": organization_id},
-        ).scalar_one_or_none()
-    engine.dispose()
-
-    command.upgrade(config, "m1n2o3p4q5r6")
-    engine = _engine_with_fk_enforcement(config.get_main_option("sqlalchemy.url"))
-    with engine.begin() as connection:
+        )
+        connection.execute(
+            sa.text(
+                "INSERT INTO projects (id, tenant_id, organization_id, name, description, "
+                "status, version) VALUES "
+                "('migration-project', :tenant_id, :organization_id, 'Migration Project', '', "
+                "'ACTIVE', 1)"
+            ),
+            {"tenant_id": tenant_id, "organization_id": organization_id},
+        )
         tables = {
             row[0]
             for row in connection.execute(
@@ -1219,7 +1225,7 @@ def test_migration_creates_budget_tables_with_rls_and_cascades_line_delete(tmp_p
         assert line_count_after == 0
     engine.dispose()
 
-    command.downgrade(config, "l0m1n2o3p4q5")
+    command.downgrade(config, "base")
     engine = _engine_with_fk_enforcement(config.get_main_option("sqlalchemy.url"))
     with engine.connect() as connection:
         tables = {

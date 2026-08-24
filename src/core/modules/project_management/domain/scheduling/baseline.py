@@ -282,6 +282,7 @@ class BaselineTask:
     baseline_start: date | None
     baseline_finish: date | None
     baseline_duration_days: int
+    baseline_is_milestone: bool = False
     baseline_planned_cost: Decimal = Decimal("0")
 
     @field_validator("id", mode="before")
@@ -330,6 +331,11 @@ class BaselineTask:
             code="BASELINE_TASK_DURATION_INVALID",
         )
 
+    @field_validator("baseline_is_milestone", mode="before")
+    @classmethod
+    def _validate_is_milestone(cls, value: object) -> bool:
+        return bool(value)
+
     @field_validator("baseline_planned_cost", mode="before")
     @classmethod
     def _validate_planned_cost(cls, value: object) -> Decimal:
@@ -361,6 +367,7 @@ class BaselineTask:
         baseline_finish: date | None,
         baseline_duration_days: int,
         baseline_planned_cost: Decimal,
+        baseline_is_milestone: bool = False,
     ) -> "BaselineTask":
         return BaselineTask(
             id=generate_id(),
@@ -370,6 +377,7 @@ class BaselineTask:
             baseline_start=baseline_start,
             baseline_finish=baseline_finish,
             baseline_duration_days=baseline_duration_days,
+            baseline_is_milestone=baseline_is_milestone,
             baseline_planned_cost=baseline_planned_cost,
         )
 

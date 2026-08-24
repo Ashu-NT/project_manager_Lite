@@ -2,6 +2,10 @@
 
 > **Status:** Living document — reflects codebase as of 2026-06-17 (branch `refactor/safe-start`).
 > Sections 1–10 cover the current state; later sections (not yet written) will cover the target state.
+>
+> **Scope correction (2026-08-20):** Maintenance is no longer a current product module. Any
+> Maintenance roles, permissions, services, QML, or tables described below are historical audit
+> or retained migration-schema context, not current runtime composition.
 
 ---
 

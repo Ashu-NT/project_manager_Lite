@@ -17,11 +17,34 @@ Component {
     Property { name: "dashboardWorkspace"; type: "ProjectManagementDashboardWorkspaceController"; isReadonly: true }
     Property { name: "timesheetsWorkspace"; type: "ProjectManagementTimesheetsWorkspaceController"; isReadonly: true }
     Property { name: "pmCapabilityController"; type: "PMCapabilityController"; isReadonly: true }
+    Property { name: "pmNavigation"; type: "PMWorkspaceNavigationController"; isReadonly: true }
     Method { name: "workspace"; type: "QVariantMap"; Parameter { name: "routeId"; type: "QString" } }
     Method { name: "dashboardOverview"; type: "QVariantMap" }
     Method { name: "isModuleEnabled"; type: "bool"; Parameter { name: "moduleCode"; type: "QString" } }
     Method { name: "hasCapability"; type: "bool"; Parameter { name: "capabilityId"; type: "QString" } }
     Method { name: "canUseIntegration"; type: "bool"; Parameter { name: "sourceModule"; type: "QString" } Parameter { name: "targetModule"; type: "QString" } Parameter { name: "capability"; type: "QString" } }
+}
+
+Component {
+    name: "PMWorkspaceNavigationController"
+    accessSemantics: "reference"
+    prototype: "QObject"
+    exports: ["ProjectManagement.Controllers/PMWorkspaceNavigationController 1.0"]
+    isCreatable: false
+    Property { name: "workspaceKey"; type: "QString"; isReadonly: true }
+    Property { name: "destinationId"; type: "QString"; isReadonly: true }
+    Property { name: "secondaryId"; type: "QString"; isReadonly: true }
+    Property { name: "routeState"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "navigationItems"; type: "QVariantList"; isReadonly: true }
+    Method { name: "applyRoute"; type: "bool"; Parameter { name: "routeId"; type: "QString" } }
+    Method { name: "selectWorkspace"; type: "bool"; Parameter { name: "workspaceKey"; type: "QString" } }
+    Method {
+        name: "openEntity"
+        type: "bool"
+        Parameter { name: "workspaceKey"; type: "QString" }
+        Parameter { name: "entityId"; type: "QString" }
+        Parameter { name: "sectionId"; type: "QString" }
+    }
 }
 
 Component {
@@ -364,6 +387,9 @@ Component {
     exports: ["ProjectManagement.Controllers/ProjectManagementResourcesWorkspaceController 1.0"]
     Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
     Property { name: "workerTypeOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "kindOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "departmentOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "siteOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "categoryOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "employeeOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "selectedActiveFilter"; type: "QString"; isReadonly: true }
@@ -371,19 +397,128 @@ Component {
     Property { name: "searchText"; type: "QString"; isReadonly: true }
     Property { name: "resources"; type: "QVariantMap"; isReadonly: true }
     Property { name: "selectedResource"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "resourceInspector"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "inspectorLoading"; type: "bool"; isReadonly: true }
+    Property { name: "inspectorError"; type: "QString"; isReadonly: true }
+    Property { name: "detailLoading"; type: "bool"; isReadonly: true }
+    Property { name: "detailError"; type: "QString"; isReadonly: true }
     Property { name: "selectedResourceId"; type: "QString"; isReadonly: true }
+    Property { name: "resourcesTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "resourceSkillsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "resourceCertificationsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "resourcePage"; type: "int"; isReadonly: true }
+    Property { name: "resourcePageSize"; type: "int"; isReadonly: true }
+    Property { name: "resourceTotalCount"; type: "int"; isReadonly: true }
+    Property { name: "resourceSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "resourceSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "resourceSkills"; type: "QVariantList"; isReadonly: true }
+    Property { name: "resourceCertifications"; type: "QVariantList"; isReadonly: true }
+    Property { name: "resourceProjects"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "resourceProjectsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "resourceProjectsLoading"; type: "bool"; isReadonly: true }
+    Property { name: "resourceProjectsSearch"; type: "QString"; isReadonly: true }
+    Property { name: "resourceProjectsPage"; type: "int"; isReadonly: true }
+    Property { name: "resourceProjectsPageSize"; type: "int"; isReadonly: true }
+    Property { name: "resourceProjectsTotal"; type: "int"; isReadonly: true }
+    Property { name: "resourceProjectsSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "resourceProjectsSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "resourceAssignments"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "resourceAssignmentsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "resourceAssignmentsLoading"; type: "bool"; isReadonly: true }
+    Property { name: "resourceAssignmentsSearch"; type: "QString"; isReadonly: true }
+    Property { name: "resourceAssignmentsPage"; type: "int"; isReadonly: true }
+    Property { name: "resourceAssignmentsPageSize"; type: "int"; isReadonly: true }
+    Property { name: "resourceAssignmentsTotal"; type: "int"; isReadonly: true }
+    Property { name: "resourceAssignmentsSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "resourceAssignmentsSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "resourceActivity"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "resourceActivityLoading"; type: "bool"; isReadonly: true }
+    Property { name: "resourceActivityPage"; type: "int"; isReadonly: true }
+    Property { name: "resourceActivityPageSize"; type: "int"; isReadonly: true }
+    Property { name: "resourceActivityTotal"; type: "int"; isReadonly: true }
     Method { name: "refresh" }
     Method { name: "exportResources" }
     Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
     Method { name: "setActiveFilter"; Parameter { name: "activeFilter"; type: "QString" } }
     Method { name: "setCategoryFilter"; Parameter { name: "categoryFilter"; type: "QString" } }
     Method { name: "selectResource"; Parameter { name: "resourceId"; type: "QString" } }
+    Method { name: "activateResource"; type: "bool"; Parameter { name: "resourceId"; type: "QString" } }
+    Method { name: "loadResourceInspector"; Parameter { name: "resourceId"; type: "QString" } }
+    Method { name: "loadResourceDetail"; type: "bool"; Parameter { name: "resourceId"; type: "QString" } }
+    Method { name: "loadSkillsAndCerts"; Parameter { name: "resourceId"; type: "QString" } }
+    Method { name: "loadResourceProjects" }
+    Method { name: "loadResourceAssignments" }
+    Method { name: "loadResourceActivity" }
+    Method { name: "refreshResourceProjects" }
+    Method { name: "refreshResourceAssignments" }
+    Method { name: "refreshResourceActivity" }
+    Method { name: "setResourcePage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setResourcePageSize"; Parameter { name: "pageSize"; type: "int" } }
+    Method { name: "setResourceSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
+    Method { name: "setResourceProjectsSearch"; Parameter { name: "value"; type: "QString" } }
+    Method { name: "setResourceProjectsActive"; Parameter { name: "value"; type: "QString" } }
+    Method { name: "setResourceProjectsStatus"; Parameter { name: "value"; type: "QString" } }
+    Method { name: "setResourceProjectsPage"; Parameter { name: "value"; type: "int" } }
+    Method { name: "setResourceProjectsPageSize"; Parameter { name: "value"; type: "int" } }
+    Method { name: "setResourceProjectsSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setResourceAssignmentsSearch"; Parameter { name: "value"; type: "QString" } }
+    Method { name: "setResourceAssignmentsFilters"; Parameter { name: "lifecycle"; type: "QString" } Parameter { name: "taskStatus"; type: "QString" } Parameter { name: "assignmentStatus"; type: "QString" } }
+    Method { name: "setResourceAssignmentsDateRange"; Parameter { name: "startDate"; type: "QString" } Parameter { name: "endDate"; type: "QString" } }
+    Method { name: "setResourceAssignmentsPage"; Parameter { name: "value"; type: "int" } }
+    Method { name: "setResourceAssignmentsPageSize"; Parameter { name: "value"; type: "int" } }
+    Method { name: "setResourceAssignmentsSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setResourceActivityCategory"; Parameter { name: "value"; type: "QString" } }
+    Method { name: "setResourceActivityDateRange"; Parameter { name: "startDate"; type: "QString" } Parameter { name: "endDate"; type: "QString" } }
+    Method { name: "setResourceActivityPage"; Parameter { name: "value"; type: "int" } }
+    Method { name: "setResourceActivityPageSize"; Parameter { name: "value"; type: "int" } }
+    Method { name: "addSkill"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "removeSkill"; type: "QVariantMap"; Parameter { name: "skillId"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }
+    Method { name: "addCertification"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "removeCertification"; type: "QVariantMap"; Parameter { name: "certificationId"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }
     Method { name: "createResource"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "updateResource"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
-    Method { name: "toggleResourceActive"; type: "QVariantMap"; Parameter { name: "resourceId"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }
-    Method { name: "deleteResource"; type: "QVariantMap"; Parameter { name: "resourceId"; type: "QString" } }
+    Method { name: "deactivateResource"; type: "QVariantMap"; Parameter { name: "resourceId"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }
+    Method { name: "reactivateResource"; type: "QVariantMap"; Parameter { name: "resourceId"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }
 }
 
+
+Component {
+    name: "GanttTimeAxisController"
+    accessSemantics: "reference"
+    prototype: "QObject"
+    exports: ["ProjectManagement.Controllers/GanttTimeAxisController 1.0"]
+    isCreatable: false
+    Property { name: "timescale"; type: "QString"; isReadonly: true }
+    Property { name: "timescaleOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "zoomLevels"; type: "QVariantList"; isReadonly: true }
+    Property { name: "zoomIndex"; type: "int"; isReadonly: true }
+    Property { name: "zoomMultiplier"; type: "double"; isReadonly: true }
+    Property { name: "canZoomIn"; type: "bool"; isReadonly: true }
+    Property { name: "canZoomOut"; type: "bool"; isReadonly: true }
+    Property { name: "canResetZoom"; type: "bool"; isReadonly: true }
+    Property { name: "hasRange"; type: "bool"; isReadonly: true }
+    Property { name: "baseRangeStartDay"; type: "int"; isReadonly: true }
+    Property { name: "baseRangeFinishDay"; type: "int"; isReadonly: true }
+    Property { name: "rangeStartDay"; type: "int"; isReadonly: true }
+    Property { name: "rangeFinishDay"; type: "int"; isReadonly: true }
+    Property { name: "rangeDayCount"; type: "int"; isReadonly: true }
+    Property { name: "pixelsPerDay"; type: "double"; isReadonly: true }
+    Property { name: "contentWidth"; type: "double"; isReadonly: true }
+    Property { name: "rangeWarning"; type: "QString"; isReadonly: true }
+    Property { name: "majorTicks"; type: "QVariantList"; isReadonly: true }
+    Property { name: "minorTicks"; type: "QVariantList"; isReadonly: true }
+    Property { name: "calendarShadingAuthoritative"; type: "bool"; isReadonly: true }
+    Property { name: "visibleNonWorkingIntervals"; type: "QVariantList"; isReadonly: true }
+    Property { name: "todayDay"; type: "int"; isReadonly: true }
+    Property { name: "todayAvailable"; type: "bool"; isReadonly: true }
+    Property { name: "todayUnavailableReason"; type: "QString"; isReadonly: true }
+    Method { name: "setTimescale"; type: "bool"; Parameter { name: "timescale"; type: "QString" } }
+    Method { name: "restoreConfiguration"; type: "bool"; Parameter { name: "timescale"; type: "QString" } Parameter { name: "zoomMultiplier"; type: "double" } }
+    Method { name: "zoomIn"; type: "bool" }
+    Method { name: "zoomOut"; type: "bool" }
+    Method { name: "resetZoom"; type: "bool" }
+    Method { name: "updateViewport"; Parameter { name: "contentX"; type: "double" } Parameter { name: "viewportWidth"; type: "double" } }
+}
 
 Component {
     name: "ProjectManagementSchedulingWorkspaceController"
@@ -394,8 +529,6 @@ Component {
     Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "calendarOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "baselineOptions"; type: "QVariantList"; isReadonly: true }
-    Property { name: "dependencyTypeOptions"; type: "QVariantList"; isReadonly: true }
-    Property { name: "dependencyTaskOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "statusOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
     Property { name: "selectedCalendarId"; type: "QString"; isReadonly: true }
@@ -404,34 +537,32 @@ Component {
     Property { name: "searchText"; type: "QString"; isReadonly: true }
     Property { name: "showCriticalOnly"; type: "bool"; isReadonly: true }
     Property { name: "showDelayedOnly"; type: "bool"; isReadonly: true }
-    Property { name: "activityPage"; type: "int"; isReadonly: true }
-    Property { name: "activityPageSize"; type: "int"; isReadonly: true }
-    Property { name: "activityTotalCount"; type: "int"; isReadonly: true }
+    Property { name: "showDependencyLines"; type: "bool"; isReadonly: true }
+    Property { name: "highlightCriticalTasks"; type: "bool"; isReadonly: true }
+    Property { name: "ganttSelectedBaselineId"; type: "QString"; isReadonly: true }
+    Property { name: "ganttBaselineLoading"; type: "bool"; isReadonly: true }
+    Property { name: "ganttBaselineError"; type: "QString"; isReadonly: true }
+    Property { name: "ganttRequestedViewMode"; type: "QString"; isReadonly: true }
+    Property { name: "ganttSplitRatio"; type: "double"; isReadonly: true }
     Property { name: "selectedActivityId"; type: "QString"; isReadonly: true }
     Property { name: "calendar"; type: "QVariantMap"; isReadonly: true }
     Property { name: "baselines"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "schedule"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "timeline"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "criticalPath"; type: "QVariantMap"; isReadonly: true }
     Property { name: "diagnostics"; type: "QVariantMap"; isReadonly: true }
     Property { name: "delayedActivities"; type: "QVariantMap"; isReadonly: true }
     Property { name: "resourceLoading"; type: "QVariantMap"; isReadonly: true }
     Property { name: "baselineRegister"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "dependencies"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "constraints"; type: "QVariantMap"; isReadonly: true }
     Property { name: "activityFeed"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "scheduleRows"; type: "QVariantList"; isReadonly: true }
     Property { name: "diagnosticsRows"; type: "QVariantList"; isReadonly: true }
     Property { name: "delayedActivityRows"; type: "QVariantList"; isReadonly: true }
     Property { name: "resourceLoadingRows"; type: "QVariantList"; isReadonly: true }
     Property { name: "baselineCompareRows"; type: "QVariantList"; isReadonly: true }
     Property { name: "baselineRegisterRows"; type: "QVariantList"; isReadonly: true }
-    Property { name: "dependencyRows"; type: "QVariantList"; isReadonly: true }
-    Property { name: "constraintRows"; type: "QVariantList"; isReadonly: true }
     Property { name: "calendarSummaryRows"; type: "QVariantList"; isReadonly: true }
     Property { name: "holidayRows"; type: "QVariantList"; isReadonly: true }
     Property { name: "selectedActivity"; type: "QVariantMap"; isReadonly: true }
     Property { name: "calculatorResult"; type: "QString"; isReadonly: true }
+    Property { name: "ganttRowsModel"; type: "QObject"; isReadonly: true }
+    Property { name: "ganttTimeAxis"; type: "GanttTimeAxisController"; isReadonly: true }
     Method { name: "refresh" }
     Method { name: "selectProject"; Parameter { name: "projectId"; type: "QString" } }
     Method { name: "selectCalendar"; Parameter { name: "calendarId"; type: "QString" } }
@@ -443,18 +574,21 @@ Component {
     Method { name: "setStatusFilter"; Parameter { name: "statusFilter"; type: "QString" } }
     Method { name: "setShowCriticalOnly"; Parameter { name: "enabled"; type: "bool" } }
     Method { name: "setShowDelayedOnly"; Parameter { name: "enabled"; type: "bool" } }
+    Method { name: "setShowDependencyLines"; Parameter { name: "enabled"; type: "bool" } }
+    Method { name: "setHighlightCriticalTasks"; Parameter { name: "enabled"; type: "bool" } }
+    Method { name: "setGanttRequestedViewMode"; Parameter { name: "viewMode"; type: "QString" } }
+    Method { name: "setGanttSplitRatio"; Parameter { name: "ratio"; type: "double" } }
+    Method { name: "setGanttTimescale"; type: "bool"; Parameter { name: "timescale"; type: "QString" } }
+    Method { name: "ganttZoomIn"; type: "bool" }
+    Method { name: "ganttZoomOut"; type: "bool" }
+    Method { name: "resetGanttZoom"; type: "bool" }
+    Method { name: "selectGanttBaseline"; Parameter { name: "baselineId"; type: "QString" } }
     Method { name: "setActivePanel"; Parameter { name: "panelId"; type: "QString" } }
     Method { name: "clearFilters" }
     Method { name: "selectActivity"; Parameter { name: "activityId"; type: "QString" } }
-    Method { name: "activateActivity"; Parameter { name: "activityId"; type: "QString" } }
-    Method { name: "setActivityPage"; Parameter { name: "page"; type: "int" } }
-    Method { name: "setActivityPageSize"; Parameter { name: "pageSize"; type: "int" } }
     Method { name: "createBaseline"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "deleteBaseline"; type: "QVariantMap"; Parameter { name: "baselineId"; type: "QString" } }
     Method { name: "recalculateSchedule"; type: "QVariantMap" }
-    Method { name: "createDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
-    Method { name: "updateDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
-    Method { name: "deleteDependency"; type: "QVariantMap"; Parameter { name: "dependencyId"; type: "QString" } }
     Method { name: "calculateWorkingDays"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
 }
 
@@ -470,6 +604,19 @@ Component {
     Method { name: "declineAssignment"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "loadProjectResourceUsage"; Parameter { name: "projectResourceId"; type: "QString" } }
     Method { name: "clearProjectResourceUsage" }
+}
+
+Component {
+    name: "PMDependencyController"
+    accessSemantics: "reference"
+    prototype: "QObject"
+    Property { name: "dependencyTaskOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "dependencyTypeOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "dependencies"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "dependenciesTableModel"; type: "QObject"; isReadonly: true }
+    Method { name: "previewCreateDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "previewUpdateDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "previewDeleteDependency"; type: "QVariantMap"; Parameter { name: "dependencyId"; type: "QString" } }
 }
 
 
@@ -493,6 +640,7 @@ Component {
     Property { name: "searchText"; type: "QString"; isReadonly: true }
     Property { name: "tasks"; type: "QVariantMap"; isReadonly: true }
     Property { name: "selectedTask"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "wbsParentOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "selectedTaskId"; type: "QString"; isReadonly: true }
     Property { name: "selectedTaskIds"; type: "QVariantList"; isReadonly: true }
     Property { name: "selectedTaskCount"; type: "int"; isReadonly: true }
@@ -509,6 +657,7 @@ Component {
     Property { name: "assignmentPreview"; type: "QVariantMap"; isReadonly: true }
     Property { name: "assignmentsTableModel"; type: "QObject"; isReadonly: true }
     Property { name: "assignmentsController"; type: "PMAssignmentController"; isReadonly: true }
+    Property { name: "dependenciesController"; type: "PMDependencyController"; isReadonly: true }
     Property { name: "dependencies"; type: "QVariantMap"; isReadonly: true }
     Property { name: "dependenciesTableModel"; type: "QObject"; isReadonly: true }
     Property { name: "timeAssignmentOptions"; type: "QVariantList"; isReadonly: true }
@@ -583,6 +732,7 @@ Component {
     Method { name: "loadSelectedTaskDependencies" }
     Method { name: "loadSelectedTaskTime"}
     Method { name: "loadSelectedTaskCollaboration"}
+    Method { name: "previewTaskScheduleImpact"; type: "QVariantMap"; Parameter { name: "delayWorkingDays"; type: "int" } }
     Method { name: "setTaskReviewActive"; Parameter { name: "active"; type: "bool" } }
     Method { name: "markTaskCollaborationRead"; type: "QVariantMap"; Parameter { name: "taskId"; type: "QString" } }
 }

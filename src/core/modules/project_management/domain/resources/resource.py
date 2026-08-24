@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 
-from src.core.modules.project_management.domain.enums import CostType, WorkerType
+from src.core.modules.project_management.domain.enums import CostType, ResourceKind, WorkerType
 from src.core.modules.project_management.domain.identifiers import generate_id
 from src.core.platform.common.exceptions import ValidationError
 from src.core.platform.common.pydantic import (
@@ -20,6 +20,7 @@ from src.core.platform.finance.money.currency import CurrencyCode
 class Resource:
     id: str
     name: str
+    kind: ResourceKind = ResourceKind.PERSON
     code: str = ""
     role: str = ""
     hourly_rate: Decimal = Decimal("0")
@@ -34,6 +35,7 @@ class Resource:
     employee_id: str | None = None
     organization_id: str | None = None
     department_id: str | None = None
+    site_id: str | None = None
 
     @field_validator("name", mode="before")
     @classmethod
@@ -49,7 +51,7 @@ class Resource:
     def _normalize_text_fields(cls, value: object) -> str:
         return normalize_optional_text(value)
 
-    @field_validator("employee_id", "organization_id", "department_id", mode="before")
+    @field_validator("employee_id", "organization_id", "department_id", "site_id", mode="before")
     @classmethod
     def _normalize_identifier_fields(cls, value: object) -> str | None:
         return normalize_optional_identifier(value)
@@ -126,9 +128,60 @@ class Resource:
                 code="RESOURCE_WORKER_TYPE_INVALID",
             ) from exc
 
+    @field_validator("kind", mode="before")
+    @classmethod
+    def _validate_kind(cls, value: object) -> ResourceKind:
+        if isinstance(value, ResourceKind):
+            return value
+        raw = normalize_optional_text(value).upper() or ResourceKind.PERSON.value
+        try:
+            return ResourceKind(raw)
+        except ValueError as exc:
+            raise ValidationError(
+                "Resource kind is invalid.",
+                code="RESOURCE_KIND_INVALID",
+            ) from exc
+
+    @field_validator("version", mode="before")
+    @classmethod
+    def _validate_version(cls, value: object) -> int:
+        resolved = int(value if value not in (None, "") else 1)
+        if resolved < 1:
+            raise ValidationError(
+                "Resource version must be positive.",
+                code="RESOURCE_VERSION_INVALID",
+            )
+        return resolved
+
+    @model_validator(mode="after")
+    def _validate_kind_context(self) -> "Resource":
+        if self.kind != ResourceKind.PERSON:
+            if self.employee_id:
+                raise ValidationError(
+                    "Crew and equipment resources cannot link to an employee.",
+                    code="RESOURCE_KIND_EMPLOYEE_INVALID",
+                )
+            if self.worker_type == WorkerType.EMPLOYEE:
+                raise ValidationError(
+                    "Crew and equipment resources cannot use employee engagement.",
+                    code="RESOURCE_KIND_WORKER_TYPE_INVALID",
+                )
+        elif self.worker_type == WorkerType.EMPLOYEE and not self.employee_id:
+            raise ValidationError(
+                "An employee Resource requires an employee selection.",
+                code="RESOURCE_EMPLOYEE_REQUIRED",
+            )
+        elif self.worker_type != WorkerType.EMPLOYEE and self.employee_id:
+            raise ValidationError(
+                "Only an employee-engaged person Resource may link to an employee.",
+                code="RESOURCE_EMPLOYEE_LINK_INVALID",
+            )
+        return self
+
     @staticmethod
     def create(
         name: str,
+        kind: ResourceKind | str = ResourceKind.PERSON,
         role: str = "",
         hourly_rate: Decimal | int | str = Decimal("0"),
         is_active: bool = True,
@@ -142,10 +195,12 @@ class Resource:
         code: str = "",
         organization_id: str | None = None,
         department_id: str | None = None,
+        site_id: str | None = None,
     ) -> "Resource":
         return Resource(
             id=generate_id(),
             name=name,
+            kind=kind,
             code=code,
             role=role,
             hourly_rate=hourly_rate,
@@ -159,6 +214,7 @@ class Resource:
             employee_id=employee_id,
             organization_id=organization_id,
             department_id=department_id,
+            site_id=site_id,
         )
 
 

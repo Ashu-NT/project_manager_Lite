@@ -3,7 +3,6 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Qt, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.core.platform.finance.money.currency import ISO_4217_MINOR_UNITS
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
@@ -13,6 +12,10 @@ from src.ui_qml.modules.project_management.controllers.common import (
     serialize_project_record_view_models,
     serialize_selector_options,
     serialize_workspace_view_model,
+)
+from src.ui_qml.shared.models.currency_options import (
+    CURRENCY_OPTIONS,
+    DEFAULT_CURRENCY_CODE,
 )
 from src.ui_qml.modules.project_management.presenters import (
     ProjectManagementWorkspacePresenter,
@@ -52,6 +55,7 @@ from .project_lazy_section_loader import (
     load_project_resources,
     load_project_risks,
     load_project_tasks,
+    update_project_detail_query,
 )
 from .project_resource_handler import (
     assign_project_resource,
@@ -73,15 +77,6 @@ from .project_import_handler import cancel_import, execute_import, preview_impor
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
-
-_CURRENCY_OPTIONS: list[dict[str, str]] = [
-    {"value": code, "label": code}
-    for code in sorted(
-        code for code, minor_units in ISO_4217_MINOR_UNITS.items() if minor_units is not None
-    )
-]
-DEFAULT_CURRENCY_CODE = "XAF"
-
 
 @QmlElement
 @QmlUncreatable("Project management workspace controllers are provided by the shell runtime.")
@@ -178,6 +173,15 @@ class ProjectManagementProjectsWorkspaceController(
         self._project_resources: dict[str, object] = default_lazy_section("Resources", "resources")
         self._project_risks: dict[str, object] = default_lazy_section("Risks", "risks")
         self._project_activity: dict[str, object] = default_lazy_section("Activity", "activity")
+        self._project_tasks.update({"searchText": "", "status": "all", "schedule": "all",
+                                    "page": 1, "pageSize": 25, "total": 0,
+                                    "sortKey": "wbsCode", "sortDirection": "asc"})
+        self._project_resources.update({"searchText": "", "active": "all", "page": 1,
+                                        "pageSize": 25, "total": 0,
+                                        "sortKey": "resourceName", "sortDirection": "asc"})
+        self._project_activity.update({"searchText": "", "category": "all", "page": 1,
+                                       "pageSize": 25, "total": 0,
+                                       "sortKey": "occurredAt", "sortDirection": "desc"})
 
         self._project_tasks_loaded_for_project_id = ""
         self._project_resources_loaded_for_project_id = ""
@@ -221,7 +225,7 @@ class ProjectManagementProjectsWorkspaceController(
 
     @Property("QVariantList", constant=True)
     def currencyOptions(self) -> list[dict[str, str]]:
-        return _CURRENCY_OPTIONS
+        return CURRENCY_OPTIONS
 
     @Property(str, constant=True)
     def defaultCurrencyCode(self) -> str:
@@ -339,6 +343,10 @@ class ProjectManagementProjectsWorkspaceController(
     def projectActivity(self) -> dict[str, object]:
         return self._project_activity
 
+    @Property(QObject, constant=True)
+    def projectActivityTableModel(self) -> DynamicTableModel:
+        return self._table_models.project_activity
+
     @Property("QVariantMap", notify=importPreviewChanged)
     def importPreview(self) -> dict[str, object]:
         return self._import_preview
@@ -425,6 +433,7 @@ class ProjectManagementProjectsWorkspaceController(
                     "title": "Project Catalog",
                     "subtitle": "Create, edit, and review project lifecycle records.",
                     "emptyState": workspace_state.empty_state,
+                    "approvedBudgetVisible": workspace_state.approved_budget_visible,
                     "items": serialize_project_record_view_models(
                         workspace_state.projects
                     ),
@@ -634,6 +643,64 @@ class ProjectManagementProjectsWorkspaceController(
     @Slot()
     def loadProjectActivity(self) -> None:
         load_project_activity(self)
+
+    @Slot(str)
+    def setProjectTasksSearch(self, value: str) -> None:
+        update_project_detail_query(self, "tasks", searchText=str(value or "").strip())
+
+    @Slot(str, str)
+    def setProjectTasksFilters(self, status: str, schedule: str) -> None:
+        update_project_detail_query(self, "tasks", status=status, schedule=schedule)
+
+    @Slot(int)
+    def setProjectTasksPage(self, page: int) -> None:
+        update_project_detail_query(self, "tasks", page=max(1, page))
+
+    @Slot(int)
+    def setProjectTasksPageSize(self, size: int) -> None:
+        update_project_detail_query(self, "tasks", pageSize=max(1, size), page=1)
+
+    @Slot(str, int)
+    def setProjectTasksSort(self, key: str, direction: int) -> None:
+        update_project_detail_query(self, "tasks", sortKey=key,
+                                    sortDirection="desc" if direction == Qt.DescendingOrder.value else "asc")
+
+    @Slot(str)
+    def setProjectResourcesSearch(self, value: str) -> None:
+        update_project_detail_query(self, "resources", searchText=str(value or "").strip())
+
+    @Slot(str)
+    def setProjectResourcesActive(self, value: str) -> None:
+        update_project_detail_query(self, "resources", active=value)
+
+    @Slot(int)
+    def setProjectResourcesPage(self, page: int) -> None:
+        update_project_detail_query(self, "resources", page=max(1, page))
+
+    @Slot(int)
+    def setProjectResourcesPageSize(self, size: int) -> None:
+        update_project_detail_query(self, "resources", pageSize=max(1, size), page=1)
+
+    @Slot(str, int)
+    def setProjectResourcesSort(self, key: str, direction: int) -> None:
+        update_project_detail_query(self, "resources", sortKey=key,
+                                    sortDirection="desc" if direction == Qt.DescendingOrder.value else "asc")
+
+    @Slot(str)
+    def setProjectActivitySearch(self, value: str) -> None:
+        update_project_detail_query(self, "activity", searchText=str(value or "").strip())
+
+    @Slot(str)
+    def setProjectActivityCategory(self, value: str) -> None:
+        update_project_detail_query(self, "activity", category=value)
+
+    @Slot(int)
+    def setProjectActivityPage(self, page: int) -> None:
+        update_project_detail_query(self, "activity", page=max(1, page))
+
+    @Slot(int)
+    def setProjectActivityPageSize(self, size: int) -> None:
+        update_project_detail_query(self, "activity", pageSize=max(1, size), page=1)
 
     # ── Resources ────────────────────────────────────────────────────────
 

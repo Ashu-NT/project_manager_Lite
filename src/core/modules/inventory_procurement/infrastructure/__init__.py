@@ -3,9 +3,6 @@
 from src.core.modules.inventory_procurement.infrastructure.importers import (
     InventoryDataExchangeService,
 )
-from src.core.modules.inventory_procurement.infrastructure.integrations import (
-    MaintenanceMaterialService,
-)
 from src.core.modules.inventory_procurement.infrastructure.reporting import (
     InventoryReportingService,
 )
@@ -13,5 +10,4 @@ from src.core.modules.inventory_procurement.infrastructure.reporting import (
 __all__ = [
     "InventoryDataExchangeService",
     "InventoryReportingService",
-    "MaintenanceMaterialService",
 ]

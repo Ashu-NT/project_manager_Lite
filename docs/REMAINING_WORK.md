@@ -1,5 +1,9 @@
 # Remaining Work — Consolidated Tracker
 
+> Current product scope (2026-08-20): Maintenance was removed from runtime, module metadata,
+> RBAC, QML, and tests. Any Maintenance references retained below are historical backlog
+> evidence only and are not active product commitments.
+
 Generated 2026-07-24 by scanning every `.md` file under `doc/` and `docs/` (91 files) and
 cross-checking their claims against the current `src/` tree. This file replaces ~62 stale,
 superseded, or duplicate planning/audit/tracker documents that were deleted as part of this
@@ -139,7 +143,7 @@ caught, the item below reflects the verified-against-code status, not just the d
 
 ---
 
-## 5. Maintenance Management
+## 5. Historical Maintenance Backlog (Closed by Product Removal)
 
 **Detail:** `docs/maintenance_management/README.md`
 

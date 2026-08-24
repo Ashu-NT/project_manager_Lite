@@ -129,8 +129,7 @@ ApplicationWindow {
                     model: [
                         "Project & Portfolio Management",
                         "Resource Planning & Scheduling",
-                        "Inventory & Procurement",
-                        "Maintenance Operations"
+                        "Inventory & Procurement"
                     ]
 
                     delegate: Row {

@@ -5,6 +5,12 @@ from __future__ import annotations
 from decimal import Decimal
 
 from src.core.modules.project_management.domain.enums import CostType
+from src.core.modules.project_management.application.resources.resource_master_events import (
+    ResourceMasterChangeType,
+)
+from src.core.modules.project_management.application.resources.resource_master_uow import (
+    ResourceMasterUnitOfWork,
+)
 from src.core.platform.domain.data_operations.importing import ImportPreview, ImportPreviewRow, ImportSummary
 from src.core.modules.project_management.infrastructure.importers.utils.coercion import (
     optional_bool,
@@ -60,6 +66,10 @@ def import_resources(
     summary = ImportSummary(entity_type="resources")
     existing = {r.id: r for r in resource_service.list_resources()}
     existing_by_name = {r.name.strip().lower(): r for r in resource_service.list_resources()}
+    uow = ResourceMasterUnitOfWork(
+        resource_service._session,
+        resource_service._tenant_context_service,
+    )
     for line_no, row in rows:
         try:
             resource = existing.get(row.get("id") or "") or existing_by_name.get(
@@ -67,26 +77,56 @@ def import_resources(
             )
             payload = {
                 "name": required(row, "name"),
+                "code": row.get("code", ""),
                 "role": row.get("role", ""),
                 "hourly_rate": optional_decimal(row.get("hourly_rate")) or Decimal("0"),
-                "is_active": optional_bool(row.get("is_active"), default=True),
                 "cost_type": optional_cost_type(row.get("cost_type")) or CostType.LABOR,
                 "currency_code": row.get("currency_code") or None,
                 "capacity_percent": optional_float(row.get("capacity_percent")) or 100.0,
                 "address": row.get("address", ""),
                 "contact": row.get("contact", ""),
             }
+            requested_active = optional_bool(row.get("is_active"), default=True)
             if resource is None:
-                resource_service.create_resource(**payload)
+                resource = uow.execute(
+                    lambda: resource_service.create_resource(**payload),
+                    change_type=ResourceMasterChangeType.CREATED,
+                )
                 summary.created_count += 1
             else:
-                # Full-form values are normalized and compared by the application service.
-                resource_service.update_resource(
-                    resource.id,
-                    expected_version=resource.version,
-                    **payload,
+                payload.update(
+                    kind=resource.kind,
+                    worker_type=resource.worker_type,
+                    employee_id=resource.employee_id,
+                    department_id=resource.department_id,
+                    site_id=resource.site_id,
+                )
+                resource = uow.execute(
+                    lambda: resource_service.update_resource(
+                        resource_id=resource.id,
+                        expected_version=resource.version,
+                        **payload,
+                    ),
+                    change_type=ResourceMasterChangeType.UPDATED,
                 )
                 summary.updated_count += 1
+            if resource.is_active != requested_active:
+                operation = (
+                    resource_service.reactivate_resource
+                    if requested_active
+                    else resource_service.deactivate_resource
+                )
+                resource = uow.execute(
+                    lambda: operation(
+                        resource_id=resource.id,
+                        expected_version=resource.version,
+                    ),
+                    change_type=(
+                        ResourceMasterChangeType.REACTIVATED
+                        if requested_active
+                        else ResourceMasterChangeType.DEACTIVATED
+                    ),
+                )
             existing = {r.id: r for r in resource_service.list_resources()}
             existing_by_name = {r.name.strip().lower(): r for r in resource_service.list_resources()}
         except Exception as exc:

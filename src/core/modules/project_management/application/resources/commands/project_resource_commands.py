@@ -153,8 +153,11 @@ class ProjectResourceCommandMixin:
                 module="project_management",
                 workspace_id=project_id,
                 parent_entity_id=project_id,
+                related_entity_type="resource",
+                related_entity_id=project_resource.resource_id,
                 message=f"Assigned {resource.name} to the project",
                 details={
+                    "resource_id": project_resource.resource_id,
                     "resource_name": resource.name,
                     "planned_hours": str(project_resource.planned_hours),
                     "hourly_rate": None if project_resource.hourly_rate is None else str(project_resource.hourly_rate),
@@ -241,8 +244,11 @@ class ProjectResourceCommandMixin:
                 module="project_management",
                 workspace_id=project_resource.project_id,
                 parent_entity_id=project_resource.project_id,
+                related_entity_type="resource",
+                related_entity_id=project_resource.resource_id,
                 message=f"Updated {resource_name}'s assignment",
                 details={
+                    "resource_id": project_resource.resource_id,
                     "resource_name": resource_name,
                     "changes": _diff_project_resource_fields(before, project_resource),
                 },
@@ -284,11 +290,14 @@ class ProjectResourceCommandMixin:
                 module="project_management",
                 workspace_id=project_resource.project_id,
                 parent_entity_id=project_resource.project_id,
+                related_entity_type="resource",
+                related_entity_id=project_resource.resource_id,
                 message=(
                     f"{'Activated' if project_resource.is_active else 'Deactivated'} "
                     f"{resource_name}'s assignment"
                 ),
                 details={
+                    "resource_id": project_resource.resource_id,
                     "resource_name": resource_name,
                     "changes": _diff_project_resource_fields(
                         before, project_resource, fields=("is_active",)
@@ -349,8 +358,13 @@ class ProjectResourceCommandMixin:
                 module="project_management",
                 workspace_id=project_resource.project_id,
                 parent_entity_id=project_resource.project_id,
+                related_entity_type="resource",
+                related_entity_id=project_resource.resource_id,
                 message=f"Removed {resource_name} from the project",
-                details={"resource_name": resource_name},
+                details={
+                    "resource_id": project_resource.resource_id,
+                    "resource_name": resource_name,
+                },
             )
         except Exception:
             self._session.rollback()

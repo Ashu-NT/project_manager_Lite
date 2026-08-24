@@ -25,10 +25,7 @@ Item {
     }).join("  |  ")
 
     readonly property var _criticalRows: root.workspaceController
-        ? (root.workspaceController.scheduleRows || []).filter(function(row) {
-            const critical = String(row.critical || "")
-            return critical === "Critical" || critical === "Infeasible"
-        })
+        ? (root.workspaceController.ganttRowsModel.criticalAttentionRows || [])
         : []
     readonly property var _delayedRows: root.workspaceController ? (root.workspaceController.delayedActivityRows || []) : []
     readonly property var _overloadedRows: root.workspaceController
@@ -42,9 +39,10 @@ Item {
         for (let i = 0; i < root._criticalRows.length; i++) {
             const row = root._criticalRows[i]
             items.push({
-                "tone": row.critical === "Infeasible" ? "danger" : "warning",
-                "message": String(row.critical || "") + ": " + String(row.taskName || "")
-                    + " (WBS " + String(row.wbs || "-") + ", float " + String(row.float || "-") + ")"
+                "tone": row.isInfeasible ? "danger" : "warning",
+                "message": (row.isInfeasible ? "Infeasible" : "Critical") + ": " + String(row.name || "")
+                    + " (WBS " + String(row.wbsCode || "-") + ", float "
+                    + (row.totalFloatDays === null ? "-" : String(row.totalFloatDays) + "d") + ")"
             })
         }
         for (let j = 0; j < root._delayedRows.length; j++) {

@@ -1,8 +1,8 @@
 # ProjectManagerLite
 
 **ProjectManagerLite** is a desktop-first, multi-module enterprise operations platform for
-project management, inventory & procurement, and maintenance (CMMS/EAM), built on a shared
-tenancy/RBAC/audit platform layer.
+project management and inventory & procurement, built on a shared tenancy/RBAC/audit platform
+layer.
 
 - **Frontend:** PySide6 (Qt Quick / QML)
 - **Backend:** Pure Python domain & application layer, no framework coupling
@@ -29,7 +29,6 @@ tenancy/RBAC/audit platform layer.
 |---|---|---|
 | **Project Management** | Production | Planning/scheduling (CPM), execution, cost, baselines, register (risk/issue/change), portfolio, collaboration, timesheets, dashboards & reporting/exports |
 | **Inventory & Procurement** | Available (phase 1, hardened) | Item master, storerooms, stock balances/transactions, reservations, requisitions, purchase orders, receiving |
-| **Maintenance Management** | Available (early phase) | Asset/system/location registry, sensors, preventive plans, work requests/orders with technician execution actions, reliability analytics |
 | **QHSE** | Skeleton only | Package scaffolding and module catalog entry only - no runtime capability yet |
 | **HR Management** | Skeleton only | Package scaffolding only; a Payroll-first slice is the intended first cut |
 
@@ -40,7 +39,7 @@ platform layer (references and domain events), per
 [`docs/architecture_decisions/ADR-001-cross-platform-ownership-model.md`](docs/architecture_decisions/ADR-001-cross-platform-ownership-model.md).
 
 Shared platform capabilities available to every module: authentication (password + MFA +
-federated identity hooks), session management, RBAC (18 system roles / 56 permission codes),
+federated identity hooks), session management, RBAC (system roles and permission catalog),
 tenancy & organization context, sites/departments/employees/parties, module licensing,
 approvals, documents, activity & audit trails, platform calendar, notifications, and a shared
 import/export/report runtime.
@@ -77,7 +76,7 @@ For the full, up-to-date list of what's implemented vs. still open across every 
 
 Within `core/`, `infra/`, and `ui_qml/`, the codebase is consistently split between shared
 `platform/` concerns (tenancy, auth, org, calendar, documents, audit, activity, approval, ...)
-and business `modules/` (`project_management`, `inventory_procurement`, `maintenance`, `qhse`,
+and business `modules/` (`project_management`, `inventory_procurement`, `qhse`,
 `hr_management`/`payroll`). The supported delivery boundary is `src/api/desktop/`; the dormant
 HTTP placeholder was removed after every operation was verified to have a desktop equivalent.
 Any future server mode must introduce a deliberately designed request-scoped transport rather
@@ -121,7 +120,6 @@ project_manager_Lite/
       modules/
         project_management/    # Production module
         inventory_procurement/ # Available module (phase 1)
-        maintenance/            # Available module (early phase)
         qhse/                   # Skeleton
         hr_management/          # Skeleton
         payroll/                 # Legacy-compat alias package during the hr_management rename
@@ -137,7 +135,7 @@ project_manager_Lite/
       modules/                 # Per-module QML workspaces (mirrors core/modules/)
       shared/                  # Design-system QML components
     tests/                     # pytest suite (architecture, platform, project_management,
-                                #   inventory_procurement, maintenance, hr_management, qhse, ...)
+                                #   inventory_procurement, hr_management, qhse, ...)
 ```
 
 ## Requirements
@@ -242,7 +240,7 @@ conda run -n pmenv python -m pytest -q src/tests/test_large_scale_performance.py
 - [`docs/ARCHITECTURE_README.md`](docs/ARCHITECTURE_README.md) - tenancy/org/auth/RBAC deep reference
 - [`docs/architecture/enterprise-platform-architecture.md`](docs/architecture/enterprise-platform-architecture.md) - full architecture & roadmap
 - [`docs/architecture_decisions/`](docs/architecture_decisions/) - ADRs
-- [`docs/inventory_procurement/`](docs/inventory_procurement/), [`docs/maintenance_management/`](docs/maintenance_management/), [`docs/pm_modernization/`](docs/pm_modernization/) - per-module design/execution plans
+- [`docs/inventory_procurement/`](docs/inventory_procurement/), [`docs/pm_modernization/`](docs/pm_modernization/) - per-module design/execution plans
 - [`docs/cache_service_strategy/`](docs/cache_service_strategy/) - shared cache service design (not yet implemented)
 - [`docs/platform_alignment_followup/`](docs/platform_alignment_followup/), [`docs/platform_modernization/`](docs/platform_modernization/), [`docs/repo_structure_plan/`](docs/repo_structure_plan/), [`docs/tenant_repository_hardening/`](docs/tenant_repository_hardening/) - active cross-cutting workstreams
 - [`docs/INLINE_MESSAGE_STANDARDIZATION_README.md`](docs/INLINE_MESSAGE_STANDARDIZATION_README.md), [`docs/ux_design.md`](docs/ux_design.md) - UI/UX conventions

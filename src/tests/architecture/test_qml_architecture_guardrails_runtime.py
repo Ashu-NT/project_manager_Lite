@@ -25,8 +25,15 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         str(UI_QML_ROOT / "platform" / "qml"),
         str(UI_QML_ROOT / "modules" / "project_management" / "qml"),
         str(UI_QML_ROOT / "modules" / "inventory_procurement" / "qml"),
-        str(UI_QML_ROOT / "modules" / "maintenance" / "qml"),
     ]
+    scheduling_root = (
+        UI_QML_ROOT
+        / "modules"
+        / "project_management"
+        / "qml"
+        / "workspaces"
+        / "scheduling"
+    )
 
     targets = [
         UI_QML_ROOT / "platform" / "qml" / "workspace" / "PlatformWorkspacePage.qml",
@@ -70,9 +77,6 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT
         / "modules/project_management/qml/workspaces/register/dialogs"
         / "RegisterEntryEditorDialog.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "scheduling" / "SchedulingWorkspacePage.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "scheduling" / "SchedulingCalendarSection.qml",
-        UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "scheduling" / "SchedulingBaselineSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "tasks" / "TasksWorkspacePage.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "tasks" / "TasksAssignmentsSection.qml",
         UI_QML_ROOT / "modules" / "project_management" / "qml" / "workspaces" / "tasks" / "TasksBulkActionsSection.qml",
@@ -99,47 +103,8 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "pricing" / "PricingExportsSection.qml",
         UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "pricing" / "PricingStockSection.qml",
         UI_QML_ROOT / "modules" / "inventory_procurement" / "qml" / "workspaces" / "pricing" / "PricingSupplierPricingSection.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "dashboard" / "DashboardWorkspacePage.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "dashboard" / "DashboardFiltersSection.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "planner" / "PlannerWorkspacePage.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "planner" / "PlannerFiltersSection.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "reliability" / "ReliabilityWorkspacePage.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "reliability" / "ReliabilityFiltersSection.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "assets" / "AssetsWorkspacePage.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "assets" / "AssetsFiltersSection.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "assets" / "AssetLibraryCatalogSection.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "assets" / "AssetLibraryDetailSection.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "assets" / "AssetsDialogHost.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "LocationEditorDialog.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "SystemEditorDialog.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "AssetEditorDialog.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "ComponentEditorDialog.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_requests" / "WorkRequestsWorkspacePage.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_requests" / "WorkRequestsFiltersSection.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_requests" / "WorkRequestsCatalogSection.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_requests" / "WorkRequestDetailSection.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_requests" / "WorkRequestsDialogHost.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "WorkRequestEditorDialog.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "WorkRequestStatusDialog.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_orders" / "WorkOrdersWorkspacePage.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_orders" / "WorkOrdersFiltersSection.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_orders" / "WorkOrdersCatalogSection.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_orders" / "WorkOrderDetailSection.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "work_orders" / "WorkOrdersDialogHost.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventiveWorkspacePage.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventiveMetricsSection.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventiveDetailSection.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventiveQueueSection.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventivePlansSection.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventiveTemplatesSection.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces" / "preventive" / "PreventiveDialogHost.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "WorkOrderEditorDialog.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "WorkOrderStatusDialog.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "PreventivePlanEditorDialog.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "PreventivePlanTaskEditorDialog.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "TaskTemplateEditorDialog.qml",
-        UI_QML_ROOT / "modules" / "maintenance" / "qml" / "Maintenance" / "Dialogs" / "TaskStepTemplateEditorDialog.qml",
     ]
+    targets.extend(sorted(scheduling_root.rglob("*.qml")))
 
     command = [qmllint_path]
     for import_path in import_paths:
@@ -151,6 +116,8 @@ def test_qmllint_no_longer_reports_qobject_controller_member_warnings() -> None:
         command,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
         cwd=str(ROOT),
     )

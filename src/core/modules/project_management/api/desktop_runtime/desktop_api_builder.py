@@ -94,9 +94,9 @@ def build_project_management_desktop_runtime_apis(
         project_management_resources=build_project_management_resources_desktop_api(
             resource_service=resolved.resource_service,
             employee_service=platform_dependencies.employee_service,
-            availability_service=resolved.resource_multi_project_allocation_service,
-            task_service=resolved.task_service,
-            project_service=resolved.project_service,
+            workload_service=resolved.resource_workload_service,
+            department_service=platform_dependencies.department_service,
+            site_service=platform_dependencies.site_service,
         ),
         project_management_scheduling=build_project_management_scheduling_desktop_api(
             project_service=resolved.project_service,
@@ -109,6 +109,7 @@ def build_project_management_desktop_runtime_apis(
             reporting_service=resolved.reporting_service,
             change_impact_service=change_impact_service,
             constraint_validator=constraint_validator,
+            tenant_context_service=resolved.tenant_context_service,
         ),
         project_management_tasks=build_project_management_tasks_desktop_api(
             project_service=resolved.project_service,

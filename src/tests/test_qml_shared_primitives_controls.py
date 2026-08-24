@@ -29,17 +29,6 @@ QML_INV_DIALOGS = Path(
 QML_INV_WIDGETS = Path(
     "src/ui_qml/modules/inventory_procurement/qml/InventoryProcurement/Widgets"
 )
-QML_MAINT_CONTROLLERS = Path(
-    "src/ui_qml/modules/maintenance/qml/Maintenance/Controllers"
-)
-QML_MAINT_DIALOGS = Path(
-    "src/ui_qml/modules/maintenance/qml/Maintenance/Dialogs"
-)
-QML_MAINT_WIDGETS = Path(
-    "src/ui_qml/modules/maintenance/qml/Maintenance/Widgets"
-)
-
-
 def test_qml_shared_theme_primitives_exist() -> None:
     expected_files = [
         QML_SHARED_ROOT / "Theme" / "AppTheme.qml",
@@ -88,9 +77,6 @@ def test_qml_modules_declare_stable_namespaces() -> None:
         QML_INV_CONTROLLERS / "qmldir": "module InventoryProcurement.Controllers",
         QML_INV_DIALOGS / "qmldir": "module InventoryProcurement.Dialogs",
         QML_INV_WIDGETS / "qmldir": "module InventoryProcurement.Widgets",
-        QML_MAINT_CONTROLLERS / "qmldir": "module Maintenance.Controllers",
-        QML_MAINT_DIALOGS / "qmldir": "module Maintenance.Dialogs",
-        QML_MAINT_WIDGETS / "qmldir": "module Maintenance.Widgets",
     }
 
     for path, module_name in expected_modules.items():
@@ -151,7 +137,6 @@ def test_qmlls_import_paths_cover_named_qml_modules() -> None:
         "src/ui_qml/platform/qml",
         "src/ui_qml/modules/project_management/qml",
         "src/ui_qml/modules/inventory_procurement/qml",
-        "src/ui_qml/modules/maintenance/qml",
     ]
 
     for expected_path in expected_paths:
@@ -171,4 +156,3 @@ def test_qmlls_import_paths_parse_as_qt_string_list() -> None:
     assert "C:/Users/ashuf/Desktop/Projects/project_mangement_app/src/ui_qml/platform/qml" in import_paths
     assert "C:/Users/ashuf/Desktop/Projects/project_mangement_app/src/ui_qml/modules/project_management/qml" in import_paths
     assert "C:/Users/ashuf/Desktop/Projects/project_mangement_app/src/ui_qml/modules/inventory_procurement/qml" in import_paths
-    assert "C:/Users/ashuf/Desktop/Projects/project_mangement_app/src/ui_qml/modules/maintenance/qml" in import_paths

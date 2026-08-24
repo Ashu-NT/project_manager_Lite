@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 
 from src.core.modules.project_management.access.scope_permissions import (
@@ -14,8 +15,10 @@ from src.core.modules.project_management.application.common.pagination import (
     normalize_page_for_total,
 )
 from src.core.modules.project_management.contracts.reads.projects import (
+    ProjectActivityPage,
     ProjectCatalogReadPage,
     ProjectCatalogReader,
+    ProjectResourceDetailPage,
 )
 from src.core.modules.project_management.contracts.reads import ReadSort
 from src.core.modules.project_management.domain.enums import ProjectStatus
@@ -91,10 +94,12 @@ class ProjectQueryMixin:
             allowed_project_ids = tuple(
                 sorted(self._user_session.project_ids_for("project.read"))
             )
+        finance_allowed_project_ids = self._finance_allowed_project_ids()
         read_kwargs = dict(
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,
             allowed_project_ids=allowed_project_ids,
+            finance_allowed_project_ids=finance_allowed_project_ids,
             search_text=str(search_text or "").strip(),
             status=status,
             project_name=project_name,
@@ -119,7 +124,108 @@ class ProjectQueryMixin:
         if normalized_page != result.page:
             read_kwargs["page"] = normalized_page
             result = self._project_catalog_reader.read_page(**read_kwargs)
+        return replace(
+            result,
+            approved_budget_visible=self._can_read_any_project_finance(),
+        )
+
+    def query_project_detail(self, project_id: str):
+        require_permission(self._user_session, "project.read", operation_label="view project")
+        normalized_project_id = str(project_id or "").strip()
+        if not normalized_project_id:
+            return None
+        require_project_permission(
+            self._user_session,
+            normalized_project_id,
+            "project.read",
+            operation_label="view project",
+        )
+        if self._project_catalog_reader is None or self._tenant_context_service is None:
+            raise RuntimeError("Project catalog reader is not configured.")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view project"
+        )
+        can_read_finance = bool(
+            self._user_session is not None
+            and self._user_session.has_project_permission(
+                normalized_project_id, "finance.read"
+            )
+        )
+        return self._project_catalog_reader.read_one(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=normalized_project_id,
+            include_approved_budget=can_read_finance,
+        )
+
+    def query_project_resources_page(
+        self, project_id: str, *, search_text: str = "", active: bool | None = None,
+        page: int = 1, page_size: int = 25, sort_key: str = "resourceName",
+        sort_direction: str = "asc",
+    ) -> ProjectResourceDetailPage:
+        normalized_id = str(project_id or "").strip()
+        require_project_permission(self._user_session, normalized_id, "project.read",
+                                   operation_label="view project resources")
+        if self._project_catalog_reader is None or self._tenant_context_service is None:
+            raise RuntimeError("Project catalog reader is not configured.")
+        request = PageRequest(page=page, page_size=page_size)
+        sort = ReadSort.normalize(
+            key=sort_key, direction=sort_direction,
+            allowed_keys={"resourceName", "resourceCode", "role", "plannedHours",
+                          "allocatedHours", "actualHours", "remainingHours"},
+            default_key="resourceName",
+        )
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view project resources")
+        kwargs = dict(tenant_id=scope.tenant_id, organization_id=scope.organization_id,
+                      project_id=normalized_id, search_text=str(search_text or "").strip(),
+                      active=active, page=request.page, page_size=request.page_size, sort=sort)
+        result = self._project_catalog_reader.read_resources_page(**kwargs)
+        normalized_page = normalize_page_for_total(page=result.page, page_size=result.page_size,
+                                                   total=result.filtered_total)
+        if normalized_page != result.page:
+            kwargs["page"] = normalized_page
+            result = self._project_catalog_reader.read_resources_page(**kwargs)
         return result
+
+    def query_project_activity_page(
+        self, project_id: str, *, search_text: str = "", category: str = "all",
+        page: int = 1, page_size: int = 25,
+    ) -> ProjectActivityPage:
+        normalized_id = str(project_id or "").strip()
+        require_project_permission(self._user_session, normalized_id, "project.read",
+                                   operation_label="view project activity")
+        if self._project_catalog_reader is None or self._tenant_context_service is None:
+            raise RuntimeError("Project catalog reader is not configured.")
+        request = PageRequest(page=page, page_size=page_size)
+        normalized_category = str(category or "all").strip().lower()
+        if normalized_category not in {"all", "project", "resources"}:
+            normalized_category = "all"
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view project activity")
+        kwargs = dict(tenant_id=scope.tenant_id, organization_id=scope.organization_id,
+                      project_id=normalized_id, search_text=str(search_text or "").strip(),
+                      category=normalized_category, page=request.page, page_size=request.page_size)
+        result = self._project_catalog_reader.read_activity_page(**kwargs)
+        normalized_page = normalize_page_for_total(page=result.page, page_size=result.page_size,
+                                                   total=result.filtered_total)
+        if normalized_page != result.page:
+            kwargs["page"] = normalized_page
+            result = self._project_catalog_reader.read_activity_page(**kwargs)
+        return result
+
+    def _finance_allowed_project_ids(self) -> tuple[str, ...] | None:
+        if self._user_session is None or not self._user_session.has_permission("finance.read"):
+            return ()
+        if self._user_session.is_project_restricted():
+            return tuple(sorted(self._user_session.project_ids_for("finance.read")))
+        return None
+
+    def _can_read_any_project_finance(self) -> bool:
+        return bool(
+            self._user_session is not None
+            and self._user_session.has_any_project_access("finance.read")
+        )
 
     def list_for_task_workspace(self) -> list[Project]:
         permission_codes = ("project.read", "task.read", "task.manage")

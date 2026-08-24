@@ -6,7 +6,6 @@ import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import App.Controls 1.0 as AppControls
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
-import ProjectManagement.Widgets 1.0 as PMWidgets
 import workspaces.tasks.sections 1.0
 
 Item {
@@ -15,6 +14,7 @@ Item {
     property var taskDetail: AppMock.MockFactory.detail()
     property bool isBusy: false
     property var detailPage: null
+    property real availableHeight: 0
 
     property var assignmentsModel: AppMock.MockFactory.catalog("Assignments", "", "Select a task.")
     property var assignmentsTableModel: null
@@ -47,6 +47,7 @@ Item {
     property var taskActivityModel: ({
         "title": "Activity", "subtitle": "", "emptyState": "No activity has been recorded for this task yet.", "items": []
     })
+    property var taskActivityTableModel: null
     property var sectionErrors: ({})
     property var scheduleImpactModel: ({
         "isAvailable": false, "taskId": "", "currentStartLabel": "--", "currentFinishLabel": "--",
@@ -167,6 +168,12 @@ Item {
         if (name === "Activity")        return _sec8.implicitHeight
         return 0
     }
+    readonly property real _tableSectionAvailableHeight: Math.max(
+        0,
+        root.availableHeight
+            - (_summaryStrip.visible ? _summaryStrip.height : 0)
+            - Theme.AppTheme.spacingLg
+    )
 
     Rectangle {
         id: _summaryStrip
@@ -257,6 +264,7 @@ Item {
             sourceComponent: Component {
                 TasksAssignmentsSection {
                     width: parent ? parent.width : 0
+                    availableHeight: root._tableSectionAvailableHeight
                     assignmentsModel: root.assignmentsModel
                     assignmentsTableModel: root.assignmentsTableModel
                     selectedAssignmentId: root.selectedAssignmentId
@@ -265,6 +273,7 @@ Item {
                     isBusy: root.isBusy
                     canCreate: root._hasTask && !root._isSummary && root.assignmentOptions.length > 0
                     errorText: String(root.sectionErrors["assignments"] || "")
+                    workspaceController: root.pmCatalog ? root.pmCatalog.tasksWorkspace : null
 
                     onCreateRequested: root.createAssignmentRequested()
                     onAssignmentSelected: function(id) { root.assignmentSelected(id) }
@@ -289,7 +298,10 @@ Item {
             sourceComponent: Component {
                 TasksDependenciesSection {
                     width: parent ? parent.width : 0
+                    availableHeight: root._tableSectionAvailableHeight
                     dependenciesModel: root.dependenciesModel
+                    dependenciesTableModel: root.dependenciesTableModel
+                    workspaceController: root.pmCatalog ? root.pmCatalog.tasksWorkspace : null
                     isBusy: root.isBusy
                     canCreate: root._hasTask && !root._isSummary && root.dependencyTaskOptions.length > 0
                     errorText: String(root.sectionErrors["dependencies"] || "")
@@ -425,12 +437,14 @@ Item {
             active: root._idx === root._secIdx("Activity")
             loadingMessage: "Loading activity..."
             sourceComponent: Component {
-                PMWidgets.ActivityLogSection {
+                TasksActivitySection {
                     width: parent ? parent.width : 0
-                    label: "Activity"
-                    errorKey: "activity"
-                    sectionErrors: root.sectionErrors
+                    availableHeight: root._tableSectionAvailableHeight
                     activityModel: root.taskActivityModel
+                    activityTableModel: root.taskActivityTableModel
+                    workspaceController: root.pmCatalog ? root.pmCatalog.tasksWorkspace : null
+                    errorText: String(root.sectionErrors["activity"] || "")
+                    isBusy: root.isBusy
                 }
             }
         }

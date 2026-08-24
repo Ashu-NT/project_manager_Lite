@@ -1,9 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
-import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 
@@ -15,23 +13,16 @@ Item {
     property var overviewModel: ({})
     property var resourcesModel: ({})
 
-    readonly property var bulkActionBar: bulkActionBarItem
     readonly property var customizeButtonItem: tableToolbar.customizeButtonItem
 
     signal rowSelected(string rowId)
     signal rowActivated(string rowId)
-    signal rowSelectionToggled(string rowId, bool selected)
-    signal selectAllToggled(bool allSelected)
     signal columnsStateChanged(var columns)
     signal searchChanged(string text)
     signal filterClicked()
     signal refreshRequested()
     signal exportRequested()
     signal createRequested()
-    signal bulkCancelRequested()
-    signal bulkActionRequested(string actionId)
-
-    anchors.fill: parent
 
     ColumnLayout {
         anchors.fill: parent
@@ -82,7 +73,8 @@ Item {
             Layout.fillWidth: true
             searchText: root.workspaceController ? root.workspaceController.searchText : ""
             searchPlaceholder: "Search resources..."
-            showCreate: true
+            showCreate: root.state && root.state.pmCatalog
+                ? root.state.pmCatalog.pmCapabilityController.canManageSkills : false
             createLabel: "New Resource"
             showFilter: true
             showCustomize: true
@@ -109,7 +101,7 @@ Item {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: paginationBar.top
-                multiSelect: true
+                multiSelect: false
                 tableId: root.state ? root.state.tableId : ""
                 columns: root.state ? root.state.columns : []
                 sourceModel: root.workspaceController ? root.workspaceController.resourcesTableModel : null
@@ -121,13 +113,10 @@ Item {
                 loading: root.workspaceController ? root.workspaceController.isLoading : false
                 emptyText: root.resourcesModel.emptyState || "No resources available."
                 selectedRowId: root.workspaceController ? root.workspaceController.selectedResourceId : ""
-                selectedRowIds: root.workspaceController ? (root.workspaceController.selectedResourceIds || []) : []
 
                 onRowSelected: function(rowId) { root.rowSelected(rowId) }
                 onRowActivated: function(rowId) { root.rowActivated(rowId) }
                 onViewDetailRequested: function(rowId) { root.rowActivated(rowId) }
-                onRowSelectionToggled: function(rowId, selected) { root.rowSelectionToggled(rowId, selected) }
-                onSelectAllToggled: function(allSelected) { root.selectAllToggled(allSelected) }
                 onColumnsStateChanged: function(columns) { root.columnsStateChanged(columns) }
                 onSortRequested: function(key, direction) {
                     if (root.workspaceController !== null)
@@ -155,23 +144,6 @@ Item {
                 }
             }
 
-            AppWidgets.BulkActionBar {
-                id: bulkActionBarItem
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottom: paginationBar.top
-                anchors.bottomMargin: Theme.AppTheme.spacingMd
-                z: 10
-                selectedCount: root.workspaceController ? root.workspaceController.selectedResourceCount : 0
-                busy: root.workspaceController ? root.workspaceController.isBusy : false
-                actions: [
-                    { "id": "delete", "label": "Delete", "icon": "delete", "danger": true, "enabled": true }
-                ]
-
-                onCancelRequested: root.bulkCancelRequested()
-                onActionTriggered: function(actionId) {
-                    root.bulkActionRequested(actionId)
-                }
-            }
         }
     }
 }

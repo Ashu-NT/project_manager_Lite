@@ -1,5 +1,0 @@
-﻿module Maintenance.Preventive
-PreventiveWorkspace 1.0 PreventiveWorkspace.qml
-PreventiveWorkspacePage 1.0 PreventiveWorkspacePage.qml
-PreventiveWorkspaceState 1.0 PreventiveWorkspaceState.qml
-PreventiveColumnConfig 1.0 PreventiveColumnConfig.js

@@ -28,10 +28,6 @@ _ROUTE_TEMPLATES: dict[tuple[str, str], str] = {
     ("inventory_procurement", "requisition"): "inventory_procurement.procurement",
     ("inventory_procurement", "purchase_order"): "inventory_procurement.procurement",
     ("inventory_procurement", "storeroom"): "inventory_procurement.inventory",
-    ("maintenance_management", "asset"): "maintenance.assets",
-    ("maintenance_management", "work_order"): "maintenance.work_orders",
-    ("maintenance_management", "work_request"): "maintenance.work_requests",
-    ("maintenance_management", "preventive_plan"): "maintenance.preventive",
 }
 
 

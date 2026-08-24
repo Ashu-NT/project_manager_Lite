@@ -36,7 +36,6 @@ def test_inventory_qml_workspace_catalog_exposes_catalog_workspace(services) -> 
         category_code="SP-QML",
         name="QML Spares",
         category_type="SPARE",
-        supports_maintenance_usage=True,
     )
     item = services["inventory_item_service"].create_item(
         item_code="QML-ITEM-01",

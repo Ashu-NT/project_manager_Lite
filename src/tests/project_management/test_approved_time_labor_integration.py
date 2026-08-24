@@ -206,7 +206,7 @@ def test_labor_posting_migration_is_reversible_and_immutable(tmp_path) -> None:
         "trg_project_approved_time_labor_postings_immutable_delete",
     }
     engine.dispose()
-    command.downgrade(config, "r5s6t7u8v9w0")
+    command.downgrade(config, "base")
     engine = sa.create_engine(config.get_main_option("sqlalchemy.url"), future=True)
     assert "project_approved_time_labor_postings" not in sa.inspect(engine).get_table_names()
     engine.dispose()

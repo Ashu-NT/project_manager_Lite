@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Layouts
 import App.Widgets 1.0 as AppWidgets
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import workspaces.projects.sections 1.0
@@ -15,6 +14,7 @@ Item {
     property bool isBusy: false
     property var detailPage: null
     property var sectionErrors: ({})
+    property real availableHeight: 0
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
     property var projectTasksModel: ({
         "title": "Tasks", "subtitle": "", "emptyState": "Open this section to load project tasks.", "items": []
@@ -30,6 +30,7 @@ Item {
     property var projectActivityModel: ({
         "title": "Activity", "subtitle": "", "emptyState": "Open this section to load project activity.", "items": []
     })
+    property var projectActivityTableModel: null
     property var assignableResourceOptions: []
     property string selectedProjectResourceId: ""
 
@@ -92,9 +93,11 @@ Item {
         sourceComponent: Component {
             ProjectsTasksSection {
                 width: parent ? parent.width : 0
+                availableHeight: root.availableHeight
                 sectionErrors: root.sectionErrors
                 projectTasksModel: root.projectTasksModel
                 projectTasksTableModel: root.projectTasksTableModel
+                workspaceController: root.pmCatalog ? root.pmCatalog.projectsWorkspace : null
                 isBusy: root.isBusy
             }
         }
@@ -109,6 +112,7 @@ Item {
         sourceComponent: Component {
             ProjectsResourcesSection {
                 width: parent ? parent.width : 0
+                availableHeight: root.availableHeight
                 sectionErrors: root.sectionErrors
                 pmCatalog: root.pmCatalog
                 projectDetail: root.projectDetail
@@ -145,8 +149,12 @@ Item {
         sourceComponent: Component {
             ProjectsActivitySection {
                 width: parent ? parent.width : 0
+                availableHeight: root.availableHeight
                 sectionErrors: root.sectionErrors
                 projectActivityModel: root.projectActivityModel
+                projectActivityTableModel: root.projectActivityTableModel
+                workspaceController: root.pmCatalog ? root.pmCatalog.projectsWorkspace : null
+                isBusy: root.isBusy
             }
         }
     }

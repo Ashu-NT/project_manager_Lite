@@ -27,11 +27,109 @@ class ResourceDesktopDto:
     is_active: bool
     active_label: str
     version: int
+    kind: str = "PERSON"
+    kind_label: str = "Person"
+    department_id: str | None = None
+    site_id: str | None = None
+
+
+@dataclass(frozen=True)
+class ResourceCatalogItemDesktopDto:
+    id: str
+    code: str
+    name: str
+    role: str
+    worker_type: str
+    worker_type_label: str
+    cost_type: str
+    cost_type_label: str
+    organization_id: str
+    organization_label: str
+    department_id: str | None
+    department: str
+    site_id: str | None
+    site: str
+    employee_id: str | None
+    employee_name: str
+    is_active: bool
+    active_label: str
+    capacity_percent: float
+    capacity_label: str
+    version: int
+    kind: str = "PERSON"
+    kind_label: str = "Person"
+
+
+@dataclass(frozen=True)
+class ResourceInspectorDesktopDto:
+    id: str
+    code: str
+    name: str
+    role: str
+    worker_type: str
+    worker_type_label: str
+    organization_id: str
+    organization_label: str
+    department_id: str | None
+    department: str
+    site_id: str | None
+    site: str
+    employee_id: str | None
+    employee_name: str
+    is_active: bool
+    active_label: str
+    capacity_percent: float
+    capacity_label: str
+    project_count: int
+    assignment_count: int
+    version: int
+    can_read: bool
+    can_manage: bool
+    can_deactivate: bool
+    can_reactivate: bool
+    kind: str = "PERSON"
+    kind_label: str = "Person"
+
+
+@dataclass(frozen=True)
+class ResourceSummaryDesktopDto:
+    id: str
+    code: str
+    name: str
+    role: str
+    worker_type: str
+    worker_type_label: str
+    cost_type: str
+    cost_type_label: str
+    hourly_rate: str
+    hourly_rate_label: str
+    currency_code: str | None
+    capacity_percent: float
+    capacity_label: str
+    address: str
+    contact: str
+    organization_id: str
+    organization_label: str
+    department_id: str | None
+    department: str
+    site_id: str | None
+    site: str
+    employee_id: str | None
+    employee_name: str
+    employee_title: str
+    employee_context: str
+    is_active: bool
+    active_label: str
+    version: int
+    can_read: bool
+    can_manage: bool
+    kind: str = "PERSON"
+    kind_label: str = "Person"
 
 
 @dataclass(frozen=True)
 class ResourceCatalogPageDesktopDto:
-    items: tuple[ResourceDesktopDto, ...] = ()
+    items: tuple[ResourceCatalogItemDesktopDto, ...] = ()
     filtered_total: int = 0
     total: int = 0
     active: int = 0
@@ -44,4 +142,10 @@ class ResourceCatalogPageDesktopDto:
     sort_direction: str = "asc"
 
 
-__all__ = ["ResourceCatalogPageDesktopDto", "ResourceDesktopDto"]
+__all__ = [
+    "ResourceCatalogItemDesktopDto",
+    "ResourceCatalogPageDesktopDto",
+    "ResourceDesktopDto",
+    "ResourceInspectorDesktopDto",
+    "ResourceSummaryDesktopDto",
+]

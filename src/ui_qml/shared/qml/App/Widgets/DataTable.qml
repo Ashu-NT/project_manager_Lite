@@ -38,6 +38,7 @@ Item {
     property bool   showFilter:     false
     property bool   loading:        false
     property string emptyText:      "No records"
+    property bool   alwaysShowVerticalScrollBar: false
     property bool   multiSelect:    false
     property var    selectedRowIds: []
     property var    _selectedLookup: ({})
@@ -111,6 +112,15 @@ Item {
             root.columnCustomizerAnchorItem = anchorItem
         }
         _colCustomizer.open()
+    }
+
+    function _scrollVerticallyBy(deltaPixels) {
+        const maximumY = Math.max(0, _mainView.contentHeight - _mainView.height)
+        if (maximumY <= 0 || deltaPixels === 0) return false
+        const nextY = Math.max(0, Math.min(_mainView.contentY + deltaPixels, maximumY))
+        if (Math.abs(nextY - _mainView.contentY) < 0.5) return false
+        _mainView.contentY = nextY
+        return true
     }
     /*
     function _scheduleMainViewLayout() {
@@ -813,8 +823,26 @@ Item {
 
         //onWidthChanged:  root._scheduleMainViewLayout()
 
-        ScrollBar.vertical:   ScrollBar { policy: ScrollBar.AsNeeded }
+        ScrollBar.vertical: ScrollBar {
+            policy: root.alwaysShowVerticalScrollBar
+                ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
+        }
         ScrollBar.horizontal: _hScrollBar
+
+        // Nested detail pages also scroll vertically. Claim wheel/touchpad
+        // input only while this bounded table can move; at either edge the
+        // event remains available to the outer page Flickable.
+        WheelHandler {
+            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+            onWheel: function(event) {
+                const pixelDelta = Number(event.pixelDelta.y || 0)
+                const angleDelta = Number(event.angleDelta.y || 0)
+                const inputDelta = pixelDelta !== 0
+                    ? -pixelDelta
+                    : -angleDelta * 0.5
+                event.accepted = root._scrollVerticallyBy(inputDelta)
+            }
+        }
 
         // ── Keyboard navigation ───────────────────────────────────────
         Keys.onUpPressed: {

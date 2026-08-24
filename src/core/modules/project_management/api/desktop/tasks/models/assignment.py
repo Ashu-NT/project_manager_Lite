@@ -34,6 +34,18 @@ class TaskAssignmentDesktopDto:
     capacity_headroom_hours_label: str = ""
     peak_utilization_percent: float = 0.0
     remaining_planned_hours_label: str = "0 h"
+    resource_code: str = ""
+    role: str = ""
 
 
-__all__ = ["TaskAssignmentDesktopDto"]
+@dataclass(frozen=True)
+class TaskAssignmentPageDesktopDto:
+    items: tuple[TaskAssignmentDesktopDto, ...] = ()
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = 25
+    sort_key: str = "resourceName"
+    sort_direction: str = "asc"
+
+
+__all__ = ["TaskAssignmentDesktopDto", "TaskAssignmentPageDesktopDto"]

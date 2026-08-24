@@ -28,6 +28,7 @@ from src.ui_qml.modules.project_management.presenters import (
     ProjectManagementWorkspacePresenter,
     ProjectTasksWorkspacePresenter,
 )
+from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 from . import task_bulk_selection_actions as _bulk
 from . import task_filter_actions as _filter
@@ -38,6 +39,7 @@ from .task_domain_event_binder import bind_task_domain_events
 from .task_export_handler import export_tasks
 from .task_lazy_section_loader import (
     load_selected_task_activity,
+    update_task_activity_query,
     load_selected_task_assignments,
     load_selected_task_collaboration,
     load_selected_task_dependencies,
@@ -164,7 +166,12 @@ class ProjectManagementTasksWorkspaceController(
         self._schedule_impact: dict[str, object] = {}
         self._schedule_impact_preview: dict[str, object] = {}
         self._task_activity_section_loaded_for_task_id = ""
-        self._task_activity: dict[str, object] = {}
+        self._task_activity: dict[str, object] = {
+            "title": "Activity", "subtitle": "", "emptyState": "Open this section to load task activity.",
+            "items": [], "searchText": "", "category": "all", "page": 1,
+            "pageSize": 25, "total": 0, "sortKey": "occurredAt", "sortDirection": "desc",
+        }
+        self._task_activity_table_model = DynamicTableModel(self)
         # ── Sub-controllers ────────────────────────────────────────────
         create_subcontrollers(self)
         bind_task_domain_events(self)
@@ -425,6 +432,10 @@ class ProjectManagementTasksWorkspaceController(
     def taskActivity(self) -> dict[str, object]:
         return self._task_activity
 
+    @Property(QObject, constant=True)
+    def taskActivityTableModel(self) -> QObject:
+        return self._task_activity_table_model
+
     @Property(bool, notify=taskActivitySectionLoadedChanged)
     def isTaskActivitySectionLoaded(self) -> bool:
         return (
@@ -577,6 +588,53 @@ class ProjectManagementTasksWorkspaceController(
     @Slot()
     def loadSelectedTaskActivity(self) -> None:
         load_selected_task_activity(self)
+
+    @Slot(str)
+    def setTaskAssignmentsSearch(self, value: str) -> None: self._assignments_ctrl.setSearch(value)
+
+    @Slot(str)
+    def setTaskAssignmentsResponse(self, value: str) -> None: self._assignments_ctrl.setResponseStatus(value)
+
+    @Slot(int)
+    def setTaskAssignmentsPage(self, value: int) -> None: self._assignments_ctrl.setPage(value)
+
+    @Slot(int)
+    def setTaskAssignmentsPageSize(self, value: int) -> None: self._assignments_ctrl.setPageSize(value)
+
+    @Slot(str, int)
+    def setTaskAssignmentsSort(self, key: str, direction: int) -> None: self._assignments_ctrl.setSort(key, direction)
+
+    @Slot(str)
+    def setTaskDependenciesSearch(self, value: str) -> None: self._dependencies_ctrl.setSearch(value)
+
+    @Slot(str, str)
+    def setTaskDependenciesFilters(self, direction: str, dependency_type: str) -> None:
+        self._dependencies_ctrl.setFilters(direction, dependency_type)
+
+    @Slot(int)
+    def setTaskDependenciesPage(self, value: int) -> None: self._dependencies_ctrl.setPage(value)
+
+    @Slot(int)
+    def setTaskDependenciesPageSize(self, value: int) -> None: self._dependencies_ctrl.setPageSize(value)
+
+    @Slot(str, int)
+    def setTaskDependenciesSort(self, key: str, direction: int) -> None: self._dependencies_ctrl.setSort(key, direction)
+
+    @Slot(str)
+    def setTaskActivitySearch(self, value: str) -> None:
+        update_task_activity_query(self, searchText=str(value or "").strip())
+
+    @Slot(str)
+    def setTaskActivityCategory(self, value: str) -> None:
+        update_task_activity_query(self, category=value)
+
+    @Slot(int)
+    def setTaskActivityPage(self, value: int) -> None:
+        update_task_activity_query(self, page=max(1, value))
+
+    @Slot(int)
+    def setTaskActivityPageSize(self, value: int) -> None:
+        update_task_activity_query(self, pageSize=max(1, value), page=1)
 
     # ── Task review / bulk selection slots ────────────────────────────
 

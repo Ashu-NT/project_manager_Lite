@@ -223,17 +223,30 @@ def load_selected_task_activity(controller) -> None:
     controller._set_is_loading(True)
     try:
         controller._clear_section_error("activity")
-        ws = controller._tasks_workspace_presenter.build_task_activity_state(
+        state = dict(controller._task_activity or {})
+        page = controller._tasks_workspace_presenter.build_task_activity_page(
             task_id=controller._selected_task_id,
-        )
-        controller._set_task_activity(
-            serialize_task_collection_view_model(ws.task_activity)
-        )
+            search_text=str(state.get("searchText", "")),
+            category=str(state.get("category", "all")),
+            page=int(state.get("page", 1)), page_size=int(state.get("pageSize", 25)))
+        controller._set_task_activity({"title": "Activity",
+                                       "subtitle": f"{page['total']} matching event(s).",
+                                       "emptyState": "No activity matches the selected filters.",
+                                       **state, **page})
         controller._task_activity_section_loaded_for_task_id = controller._selected_task_id
     except Exception as exc:
         controller._set_section_error("activity", str(exc))
     finally:
         controller._set_is_loading(False)
+
+
+def update_task_activity_query(controller, **changes) -> None:
+    state = dict(controller._task_activity or {})
+    state.update(changes)
+    if any(key not in {"page", "pageSize"} for key in changes): state["page"] = 1
+    controller._set_task_activity(state)
+    controller._task_activity_section_loaded_for_task_id = ""
+    load_selected_task_activity(controller)
 
 
 def refresh_time_entries_only(controller) -> None:
@@ -269,4 +282,5 @@ __all__ = [
     "refresh_after_constraint_mutation",
     "refresh_after_dependency_mutation",
     "refresh_time_entries_only",
+    "update_task_activity_query",
 ]

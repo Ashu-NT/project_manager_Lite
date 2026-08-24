@@ -1,6 +1,5 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import QtQuick.Controls
 import App.Theme 1.0 as Theme
 import App.Controls 1.0 as AppControls
 
@@ -50,8 +49,11 @@ Item {
                         readonly property string tabLabel: typeof tabItem.modelData === "string"
                             ? tabItem.modelData
                             : (tabItem.modelData.label || "")
+                        readonly property bool hasCount: typeof tabItem.modelData !== "string"
+                            && typeof tabItem.modelData.count === "number"
+                            && tabItem.modelData.count >= 0
 
-                        width: tabText.implicitWidth + 24
+                        width: tabContent.implicitWidth + 24
                         height: 36
 
                         // Hover background
@@ -72,14 +74,44 @@ Item {
                             visible: tabItem.isActive
                         }
 
-                        AppControls.Label {
-                            id: tabText
+                        Row {
+                            id: tabContent
                             anchors.centerIn: parent
-                            text: tabItem.tabLabel
-                            color: tabItem.isActive ? Theme.AppTheme.accent : Theme.AppTheme.textMuted
-                            font.family: Theme.AppTheme.fontFamily
-                            font.pixelSize: Theme.AppTheme.captionSize
-                            font.bold: tabItem.isActive
+                            spacing: 6
+
+                            AppControls.Label {
+                                id: tabText
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: tabItem.tabLabel
+                                color: tabItem.isActive ? Theme.AppTheme.accent : Theme.AppTheme.textMuted
+                                font.family: Theme.AppTheme.fontFamily
+                                font.pixelSize: Theme.AppTheme.captionSize
+                                font.bold: tabItem.isActive
+                            }
+
+                            Rectangle {
+                                id: countBadge
+                                anchors.verticalCenter: parent.verticalCenter
+                                visible: tabItem.hasCount
+                                width: Math.max(20, countText.implicitWidth + 10)
+                                height: 20
+                                radius: 10
+                                color: tabItem.isActive
+                                    ? Theme.AppTheme.accentSoft
+                                    : Theme.AppTheme.surfaceAlt
+
+                                AppControls.Label {
+                                    id: countText
+                                    anchors.centerIn: parent
+                                    text: tabItem.hasCount ? String(tabItem.modelData.count) : ""
+                                    color: tabItem.isActive
+                                        ? Theme.AppTheme.accent
+                                        : Theme.AppTheme.textSecondary
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.captionSize
+                                    font.bold: true
+                                }
+                            }
                         }
 
                         MouseArea {

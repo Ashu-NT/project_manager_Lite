@@ -22,7 +22,6 @@ class Department:
     name: str
     description: str = ""
     site_id: str | None = None
-    default_location_id: str | None = None
     parent_department_id: str | None = None
     department_type: str = ""
     cost_center_code: str = ""
@@ -62,7 +61,6 @@ class Department:
 
     @field_validator(
         "site_id",
-        "default_location_id",
         "parent_department_id",
         "manager_employee_id",
         mode="before",
@@ -112,7 +110,6 @@ class Department:
         *,
         description: str = "",
         site_id: str | None = None,
-        default_location_id: str | None = None,
         parent_department_id: str | None = None,
         department_type: str = "",
         cost_center_code: str = "",
@@ -130,7 +127,6 @@ class Department:
             name=name,
             description=description,
             site_id=site_id,
-            default_location_id=default_location_id,
             parent_department_id=parent_department_id,
             department_type=department_type,
             cost_center_code=cost_center_code,

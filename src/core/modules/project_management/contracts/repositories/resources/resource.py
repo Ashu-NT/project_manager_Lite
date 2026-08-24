@@ -1,8 +1,28 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 
 from src.core.modules.project_management.domain.resources.resource import Resource
+
+
+@dataclass(frozen=True, slots=True)
+class ResourceReferenceSummary:
+    project_resources: int = 0
+    task_assignments: int = 0
+    time_entries: int = 0
+    skills: int = 0
+    certifications: int = 0
+
+    @property
+    def has_operational_references(self) -> bool:
+        return bool(self.project_resources or self.task_assignments or self.time_entries)
+
+    @property
+    def has_any_references(self) -> bool:
+        return bool(
+            self.has_operational_references or self.skills or self.certifications
+        )
 
 
 class ResourceRepository(ABC):
@@ -31,3 +51,20 @@ class ResourceRepository(ABC):
 
     @abstractmethod
     def list_by_employee(self, employee_id: str) -> list[Resource]: ...
+
+    @abstractmethod
+    def code_exists(self, code: str, *, exclude_id: str | None = None) -> bool: ...
+
+    @abstractmethod
+    def employee_link_exists(
+        self,
+        employee_id: str,
+        *,
+        exclude_id: str | None = None,
+    ) -> bool: ...
+
+    @abstractmethod
+    def reference_summary(self, resource_id: str) -> ResourceReferenceSummary: ...
+
+
+__all__ = ["ResourceReferenceSummary", "ResourceRepository"]

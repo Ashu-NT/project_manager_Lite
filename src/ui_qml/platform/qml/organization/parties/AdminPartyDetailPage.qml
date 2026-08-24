@@ -267,7 +267,7 @@ Item {
 
                                         AppControls.Label {
                                             Layout.fillWidth: true
-                                            text: String(root._state.notes || root.party.supportingText || "Party records stay platform-owned. Procurement, maintenance, and PM should reference these masters rather than duplicating them.")
+                                            text: String(root._state.notes || root.party.supportingText || "Party records stay platform-owned. Procurement and PM should reference these masters rather than duplicating them.")
                                             color: Theme.AppTheme.textSecondary
                                             font.pixelSize: Theme.AppTheme.smallSize
                                             wrapMode: Text.WrapAtWordBoundaryOrAnywhere

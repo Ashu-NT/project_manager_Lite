@@ -112,9 +112,13 @@ def test_project_management_workspace_catalog_exposes_typed_scheduling_controlle
     scheduling_api = build_project_management_scheduling_desktop_api(
         project_service=SimpleNamespace(
             list_projects=lambda: [
-                SimpleNamespace(id="proj-1", name="Plant Upgrade"),
-                SimpleNamespace(id="proj-2", name="Warehouse Retrofit"),
-            ]
+                SimpleNamespace(id="proj-1", name="Plant Upgrade", organization_id="org-1"),
+                SimpleNamespace(id="proj-2", name="Warehouse Retrofit", organization_id="org-1"),
+            ],
+            get_project=lambda project_id: SimpleNamespace(
+                id=project_id,
+                organization_id="org-1",
+            ),
         ),
         task_service=SimpleNamespace(list_tasks_for_project=lambda project_id: []),
         scheduling_engine=_FakeSchedulingEngine(
@@ -191,6 +195,12 @@ def test_project_management_workspace_catalog_exposes_typed_scheduling_controlle
                 ]
             }
         ),
+        tenant_context_service=SimpleNamespace(
+            require_active_scope_ids=lambda **_kwargs: SimpleNamespace(
+                tenant_id="tenant-1",
+                organization_id="org-1",
+            )
+        ),
     )
     catalog = ProjectManagementWorkspaceCatalog(
         desktop_api_registry=SimpleNamespace(project_management_scheduling=scheduling_api)
@@ -202,15 +212,15 @@ def test_project_management_workspace_catalog_exposes_typed_scheduling_controlle
     assert controller.overview["title"] == "Scheduling"
     assert controller.projectOptions[0]["label"] == "Plant Upgrade"
     assert controller.calendar["workingDays"][0]["checked"] is True
-    assert controller.schedule["items"][0]["title"] == "Cable Pull"
-    assert controller.criticalPath["items"][0]["title"] == "Cable Pull"
+    assert controller.ganttRowsModel.row_for_task("task-1").name == "Cable Pull"
+    assert controller.ganttRowsModel.criticalAttentionRows[0]["name"] == "Cable Pull"
     assert controller.baselines["rows"][0]["title"] == "Cable Pull"
 
     controller.setActivitySort("taskName", 1)
 
     assert controller.activitySortKey == "taskName"
     assert controller.activitySortDirection == 1
-    assert [item["title"] for item in controller.schedule["items"]] == [
+    assert [row.name for row in controller.ganttRowsModel.effective_rows] == [
         "Punchlist Closeout",
         "Cable Pull",
     ]
@@ -218,5 +228,4 @@ def test_project_management_workspace_catalog_exposes_typed_scheduling_controlle
     controller.selectProject("proj-2")
 
     assert controller.selectedProjectId == "proj-2"
-    assert controller.schedule["items"] == []
-    assert controller.schedule["emptyState"] == "No scheduled activities are available for the selected project."
+    assert controller.ganttRowsModel.rowCountValue == 0

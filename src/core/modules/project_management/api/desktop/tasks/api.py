@@ -73,9 +73,15 @@ from src.core.modules.project_management.api.desktop.tasks.commands.task_command
 )
 from src.core.modules.project_management.api.desktop.tasks.models.assignment import (
     TaskAssignmentDesktopDto,
+    TaskAssignmentPageDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.tasks.models.dependency import (
     TaskDependencyDesktopDto,
+    TaskDependencyPageDesktopDto,
+)
+from src.core.modules.project_management.api.desktop.common.detail_pages import (
+    DetailActivityDesktopDto,
+    DetailActivityPageDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.tasks.models.options import (
     TaskConstraintOptionDescriptor,
@@ -518,6 +524,28 @@ class ProjectManagementTasksDesktopApi:
             )
         return tuple(rows)
 
+    def list_assignments_page(
+        self, task_id: str, *, search_text: str = "", response_status: str = "all",
+        page: int = 1, page_size: int = 25, sort_key: str = "resourceName",
+        sort_direction: str = "asc",
+    ) -> TaskAssignmentPageDesktopDto:
+        result = self._require_task_service().query_task_assignments_page(
+            task_id, search_text=search_text, response_status=response_status,
+            page=page, page_size=page_size, sort_key=sort_key, sort_direction=sort_direction)
+        return TaskAssignmentPageDesktopDto(items=tuple(TaskAssignmentDesktopDto(
+            id=item.assignment_id, task_id=task_id, resource_id=item.resource_id,
+            resource_name=item.resource_name, resource_code=item.resource_code, role=item.role,
+            allocation_percent=float(item.allocation_percent), hours_logged=str(item.actual_hours),
+            project_resource_id=item.project_resource_id, response_status=item.response_status,
+            response_status_label=item.response_status.replace("_", " ").title(),
+            allocated_planned_hours=str(item.planned_hours), version=item.version,
+            remaining_planned_hours_label=str(item.planned_hours - item.actual_hours),
+            can_manage=item.can_manage, can_accept=item.can_accept,
+            can_decline=item.can_decline,
+        ) for item in result.items), filtered_total=result.filtered_total,
+            page=result.page, page_size=result.page_size, sort_key=result.sort.key,
+            sort_direction=result.sort.direction.value)
+
     def get_task_time_summary(self, task_id: str) -> TaskTimeSummaryDesktopDto | None:
         """Task-scoped planned/actual/remaining/overrun totals plus the
         per-resource breakdown for Task Detail -> Time -> Overview (docs
@@ -698,6 +726,45 @@ class ProjectManagementTasksDesktopApi:
                 ),
             )
         )
+
+    def list_dependencies_page(
+        self, task_id: str, *, search_text: str = "", direction: str = "all",
+        dependency_type: str = "all", page: int = 1, page_size: int = 25,
+        sort_key: str = "linkedTask", sort_direction: str = "asc",
+    ) -> TaskDependencyPageDesktopDto:
+        result = self._require_task_service().query_task_dependencies_page(
+            task_id, search_text=search_text, direction=direction,
+            dependency_type=dependency_type, page=page, page_size=page_size,
+            sort_key=sort_key, sort_direction=sort_direction)
+        type_labels = {"FS": "Finish to Start", "FF": "Finish to Finish",
+                       "SS": "Start to Start", "SF": "Start to Finish"}
+        return TaskDependencyPageDesktopDto(items=tuple(TaskDependencyDesktopDto(
+            id=item.dependency_id, direction=item.direction,
+            direction_label=item.direction.title(), linked_task_id=item.linked_task_id,
+            linked_task_name=item.linked_task_name, linked_task_code=item.linked_task_code,
+            linked_task_status=item.linked_task_status,
+            linked_task_start=item.linked_task_start.isoformat() if item.linked_task_start else "",
+            linked_task_end=item.linked_task_end.isoformat() if item.linked_task_end else "",
+            dependency_type=item.dependency_type,
+            dependency_type_label=type_labels.get(item.dependency_type, item.dependency_type),
+            lag_days=item.lag_days, relationship_label="", version=item.version,
+        ) for item in result.items), filtered_total=result.filtered_total,
+            predecessor_total=result.predecessor_total, successor_total=result.successor_total,
+            page=result.page, page_size=result.page_size, sort_key=result.sort.key,
+            sort_direction=result.sort.direction.value)
+
+    def list_task_activity_page(
+        self, task_id: str, *, search_text: str = "", category: str = "all",
+        page: int = 1, page_size: int = 25,
+    ) -> DetailActivityPageDesktopDto:
+        result = self._require_task_service().query_task_activity_page(
+            task_id, search_text=search_text, category=category, page=page, page_size=page_size)
+        return DetailActivityPageDesktopDto(items=tuple(DetailActivityDesktopDto(
+            id=item.activity_id, occurred_at=item.occurred_at.isoformat(), actor_id=item.actor_id,
+            action=item.action, entity_type=item.entity_type, summary=item.summary,
+            details=item.details,
+        ) for item in result.items), filtered_total=result.filtered_total,
+            page=result.page, page_size=result.page_size)
 
     def create_dependency(
         self,

@@ -10,25 +10,33 @@ from src.ui_qml.modules.project_management.view_models.resources import (
     ResourceAvailabilityViewModel,
     ResourceCatalogWorkspaceViewModel,
     ResourceCertificationViewModel,
+    ResourceCapabilityCountsViewModel,
     ResourceSkillViewModel,
 )
 
-from .assignments_builder import build_resource_assignments
+from .context_builder import (
+    build_resource_activity_page,
+    build_resource_assignments_page,
+    build_resource_projects_page,
+)
+from .availability_builder import build_resource_availability_state
 from .certifications_builder import (
     add_certification,
     build_certifications_state,
     remove_certification,
+    update_certification,
 )
 from .command_handler import (
     create_resource,
-    delete_resource,
+    deactivate_resource,
+    reactivate_resource,
     suggest_code,
-    toggle_resource_active,
     update_resource,
 )
-from .skills_builder import add_skill, build_skills_state, remove_skill
+from .skills_builder import add_skill, build_skills_state, remove_skill, update_skill
 from .workspace_builder import build_workspace_state
 from .resource_mapper import to_resource_record_view_model
+from .detail_builder import build_detail_view_model, build_inspector_view_model
 
 class ProjectResourcesWorkspacePresenter:
     def __init__(
@@ -90,6 +98,16 @@ class ProjectResourcesWorkspacePresenter:
             page += 1
         return tuple(records)
 
+    def build_resource_inspector(self, resource_id: str):
+        return build_inspector_view_model(
+            self._desktop_api.get_resource_inspector(resource_id)
+        )
+
+    def build_resource_detail(self, resource_id: str):
+        return build_detail_view_model(
+            self._desktop_api.get_resource_summary(resource_id)
+        )
+
     def suggest_code(self, payload: dict[str, Any]) -> str:
         return suggest_code(self._desktop_api, payload)
 
@@ -99,21 +117,46 @@ class ProjectResourcesWorkspacePresenter:
     def update_resource(self, payload: dict[str, Any]) -> None:
         update_resource(self._desktop_api, payload)
 
-    def toggle_resource_active(
+    def deactivate_resource(
         self,
         resource_id: str,
-        expected_version: int | None = None,
+        expected_version: int,
     ) -> None:
-        toggle_resource_active(self._desktop_api, resource_id, expected_version)
+        deactivate_resource(self._desktop_api, resource_id, expected_version)
 
-    def delete_resource(self, resource_id: str) -> None:
-        delete_resource(self._desktop_api, resource_id)
+    def reactivate_resource(self, resource_id: str, expected_version: int) -> None:
+        reactivate_resource(self._desktop_api, resource_id, expected_version)
 
-    def build_resource_assignments(self, resource_id: str) -> list[dict[str, object]]:
-        return build_resource_assignments(self._desktop_api, resource_id)
+    def build_resource_projects_page(self, resource_id: str, **query) -> dict[str, object]:
+        return build_resource_projects_page(self._desktop_api, resource_id, **query)
+
+    def build_resource_assignments_page(self, resource_id: str, **query) -> dict[str, object]:
+        return build_resource_assignments_page(self._desktop_api, resource_id, **query)
+
+    def build_resource_activity_page(self, resource_id: str, **query) -> dict[str, object]:
+        return build_resource_activity_page(self._desktop_api, resource_id, **query)
+
+    def build_resource_availability(
+        self, resource_id: str, *, start_date: str, end_date: str
+    ) -> ResourceAvailabilityViewModel:
+        return build_resource_availability_state(
+            self._desktop_api,
+            resource_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
     def build_skills_state(self, resource_id: str) -> tuple[ResourceSkillViewModel, ...]:
         return build_skills_state(self._desktop_api, resource_id)
+
+    def build_capability_counts(
+        self, resource_id: str
+    ) -> ResourceCapabilityCountsViewModel:
+        counts = self._desktop_api.get_resource_capability_counts(resource_id)
+        return ResourceCapabilityCountsViewModel(
+            skill_count=counts.skill_count,
+            certification_count=counts.certification_count,
+        )
 
     def build_certifications_state(
         self, resource_id: str
@@ -123,13 +166,19 @@ class ProjectResourcesWorkspacePresenter:
     def add_skill(self, resource_id: str, payload: dict[str, Any]) -> None:
         add_skill(self._desktop_api, resource_id, payload)
 
-    def remove_skill(self, skill_id: str) -> None:
-        remove_skill(self._desktop_api, skill_id)
+    def update_skill(self, payload: dict[str, Any]) -> None:
+        update_skill(self._desktop_api, payload)
+
+    def remove_skill(self, skill_id: str, expected_version: int) -> None:
+        remove_skill(self._desktop_api, skill_id, expected_version)
 
     def add_certification(self, resource_id: str, payload: dict[str, Any]) -> None:
         add_certification(self._desktop_api, resource_id, payload)
 
-    def remove_certification(self, cert_id: str) -> None:
-        remove_certification(self._desktop_api, cert_id)
+    def update_certification(self, payload: dict[str, Any]) -> None:
+        update_certification(self._desktop_api, payload)
+
+    def remove_certification(self, cert_id: str, expected_version: int) -> None:
+        remove_certification(self._desktop_api, cert_id, expected_version)
 
 __all__ = ["ProjectResourcesWorkspacePresenter"]

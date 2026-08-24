@@ -15,6 +15,22 @@ class TaskDependencyDesktopDto:
     lag_days: int
     relationship_label: str
     version: int = 1
+    linked_task_code: str = ""
+    linked_task_status: str = ""
+    linked_task_start: str = ""
+    linked_task_end: str = ""
+
+
+@dataclass(frozen=True)
+class TaskDependencyPageDesktopDto:
+    items: tuple[TaskDependencyDesktopDto, ...] = ()
+    filtered_total: int = 0
+    predecessor_total: int = 0
+    successor_total: int = 0
+    page: int = 1
+    page_size: int = 25
+    sort_key: str = "linkedTask"
+    sort_direction: str = "asc"
 
 
 @dataclass(frozen=True)
@@ -49,6 +65,7 @@ class TaskDependencyImpactPreviewDesktopDto:
 
 __all__ = [
     "TaskDependencyDesktopDto",
+    "TaskDependencyPageDesktopDto",
     "TaskDependencyImpactRowDesktopDto",
     "TaskDependencyImpactPreviewDesktopDto",
 ]

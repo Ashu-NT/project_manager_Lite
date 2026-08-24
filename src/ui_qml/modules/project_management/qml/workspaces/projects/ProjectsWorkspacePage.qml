@@ -11,7 +11,6 @@ import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "components" as Components
 import "dialogs" as Dialogs
-import "sections" as Sections
 import "panels" as Panels
 
 AppLayouts.WorkspaceFrame {
@@ -65,15 +64,21 @@ AppLayouts.WorkspaceFrame {
         const item = root._inspectorItem
         if (!item) return []
         const s = item.state || {}
-        return [
+        const sections = [
             { "label": "Client", "value": String(s.clientLabel || "") },
             { "label": "Site", "value": String(s.siteLabel || "") },
             { "label": "Department", "value": String(s.departmentLabel || "") },
             { "label": "Start", "value": String(s.startDateLabel || "") },
             { "label": "Finish", "value": String(s.endDateLabel || "") },
-            { "label": "Approved Budget", "value": String(s.approvedBudgetLabel || "") },
             { "label": "Contact", "value": String(s.clientContact || "") }
         ]
+        if (s.approvedBudgetVisible === true) {
+            sections.splice(5, 0, {
+                "label": "Approved Budget",
+                "value": String(s.approvedBudgetLabel || "")
+            })
+        }
+        return sections
     }
 
     function _clearInspectorSelection() {
@@ -84,6 +89,7 @@ AppLayouts.WorkspaceFrame {
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
     property bool _detailOpen: false
+    property real _detailContentViewportHeight: 0
     property int _pendingDetailSection: 0
     readonly property var detailPage: detailPageLoader.item
     readonly property var _detailActions: {
@@ -308,8 +314,17 @@ AppLayouts.WorkspaceFrame {
                 showDelete: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                 sections: state.detailSections
+                contentBottomPadding: {
+                    const section = state.detailSections[activeSectionIndex] || ""
+                    return section === "Tasks" || section === "Resources" || section === "Activity"
+                        ? 0 : Theme.AppTheme.pagePadding
+                }
                 z: 20
+                onContentViewportHeightChanged: {
+                    root._detailContentViewportHeight = contentViewportHeight
+                }
                 Component.onCompleted: {
+                    root._detailContentViewportHeight = contentViewportHeight
                     scrollToSection(root._pendingDetailSection)
                     state.lazyLoadDetailSection(_projectDetailPage, root._pendingDetailSection)
                 }
@@ -363,6 +378,7 @@ AppLayouts.WorkspaceFrame {
                     id: projectsDetailPanel
                     width: parent ? parent.width : 0
                     detailPage: detailPageLoader.item
+                    availableHeight: Math.max(0, root._detailContentViewportHeight - y)
                     pmCatalog: root.pmCatalog
                     projectDetail: root.selectedProjectModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
@@ -373,6 +389,7 @@ AppLayouts.WorkspaceFrame {
                     projectResourcesTableModel: root.workspaceController ? root.workspaceController.projectResourcesTableModel : null
                     projectRisksModel: root.workspaceController ? root.workspaceController.projectRisks : ({})
                     projectActivityModel: root.workspaceController ? root.workspaceController.projectActivity : ({})
+                    projectActivityTableModel: root.workspaceController ? root.workspaceController.projectActivityTableModel : null
                     assignableResourceOptions: root.workspaceController ? (root.workspaceController.assignableResourceOptions || []) : []
                     selectedProjectResourceId: root.workspaceController ? root.workspaceController.selectedProjectResourceId : ""
                     onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedProjectModel)

@@ -17,8 +17,12 @@ from src.core.modules.project_management.application.scheduling.cpm.constraint_v
 )
 from src.core.modules.project_management.domain.enums import DependencyType
 from src.core.modules.project_management.infrastructure.reporting import ReportingService
+from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.core.platform.common.exceptions import NotFoundError
 
 from src.core.modules.project_management.api.desktop.scheduling.models import (
+    GanttBaselineOverlayDto,
+    GanttProjectionDto,
     SchedulingBaselineComparisonRowDto,
     SchedulingBaselineOptionDescriptor,
     SchedulingBaselineRowDto,
@@ -35,6 +39,11 @@ from src.core.modules.project_management.api.desktop.scheduling.models import (
     SchedulingResourceLoadDto,
     SchedulingTaskDto,
     SchedulingWorkingDayCalculationDto,
+)
+from src.core.modules.project_management.api.desktop.scheduling.builders.gantt_builder import (
+    build_gantt_baseline_overlay as assemble_gantt_baseline_overlay,
+    build_gantt_projection as assemble_gantt_projection,
+    build_hierarchy_nodes,
 )
 from src.core.modules.project_management.api.desktop.scheduling.commands.dependency_commands import (
     SchedulingDependencyCreateCommand,
@@ -107,6 +116,7 @@ class ProjectManagementSchedulingDesktopApi:
         reporting_service: ReportingService | None = None,
         change_impact_service: ScheduleChangeImpactService | None = None,
         constraint_validator: ConstraintValidator | None = None,
+        tenant_context_service: TenantContextService | None = None,
     ) -> None:
         self._project_service = project_service
         self._task_service = task_service
@@ -118,6 +128,7 @@ class ProjectManagementSchedulingDesktopApi:
         self._reporting_service = reporting_service
         self._change_impact_service = change_impact_service
         self._constraint_validator = constraint_validator
+        self._tenant_context_service = tenant_context_service
         # Last-previewed leveling proposal per project, keyed so Apply can
         # hand the EXACT snapshot Preview reasoned about back to
         # apply_resource_leveling_plan without a lossy QML round-trip --
@@ -282,6 +293,115 @@ class ProjectManagementSchedulingDesktopApi:
         if not normalized_id:
             raise ValueError("Select a project before recalculating the schedule.")
         return build_schedule_from_engine(normalized_id, self._require_scheduling_engine(), persist=True)
+
+    def build_gantt_projection(
+        self,
+        project_id: str,
+        *,
+        selected_baseline_id: str | None = None,
+    ) -> GanttProjectionDto:
+        """Build the canonical complete-project Gantt read projection."""
+        normalized_id = str(project_id or "").strip()
+        if not normalized_id:
+            raise ValueError("Select a project before loading the Gantt projection.")
+        scope, project = self._require_gantt_project_scope(normalized_id)
+
+        schedule = build_schedule_from_engine(
+            normalized_id,
+            self._require_scheduling_engine(),
+            persist=False,
+        )
+        list_hierarchy = getattr(self._task_service, "list_task_hierarchy", None)
+        if callable(list_hierarchy):
+            hierarchy = tuple(list_hierarchy(normalized_id))
+        else:
+            list_tasks = require_task_method(
+                self._task_service, "list_tasks_for_project"
+            )
+            task_rows = tuple(list_tasks(normalized_id))
+            # Lightweight desktop test adapters may expose canonical schedule
+            # DTOs without a hierarchy query. Production TaskService uses the
+            # authorized hierarchy method above.
+            hierarchy = build_hierarchy_nodes(task_rows or schedule)
+
+        dependencies = self.list_project_dependencies(normalized_id)
+        baseline_id = str(selected_baseline_id or "").strip()
+        baseline_tasks = ()
+        if baseline_id:
+            baseline_tasks = tuple(
+                self._require_baseline_service().list_baseline_tasks(
+                    baseline_id,
+                    expected_project_id=normalized_id,
+                )
+            )
+        calendar_for_project = getattr(
+            self._scheduling_engine, "calendar_for_project", None
+        )
+        project_calendar = (
+            calendar_for_project(normalized_id)
+            if callable(calendar_for_project)
+            else self._work_calendar_engine
+        )
+        return assemble_gantt_projection(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=normalized_id,
+            hierarchy_nodes=hierarchy,
+            schedule_items=schedule,
+            dependency_rows=dependencies,
+            baseline_tasks=baseline_tasks,
+            selected_baseline_id=baseline_id or None,
+            project_start=getattr(project, "start_date", None),
+            project_finish=getattr(project, "end_date", None),
+            work_calendar=project_calendar,
+        )
+
+    def build_gantt_baseline_overlay(
+        self,
+        project_id: str,
+        baseline_id: str,
+    ) -> GanttBaselineOverlayDto:
+        """Read one authorized baseline snapshot without rebuilding schedule state."""
+        normalized_project_id = str(project_id or "").strip()
+        normalized_baseline_id = str(baseline_id or "").strip()
+        if not normalized_project_id:
+            raise ValueError("Select a project before loading a Gantt baseline.")
+        if not normalized_baseline_id:
+            raise ValueError("Select a baseline before loading its Gantt overlay.")
+        scope, _project = self._require_gantt_project_scope(normalized_project_id)
+        snapshots = self._require_baseline_service().list_baseline_tasks(
+            normalized_baseline_id,
+            expected_project_id=normalized_project_id,
+        )
+        return assemble_gantt_baseline_overlay(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            project_id=normalized_project_id,
+            baseline_id=normalized_baseline_id,
+            baseline_tasks=snapshots,
+        )
+
+    def _require_gantt_project_scope(self, project_id: str):
+        if self._tenant_context_service is None:
+            raise RuntimeError(
+                "Project management Gantt API requires TenantContextService."
+            )
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view project Gantt"
+        )
+        get_project = getattr(self._project_service, "get_project", None)
+        project = get_project(project_id) if callable(get_project) else None
+        if project is None:
+            raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
+        project_tenant_id = str(getattr(project, "tenant_id", "") or "")
+        project_organization_id = str(getattr(project, "organization_id", "") or "")
+        if (
+            project_tenant_id and project_tenant_id != scope.tenant_id
+        ) or (
+            project_organization_id and project_organization_id != scope.organization_id
+        ):
+            raise NotFoundError("Project not found.", code="PROJECT_NOT_FOUND")
+        return scope, project
 
     # ── Baselines ─────────────────────────────────────────────────────────────
 

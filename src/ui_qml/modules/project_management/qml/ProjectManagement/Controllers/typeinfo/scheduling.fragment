@@ -7,8 +7,6 @@ Component {
     Property { name: "projectOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "calendarOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "baselineOptions"; type: "QVariantList"; isReadonly: true }
-    Property { name: "dependencyTypeOptions"; type: "QVariantList"; isReadonly: true }
-    Property { name: "dependencyTaskOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "statusOptions"; type: "QVariantList"; isReadonly: true }
     Property { name: "selectedProjectId"; type: "QString"; isReadonly: true }
     Property { name: "selectedCalendarId"; type: "QString"; isReadonly: true }
@@ -17,30 +15,26 @@ Component {
     Property { name: "searchText"; type: "QString"; isReadonly: true }
     Property { name: "showCriticalOnly"; type: "bool"; isReadonly: true }
     Property { name: "showDelayedOnly"; type: "bool"; isReadonly: true }
-    Property { name: "activityPage"; type: "int"; isReadonly: true }
-    Property { name: "activityPageSize"; type: "int"; isReadonly: true }
-    Property { name: "activityTotalCount"; type: "int"; isReadonly: true }
+    Property { name: "showDependencyLines"; type: "bool"; isReadonly: true }
+    Property { name: "highlightCriticalTasks"; type: "bool"; isReadonly: true }
+    Property { name: "ganttSelectedBaselineId"; type: "QString"; isReadonly: true }
+    Property { name: "ganttBaselineLoading"; type: "bool"; isReadonly: true }
+    Property { name: "ganttBaselineError"; type: "QString"; isReadonly: true }
+    Property { name: "ganttRequestedViewMode"; type: "QString"; isReadonly: true }
+    Property { name: "ganttSplitRatio"; type: "double"; isReadonly: true }
     Property { name: "selectedActivityId"; type: "QString"; isReadonly: true }
     Property { name: "calendar"; type: "QVariantMap"; isReadonly: true }
     Property { name: "baselines"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "schedule"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "timeline"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "criticalPath"; type: "QVariantMap"; isReadonly: true }
     Property { name: "diagnostics"; type: "QVariantMap"; isReadonly: true }
     Property { name: "delayedActivities"; type: "QVariantMap"; isReadonly: true }
     Property { name: "resourceLoading"; type: "QVariantMap"; isReadonly: true }
     Property { name: "baselineRegister"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "dependencies"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "constraints"; type: "QVariantMap"; isReadonly: true }
     Property { name: "activityFeed"; type: "QVariantMap"; isReadonly: true }
-    Property { name: "scheduleRows"; type: "QVariantList"; isReadonly: true }
     Property { name: "diagnosticsRows"; type: "QVariantList"; isReadonly: true }
     Property { name: "delayedActivityRows"; type: "QVariantList"; isReadonly: true }
     Property { name: "resourceLoadingRows"; type: "QVariantList"; isReadonly: true }
     Property { name: "baselineCompareRows"; type: "QVariantList"; isReadonly: true }
     Property { name: "baselineRegisterRows"; type: "QVariantList"; isReadonly: true }
-    Property { name: "dependencyRows"; type: "QVariantList"; isReadonly: true }
-    Property { name: "constraintRows"; type: "QVariantList"; isReadonly: true }
     Property { name: "calendarSummaryRows"; type: "QVariantList"; isReadonly: true }
     Property { name: "holidayRows"; type: "QVariantList"; isReadonly: true }
     Property { name: "selectedActivity"; type: "QVariantMap"; isReadonly: true }
@@ -56,17 +50,20 @@ Component {
     Method { name: "setStatusFilter"; Parameter { name: "statusFilter"; type: "QString" } }
     Method { name: "setShowCriticalOnly"; Parameter { name: "enabled"; type: "bool" } }
     Method { name: "setShowDelayedOnly"; Parameter { name: "enabled"; type: "bool" } }
+    Method { name: "setShowDependencyLines"; Parameter { name: "enabled"; type: "bool" } }
+    Method { name: "setHighlightCriticalTasks"; Parameter { name: "enabled"; type: "bool" } }
+    Method { name: "setGanttRequestedViewMode"; Parameter { name: "viewMode"; type: "QString" } }
+    Method { name: "setGanttSplitRatio"; Parameter { name: "ratio"; type: "double" } }
+    Method { name: "setGanttTimescale"; type: "bool"; Parameter { name: "timescale"; type: "QString" } }
+    Method { name: "ganttZoomIn"; type: "bool" }
+    Method { name: "ganttZoomOut"; type: "bool" }
+    Method { name: "resetGanttZoom"; type: "bool" }
+    Method { name: "selectGanttBaseline"; Parameter { name: "baselineId"; type: "QString" } }
     Method { name: "setActivePanel"; Parameter { name: "panelId"; type: "QString" } }
     Method { name: "clearFilters" }
     Method { name: "selectActivity"; Parameter { name: "activityId"; type: "QString" } }
-    Method { name: "activateActivity"; Parameter { name: "activityId"; type: "QString" } }
-    Method { name: "setActivityPage"; Parameter { name: "page"; type: "int" } }
-    Method { name: "setActivityPageSize"; Parameter { name: "pageSize"; type: "int" } }
     Method { name: "createBaseline"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "deleteBaseline"; type: "QVariantMap"; Parameter { name: "baselineId"; type: "QString" } }
     Method { name: "recalculateSchedule"; type: "QVariantMap" }
-    Method { name: "createDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
-    Method { name: "updateDependency"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
-    Method { name: "deleteDependency"; type: "QVariantMap"; Parameter { name: "dependencyId"; type: "QString" } }
     Method { name: "calculateWorkingDays"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
 }

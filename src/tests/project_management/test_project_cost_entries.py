@@ -429,12 +429,24 @@ def test_cost_entry_migration_installs_database_immutability_guards(tmp_path) ->
             "trg_project_cost_entries_immutable_delete",
             "trg_project_cost_entries_immutable_update",
         }
-        tenant_id, organization_id = connection.execute(
+        tenant_id = "cost-migration-tenant"
+        organization_id = "cost-migration-organization"
+        connection.execute(
             sa.text(
-                "SELECT tenant_id, id FROM organizations "
-                "WHERE tenant_id IS NOT NULL ORDER BY id LIMIT 1"
-            )
-        ).one()
+                "INSERT INTO tenants (id, tenant_code, display_name) VALUES "
+                "(:tenant_id, 'COST-MIGRATION', 'Cost Migration Tenant')"
+            ),
+            {"tenant_id": tenant_id},
+        )
+        connection.execute(
+            sa.text(
+                "INSERT INTO organizations "
+                "(id, tenant_id, organization_code, display_name) VALUES "
+                "(:organization_id, :tenant_id, 'COST-MIGRATION-ORG', "
+                "'Cost Migration Organization')"
+            ),
+            {"tenant_id": tenant_id, "organization_id": organization_id},
+        )
         connection.execute(
             sa.text(
                 "INSERT INTO projects (id, tenant_id, organization_id, name, description, "

@@ -20,7 +20,18 @@ class ResourceSkillRepository(ABC):
     def list_by_resource(self, resource_id: str) -> list[ResourceSkill]: ...
 
     @abstractmethod
-    def delete(self, skill_id: str) -> None: ...
+    def count_by_resource(self, resource_id: str) -> int: ...
+
+    @abstractmethod
+    def update(self, skill: ResourceSkill, *, expected_version: int) -> ResourceSkill: ...
+
+    @abstractmethod
+    def code_exists(
+        self, resource_id: str, skill_code: str, *, exclude_id: str | None = None
+    ) -> bool: ...
+
+    @abstractmethod
+    def delete(self, skill_id: str, *, expected_version: int) -> None: ...
 
 
 class ResourceCertificationRepository(ABC):
@@ -34,7 +45,20 @@ class ResourceCertificationRepository(ABC):
     def list_by_resource(self, resource_id: str) -> list[ResourceCertification]: ...
 
     @abstractmethod
-    def delete(self, cert_id: str) -> None: ...
+    def count_by_resource(self, resource_id: str) -> int: ...
+
+    @abstractmethod
+    def update(
+        self, cert: ResourceCertification, *, expected_version: int
+    ) -> ResourceCertification: ...
+
+    @abstractmethod
+    def code_exists(
+        self, resource_id: str, certification_code: str, *, exclude_id: str | None = None
+    ) -> bool: ...
+
+    @abstractmethod
+    def delete(self, cert_id: str, *, expected_version: int) -> None: ...
 
 
 class TaskSkillRequirementRepository(ABC):

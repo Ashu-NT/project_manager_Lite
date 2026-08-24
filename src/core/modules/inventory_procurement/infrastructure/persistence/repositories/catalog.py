@@ -73,7 +73,6 @@ class SqlAlchemyInventoryItemCategoryRepository(
                 "category_type": category.category_type,
                 "is_equipment": category.is_equipment,
                 "supports_project_usage": category.supports_project_usage,
-                "supports_maintenance_usage": category.supports_maintenance_usage,
                 "is_active": category.is_active,
                 "created_at": category.created_at,
                 "updated_at": category.updated_at,

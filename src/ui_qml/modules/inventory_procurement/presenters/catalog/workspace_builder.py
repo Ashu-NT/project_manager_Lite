@@ -47,7 +47,6 @@ def build_workspace_state(
         InventorySelectorOptionViewModel(value="all", label="All usage"),
         InventorySelectorOptionViewModel(value="equipment", label="Equipment"),
         InventorySelectorOptionViewModel(value="projects", label="Projects"),
-        InventorySelectorOptionViewModel(value="maintenance", label="Maintenance"),
     )
     category_type_options = (
         InventorySelectorOptionViewModel(value="all", label="All category types"),

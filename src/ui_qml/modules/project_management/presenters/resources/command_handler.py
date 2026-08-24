@@ -6,15 +6,15 @@ from decimal import Decimal
 from src.core.modules.project_management.api.desktop import (
     ProjectManagementResourcesDesktopApi,
     ResourceCreateCommand,
+    ResourceLifecycleCommand,
     ResourceUpdateCommand,
 )
-from src.core.modules.project_management.domain.enums import CostType, WorkerType
+from src.core.modules.project_management.domain.enums import CostType, ResourceKind, WorkerType
 
 from .validation import (
-    optional_bool,
     optional_decimal,
     optional_float,
-    optional_int,
+    require_int,
     optional_text,
     require_text,
 )
@@ -44,9 +44,9 @@ def create_resource(
     command = ResourceCreateCommand(
         name=optional_text(payload, "name") or "",
         code=optional_text(payload, "resourceCode"),
+        kind=optional_text(payload, "kind") or ResourceKind.PERSON.value,
         role=optional_text(payload, "role") or "",
         hourly_rate=optional_decimal(payload, "hourlyRate", "Hourly rate must be a valid number.", default=Decimal("0")),
-        is_active=optional_bool(payload, "isActive", default=True),
         cost_type=optional_text(payload, "costType") or CostType.LABOR.value,
         currency_code=optional_text(payload, "currency"),
         capacity_percent=optional_float(payload, "capacityPercent", "Capacity must be a valid number.", default=100.0),
@@ -54,6 +54,8 @@ def create_resource(
         contact=optional_text(payload, "contact") or "",
         worker_type=optional_text(payload, "workerType") or WorkerType.EXTERNAL.value,
         employee_id=optional_text(payload, "employeeId"),
+        department_id=optional_text(payload, "departmentId"),
+        site_id=optional_text(payload, "siteId"),
     )
     desktop_api.create_resource(command)
 
@@ -65,9 +67,9 @@ def update_resource(
         resource_id=require_text(payload, "resourceId", "Resource ID is required for updates."),
         name=optional_text(payload, "name") or "",
         code=optional_text(payload, "resourceCode"),
+        kind=require_text(payload, "kind", "Resource kind is required."),
         role=optional_text(payload, "role") or "",
         hourly_rate=optional_decimal(payload, "hourlyRate", "Hourly rate must be a valid number.", default=Decimal("0")),
-        is_active=optional_bool(payload, "isActive", default=True),
         cost_type=optional_text(payload, "costType") or CostType.LABOR.value,
         currency_code=optional_text(payload, "currency"),
         capacity_percent=optional_float(payload, "capacityPercent", "Capacity must be a valid number.", default=100.0),
@@ -75,25 +77,38 @@ def update_resource(
         contact=optional_text(payload, "contact") or "",
         worker_type=optional_text(payload, "workerType") or WorkerType.EXTERNAL.value,
         employee_id=optional_text(payload, "employeeId"),
-        expected_version=optional_int(payload, "expectedVersion"),
+        department_id=optional_text(payload, "departmentId"),
+        site_id=optional_text(payload, "siteId"),
+        expected_version=require_int(payload, "expectedVersion", "Resource version is required."),
     )
     desktop_api.update_resource(command)
 
-def toggle_resource_active(
+def deactivate_resource(
     desktop_api: ProjectManagementResourcesDesktopApi,
     resource_id: str,
-    expected_version: int | None = None,
+    expected_version: int,
 ) -> None:
     normalized_resource_id = (resource_id or "").strip()
     if not normalized_resource_id:
-        raise ValueError("Resource ID is required to update availability.")
-    desktop_api.toggle_resource_active(normalized_resource_id, expected_version=expected_version)
+        raise ValueError("Resource ID is required to deactivate a resource.")
+    desktop_api.deactivate_resource(
+        ResourceLifecycleCommand(
+            resource_id=normalized_resource_id,
+            expected_version=expected_version,
+        )
+    )
 
-def delete_resource(
+def reactivate_resource(
     desktop_api: ProjectManagementResourcesDesktopApi,
     resource_id: str,
+    expected_version: int,
 ) -> None:
     normalized_resource_id = (resource_id or "").strip()
     if not normalized_resource_id:
-        raise ValueError("Resource ID is required to delete a resource.")
-    desktop_api.delete_resource(normalized_resource_id)
+        raise ValueError("Resource ID is required to reactivate a resource.")
+    desktop_api.reactivate_resource(
+        ResourceLifecycleCommand(
+            resource_id=normalized_resource_id,
+            expected_version=expected_version,
+        )
+    )

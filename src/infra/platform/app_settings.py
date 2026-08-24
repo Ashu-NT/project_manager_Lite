@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from math import isfinite
 
 from PySide6.QtCore import QByteArray, QSettings
 
@@ -24,6 +25,14 @@ class AppSettingsStore:
     _KEY_UPDATE_MANIFEST_URL = "updates/manifest_url"
     _KEY_DASHBOARD_LAYOUT = "dashboard/layout"
     _KEY_TABLE_COLUMN_STATE = "ui/table_column_state"
+    _KEY_GANTT_VIEW_STATE = "ui/project_management/gantt/view_state"
+    _KEY_GANTT_BASELINE_STATE = "ui/project_management/gantt/project_baselines"
+
+    _GANTT_VIEW_MODES = {"grid", "timeline", "split"}
+    _GANTT_TIMESCALES = {"day", "week", "month", "quarter"}
+    _GANTT_ZOOM_LEVELS = (0.75, 0.875, 1.0, 1.25, 1.5)
+    _GANTT_MIN_SPLIT_RATIO = 0.44
+    _GANTT_MAX_SPLIT_RATIO = 0.62
 
     def __init__(self, settings: QSettings | None = None) -> None:
         self._settings = settings or QSettings(self.ORG_NAME, self.APP_NAME)
@@ -182,6 +191,138 @@ class AppSettingsStore:
         all_states[str(table_id)] = dict(state) if isinstance(state, dict) else {}
         self._settings.setValue(table_state_key, json.dumps(all_states, sort_keys=True))
         self._settings.sync()
+
+    def load_gantt_view_state(
+        self,
+        *,
+        organization_id: str | None = None,
+    ) -> dict[str, object]:
+        key = self._tenant_key(self._KEY_GANTT_VIEW_STATE, organization_id)
+        raw = self._settings.value(key, "{}")
+        try:
+            payload = json.loads(str(raw or "{}"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            payload = {}
+        return self._normalize_gantt_view_state(payload)
+
+    def save_gantt_view_state(
+        self,
+        state: dict[str, object],
+        *,
+        organization_id: str | None = None,
+    ) -> None:
+        payload = self._normalize_gantt_view_state(state)
+        self._settings.setValue(
+            self._tenant_key(self._KEY_GANTT_VIEW_STATE, organization_id),
+            json.dumps(payload, sort_keys=True),
+        )
+        self._settings.sync()
+
+    def load_gantt_project_baseline(
+        self,
+        project_id: str,
+        *,
+        organization_id: str | None = None,
+    ) -> str:
+        normalized_project_id = str(project_id or "").strip()
+        if not normalized_project_id:
+            return ""
+        states = self._load_gantt_project_baselines(organization_id=organization_id)
+        return str(states.get(normalized_project_id) or "").strip()
+
+    def save_gantt_project_baseline(
+        self,
+        project_id: str,
+        baseline_id: str,
+        *,
+        organization_id: str | None = None,
+    ) -> None:
+        normalized_project_id = str(project_id or "").strip()
+        if not normalized_project_id:
+            return
+        states = self._load_gantt_project_baselines(organization_id=organization_id)
+        normalized_baseline_id = str(baseline_id or "").strip()
+        if normalized_baseline_id:
+            states[normalized_project_id] = normalized_baseline_id
+        else:
+            states.pop(normalized_project_id, None)
+        self._settings.setValue(
+            self._tenant_key(self._KEY_GANTT_BASELINE_STATE, organization_id),
+            json.dumps(states, sort_keys=True),
+        )
+        self._settings.sync()
+
+    def _load_gantt_project_baselines(
+        self,
+        *,
+        organization_id: str | None,
+    ) -> dict[str, str]:
+        raw = self._settings.value(
+            self._tenant_key(self._KEY_GANTT_BASELINE_STATE, organization_id),
+            "{}",
+        )
+        try:
+            payload = json.loads(str(raw or "{}"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return {}
+        if not isinstance(payload, dict):
+            return {}
+        return {
+            str(project_id).strip(): str(baseline_id).strip()
+            for project_id, baseline_id in payload.items()
+            if str(project_id).strip() and str(baseline_id or "").strip()
+        }
+
+    @classmethod
+    def _normalize_gantt_view_state(cls, payload: object) -> dict[str, object]:
+        source = payload if isinstance(payload, dict) else {}
+        requested_view_mode = str(source.get("requestedViewMode") or "").strip().lower()
+        if requested_view_mode not in cls._GANTT_VIEW_MODES:
+            requested_view_mode = "split"
+        timescale = str(source.get("timescale") or "").strip().lower()
+        if timescale not in cls._GANTT_TIMESCALES:
+            timescale = "week"
+
+        raw_ratio = source.get("splitRatio")
+        split_ratio = 0.5
+        if isinstance(raw_ratio, (int, float)) and not isinstance(raw_ratio, bool):
+            candidate = float(raw_ratio)
+            if isfinite(candidate):
+                split_ratio = min(
+                    cls._GANTT_MAX_SPLIT_RATIO,
+                    max(cls._GANTT_MIN_SPLIT_RATIO, candidate),
+                )
+
+        raw_zoom = source.get("zoomMultiplier")
+        zoom_multiplier = 1.0
+        if isinstance(raw_zoom, (int, float)) and not isinstance(raw_zoom, bool):
+            candidate = float(raw_zoom)
+            if isfinite(candidate):
+                zoom_multiplier = next(
+                    (
+                        level
+                        for level in cls._GANTT_ZOOM_LEVELS
+                        if abs(level - candidate) < 0.000_001
+                    ),
+                    1.0,
+                )
+
+        dependency_lines = source.get("dependencyLinesEnabled")
+        if not isinstance(dependency_lines, bool):
+            dependency_lines = True
+        highlight_critical = source.get("highlightCriticalTasks")
+        if not isinstance(highlight_critical, bool):
+            highlight_critical = True
+
+        return {
+            "version": 1,
+            "requestedViewMode": requested_view_mode,
+            "splitRatio": split_ratio,
+            "timescale": timescale,
+            "zoomMultiplier": zoom_multiplier,
+            "dependencyLinesEnabled": dependency_lines,
+            "highlightCriticalTasks": highlight_critical,
+        }
 
 
 __all__ = ["AppSettingsStore"]

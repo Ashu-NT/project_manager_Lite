@@ -293,4 +293,3 @@ def test_inventory_inventory_desktop_api_builds_enterprise_foundation_snapshot(s
     assert snapshot.cycle_counts[0].id == cycle_count.id
     module_status = {entry.code: entry.is_enabled for entry in snapshot.module_links}
     assert module_status["project_management"] is True
-    assert module_status["maintenance_management"] is False

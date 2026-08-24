@@ -21,17 +21,6 @@ QML_INV_DIALOGS = Path(
 QML_INV_WIDGETS = Path(
     "src/ui_qml/modules/inventory_procurement/qml/InventoryProcurement/Widgets"
 )
-QML_MAINT_CONTROLLERS = Path(
-    "src/ui_qml/modules/maintenance/qml/Maintenance/Controllers"
-)
-QML_MAINT_DIALOGS = Path(
-    "src/ui_qml/modules/maintenance/qml/Maintenance/Dialogs"
-)
-QML_MAINT_WIDGETS = Path(
-    "src/ui_qml/modules/maintenance/qml/Maintenance/Widgets"
-)
-
-
 def test_qml_platform_widgets_module_exists() -> None:
     expected_files = [
         QML_PLATFORM_CONTROLLERS / "qmldir",
@@ -163,86 +152,6 @@ def test_qml_inventory_procurement_modules_exist() -> None:
     assert all(path.exists() for path in expected_files)
 
 
-def test_qml_maintenance_modules_exist() -> None:
-    _maint = UI_QML_ROOT / "modules" / "maintenance" / "qml" / "workspaces"
-    expected_files = [
-        QML_MAINT_CONTROLLERS / "qmldir",
-        QML_MAINT_CONTROLLERS / "typeinfo" / "plugins.qmltypes",
-        QML_MAINT_DIALOGS / "qmldir",
-        QML_MAINT_WIDGETS / "qmldir",
-        QML_MAINT_WIDGETS / "RecordListCard.qml",
-        QML_MAINT_WIDGETS / "WorkspacePlaceholderPage.qml",
-        QML_MAINT_WIDGETS / "WorkspaceStateBanner.qml",
-        QML_MAINT_WIDGETS / "WorkspaceStatusSection.qml",
-        _maint / "dashboard" / "DashboardWorkspace.qml",
-        _maint / "dashboard" / "DashboardWorkspacePage.qml",
-        _maint / "dashboard" / "sections" / "DashboardMetricsSection.qml",
-        _maint / "dashboard" / "sections" / "DashboardFiltersSection.qml",
-        _maint / "dashboard" / "sections" / "DashboardBacklogSection.qml",
-        _maint / "dashboard" / "sections" / "DashboardRootCausesSection.qml",
-        _maint / "dashboard" / "sections" / "DashboardRecurringSection.qml",
-        _maint / "reliability" / "ReliabilityWorkspace.qml",
-        _maint / "reliability" / "ReliabilityWorkspacePage.qml",
-        _maint / "reliability" / "sections" / "ReliabilityMetricsSection.qml",
-        _maint / "reliability" / "sections" / "ReliabilityFiltersSection.qml",
-        _maint / "reliability" / "sections" / "ReliabilitySuggestionsSection.qml",
-        _maint / "reliability" / "sections" / "ReliabilityRootCausesSection.qml",
-        _maint / "reliability" / "sections" / "ReliabilityRecurringSection.qml",
-        _maint / "assets" / "AssetsWorkspace.qml",
-        _maint / "assets" / "AssetsWorkspacePage.qml",
-        _maint / "assets" / "sections" / "AssetsMetricsSection.qml",
-        _maint / "assets" / "sections" / "AssetsFiltersSection.qml",
-        _maint / "assets" / "sections" / "AssetLibraryCatalogSection.qml",
-        _maint / "assets" / "sections" / "AssetLibraryDetailSection.qml",
-        _maint / "assets" / "dialogs" / "AssetsDialogHost.qml",
-        _maint / "work_requests" / "WorkRequestsWorkspace.qml",
-        _maint / "work_requests" / "WorkRequestsWorkspacePage.qml",
-        _maint / "work_requests" / "sections" / "WorkRequestsMetricsSection.qml",
-        _maint / "work_requests" / "sections" / "WorkRequestsFiltersSection.qml",
-        _maint / "work_requests" / "sections" / "WorkRequestsCatalogSection.qml",
-        _maint / "work_requests" / "panels" / "WorkRequestDetailPanel.qml",
-        _maint / "work_requests" / "dialogs" / "WorkRequestsDialogHost.qml",
-        _maint / "work_orders" / "WorkOrdersWorkspace.qml",
-        _maint / "work_orders" / "WorkOrdersWorkspacePage.qml",
-        _maint / "work_orders" / "sections" / "WorkOrdersMetricsSection.qml",
-        _maint / "work_orders" / "sections" / "WorkOrdersFiltersSection.qml",
-        _maint / "work_orders" / "sections" / "WorkOrdersCatalogSection.qml",
-        _maint / "work_orders" / "panels" / "WorkOrderDetailPanel.qml",
-        _maint / "work_orders" / "dialogs" / "WorkOrdersDialogHost.qml",
-        _maint / "preventive" / "PreventiveWorkspace.qml",
-        _maint / "preventive" / "PreventiveWorkspacePage.qml",
-        _maint / "preventive" / "sections" / "PreventiveMetricsSection.qml",
-        _maint / "preventive" / "sections" / "PreventiveDetailSection.qml",
-        _maint / "preventive" / "sections" / "PreventiveQueueSection.qml",
-        _maint / "preventive" / "sections" / "PreventivePlansSection.qml",
-        _maint / "preventive" / "sections" / "PreventiveTemplatesSection.qml",
-        _maint / "preventive" / "dialogs" / "PreventiveDialogHost.qml",
-        _maint / "planner" / "PlannerWorkspace.qml",
-        _maint / "planner" / "PlannerWorkspacePage.qml",
-        _maint / "planner" / "sections" / "PlannerFiltersSection.qml",
-        _maint / "planner" / "sections" / "PlannerMetricsSection.qml",
-        _maint / "planner" / "sections" / "PlannerRequestsSection.qml",
-        _maint / "planner" / "sections" / "PlannerBacklogSection.qml",
-        _maint / "planner" / "sections" / "PlannerMaterialRisksSection.qml",
-        _maint / "planner" / "sections" / "PlannerPreventiveSection.qml",
-        _maint / "planner" / "sections" / "PlannerRecurringSection.qml",
-        QML_MAINT_DIALOGS / "LocationEditorDialog.qml",
-        QML_MAINT_DIALOGS / "SystemEditorDialog.qml",
-        QML_MAINT_DIALOGS / "AssetEditorDialog.qml",
-        QML_MAINT_DIALOGS / "ComponentEditorDialog.qml",
-        QML_MAINT_DIALOGS / "WorkRequestEditorDialog.qml",
-        QML_MAINT_DIALOGS / "WorkRequestStatusDialog.qml",
-        QML_MAINT_DIALOGS / "WorkOrderEditorDialog.qml",
-        QML_MAINT_DIALOGS / "WorkOrderStatusDialog.qml",
-        QML_MAINT_DIALOGS / "PreventivePlanEditorDialog.qml",
-        QML_MAINT_DIALOGS / "PreventivePlanTaskEditorDialog.qml",
-        QML_MAINT_DIALOGS / "TaskTemplateEditorDialog.qml",
-        QML_MAINT_DIALOGS / "TaskStepTemplateEditorDialog.qml",
-    ]
-
-    assert all(path.exists() for path in expected_files)
-
-
 def test_qml_shared_theme_matches_legacy_widget_tokens() -> None:
     theme_qml = (QML_SHARED_ROOT / "Theme" / "AppTheme.qml").read_text(encoding="utf-8")
 
@@ -299,6 +208,17 @@ def test_data_table_server_sort_is_emit_only() -> None:
     assert "const requestedDirection" in table_qml
     assert 'root._effectiveSortingMode !== "client"' in table_qml
     assert 'root._effectiveSortingMode !== "none"' in table_qml
+
+
+def test_data_table_nested_vertical_scroll_is_edge_aware() -> None:
+    table_qml = (QML_SHARED_ROOT / "Widgets" / "DataTable.qml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "property bool   alwaysShowVerticalScrollBar: false" in table_qml
+    assert "function _scrollVerticallyBy(deltaPixels)" in table_qml
+    assert "event.accepted = root._scrollVerticallyBy(inputDelta)" in table_qml
+    assert "ScrollBar.AlwaysOn : ScrollBar.AsNeeded" in table_qml
 
 
 def test_non_pm_data_tables_keep_legacy_client_sorting_default() -> None:

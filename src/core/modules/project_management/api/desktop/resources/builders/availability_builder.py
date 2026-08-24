@@ -1,45 +1,40 @@
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date
 
 from src.core.modules.project_management.api.desktop.resources.serializers.availability_serializer import (
     serialize_resource_availability,
 )
+from src.core.platform.common.exceptions import ValidationError
 
 
 def build_resource_availability(
     resource_id: str,
     *,
-    availability_service,
+    workload_service,
+    start_date: date,
+    end_date: date,
 ):
     normalized_id = str(resource_id or "").strip()
-    if not normalized_id or availability_service is None:
-        return None
-    from_date = date.today()
-    to_date = from_date + timedelta(days=90)
-    try:
-        report = availability_service.check_availability(
-            resource_ids=[normalized_id],
-            from_date=from_date,
-            to_date=to_date,
+    if not normalized_id:
+        raise ValidationError(
+            "Resource ID is required.", code="RESOURCE_WORKLOAD_RESOURCE_REQUIRED"
         )
-    except Exception:
-        return None
-    window = next(
-        (
-            item
-            for item in report.resources
-            if str(item.resource_id) == normalized_id
-        ),
-        None,
+    if not isinstance(start_date, date) or not isinstance(end_date, date):
+        raise ValidationError(
+            "Availability requires valid start and end dates.",
+            code="RESOURCE_WORKLOAD_DATE_REQUIRED",
+        )
+    if workload_service is None:
+        raise RuntimeError("Resource workload service is not configured.")
+    fact = workload_service.read(
+        normalized_id,
+        start_date=start_date,
+        end_date=end_date,
     )
-    if window is None:
-        return None
     return serialize_resource_availability(
         normalized_id,
-        window,
-        from_date=from_date,
-        to_date=to_date,
+        fact,
     )
 
 

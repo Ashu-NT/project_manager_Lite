@@ -8,35 +8,55 @@ from src.core.modules.project_management.api.desktop.resources.models.availabili
 )
 
 
+def _utilization_label(value) -> str:
+    return "N/A" if value is None else f"{float(value):.1f}%"
+
+
 def serialize_resource_availability_day(day) -> ResourceAvailabilityDayDto:
     return ResourceAvailabilityDayDto(
-        date_label=day.check_date.strftime("%d %b"),
-        allocation_percent=float(day.total_allocation_percent or 0.0),
-        allocation_label=f"{day.total_allocation_percent:.0f}%",
-        overloaded=bool(day.overloaded),
+        work_date=day.work_date.isoformat(),
+        date_label=day.work_date.strftime("%d %b"),
+        base_capacity_hours=float(day.base_capacity_hours),
+        effective_capacity_hours=float(day.effective_capacity_hours),
+        planned_commitment_hours=float(day.planned_commitment_hours),
+        remaining_capacity_hours=float(day.remaining_capacity_hours),
+        utilization_percent=(
+            None if day.utilization_percent is None else float(day.utilization_percent)
+        ),
+        utilization_label=_utilization_label(day.utilization_percent),
+        overallocated=bool(day.overallocated),
+        assignment_count=int(day.assignment_count),
     )
 
 
 def serialize_resource_availability(
     resource_id: str,
-    window,
-    *,
-    from_date: date,
-    to_date: date,
+    fact,
 ) -> ResourceAvailabilityDto:
-    all_days = getattr(window, "daily_loads", []) or []
     return ResourceAvailabilityDto(
         resource_id=resource_id,
-        peak_load_percent=float(window.peak_load_percent or 0.0),
-        average_load_percent=float(window.average_load_percent or 0.0),
-        overloaded_days=int(window.overloaded_days or 0),
-        available_days=int(window.available_days or 0),
-        is_available=bool(window.is_available),
-        from_date_label=from_date.strftime("%d %b %Y"),
-        to_date_label=to_date.strftime("%d %b %Y"),
+        start_date=fact.start_date.isoformat(),
+        end_date=fact.end_date.isoformat(),
+        from_date_label=fact.start_date.strftime("%d %b %Y"),
+        to_date_label=fact.end_date.strftime("%d %b %Y"),
+        calendar_source_label=" -> ".join(fact.calendar_source_chain),
+        capacity_percent=float(fact.capacity_percent),
+        base_capacity_hours=float(fact.base_capacity_hours),
+        effective_capacity_hours=float(fact.effective_capacity_hours),
+        planned_commitment_hours=float(fact.planned_commitment_hours),
+        allocated_planned_hours=float(fact.allocated_planned_hours),
+        remaining_capacity_hours=float(fact.remaining_capacity_hours),
+        utilization_percent=(
+            None if fact.utilization_percent is None else float(fact.utilization_percent)
+        ),
+        utilization_label=_utilization_label(fact.utilization_percent),
+        overallocated=bool(fact.overallocated),
+        conflict_days=len(fact.conflict_dates),
+        project_count=int(fact.project_count),
+        assignment_count=int(fact.assignment_count),
         days=tuple(
             serialize_resource_availability_day(day)
-            for day in all_days[:90]
+            for day in fact.days
         ),
     )
 

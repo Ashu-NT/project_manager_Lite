@@ -73,14 +73,11 @@ def resolve_selected_activity_id(
     selected_activity_id: str | None,
     *,
     filtered_schedule: Any,
-    paged_schedule: Any,
 ) -> str:
     normalized_id = (selected_activity_id or "").strip()
-    filtered_ids = {item.id for item in filtered_schedule}
+    filtered_ids = {item.task_id for item in filtered_schedule}
     if normalized_id and normalized_id in filtered_ids:
         return normalized_id
-    if paged_schedule:
-        return paged_schedule[0].id
     return ""
 
 __all__ = [

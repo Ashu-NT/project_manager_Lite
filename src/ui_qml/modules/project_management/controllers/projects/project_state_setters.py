@@ -182,6 +182,7 @@ class ProjectStateSettersMixin:
         if value == self._project_activity:
             return
         self._project_activity = value
+        self._table_models.project_activity.set_rows(value.get("items", []))
         self.projectActivityChanged.emit()
 
     def _set_import_preview(self, v: dict[str, object]) -> None:

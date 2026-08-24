@@ -28,7 +28,7 @@ var iconMap = {
     "tenant":          "\uE20B",  // alias: building
     "module":          "\uF462",  // alias: catalog / ic_fluent_grid_20_regular
     "integration":     "\uF286",  // alias: collaboration / ic_fluent_chat_20_regular
-    "support":         "\uEE86",  // alias: maintenance / ic_fluent_wrench_20_regular
+    "support":         "\uEE86",  // ic_fluent_wrench_20_regular
 
     // Actions
     "add":             "\uF109",  // ic_fluent_add_20_regular
@@ -67,12 +67,7 @@ var iconMap = {
     "collaboration":   "\uF286",  // ic_fluent_chat_20_regular
     "timesheets":      "\uED88",  // ic_fluent_timer_20_regular
 
-    // Maintenance
-    "assets":          "\uF335",  // ic_fluent_cube_20_regular
-    "maintenance":     "\uEE86",  // ic_fluent_wrench_20_regular
     "workflow":        "\uE1D9",  // ic_fluent_branch_20_regular
-    "reliability":     "\uE9E0",  // ic_fluent_pulse_square_20_regular
-    "planner":         "\uF21D",  // ic_fluent_calendar_clock_20_regular
 
     // Inventory and Procurement
     "catalog":         "\uF462",  // ic_fluent_grid_20_regular

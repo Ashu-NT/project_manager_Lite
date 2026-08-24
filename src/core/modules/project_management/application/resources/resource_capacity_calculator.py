@@ -7,7 +7,7 @@ calendar contexts. Caller injects assigned hours to get utilization.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date
 
 from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import (
     ResolvedCalendarContext,
@@ -115,74 +115,7 @@ class ResourceCapacityCalculator:
         )
 
 
-def compute_resource_capacity_from_assignments(
-    calculator: ResourceCapacityCalculator,
-    *,
-    resource_id: str,
-    task_repo,
-    assignment_repo,
-    start: date,
-    end: date,
-    project_id: str | None = None,
-    site_id: str | None = None,
-    department_id: str | None = None,
-) -> ResourceCapacitySummary:
-    """Real assigned-hours derivation for the resource-level calendar
-    capacity display: `ResourceCapacityCalculator.compute()` requires the
-    caller to supply `assigned_hours_by_date` -- nothing did, which is why
-    this display was always empty in production. This derives it from the
-    resource's real TaskAssignment rows (allocation_percent x that day's
-    own calendar-resolved base_hours, for every day a task's schedule
-    window covers), rather than leaving it at an implicit zero.
-
-    Two-pass: first resolve the calendar with no assigned hours (to learn
-    each day's real base_hours), then resolve again with the real
-    allocation-weighted assigned hours filled in. Both passes hit the same
-    cached calendar resolution (EnterpriseCalendarResolver caches per
-    calendar id), so this is not a second independent full recomputation
-    of calendar rules.
-    """
-    baseline = calculator.compute(
-        resource_id, start, end,
-        project_id=project_id, site_id=site_id, department_id=department_id,
-    )
-    base_hours_by_date = {day.date: day.base_hours for day in baseline.days}
-
-    assignments = [
-        a for a in assignment_repo.list_by_resource(resource_id)
-        if a.allocation_percent and a.allocation_percent > 0
-    ]
-    task_ids = list({a.task_id for a in assignments})
-    tasks_by_id = {t.id: t for t in task_repo.list_by_ids(task_ids)} if task_ids else {}
-
-    assigned_hours_by_date: dict[date, float] = {}
-    for assignment in assignments:
-        task = tasks_by_id.get(assignment.task_id)
-        if task is None:
-            continue
-        task_start = getattr(task, "start_date", None) or getattr(task, "actual_start", None)
-        task_end = getattr(task, "end_date", None) or getattr(task, "actual_end", None)
-        if not task_start or not task_end:
-            continue
-        window_start = max(start, task_start)
-        window_end = min(end, task_end)
-        current = window_start
-        while current <= window_end:
-            day_base_hours = base_hours_by_date.get(current, 0.0)
-            if day_base_hours > 0:
-                contribution = day_base_hours * (float(assignment.allocation_percent) / 100.0)
-                assigned_hours_by_date[current] = assigned_hours_by_date.get(current, 0.0) + contribution
-            current = current + timedelta(days=1)
-
-    return calculator.compute(
-        resource_id, start, end,
-        project_id=project_id, site_id=site_id, department_id=department_id,
-        assigned_hours_by_date=assigned_hours_by_date,
-    )
-
-
 __all__ = [
     "ResourceCapacityCalculator",
     "ResourceCapacitySummary",
-    "compute_resource_capacity_from_assignments",
 ]

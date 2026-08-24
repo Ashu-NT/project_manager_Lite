@@ -180,18 +180,18 @@ def _seed_core_scope_rows(services) -> dict[str, str]:
         id="link-current",
         organization_id=default_org.id,
         document_id=current_document.id,
-        module_code="maintenance",
-        entity_type="asset",
-        entity_id="asset-current",
+        module_code="inventory_procurement",
+        entity_type="item",
+        entity_id="item-current",
         link_role="attachment",
     )
     other_link = DocumentLinkORM(
         id="link-other",
         organization_id=other_org.id,
         document_id=other_document.id,
-        module_code="maintenance",
-        entity_type="asset",
-        entity_id="asset-other",
+        module_code="inventory_procurement",
+        entity_type="item",
+        entity_id="item-other",
         link_role="attachment",
     )
 
@@ -275,9 +275,9 @@ def test_platform_root_repositories_hide_cross_organization_rows(services) -> No
         row.id
         for row in link_repo.list_for_entity(
             seeded["current_org_id"],
-            "maintenance",
-            "asset",
-            "asset-current",
+            "inventory_procurement",
+            "item",
+            "item-current",
         )
     }
 
@@ -298,13 +298,13 @@ def test_platform_root_repositories_hide_cross_organization_rows(services) -> No
     assert (
         link_repo.list_for_entity(
             seeded["other_org_id"],
-            "maintenance",
-            "asset",
-            "asset-current",
+            "inventory_procurement",
+            "item",
+            "item-current",
         )
         == []
     )
-    assert link_repo.list_for_module(seeded["other_org_id"], "maintenance") == []
+    assert link_repo.list_for_module(seeded["other_org_id"], "inventory_procurement") == []
 
     assert seeded["site_current"] in site_ids
     assert seeded["site_other"] not in site_ids

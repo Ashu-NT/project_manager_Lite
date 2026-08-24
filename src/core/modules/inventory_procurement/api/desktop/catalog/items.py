@@ -21,7 +21,6 @@ class InventoryCatalogDesktopItemMixin:
         category_code: str | None = None,
         equipment_only: bool | None = None,
         project_usage_only: bool | None = None,
-        maintenance_usage_only: bool | None = None,
     ) -> tuple[InventoryItemDesktopDto, ...]:
         if self._item_service is None:
             return ()
@@ -37,7 +36,6 @@ class InventoryCatalogDesktopItemMixin:
             or category_code
             or equipment_only is not None
             or project_usage_only is not None
-            or maintenance_usage_only is not None
         ):
             items = self._item_service.search_items(
                 search_text=search_text,
@@ -45,7 +43,6 @@ class InventoryCatalogDesktopItemMixin:
                 category_code=category_code,
                 equipment_only=equipment_only,
                 project_usage_only=project_usage_only,
-                maintenance_usage_only=maintenance_usage_only,
             )
         else:
             items = self._item_service.list_items(active_only=active_only)

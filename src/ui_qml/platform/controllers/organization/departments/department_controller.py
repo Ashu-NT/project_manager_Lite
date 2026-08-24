@@ -23,7 +23,6 @@ class PlatformDepartmentController(QObject):
         self._departments: dict[str, object] = {"title": "", "subtitle": "", "emptyState": "", "items": []}
         self._department_editor_options: dict[str, object] = {
             "siteOptions": [],
-            "locationOptions": [],
             "parentOptions": [],
         }
         self._is_busy = False
@@ -173,7 +172,6 @@ class PlatformDepartmentController(QObject):
         self._set_department_editor_options(
             {
                 "siteOptions": list(self._presenter.build_site_options()),
-                "locationOptions": list(self._presenter.build_location_options()),
                 "parentOptions": list(self._presenter.build_parent_options()),
             }
         )

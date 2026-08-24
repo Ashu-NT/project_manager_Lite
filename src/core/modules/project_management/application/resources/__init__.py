@@ -14,14 +14,13 @@ from src.core.modules.project_management.application.resources.portfolio_resourc
 from src.core.modules.project_management.application.resources.project_resource_service import (
     ProjectResourceService,
 )
-from src.core.modules.project_management.application.resources.resource_availability_service import (
-    MultiProjectAvailabilityReport,
-    ResourceAvailabilityService,
-    ResourceAvailabilityWindow,
-    ResourceDateLoad,
-)
 from src.core.modules.project_management.application.resources.resource_service import (
     ResourceService,
+)
+from src.core.modules.project_management.application.resources.resource_workload_service import (
+    ResourceWorkloadDayFact,
+    ResourceWorkloadFact,
+    ResourceWorkloadService,
 )
 from src.core.modules.project_management.application.resources.resource_load_engine import (
     ResourceLoadEngine,
@@ -36,19 +35,18 @@ from src.core.modules.project_management.application.resources.resource_load_eng
 __all__ = [
     "AssignmentSkillValidator",
     "AssignmentValidationResult",
-    "MultiProjectAvailabilityReport",
     "PortfolioResourcePoolReport",
     "PortfolioResourcePoolService",
     "ProjectResourceService",
-    "ResourceAvailabilityService",
-    "ResourceAvailabilityWindow",
-    "ResourceDateLoad",
     "ResourceDemandEntry",
     "ResourceLoadEngine",
     "ResourceLoadMetric",
     "ResourcePoolSummary",
     "ResourceService",
     "ResourceUtilizationBand",
+    "ResourceWorkloadDayFact",
+    "ResourceWorkloadFact",
+    "ResourceWorkloadService",
     "SkillViolation",
     "is_resource_near_capacity",
     "is_resource_overloaded",

@@ -20,13 +20,20 @@ Item {
     property var activityModel: ({
         "title": "Activity", "subtitle": "", "emptyState": "No activity has been recorded yet.", "items": []
     })
+    property bool showHeading: true
+    property bool showInlineError: true
+    property bool showSearch: true
+    property bool clientSideSearch: true
+    property string selectedItemId: ""
 
     property string _searchQuery: ""
+
+    signal itemSelected(string itemId)
 
     readonly property var _filteredItems: {
         const query = root._searchQuery.trim().toLowerCase()
         const items = root.activityModel.items || []
-        if (query.length === 0) {
+        if (!root.clientSideSearch || query.length === 0) {
             return items
         }
         return items.filter(function (item) {
@@ -41,18 +48,28 @@ Item {
         width: parent.width
         spacing: 0
 
-        AppWidgets.SectionHeading { width: parent.width; label: root.label }
+        AppWidgets.SectionHeading {
+            width: parent.width
+            visible: root.showHeading
+            height: visible ? implicitHeight : 0
+            label: root.label
+        }
 
         AppWidgets.InlineMessage {
             width: parent.width
-            visible: String(root.sectionErrors[root.errorKey] || "").length > 0
+            visible: root.showInlineError
+                && String(root.sectionErrors[root.errorKey] || "").length > 0
+            height: visible ? implicitHeight : 0
             tone: "danger"
             message: String(root.sectionErrors[root.errorKey] || "")
         }
 
         Item {
             width: parent.width
-            implicitHeight: _searchRow.implicitHeight + _activityCard.implicitHeight + Theme.AppTheme.spacingMd * 2 + Theme.AppTheme.spacingSm
+            implicitHeight: _activityCard.implicitHeight
+                + (root.showSearch
+                    ? _searchRow.implicitHeight + Theme.AppTheme.spacingMd * 2 + Theme.AppTheme.spacingSm
+                    : 0)
             height: implicitHeight
 
             AppControls.SearchField {
@@ -62,23 +79,29 @@ Item {
                 anchors.topMargin: Theme.AppTheme.spacingMd
                 anchors.leftMargin: Theme.AppTheme.spacingMd
                 implicitWidth: 260
+                visible: root.showSearch
                 placeholderText: "Search by name..."
                 onTextEdited: (text) => { root._searchQuery = text }
             }
 
             RecordListCard {
                 id: _activityCard
-                anchors.top: _searchRow.bottom
+                anchors.top: root.showSearch ? _searchRow.bottom : parent.top
                 anchors.left: parent.left
                 anchors.right: parent.right
-                anchors.topMargin: Theme.AppTheme.spacingSm
-                anchors.leftMargin: Theme.AppTheme.spacingMd
-                anchors.rightMargin: Theme.AppTheme.spacingMd
+                anchors.topMargin: root.showSearch ? Theme.AppTheme.spacingSm : 0
+                anchors.leftMargin: root.showSearch ? Theme.AppTheme.spacingMd : 0
+                anchors.rightMargin: root.showSearch ? Theme.AppTheme.spacingMd : 0
                 subtitle: root.activityModel.subtitle || ""
                 emptyState: root._searchQuery.trim().length > 0
                     ? "No activity matches \"" + root._searchQuery.trim() + "\"."
                     : (root.activityModel.emptyState || "No activity has been recorded yet.")
                 items: root._filteredItems
+                selectedItemId: root.selectedItemId
+                onItemSelected: function(itemId) {
+                    root.selectedItemId = itemId
+                    root.itemSelected(itemId)
+                }
             }
         }
     }

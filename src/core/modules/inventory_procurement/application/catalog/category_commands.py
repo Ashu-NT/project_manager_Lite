@@ -39,7 +39,6 @@ def create_category(
     category_type: str = "MATERIAL",
     is_equipment: bool = False,
     supports_project_usage: bool = False,
-    supports_maintenance_usage: bool = False,
     is_active: bool = True,
 ) -> InventoryItemCategory:
     _require_manage(owner, "create inventory item category")
@@ -58,7 +57,6 @@ def create_category(
         category_type=category_type,
         is_equipment=bool(is_equipment),
         supports_project_usage=bool(supports_project_usage),
-        supports_maintenance_usage=bool(supports_maintenance_usage),
         is_active=bool(is_active),
     )
     try:
@@ -92,7 +90,6 @@ def update_category(
     category_type: str | None = None,
     is_equipment: bool | None = None,
     supports_project_usage: bool | None = None,
-    supports_maintenance_usage: bool | None = None,
     is_active: bool | None = None,
     expected_version: int | None = None,
 ) -> InventoryItemCategory:
@@ -129,11 +126,6 @@ def update_category(
             category.supports_project_usage
             if supports_project_usage is None
             else bool(supports_project_usage)
-        ),
-        supports_maintenance_usage=(
-            category.supports_maintenance_usage
-            if supports_maintenance_usage is None
-            else bool(supports_maintenance_usage)
         ),
         is_active=category.is_active if is_active is None else bool(is_active),
         updated_at=datetime.now(timezone.utc),

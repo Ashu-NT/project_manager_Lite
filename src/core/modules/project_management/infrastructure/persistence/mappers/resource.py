@@ -7,6 +7,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.resource
 def resource_to_orm(resource: Resource) -> ResourceORM:
     return ResourceORM(
         id=resource.id,
+        kind=resource.kind,
         resource_code=getattr(resource, "code", "") or None,
         name=resource.name,
         role=resource.role,
@@ -21,6 +22,7 @@ def resource_to_orm(resource: Resource) -> ResourceORM:
         employee_id=getattr(resource, "employee_id", None),
         organization_id=getattr(resource, "organization_id", None),
         department_id=getattr(resource, "department_id", None),
+        site_id=getattr(resource, "site_id", None),
         version=getattr(resource, "version", 1),
     )
 
@@ -28,6 +30,7 @@ def resource_to_orm(resource: Resource) -> ResourceORM:
 def resource_from_orm(obj: ResourceORM) -> Resource:
     return Resource(
         id=obj.id,
+        kind=getattr(obj, "kind", None),
         code=getattr(obj, "resource_code", "") or "",
         name=obj.name,
         role=obj.role,
@@ -43,6 +46,7 @@ def resource_from_orm(obj: ResourceORM) -> Resource:
         employee_id=getattr(obj, "employee_id", None),
         organization_id=getattr(obj, "organization_id", None),
         department_id=getattr(obj, "department_id", None),
+        site_id=getattr(obj, "site_id", None),
     )
 
 

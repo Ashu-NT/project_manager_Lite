@@ -103,14 +103,14 @@ def test_dependencies_section_splits_predecessors_and_successors_without_crashin
 
     source = ROOT_COMPONENT.read_text(encoding="utf-8")
     assert "linked task ID" not in source.lower()
-    assert 'key: "task"' in source
-    assert 'key: "relationship"' in source
-    assert 'key: "lagLead"' in source
+    assert 'key:"linkedTask"' in source
+    assert 'key:"dependencyType"' in source
+    assert 'key:"lagDays"' in source
 
 
-def test_dependencies_section_clears_selection_and_tab_when_the_task_switches() -> None:
-    """Phase N14: switching tasks (a new dependenciesModel identity) must
-    clear selection/inspector/tab state before the new task's rows render
+def test_dependencies_section_clears_selection_when_the_task_switches() -> None:
+    """Switching tasks (a new dependenciesModel identity) must clear the
+    selection and inspector before the new task's rows render
     -- no stale relationship may flash from the previously-selected task."""
     item = {
         "id": "dep-1",
@@ -128,7 +128,6 @@ def test_dependencies_section_clears_selection_and_tab_when_the_task_switches() 
     }
     _, root = _load({"dependenciesModel": {"items": [item], "emptyState": ""}})
 
-    root.setProperty("_activeTab", 1)
     root.setProperty("_selectedId", "dep-1")
     assert str(root.property("_selectedId")) == "dep-1"
 
@@ -140,7 +139,6 @@ def test_dependencies_section_clears_selection_and_tab_when_the_task_switches() 
     root.setProperty("dependenciesModel", {"items": [], "emptyState": "Select a task."})
 
     assert str(root.property("_selectedId")) == ""
-    assert int(root.property("_activeTab")) == 0
     assert len(selection_changes) == 1
 
 

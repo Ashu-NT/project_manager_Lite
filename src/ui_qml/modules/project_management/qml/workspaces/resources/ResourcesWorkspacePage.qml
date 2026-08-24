@@ -3,14 +3,12 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
-import App.Controls 1.0 as AppControls
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "components" as Components
 import "dialogs" as Dialogs
-import "sections" as Sections
 import "panels" as Panels
 
 AppLayouts.WorkspaceFrame {
@@ -33,6 +31,7 @@ AppLayouts.WorkspaceFrame {
     readonly property var overviewModel: state.overviewModel
     readonly property var resourcesModel: state.resourcesModel
     readonly property var selectedResourceModel: state.selectedResourceModel
+    readonly property var resourceInspectorModel: state.resourceInspectorModel
 
     // ── Column management ─────────────────────────────────────────────────
     property var _columns: state.columns
@@ -46,10 +45,23 @@ AppLayouts.WorkspaceFrame {
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
     property bool _detailOpen: false
+    property real _detailContentViewportHeight: 0
     property int _pendingDetailSection: 0
     property string _selectedSkillId: ""
     property string _selectedCertificationId: ""
     readonly property var detailPage: detailPageLoader.item
+    readonly property string _activeSectionError: {
+        if (root.workspaceController === null || root.detailPage === null) return ""
+        const errors = root.workspaceController.sectionErrors || {}
+        if (root.detailPage.activeSectionIndex === 1) return String(errors.skills || "")
+        if (root.detailPage.activeSectionIndex === 2) return String(errors.availability || "")
+        if (root.detailPage.activeSectionIndex === 3) return String(errors.projects || "")
+        if (root.detailPage.activeSectionIndex === 4) return String(errors.assignments || "")
+        if (root.detailPage.activeSectionIndex === 5) return String(errors.activity || "")
+        return ""
+    }
+    readonly property string _visibleDetailError: String(root.workspaceController
+        ? root.workspaceController.detailError : "") || root._activeSectionError
     readonly property var _detailActions: {
         const idx = detailPage ? detailPage.activeSectionIndex : 0
         return state.detailActionsForSection(idx, {
@@ -57,11 +69,47 @@ AppLayouts.WorkspaceFrame {
             "selectedCertificationId": root._selectedCertificationId
         })
     }
+    readonly property bool _hasInspector: String(root.workspaceController
+        ? root.workspaceController.selectedResourceId : "").length > 0
+    readonly property int _sideInspectorThreshold: Theme.AppTheme.inspectorWidth + 720
+    readonly property bool _useSideInspector: root.width >= root._sideInspectorThreshold
+    readonly property var _inspectorSections: root.resourceInspectorModel.fields || []
+
+    function _clearInspector() {
+        compactInspector.close()
+        if (root.workspaceController !== null) root.workspaceController.selectResource("")
+    }
+
+    function _openSelectedResource() {
+        if (root.workspaceController === null || !root._hasInspector) return
+        if (root.workspaceController.activateResource(String(root.resourceInspectorModel.id || ""))) {
+            compactInspector.close()
+            root._openDetail(0)
+        }
+    }
+
+    on_UseSideInspectorChanged: {
+        if (root._useSideInspector) compactInspector.close()
+        else if (root._hasInspector && !root._detailOpen) compactInspector.open()
+    }
+    on_HasInspectorChanged: {
+        if (!root._hasInspector) compactInspector.close()
+        else if (!root._useSideInspector && !root._detailOpen) compactInspector.open()
+    }
 
     function _openDetail(sectionIndex) {
+        compactInspector.close()
         root._pendingDetailSection = sectionIndex
         root._detailOpen = true
         if (detailPage) detailPage.scrollToSection(sectionIndex)
+    }
+
+    function _rowById(rows, rowId) {
+        const source = rows || []
+        for (let i = 0; i < source.length; i++) {
+            if (String(source[i].id || "") === String(rowId || "")) return source[i]
+        }
+        return null
     }
 
     AppWidgets.LazyObjectLoader {
@@ -69,12 +117,20 @@ AppLayouts.WorkspaceFrame {
         sourceComponent: Component {
             Dialogs.ResourcesDialogHost {
                 workerTypeOptions: root.workspaceController ? (root.workspaceController.workerTypeOptions || []) : []
+                kindOptions: root.workspaceController ? (root.workspaceController.kindOptions || []) : []
                 categoryOptions: root.workspaceController ? (root.workspaceController.categoryOptions || []) : []
                 employeeOptions: root.workspaceController ? (root.workspaceController.employeeOptions || []) : []
+                departmentOptions: root.workspaceController ? (root.workspaceController.departmentOptions || []) : []
+                siteOptions: root.workspaceController ? (root.workspaceController.siteOptions || []) : []
                 workspaceController: root.workspaceController
 
-                onDeleteRequested: function(resourceId) {
-                    if (root.workspaceController !== null) root.workspaceController.deleteResource(resourceId)
+                onDeactivateRequested: function(resourceId, expectedVersion) {
+                    if (root.workspaceController !== null)
+                        root.workspaceController.deactivateResource(resourceId, expectedVersion)
+                }
+                onReactivateRequested: function(resourceId, expectedVersion) {
+                    if (root.workspaceController !== null)
+                        root.workspaceController.reactivateResource(resourceId, expectedVersion)
                 }
             }
         }
@@ -99,14 +155,17 @@ AppLayouts.WorkspaceFrame {
         anchors.fill: parent
 
         // ── List page ─────────────────────────────────────────────────────
-        Item {
+        RowLayout {
             id: _listPage
             anchors.fill: parent
             visible: !root._detailOpen
+            spacing: 0
 
             Components.ResourcesListPage {
                 id: listPage
-                anchors.fill: parent
+                objectName: "resourcesCatalogListPage"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
                 workspaceController: root.workspaceController
                 state: state
                 overviewModel: root.overviewModel
@@ -116,17 +175,10 @@ AppLayouts.WorkspaceFrame {
                     if (root.workspaceController !== null) root.workspaceController.selectResource(rowId)
                 }
                 onRowActivated: function(rowId) {
-                    if (root.workspaceController !== null) root.workspaceController.activateResource(rowId)
-                    root._openDetail(0)
-                }
-                onRowSelectionToggled: function(rowId, selected) {
-                    if (root.workspaceController !== null)
-                        root.workspaceController.setResourceBulkSelection(rowId, selected)
-                }
-                onSelectAllToggled: function(allSelected) {
-                    if (root.workspaceController === null) return
-                    if (allSelected) root.workspaceController.selectVisibleResources()
-                    else root.workspaceController.clearResourceBulkSelection()
+                    if (root.workspaceController !== null
+                            && root.workspaceController.activateResource(rowId)) {
+                        root._openDetail(0)
+                    }
                 }
                 onColumnsStateChanged: function(columns) {
                     if (root.workspaceController !== null) root._saveColumnState(columns)
@@ -140,13 +192,26 @@ AppLayouts.WorkspaceFrame {
                 }
                 onExportRequested: _exportDialog.open()
                 onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
-                onBulkCancelRequested: {
-                    if (root.workspaceController !== null)
-                        root.workspaceController.clearResourceBulkSelection()
-                }
-                onBulkActionRequested: function(actionId) {
-                    if (actionId === "delete")
-                        _bulkDeleteDialog.open()
+            }
+
+            AppWidgets.InspectorPanel {
+                Layout.fillHeight: true
+                Layout.preferredWidth: Theme.AppTheme.inspectorWidth
+                visible: root._hasInspector && root._useSideInspector
+                title: root.resourceInspectorModel.title || "Resource"
+                statusLabel: root.resourceInspectorModel.statusLabel || ""
+                sections: root._inspectorSections
+                busy: root.workspaceController ? root.workspaceController.inspectorLoading : false
+                editActionLabel: "Open Resource"
+                showEditAction: (root.resourceInspectorModel.state || {}).canRead === true
+                onCloseRequested: root._clearInspector()
+                onEditRequested: root._openSelectedResource()
+
+                AppWidgets.InlineMessage {
+                    Layout.fillWidth: true
+                    visible: String(root.workspaceController ? root.workspaceController.inspectorError : "").length > 0
+                    tone: "danger"
+                    message: root.workspaceController ? root.workspaceController.inspectorError : ""
                 }
             }
 
@@ -156,23 +221,45 @@ AppLayouts.WorkspaceFrame {
                 state: state
             }
 
-            AppControls.ConfirmationDialog {
-                id: _bulkDeleteDialog
-                title: "Delete Selected Resources"
-                closePolicy: Popup.CloseOnEscape
-                confirmLabel: "Delete Resources"
-                confirmIcon: "delete"
-                confirmDanger: true
-                message: {
-                    const count = root.workspaceController ? root.workspaceController.selectedResourceCount : 0
-                    return "Delete " + count + " selected resource(s) and all related planning data?"
-                }
-                supportingText: "This removes the resource records and any project assignments. It cannot be undone."
+        }
 
-                onConfirmed: {
-                    if (root.workspaceController !== null)
-                        root.workspaceController.bulkDeleteResources(root.workspaceController.selectedResourceIds)
+        Popup {
+            id: compactInspector
+            parent: root
+            x: Math.max(0, root.width - width)
+            y: 0
+            width: Math.min(Theme.AppTheme.inspectorWidth, root.width * 0.9)
+            height: root.height
+            padding: 0
+            modal: false
+            closePolicy: Popup.NoAutoClose
+
+            contentItem: AppWidgets.InspectorPanel {
+                title: root.resourceInspectorModel.title || "Resource"
+                statusLabel: root.resourceInspectorModel.statusLabel || ""
+                sections: root._inspectorSections
+                busy: root.workspaceController ? root.workspaceController.inspectorLoading : false
+                editActionLabel: "Open Resource"
+                showEditAction: (root.resourceInspectorModel.state || {}).canRead === true
+                onCloseRequested: root._clearInspector()
+                onEditRequested: root._openSelectedResource()
+
+                AppWidgets.InlineMessage {
+                    width: parent ? parent.width : 0
+                    visible: String(root.workspaceController ? root.workspaceController.inspectorError : "").length > 0
+                    tone: "danger"
+                    message: root.workspaceController ? root.workspaceController.inspectorError : ""
                 }
+            }
+        }
+
+        Connections {
+            target: root.workspaceController
+            function onSelectedResourceIdChanged() {
+                if (!root._useSideInspector && root._hasInspector && !root._detailOpen)
+                    compactInspector.open()
+                else if (!root._hasInspector || root._useSideInspector)
+                    compactInspector.close()
             }
         }
 
@@ -197,12 +284,27 @@ AppLayouts.WorkspaceFrame {
                 showDelete: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                 sections: state.detailSections
+                contentBottomPadding: activeSectionIndex >= 3 ? 0 : Theme.AppTheme.pagePadding
                 z: 20
-                Component.onCompleted: scrollToSection(root._pendingDetailSection)
+                onContentViewportHeightChanged: {
+                    root._detailContentViewportHeight = contentViewportHeight
+                }
+                Component.onCompleted: {
+                    root._detailContentViewportHeight = contentViewportHeight
+                    scrollToSection(root._pendingDetailSection)
+                }
 
                 onSectionChanged: function(index) {
                     if (index === 1 && root.workspaceController !== null) {
+                        root.workspaceController.loadSkillsAndCerts(
+                            root.workspaceController.selectedResourceId
+                        )
+                    } else if (index === 3 && root.workspaceController !== null) {
+                        root.workspaceController.loadResourceProjects()
+                    } else if (index === 4 && root.workspaceController !== null) {
                         root.workspaceController.loadResourceAssignments()
+                    } else if (index === 5 && root.workspaceController !== null) {
+                        root.workspaceController.loadResourceActivity()
                     }
                 }
 
@@ -223,25 +325,24 @@ AppLayouts.WorkspaceFrame {
                     onActionTriggered: function(actionId) {
                         if (actionId === "edit") {
                             dialogHostLoader.invoke("openEditDialog", root.selectedResourceModel)
-                        } else if (actionId === "toggle") {
-                            const st = root.selectedResourceModel
-                                ? (root.selectedResourceModel.state || {}) : {}
-                            if (root.workspaceController !== null && st.resourceId) {
-                                root.workspaceController.toggleResourceActive(
-                                    String(st.resourceId || ""),
-                                    parseInt(String(st.version || "0"), 10)
-                                )
-                            }
-                        } else if (actionId === "delete") {
-                            dialogHostLoader.invoke("openDeleteDialog", root.selectedResourceModel)
+                        } else if (actionId === "lifecycle") {
+                            dialogHostLoader.invoke("openLifecycleDialog", root.selectedResourceModel)
                         } else if (actionId === "remove_skill") {
-                            if (root.workspaceController !== null && root._selectedSkillId.length > 0) {
-                                root.workspaceController.removeSkill(root._selectedSkillId)
+                            const skill = root._rowById(root.workspaceController ? root.workspaceController.resourceSkills : [], root._selectedSkillId)
+                            if (root.workspaceController !== null && skill !== null) {
+                                root.workspaceController.removeSkill(root._selectedSkillId, Number(skill.version || 0))
                             }
+                        } else if (actionId === "edit_skill") {
+                            const skill = root._rowById(root.workspaceController ? root.workspaceController.resourceSkills : [], root._selectedSkillId)
+                            if (skill !== null) dialogHostLoader.invoke("openEditSkillDialog", skill)
                         } else if (actionId === "remove_certification") {
-                            if (root.workspaceController !== null && root._selectedCertificationId.length > 0) {
-                                root.workspaceController.removeCertification(root._selectedCertificationId)
+                            const certification = root._rowById(root.workspaceController ? root.workspaceController.resourceCertifications : [], root._selectedCertificationId)
+                            if (root.workspaceController !== null && certification !== null) {
+                                root.workspaceController.removeCertification(root._selectedCertificationId, Number(certification.version || 0))
                             }
+                        } else if (actionId === "edit_certification") {
+                            const certification = root._rowById(root.workspaceController ? root.workspaceController.resourceCertifications : [], root._selectedCertificationId)
+                            if (certification !== null) dialogHostLoader.invoke("openEditCertificationDialog", certification)
                         }
                     }
                 }
@@ -249,15 +350,15 @@ AppLayouts.WorkspaceFrame {
                 AppWidgets.SectionScopedInlineMessage {
                     width: parent ? parent.width : 0
                     requestedVisible: root._detailOpen
-                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                        && root._visibleDetailError.length > 0
                     tone: "danger"
-                    message: root.workspaceController ? root.workspaceController.errorMessage : ""
+                    message: root._visibleDetailError
                 }
                 AppWidgets.SectionScopedInlineMessage {
                     width: parent ? parent.width : 0
                     requestedVisible: root._detailOpen
                         && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
-                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+                        && root._visibleDetailError.length === 0
                     tone: "success"
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
@@ -267,12 +368,10 @@ AppLayouts.WorkspaceFrame {
                     width: parent ? parent.width : 0
                     detailPage: detailPageLoader.item
                     resourceDetail: root.selectedResourceModel
-                    resourceAvailabilityModel: root.workspaceController
-                        ? (root.workspaceController.resourceAvailability || {}) : ({})
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     workspaceController: root.workspaceController
-                    resourceAssignmentsTableModel: root.workspaceController
-                        ? root.workspaceController.resourceAssignmentsTableModel : null
+                    pmCatalog: root.pmCatalog
+                    availableHeight: Math.max(0, root._detailContentViewportHeight - y)
                     canManageSkills: root.pmCatalog ? root.pmCatalog.pmCapabilityController.canManageSkills : false
                     onSkillSelectionChanged: function(skillId) {
                         root._selectedSkillId = String(skillId || "")
@@ -280,15 +379,17 @@ AppLayouts.WorkspaceFrame {
                     onCertificationSelectionChanged: function(certId) {
                         root._selectedCertificationId = String(certId || "")
                     }
-                    onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedResourceModel)
-                    onDeleteRequested: dialogHostLoader.invoke("openDeleteDialog", root.selectedResourceModel)
                     onAddSkillRequested: dialogHostLoader.invoke("openAddSkillDialog")
                     onAddCertificationRequested: dialogHostLoader.invoke("openAddCertificationDialog")
                     onRemoveSkillRequested: function(skillId) {
-                        if (root.workspaceController !== null) root.workspaceController.removeSkill(skillId)
+                        const skill = root._rowById(root.workspaceController ? root.workspaceController.resourceSkills : [], skillId)
+                        if (root.workspaceController !== null && skill !== null)
+                            root.workspaceController.removeSkill(skillId, Number(skill.version || 0))
                     }
                     onRemoveCertificationRequested: function(certId) {
-                        if (root.workspaceController !== null) root.workspaceController.removeCertification(certId)
+                        const certification = root._rowById(root.workspaceController ? root.workspaceController.resourceCertifications : [], certId)
+                        if (root.workspaceController !== null && certification !== null)
+                            root.workspaceController.removeCertification(certId, Number(certification.version || 0))
                     }
                 }
             }

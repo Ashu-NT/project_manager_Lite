@@ -59,7 +59,6 @@ Planned phases:
    - Apply the refreshed primitives to one strong workspace group per module first:
      - Platform admin/control/settings
      - Project management dashboard/projects/tasks
-     - Maintenance preventive/planner/assets
      - Inventory catalog/inventory/procurement
    - Reuse the same patterns across the remaining workspaces after the representative pass is stable.
 
@@ -84,7 +83,7 @@ Execution progress:
   - shared primitive refresh for buttons, headers, cards, inline messages, table toolbar/filter bar, detail pages, table styling, and overlays
   - QML guardrail/test alignment for the QML-only repo state
   - representative workspace polish for the live platform admin document/support flow and PM projects/tasks flow
-  - representative workspace polish for maintenance assets/preventive and inventory storeroom/balance/procurement detail flows
+  - representative workspace polish for inventory storeroom/balance/procurement detail flows
   - representative dialog/button cleanup for active inventory, PM, and platform dialogs
   - offscreen dialog/button verification for inventory dialog hosts plus representative PM/platform dialogs
   - removal of obsolete PM workspace helper QML files after their behavior was consolidated into the active page-level compositions

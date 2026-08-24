@@ -17,6 +17,8 @@ Item {
     property var    projectResourceUsage: null
     property var    taskDetail: null
     property string errorText: ""
+    property var workspaceController: null
+    property real availableHeight: 0
 
     signal createRequested()
     signal assignmentSelected(string assignmentId)
@@ -107,26 +109,30 @@ Item {
     }
 
     readonly property var _columns: [
-        { key: "resourceName", label: "Resource", flex: 2, sortable: true },
-        { key: "allocationLabel", label: "Allocation", flex: 1, minWidth: 100 },
-        { key: "plannedLabel", label: "Planned Work", flex: 1, minWidth: 110 },
-        { key: "actualLabel", label: "Actual", flex: 1, minWidth: 90 },
-        { key: "remainingLabel", label: "Remaining", flex: 1, minWidth: 100 },
-        { key: "capacityStatusLabel", label: "Capacity Status", flex: 1, minWidth: 140, type: "status" }
+        { key: "resourceName", label: "Resource", flex: 2, minWidth: 160, sortable: true },
+        { key: "resourceCode", label: "Code", flex: 0, minWidth: 85, sortable: true },
+        { key: "role", label: "Role", flex: 1.2, minWidth: 110, sortable: true },
+        { key: "allocationPercent", label: "Allocation", flex: 0, minWidth: 95, sortable: true },
+        { key: "plannedHours", label: "Planned", flex: 0, minWidth: 90, sortable: true },
+        { key: "actualHours", label: "Actual", flex: 0, minWidth: 85, sortable: true },
+        { key: "remainingHours", label: "Remaining", flex: 0, minWidth: 95, sortable: true },
+        { key: "responseStatus", label: "Response", flex: 0, minWidth: 100, type: "status", sortable: true }
     ]
-    readonly property int _tableH: {
-        const count = root._items.length
-        const natural = Theme.AppTheme.normalRowHeight + Math.max(count, 1) * Theme.AppTheme.compactRowHeight + 24
-        return Math.max(180, Math.min(natural, 420))
-    }
+    readonly property int _tableH: Math.max(
+        120,
+        Theme.AppTheme.normalRowHeight
+            + Math.max(root._items.length, 1) * Theme.AppTheme.compactRowHeight
+            + 1
+    )
 
-    implicitHeight: _col.implicitHeight
+    implicitHeight: Math.max(_col.implicitHeight, root.availableHeight)
 
     ColumnLayout {
         id: _col
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
+        height: root.implicitHeight
         spacing: 0
 
         AppWidgets.ContextualActionToolbar {
@@ -144,6 +150,23 @@ Item {
             }
         }
 
+        AppWidgets.TableToolbar {
+            Layout.fillWidth: true
+            searchText: String(root.assignmentsModel.searchText || "")
+            searchPlaceholder: "Search resource, code, or role..."
+            showFilter: false
+            showRefresh: true
+            isBusy: root.isBusy
+            onSearchChanged: function(text) { if (root.workspaceController) root.workspaceController.setTaskAssignmentsSearch(text) }
+            onRefreshRequested: root.retryRequested()
+            AppControls.ComboBox {
+                implicitWidth: 130; textRole: "label"
+                model: [{"value":"all","label":"All responses"},{"value":"pending","label":"Pending"},
+                        {"value":"accepted","label":"Accepted"},{"value":"declined","label":"Declined"}]
+                onActivated: function(index) { if (root.workspaceController) root.workspaceController.setTaskAssignmentsResponse(String(model[index].value)) }
+            }
+        }
+
         AppWidgets.InlineMessage {
             Layout.fillWidth: true
             visible: root.errorText.length > 0
@@ -153,57 +176,72 @@ Item {
             onActionClicked: root.retryRequested()
         }
 
-        AppWidgets.EmptyState {
+        RowLayout {
             Layout.fillWidth: true
-            Layout.topMargin: Theme.AppTheme.spacingLg
-            Layout.bottomMargin: Theme.AppTheme.spacingLg
-            visible: !root.isBusy && root._items.length === 0
-            title: root.assignmentsModel.emptyState || "No assignments for this task."
-        }
+            Layout.fillHeight: true
+            Layout.preferredHeight: Math.max(
+                root._tableH + assignmentPagination.implicitHeight,
+                _inspector.visible ? _inspector.implicitHeight : 0
+            )
+            spacing: Theme.AppTheme.spacingMd
 
-        Item {
-            Layout.fillWidth: true
-            Layout.preferredHeight: root._tableH
-            visible: root._items.length > 0
+            Item {
+                Layout.fillWidth: true
+                Layout.preferredHeight: root._tableH + assignmentPagination.implicitHeight
+                Layout.alignment: Qt.AlignTop
 
-            AppWidgets.DataTable {
-                anchors.fill: parent
-                columns: root._columns
-                sourceModel: root.assignmentsTableModel
-                selectedRowId: root.selectedAssignmentId
-                loading: root.isBusy
+                AppWidgets.DataTable {
+                    anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: assignmentPagination.top
+                    columns: root._columns
+                    sourceModel: root.assignmentsTableModel
+                    selectedRowId: root.selectedAssignmentId
+                    loading: root.isBusy
+                    sortingMode: "server"
+                    sortKey: String(root.assignmentsModel.sortKey || "resourceName")
+                    sortDirection: root.assignmentsModel.sortDirection === "desc" ? Qt.DescendingOrder : Qt.AscendingOrder
+                    emptyText: root.assignmentsModel.emptyState || "No assignments match."
 
-                onRowSelected: function(rowId) {
-                    root.assignmentSelected(rowId)
-                    const item = root._itemForId(rowId)
-                    const state = item ? (item.state || {}) : {}
-                    root.previewRequested(
-                        String(state.projectResourceId || ""),
-                        String(state.taskId || "")
-                    )
+                    onRowSelected: function(rowId) {
+                        root.assignmentSelected(rowId)
+                        const item = root._itemForId(rowId)
+                        const state = item ? (item.state || {}) : {}
+                        root.previewRequested(
+                            String(state.projectResourceId || ""),
+                            String(state.taskId || "")
+                        )
+                    }
+                    onRowActivated: function(rowId) {
+                        root.assignmentSelected(rowId)
+                        const item = root._itemForId(rowId)
+                        const state = item ? (item.state || {}) : {}
+                        root.previewRequested(
+                            String(state.projectResourceId || ""),
+                            String(state.taskId || "")
+                        )
+                    }
+                    onSortRequested: function(key, direction) { root.workspaceController.setTaskAssignmentsSort(key, direction) }
                 }
-                onRowActivated: function(rowId) {
-                    root.assignmentSelected(rowId)
-                    const item = root._itemForId(rowId)
-                    const state = item ? (item.state || {}) : {}
-                    root.previewRequested(
-                        String(state.projectResourceId || ""),
-                        String(state.taskId || "")
-                    )
+
+                AppWidgets.TablePaginationBar {
+                    id: assignmentPagination
+                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                    currentPage: Number(root.assignmentsModel.page || 1); pageSize: Number(root.assignmentsModel.pageSize || 25)
+                    totalItems: Number(root.assignmentsModel.total || 0); busy: root.isBusy
+                    onPageRequested: function(page) { root.workspaceController.setTaskAssignmentsPage(page) }
+                    onPageSizeRequested: function(size) { root.workspaceController.setTaskAssignmentsPageSize(size) }
                 }
             }
-        }
 
-        AppWidgets.InspectorPanel {
-            id: _inspector
-            Layout.fillWidth: true
-            Layout.topMargin: Theme.AppTheme.spacingMd
-            implicitWidth: parent ? parent.width : Theme.AppTheme.inspectorWidth
-            visible: root._selectedItem !== null
-            title: root._selectedItem ? String(root._selectedItem.title || "") : ""
-            statusLabel: String(root._selectedState.capacityStatusLabel || "")
-            showEditAction: false
-            showSecondaryAction: false
+            AppWidgets.InspectorPanel {
+                id: _inspector
+                Layout.fillHeight: true
+                visible: root._selectedItem !== null
+                Layout.preferredWidth: visible ? Theme.AppTheme.inspectorWidth : 0
+                Layout.alignment: Qt.AlignTop
+                title: root._selectedItem ? String(root._selectedItem.title || "") : ""
+                statusLabel: String(root._selectedState.capacityStatusLabel || "")
+                showEditAction: false
+                showSecondaryAction: false
 
             onCloseRequested: root.assignmentSelected("")
 
@@ -369,6 +407,7 @@ Item {
                         }
                     }
                 }
+            }
             }
         }
     }

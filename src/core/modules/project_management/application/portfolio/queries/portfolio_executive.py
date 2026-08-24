@@ -121,6 +121,7 @@ class PortfolioExecutiveQueryMixin:
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,
             allowed_project_ids=allowed_project_ids,
+            finance_allowed_project_ids=(),
             search_text=search_text,
             status=status,
             page=page,

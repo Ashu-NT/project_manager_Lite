@@ -1,0 +1,8 @@
+module workspaces.scheduling.components.gantt
+SchedulingGanttSurface 1.0 SchedulingGanttSurface.qml
+SchedulingGanttHeader 1.0 SchedulingGanttHeader.qml
+SchedulingGanttRowsViewport 1.0 SchedulingGanttRowsViewport.qml
+SchedulingGanttRow 1.0 SchedulingGanttRow.qml
+SchedulingGanttBar 1.0 SchedulingGanttBar.qml
+SchedulingGanttBaseline 1.0 SchedulingGanttBaseline.qml
+SchedulingGanttDependencyLayer 1.0 SchedulingGanttDependencyLayer.qml

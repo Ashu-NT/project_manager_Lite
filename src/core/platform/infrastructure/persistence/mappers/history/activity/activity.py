@@ -12,7 +12,7 @@ def _to_json(payload: dict[str, Any]) -> str:
     return json.dumps(payload, default=str, ensure_ascii=False)
 
 
-def _from_json(raw: str | None) -> dict[str, Any]:
+def activity_payload_from_json(raw: str | None) -> dict[str, Any]:
     if not raw:
         return {}
     try:
@@ -46,6 +46,8 @@ def activity_to_orm(entry: ActivityEntry) -> ActivityEntryORM:
         details_json=_to_json(entry.details),
         context_json=_to_json(entry.context),
         parent_entity_id=entry.parent_entity_id,
+        related_entity_type=entry.related_entity_type,
+        related_entity_id=entry.related_entity_id,
         icon=entry.icon,
         color=entry.color,
         visibility=entry.visibility,
@@ -67,13 +69,15 @@ def activity_from_orm(obj: ActivityEntryORM) -> ActivityEntry:
         timestamp=_coerce_utc(obj.timestamp),
         type=obj.type,
         human_message=obj.human_message or "",
-        details=_from_json(obj.details_json),
-        context=_from_json(obj.context_json),
+        details=activity_payload_from_json(obj.details_json),
+        context=activity_payload_from_json(obj.context_json),
         parent_entity_id=obj.parent_entity_id,
+        related_entity_type=obj.related_entity_type,
+        related_entity_id=obj.related_entity_id,
         icon=obj.icon,
         color=obj.color,
         visibility=obj.visibility,
     )
 
 
-__all__ = ["activity_to_orm", "activity_from_orm"]
+__all__ = ["activity_from_orm", "activity_payload_from_json", "activity_to_orm"]

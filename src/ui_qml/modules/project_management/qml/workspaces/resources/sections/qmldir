@@ -1,10 +1,9 @@
 ﻿module workspaces.resources.sections
 ResourcesOverviewSection 1.0 ResourcesOverviewSection.qml
-ResourcesAssignmentsSection 1.0 ResourcesAssignmentsSection.qml
-ResourcesCapacitySection 1.0 ResourcesCapacitySection.qml
-ResourcesCalendarSection 1.0 ResourcesCalendarSection.qml
 ResourcesSkillsSection 1.0 ResourcesSkillsSection.qml
 ResourcesCertificationsSection 1.0 ResourcesCertificationsSection.qml
-ResourcesCostRatesSection 1.0 ResourcesCostRatesSection.qml
+ResourcesCapabilitySection 1.0 ResourcesCapabilitySection.qml
 ResourcesAvailabilitySection 1.0 ResourcesAvailabilitySection.qml
+ResourcesProjectsSection 1.0 ResourcesProjectsSection.qml
+ResourcesAssignmentsSection 1.0 ResourcesAssignmentsSection.qml
 ResourcesActivitySection 1.0 ResourcesActivitySection.qml

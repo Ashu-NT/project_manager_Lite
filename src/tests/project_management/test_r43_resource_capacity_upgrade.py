@@ -29,8 +29,8 @@ from src.core.modules.project_management.api.desktop.tasks.factories.tasks_api_f
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import (
     EnterpriseResourceAvailabilityService,
 )
-from src.core.modules.project_management.application.resources.resource_availability_service import (
-    ResourceAvailabilityService,
+from src.core.modules.project_management.application.resources.resource_workload_service import (
+    ResourceWorkloadService,
 )
 from src.core.platform.common.exceptions import BusinessRuleError, ConcurrencyError, NotFoundError
 from src.tests.ui_runtime_helpers import login_as
@@ -308,7 +308,7 @@ def test_overallocation_strict_policy_still_allows_non_conflicting_allocation(se
 
 def test_assign_project_resource_rejects_inactive_resource(services):
     ps, ts, rs, prs, project, resource, project_resource, task = _setup_project_resource(services)
-    rs.update_resource(resource.id, is_active=False)
+    rs.deactivate_resource(resource_id=resource.id, expected_version=resource.version)
 
     with pytest.raises(BusinessRuleError) as exc:
         ts.assign_project_resource(
@@ -425,16 +425,9 @@ def test_logging_time_against_task_in_unauthorized_project_is_denied(services):
 # ---------------------------------------------------------------------------
 
 
-def test_resource_multi_project_allocation_service_is_wired_in_composition_root(services):
-    """DI-wiring proof: the real (percent-based, multi-project) allocation
-    service that backs the Resources workspace's own "Allocation Summary"
-    display must be registered under its own key -- previously nothing was
-    registered there at all, so that display always reported zero
-    conflicts regardless of real data."""
-    assert isinstance(
-        services.get("resource_multi_project_allocation_service"),
-        ResourceAvailabilityService,
-    )
+def test_resource_workload_service_is_wired_in_composition_root(services):
+    assert isinstance(services.get("resource_workload_service"), ResourceWorkloadService)
+    assert "resource_multi_project_allocation_service" not in services
 
 
 def test_enterprise_resource_availability_service_is_wired_into_task_service_for_capacity_authority(
@@ -519,24 +512,29 @@ def test_resource_availability_display_returns_real_data_not_none(services):
 
     project = ps.create_project("Availability Display Project")
     resource = rs.create_resource("Availability Display Resource", hourly_rate=65.0)
-    # build_resource_availability windows from date.today() forward -- the
-    # task must fall inside that window to be picked up.
+    window_start = date.today()
+    window_end = window_start + timedelta(days=29)
     task = ts.create_task(
         project.id,
         "Availability Display Task",
-        start_date=date.today() + timedelta(days=1),
+        start_date=window_start + timedelta(days=1),
         duration_days=3,
     )
     ts.assign_resource(task.id, resource.id, allocation_percent=60.0)
 
     api = build_project_management_resources_desktop_api(
         resource_service=rs,
-        availability_service=services["resource_multi_project_allocation_service"],
+        workload_service=services["resource_workload_service"],
     )
 
-    availability = api.build_resource_availability(resource.id)
-    assert availability is not None
-    assert availability.peak_load_percent > 0.0
+    availability = api.build_resource_availability(
+        resource.id,
+        start_date=window_start.isoformat(),
+        end_date=window_end.isoformat(),
+    )
+    assert availability.planned_commitment_hours > 0.0
+    assert availability.assignment_count == 1
+    assert availability.days
 
 
 # ---------------------------------------------------------------------------
@@ -570,8 +568,9 @@ def _instrument_get_and_batch(cls, batch_method_name: str):
     return counts, restore
 
 
-def test_availability_service_task_lookup_issues_one_batch_call_not_one_per_task(services):
+def test_resource_workload_uses_bounded_reader_not_repository_wide_task_lookup(services):
     from src.core.modules.project_management.infrastructure.persistence.repositories.tasks.task import (
+        SqlAlchemyAssignmentRepository,
         SqlAlchemyTaskRepository,
     )
 
@@ -588,14 +587,28 @@ def test_availability_service_task_lookup_issues_one_batch_call_not_one_per_task
         )
         ts.assign_resource(task.id, resource.id, allocation_percent=20.0)
 
-    availability_service = services["resource_multi_project_allocation_service"]
-    counts, restore = _instrument_get_and_batch(SqlAlchemyTaskRepository, "list_by_ids")
+    workload_service = services["resource_workload_service"]
+    task_counts, restore_tasks = _instrument_get_and_batch(
+        SqlAlchemyTaskRepository, "list_by_ids"
+    )
+    assignment_calls = {"list_by_resource": 0}
+    real_list_by_resource = SqlAlchemyAssignmentRepository.list_by_resource
+
+    def counting_list_by_resource(self, *args, **kwargs):
+        assignment_calls["list_by_resource"] += 1
+        return real_list_by_resource(self, *args, **kwargs)
+
+    SqlAlchemyAssignmentRepository.list_by_resource = counting_list_by_resource
     try:
-        availability_service.is_resource_available(
-            resource.id, window_start, window_start + timedelta(days=2)
+        workload_service.read(
+            resource.id,
+            start_date=window_start,
+            end_date=window_start + timedelta(days=2),
         )
     finally:
-        restore()
+        restore_tasks()
+        SqlAlchemyAssignmentRepository.list_by_resource = real_list_by_resource
 
-    assert counts["list_by_ids"] >= 1
-    assert counts["get"] == 0
+    assert task_counts["list_by_ids"] == 0
+    assert task_counts["get"] == 0
+    assert assignment_calls["list_by_resource"] == 0
