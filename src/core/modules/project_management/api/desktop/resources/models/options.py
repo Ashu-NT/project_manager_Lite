@@ -16,6 +16,20 @@ class ResourceCategoryDescriptor:
 
 
 @dataclass(frozen=True)
+class ResourceKindDescriptor:
+    value: str
+    label: str
+
+
+@dataclass(frozen=True)
+class ResourceScopeOptionDescriptor:
+    value: str
+    label: str
+    is_active: bool
+    site_id: str = ""
+
+
+@dataclass(frozen=True)
 class ResourceEmployeeOptionDescriptor:
     value: str
     label: str
@@ -25,11 +39,15 @@ class ResourceEmployeeOptionDescriptor:
     context: str
     department: str
     site: str
+    department_id: str
+    site_id: str
     is_active: bool
 
 
 __all__ = [
     "ResourceCategoryDescriptor",
     "ResourceEmployeeOptionDescriptor",
+    "ResourceKindDescriptor",
+    "ResourceScopeOptionDescriptor",
     "ResourceWorkerTypeDescriptor",
 ]

@@ -12,6 +12,9 @@ from src.core.modules.project_management.api.desktop.resources.builders.employee
 )
 from src.core.modules.project_management.api.desktop.resources.builders.option_builder import (
     build_category_options,
+    build_department_options,
+    build_kind_options,
+    build_site_options,
     build_worker_type_options,
 )
 from src.core.modules.project_management.api.desktop.resources.commands.certification_commands import (
@@ -19,6 +22,8 @@ from src.core.modules.project_management.api.desktop.resources.commands.certific
 )
 from src.core.modules.project_management.api.desktop.resources.commands.resource_commands import (
     ResourceCreateCommand,
+    ResourceLifecycleCommand,
+    ResourcePurgeCommand,
     ResourceUpdateCommand,
 )
 from src.core.modules.project_management.api.desktop.resources.commands.skill_commands import (
@@ -36,6 +41,8 @@ from src.core.modules.project_management.api.desktop.resources.models.certificat
 from src.core.modules.project_management.api.desktop.resources.models.options import (
     ResourceCategoryDescriptor,
     ResourceEmployeeOptionDescriptor,
+    ResourceKindDescriptor,
+    ResourceScopeOptionDescriptor,
     ResourceWorkerTypeDescriptor,
 )
 from src.core.modules.project_management.api.desktop.resources.models.resources import (
@@ -70,6 +77,12 @@ from src.core.modules.project_management.application.resources import (
     ResourceAvailabilityService,
     ResourceService,
 )
+from src.core.modules.project_management.application.resources.resource_master_events import (
+    ResourceMasterChangeType,
+)
+from src.core.modules.project_management.application.resources.resource_master_uow import (
+    ResourceMasterUnitOfWork,
+)
 from src.core.platform.application.master_data.employee.employee_service import EmployeeService
 
 
@@ -82,18 +95,43 @@ class ProjectManagementResourcesDesktopApi:
         availability_service: ResourceAvailabilityService | None = None,
         task_service: object | None = None,
         project_service: object | None = None,
+        department_service: object | None = None,
+        site_service: object | None = None,
     ) -> None:
         self._resource_service = resource_service
         self._employee_service = employee_service
         self._availability_service = availability_service
         self._task_service = task_service
         self._project_service = project_service
+        self._department_service = department_service
+        self._site_service = site_service
+        session = getattr(resource_service, "_session", None)
+        tenant_context = getattr(resource_service, "_tenant_context_service", None)
+        self._resource_master_uow = (
+            ResourceMasterUnitOfWork(session, tenant_context)
+            if session is not None and tenant_context is not None
+            else None
+        )
+
+    def _execute_resource_master(self, operation, *, change_type: ResourceMasterChangeType):
+        if self._resource_master_uow is None:
+            return operation()
+        return self._resource_master_uow.execute(operation, change_type=change_type)
 
     def list_worker_types(self) -> tuple[ResourceWorkerTypeDescriptor, ...]:
         return build_worker_type_options()
 
     def list_categories(self) -> tuple[ResourceCategoryDescriptor, ...]:
         return build_category_options()
+
+    def list_resource_kinds(self) -> tuple[ResourceKindDescriptor, ...]:
+        return build_kind_options()
+
+    def list_departments(self) -> tuple[ResourceScopeOptionDescriptor, ...]:
+        return build_department_options(self._department_service)
+
+    def list_sites(self) -> tuple[ResourceScopeOptionDescriptor, ...]:
+        return build_site_options(self._site_service)
 
     def list_employees(self) -> tuple[ResourceEmployeeOptionDescriptor, ...]:
         return build_employee_options(self._employee_service)
@@ -169,19 +207,24 @@ class ProjectManagementResourcesDesktopApi:
 
     def create_resource(self, command: ResourceCreateCommand) -> ResourceDesktopDto:
         service = self._require_resource_service()
-        resource = service.create_resource(
-            name=command.name,
-            code=getattr(command, "code", ""),
-            role=command.role,
-            hourly_rate=command.hourly_rate,
-            is_active=command.is_active,
-            cost_type=coerce_cost_type(command.cost_type),
-            currency_code=command.currency_code,
-            capacity_percent=command.capacity_percent,
-            address=command.address,
-            contact=command.contact,
-            worker_type=coerce_worker_type(command.worker_type),
-            employee_id=command.employee_id,
+        resource = self._execute_resource_master(
+            lambda: service.create_resource(
+                name=command.name,
+                code=command.code,
+                kind=command.kind,
+                role=command.role,
+                hourly_rate=command.hourly_rate,
+                cost_type=coerce_cost_type(command.cost_type),
+                currency_code=command.currency_code,
+                capacity_percent=command.capacity_percent,
+                address=command.address,
+                contact=command.contact,
+                worker_type=coerce_worker_type(command.worker_type),
+                employee_id=command.employee_id,
+                department_id=command.department_id,
+                site_id=command.site_id,
+            ),
+            change_type=ResourceMasterChangeType.CREATED,
         )
         return serialize_resource(
             resource,
@@ -190,47 +233,69 @@ class ProjectManagementResourcesDesktopApi:
 
     def update_resource(self, command: ResourceUpdateCommand) -> ResourceDesktopDto:
         service = self._require_resource_service()
-        resource = service.update_resource(
-            command.resource_id,
-            name=command.name,
-            code=getattr(command, "code", ""),
-            role=command.role,
-            hourly_rate=command.hourly_rate,
-            is_active=command.is_active,
-            cost_type=coerce_cost_type(command.cost_type),
-            currency_code=command.currency_code,
-            capacity_percent=command.capacity_percent,
-            address=command.address,
-            contact=command.contact,
-            worker_type=coerce_worker_type(command.worker_type),
-            employee_id=command.employee_id,
-            expected_version=command.expected_version,
+        resource = self._execute_resource_master(
+            lambda: service.update_resource(
+                resource_id=command.resource_id,
+                expected_version=command.expected_version,
+                name=command.name,
+                code=command.code,
+                kind=command.kind,
+                role=command.role,
+                hourly_rate=command.hourly_rate,
+                cost_type=coerce_cost_type(command.cost_type),
+                currency_code=command.currency_code,
+                capacity_percent=command.capacity_percent,
+                address=command.address,
+                contact=command.contact,
+                worker_type=coerce_worker_type(command.worker_type),
+                employee_id=command.employee_id,
+                department_id=command.department_id,
+                site_id=command.site_id,
+            ),
+            change_type=ResourceMasterChangeType.UPDATED,
         )
         return serialize_resource(
             resource,
             employee_lookup=build_employee_lookup(self._employee_service),
         )
 
-    def toggle_resource_active(
-        self,
-        resource_id: str,
-        *,
-        expected_version: int | None = None,
-    ) -> ResourceDesktopDto:
+    def deactivate_resource(self, command: ResourceLifecycleCommand) -> ResourceDesktopDto:
         service = self._require_resource_service()
-        resource = service.get_resource(resource_id)
-        updated = service.update_resource(
-            resource_id,
-            is_active=not bool(getattr(resource, "is_active", True)),
-            expected_version=expected_version,
+        updated = self._execute_resource_master(
+            lambda: service.deactivate_resource(
+                resource_id=command.resource_id,
+                expected_version=command.expected_version,
+            ),
+            change_type=ResourceMasterChangeType.DEACTIVATED,
         )
         return serialize_resource(
             updated,
             employee_lookup=build_employee_lookup(self._employee_service),
         )
 
-    def delete_resource(self, resource_id: str) -> None:
-        self._require_resource_service().delete_resource(resource_id)
+    def reactivate_resource(self, command: ResourceLifecycleCommand) -> ResourceDesktopDto:
+        service = self._require_resource_service()
+        updated = self._execute_resource_master(
+            lambda: service.reactivate_resource(
+                resource_id=command.resource_id,
+                expected_version=command.expected_version,
+            ),
+            change_type=ResourceMasterChangeType.REACTIVATED,
+        )
+        return serialize_resource(
+            updated,
+            employee_lookup=build_employee_lookup(self._employee_service),
+        )
+
+    def purge_resource(self, command: ResourcePurgeCommand) -> None:
+        service = self._require_resource_service()
+        self._execute_resource_master(
+            lambda: service.purge_resource(
+                resource_id=command.resource_id,
+                expected_version=command.expected_version,
+            ),
+            change_type=ResourceMasterChangeType.PURGED,
+        )
 
     def list_resource_skills(
         self,

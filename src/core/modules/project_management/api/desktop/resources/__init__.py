@@ -8,6 +8,8 @@ from src.core.modules.project_management.api.desktop.resources.commands.certific
 )
 from src.core.modules.project_management.api.desktop.resources.commands.resource_commands import (
     ResourceCreateCommand,
+    ResourceLifecycleCommand,
+    ResourcePurgeCommand,
     ResourceUpdateCommand,
 )
 from src.core.modules.project_management.api.desktop.resources.commands.skill_commands import (
@@ -29,6 +31,8 @@ from src.core.modules.project_management.api.desktop.resources.models.certificat
 from src.core.modules.project_management.api.desktop.resources.models.options import (
     ResourceCategoryDescriptor,
     ResourceEmployeeOptionDescriptor,
+    ResourceKindDescriptor,
+    ResourceScopeOptionDescriptor,
     ResourceWorkerTypeDescriptor,
 )
 from src.core.modules.project_management.api.desktop.resources.models.resources import (
@@ -57,6 +61,10 @@ __all__ = [
     "ResourceDesktopDto",
     "ResourceEmployeeOptionDescriptor",
     "ResourceInspectorDesktopDto",
+    "ResourceKindDescriptor",
+    "ResourceLifecycleCommand",
+    "ResourcePurgeCommand",
+    "ResourceScopeOptionDescriptor",
     "ResourceSkillDesktopDto",
     "ResourceUpdateCommand",
     "ResourceSummaryDesktopDto",

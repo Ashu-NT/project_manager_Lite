@@ -21,9 +21,9 @@ from .certifications_builder import (
 )
 from .command_handler import (
     create_resource,
-    delete_resource,
+    deactivate_resource,
+    reactivate_resource,
     suggest_code,
-    toggle_resource_active,
     update_resource,
 )
 from .skills_builder import add_skill, build_skills_state, remove_skill
@@ -110,15 +110,15 @@ class ProjectResourcesWorkspacePresenter:
     def update_resource(self, payload: dict[str, Any]) -> None:
         update_resource(self._desktop_api, payload)
 
-    def toggle_resource_active(
+    def deactivate_resource(
         self,
         resource_id: str,
-        expected_version: int | None = None,
+        expected_version: int,
     ) -> None:
-        toggle_resource_active(self._desktop_api, resource_id, expected_version)
+        deactivate_resource(self._desktop_api, resource_id, expected_version)
 
-    def delete_resource(self, resource_id: str) -> None:
-        delete_resource(self._desktop_api, resource_id)
+    def reactivate_resource(self, resource_id: str, expected_version: int) -> None:
+        reactivate_resource(self._desktop_api, resource_id, expected_version)
 
     def build_resource_assignments(self, resource_id: str) -> list[dict[str, object]]:
         return build_resource_assignments(self._desktop_api, resource_id)

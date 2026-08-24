@@ -30,7 +30,16 @@ class ResourceEmployeeOptionViewModel:
     context: str
     department: str
     site: str
+    department_id: str
+    site_id: str
     is_active: bool
+
+@dataclass(frozen=True)
+class ResourceScopeOptionViewModel:
+    value: str
+    label: str
+    is_active: bool
+    site_id: str = ""
 
 @dataclass(frozen=True)
 class ResourceRecordViewModel:
@@ -115,7 +124,10 @@ class ResourceAvailabilityViewModel:
 class ResourceCatalogWorkspaceViewModel:
     overview: ResourceCatalogOverviewViewModel
     worker_type_options: tuple[ResourceSelectorOptionViewModel, ...] = field(default_factory=tuple)
+    kind_options: tuple[ResourceSelectorOptionViewModel, ...] = field(default_factory=tuple)
     category_options: tuple[ResourceSelectorOptionViewModel, ...] = field(default_factory=tuple)
+    department_options: tuple[ResourceScopeOptionViewModel, ...] = field(default_factory=tuple)
+    site_options: tuple[ResourceScopeOptionViewModel, ...] = field(default_factory=tuple)
     employee_options: tuple[ResourceEmployeeOptionViewModel, ...] = field(default_factory=tuple)
     selected_active_filter: str = "all"
     selected_category_filter: str = "all"
@@ -142,5 +154,6 @@ __all__ = [
     "ResourceInspectorViewModel",
     "ResourceRecordViewModel",
     "ResourceSelectorOptionViewModel",
+    "ResourceScopeOptionViewModel",
     "ResourceSkillViewModel",
 ]

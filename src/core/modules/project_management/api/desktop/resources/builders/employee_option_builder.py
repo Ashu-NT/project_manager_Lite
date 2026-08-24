@@ -36,6 +36,8 @@ def build_employee_options(
             context=employee_context(employee),
             department=(getattr(employee, "department", "") or "").strip(),
             site=(getattr(employee, "site_name", "") or "").strip(),
+            department_id=str(getattr(employee, "department_id", "") or ""),
+            site_id=str(getattr(employee, "site_id", "") or ""),
             is_active=bool(getattr(employee, "is_active", True)),
         )
         for employee in employees

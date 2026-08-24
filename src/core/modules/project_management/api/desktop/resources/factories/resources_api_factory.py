@@ -17,6 +17,8 @@ def build_project_management_resources_desktop_api(
     availability_service: ResourceAvailabilityService | None = None,
     task_service: object | None = None,
     project_service: object | None = None,
+    department_service: object | None = None,
+    site_service: object | None = None,
 ) -> ProjectManagementResourcesDesktopApi:
     return ProjectManagementResourcesDesktopApi(
         resource_service=resource_service,
@@ -24,6 +26,8 @@ def build_project_management_resources_desktop_api(
         availability_service=availability_service,
         task_service=task_service,
         project_service=project_service,
+        department_service=department_service,
+        site_service=site_service,
     )
 
 
