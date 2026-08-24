@@ -51,8 +51,11 @@ from .resource_skills_handler import (
     reload_skills_and_certs,
     remove_certification,
     remove_skill,
+    update_certification,
+    update_skill,
 )
 from .resource_assignments_handler import load_resource_assignments
+from .resource_availability_handler import load_resource_availability
 from .resource_export_handler import export_resources
 from .resource_read_handler import (
     load_resource_detail,
@@ -399,6 +402,10 @@ class ProjectManagementResourcesWorkspaceController(
     def loadResourceAssignments(self) -> None:
         load_resource_assignments(self)
 
+    @Slot(str, str)
+    def loadResourceAvailability(self, start_date: str, end_date: str) -> None:
+        load_resource_availability(self, start_date, end_date)
+
     @Slot(int)
     def setResourcePage(self, page: int) -> None:
         set_resource_page(self, page)
@@ -419,17 +426,25 @@ class ProjectManagementResourcesWorkspaceController(
     def addSkill(self, payload: dict[str, object]) -> dict[str, object]:
         return add_skill(self, payload)
 
-    @Slot(str, result="QVariantMap")
-    def removeSkill(self, skill_id: str) -> dict[str, object]:
-        return remove_skill(self, skill_id)
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateSkill(self, payload: dict[str, object]) -> dict[str, object]:
+        return update_skill(self, payload)
+
+    @Slot(str, int, result="QVariantMap")
+    def removeSkill(self, skill_id: str, expected_version: int) -> dict[str, object]:
+        return remove_skill(self, skill_id, expected_version)
 
     @Slot("QVariantMap", result="QVariantMap")
     def addCertification(self, payload: dict[str, object]) -> dict[str, object]:
         return add_certification(self, payload)
 
-    @Slot(str, result="QVariantMap")
-    def removeCertification(self, cert_id: str) -> dict[str, object]:
-        return remove_certification(self, cert_id)
+    @Slot("QVariantMap", result="QVariantMap")
+    def updateCertification(self, payload: dict[str, object]) -> dict[str, object]:
+        return update_certification(self, payload)
+
+    @Slot(str, int, result="QVariantMap")
+    def removeCertification(self, cert_id: str, expected_version: int) -> dict[str, object]:
+        return remove_certification(self, cert_id, expected_version)
 
     # ── Export ───────────────────────────────────────────────────────────
 

@@ -19,9 +19,12 @@ def serialize_certification(certification) -> ResourceCertificationDesktopDto:
         certification_name=certification.certification_name,
         issued_date=issued.isoformat() if issued else None,
         expiry_date=expiry.isoformat() if expiry else None,
-        issuing_body=certification.issuing_body or "",
+        certificate_number=certification.certificate_number or "",
+        issuer=certification.issuer or "",
         notes=certification.notes or "",
         cert_status=status,
+        cert_status_label=status.replace("-", " ").title(),
+        version=int(certification.version),
     )
 
 

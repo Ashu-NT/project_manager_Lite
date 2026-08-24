@@ -52,7 +52,7 @@ class ResourceCertificationORM(Base):
     certification_name: Mapped[str] = mapped_column(String, nullable=False)
     issued_date: Mapped[Optional[object]] = mapped_column(Date, nullable=True)
     expiry_date: Mapped[Optional[object]] = mapped_column(Date, nullable=True)
-    issuing_authority: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    issuer: Mapped[Optional[str]] = mapped_column("issuing_authority", String, nullable=True)
     certificate_number: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")

@@ -35,13 +35,23 @@ def default_resource_inspector() -> dict[str, object]:
 def default_resource_availability() -> dict[str, object]:
     return {
         "resourceId": "",
-        "peakLoadPercent": 0.0,
-        "averageLoadPercent": 0.0,
-        "overloadedDays": 0,
-        "availableDays": 0,
-        "isAvailable": True,
+        "startDate": "",
+        "endDate": "",
         "fromDateLabel": "",
         "toDateLabel": "",
+        "calendarSourceLabel": "",
+        "capacityPercent": 0.0,
+        "baseCapacityHours": 0.0,
+        "effectiveCapacityHours": 0.0,
+        "plannedCommitmentHours": 0.0,
+        "allocatedPlannedHours": 0.0,
+        "remainingCapacityHours": 0.0,
+        "utilizationPercent": None,
+        "utilizationLabel": "N/A",
+        "overallocated": False,
+        "conflictDays": 0,
+        "projectCount": 0,
+        "assignmentCount": 0,
         "days": [],
     }
 

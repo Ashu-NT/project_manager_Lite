@@ -5,6 +5,8 @@ from src.core.modules.project_management.api.desktop.resources.api import (
 )
 from src.core.modules.project_management.api.desktop.resources.commands.certification_commands import (
     ResourceAddCertificationCommand,
+    ResourceRemoveCertificationCommand,
+    ResourceUpdateCertificationCommand,
 )
 from src.core.modules.project_management.api.desktop.resources.commands.resource_commands import (
     ResourceCreateCommand,
@@ -14,6 +16,8 @@ from src.core.modules.project_management.api.desktop.resources.commands.resource
 )
 from src.core.modules.project_management.api.desktop.resources.commands.skill_commands import (
     ResourceAddSkillCommand,
+    ResourceRemoveSkillCommand,
+    ResourceUpdateSkillCommand,
 )
 from src.core.modules.project_management.api.desktop.resources.factories.resources_api_factory import (
     build_project_management_resources_desktop_api,
@@ -50,6 +54,8 @@ __all__ = [
     "ProjectManagementResourcesDesktopApi",
     "ResourceAddCertificationCommand",
     "ResourceAddSkillCommand",
+    "ResourceRemoveCertificationCommand",
+    "ResourceRemoveSkillCommand",
     "ResourceAssignmentDesktopDto",
     "ResourceAvailabilityDayDto",
     "ResourceAvailabilityDto",
@@ -67,6 +73,8 @@ __all__ = [
     "ResourceScopeOptionDescriptor",
     "ResourceSkillDesktopDto",
     "ResourceUpdateCommand",
+    "ResourceUpdateCertificationCommand",
+    "ResourceUpdateSkillCommand",
     "ResourceSummaryDesktopDto",
     "ResourceWorkerTypeDescriptor",
     "build_project_management_resources_desktop_api",

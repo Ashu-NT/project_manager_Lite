@@ -80,11 +80,13 @@ Item {
         }
         if (sectionName === "Capability" && String(selection.selectedSkillId || "").length > 0) {
             return [
+                { "id": "edit_skill", "label": "Edit", "icon": "edit", "enabled": true, "danger": false },
                 { "id": "remove_skill", "label": "Remove", "icon": "delete", "enabled": true, "danger": true }
             ]
         }
         if (sectionName === "Capability" && String(selection.selectedCertificationId || "").length > 0) {
             return [
+                { "id": "edit_certification", "label": "Edit", "icon": "edit", "enabled": true, "danger": false },
                 { "id": "remove_certification", "label": "Remove", "icon": "delete", "enabled": true, "danger": true }
             ]
         }

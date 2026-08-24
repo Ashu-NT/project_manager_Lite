@@ -12,6 +12,7 @@ class ResourceSkillDesktopDto:
     proficiency: str
     proficiency_label: str
     notes: str
+    version: int
 
 
 __all__ = ["ResourceSkillDesktopDto"]

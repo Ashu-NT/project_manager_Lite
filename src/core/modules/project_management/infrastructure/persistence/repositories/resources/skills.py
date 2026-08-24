@@ -36,6 +36,10 @@ from src.core.modules.project_management.infrastructure.persistence.orm.skills i
 )
 from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskORM
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
+from src.infra.persistence.db.optimistic import (
+    delete_with_version_check,
+    update_with_version_check,
+)
 
 
 class SqlAlchemyResourceSkillRepository(
@@ -88,14 +92,53 @@ class SqlAlchemyResourceSkillRepository(
         rows = self.session.execute(stmt).scalars().all()
         return [skill_from_orm(row) for row in rows]
 
-    def delete(self, skill_id: str) -> None:
-        scoped_ids = (
-            self._resource_skill_scoped_stmt(operation_label="manage resource skills")
-            .where(ResourceSkillORM.id == skill_id)
-            .with_only_columns(ResourceSkillORM.id)
-            .scalar_subquery()
+    def update(self, skill: ResourceSkill, *, expected_version: int) -> ResourceSkill:
+        self._ensure_resource_in_scope(skill.resource_id)
+        skill.version = update_with_version_check(
+            self.session,
+            ResourceSkillORM,
+            skill.id,
+            expected_version,
+            {
+                "skill_code": skill.skill_code,
+                "skill_name": skill.skill_name,
+                "proficiency": skill.proficiency.value,
+                "notes": skill.notes or None,
+            },
+            not_found_message="Skill not found.",
+            stale_message="Skill changed since you opened it.",
+            extra_filters={"resource_id": skill.resource_id},
         )
-        self.session.execute(delete(ResourceSkillORM).where(ResourceSkillORM.id == scoped_ids))
+        return skill
+
+    def code_exists(
+        self, resource_id: str, skill_code: str, *, exclude_id: str | None = None
+    ) -> bool:
+        stmt = self._resource_skill_scoped_stmt(
+            operation_label="validate resource skill code"
+        ).where(
+            ResourceSkillORM.resource_id == resource_id,
+            ResourceSkillORM.skill_code == skill_code,
+        )
+        if exclude_id:
+            stmt = stmt.where(ResourceSkillORM.id != exclude_id)
+        return self.session.execute(stmt.limit(1)).scalar_one_or_none() is not None
+
+    def delete(self, skill_id: str, *, expected_version: int) -> None:
+        existing = self.get(skill_id)
+        if existing is None:
+            from src.core.platform.common.exceptions import NotFoundError
+
+            raise NotFoundError("Skill not found.", code="SKILL_NOT_FOUND")
+        delete_with_version_check(
+            self.session,
+            ResourceSkillORM,
+            skill_id,
+            expected_version,
+            not_found_message="Skill not found.",
+            stale_message="Skill changed since you opened it.",
+            extra_filters={"resource_id": existing.resource_id},
+        )
 
 
 class SqlAlchemyResourceCertificationRepository(
@@ -150,17 +193,61 @@ class SqlAlchemyResourceCertificationRepository(
         rows = self.session.execute(stmt).scalars().all()
         return [cert_from_orm(row) for row in rows]
 
-    def delete(self, cert_id: str) -> None:
-        scoped_ids = (
-            self._resource_cert_scoped_stmt(
-                operation_label="manage resource certifications"
-            )
-            .where(ResourceCertificationORM.id == cert_id)
-            .with_only_columns(ResourceCertificationORM.id)
-            .scalar_subquery()
+    def update(
+        self, cert: ResourceCertification, *, expected_version: int
+    ) -> ResourceCertification:
+        self._ensure_resource_in_scope(cert.resource_id)
+        cert.version = update_with_version_check(
+            self.session,
+            ResourceCertificationORM,
+            cert.id,
+            expected_version,
+            {
+                "certification_code": cert.certification_code,
+                "certification_name": cert.certification_name,
+                "issued_date": cert.issued_date,
+                "expiry_date": cert.expiry_date,
+                "certificate_number": cert.certificate_number or None,
+                "issuer": cert.issuer or None,
+                "notes": cert.notes or None,
+            },
+            not_found_message="Certification not found.",
+            stale_message="Certification changed since you opened it.",
+            extra_filters={"resource_id": cert.resource_id},
         )
-        self.session.execute(
-            delete(ResourceCertificationORM).where(ResourceCertificationORM.id == scoped_ids)
+        return cert
+
+    def code_exists(
+        self,
+        resource_id: str,
+        certification_code: str,
+        *,
+        exclude_id: str | None = None,
+    ) -> bool:
+        stmt = self._resource_cert_scoped_stmt(
+            operation_label="validate resource certification code"
+        ).where(
+            ResourceCertificationORM.resource_id == resource_id,
+            ResourceCertificationORM.certification_code == certification_code,
+        )
+        if exclude_id:
+            stmt = stmt.where(ResourceCertificationORM.id != exclude_id)
+        return self.session.execute(stmt.limit(1)).scalar_one_or_none() is not None
+
+    def delete(self, cert_id: str, *, expected_version: int) -> None:
+        existing = self.get(cert_id)
+        if existing is None:
+            from src.core.platform.common.exceptions import NotFoundError
+
+            raise NotFoundError("Certification not found.", code="CERT_NOT_FOUND")
+        delete_with_version_check(
+            self.session,
+            ResourceCertificationORM,
+            cert_id,
+            expected_version,
+            not_found_message="Certification not found.",
+            stale_message="Certification changed since you opened it.",
+            extra_filters={"resource_id": existing.resource_id},
         )
 
 

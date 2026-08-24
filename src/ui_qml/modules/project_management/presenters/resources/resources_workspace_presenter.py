@@ -14,10 +14,12 @@ from src.ui_qml.modules.project_management.view_models.resources import (
 )
 
 from .assignments_builder import build_resource_assignments
+from .availability_builder import build_resource_availability_state
 from .certifications_builder import (
     add_certification,
     build_certifications_state,
     remove_certification,
+    update_certification,
 )
 from .command_handler import (
     create_resource,
@@ -26,7 +28,7 @@ from .command_handler import (
     suggest_code,
     update_resource,
 )
-from .skills_builder import add_skill, build_skills_state, remove_skill
+from .skills_builder import add_skill, build_skills_state, remove_skill, update_skill
 from .workspace_builder import build_workspace_state
 from .resource_mapper import to_resource_record_view_model
 from .detail_builder import build_detail_view_model, build_inspector_view_model
@@ -123,6 +125,16 @@ class ProjectResourcesWorkspacePresenter:
     def build_resource_assignments(self, resource_id: str) -> list[dict[str, object]]:
         return build_resource_assignments(self._desktop_api, resource_id)
 
+    def build_resource_availability(
+        self, resource_id: str, *, start_date: str, end_date: str
+    ) -> ResourceAvailabilityViewModel:
+        return build_resource_availability_state(
+            self._desktop_api,
+            resource_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
     def build_skills_state(self, resource_id: str) -> tuple[ResourceSkillViewModel, ...]:
         return build_skills_state(self._desktop_api, resource_id)
 
@@ -134,13 +146,19 @@ class ProjectResourcesWorkspacePresenter:
     def add_skill(self, resource_id: str, payload: dict[str, Any]) -> None:
         add_skill(self._desktop_api, resource_id, payload)
 
-    def remove_skill(self, skill_id: str) -> None:
-        remove_skill(self._desktop_api, skill_id)
+    def update_skill(self, payload: dict[str, Any]) -> None:
+        update_skill(self._desktop_api, payload)
+
+    def remove_skill(self, skill_id: str, expected_version: int) -> None:
+        remove_skill(self._desktop_api, skill_id, expected_version)
 
     def add_certification(self, resource_id: str, payload: dict[str, Any]) -> None:
         add_certification(self._desktop_api, resource_id, payload)
 
-    def remove_certification(self, cert_id: str) -> None:
-        remove_certification(self._desktop_api, cert_id)
+    def update_certification(self, payload: dict[str, Any]) -> None:
+        update_certification(self._desktop_api, payload)
+
+    def remove_certification(self, cert_id: str, expected_version: int) -> None:
+        remove_certification(self._desktop_api, cert_id, expected_version)
 
 __all__ = ["ProjectResourcesWorkspacePresenter"]

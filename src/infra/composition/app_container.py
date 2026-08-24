@@ -106,6 +106,7 @@ from src.core.platform.application.time_management.calendar.assignment.calendar_
 from src.core.platform.application.time_management.calendar.capacity.enterprise_calendar_resolver import EnterpriseCalendarResolver
 from src.core.platform.application.time_management.calendar.capacity.working_time_calculator import WorkingTimeCalculator
 from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
+from src.core.modules.project_management.application.resources.resource_workload_service import ResourceWorkloadService
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
 from src.core.modules.project_management.application.resources.resource_availability_service import ResourceAvailabilityService
 from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import PortfolioResourcePoolService
@@ -207,6 +208,7 @@ class ServiceGraph:
     enterprise_calendar_resolver: EnterpriseCalendarResolver | None
     working_time_calculator: WorkingTimeCalculator | None
     resource_capacity_calculator: ResourceCapacityCalculator | None
+    resource_workload_service: ResourceWorkloadService | None
     enterprise_resource_availability: EnterpriseResourceAvailabilityService | None
     resource_multi_project_allocation_service: ResourceAvailabilityService | None
     portfolio_resource_pool_service: PortfolioResourcePoolService | None
@@ -297,6 +299,7 @@ class ServiceGraph:
             "enterprise_calendar_resolver": self.enterprise_calendar_resolver,
             "working_time_calculator": self.working_time_calculator,
             "resource_capacity_calculator": self.resource_capacity_calculator,
+            "resource_workload_service": self.resource_workload_service,
             # The calendar-based capacity authority for Task Assignment
             # availability/overallocation (docs §44) -- TaskService receives
             # this same instance directly (see project_registry.py), and it
@@ -484,6 +487,7 @@ def build_service_graph(session: Session) -> ServiceGraph:
         enterprise_calendar_resolver=platform_services.enterprise_calendar_resolver,
         working_time_calculator=platform_services.working_time_calculator,
         resource_capacity_calculator=project_management_services.resource_capacity_calculator,
+        resource_workload_service=project_management_services.resource_workload_service,
         enterprise_resource_availability=project_management_services.enterprise_resource_availability,
         resource_multi_project_allocation_service=project_management_services.resource_multi_project_allocation_service,
         portfolio_resource_pool_service=project_management_services.portfolio_resource_pool_service,

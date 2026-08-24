@@ -11,9 +11,12 @@ class ResourceCertificationDesktopDto:
     certification_name: str
     issued_date: str | None
     expiry_date: str | None
-    issuing_body: str
+    certificate_number: str
+    issuer: str
     notes: str
     cert_status: str
+    cert_status_label: str
+    version: int
 
 
 __all__ = ["ResourceCertificationDesktopDto"]

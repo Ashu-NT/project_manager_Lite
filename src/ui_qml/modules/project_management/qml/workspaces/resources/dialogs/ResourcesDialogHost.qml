@@ -60,11 +60,29 @@ Item {
     }
 
     function openAddSkillDialog() {
+        skillEditorDialog.modeTitle = "Add Skill"
+        skillEditorDialog.skillData = ({})
+        skillEditorDialog.errorMessage = ""
+        skillEditorDialog.open()
+    }
+
+    function openEditSkillDialog(skillData) {
+        skillEditorDialog.modeTitle = "Edit Skill"
+        skillEditorDialog.skillData = skillData || ({})
         skillEditorDialog.errorMessage = ""
         skillEditorDialog.open()
     }
 
     function openAddCertificationDialog() {
+        certEditorDialog.modeTitle = "Add Certification"
+        certEditorDialog.certificationData = ({})
+        certEditorDialog.errorMessage = ""
+        certEditorDialog.open()
+    }
+
+    function openEditCertificationDialog(certificationData) {
+        certEditorDialog.modeTitle = "Edit Certification"
+        certEditorDialog.certificationData = certificationData || ({})
         certEditorDialog.errorMessage = ""
         certEditorDialog.open()
     }
@@ -74,7 +92,9 @@ Item {
         busy: root.workspaceController ? root.workspaceController.isBusy : false
         onSubmitted: function(payload) {
             if (!root.workspaceController) return
-            var result = root.workspaceController.addSkill(payload)
+            var result = skillEditorDialog.modeTitle === "Add Skill"
+                ? root.workspaceController.addSkill(payload)
+                : root.workspaceController.updateSkill(payload)
             root._handleResult(skillEditorDialog, result)
         }
     }
@@ -84,7 +104,9 @@ Item {
         busy: root.workspaceController ? root.workspaceController.isBusy : false
         onSubmitted: function(payload) {
             if (!root.workspaceController) return
-            var result = root.workspaceController.addCertification(payload)
+            var result = certEditorDialog.modeTitle === "Add Certification"
+                ? root.workspaceController.addCertification(payload)
+                : root.workspaceController.updateCertification(payload)
             root._handleResult(certEditorDialog, result)
         }
     }

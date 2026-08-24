@@ -94,6 +94,7 @@ def serialize_resource_skill_view_models(
             "proficiency": vm.proficiency,
             "proficiencyLabel": vm.proficiency_label,
             "notes": vm.notes,
+            "version": vm.version,
         }
         for vm in view_models
     ]
@@ -113,10 +114,12 @@ def serialize_resource_certification_view_models(
             "certificationName": vm.certification_name,
             "issuedDate": vm.issued_date or "",
             "expiryDate": vm.expiry_date or "",
-            "issuingBody": vm.issuing_body,
+            "certificateNumber": vm.certificate_number,
+            "issuer": vm.issuer,
             "notes": vm.notes,
             "certStatus": vm.cert_status,
             "certStatusLabel": vm.cert_status_label,
+            "version": vm.version,
         }
         for vm in view_models
     ]
@@ -127,19 +130,37 @@ def serialize_resource_availability_view_model(
 ) -> dict[str, object]:
     return {
         "resourceId": vm.resource_id,
-        "peakLoadPercent": vm.peak_load_percent,
-        "averageLoadPercent": vm.average_load_percent,
-        "overloadedDays": vm.overloaded_days,
-        "availableDays": vm.available_days,
-        "isAvailable": vm.is_available,
+        "startDate": vm.start_date,
+        "endDate": vm.end_date,
         "fromDateLabel": vm.from_date_label,
         "toDateLabel": vm.to_date_label,
+        "calendarSourceLabel": vm.calendar_source_label,
+        "capacityPercent": vm.capacity_percent,
+        "baseCapacityHours": vm.base_capacity_hours,
+        "effectiveCapacityHours": vm.effective_capacity_hours,
+        "plannedCommitmentHours": vm.planned_commitment_hours,
+        "allocatedPlannedHours": vm.allocated_planned_hours,
+        "remainingCapacityHours": vm.remaining_capacity_hours,
+        "utilizationPercent": vm.utilization_percent,
+        "utilizationLabel": vm.utilization_label,
+        "overallocated": vm.overallocated,
+        "conflictDays": vm.conflict_days,
+        "projectCount": vm.project_count,
+        "assignmentCount": vm.assignment_count,
         "days": [
             {
+                "id": d.work_date,
+                "workDate": d.work_date,
                 "dateLabel": d.date_label,
-                "allocationPercent": d.allocation_percent,
-                "allocationLabel": d.allocation_label,
-                "overloaded": d.overloaded,
+                "baseCapacityHours": d.base_capacity_hours,
+                "effectiveCapacityHours": d.effective_capacity_hours,
+                "plannedCommitmentHours": d.planned_commitment_hours,
+                "remainingCapacityHours": d.remaining_capacity_hours,
+                "utilizationPercent": d.utilization_percent,
+                "utilizationLabel": d.utilization_label,
+                "overallocated": d.overallocated,
+                "statusLabel": "Overallocated" if d.overallocated else "Available",
+                "assignmentCount": d.assignment_count,
             }
             for d in vm.days
         ],

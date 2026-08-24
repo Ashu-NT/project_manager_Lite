@@ -86,9 +86,18 @@ AppLayouts.WorkspaceFrame {
     }
 
     function _openDetail(sectionIndex) {
+        compactInspector.close()
         root._pendingDetailSection = sectionIndex
         root._detailOpen = true
         if (detailPage) detailPage.scrollToSection(sectionIndex)
+    }
+
+    function _rowById(rows, rowId) {
+        const source = rows || []
+        for (let i = 0; i < source.length; i++) {
+            if (String(source[i].id || "") === String(rowId || "")) return source[i]
+        }
+        return null
     }
 
     AppWidgets.LazyObjectLoader {
@@ -294,13 +303,21 @@ AppLayouts.WorkspaceFrame {
                         } else if (actionId === "lifecycle") {
                             dialogHostLoader.invoke("openLifecycleDialog", root.selectedResourceModel)
                         } else if (actionId === "remove_skill") {
-                            if (root.workspaceController !== null && root._selectedSkillId.length > 0) {
-                                root.workspaceController.removeSkill(root._selectedSkillId)
+                            const skill = root._rowById(root.workspaceController ? root.workspaceController.resourceSkills : [], root._selectedSkillId)
+                            if (root.workspaceController !== null && skill !== null) {
+                                root.workspaceController.removeSkill(root._selectedSkillId, Number(skill.version || 0))
                             }
+                        } else if (actionId === "edit_skill") {
+                            const skill = root._rowById(root.workspaceController ? root.workspaceController.resourceSkills : [], root._selectedSkillId)
+                            if (skill !== null) dialogHostLoader.invoke("openEditSkillDialog", skill)
                         } else if (actionId === "remove_certification") {
-                            if (root.workspaceController !== null && root._selectedCertificationId.length > 0) {
-                                root.workspaceController.removeCertification(root._selectedCertificationId)
+                            const certification = root._rowById(root.workspaceController ? root.workspaceController.resourceCertifications : [], root._selectedCertificationId)
+                            if (root.workspaceController !== null && certification !== null) {
+                                root.workspaceController.removeCertification(root._selectedCertificationId, Number(certification.version || 0))
                             }
+                        } else if (actionId === "edit_certification") {
+                            const certification = root._rowById(root.workspaceController ? root.workspaceController.resourceCertifications : [], root._selectedCertificationId)
+                            if (certification !== null) dialogHostLoader.invoke("openEditCertificationDialog", certification)
                         }
                     }
                 }
@@ -338,10 +355,14 @@ AppLayouts.WorkspaceFrame {
                     onAddSkillRequested: dialogHostLoader.invoke("openAddSkillDialog")
                     onAddCertificationRequested: dialogHostLoader.invoke("openAddCertificationDialog")
                     onRemoveSkillRequested: function(skillId) {
-                        if (root.workspaceController !== null) root.workspaceController.removeSkill(skillId)
+                        const skill = root._rowById(root.workspaceController ? root.workspaceController.resourceSkills : [], skillId)
+                        if (root.workspaceController !== null && skill !== null)
+                            root.workspaceController.removeSkill(skillId, Number(skill.version || 0))
                     }
                     onRemoveCertificationRequested: function(certId) {
-                        if (root.workspaceController !== null) root.workspaceController.removeCertification(certId)
+                        const certification = root._rowById(root.workspaceController ? root.workspaceController.resourceCertifications : [], certId)
+                        if (root.workspaceController !== null && certification !== null)
+                            root.workspaceController.removeCertification(certId, Number(certification.version || 0))
                     }
                 }
             }

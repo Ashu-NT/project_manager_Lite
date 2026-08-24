@@ -98,6 +98,10 @@ Item {
                     onAddSkillRequested: root.addSkillRequested()
                     onSelectionChanged: function(skillId) {
                         root.selectedSkillId = String(skillId || "")
+                        if (root.selectedSkillId.length > 0 && root.selectedCertificationId.length > 0) {
+                            root.selectedCertificationId = ""
+                            root.certificationSelectionChanged("")
+                        }
                         root.skillSelectionChanged(root.selectedSkillId)
                     }
                     onRemoveSkillRequested: function(skillId) {
@@ -114,6 +118,10 @@ Item {
                     onAddCertificationRequested: root.addCertificationRequested()
                     onSelectionChanged: function(certId) {
                         root.selectedCertificationId = String(certId || "")
+                        if (root.selectedCertificationId.length > 0 && root.selectedSkillId.length > 0) {
+                            root.selectedSkillId = ""
+                            root.skillSelectionChanged("")
+                        }
                         root.certificationSelectionChanged(root.selectedCertificationId)
                     }
                     onRemoveCertificationRequested: function(certId) {

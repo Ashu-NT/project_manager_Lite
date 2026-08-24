@@ -88,6 +88,7 @@ class ResourceSkillViewModel:
     proficiency: str
     proficiency_label: str
     notes: str
+    version: int
 
 @dataclass(frozen=True)
 class ResourceCertificationViewModel:
@@ -96,28 +97,46 @@ class ResourceCertificationViewModel:
     certification_name: str
     issued_date: str
     expiry_date: str
-    issuing_body: str
+    certificate_number: str
+    issuer: str
     notes: str
     cert_status: str
     cert_status_label: str
+    version: int
 
 @dataclass(frozen=True)
 class ResourceAvailabilityDayViewModel:
+    work_date: str
     date_label: str
-    allocation_percent: float
-    allocation_label: str
-    overloaded: bool
+    base_capacity_hours: float
+    effective_capacity_hours: float
+    planned_commitment_hours: float
+    remaining_capacity_hours: float
+    utilization_percent: float | None
+    utilization_label: str
+    overallocated: bool
+    assignment_count: int
 
 @dataclass(frozen=True)
 class ResourceAvailabilityViewModel:
     resource_id: str = ""
-    peak_load_percent: float = 0.0
-    average_load_percent: float = 0.0
-    overloaded_days: int = 0
-    available_days: int = 0
-    is_available: bool = True
+    start_date: str = ""
+    end_date: str = ""
     from_date_label: str = ""
     to_date_label: str = ""
+    calendar_source_label: str = ""
+    capacity_percent: float = 0.0
+    base_capacity_hours: float = 0.0
+    effective_capacity_hours: float = 0.0
+    planned_commitment_hours: float = 0.0
+    allocated_planned_hours: float = 0.0
+    remaining_capacity_hours: float = 0.0
+    utilization_percent: float | None = None
+    utilization_label: str = "N/A"
+    overallocated: bool = False
+    conflict_days: int = 0
+    project_count: int = 0
+    assignment_count: int = 0
     days: tuple[ResourceAvailabilityDayViewModel, ...] = field(default_factory=tuple)
 
 @dataclass(frozen=True)

@@ -26,6 +26,7 @@ from src.core.modules.project_management.application.resources import (
     ProjectResourceService,
     ResourceAvailabilityService,
     ResourceService,
+    ResourceWorkloadService,
 )
 from src.core.modules.project_management.application.resources.assignment_validation import (
     AssignmentSkillValidator,
@@ -55,6 +56,7 @@ class ProjectManagementDesktopRuntimeServices:
         ResourceAvailabilityService | EnterpriseResourceAvailabilityService | None
     )
     resource_multi_project_allocation_service: ResourceAvailabilityService | None
+    resource_workload_service: ResourceWorkloadService | None
     pool_service: PortfolioResourcePoolService | None
     project_resource_service: ProjectResourceService | None
     timesheet_service: TimesheetService | None
@@ -89,6 +91,7 @@ def resolve_project_management_desktop_runtime_services(
     resource_multi_project_allocation_service = services.get(
         "resource_multi_project_allocation_service"
     )
+    resource_workload_service = services.get("resource_workload_service")
     pool_service = services.get("portfolio_resource_pool_service")
     project_resource_service = services.get("project_resource_service")
     timesheet_service = services.get("timesheet_service")
@@ -236,6 +239,11 @@ def resolve_project_management_desktop_runtime_services(
         reporting_service=(
             reporting_service
             if isinstance(reporting_service, ReportingService)
+            else None
+        ),
+        resource_workload_service=(
+            resource_workload_service
+            if isinstance(resource_workload_service, ResourceWorkloadService)
             else None
         ),
         tenant_context_service=(

@@ -23,6 +23,11 @@ from src.core.modules.project_management.application.resources.resource_availabi
 from src.core.modules.project_management.application.resources.resource_service import (
     ResourceService,
 )
+from src.core.modules.project_management.application.resources.resource_workload_service import (
+    ResourceWorkloadDayFact,
+    ResourceWorkloadFact,
+    ResourceWorkloadService,
+)
 from src.core.modules.project_management.application.resources.resource_load_engine import (
     ResourceLoadEngine,
     ResourceLoadMetric,
@@ -49,6 +54,9 @@ __all__ = [
     "ResourcePoolSummary",
     "ResourceService",
     "ResourceUtilizationBand",
+    "ResourceWorkloadDayFact",
+    "ResourceWorkloadFact",
+    "ResourceWorkloadService",
     "SkillViolation",
     "is_resource_near_capacity",
     "is_resource_overloaded",

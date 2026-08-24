@@ -62,10 +62,28 @@ def add_skill(controller, payload: dict[str, object]) -> dict[str, object]:
     )
 
 
-def remove_skill(controller, skill_id: str) -> dict[str, object]:
+def update_skill(controller, payload: dict[str, object]) -> dict[str, object]:
     resource_id = str(controller._selected_resource_id or "")
     return run_mutation(
-        operation=lambda: controller._resources_workspace_presenter.remove_skill(skill_id),
+        operation=lambda: controller._resources_workspace_presenter.update_skill(
+            dict(payload)
+        ),
+        success_message="Skill updated.",
+        on_success=lambda: reload_skills_and_certs(controller, resource_id),
+        set_is_busy=controller._set_is_busy,
+        set_error_message=controller._set_error_message,
+        set_feedback_message=controller._set_feedback_message,
+    )
+
+
+def remove_skill(
+    controller, skill_id: str, expected_version: int
+) -> dict[str, object]:
+    resource_id = str(controller._selected_resource_id or "")
+    return run_mutation(
+        operation=lambda: controller._resources_workspace_presenter.remove_skill(
+            skill_id, expected_version
+        ),
         success_message="Skill removed.",
         on_success=lambda: reload_skills_and_certs(controller, resource_id),
         set_is_busy=controller._set_is_busy,
@@ -88,10 +106,28 @@ def add_certification(controller, payload: dict[str, object]) -> dict[str, objec
     )
 
 
-def remove_certification(controller, cert_id: str) -> dict[str, object]:
+def update_certification(controller, payload: dict[str, object]) -> dict[str, object]:
     resource_id = str(controller._selected_resource_id or "")
     return run_mutation(
-        operation=lambda: controller._resources_workspace_presenter.remove_certification(cert_id),
+        operation=lambda: controller._resources_workspace_presenter.update_certification(
+            dict(payload)
+        ),
+        success_message="Certification updated.",
+        on_success=lambda: reload_skills_and_certs(controller, resource_id),
+        set_is_busy=controller._set_is_busy,
+        set_error_message=controller._set_error_message,
+        set_feedback_message=controller._set_feedback_message,
+    )
+
+
+def remove_certification(
+    controller, cert_id: str, expected_version: int
+) -> dict[str, object]:
+    resource_id = str(controller._selected_resource_id or "")
+    return run_mutation(
+        operation=lambda: controller._resources_workspace_presenter.remove_certification(
+            cert_id, expected_version
+        ),
         success_message="Certification removed.",
         on_success=lambda: reload_skills_and_certs(controller, resource_id),
         set_is_busy=controller._set_is_busy,
@@ -107,6 +143,8 @@ __all__ = [
     "reload_skills_and_certs",
     "remove_certification",
     "remove_skill",
+    "update_certification",
+    "update_skill",
     "set_resource_certifications",
     "set_resource_skills",
 ]

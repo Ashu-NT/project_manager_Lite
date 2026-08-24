@@ -19,6 +19,8 @@ from src.core.modules.project_management.api.desktop.resources.builders.option_b
 )
 from src.core.modules.project_management.api.desktop.resources.commands.certification_commands import (
     ResourceAddCertificationCommand,
+    ResourceRemoveCertificationCommand,
+    ResourceUpdateCertificationCommand,
 )
 from src.core.modules.project_management.api.desktop.resources.commands.resource_commands import (
     ResourceCreateCommand,
@@ -28,6 +30,8 @@ from src.core.modules.project_management.api.desktop.resources.commands.resource
 )
 from src.core.modules.project_management.api.desktop.resources.commands.skill_commands import (
     ResourceAddSkillCommand,
+    ResourceRemoveSkillCommand,
+    ResourceUpdateSkillCommand,
 )
 from src.core.modules.project_management.api.desktop.resources.models.assignments import (
     ResourceAssignmentDesktopDto,
@@ -83,6 +87,12 @@ from src.core.modules.project_management.application.resources.resource_master_e
 from src.core.modules.project_management.application.resources.resource_master_uow import (
     ResourceMasterUnitOfWork,
 )
+from src.core.modules.project_management.application.resources.resource_capability_events import (
+    ResourceCapabilityChangeType,
+)
+from src.core.modules.project_management.application.resources.resource_capability_uow import (
+    ResourceCapabilityUnitOfWork,
+)
 from src.core.platform.application.master_data.employee.employee_service import EmployeeService
 
 
@@ -93,6 +103,7 @@ class ProjectManagementResourcesDesktopApi:
         resource_service: ResourceService | None = None,
         employee_service: EmployeeService | None = None,
         availability_service: ResourceAvailabilityService | None = None,
+        workload_service: object | None = None,
         task_service: object | None = None,
         project_service: object | None = None,
         department_service: object | None = None,
@@ -101,6 +112,7 @@ class ProjectManagementResourcesDesktopApi:
         self._resource_service = resource_service
         self._employee_service = employee_service
         self._availability_service = availability_service
+        self._workload_service = workload_service
         self._task_service = task_service
         self._project_service = project_service
         self._department_service = department_service
@@ -112,11 +124,23 @@ class ProjectManagementResourcesDesktopApi:
             if session is not None and tenant_context is not None
             else None
         )
+        self._resource_capability_uow = (
+            ResourceCapabilityUnitOfWork(session, tenant_context)
+            if session is not None and tenant_context is not None
+            else None
+        )
 
     def _execute_resource_master(self, operation, *, change_type: ResourceMasterChangeType):
         if self._resource_master_uow is None:
             return operation()
         return self._resource_master_uow.execute(operation, change_type=change_type)
+
+    def _execute_resource_capability(
+        self, operation, *, change_type: ResourceCapabilityChangeType
+    ):
+        if self._resource_capability_uow is None:
+            return operation()
+        return self._resource_capability_uow.execute(operation, change_type=change_type)
 
     def list_worker_types(self) -> tuple[ResourceWorkerTypeDescriptor, ...]:
         return build_worker_type_options()
@@ -301,26 +325,16 @@ class ProjectManagementResourcesDesktopApi:
         self,
         resource_id: str,
     ) -> tuple[ResourceSkillDesktopDto, ...]:
-        service = self._resource_service
-        if service is None:
-            return ()
-        try:
-            skills = service.list_resource_skills(resource_id)
-        except Exception:
-            return ()
+        service = self._require_resource_service()
+        skills = service.list_resource_skills(resource_id)
         return tuple(serialize_skill(skill) for skill in skills)
 
     def list_resource_certifications(
         self,
         resource_id: str,
     ) -> tuple[ResourceCertificationDesktopDto, ...]:
-        service = self._resource_service
-        if service is None:
-            return ()
-        try:
-            certifications = service.list_resource_certifications(resource_id)
-        except Exception:
-            return ()
+        service = self._require_resource_service()
+        certifications = service.list_resource_certifications(resource_id)
         return tuple(
             serialize_certification(certification)
             for certification in certifications
@@ -331,36 +345,94 @@ class ProjectManagementResourcesDesktopApi:
         command: ResourceAddSkillCommand,
     ) -> ResourceSkillDesktopDto:
         service = self._require_resource_service()
-        skill = service.add_resource_skill(
-            resource_id=command.resource_id,
-            skill_code=command.skill_code,
-            skill_name=command.skill_name,
-            proficiency=command.proficiency,
-            notes=command.notes,
+        skill = self._execute_resource_capability(
+            lambda: service.add_resource_skill(
+                resource_id=command.resource_id,
+                skill_code=command.skill_code,
+                skill_name=command.skill_name,
+                proficiency=command.proficiency,
+                notes=command.notes,
+            ),
+            change_type=ResourceCapabilityChangeType.ADDED,
         )
         return serialize_skill(skill)
 
-    def remove_resource_skill(self, skill_id: str) -> None:
-        self._require_resource_service().remove_resource_skill(skill_id)
+    def update_resource_skill(
+        self, command: ResourceUpdateSkillCommand
+    ) -> ResourceSkillDesktopDto:
+        service = self._require_resource_service()
+        skill = self._execute_resource_capability(
+            lambda: service.update_resource_skill(
+                skill_id=command.skill_id,
+                expected_version=command.expected_version,
+                skill_code=command.skill_code,
+                skill_name=command.skill_name,
+                proficiency=command.proficiency,
+                notes=command.notes,
+            ),
+            change_type=ResourceCapabilityChangeType.UPDATED,
+        )
+        return serialize_skill(skill)
+
+    def remove_resource_skill(self, command: ResourceRemoveSkillCommand) -> None:
+        service = self._require_resource_service()
+        self._execute_resource_capability(
+            lambda: service.remove_resource_skill(
+                command.skill_id, expected_version=command.expected_version
+            ),
+            change_type=ResourceCapabilityChangeType.REMOVED,
+        )
 
     def add_resource_certification(
         self,
         command: ResourceAddCertificationCommand,
     ) -> ResourceCertificationDesktopDto:
         service = self._require_resource_service()
-        certification = service.add_resource_certification(
-            resource_id=command.resource_id,
-            certification_code=command.certification_code,
-            certification_name=command.certification_name,
-            issued_date=parse_date(command.issued_date),
-            expiry_date=parse_date(command.expiry_date),
-            issuing_body=command.issuing_body,
-            notes=command.notes,
+        certification = self._execute_resource_capability(
+            lambda: service.add_resource_certification(
+                resource_id=command.resource_id,
+                certification_code=command.certification_code,
+                certification_name=command.certification_name,
+                issued_date=parse_date(command.issued_date),
+                expiry_date=parse_date(command.expiry_date),
+                certificate_number=command.certificate_number,
+                issuer=command.issuer,
+                notes=command.notes,
+            ),
+            change_type=ResourceCapabilityChangeType.ADDED,
         )
         return serialize_certification(certification)
 
-    def remove_resource_certification(self, cert_id: str) -> None:
-        self._require_resource_service().remove_resource_certification(cert_id)
+    def update_resource_certification(
+        self, command: ResourceUpdateCertificationCommand
+    ) -> ResourceCertificationDesktopDto:
+        service = self._require_resource_service()
+        certification = self._execute_resource_capability(
+            lambda: service.update_resource_certification(
+                cert_id=command.cert_id,
+                expected_version=command.expected_version,
+                certification_code=command.certification_code,
+                certification_name=command.certification_name,
+                issued_date=parse_date(command.issued_date),
+                expiry_date=parse_date(command.expiry_date),
+                certificate_number=command.certificate_number,
+                issuer=command.issuer,
+                notes=command.notes,
+            ),
+            change_type=ResourceCapabilityChangeType.UPDATED,
+        )
+        return serialize_certification(certification)
+
+    def remove_resource_certification(
+        self, command: ResourceRemoveCertificationCommand
+    ) -> None:
+        service = self._require_resource_service()
+        self._execute_resource_capability(
+            lambda: service.remove_resource_certification(
+                command.cert_id, expected_version=command.expected_version
+            ),
+            change_type=ResourceCapabilityChangeType.REMOVED,
+        )
 
     def list_resource_assignments(
         self,
@@ -375,10 +447,15 @@ class ProjectManagementResourcesDesktopApi:
     def build_resource_availability(
         self,
         resource_id: str,
-    ) -> ResourceAvailabilityDto | None:
+        *,
+        start_date: str,
+        end_date: str,
+    ) -> ResourceAvailabilityDto:
         return build_resource_availability(
             resource_id,
-            availability_service=self._availability_service,
+            workload_service=self._workload_service,
+            start_date=parse_date(start_date),
+            end_date=parse_date(end_date),
         )
 
     def _require_resource_service(self) -> ResourceService:
