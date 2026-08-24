@@ -235,6 +235,7 @@ class _FakeTaskService:
         self._assignments: dict[str, SimpleNamespace] = {}
         self._dependencies: dict[str, SimpleNamespace] = {}
         self._project_resource_lookup: dict[str, str] = {}
+        self._resource_names: dict[str, str] = {}
 
     def list_tasks_for_project(self, project_id: str) -> list[SimpleNamespace]:
         return [task for task in self._tasks.values() if task.project_id == project_id]
@@ -323,8 +324,15 @@ class _FakeTaskService:
                 deleted.append(task_id)
         return tuple(deleted)
 
-    def register_project_resource(self, project_resource_id: str, resource_id: str) -> None:
+    def register_project_resource(
+        self,
+        project_resource_id: str,
+        resource_id: str,
+        resource_name: str = "",
+    ) -> None:
         self._project_resource_lookup[project_resource_id] = resource_id
+        if resource_name:
+            self._resource_names[resource_id] = resource_name
 
     def list_assignments_for_task(self, task_id: str) -> list[SimpleNamespace]:
         return [a for a in self._assignments.values() if a.task_id == task_id]
@@ -357,7 +365,7 @@ class _FakeTaskService:
                     assignment_id=row.id,
                     resource_id=row.resource_id,
                     resource_code="",
-                    resource_name=row.resource_id,
+                    resource_name=self._resource_names.get(row.resource_id, row.resource_id),
                     role="",
                     allocation_percent=Decimal(str(row.allocation_percent)),
                     planned_hours=Decimal(str(getattr(row, "allocated_planned_hours", 0))),
@@ -615,7 +623,7 @@ def build_task_controller_bundle(tmp_path: Path) -> dict:
             ),
         ]
     )
-    task_service.register_project_resource("pr-1", "res-1")
+    task_service.register_project_resource("pr-1", "res-1", "Alex Taylor")
     task_service.assign_project_resource(
         task_id="task-1",
         project_resource_id="pr-1",

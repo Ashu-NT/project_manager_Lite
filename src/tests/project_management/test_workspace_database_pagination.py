@@ -41,6 +41,29 @@ def test_project_catalog_filters_counts_and_pages_in_database(services) -> None:
     assert search_page.items[0].project.id == alpha.id
 
 
+def test_project_and_task_detail_activity_decode_canonical_payloads(services) -> None:
+    project_service = services["project_service"]
+    task_service = services["task_service"]
+    project = project_service.create_project("Activity Contract Project")
+    task = task_service.create_task(project.id, "Activity Contract Task")
+
+    project_activity = project_service.query_project_activity_page(
+        project.id,
+        page=1,
+        page_size=25,
+    )
+    task_activity = task_service.query_task_activity_page(
+        task.id,
+        page=1,
+        page_size=25,
+    )
+
+    assert project_activity.filtered_total >= 1
+    assert task_activity.filtered_total >= 1
+    assert all(isinstance(item.details, dict) for item in project_activity.items)
+    assert all(isinstance(item.details, dict) for item in task_activity.items)
+
+
 def test_project_catalog_site_department_manager_and_date_filters_compose(services) -> None:
     project_service = services["project_service"]
     site_service = services["site_service"]

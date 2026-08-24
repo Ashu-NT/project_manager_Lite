@@ -67,7 +67,10 @@ def project_resources_page(page) -> dict[str, object]:
 
 def task_assignments_page(page) -> dict[str, object]:
     rows = [{
-        "id": item.id, "resourceName": item.resource_name,
+        "id": item.id, "title": item.resource_name,
+        "subtitle": "Resource assignment",
+        "statusLabel": item.response_status_label,
+        "resourceName": item.resource_name,
         "resourceCode": item.resource_code or "--", "role": item.role or "Team member",
         "allocationPercent": f"{float(item.allocation_percent or 0):.1f}%",
         "plannedHours": _hours(item.allocated_planned_hours),

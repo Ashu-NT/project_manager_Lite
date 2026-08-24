@@ -29,6 +29,9 @@ from src.core.modules.project_management.infrastructure.persistence.orm.project 
 from src.core.modules.project_management.infrastructure.persistence.orm.resource import ResourceORM
 from src.core.modules.project_management.infrastructure.persistence.orm.task import TaskAssignmentORM
 from src.core.platform.infrastructure.persistence.orm.history.activity.activity import ActivityEntryORM
+from src.core.platform.infrastructure.persistence.mappers.history.activity.activity import (
+    activity_payload_from_json,
+)
 from src.core.platform.infrastructure.persistence.orm.time_management.time.time import TimeEntryORM
 from src.core.modules.project_management.infrastructure.persistence.orm.budget import (
     BudgetLineORM,
@@ -167,13 +170,14 @@ class SqlAlchemyProjectCatalogReader:
         rows = self._session.execute(select(
             ActivityEntryORM.id, ActivityEntryORM.timestamp, ActivityEntryORM.actor_id,
             ActivityEntryORM.action, ActivityEntryORM.entity_type,
-            ActivityEntryORM.human_message, ActivityEntryORM.details,
+            ActivityEntryORM.human_message, ActivityEntryORM.details_json,
         ).where(*filters).order_by(ActivityEntryORM.timestamp.desc(), ActivityEntryORM.id.desc())
           .offset((page - 1) * page_size).limit(page_size)).all()
         return ProjectActivityPage(items=tuple(ProjectActivityFact(
             activity_id=str(r[0]), occurred_at=r[1], actor_id=str(r[2]) if r[2] else None,
             action=str(r[3] or "activity"), entity_type=str(r[4] or "project"),
-            summary=str(r[5] or r[3] or "Activity recorded"), details=dict(r[6] or {}),
+            summary=str(r[5] or r[3] or "Activity recorded"),
+            details=activity_payload_from_json(r[6]),
         ) for r in rows), filtered_total=total, page=page, page_size=page_size,
                          sort=ReadSort.normalize(key="occurredAt", direction="desc", allowed_keys={"occurredAt"}, default_key="occurredAt"))
 
