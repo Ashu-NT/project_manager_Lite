@@ -18,7 +18,7 @@ def test_resource_dto_normalizes_and_validates_fields():
         capacity_percent="110",
         address="  Site Office  ",
         contact="  crew@example.com  ",
-        worker_type="external",
+        worker_type="employee",
         employee_id="  emp-1  ",
         organization_id="  org-1  ",
     )
@@ -32,7 +32,7 @@ def test_resource_dto_normalizes_and_validates_fields():
     assert resource.capacity_percent == pytest.approx(110.0)
     assert resource.address == "Site Office"
     assert resource.contact == "crew@example.com"
-    assert resource.worker_type == WorkerType.EXTERNAL
+    assert resource.worker_type == WorkerType.EMPLOYEE
     assert resource.employee_id == "emp-1"
     assert resource.organization_id == "org-1"
 
@@ -77,11 +77,21 @@ def test_resource_service_update_validates_final_state_and_persists_code(service
     )
 
     updated = resource_service.update_resource(
-        resource.id,
+        resource_id=resource.id,
         expected_version=resource.version,
         name="  Electrical Crew A  ",
         role="  Field Supervisor  ",
+        kind=resource.kind,
+        hourly_rate=resource.hourly_rate,
+        cost_type=resource.cost_type,
         currency_code="usd",
+        capacity_percent=resource.capacity_percent,
+        address=resource.address,
+        contact=resource.contact,
+        worker_type=resource.worker_type,
+        employee_id=resource.employee_id,
+        department_id=resource.department_id,
+        site_id=resource.site_id,
         code="RES-REN-1",
         effective_on=date.today(),
     )

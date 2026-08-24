@@ -165,12 +165,14 @@ def test_resource_inspector_and_summary_require_resource_read(services) -> None:
 
 
 def test_inactive_resource_inspector_exposes_reactivate_only(services) -> None:
-    resource = services["resource_service"].create_resource(
-        name="Inactive Planner",
-        is_active=False,
+    resource_service = services["resource_service"]
+    resource = resource_service.create_resource(name="Inactive Planner")
+    resource = resource_service.deactivate_resource(
+        resource_id=resource.id,
+        expected_version=resource.version,
     )
 
-    inspector = services["resource_service"].get_resource_inspector(resource.id)
+    inspector = resource_service.get_resource_inspector(resource.id)
 
     assert inspector.is_active is False
     assert inspector.can_deactivate is False

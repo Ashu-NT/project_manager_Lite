@@ -96,12 +96,20 @@ AppLayouts.WorkspaceFrame {
         sourceComponent: Component {
             Dialogs.ResourcesDialogHost {
                 workerTypeOptions: root.workspaceController ? (root.workspaceController.workerTypeOptions || []) : []
+                kindOptions: root.workspaceController ? (root.workspaceController.kindOptions || []) : []
                 categoryOptions: root.workspaceController ? (root.workspaceController.categoryOptions || []) : []
                 employeeOptions: root.workspaceController ? (root.workspaceController.employeeOptions || []) : []
+                departmentOptions: root.workspaceController ? (root.workspaceController.departmentOptions || []) : []
+                siteOptions: root.workspaceController ? (root.workspaceController.siteOptions || []) : []
                 workspaceController: root.workspaceController
 
-                onDeleteRequested: function(resourceId) {
-                    if (root.workspaceController !== null) root.workspaceController.deleteResource(resourceId)
+                onDeactivateRequested: function(resourceId, expectedVersion) {
+                    if (root.workspaceController !== null)
+                        root.workspaceController.deactivateResource(resourceId, expectedVersion)
+                }
+                onReactivateRequested: function(resourceId, expectedVersion) {
+                    if (root.workspaceController !== null)
+                        root.workspaceController.reactivateResource(resourceId, expectedVersion)
                 }
             }
         }
@@ -151,15 +159,6 @@ AppLayouts.WorkspaceFrame {
                         root._openDetail(0)
                     }
                 }
-                onRowSelectionToggled: function(rowId, selected) {
-                    if (root.workspaceController !== null)
-                        root.workspaceController.setResourceBulkSelection(rowId, selected)
-                }
-                onSelectAllToggled: function(allSelected) {
-                    if (root.workspaceController === null) return
-                    if (allSelected) root.workspaceController.selectVisibleResources()
-                    else root.workspaceController.clearResourceBulkSelection()
-                }
                 onColumnsStateChanged: function(columns) {
                     if (root.workspaceController !== null) root._saveColumnState(columns)
                 }
@@ -172,14 +171,6 @@ AppLayouts.WorkspaceFrame {
                 }
                 onExportRequested: _exportDialog.open()
                 onCreateRequested: dialogHostLoader.invoke("openCreateDialog")
-                onBulkCancelRequested: {
-                    if (root.workspaceController !== null)
-                        root.workspaceController.clearResourceBulkSelection()
-                }
-                onBulkActionRequested: function(actionId) {
-                    if (actionId === "delete")
-                        _bulkDeleteDialog.open()
-                }
             }
 
             AppWidgets.InspectorPanel {
@@ -209,24 +200,6 @@ AppLayouts.WorkspaceFrame {
                 state: state
             }
 
-            AppControls.ConfirmationDialog {
-                id: _bulkDeleteDialog
-                title: "Delete Selected Resources"
-                closePolicy: Popup.CloseOnEscape
-                confirmLabel: "Delete Resources"
-                confirmIcon: "delete"
-                confirmDanger: true
-                message: {
-                    const count = root.workspaceController ? root.workspaceController.selectedResourceCount : 0
-                    return "Delete " + count + " selected resource(s) and all related planning data?"
-                }
-                supportingText: "This removes the resource records and any project assignments. It cannot be undone."
-
-                onConfirmed: {
-                    if (root.workspaceController !== null)
-                        root.workspaceController.bulkDeleteResources(root.workspaceController.selectedResourceIds)
-                }
-            }
         }
 
         Popup {
@@ -318,17 +291,8 @@ AppLayouts.WorkspaceFrame {
                     onActionTriggered: function(actionId) {
                         if (actionId === "edit") {
                             dialogHostLoader.invoke("openEditDialog", root.selectedResourceModel)
-                        } else if (actionId === "toggle") {
-                            const st = root.selectedResourceModel
-                                ? (root.selectedResourceModel.state || {}) : {}
-                            if (root.workspaceController !== null && st.resourceId) {
-                                root.workspaceController.toggleResourceActive(
-                                    String(st.resourceId || ""),
-                                    parseInt(String(st.version || "0"), 10)
-                                )
-                            }
-                        } else if (actionId === "delete") {
-                            dialogHostLoader.invoke("openDeleteDialog", root.selectedResourceModel)
+                        } else if (actionId === "lifecycle") {
+                            dialogHostLoader.invoke("openLifecycleDialog", root.selectedResourceModel)
                         } else if (actionId === "remove_skill") {
                             if (root.workspaceController !== null && root._selectedSkillId.length > 0) {
                                 root.workspaceController.removeSkill(root._selectedSkillId)

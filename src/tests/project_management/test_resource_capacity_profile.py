@@ -51,10 +51,22 @@ def test_resource_profile_fields_roundtrip(services):
     assert created.contact == "cap.resource@example.com"
 
     updated = rs.update_resource(
-        created.id,
+        resource_id=created.id,
+        expected_version=created.version,
+        name=created.name,
+        code=created.code,
+        kind=created.kind,
+        role=created.role,
+        hourly_rate=created.hourly_rate,
+        cost_type=created.cost_type,
+        currency_code=created.currency_code,
         capacity_percent=120.0,
         address="Remote",
         contact="updated@example.com",
+        worker_type=created.worker_type,
+        employee_id=created.employee_id,
+        department_id=created.department_id,
+        site_id=created.site_id,
     )
     assert updated.capacity_percent == pytest.approx(120.0)
     assert updated.address == "Remote"

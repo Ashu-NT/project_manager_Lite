@@ -265,11 +265,11 @@ class ResourceCommandMixin:
 
     def create_resource(
         self,
-        *,
         name: str,
+        role: str = "",
+        *,
         code: str = "",
         kind: ResourceKind | str = ResourceKind.PERSON,
-        role: str = "",
         hourly_rate: Decimal | int | str = Decimal("0"),
         cost_type: CostType = CostType.LABOR,
         currency_code: str | None = None,

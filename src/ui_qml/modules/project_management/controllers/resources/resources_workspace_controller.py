@@ -37,11 +37,6 @@ from .resource_selection_handler import (
     set_resource_sort,
     set_search_text,
 )
-from .resource_bulk_handler import (
-    clear_resource_bulk_selection,
-    select_visible_resources,
-    set_resource_bulk_selection,
-)
 from .resource_mutation_handler import (
     create_resource,
     deactivate_resource,
@@ -97,8 +92,6 @@ class ProjectManagementResourcesWorkspaceController(
     resourceTotalCountChanged = Signal()
     resourceSortKeyChanged = Signal()
     resourceSortDirectionChanged = Signal()
-    selectedResourceIdsChanged = Signal()
-    selectedResourceCountChanged = Signal()
     resourceSkillsChanged = Signal()
     resourceCertificationsChanged = Signal()
     resourceAvailabilityChanged = Signal()
@@ -144,8 +137,6 @@ class ProjectManagementResourcesWorkspaceController(
         self._resource_total_count = 0
         self._resource_sort_key = "catalog"
         self._resource_sort_direction = 0
-        self._selected_resource_ids: list[str] = []
-        self._selected_resource_count = 0
         self._resource_skills: list[dict[str, object]] = []
         self._resource_certifications: list[dict[str, object]] = []
         self._resource_assignments: list[dict[str, object]] = []
@@ -251,14 +242,6 @@ class ProjectManagementResourcesWorkspaceController(
     @Property(int, notify=resourceSortDirectionChanged)
     def resourceSortDirection(self) -> int:
         return self._resource_sort_direction
-
-    @Property("QVariantList", notify=selectedResourceIdsChanged)
-    def selectedResourceIds(self) -> list[str]:
-        return list(self._selected_resource_ids)
-
-    @Property(int, notify=selectedResourceCountChanged)
-    def selectedResourceCount(self) -> int:
-        return self._selected_resource_count
 
     @Property("QVariantList", notify=resourceSkillsChanged)
     def resourceSkills(self) -> list[dict[str, object]]:
@@ -417,18 +400,6 @@ class ProjectManagementResourcesWorkspaceController(
         set_resource_sort(self, sort_key, sort_direction)
 
     # ── Bulk ─────────────────────────────────────────────────────────────
-
-    @Slot(str, bool)
-    def setResourceBulkSelection(self, resource_id: str, selected: bool) -> None:
-        set_resource_bulk_selection(self, resource_id, selected)
-
-    @Slot()
-    def clearResourceBulkSelection(self) -> None:
-        clear_resource_bulk_selection(self)
-
-    @Slot()
-    def selectVisibleResources(self) -> None:
-        select_visible_resources(self)
 
     # ── Skills / Certifications ──────────────────────────────────────────
 

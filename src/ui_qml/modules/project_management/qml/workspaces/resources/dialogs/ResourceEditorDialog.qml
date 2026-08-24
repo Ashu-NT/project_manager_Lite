@@ -9,12 +9,17 @@ AppWidgets.EntityDialog {
 
     property string modeTitle: "Create Resource"
     property var workerTypeOptions: []
+    property var kindOptions: []
     property var categoryOptions: []
     property var employeeOptions: []
+    property var departmentOptions: []
+    property var siteOptions: []
     property var resourceData: ({})
     property var workspaceController: null
     property string resourceCode: ""
-    readonly property bool employeeWorkerSelected: String(root.currentWorkerTypeValue() || "") === "EMPLOYEE"
+    readonly property bool personKindSelected: root.currentKindValue() === "PERSON"
+    readonly property bool employeeWorkerSelected: root.personKindSelected
+        && String(root.currentWorkerTypeValue() || "") === "EMPLOYEE"
 
     signal submitted(var payload)
 
@@ -24,7 +29,7 @@ AppWidgets.EntityDialog {
         : "Update category, worker linkage, rate, or resource availability."
     primaryText:  root.modeTitle === "Create Resource" ? "Create Resource" : "Save Changes"
     primaryIcon:  root.modeTitle === "Create Resource" ? "add" : "save"
-    width: 620
+    width: Math.min(720, (parent ? parent.width : 760) - Theme.AppTheme.dialogPadding * 2)
 
     onOpened:   root.populateFromResource()
     onAccepted: root.submitDialog()
@@ -44,6 +49,11 @@ AppWidgets.EntityDialog {
         return String(option ? option.value || "EXTERNAL" : "EXTERNAL")
     }
 
+    function currentKindValue() {
+        var option = root.kindOptions[kindCombo.currentIndex]
+        return String(option ? option.value || "PERSON" : "PERSON")
+    }
+
     function selectedEmployeeOption() {
         var option = root.employeeOptions[employeeCombo.currentIndex]
         return option || ({})
@@ -53,13 +63,11 @@ AppWidgets.EntityDialog {
         var option = root.selectedEmployeeOption()
         if (!root.employeeWorkerSelected) {
             employeeContextValue.text = "-"
-            employeeDepartmentValue.text = "-"
-            employeeSiteValue.text = "-"
             return
         }
         employeeContextValue.text = String(option.context || "Select an employee to inherit shared context.")
-        employeeDepartmentValue.text = String(option.department || "-")
-        employeeSiteValue.text = String(option.site || "-")
+        departmentCombo.currentIndex = root.indexForValue(root.departmentOptions, option.departmentId || "")
+        siteCombo.currentIndex = root.indexForValue(root.siteOptions, option.siteId || "")
         if (String(option.value || "").length > 0) {
             nameField.text = String(option.name || "")
             roleField.text = String(option.title || "")
@@ -69,9 +77,12 @@ AppWidgets.EntityDialog {
 
     function populateFromResource() {
         var state = root.resourceData && root.resourceData.state ? root.resourceData.state : (root.resourceData || {})
+        kindCombo.currentIndex = root.indexForValue(root.kindOptions, state.kind || "PERSON")
         workerTypeCombo.currentIndex = root.indexForValue(root.workerTypeOptions, state.workerType || "EXTERNAL")
         employeeCombo.currentIndex = root.indexForValue(root.employeeOptions, state.employeeId || "")
         categoryCombo.currentIndex = root.indexForValue(root.categoryOptions, state.costType || "LABOR")
+        departmentCombo.currentIndex = root.indexForValue(root.departmentOptions, state.departmentId || "")
+        siteCombo.currentIndex = root.indexForValue(root.siteOptions, state.siteId || "")
         root.resourceCode = String(state.resourceCode || "")
         nameField.text = String(state.name || "")
         roleField.text = String(state.role || "")
@@ -79,7 +90,7 @@ AppWidgets.EntityDialog {
         currencyField.text = String(state.currency || "")
         addressField.text = String(state.address || "")
         contactField.text = String(state.contact || "")
-        activeCheck.checked = state.isActive !== false
+        capacityField.text = String(state.capacityPercent || "100.0")
         root.errorMessage = ""
         root.applyEmployeeDefaults()
     }
@@ -88,6 +99,7 @@ AppWidgets.EntityDialog {
         return {
             "name": nameField.text,
             "resourceCode": root.resourceCode,
+            "kind": root.currentKindValue(),
             "role": roleField.text,
             "hourlyRate": hourlyRateField.text,
             "currency": currencyField.text,
@@ -95,8 +107,11 @@ AppWidgets.EntityDialog {
             "address": addressField.text,
             "contact": contactField.text,
             "workerType": root.currentWorkerTypeValue(),
-            "employeeId": String((root.employeeOptions[employeeCombo.currentIndex] || { "value": "" }).value || ""),
-            "isActive": activeCheck.checked
+            "employeeId": root.employeeWorkerSelected
+                ? String((root.employeeOptions[employeeCombo.currentIndex] || { "value": "" }).value || "") : "",
+            "departmentId": String((root.departmentOptions[departmentCombo.currentIndex] || { "value": "" }).value || ""),
+            "siteId": String((root.siteOptions[siteCombo.currentIndex] || { "value": "" }).value || ""),
+            "capacityPercent": capacityField.text
         }
     }
 
@@ -143,8 +158,25 @@ AppWidgets.EntityDialog {
 
         AppWidgets.FormField {
             Layout.fillWidth: true
+            label: "Resource kind"
+            required: true
+            AppControls.ComboBox {
+                id: kindCombo
+                Layout.fillWidth: true
+                model: root.kindOptions
+                textRole: "label"
+                onCurrentIndexChanged: {
+                    if (!root.personKindSelected)
+                        workerTypeCombo.currentIndex = root.indexForValue(root.workerTypeOptions, "EXTERNAL")
+                    root.applyEmployeeDefaults()
+                }
+            }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
             label: "Worker type"
-            AppControls.ComboBox { id: workerTypeCombo; Layout.fillWidth: true; model: root.workerTypeOptions; textRole: "label"; onCurrentIndexChanged: root.applyEmployeeDefaults() }
+            AppControls.ComboBox { id: workerTypeCombo; Layout.fillWidth: true; model: root.workerTypeOptions; textRole: "label"; enabled: root.personKindSelected; onCurrentIndexChanged: root.applyEmployeeDefaults() }
         }
 
         AppWidgets.FormField {
@@ -162,13 +194,13 @@ AppWidgets.EntityDialog {
         AppWidgets.FormField {
             Layout.fillWidth: true
             label: "Department"
-            AppControls.Label { id: employeeDepartmentValue; Layout.fillWidth: true; text: "-"; color: Theme.AppTheme.textSecondary; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.smallSize; wrapMode: Text.WordWrap }
+            AppControls.ComboBox { id: departmentCombo; Layout.fillWidth: true; model: root.departmentOptions; textRole: "label"; enabled: !root.employeeWorkerSelected }
         }
 
         AppWidgets.FormField {
             Layout.fillWidth: true
             label: "Site"
-            AppControls.Label { id: employeeSiteValue; Layout.fillWidth: true; text: "-"; color: Theme.AppTheme.textSecondary; font.family: Theme.AppTheme.fontFamily; font.pixelSize: Theme.AppTheme.smallSize; wrapMode: Text.WordWrap }
+            AppControls.ComboBox { id: siteCombo; Layout.fillWidth: true; model: root.siteOptions; textRole: "label"; enabled: !root.employeeWorkerSelected }
         }
 
         AppWidgets.FormField {
@@ -204,6 +236,13 @@ AppWidgets.EntityDialog {
 
         AppWidgets.FormField {
             Layout.fillWidth: true
+            label: "Capacity modifier (%)"
+            required: true
+            AppControls.TextField { id: capacityField; Layout.fillWidth: true; inputMethodHints: Qt.ImhFormattedNumbersOnly; placeholderText: "100" }
+        }
+
+        AppWidgets.FormField {
+            Layout.fillWidth: true
             label: "Address"
             AppControls.TextField { id: addressField; Layout.fillWidth: true; placeholderText: "Site office or vendor address" }
         }
@@ -213,10 +252,5 @@ AppWidgets.EntityDialog {
             label: "Contact"
             AppControls.TextField { id: contactField; Layout.fillWidth: true; placeholderText: "name@example.com"; readOnly: root.employeeWorkerSelected }
         }
-    }
-
-    AppControls.CheckBox {
-        id: activeCheck
-        text: "Resource is active and available for planning"
     }
 }

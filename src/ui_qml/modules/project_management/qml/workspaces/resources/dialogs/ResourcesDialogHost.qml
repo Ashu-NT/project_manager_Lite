@@ -7,20 +7,27 @@ Item {
 
     property var workspaceController: null
     property var workerTypeOptions: []
+    property var kindOptions: []
     property var categoryOptions: []
     property var employeeOptions: []
+    property var departmentOptions: []
+    property var siteOptions: []
     property var editTarget: ({})
-    property var deleteTarget: ({})
+    property var lifecycleTarget: ({})
 
-    signal deleteRequested(string resourceId)
+    signal deactivateRequested(string resourceId, int expectedVersion)
+    signal reactivateRequested(string resourceId, int expectedVersion)
     signal removeSkillRequested(string skillId)
     signal removeCertificationRequested(string certId)
 
     function _handleResult(dialog, result) {
-        if (!result || result.success) {
+        if (result && result.ok === true) {
             dialog.close()
         } else {
-            dialog.errorMessage = result.error || "An unexpected error occurred."
+            dialog.errorMessage = String(result && result.message
+                ? result.message : "The resource could not be saved.")
+                + (result && result.conflict === true
+                    ? " Close this dialog, reload the resource, and apply your changes again." : "")
         }
     }
 
@@ -28,8 +35,8 @@ Item {
         root.editTarget = {
             "state": {
                 "workerType": "EXTERNAL",
+                "kind": "PERSON",
                 "costType": "LABOR",
-                "isActive": true,
                 "capacityPercent": "100.0"
             }
         }
@@ -47,9 +54,9 @@ Item {
         editorDialog.open()
     }
 
-    function openDeleteDialog(resourceData) {
-        root.deleteTarget = resourceData || ({})
-        deleteDialog.open()
+    function openLifecycleDialog(resourceData) {
+        root.lifecycleTarget = resourceData || ({})
+        lifecycleDialog.open()
     }
 
     function openAddSkillDialog() {
@@ -87,8 +94,11 @@ Item {
 
         workspaceController: root.workspaceController
         workerTypeOptions: root.workerTypeOptions
+        kindOptions: root.kindOptions
         categoryOptions: root.categoryOptions
         employeeOptions: root.employeeOptions
+        departmentOptions: root.departmentOptions
+        siteOptions: root.siteOptions
         busy: root.workspaceController ? root.workspaceController.isBusy : false
 
         onSubmitted: function(payload) {
@@ -107,21 +117,28 @@ Item {
     }
 
     AppControls.ConfirmationDialog {
-        id: deleteDialog
-        title: "Delete Resource"
+        id: lifecycleDialog
+        readonly property var targetState: root.lifecycleTarget && root.lifecycleTarget.state
+            ? root.lifecycleTarget.state : (root.lifecycleTarget || {})
+        readonly property bool targetIsActive: targetState.isActive !== false
+        title: targetIsActive ? "Deactivate Resource" : "Reactivate Resource"
         closePolicy: Popup.CloseOnEscape
-        confirmLabel: "Delete Resource"
-        confirmIcon: "delete"
-        confirmDanger: true
-        message: root.deleteTarget && root.deleteTarget.title
-            ? "Delete " + root.deleteTarget.title + " and its related assignments?"
-            : "Delete the selected resource and its related assignments?"
-        supportingText: "This action removes the resource record and any PM assignments or linked allocation history that depends on it."
+        confirmLabel: targetIsActive ? "Deactivate" : "Reactivate"
+        confirmIcon: targetIsActive ? "close" : "approve"
+        confirmDanger: targetIsActive
+        message: (targetIsActive ? "Deactivate " : "Reactivate ")
+            + String(root.lifecycleTarget.title || "this resource") + "?"
+        supportingText: targetIsActive
+            ? "Historical assignments and time remain intact. The resource will no longer be available for new planning."
+            : "The resource will become available for planning again."
 
         onConfirmed: {
-            var state = root.deleteTarget && root.deleteTarget.state ? root.deleteTarget.state : (root.deleteTarget || {})
+            var state = lifecycleDialog.targetState
             if (state.resourceId) {
-                root.deleteRequested(String(state.resourceId))
+                if (lifecycleDialog.targetIsActive)
+                    root.deactivateRequested(String(state.resourceId), Number(state.version || 0))
+                else
+                    root.reactivateRequested(String(state.resourceId), Number(state.version || 0))
             }
         }
     }

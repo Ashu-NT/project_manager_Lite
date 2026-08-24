@@ -74,10 +74,8 @@ Item {
             return [
                 { "id": "edit",   "label": "Edit",
                   "icon": "edit",    "enabled": canManage, "danger": false },
-                { "id": "toggle", "label": isActive ? "Deactivate" : "Activate",
-                  "icon": isActive ? "close" : "approve", "enabled": canManage, "danger": false },
-                { "id": "delete", "label": "Delete",
-                  "icon": "delete",  "enabled": canManage, "danger": true  }
+                { "id": "lifecycle", "label": isActive ? "Deactivate" : "Reactivate",
+                  "icon": isActive ? "close" : "approve", "enabled": canManage, "danger": false }
             ]
         }
         if (sectionName === "Capability" && String(selection.selectedSkillId || "").length > 0) {

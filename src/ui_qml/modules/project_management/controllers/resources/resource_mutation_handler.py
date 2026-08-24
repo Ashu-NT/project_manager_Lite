@@ -21,6 +21,7 @@ def create_resource(controller, payload: dict[str, object]) -> dict[str, object]
         set_is_busy=controller._set_is_busy,
         set_error_message=controller._set_error_message,
         set_feedback_message=controller._set_feedback_message,
+        safe_errors=True,
     )
 
 
@@ -32,6 +33,7 @@ def update_resource(controller, payload: dict[str, object]) -> dict[str, object]
         set_is_busy=controller._set_is_busy,
         set_error_message=controller._set_error_message,
         set_feedback_message=controller._set_feedback_message,
+        safe_errors=True,
     )
 
 
@@ -50,6 +52,7 @@ def deactivate_resource(
         set_is_busy=controller._set_is_busy,
         set_error_message=controller._set_error_message,
         set_feedback_message=controller._set_feedback_message,
+        safe_errors=True,
     )
 
 
@@ -68,6 +71,7 @@ def reactivate_resource(
         set_is_busy=controller._set_is_busy,
         set_error_message=controller._set_error_message,
         set_feedback_message=controller._set_feedback_message,
+        safe_errors=True,
     )
 
 
