@@ -32,18 +32,6 @@ Item {
         width: parent.width
         spacing: 0
 
-        AppWidgets.ContextualActionToolbar {
-            width: parent.width
-            title: root._hasResource ? root.resourceDetail.title : "Overview"
-            subtitle: root._hasResource
-                ? (root.resourceDetail.subtitle || root._sv("role") || "Resource details and configuration")
-                : ""
-            busy: root.isBusy
-            actions: []
-        }
-
-        Item { width: parent.width; implicitHeight: Theme.AppTheme.spacingMd }
-
         AppWidgets.EmptyState {
             width: parent.width
             visible: !root._hasResource
@@ -76,19 +64,12 @@ Item {
                     anchors.right: parent.right
                     anchors.top: parent.top
                     anchors.margins: Theme.AppTheme.marginMd
-                    columns: 2
+                    columns: root.width >= 720 ? 2 : 1
                     columnSpacing: Theme.AppTheme.spacingLg
                     rowSpacing: Theme.AppTheme.spacingSm
 
                     Repeater {
-                        model: [
-                            { "label": "Role",        "value": root._sv("role") || "-" },
-                            { "label": "Worker Type",  "value": root._sv("workerTypeLabel") || "-" },
-                            { "label": "Hourly Rate",  "value": root._sv("hourlyRateLabel") || "-" },
-                            { "label": "Cost Type",    "value": root._sv("costTypeLabel") || "-" },
-                            { "label": "Contact",      "value": root._sv("contact") || "-" },
-                            { "label": "Currency",     "value": root._sv("currency") || "-" }
-                        ]
+                        model: root.resourceDetail.fields || []
 
                         delegate: ColumnLayout {
                             required property var modelData

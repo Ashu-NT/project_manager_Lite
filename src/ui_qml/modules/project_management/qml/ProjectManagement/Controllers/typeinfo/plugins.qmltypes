@@ -394,13 +394,35 @@ Component {
     Property { name: "searchText"; type: "QString"; isReadonly: true }
     Property { name: "resources"; type: "QVariantMap"; isReadonly: true }
     Property { name: "selectedResource"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "resourceInspector"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "inspectorLoading"; type: "bool"; isReadonly: true }
+    Property { name: "inspectorError"; type: "QString"; isReadonly: true }
+    Property { name: "detailLoading"; type: "bool"; isReadonly: true }
+    Property { name: "detailError"; type: "QString"; isReadonly: true }
     Property { name: "selectedResourceId"; type: "QString"; isReadonly: true }
+    Property { name: "resourcesTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "resourceSkillsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "resourceCertificationsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "resourcePage"; type: "int"; isReadonly: true }
+    Property { name: "resourcePageSize"; type: "int"; isReadonly: true }
+    Property { name: "resourceTotalCount"; type: "int"; isReadonly: true }
+    Property { name: "resourceSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "resourceSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "selectedResourceIds"; type: "QVariantList"; isReadonly: true }
+    Property { name: "selectedResourceCount"; type: "int"; isReadonly: true }
     Method { name: "refresh" }
     Method { name: "exportResources" }
     Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
     Method { name: "setActiveFilter"; Parameter { name: "activeFilter"; type: "QString" } }
     Method { name: "setCategoryFilter"; Parameter { name: "categoryFilter"; type: "QString" } }
     Method { name: "selectResource"; Parameter { name: "resourceId"; type: "QString" } }
+    Method { name: "activateResource"; type: "bool"; Parameter { name: "resourceId"; type: "QString" } }
+    Method { name: "loadResourceInspector"; Parameter { name: "resourceId"; type: "QString" } }
+    Method { name: "loadResourceDetail"; type: "bool"; Parameter { name: "resourceId"; type: "QString" } }
+    Method { name: "loadSkillsAndCerts"; Parameter { name: "resourceId"; type: "QString" } }
+    Method { name: "setResourcePage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setResourcePageSize"; Parameter { name: "pageSize"; type: "int" } }
+    Method { name: "setResourceSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
     Method { name: "createResource"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "updateResource"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "toggleResourceActive"; type: "QVariantMap"; Parameter { name: "resourceId"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }

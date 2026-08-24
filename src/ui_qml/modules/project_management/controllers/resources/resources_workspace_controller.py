@@ -348,9 +348,9 @@ class ProjectManagementResourcesWorkspaceController(
     def selectResource(self, resource_id: str) -> None:
         select_resource(self, resource_id)
 
-    @Slot(str)
-    def activateResource(self, resource_id: str) -> None:
-        activate_resource(self, resource_id)
+    @Slot(str, result=bool)
+    def activateResource(self, resource_id: str) -> bool:
+        return activate_resource(self, resource_id)
 
     @Slot(str)
     def loadResourceInspector(self, resource_id: str) -> None:

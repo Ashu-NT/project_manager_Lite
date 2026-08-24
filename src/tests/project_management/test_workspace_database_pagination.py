@@ -495,7 +495,7 @@ def test_resource_catalog_filters_aggregates_and_pages_in_database(services) -> 
     first_page = resource_service.query_catalog_page(page=1, page_size=1)
     second_page = resource_service.query_catalog_page(page=2, page_size=1)
     employee_search = resource_service.query_catalog_page(
-        search_text="delivery",
+        search_text="planner",
         page=1,
         page_size=25,
     )
@@ -511,11 +511,11 @@ def test_resource_catalog_filters_aggregates_and_pages_in_database(services) -> 
     assert first_page.summary.employees == 1
     assert first_page.summary.external == 1
     assert first_page.summary.average_capacity == 100.0
-    assert first_page.items[0].resource.id == employee_resource.id
-    assert second_page.items[0].resource.id == vendor_resource.id
+    assert first_page.items[0].resource_id == employee_resource.id
+    assert second_page.items[0].resource_id == vendor_resource.id
     assert employee_search.items[0].department_label == "Delivery"
     assert inactive_equipment.filtered_total == 1
-    assert inactive_equipment.items[0].resource.id == vendor_resource.id
+    assert inactive_equipment.items[0].resource_id == vendor_resource.id
 
 
 def test_resource_catalog_sort_is_authoritative_across_pages(services) -> None:
@@ -543,16 +543,16 @@ def test_resource_catalog_sort_is_authoritative_across_pages(services) -> None:
         sort_key="title", sort_direction="asc", page=99, page_size=2
     )
 
-    assert [row.resource.id for row in ascending_first.items] == [alpha.id, beta.id]
-    assert [row.resource.id for row in ascending_second.items] == [gamma.id]
-    assert [row.resource.id for row in first.items] == [gamma.id, beta.id]
-    assert [row.resource.id for row in second.items] == [alpha.id]
+    assert [row.resource_id for row in ascending_first.items] == [alpha.id, beta.id]
+    assert [row.resource_id for row in ascending_second.items] == [gamma.id]
+    assert [row.resource_id for row in first.items] == [gamma.id, beta.id]
+    assert [row.resource_id for row in second.items] == [alpha.id]
     assert first.sort.direction.value == "desc"
-    assert [row.resource.id for row in unsupported.items] == [alpha.id, beta.id, gamma.id]
+    assert [row.resource_id for row in unsupported.items] == [alpha.id, beta.id, gamma.id]
     assert unsupported.sort.key == "catalog"
     assert unsupported.sort.direction.value == "asc"
     assert beyond_last.page == 2
-    assert [row.resource.id for row in beyond_last.items] == [gamma.id]
+    assert [row.resource_id for row in beyond_last.items] == [gamma.id]
 
 
 def test_register_catalog_filters_urgent_queue_and_pages_in_database(services) -> None:

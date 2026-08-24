@@ -47,9 +47,9 @@ def select_resource(controller, resource_id: str) -> None:
         clear_resource_read_state(controller)
 
 
-def activate_resource(controller, resource_id: str) -> None:
+def activate_resource(controller, resource_id: str) -> bool:
     select_resource(controller, resource_id)
-    load_resource_detail(controller, resource_id)
+    return load_resource_detail(controller, resource_id)
 
 
 def set_resource_page(controller, page: int) -> None:

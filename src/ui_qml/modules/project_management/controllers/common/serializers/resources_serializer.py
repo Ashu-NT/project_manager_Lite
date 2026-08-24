@@ -61,18 +61,16 @@ def serialize_resource_record_view_models(
             "supportingText": view_model.supporting_text,
             "metaText": view_model.meta_text,
             "role": str(view_model.state.get("role", "") or ""),
+            "organization": str(view_model.state.get("organization", "") or ""),
             "department": str(view_model.state.get("department", "") or ""),
             "site": str(view_model.state.get("site", "") or ""),
             "workerTypeLabel": str(view_model.state.get("workerTypeLabel", "") or ""),
             "costTypeLabel": str(view_model.state.get("costTypeLabel", "") or ""),
-            "hourlyRateLabel": str(view_model.state.get("hourlyRateLabel", "") or ""),
+            "capacityPercent": float(view_model.state.get("capacityPercent", 0.0) or 0.0),
+            "capacityLabel": str(view_model.state.get("capacityLabel", "") or ""),
             "canPrimaryAction": view_model.can_primary_action,
             "canSecondaryAction": view_model.can_secondary_action,
             "canTertiaryAction": view_model.can_tertiary_action,
-            "utilizationValue": {
-                "value": float(view_model.state.get("capacityPercent", "0") or "0") / 100.0,
-                "label": view_model.state.get("capacityLabel", "—"),
-            },
             "state": dict(view_model.state),
         }
         for view_model in view_models

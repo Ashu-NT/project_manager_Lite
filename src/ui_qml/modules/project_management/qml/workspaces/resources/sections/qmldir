@@ -8,3 +8,4 @@ ResourcesCertificationsSection 1.0 ResourcesCertificationsSection.qml
 ResourcesCostRatesSection 1.0 ResourcesCostRatesSection.qml
 ResourcesAvailabilitySection 1.0 ResourcesAvailabilitySection.qml
 ResourcesActivitySection 1.0 ResourcesActivitySection.qml
+ResourcesDeferredSection 1.0 ResourcesDeferredSection.qml

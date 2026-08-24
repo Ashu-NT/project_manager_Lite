@@ -33,6 +33,7 @@ AppLayouts.WorkspaceFrame {
     readonly property var overviewModel: state.overviewModel
     readonly property var resourcesModel: state.resourcesModel
     readonly property var selectedResourceModel: state.selectedResourceModel
+    readonly property var resourceInspectorModel: state.resourceInspectorModel
 
     // ── Column management ─────────────────────────────────────────────────
     property var _columns: state.columns
@@ -56,6 +57,32 @@ AppLayouts.WorkspaceFrame {
             "selectedSkillId": root._selectedSkillId,
             "selectedCertificationId": root._selectedCertificationId
         })
+    }
+    readonly property bool _hasInspector: String(root.workspaceController
+        ? root.workspaceController.selectedResourceId : "").length > 0
+    readonly property bool _useSideInspector: root.width >= Theme.AppTheme.inspectorWidth + 720
+    readonly property var _inspectorSections: root.resourceInspectorModel.fields || []
+
+    function _clearInspector() {
+        compactInspector.close()
+        if (root.workspaceController !== null) root.workspaceController.selectResource("")
+    }
+
+    function _openSelectedResource() {
+        if (root.workspaceController === null || !root._hasInspector) return
+        if (root.workspaceController.activateResource(String(root.resourceInspectorModel.id || ""))) {
+            compactInspector.close()
+            root._openDetail(0)
+        }
+    }
+
+    on_UseSideInspectorChanged: {
+        if (root._useSideInspector) compactInspector.close()
+        else if (root._hasInspector && !root._detailOpen) compactInspector.open()
+    }
+    on_HasInspectorChanged: {
+        if (!root._hasInspector) compactInspector.close()
+        else if (!root._useSideInspector && !root._detailOpen) compactInspector.open()
     }
 
     function _openDetail(sectionIndex) {
@@ -99,14 +126,16 @@ AppLayouts.WorkspaceFrame {
         anchors.fill: parent
 
         // ── List page ─────────────────────────────────────────────────────
-        Item {
+        RowLayout {
             id: _listPage
             anchors.fill: parent
             visible: !root._detailOpen
+            spacing: 0
 
             Components.ResourcesListPage {
                 id: listPage
-                anchors.fill: parent
+                Layout.fillWidth: true
+                Layout.fillHeight: true
                 workspaceController: root.workspaceController
                 state: state
                 overviewModel: root.overviewModel
@@ -116,8 +145,10 @@ AppLayouts.WorkspaceFrame {
                     if (root.workspaceController !== null) root.workspaceController.selectResource(rowId)
                 }
                 onRowActivated: function(rowId) {
-                    if (root.workspaceController !== null) root.workspaceController.activateResource(rowId)
-                    root._openDetail(0)
+                    if (root.workspaceController !== null
+                            && root.workspaceController.activateResource(rowId)) {
+                        root._openDetail(0)
+                    }
                 }
                 onRowSelectionToggled: function(rowId, selected) {
                     if (root.workspaceController !== null)
@@ -150,6 +181,27 @@ AppLayouts.WorkspaceFrame {
                 }
             }
 
+            AppWidgets.InspectorPanel {
+                Layout.fillHeight: true
+                Layout.preferredWidth: Theme.AppTheme.inspectorWidth
+                visible: root._hasInspector && root._useSideInspector
+                title: root.resourceInspectorModel.title || "Resource"
+                statusLabel: root.resourceInspectorModel.statusLabel || ""
+                sections: root._inspectorSections
+                busy: root.workspaceController ? root.workspaceController.inspectorLoading : false
+                editActionLabel: "Open Resource"
+                showEditAction: (root.resourceInspectorModel.state || {}).canRead === true
+                onCloseRequested: root._clearInspector()
+                onEditRequested: root._openSelectedResource()
+
+                AppWidgets.InlineMessage {
+                    Layout.fillWidth: true
+                    visible: String(root.workspaceController ? root.workspaceController.inspectorError : "").length > 0
+                    tone: "danger"
+                    message: root.workspaceController ? root.workspaceController.inspectorError : ""
+                }
+            }
+
             Components.ResourcesFilterPopup {
                 id: filterPopup
                 workspaceController: root.workspaceController
@@ -173,6 +225,46 @@ AppLayouts.WorkspaceFrame {
                     if (root.workspaceController !== null)
                         root.workspaceController.bulkDeleteResources(root.workspaceController.selectedResourceIds)
                 }
+            }
+        }
+
+        Popup {
+            id: compactInspector
+            parent: root
+            x: Math.max(0, root.width - width)
+            y: 0
+            width: Math.min(Theme.AppTheme.inspectorWidth, root.width * 0.9)
+            height: root.height
+            padding: 0
+            modal: false
+            closePolicy: Popup.NoAutoClose
+
+            contentItem: AppWidgets.InspectorPanel {
+                title: root.resourceInspectorModel.title || "Resource"
+                statusLabel: root.resourceInspectorModel.statusLabel || ""
+                sections: root._inspectorSections
+                busy: root.workspaceController ? root.workspaceController.inspectorLoading : false
+                editActionLabel: "Open Resource"
+                showEditAction: (root.resourceInspectorModel.state || {}).canRead === true
+                onCloseRequested: root._clearInspector()
+                onEditRequested: root._openSelectedResource()
+
+                AppWidgets.InlineMessage {
+                    width: parent ? parent.width : 0
+                    visible: String(root.workspaceController ? root.workspaceController.inspectorError : "").length > 0
+                    tone: "danger"
+                    message: root.workspaceController ? root.workspaceController.inspectorError : ""
+                }
+            }
+        }
+
+        Connections {
+            target: root.workspaceController
+            function onSelectedResourceIdChanged() {
+                if (!root._useSideInspector && root._hasInspector && !root._detailOpen)
+                    compactInspector.open()
+                else if (!root._hasInspector || root._useSideInspector)
+                    compactInspector.close()
             }
         }
 
@@ -202,7 +294,9 @@ AppLayouts.WorkspaceFrame {
 
                 onSectionChanged: function(index) {
                     if (index === 1 && root.workspaceController !== null) {
-                        root.workspaceController.loadResourceAssignments()
+                        root.workspaceController.loadSkillsAndCerts(
+                            root.workspaceController.selectedResourceId
+                        )
                     }
                 }
 
@@ -249,15 +343,15 @@ AppLayouts.WorkspaceFrame {
                 AppWidgets.SectionScopedInlineMessage {
                     width: parent ? parent.width : 0
                     requestedVisible: root._detailOpen
-                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length > 0
+                        && String(root.workspaceController ? root.workspaceController.detailError : "").length > 0
                     tone: "danger"
-                    message: root.workspaceController ? root.workspaceController.errorMessage : ""
+                    message: root.workspaceController ? root.workspaceController.detailError : ""
                 }
                 AppWidgets.SectionScopedInlineMessage {
                     width: parent ? parent.width : 0
                     requestedVisible: root._detailOpen
                         && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
-                        && String(root.workspaceController ? root.workspaceController.errorMessage : "").length === 0
+                        && String(root.workspaceController ? root.workspaceController.detailError : "").length === 0
                     tone: "success"
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
@@ -267,12 +361,8 @@ AppLayouts.WorkspaceFrame {
                     width: parent ? parent.width : 0
                     detailPage: detailPageLoader.item
                     resourceDetail: root.selectedResourceModel
-                    resourceAvailabilityModel: root.workspaceController
-                        ? (root.workspaceController.resourceAvailability || {}) : ({})
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     workspaceController: root.workspaceController
-                    resourceAssignmentsTableModel: root.workspaceController
-                        ? root.workspaceController.resourceAssignmentsTableModel : null
                     canManageSkills: root.pmCatalog ? root.pmCatalog.pmCapabilityController.canManageSkills : false
                     onSkillSelectionChanged: function(skillId) {
                         root._selectedSkillId = String(skillId || "")

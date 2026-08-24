@@ -53,10 +53,13 @@ Item {
             "state": {}
         })
 
+    readonly property var resourceInspectorModel: root.workspaceController
+        ? root.workspaceController.resourceInspector
+        : ({ "id": "", "title": "", "statusLabel": "", "fields": [], "state": {} })
+
     // ── Detail sections ──────────────────────────────────────────────────
     readonly property var detailSections: [
-        "Overview", "Assignments", "Capacity", "Calendar",
-        "Skills", "Certifications", "Cost Rates", "Availability", "Activity"
+        "Overview", "Capability", "Availability", "Projects", "Assignments", "Activity"
     ]
 
     // ── Detail actions ───────────────────────────────────────────────────
@@ -67,21 +70,22 @@ Item {
             const state = root.selectedResourceModel
                 ? (root.selectedResourceModel.state || {}) : {}
             const isActive = state.isActive !== false
+            const canManage = state.canManage === true
             return [
                 { "id": "edit",   "label": "Edit",
-                  "icon": "edit",    "enabled": true, "danger": false },
+                  "icon": "edit",    "enabled": canManage, "danger": false },
                 { "id": "toggle", "label": isActive ? "Deactivate" : "Activate",
-                  "icon": isActive ? "close" : "approve", "enabled": true, "danger": false },
+                  "icon": isActive ? "close" : "approve", "enabled": canManage, "danger": false },
                 { "id": "delete", "label": "Delete",
-                  "icon": "delete",  "enabled": true, "danger": true  }
+                  "icon": "delete",  "enabled": canManage, "danger": true  }
             ]
         }
-        if (sectionName === "Skills" && String(selection.selectedSkillId || "").length > 0) {
+        if (sectionName === "Capability" && String(selection.selectedSkillId || "").length > 0) {
             return [
                 { "id": "remove_skill", "label": "Remove", "icon": "delete", "enabled": true, "danger": true }
             ]
         }
-        if (sectionName === "Certifications" && String(selection.selectedCertificationId || "").length > 0) {
+        if (sectionName === "Capability" && String(selection.selectedCertificationId || "").length > 0) {
             return [
                 { "id": "remove_certification", "label": "Remove", "icon": "delete", "enabled": true, "danger": true }
             ]
