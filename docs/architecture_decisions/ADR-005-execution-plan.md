@@ -112,8 +112,11 @@ conflict:**
 | qhse | 21 | 0 | 0 | 0 |
 | inventory_procurement | 127 | 12 | 0 | 1 |
 | project_management | 626 | 9 | 0 | 2 |
-| ~~maintenance~~ | ~~145~~ | ~~0~~ | ~~25~~ | ~~6~~ | **MODULE DELETED 2026-08-20 — row struck, no migration needed** |
+| ~~maintenance~~ | ~~145~~ | ~~0~~ | ~~25~~ | ~~6~~ |
 | platform/shell (cross-cutting) | — | 11 (+2 bridge) | 1 (in the file itself) | 2 (**understates Platform's real scope — see the 25-import-sites figure above**) |
+
+**MODULE DELETED 2026-08-20 — the `maintenance` row above is struck; no migration work is
+needed for it (see the Revision Note above and the struck Phase 6, below).**
 
 Other confirmed facts (unchanged from the original snapshot unless noted):
 
@@ -149,9 +152,13 @@ Tasks:
   §5), `aggregate_events.py`, `domain_event_publisher.py` (`TransactionalEventDispatcher` +
   `PostCommitEventPublisher` protocols — the latter's handler shape now takes `(event, context)`,
   ADR-005 §8), `domain_event_subscriber.py`, `subscription.py`, `view_invalidation.py`
-  (`ViewInvalidationHint` **with the new `organization_id: str | None` field**,
-  `PlatformViewInvalidationHint`, and the **five-method** channel contract — ADR-005 §12) under
-  `src/core/shared/events/`. `UnitOfWork`/`UnitOfWorkFactory` protocols do not live here — Phase 1.
+  (`EventScope`/`PlatformScope`/`TenantScope`/`OrganizationScope`, one `ViewInvalidationHint` type
+  carrying a `scope: EventScope` field, `ScopeFilter` and its five concrete filter dataclasses
+  (`ExactOrganization`/`TenantWide`/`AnyOrganizationInTenant`/`AllTenants`/`PlatformWide`), and the
+  **single-`notify`/single-`subscribe`** channel contract — ADR-005 §12, revised after a targeted
+  design review that replaced an earlier five-method channel API with this typed-scope-plus-filter
+  design) under `src/core/shared/events/`. `UnitOfWork`/`UnitOfWorkFactory` protocols do not live
+  here — Phase 1.
 - Create `src/core/shared/time/clock.py` (protocol only).
 - Create `src/infra/events/{in_process_transactional_event_dispatcher.py,
   in_process_post_commit_event_bus.py, in_process_view_invalidation_channel.py}` per ADR-005 §8/§12:
@@ -161,9 +168,12 @@ Tasks:
     deliberate behavior change** from the legacy `Signal`'s accidental depth-first-under-recursion
     behavior (ADR-005 §8) — a unit test must assert this explicitly, not merely assert "it
     dispatches correctly."
-  - `InProcessViewInvalidationChannel` implements all **five** subscription methods (`subscribe`,
-    `subscribe_tenant_wide`, `subscribe_across_organizations`, `subscribe_across_tenants`,
-    `subscribe_to_platform_wide`) and the routing rules from ADR-005 §12 exactly.
+  - `InProcessViewInvalidationChannel` implements the single `notify`/`subscribe` contract with no
+    per-filter-kind branching logic of its own — routing is `filter.matches(hint.scope)` for every
+    registered subscription, per ADR-005 §12 exactly. The five distinct filtering behaviors from
+    earlier drafts (exact-organization, tenant-wide, any-organization-in-tenant, all-tenants,
+    platform-wide) are exercised as five separate `ScopeFilter` dataclasses in the test suite, not
+    as five channel methods.
 - Create `src/infra/time/system_clock.py`.
 - Unit test coverage for everything above in isolation, **including the full tenant/organization
   test matrix from ADR-005's Test Impact section** — this is new relative to the original Phase 0

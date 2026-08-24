@@ -24,6 +24,27 @@ importantly: this migration is not a QML controller-hierarchy refactor, and it d
 business module). Nothing in this plan is implemented yet — see the final validation section for
 the current, unimplemented state confirmed.
 
+## Human Approval Gates
+
+**P0 → P8 does not run as one automatic, unattended implementation pass.** Each gate below
+requires an explicit human review and go-ahead before the next group starts — this is a plan for
+phased approval, not a script to execute end-to-end unsupervised. A phase's own "Exit criteria"
+being met is necessary but not sufficient to proceed past a gate; the gate itself is where a human
+reviews the actual diff, not just the checklist.
+
+| Gate | After | Why this grouping | What review should focus on |
+|---|---|---|---|
+| **Gate 1** | P0 complete | Test-only phase — lowest risk, but the guardrail test's two exceptions must be reviewed by a human before anything is built on top of it | Does the guardrail test actually catch a reverted exception? Are the two allowlisted exceptions exactly the two the audit found — no more, no fewer? |
+| **Gate 2** | P1-P2 complete | Contracts and infrastructure only, still nothing wired into production — but this is where the `EventScope`/`ScopeFilter` design and the `DomainEventContext` shape get locked in for everything downstream | Does the tenant/organization test matrix (below) actually pass against the concrete channel? Is the breadth-first-dispatch change clearly asserted as deliberate, not incidental? |
+| **Gate 3** | P3 complete | **The fresh-session `UnitOfWork` is a major transaction-model change** — the first time anything in this codebase opens a session per transaction rather than per process. Isolated review before it has a real caller | Are the independent-session tests genuinely proving isolation, not just absence of an error? Is `MAX_DISPATCH_ROUNDS` failure behavior verified, not assumed? |
+| **Gate 4** | P4 complete | **`ApprovalService` migration is the highest-risk single phase in this plan** — it changes a live, accepted (ADR-PF-008), financially-adjacent transaction boundary, and every module with a registered apply handler must be updated in the same change | Are ALL registered apply handlers (PM, Inventory, any other module) actually updated, not just a sample? Does the failure-injection suite prove atomicity under the fresh-session model as rigorously as ADR-PF-008 required for the old one? Is the `dependencies: type[TDeps]` mechanism (§ P4, revised) actually narrow, or has it grown back into a general lookup? |
+| **Gate 5** | P5-P6 complete | Typed events and the Qt adapter together — P6 depends on at least one real P5 event, so reviewing them separately would be artificial | Is every one of Platform's 11 signals in the discovery table actually classified with evidence, not guessed? Does the Qt adapter genuinely leave the other two controller bases and the non-invalidation responsibilities of Platform's own base untouched? |
+| **Gate 6 (final)** | P7-P8 complete | This is the "Platform Domain Event Foundation Ready" declaration — the gate every business module migration (Execution Plan Phase 3 onward) is blocked on | Does the full TO-1..TO-14 matrix pass against real, migrated Platform signals, not only synthetic fixtures? Is there genuinely no uncited legacy dependency left? |
+
+No implementation work covered by this document proceeds past a gate without that gate's review
+having actually happened — a phase's own internal "Exit criteria" is what the implementer checks
+before requesting the gate review; it is not a substitute for it.
+
 ## Cross-Cutting Requirements (apply to every phase below)
 
 ### File and Test Conventions
@@ -34,29 +55,36 @@ the current, unimplemented state confirmed.
   `src/core/shared/` (unchanged rule, now enforced by the P0 guardrail test rather than manual
   review).
 - No new file constructs a concrete SQLAlchemy repository or exposes a raw `Session` from
-  anything typed as `UnitOfWork` (base or Platform-extended) — see P4's `repository_for(...)`
-  design for the one deliberate, narrow exception mechanism.
+  anything typed as `UnitOfWork` (base or Platform-extended). `UnitOfWork` never gains a generic
+  `repository_for(contract)`-style method — see P4's `dependencies: type[TDeps]` design for the
+  one, narrow, `ApprovalService`-specific mechanism that resolves the one genuine cross-module
+  need this codebase has, without turning `UnitOfWork` into a service locator (ADR-005 §9/§24).
 
 ### The Tenant + Organization Test Matrix (referenced by every phase from P1 onward)
 
-Every phase that introduces or migrates an event/hint type must pass this matrix for that type,
-per ADR-005 §12/Test Impact and Execution Plan Constraint 6. Stated once here, referenced by ID
-from each phase below rather than repeated verbatim:
+**Revised to match ADR-005 §12's typed-`EventScope`/`ScopeFilter` design** (a critical review
+replaced the earlier five-method `ViewInvalidationChannel` API with one `subscribe(filter,
+handler)` method parameterized by a small, closed `ScopeFilter` hierarchy — see ADR-005 §12 for
+the full design and rationale). Every phase that introduces or migrates an event/hint type must
+pass this matrix for that type, per ADR-005 §12/Test Impact and Execution Plan Constraint 6.
+Stated once here, referenced by ID from each phase below rather than repeated verbatim:
 
 | ID | Scenario | Expected result |
 |---|---|---|
-| TO-1 | `ViewInvalidationHint(tenant_id="A", organization_id="A1", ...)` published | Reaches a subscriber registered via `subscribe(tenant_id="A", organization_id="A1")` |
-| TO-2 | Same hint as TO-1 | Does **not** reach a subscriber registered via `subscribe(tenant_id="A", organization_id="A2")` |
-| TO-3 | Same hint as TO-1 | Does **not** reach any `Tenant B` subscriber, registered any way |
-| TO-4 | Same hint as TO-1 | Reaches a subscriber registered via `subscribe_across_organizations(tenant_id="A")` |
-| TO-5 | Same hint as TO-1 | Does **not** reach a subscriber registered via `subscribe_tenant_wide(tenant_id="A")` |
-| TO-6 | `ViewInvalidationHint(tenant_id="A", organization_id=None, ...)` (tenant-wide fact) published | Reaches `subscribe_tenant_wide(tenant_id="A")` and `subscribe_across_organizations(tenant_id="A")` subscribers |
-| TO-7 | Same hint as TO-6 | Does **not** reach any exact-match `subscribe(tenant_id="A", organization_id=...)` subscriber, for any organization value |
-| TO-8 | Any `ViewInvalidationHint` | Reaches every `subscribe_across_tenants()` subscriber regardless of its tenant/organization |
-| TO-9 | `PlatformViewInvalidationHint(...)` published via `notify_platform_wide` | Reaches only `subscribe_to_platform_wide()` subscribers; never reaches a `ViewInvalidationHint`-typed subscriber and is never confused with a tenant-scoped hint that happens to have no organization |
-| TO-10 | An organization-scoped `DomainEvent` type constructed with `organization_id=None` | A type/construction-time error, per that event's own declared field (non-Optional), not a runtime surprise later in dispatch |
-| TO-11 | A command that mutates Organization A1 while the desktop session's "current organization" UI state is set to A2 | The resulting event's `organization_id` is A1 (read from the mutated aggregate/command), never A2 (never read from mutable session state) |
-| TO-12 | Organization switch in the desktop application mid-session | A controller subscribed to the previously-active organization does not receive hints for the newly-active one until it re-subscribes; no stale cross-organization subscription lingers (disposal proven, not assumed) |
+| TO-1 | `ViewInvalidationHint(scope=OrganizationScope("A", "A1"), ...)` published | Reaches a subscriber registered via `subscribe(ExactOrganization("A", "A1"), handler)` |
+| TO-2 | Same hint as TO-1 | Does **not** reach a subscriber registered via `subscribe(ExactOrganization("A", "A2"), handler)` |
+| TO-3 | Same hint as TO-1 | Does **not** reach any Tenant B subscriber, registered any way (unless via `AllTenants()`) |
+| TO-4 | Same hint as TO-1 | Reaches a subscriber registered via `subscribe(AnyOrganizationInTenant("A"), handler)` |
+| TO-5 | Same hint as TO-1 | Does **not** reach a subscriber registered via `subscribe(TenantWide("A"), handler)` |
+| TO-6 | `ViewInvalidationHint(scope=TenantScope("A"), ...)` (genuinely tenant-wide fact) published | Reaches `TenantWide("A")` and `AnyOrganizationInTenant("A")` subscribers |
+| TO-7 | Same hint as TO-6 | Does **not** reach any `ExactOrganization("A", ...)` subscriber, for any organization value |
+| TO-8 | Any tenant-scoped `ViewInvalidationHint` (`TenantScope` or `OrganizationScope`) | Reaches every `AllTenants()` subscriber regardless of its actual tenant/organization; a `PlatformScope`-scoped hint does **not** reach `AllTenants()` (§ TO-9 covers `PlatformScope` separately) |
+| TO-9 | `ViewInvalidationHint(scope=PlatformScope(), ...)` published | Reaches only `PlatformWide()` subscribers; never reaches `AllTenants()`, `TenantWide(...)`, `AnyOrganizationInTenant(...)`, or `ExactOrganization(...)` subscribers |
+| TO-10 | `OrganizationScope("A")` (missing `organization_id`) or `TenantScope("A", organization_id="A1")` construction attempts | **Structurally impossible, not merely rejected** — a construction-time `TypeError` from the dataclass's own required-argument signature, not a runtime validation check inside the channel or a downstream dispatch-time surprise |
+| TO-11 | A command that mutates Organization A1 while the desktop session's "current organization" UI state is set to A2 | The resulting event's/hint's scope is `OrganizationScope(tenant_id, "A1")` (read from the mutated aggregate/command), never `"A2"` — never derived from mutable session state |
+| TO-12 | Organization switch in the desktop application mid-session | A controller subscribed via `ExactOrganization` for the previously-active organization does not receive hints for the newly-active one until it re-subscribes; no stale cross-organization subscription lingers (disposal proven, not assumed) |
+| TO-13 **(new)** | A mutation known to affect exactly `{A1, A2}` within Tenant A, not A3 | Represented as **two** `notify()` calls, each `ViewInvalidationHint(scope=OrganizationScope("A", ...), ...)` — one for A1, one for A2 — **never** a single `TenantScope("A")` hint; an `ExactOrganization("A", "A3")` subscriber receives neither call (§3a) |
+| TO-14 **(new)** | Code-level review of every `TenantScope`/`PlatformScope` construction site introduced in P5 | Each one is an explicit, deliberate construction at a point where the fact is genuinely known to be tenant-wide or platform-wide — **never** a fallback/default path reached because an `organization_id` happened to be unavailable or omitted. This is a review-time check (does the surrounding code *decide* tenant-wide-ness, or *arrive at it by omission*?), not something a unit test alone can fully prove — but a unit test can and must assert that no helper function silently converts "organization unknown" into `TenantScope` |
 
 ### The Architecture Guardrail Test
 
@@ -75,7 +103,9 @@ GOVERNED_EXCEPTIONS = {
 }
 
 def test_platform_core_does_not_import_business_modules() -> None:
-    # Walk src/core/platform/{domain,application}/**/*.py, ast.parse each file,
+    # Walk the WHOLE src/core/platform/**/*.py tree (domain, application, infrastructure,
+    # contract, api, etc. -- not domain/application only; see the P0 implementation note
+    # below for why the scope was corrected from an earlier draft), ast.parse each file,
     # ast.walk for Import/ImportFrom nodes whose module starts with "src.core.modules.",
     # fail with the offending file:line unless the file's relative path is a key in
     # GOVERNED_EXCEPTIONS above.
@@ -84,6 +114,14 @@ def test_platform_core_does_not_import_business_modules() -> None:
 
 Any PR adding a new exception must add a citation to this dict in the same change, and that
 citation must reference an accepted ADR — not merely a comment.
+
+**P0 implementation note (documentation correction, not a new decision):** an earlier draft of
+this section scoped the walk to `src/core/platform/{domain,application}/` only. That was
+inconsistent with `GOVERNED_EXCEPTIONS` itself — `.../infrastructure/persistence/repositories/
+approval/approval.py` lives under `infrastructure/`, which a domain/application-only scan would
+never reach, making the exception meaningless. Corrected when P0 was actually implemented to scan
+the whole `src/core/platform/` tree — confirmed against the real codebase that this surfaces
+exactly the same two violations already listed above, no more.
 
 ## P0 — Architecture Guardrails and Baseline Tests
 
@@ -147,8 +185,12 @@ src/core/shared/events/
   domain_event_subscriber.py   # TransactionalEventHandler/PostCommitEventHandler +
                                 #   TransactionalEventSubscriber/PostCommitEventSubscriber protocols
   subscription.py              # Subscription protocol (dispose)
-  view_invalidation.py         # ViewInvalidationHint, PlatformViewInvalidationHint,
-                                #   ViewInvalidationHandler, ViewInvalidationChannel (5-method contract)
+  view_invalidation.py         # EventScope/PlatformScope/TenantScope/OrganizationScope,
+                                #   one ViewInvalidationHint (carrying scope: EventScope),
+                                #   ScopeFilter + its 5 concrete filter dataclasses
+                                #   (ExactOrganization/TenantWide/AnyOrganizationInTenant/
+                                #   AllTenants/PlatformWide), ViewInvalidationHandler,
+                                #   ViewInvalidationChannel (single notify/subscribe contract)
 src/core/shared/time/
   clock.py                     # Clock protocol
 ```
@@ -163,10 +205,10 @@ silently violate it).
 **Compatibility behavior:** none — additive only, nothing consumes these yet.
 
 **Tests to add:** structural tests only at this phase (protocol conformance, dataclass
-immutability/`kw_only` enforcement, that `ViewInvalidationHint` genuinely requires
-`organization_id` to be passed explicitly rather than defaulting silently). The full tenant/org
-*routing* matrix (TO-1 through TO-12) is exercised against the **concrete** channel in P2, not
-here — P1 has no concrete implementation to route anything through yet.
+immutability; that `OrganizationScope` genuinely cannot be constructed without `organization_id`,
+and `TenantScope` genuinely has no `organization_id` field to pass — TO-10). The full tenant/org
+*routing* matrix (TO-1 through TO-9, TO-13) is exercised against the **concrete** channel in P2,
+not here — P1 has no concrete implementation to route anything through yet.
 
 **Failure scenarios:** none applicable — no behavior exists yet to fail.
 
@@ -188,7 +230,9 @@ the full tenant/organization routing logic.
 
 **Architectural decision being implemented:** ADR-005 §7 (stateless transactional dispatcher),
 §8 (queued, race-fixed post-commit bus, breadth-first, explicit deliberate change from legacy
-depth-first), §12 (the five-method `ViewInvalidationChannel` and its routing rules).
+depth-first), §12 (`ViewInvalidationChannel`'s single `notify`/`subscribe` contract, its
+`EventScope`/`ScopeFilter` routing model, and the `matches()`-based dispatch this implementation
+must not branch on by hand).
 
 **Exact expected files:**
 ```text
@@ -228,10 +272,12 @@ and does not block sibling handlers or subsequent events (ISOLATE_AND_CONTINUE);
 inside `InProcessTransactionalEventDispatcher.dispatch` propagates immediately (FAIL_FAST) — both
 proven by dedicated tests, not inferred from code reading.
 
-**Tenant + organization scenarios:** TO-1 through TO-9, fully, against the concrete channel.
+**Tenant + organization scenarios:** TO-1 through TO-9 and TO-13, fully, against the concrete
+channel (TO-13 synthetically: two `notify()` calls with different `OrganizationScope`s, asserting
+neither reaches an `ExactOrganization` subscriber for a third, unaffected organization).
 
-**Exit criteria:** every file above exists with passing tests, including the full TO-1..TO-9
-matrix and the breadth-first assertion; `git diff` touches only `src/infra/events/` and
+**Exit criteria:** every file above exists with passing tests, including the full TO-1..TO-9 and
+TO-13 matrix and the breadth-first assertion; `git diff` touches only `src/infra/events/` and
 `src/infra/time/`; the app boots unchanged (still nothing imports these in production code paths).
 
 **Explicit non-goals:** no `UnitOfWork` (P3). No real Platform service uses any of this yet.
@@ -303,66 +349,111 @@ equivalent to restoring the old file content — no production code path is affe
 
 **Architectural decision being implemented:** ADR-005 §24 (`ApprovalService`: **ADAPT**).
 
-### P4 Design Resolution — the cross-module apply-handler problem (**PLAN DECISION**)
+### P4 Design Resolution — the cross-module apply-handler problem (**PLAN DECISION, revised**)
 
-The audit found `ApprovalService.approve_and_apply` invokes apply handlers that are registered by
-*other* modules (e.g. PM's baseline/dependency/cost handlers, Inventory's requisition/PO
-handlers) and that today mutate those modules' own repositories directly, sharing Platform's
-single process-lifetime `Session`. Moving `ApprovalService` onto a genuinely fresh,
-per-call `Session` (required for it to be a real `UnitOfWork` per ADR-005 §9) means those
+**This section supersedes an earlier draft of this plan**, which proposed
+`PlatformUnitOfWork.repository_for(contract: type[R]) -> R` — an open, contract-keyed lookup any
+handler could call with any repository contract type at any point in its body. **A critical
+architecture review correctly identified this as a hidden general-purpose service locator**:
+`uow.repository_for(ProjectRepository)`, `uow.repository_for(EmployeeRepository)`,
+`uow.repository_for(AnythingAtAll)` — which would make a handler's real dependencies invisible at
+its registration site, undiscoverable by the architecture guardrail test (P0), and hard to unit
+test without faking an entire `UnitOfWork`'s lookup behavior. This directly contradicts ADR-005
+§9's own principle: `UnitOfWork` exposes the transaction boundary; it must not become a general
+application dependency container. **`repository_for` is removed from this plan entirely — no
+version of it ships in any phase.**
+
+The underlying problem is still real and still needs solving: `ApprovalService.approve_and_apply`
+invokes apply handlers registered by *other* modules (PM's baseline/dependency/cost handlers,
+Inventory's requisition/PO handlers) that today mutate those modules' own repositories directly,
+sharing Platform's single process-lifetime `Session`. Moving `ApprovalService` onto a genuinely
+fresh, per-call `Session` (required for it to be a real `UnitOfWork` per ADR-005 §9) means those
 module-owned handlers need a way to reach their own repository *contracts* bound to that same
-fresh session — without `ApprovalService`'s own `UnitOfWork` type needing to know every module's
-repository vocabulary ahead of time (which would recreate exactly the "one class knows every
-module" anti-pattern ADR-005 §9 already rejected for per-module `UnitOfWork` classes), and without
-handler code ever touching a raw `Session` (ADR-005 §7's framework-agnosticism guarantee).
+fresh session.
 
-**Decision:** `PlatformUnitOfWork` (extending the base `UnitOfWork` protocol) exposes one
-additional, narrow method:
+**Decision (ADR-005 §24): an explicit, declarative per-handler dependency declaration, resolved
+by `ApprovalService`'s own dispatch logic — never a method on `UnitOfWork` itself.**
+
+```python
+# src/core/platform/contracts/approval.py
+class ApprovalApplyHandler(Protocol[TDeps]):
+    def __call__(
+        self, request: ApprovalRequest, uow: PlatformUnitOfWork, deps: TDeps,
+    ) -> ApprovalHandlerResult: ...
+
+def register_apply_handler(
+    request_type: str,
+    handler: ApprovalApplyHandler[TDeps],
+    *,
+    dependencies: type[TDeps],   # a small, module-owned dataclass of named repository-contract
+                                  #   fields — exactly what this handler needs, nothing more
+) -> None: ...
+```
+
+`PlatformUnitOfWork` itself stays minimal — it does **not** gain `repository_for` or any
+equivalent open lookup:
 
 ```python
 class PlatformUnitOfWork(UnitOfWork, Protocol):
-    approvals: ApprovalRepository
-    def repository_for(self, contract: type[R]) -> R: ...
+    approvals: ApprovalRepository   # Platform's own repository, a named accessor like any
+                                      #   other module's UnitOfWork extension — nothing special
 ```
 
-`repository_for(contract)` is a **contract-keyed lookup**, resolved against a registry populated
-at composition time (`platform_registry.py`) — e.g. `register_repository_binder(ProjectBaselineRepository,
-lambda session: SqlAlchemyProjectBaselineRepository(session))`. The concrete `SqlAlchemy<X>Repository`
-construction happens inside this composition-time binder function, which is infrastructure code
-and is allowed to know about concrete classes (exactly like `RepositoryBundle` already does today)
-— but the calling apply handler only ever sees `uow.repository_for(ProjectBaselineRepository)`,
-typed against the contract, never a concrete class or a raw `Session`. This is scoped narrowly:
-it exists only for `PlatformUnitOfWork` (the one genuinely cross-module case this codebase has),
-not as a general escape hatch other modules' `UnitOfWork` extensions should copy.
+`TDeps` is declared **at the same call site** as `register_apply_handler` — e.g.
+`project_management` declares `class ProjectBaselineApprovalDeps: baselines: ProjectBaselineRepository`
+and registers with `dependencies=ProjectBaselineApprovalDeps`. `ApprovalService` resolves `TDeps`
+internally, at dispatch time, from a small binder registry populated at composition time
+(`platform_registry.py` maps each declared dependency type to a callable constructing its concrete
+repository from the *current* fresh session). This binder-registry construction is infrastructure
+code and is allowed to know about concrete classes, exactly like `RepositoryBundle` already does
+today — the handler itself only ever receives a fully-constructed `deps: TDeps`, typed against
+contracts, never a raw `Session` and never a method it could call with an arbitrary type.
+
+**Allowed usage:** only `ApprovalService`'s own internal dispatch logic resolves a handler's
+declared `TDeps` from the binder registry. **Forbidden usage:** no handler body calls anything
+resembling an open lookup; no such method exists on `UnitOfWork`, base or Platform-extended, in
+any phase of this plan. No other module's `UnitOfWork` extension gains an equivalent mechanism —
+this is scoped to `ApprovalService`'s own registration API, not offered as a reusable pattern.
 
 **Rationale:** preserves ADR-PF-008's core atomicity guarantee (approval decision + module
-mutation commit together, in one physical transaction) while achieving ADR-005's fresh-session
-and framework-agnostic-handler goals, without inventing a new cross-module composition mechanism
-beyond what's strictly needed. **Alternatives considered:** (a) give `ApprovalService`'s handlers
-a raw `Session` — rejected, breaks ADR-005 §7/§9's core guarantee outright; (b) don't migrate
-`ApprovalService` to a fresh session at all, keep it on the shared process-lifetime session
+mutation commit together, in one physical transaction) while achieving ADR-005's fresh-session and
+framework-agnostic-handler goals, and keeps a handler's dependencies statically visible at its own
+registration call site — a reviewer or a future static-analysis pass can read
+`register_apply_handler(..., dependencies=ProjectBaselineApprovalDeps)` and know exactly what that
+handler can reach, without tracing runtime calls through its body. **Alternatives considered:**
+(a) the rejected `repository_for(contract)` open lookup, above; (b) give `ApprovalService`'s
+handlers a raw `Session` — rejected, breaks ADR-005 §7/§9's core guarantee outright; (c) don't
+migrate `ApprovalService` to a fresh session at all, keep it on the shared process-lifetime session
 forever — rejected as PERMANENTLY KEEP DISTINCT in disguise, which ADR-005 §24 already rejected;
-(c) require every module with an apply handler to also expose a `PlatformUnitOfWork`-compatible
+(d) require every module with an apply handler to also expose a `PlatformUnitOfWork`-compatible
 extension ahead of time — rejected as unnecessarily rigid given apply handlers are registered
-dynamically per `request_type`, not known statically at `PlatformUnitOfWork`'s own definition
-time.
+dynamically per `request_type`, not known statically at `PlatformUnitOfWork`'s own definition time.
+**Testing implications:** a handler is unit-tested by constructing its own `TDeps` directly with
+fakes — no need to fake an entire `PlatformUnitOfWork` or intercept a lookup method.
 
 **Exact expected files:**
 ```text
 src/core/platform/contracts/
-  unit_of_work.py                       # PlatformUnitOfWork + PlatformUnitOfWorkFactory
+  unit_of_work.py                       # PlatformUnitOfWork (minimal — just `approvals`) +
+                                         #   PlatformUnitOfWorkFactory
+  approval.py                           # ApprovalApplyHandler[TDeps] protocol,
+                                         #   register_apply_handler(..., dependencies=type[TDeps])
 src/core/platform/infrastructure/persistence/
   unit_of_work.py                       # SqlAlchemyPlatformUnitOfWork(SqlAlchemyUnitOfWorkBase),
-                                         #   SqlAlchemyPlatformUnitOfWorkFactory, the
-                                         #   repository_for(...) registry + registration function
+                                         #   SqlAlchemyPlatformUnitOfWorkFactory
+src/core/platform/infrastructure/approval/
+  dependency_binder_registry.py         # the TDeps → concrete-repository-construction registry,
+                                         #   populated at composition time — infrastructure-only,
+                                         #   never imported by handler code itself
 ```
 
 **Files likely modified:**
 - `src/core/platform/application/approval/approval_service.py` — `approve_and_apply`/`reject`
   construct a `PlatformUnitOfWork` via the injected factory instead of using `self._session`
-  directly; apply handlers keep their existing signature but resolve module repositories via
-  `uow.repository_for(...)` instead of closures constructed at composition time over the shared
-  session; `ApprovalHandlerResult.post_commit_events` changes shape from
+  directly; look up the registered handler's declared `TDeps` type for the request's
+  `request_type`, resolve it via the dependency-binder registry, and call
+  `handler(request, uow, deps)` — no `uow.repository_for(...)`-style call exists anywhere;
+  `ApprovalHandlerResult.post_commit_events` changes shape from
   `(signal_name: str, payload: str)` to `tuple[DomainEvent, ...]` (typed events, no more
   string-keyed reflection into the legacy bus).
 - `src/core/platform/domain/approval/*` — if `ApprovalRequest` itself should record its own
@@ -372,7 +463,8 @@ src/core/platform/infrastructure/persistence/
   transition per ADR-005 §6's criteria).
 - `src/infra/composition/platform_registry.py` — construct `SqlAlchemyPlatformUnitOfWorkFactory`
   (closing over `SessionLocal` and a `DomainEventContext` supplied per call), register each
-  module's `repository_for(...)` binder alongside its existing apply-handler registration.
+  module's `TDeps` → concrete-repository binder in the dependency-binder registry alongside its
+  existing apply-handler registration.
 - `src/core/platform/application/events/notifications/notification_service.py` — assessed per
   call site: `dispatch(commit=True)` sites that compose with a migrating command move onto
   `uow.commit()` instead of an independent second commit (closing the audit's PLAT-UOW-003
@@ -409,11 +501,14 @@ update (mirroring ADR-PF-008's own existing test discipline, now against the fre
 `UnitOfWork`) — cost/approval state must remain unchanged when decision persistence or required
 audit fails, and no post-commit event/notification must escape a rolled-back transaction, for the
 fresh-session model exactly as it was already proven for the shared-session one; a registered
-apply handler resolving a module repository via `uow.repository_for(...)` and mutating it commits
-atomically with the approval decision, and rolls back atomically with it on failure; two
-concurrent `approve_and_apply` calls (different requests) each get genuinely independent sessions
-and don't interfere with each other (this is new — the shared-session model couldn't be tested
-this way since there was only ever one session).
+apply handler receiving its declared `deps: TDeps` and mutating a repository through it commits
+atomically with the approval decision, and rolls back atomically with it on failure; **a handler
+can reach only the repositories named in its own declared `TDeps` type — a test asserting this is
+the *only* way it obtains a repository, not an incidental fact about the current implementation**
+(directly exercising ADR-005 §24's dependency-visibility rationale, not just its atomicity
+guarantee); two concurrent `approve_and_apply` calls (different requests) each get genuinely
+independent sessions and don't interfere with each other (this is new — the shared-session model
+couldn't be tested this way since there was only ever one session).
 
 **Failure scenarios:** an apply handler raises before `uow.commit()` → whole transaction (approval
 decision, audit row, module mutation) rolls back together, exactly as ADR-PF-008 requires today,
@@ -422,8 +517,8 @@ bridge, notification) raises after a successful commit → isolated, logged, doe
 already-committed approval.
 
 **Tenant + organization scenarios:** `ApprovalRequest`'s new typed events (if adopted per the P5
-assessment) carry `tenant_id`/`organization_id` per ADR-005 §3 — TO-1 through TO-9 apply once
-Platform's approval-related invalidation is migrated (P5/P6), not fully exercised in P4 itself
+assessment) carry `tenant_id`/`organization_id` per ADR-005 §3 — TO-1 through TO-9 and TO-14 apply
+once Platform's approval-related invalidation is migrated (P5/P6), not fully exercised in P4 itself
 (P4 is transaction-mechanics-focused; P5 is where the typed events and their scope fields are
 actually defined).
 
@@ -500,14 +595,15 @@ removed per-capability in P7 once its consumers have migrated.
 
 **Tests to add:** per newly-typed event: aggregate records the correct event with accurate
 previous/new state, `tenant_id`, and `organization_id`, using an injected fixed `Clock`; no event
-recorded on a no-op mutation; the full TO-1..TO-11 matrix for that event's resulting
-`ViewInvalidationHint`.
+recorded on a no-op mutation; the full TO-1..TO-11 and TO-14 matrix for that event's resulting
+`ViewInvalidationHint`; where discovery surfaces a genuine multi-organization effect (§3a), TO-13
+concretely, not only synthetically.
 
 **Failure scenarios:** unchanged from P2-P4's already-proven mechanics — this phase adds new event
 *types*, not new dispatch machinery.
 
-**Tenant + organization scenarios:** TO-1 through TO-11, per newly-typed event, using real
-Platform data shapes (not synthetic test fixtures only) — at least one worked example per
+**Tenant + organization scenarios:** TO-1 through TO-11 and TO-14, per newly-typed event, using
+real Platform data shapes (not synthetic test fixtures only) — at least one worked example per
 capability typed in this phase must be tested against a scenario with two organizations in one
 tenant, proving TO-1/TO-2/TO-4 concretely for that capability, not only for the generic P2 tests.
 
@@ -642,7 +738,7 @@ new failure modes — removing dead code cannot introduce a runtime failure by d
 reveal one that was already latent (a consumer P5 missed). If the grep-equivalent test above finds
 a remaining reference, that is this phase's own failure signal, caught before deletion.
 
-**Tenant + organization scenarios:** a final full run of TO-1 through TO-12 against every
+**Tenant + organization scenarios:** a final full run of TO-1 through TO-14 against every
 migrated Platform capability, as a closing regression gate.
 
 **Exit criteria — "Platform Domain Event Foundation Ready" (this is the gate Execution Plan Phase
@@ -650,7 +746,7 @@ migrated Platform capability, as a closing regression gate.
 - No Platform producer depends on the legacy `domain_events` bus except an explicitly-approved,
   time-boxed compatibility edge (if any genuinely remains, it is named, dated, and justified —
   not silently left in place).
-- Tenant **and** organization isolation proven by the full TO-1..TO-12 matrix, against real
+- Tenant **and** organization isolation proven by the full TO-1..TO-14 matrix, against real
   migrated Platform signals.
 - Rollback behavior, post-commit failure isolation, and integration-outbox semantics
   (unchanged, ADR-PF-011) all proven for `ApprovalService`'s migrated path.
@@ -694,12 +790,12 @@ behavior.
 regression pass, plus a manual (or scripted) exploratory pass through the actual desktop
 application exercising organization switching, approval decisions, and master-data edits across
 at least two organizations in one tenant and two different tenants, confirming the automated
-TO-1..TO-12 matrix's results match observed behavior in the running app, not only in unit tests.
+TO-1..TO-14 matrix's results match observed behavior in the running app, not only in unit tests.
 
 **Failure scenarios:** any regression found here sends the responsible phase (P0-P7) back for a
 fix — this phase does not itself introduce new failure-handling logic.
 
-**Tenant + organization scenarios:** the full TO-1..TO-12 matrix, run once more as a whole-system
+**Tenant + organization scenarios:** the full TO-1..TO-14 matrix, run once more as a whole-system
 regression, plus the manual/exploratory pass above.
 
 **Exit criteria — "Platform Domain Event Foundation Ready" declared (formally, in writing, dated,

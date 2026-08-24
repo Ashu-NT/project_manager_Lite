@@ -42,18 +42,18 @@ five things this ADR had gotten wrong or left unaddressed, all corrected below:
 
 1. This design is **not greenfield for the transaction/event *concept*, only for typed
    *vocabulary***. `ApprovalService` (ADR-PF-008, accepted and implemented) already runs almost
-   exactly the transaction discipline §11 (UnitOfWork Semantics) describes, under a different
-   name, at a different granularity, without this ADR ever mentioning it. See §26 (Related
-   Decisions) and §11.
+   exactly the transaction discipline §9 (UnitOfWork Semantics) describes, under a different
+   name, at a different granularity, without this ADR ever mentioning it. See §24 (Related
+   Decisions) and §9.
 2. **The scope model was tenant-only.** This is wrong for this product: a tenant can and does
    contain multiple organizations, and nothing in the original design prevented an
    organization-A-scoped fact from reaching an organization-B-scoped subscriber inside the same
-   tenant. See §6 (Scope / Tenant / Organization Semantics) and §14 (View Invalidation).
+   tenant. See §3 (Scope / Tenant / Organization Semantics) and §12 (View Invalidation).
 3. **Event metadata (correlation/causation) was left as an open question with no shape decided.**
    §8 (Event Metadata Decision) now resolves it, deliberately keeping it off the business-fact
    dataclasses themselves.
 4. **Event recording (aggregate-records-its-own-events vs. hand-construction) was left as an
-   explicit "revisit later" item in the decision matrix.** §9 (Event Recording Decision) now
+   explicit "revisit later" item in the decision matrix.** §6 (Event Recording Decision) now
    resolves it, with explicit criteria rather than a blanket rule.
 5. **Naming, repository-location, and architecture-guardrail gaps** the audit found in Platform's
    *existing* code (a real, ungoverned `platform → business module` import; a genuine `Signal`
@@ -112,7 +112,7 @@ Verified by the Platform audit (2026-08-25) against actual repository/session co
   unnecessary.
 - **`SessionLocal` (the real session factory this ADR's `UnitOfWorkFactory` needs) has exactly
   three references in this codebase's entire history**: its own definition, the dead
-  `session_scope()` (§11.1), and one call at process startup. This ADR's proposed per-transaction
+  `session_scope()` (§20), and one call at process startup. This ADR's proposed per-transaction
   usage would be the first real per-transaction use of it, ever.
 - **The old mechanism has zero tenant isolation and zero organization concept.**
   `DomainChangeEvent` has no `tenant_id` field at all; no consumer anywhere filters by tenant;
@@ -152,13 +152,13 @@ designed to be. Concretely, this makes it impossible to:
 
 Five concepts, kept structurally and vocabulary-distinct. None of the first four collapse into a
 single "universal event bus" — the audit found no evidence supporting that collapse, and this
-revision explicitly rejects it as an alternative (§27).
+revision explicitly rejects it as an alternative (see Alternatives Rejected, below).
 
 | Concept | Meaning | Current mechanism | This ADR's disposition |
 |---|---|---|---|
-| **Domain Event** | A business fact that occurred in the domain (`TaskCompleted`, `PurchaseOrderApproved`, `EmployeeAssigned`) | None exist under Platform; module-owned examples exist ad hoc (`ResourceMasterChanged`) | **New** — §7 defines the contract |
-| **View Invalidation** | A transport-independent hint that a read model is stale and should be re-read — *not* a business fact | The legacy `domain_events`/`Signal` mechanism, functioning as this despite its name | **New, formalized** — §14 |
-| **Integration Event** | A durable, cross-process, schema-versioned message governed by ADR-PF-011 | `IntegrationEventEnvelope` + outbox/inbox — mature, correct, already separate | **Unchanged** — §13 preserves the boundary |
+| **Domain Event** | A business fact that occurred in the domain (`TaskCompleted`, `PurchaseOrderApproved`, `EmployeeAssigned`) | None exist under Platform; module-owned examples exist ad hoc (`ResourceMasterChanged`) | **New** — §4 defines the contract |
+| **View Invalidation** | A transport-independent hint that a read model is stale and should be re-read — *not* a business fact | The legacy `domain_events`/`Signal` mechanism, functioning as this despite its name | **New, formalized** — §12 |
+| **Integration Event** | A durable, cross-process, schema-versioned message governed by ADR-PF-011 | `IntegrationEventEnvelope` + outbox/inbox — mature, correct, already separate | **Unchanged** — §11 preserves the boundary |
 | **Notification** | A persisted, user-facing, multi-channel in-app notification feature | `Notification`/`NotificationService` | **Unchanged** — not part of this taxonomy at all |
 | **Audit Record** | An immutable, append-only governance/compliance log entry | `PlatformEvent` (misleadingly named — it is not dispatched, only persisted), `AuditEntry` | **Unchanged behavior; naming addressed non-blockingly** — §19 |
 
@@ -189,13 +189,16 @@ throughout, not "Platform owns shared/events":
 
 ### 3. Scope / Tenant / Organization Semantics
 
-**Decision:** every tenant-owned `DomainEvent` and `ViewInvalidationHint` carries both
+**Revised this pass**, after a targeted review of the representation question specifically (see
+§12 for why the answer differs between `DomainEvent` and `ViewInvalidationHint` — it did not, on
+reflection, deserve one uniform answer).
+
+**Decision — `DomainEvent` keeps plain fields.** Every tenant-owned `DomainEvent` carries
 `tenant_id: str` (always required for tenant-owned facts) and `organization_id: str | None`
 (explicit — non-`None` when the fact belongs to one organization, explicitly `None` when the fact
 is genuinely tenant-wide and not owned by any single organization). Genuinely
-installation/platform-wide facts — no tenant at all — use a **separate type** with no `tenant_id`
-field, exactly as this ADR's earlier revisions already established for the tenant dimension; the
-same discipline now extends one level down for organization.
+installation/platform-wide facts — no tenant at all — use a separate event type with no
+`tenant_id` field at all.
 
 ```python
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -214,23 +217,58 @@ class TenantSecurityPolicyChanged:
     occurred_at: datetime
 ```
 
-**Never** substitute the desktop session's currently-active organization for an event's own
-`organization_id`. An organization-scoped mutation's event carries the organization it actually
-mutated — read directly off the aggregate/command, not off mutable "current organization" UI
-state, which may differ (a user could mutate Organization A1 while their session's active
-organization selector is pointed at A2, in a future multi-org-aware UI).
+**Explicit invariant — `organization_id` on a tenant-owned `DomainEvent` has exactly two valid
+meanings, never a third:**
 
-**Decision — representation:** plain `tenant_id`/`organization_id` fields directly on each event/
-hint type, not a nested `EventScope`/`TenantScope`/`OrganizationScope` type hierarchy.
-*Rationale:* `IntegrationEventEnvelope` already proves this flat shape works in production
-(ADR-PF-011); a nested scope hierarchy adds an indirection layer with no behavior of its own, and
-no code anywhere in this codebase has ever needed to pattern-match over "kinds of scope" as a
-first-class concept. *Alternatives considered:* a sealed `EventScope` class hierarchy
-(`TenantScope`/`OrganizationScope`/`PlatformScope`) — rejected as unnecessary structure for a
-distinction two plain fields already express unambiguously, and inconsistent with the one proven
-precedent this codebase already has. *Consequences:* every tenant-owned event/hint type is
-slightly more verbose (two fields instead of one field or one nested object) in exchange for
-being trivially greppable and directly consistent with `IntegrationEventEnvelope`.
+| Value | Meaning | Never means |
+|---|---|---|
+| `organization_id="A1"` (a real ID) | This fact belongs to Organization A1 and no other | — |
+| `organization_id=None` | This fact is **intentionally, genuinely tenant-wide** — it does not belong to any single organization | organization unknown; organization not loaded; organization omitted by an oversight; "use whatever the active session's current organization is" |
+
+**Never** substitute the desktop session's currently-active organization for an event's own
+`organization_id`, under any circumstance. An organization-scoped mutation's event carries the
+organization it actually mutated — read directly off the aggregate/command, not off mutable
+"current organization" UI state, which may legitimately differ (a user could mutate Organization
+A1 while their session's active organization selector is pointed at A2). No handler, transactional
+or post-commit, may compute or default `organization_id` from ambient session state after the
+fact — it is always read from the mutation itself, at the point the event is constructed.
+
+**Rationale for keeping `DomainEvent` on plain fields (not the typed `EventScope` §12 adopts for
+`ViewInvalidationHint`):** a module author writing `TaskReassigned`/`OrganizationRenamed` is
+naming a *business fact*; `tenant_id: str, organization_id: str | None` reads exactly like the two
+plain, unremarkable identifier fields they already are in every other part of this codebase's
+domain vocabulary (compare `project_id: str`, `task_id: str` on the very same dataclass) — wrapping
+them in a `scope: EventScope` object would be a foreign, transport-flavored indirection sitting
+inside otherwise-plain business vocabulary, for no benefit `DomainEvent` itself needs (a
+`DomainEvent` is never subscribed-to or filtered-by-breadth the way a `ViewInvalidationHint` is —
+see §12 for why that dimension is exactly where the ambiguity, and therefore the benefit of a typed
+union, actually lives).
+
+### 3a. Cross-Organization Effects — the Multi-Hint Rule
+
+A single mutation can legitimately affect more than one organization within a tenant (e.g. a
+shared resource reassigned from Organization A1 to Organization A2 within Tenant A) without being
+tenant-wide (Organization A3 in the same tenant is unaffected). **Decision: represent this as
+multiple, individually organization-scoped `ViewInvalidationHint`s — one per affected
+organization — never as a single hint with `organization_id=None`.** `organization_id=None` means
+"genuinely tenant-wide," which this scenario is not; encoding "affects A1 and A2, not A3" as
+tenant-wide would incorrectly notify A3's subscribers too.
+
+```python
+for organization_id in affected_organization_ids:  # e.g. {"A1", "A2"}, never including "A3"
+    channel.notify(ViewInvalidationHint(
+        scope=OrganizationScope(tenant_id="A", organization_id=organization_id),
+        category=..., scope_code=..., entity_type=..., entity_id=...,
+    ))
+```
+
+**Explicitly rejected:** a `MultiOrganizationScope`/`organization_ids: list[str]`-shaped scope
+type collapsing this into one hint. Nothing in this product's current requirements needs it — the
+affected-organization set is always small and known at the point of mutation, and multiple
+individually-correct hints are simpler to route, test, and reason about than a new scope kind
+whose own subscription-matching semantics would need to be designed and justified. Revisit only if
+a real, evidenced need for a genuinely bulk, large-fan-out multi-organization notification pattern
+emerges — do not build it speculatively now.
 
 ### 4. Domain Event Contract
 
@@ -321,14 +359,24 @@ decision), the owning module names its own explicit field (`decided_by_user_id`)
 reusing a generic, business-vocabulary-free slot — this keeps the distinction between "business
 fact" and "dispatch metadata" honest rather than smuggling business meaning into the metadata
 side. `schema_version` is **not** added to `DomainEvent` or `DomainEventContext` at all — see the
-explicit decision in §13 (Integration Event / Outbox Boundary) for why in-process domain events
+explicit decision in §11 (Integration Event / Outbox Boundary) for why in-process domain events
 do not need one.
 
 ### 6. Event Recording Decision
 
-**Decision:** aggregates record their own domain events (Option A) as the default for a genuine
-aggregate state transition. This is **not** a mandate to add `RecordsDomainEvents` to every
-Platform entity or service. Explicit criteria:
+**Decision (strengthened this pass from "default" to a explicit rule):** *If a `DomainEvent`
+represents a business fact produced directly by an aggregate's own state transition, the
+aggregate MUST record that event itself, via `RecordsDomainEvents`.* `uow.record_event(...)` is
+**reserved exclusively** for a fact that genuinely has no single owning aggregate — it is not a
+convenience default for skipping the (admittedly more invasive) work of adding
+`RecordsDomainEvents` to an aggregate class. A code reviewer encountering
+`uow.record_event(SomeFact(...))` in a change should be able to ask "which aggregate's state
+transition does this represent?" and get "none — this is genuinely cross-aggregate orchestration"
+as the only acceptable answer; "the aggregate exists but recording on it seemed like more work"
+is not a valid justification for reaching for the escape hatch instead. This is **not** a mandate
+to add `RecordsDomainEvents` to every Platform entity or service — plenty of Platform/module
+mutations have no business-fact-worthy event at all (§1's taxonomy already excludes UI-refresh
+verbs from being events in the first place). Explicit criteria:
 
 | Situation | Recording model |
 |---|---|
@@ -385,10 +433,19 @@ application services always hand-construct events, aggregates never record anyth
 the sole model, since it lets a caller forget to construct an event with no structural safeguard
 (exactly the class of bug `_record_event`'s no-op-on-no-change guard prevents); accepted as a
 *secondary*, explicitly-scoped path for the orchestration case above, where there genuinely is no
-single aggregate whose method could have recorded it. **The Platform implementation plan (§28,
-Phase P5) lists the specific Platform capabilities to assess against this criteria table** — this
-ADR does not pre-judge which Platform capabilities get aggregate-recorded events versus
+single aggregate whose method could have recorded it. **The Platform implementation plan (Phase
+P5) lists the specific Platform capabilities to assess against this criteria table** — this ADR
+does not pre-judge which Platform capabilities get aggregate-recorded events versus
 orchestration-authored ones; that is a per-capability discovery task, not a blanket rule.
+
+**Enforcement, not just intention:** the Platform implementation plan requires, for every event
+introduced in Phase P5, an explicit reviewer check — "does an aggregate exist whose state
+transition this event represents? If yes, it MUST be `_record_event`-ed there, not
+`uow.record_event`-ed from the service" — recorded as a per-event checklist item, not merely
+asserted in this ADR's prose. A worked example of each path (one genuinely aggregate-recorded
+event, one genuinely orchestration-authored event with a documented reason no aggregate could have
+owned it) is required test coverage before Phase P5 closes, so the distinction is demonstrated,
+not only described.
 
 ### 7. Transactional Dispatch
 
@@ -482,12 +539,29 @@ No `session` field, no repository accessors on the shared protocol — a module-
 dedup semantics. `__exit__` never auto-commits on clean exit; `commit()` is always explicit,
 since that is where event coordination happens.
 
+**Explicit boundary — `UnitOfWork` exposes the transaction, never a general dependency lookup.**
+Neither the shared `UnitOfWork` protocol nor any module-specific extension gains a generic
+`repository_for(contract: type[R]) -> R`-shaped method callable with an arbitrary contract type
+from arbitrary handler code. An earlier draft of this revision proposed exactly that as a way to
+let `ApprovalService`'s cross-module apply handlers reach another module's repository within the
+same transaction; a critical review found it would let a `UnitOfWork` quietly become a general
+service locator (`uow.repository_for(ProjectRepository)`, `uow.repository_for(EmployeeRepository)`,
+`uow.repository_for(AnythingAtAll)`), which weakens module-boundary visibility, static
+enforcement, and testability exactly as much as any other ambient service locator does. **The one
+genuine cross-module case this codebase has (`ApprovalService`'s apply handlers) is resolved
+narrowly, in §24, by a per-handler-registration dependency declaration — not by a general method
+on `UnitOfWork` itself.** No other module's `UnitOfWork` extension gets, or needs, an equivalent
+mechanism; a transactional handler that needs another aggregate reaches it the ordinary way,
+through its own module-specific `UnitOfWork` extension's named, typed accessors
+(`uow.projects`, `uow.tasks`), decided per module at that module's own migration time, exactly as
+already specified below.
+
 **Rationale for the semantic reservation:** the audit found `ApprovalService`'s existing
 "unit of work" is a *logical* convention (only one method calls `.commit()`) enforced over the
 *same shared, process-lifetime `Session`* every other Platform service uses — not a physically
 isolated transaction. Two different guarantees sharing one name is a real risk once both exist
 side by side; reserving "UnitOfWork" for the stronger, physical guarantee and requiring anything
-weaker to use different vocabulary (§26) removes the ambiguity going forward.
+weaker to use different vocabulary (§24) removes the ambiguity going forward.
 
 Every repository exposes an explicit `update(aggregate)`/`add(aggregate)`, and every service or
 handler calls it before `uow.commit()` — confirmed necessary by this codebase's own
@@ -589,88 +663,145 @@ boundary; ADR-PF-011's own mapping step is exactly where a domain-event-shaped f
 A transport-independent hint that a read model is stale — never a business fact, never routed
 through the same contract as a `DomainEvent`.
 
+**Revised this pass.** The previous revision gave `ViewInvalidationChannel` five separately-named
+subscription methods (`subscribe`, `subscribe_tenant_wide`, `subscribe_across_organizations`,
+`subscribe_across_tenants`, `subscribe_to_platform_wide`) plus two separate hint types
+(`ViewInvalidationHint`/`PlatformViewInvalidationHint`), to keep `organization_id`/`tenant_id`
+structurally unambiguous. A critical review found this was solving a real problem
+(`organization_id: str | None` genuinely has two meanings that must never be confused) with the
+wrong tool (method proliferation) — and that the method count would keep growing with any future
+dimension. **Decision: replace the flat `tenant_id`/`organization_id`/two-hint-type shape with one
+typed, closed `EventScope` union, and collapse the five subscribe methods into one, parameterized
+by a small, equally closed `ScopeFilter` hierarchy.**
+
 ```python
+# src/core/shared/events/view_invalidation.py
+
+class EventScope(Protocol):
+    """A closed union of exactly three kinds — sealed by convention (only these three
+    dataclasses implement it; do not add a fourth without revisiting this ADR)."""
+
+@dataclass(frozen=True, slots=True)
+class PlatformScope(EventScope):
+    """No tenant at all. Genuinely installation-wide facts only."""
+
+@dataclass(frozen=True, slots=True)
+class TenantScope(EventScope):
+    """Tenant-wide — NOT organization-scoped. There is no organization_id field on this
+    type at all; a fact that belongs to one organization is never represented this way."""
+    tenant_id: str
+
+@dataclass(frozen=True, slots=True)
+class OrganizationScope(EventScope):
+    """Exactly one organization within one tenant. organization_id is a required
+    constructor argument — there is no way to construct this type without one."""
+    tenant_id: str
+    organization_id: str
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ViewInvalidationHint:
-    tenant_id: str
-    organization_id: str | None   # NEW — required to be explicit; None means tenant-wide
+    scope: EventScope             # PlatformScope | TenantScope | OrganizationScope
     category: str
     scope_code: str
     entity_type: str
     entity_id: str | None = None
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class PlatformViewInvalidationHint:
-    category: str
-    scope_code: str
-    entity_type: str
-    entity_id: str | None = None
-    # deliberately no tenant_id or organization_id — this type exists ONLY for hints with
-    # no tenant to scope them to; a hint that has a tenant, org-scoped or not, uses
-    # ViewInvalidationHint instead, never this type with fabricated values.
 ```
 
-**Subscription is structurally enforced at both the tenant boundary and the organization
-boundary — five distinct, non-overlapping entry points, mirroring how this ADR already treated
-tenant isolation as a structural (not binder-discipline) guarantee:**
+**Why this resolves the `organization_id=None` ambiguity structurally, not by convention:** under
+the flat shape, `organization_id=None` had to carry the entire weight of meaning "intentionally
+tenant-wide" versus every other, forbidden reading (§3's invariant table) — a discipline enforced
+only by this document's prose and code review. Under the typed union, a `TenantScope` **has no
+`organization_id` field to be ambiguous about** — the Python type checker rejects
+`TenantScope(tenant_id="A", organization_id="A1")` outright, and there is no constructor call that
+can produce an organization-scoped fact without supplying a real `organization_id`. The invariant
+becomes a fact about the type system, not a fact developers must remember.
+
+**Why `DomainEvent` does *not* also adopt `EventScope`:** see §3 — a `DomainEvent`'s
+`tenant_id`/`organization_id` are business vocabulary, read naturally alongside a dataclass's other
+plain identifier fields; `ViewInvalidationHint` is transport/filtering infrastructure, precisely
+where a subscriber needs to reason about *breadth* of interest (exact organization vs. any
+organization in a tenant vs. every tenant), a concept `DomainEvent` never needs at all. The two
+types are allowed, deliberately, to represent the same underlying fact differently, because they
+serve genuinely different readers.
+
+**Subscription collapses to one method, parameterized by a `ScopeFilter` — a *distinct* concept
+from `EventScope`, because "breadth of interest" is not itself a kind of scope a fact can have; it
+is a property of what a subscriber wants:**
 
 ```python
-class ViewInvalidationChannel(Protocol):
-    def notify(self, hint: ViewInvalidationHint) -> None: ...
-    def notify_platform_wide(self, hint: PlatformViewInvalidationHint) -> None: ...
+class ScopeFilter(Protocol):
+    def matches(self, scope: EventScope) -> bool: ...
 
-    def subscribe(
-        self, handler: ViewInvalidationHandler[ViewInvalidationHint],
-        *, tenant_id: str, organization_id: str,
-    ) -> Subscription: ...
-    """Exact match: this org's views only. A hint for a different organization in the
-    same tenant is never delivered here."""
+@dataclass(frozen=True, slots=True)
+class ExactOrganization(ScopeFilter):
+    """This organization's views only. A hint for a different organization in the same
+    tenant, or a tenant-wide hint, is never delivered here."""
+    tenant_id: str
+    organization_id: str
+    def matches(self, scope: EventScope) -> bool:
+        return isinstance(scope, OrganizationScope) and \
+            scope.tenant_id == self.tenant_id and scope.organization_id == self.organization_id
 
-    def subscribe_tenant_wide(
-        self, handler: ViewInvalidationHandler[ViewInvalidationHint], *, tenant_id: str,
-    ) -> Subscription: ...
-    """Only hints with organization_id=None (genuinely tenant-wide facts). An org-scoped
-    hint, even for an organization in this same tenant, is never delivered here."""
+@dataclass(frozen=True, slots=True)
+class TenantWide(ScopeFilter):
+    """Only genuinely tenant-wide facts for this tenant. An organization-scoped hint,
+    even for an organization in this same tenant, is never delivered here."""
+    tenant_id: str
+    def matches(self, scope: EventScope) -> bool:
+        return isinstance(scope, TenantScope) and scope.tenant_id == self.tenant_id
 
-    def subscribe_across_organizations(
-        self, handler: ViewInvalidationHandler[ViewInvalidationHint], *, tenant_id: str,
-    ) -> Subscription: ...
+@dataclass(frozen=True, slots=True)
+class AnyOrganizationInTenant(ScopeFilter):
     """Deliberate breadth: every hint for this tenant, tenant-wide or any organization's.
     For genuine tenant-admin/organization-selector screens — a searchable, auditable
     opt-in, never the default."""
+    tenant_id: str
+    def matches(self, scope: EventScope) -> bool:
+        return isinstance(scope, (TenantScope, OrganizationScope)) and scope.tenant_id == self.tenant_id
 
-    def subscribe_across_tenants(
-        self, handler: ViewInvalidationHandler[ViewInvalidationHint],
-    ) -> Subscription: ...
-    """Unchanged from earlier revisions — every tenant's hints, for a genuinely
-    cross-tenant platform-admin consumer. Not to be conflated with
-    subscribe_across_organizations, which is still scoped to one tenant."""
+@dataclass(frozen=True, slots=True)
+class AllTenants(ScopeFilter):
+    """Every tenant's hints. Rare, auditable, platform-admin-only. Not to be conflated
+    with AnyOrganizationInTenant, which is still scoped to one tenant."""
+    def matches(self, scope: EventScope) -> bool:
+        return isinstance(scope, (TenantScope, OrganizationScope))
 
-    def subscribe_to_platform_wide(
-        self, handler: ViewInvalidationHandler[PlatformViewInvalidationHint],
+@dataclass(frozen=True, slots=True)
+class PlatformWide(ScopeFilter):
+    """Only genuinely platform-wide facts — never a tenant-scoped hint of any kind."""
+    def matches(self, scope: EventScope) -> bool:
+        return isinstance(scope, PlatformScope)
+
+class ViewInvalidationChannel(Protocol):
+    def notify(self, hint: ViewInvalidationHint) -> None: ...
+    def subscribe(
+        self, filter: ScopeFilter, handler: ViewInvalidationHandler[ViewInvalidationHint],
     ) -> Subscription: ...
 ```
 
-**Routing, stated explicitly (this is what the implementation plan's tenant/organization test
-matrix, §29, directly exercises):**
+**One `notify`, one `subscribe` — the five named entry points from the previous revision become
+five `ScopeFilter` dataclasses instead of five channel methods.** This is a genuine simplification,
+not a relabeling: a sixth filter kind, if one is ever needed, is a new dataclass implementing
+`ScopeFilter`, never a new method on the channel contract itself — the channel's own
+`subscribe`/`notify` implementation never has to change to support it, since routing is just
+"call `filter.matches(hint.scope)` for every registered subscription and deliver to the ones that
+return `True`." The channel implementation therefore contains no per-filter-kind branching logic
+at all.
 
-- `notify(hint)` where `hint.organization_id is not None` → delivered to exact-match `subscribe`
-  subscribers for that `(tenant_id, organization_id)`, and to `subscribe_across_organizations`
-  subscribers for that `tenant_id`. **Never** to `subscribe_tenant_wide` subscribers (wrong shape
-  of fact for that contract) and **never** across tenants (unless via `subscribe_across_tenants`).
-- `notify(hint)` where `hint.organization_id is None` (tenant-wide fact) → delivered to
-  `subscribe_tenant_wide` subscribers for that `tenant_id`, and to `subscribe_across_organizations`
-  subscribers for that `tenant_id` (breadth naturally includes tenant-wide facts). **Never** to an
-  exact-match `subscribe(tenant_id, organization_id=...)` subscriber — a specific organization's
-  view must not refresh on a fact that isn't about that organization.
-- `subscribe_across_tenants` subscribers receive every `notify(...)` call regardless of tenant or
-  organization — unchanged, rare, auditable.
-- `notify_platform_wide(hint)` only ever reaches `subscribe_to_platform_wide` subscribers.
+**Routing, stated once, by construction, not enumerated per filter (this is exactly what the
+implementation plan's tenant/organization test matrix directly exercises):** `notify(hint)`
+delivers to every currently-registered `(filter, handler)` pair where `filter.matches(hint.scope)`
+is `True`. Every example from the previous revision's routing table still holds, now as a
+*consequence* of the five filters' own `matches` implementations above rather than as separately
+documented channel behavior — an `OrganizationScope(A, A1)` hint reaches `ExactOrganization(A, A1)`
+and `AnyOrganizationInTenant(A)` subscribers, never `TenantWide(A)` or any `Tenant B` subscriber
+(unless `AllTenants()`); a `TenantScope(A)` hint reaches `TenantWide(A)` and
+`AnyOrganizationInTenant(A)` subscribers, never `ExactOrganization(A, ...)` for any organization
+value; a `PlatformScope()` hint reaches only `PlatformWide()` subscribers.
 
 `scope_code`/`entity_type` filtering remains a binder-level convenience closure, exactly as
-before — only the tenant and organization dimensions are genuine security/correctness boundaries
-enforced by the channel itself; everything else is business-convenience filtering, unchanged from
-this ADR's original reasoning.
+before — only the tenant and organization dimensions (now expressed through `EventScope`/
+`ScopeFilter`) are genuine security/correctness boundaries enforced by the channel itself.
 
 Two independent failure-isolation responsibilities, unchanged from earlier revisions:
 `post_commit_event_bus` isolates failures between event *adapters*; `ViewInvalidationChannel.notify()`
@@ -697,7 +828,7 @@ disposal, refresh coalescing/scheduling, Qt-thread adaptation — into one share
 unification project**: the three controller bases' other responsibilities (loading/busy state,
 lazy-load gating, unrelated per-family behavior) are untouched; each base delegates its
 invalidation slice to the shared adapter instead of reimplementing it. The Platform
-implementation plan (§28, Phase P6) scopes this precisely.
+implementation plan (Phase P6) scopes this precisely.
 
 ### 14. Future SaaS Boundary
 
@@ -712,9 +843,9 @@ and neither is baked into any type defined above.
 
 The audit separately found that `TenantContextService`'s current ambient, mutable-session-object
 tenant model would not safely generalize to a concurrent multi-request server unchanged. That is
-a tenancy-architecture decision, out of scope here, and is recorded as an open dependency (§24)
-for whoever eventually designs the web adapter — not something this ADR resolves or should be
-read as having resolved.
+a tenancy-architecture decision, out of scope here, and is recorded as an open dependency (see
+"Open Items Before This Can Move to Accepted," below) for whoever eventually designs the web
+adapter — not something this ADR resolves or should be read as having resolved.
 
 ### 15. Dependency Injection / Composition
 
@@ -769,17 +900,36 @@ two unrelated things in the same file. Resolved:
 | Term | Decision | Blocking? |
 |---|---|---|
 | `DomainEvent`, `RecordsDomainEvents`, `TransactionalEventDispatcher`, `PostCommitEventPublisher`, `ViewInvalidationHint`/`Channel`, `UnitOfWork`/`UnitOfWorkFactory` | Adopt as specified above | New code only — no rename of anything existing |
-| `Signal[T]` (`src/core/shared/events/signal.py`) | **Rename to `CallbackSignal`** in a later phase (§28, Phase P7/P8) — resolves the same-file collision with `PySide6.QtCore.Signal` that today forces an import alias | **Not blocking** for Phase 0-P4 — scheduled as legacy-bridge cleanup once callers have migrated off it |
+| `Signal[T]` (`src/core/shared/events/signal.py`) | **Rename to `CallbackSignal`** in a later phase (the Platform implementation plan, Phase P7/P8) — resolves the same-file collision with `PySide6.QtCore.Signal` that today forces an import alias | **Not blocking** for Phase 0-P4 — scheduled as legacy-bridge cleanup once callers have migrated off it |
 | `PlatformEvent` | Document clearly as an **audit/governance record, not a Domain Event** (§1's taxonomy table). A future rename to `PlatformAuditEntry` is recommended | **DEFERRED — NOT BLOCKING.** It has exactly one real construction site (`tenant_admin_service.py`), is never dispatched or subscribed to, and its collision with "Domain Event" vocabulary is documentation-level, not functional. Renaming it is not a prerequisite for anything in this ADR. |
-| `ApprovalService`'s existing pattern | Do **not** call it a "Unit of Work" going forward (§9) — call it a transaction convention, pending its own migration (§26) | N/A — naming clarification only |
+| `ApprovalService`'s existing pattern | Do **not** call it a "Unit of Work" going forward (§9) — call it a transaction convention, pending its own migration (§24) | N/A — naming clarification only |
 
 `CallbackSignal` was chosen over `Observable` (implies reactive-programming operators — `map`/
 `filter`/etc. — this primitive has none, and the name would overpromise) and `EventEmitter`
 (reintroduces "Event" into the name of something that is not a `DomainEvent`, precisely the
-collision being resolved). The generic primitive is kept, not deleted, once
-`PostCommitEventPublisher`/`ViewInvalidationChannel` exist — it still has legitimate, narrower
-uses (simple property-change notification with no domain-event semantics) and 66+ existing
-callers that migrate gradually, not atomically.
+collision being resolved).
+
+**Lifecycle, stated explicitly rather than left as "kept forever" or "deleted eventually" without
+a plan:**
+
+1. **Now → Phase P4:** kept, unchanged, as `Signal[T]` — still the mechanism the legacy
+   `domain_events.py` bag depends on.
+2. **Phase P7 (per the execution plan):** renamed to `CallbackSignal` once `domain_events.py`'s own
+   consumers have migrated to `TransactionalEventDispatcher`/`PostCommitEventPublisher`/
+   `ViewInvalidationChannel` for domain-event purposes. At this point its **intended scope
+   narrows**: it is no longer the mechanism anything reaches for by default for a new
+   domain-event-shaped need — the three named mechanisms above supersede it for that purpose
+   entirely. It may still be used internally by their own concrete implementations if convenient
+   (an implementation detail, not a public contract), and it remains available for a genuinely
+   narrow, non-domain-event pub-sub need unrelated to this ADR's scope, if one exists.
+3. **Post-P8, explicitly not decided here:** whether `CallbackSignal` has any legitimate caller
+   left once `domain_events.py` itself is fully retired is an open question this ADR does not
+   resolve — the Platform audit's scope was domain-event-related usage specifically, not an
+   exhaustive inventory of every `Signal` call site in the codebase, so this ADR cannot responsibly
+   claim "zero remaining callers" or commit to a deletion date. **Full retirement is deferred,
+   pending a dedicated inventory of any non-domain-event callers, performed after Phase P8** — not
+   because retirement is undesirable, but because committing to it now would be a guess this ADR
+   is not in a position to make honestly.
 
 ### 20. Repository Locations
 
@@ -846,8 +996,20 @@ repeat the exact naming mistake this revision is correcting.
 The audit found real AST-based import-boundary tests already exist and work
 (`src/tests/architecture/test_qml_architecture_guardrails_layers.py`,
 `test_pm_inventory_module_boundary.py`) — this ADR does **not** introduce a new enforcement
-framework. It adds **one** test using the same technique: `src/core/platform/{domain,application}/`
-must not import `src.core.modules.*`.
+framework. It adds **one** test using the same technique: the **whole** `src/core/platform/`
+tree (`domain/`, `application/`, `infrastructure/`, `contract/`, `api/`, etc.) must not import
+`src.core.modules.*`.
+
+**Correction found during P0 implementation:** an earlier draft of this section scoped the
+guardrail to `src/core/platform/{domain,application}/` only — that scope statement was
+inconsistent with this section's own two governed exceptions below, one of which
+(`SqlAlchemyApprovalRepository`) lives under `src/core/platform/infrastructure/`, outside a
+domain/application-only scan. A domain/application-only guardrail would never have seen that
+violation, making its own "allowlisted in the guardrail test" statement meaningless. Corrected to
+scan the whole `src/core/platform/` tree, matching both governed exceptions and the audit's own
+methodology (which found both violations by scanning all of `src/core/platform/`, not a narrower
+subtree). No new violation surfaced by widening the scope — confirmed the whole tree contains
+exactly these two `src.core.modules` imports, no more.
 
 **Governed exceptions, explicit and auditable, not silent:**
 - `calendar_assignment_service.py`'s import of `project_management` domain types is governed by
@@ -875,7 +1037,7 @@ explicit citation back to this section, so it remains visible rather than quietl
 | `domain_events` singleton / `Signal` / `DomainChangeEvent` | Bridge incrementally, module/capability by module/capability, per the execution plan; retire once every consumer has migrated |
 | `admin_console/domain_event_binder.py` | Already self-scheduled for removal ("phase R2" per its own docstring) — this migration's Phase P6/P7 (implementation plan) absorbs and completes that already-planned removal, rather than leaving it as a separate, uncoordinated cleanup |
 | Three `workspace_controller_base.py` copies | Generalize the invalidation slice into one shared adapter (§13); do not bridge each of the three separately, and do not unify the rest of their responsibilities |
-| `ApprovalService`'s existing transaction convention | **Adapt** (§26) — migrate onto the canonical `UnitOfWork` in Phase P4, not bridged indefinitely and not left permanently distinct |
+| `ApprovalService`'s existing transaction convention | **Adapt** (§24) — migrate onto the canonical `UnitOfWork` in Phase P4, not bridged indefinitely and not left permanently distinct |
 | `project_management`'s `Resource*UnitOfWork` (module-owned, cited for comparison only) | Out of this ADR's Platform-scoped decision — resolved when `project_management`'s own module migration phase runs |
 | `PlatformEvent` | Kept as-is; rename deferred, non-blocking (§19) |
 | `NotificationService`/`Notification` | Kept as-is; unrelated to this migration |
@@ -902,10 +1064,86 @@ ADOPT wholesale (rejected — ignores the real session-sharing difference that m
 change); BRIDGE indefinitely (rejected — leaves two live conventions past this migration's own
 close, violating this codebase's no-straddling rule); PERMANENTLY KEEP DISTINCT (rejected — the
 two mechanisms solve the identical problem; keeping them separate forever is exactly the
-"competing convention" outcome this ADR exists to prevent).
+"competing convention" outcome this ADR exists to prevent). `ADR-PF-008` itself remains a
+**precedent being adapted**, never a second, permanently-standing definition of "Unit of Work" —
+once Phase P4 closes, `ApprovalService`'s own transaction boundary *is* a canonical `UnitOfWork`,
+not a parallel concept still called by the same name for a different guarantee.
+
+**The cross-module apply-handler problem, and the `repository_for(contract)` design it produces —
+reviewed and narrowed.** Migrating `ApprovalService` to a genuinely fresh, per-call `Session`
+(required for it to be a real `UnitOfWork` per §9) raises a real complication: its apply handlers
+are registered by *other modules* (PM's baseline/dependency/cost handlers, Inventory's
+requisition/PO handlers, per ADR-PF-008's own implementation evidence) and today mutate their own
+modules' repositories bound to the single shared session — a binding that becomes stale the moment
+`ApprovalService` moves to a fresh session per call.
+
+*Rejected first cut:* an early draft of this revision proposed
+`PlatformUnitOfWork.repository_for(contract: type[R]) -> R`, an open, contract-keyed lookup any
+handler could call with any repository contract type at any point in its body. **A critical review
+correctly identified this as a hidden general-purpose service locator in disguise** —
+`uow.repository_for(ProjectRepository)`, `uow.repository_for(EmployeeRepository)`,
+`uow.repository_for(AnythingAtAll)` — which would make a handler's real dependencies invisible at
+its registration site, undiscoverable by the architecture guardrail test (§21), and hard to unit
+test without faking an entire `UnitOfWork`'s lookup behavior. This directly contradicts the
+principle §9 already states: `UnitOfWork` exposes the transaction boundary; it must not become a
+general application dependency container.
+
+**Final decision: `repository_for` is REMOVED from `UnitOfWork`'s surface entirely (as §9 already
+states) and REPLACED with an explicit, declarative dependency mechanism scoped narrowly to
+`ApprovalService`'s own registration API — not a feature of `UnitOfWork` itself:**
+
+```python
+# src/core/platform/contracts/approval.py
+class ApprovalApplyHandler(Protocol[TDeps]):
+    def __call__(
+        self, request: ApprovalRequest, uow: PlatformUnitOfWork, deps: TDeps,
+    ) -> ApprovalHandlerResult: ...
+
+def register_apply_handler(
+    request_type: str,
+    handler: ApprovalApplyHandler[TDeps],
+    *,
+    dependencies: type[TDeps],   # e.g. a small, module-owned dataclass/Protocol naming
+                                  #   exactly what this handler needs — nothing more
+) -> None: ...
+```
+
+`TDeps` is a small, module-owned type (typically a frozen dataclass of named repository-contract
+fields) declared **at the same call site** as `register_apply_handler` — e.g.
+`project_management` declares `class ProjectBaselineApprovalDeps: baselines: ProjectBaselineRepository`
+and registers its handler with `dependencies=ProjectBaselineApprovalDeps`. `ApprovalService`
+resolves `TDeps` internally, at dispatch time, from a small binder registry populated at
+composition time (`platform_registry.py` maps each declared dependency type to a callable
+constructing its concrete repository from the *current* fresh session) — this resolution machinery
+is infrastructure code, and is allowed to know about concrete classes exactly as `RepositoryBundle`
+already does; the handler itself only ever receives a fully-constructed `deps: TDeps`, typed
+against contracts, never a raw `Session` and never an open lookup method it could call with an
+arbitrary type.
+
+- **Allowed usage:** only `ApprovalService`'s own internal dispatch logic resolves a handler's
+  declared `TDeps` from the binder registry. A module declares its dependency shape once, at
+  registration.
+- **Forbidden usage:** no handler body calls anything resembling `uow.repository_for(...)`; no
+  such method exists on `UnitOfWork`, base or Platform-extended, after this decision. No other
+  module's `UnitOfWork` extension gains an equivalent open lookup — this mechanism is scoped to
+  `ApprovalService`'s specific cross-module registration shape, not offered as a general pattern.
+- **How `ApprovalService` works afterward:** `approve_and_apply` constructs a fresh
+  `PlatformUnitOfWork`, looks up the registered handler and its declared `TDeps` type for the
+  request's `request_type`, resolves `TDeps` from the current session via the binder registry,
+  calls `handler(request, uow, deps)`.
+- **How module boundaries remain visible:** reading one `register_apply_handler(...,
+  dependencies=ProjectBaselineApprovalDeps)` call site shows exactly what that handler needs,
+  statically, in one place — no runtime lookup calls scattered through a handler's body to trace.
+- **Testing implications:** a handler is unit-tested by constructing its own `TDeps` directly with
+  fakes — no need to fake an entire `PlatformUnitOfWork` or intercept an open lookup method.
+
+`ApprovalHandlerResult.post_commit_events` also changes shape in this same phase, from
+`(signal_name: str, payload: str)` string-keyed reflection into the legacy bus, to
+`tuple[DomainEvent, ...]` — typed events, dispatched through the new `PostCommitEventPublisher`,
+per §7/§8.
 
 **[ADR-PF-011](ADR-PF-011-durable-integration-outbox-inbox.md) — Durable Integration Outbox and
-Inbox.** Decision: **preserved unchanged**, boundary restated unambiguously in §13. No merge, no
+Inbox.** Decision: **preserved unchanged**, boundary restated unambiguously in §11. No merge, no
 shared class hierarchy, no change to its retry/dead-letter/dedup/quarantine semantics.
 
 **[ADR-004](ADR-004-calendar-assignment-split-ownership.md) — Calendar Assignment Split
@@ -921,14 +1159,14 @@ This ADR does **not**:
 - assume one process serves one tenant, or one tenant has one organization — both are explicitly
   false and neither assumption is present in any contract defined here (§3);
 - merge Domain Events, Integration Events, Notifications, or Audit Records into one universal bus
-  (§1, §27);
+  (§1; see Alternatives Rejected);
 - fix the pre-existing `SqlAlchemyApprovalRepository → ProjectORM` layering violation as a side
   effect of this migration (§22);
 - unify the three `workspace_controller_base.py` classes' non-invalidation responsibilities into
   one QML controller hierarchy (§13);
 - rename `PlatformEvent` as a blocking prerequisite (§19);
 - introduce a metrics/tracing platform (§18);
-- change ADR-PF-011's durable delivery semantics in any way (§13, §24).
+- change ADR-PF-011's durable delivery semantics in any way (§11, §24).
 
 ## Alternatives Rejected
 
@@ -946,9 +1184,14 @@ transactions). Added this revision:
   with different durability, transport, and tenancy requirements; collapsing them would not
   simplify anything and would break ADR-PF-011's durability guarantees the moment a "convenient"
   in-process shortcut got taken.
-- **A nested `EventScope`/`TenantScope`/`OrganizationScope` type hierarchy.** Rejected per §3 —
-  unnecessary indirection over a distinction two plain fields already express, inconsistent with
-  the one proven precedent (`IntegrationEventEnvelope`) this codebase already has.
+- **A nested `EventScope` hierarchy for `DomainEvent`.** Rejected per §3 for `DomainEvent`
+  specifically — a business-fact dataclass reads more naturally with plain `tenant_id`/
+  `organization_id` fields alongside its other plain identifiers than with a wrapped, transport-
+  flavored `scope` object it never needs to filter or route by breadth. **Adopted, not rejected,
+  for `ViewInvalidationHint`/`ViewInvalidationChannel`** (§12, revised this pass) — the ambiguity
+  a flat `organization_id: str | None` created for a *subscriber-facing, breadth-filtering*
+  contract was real, and the earlier revision's five-separately-named-methods fix was the wrong
+  tool for it; a closed `EventScope` union removes the ambiguity structurally instead.
 - **`schema_version` on every in-process `DomainEvent`.** Rejected per §11 — imports a
   durable-messaging concern into a mechanism that never crosses a durable boundary.
 - **Correlation/causation IDs directly on every `DomainEvent`.** Rejected per §5 — pollutes
@@ -958,22 +1201,47 @@ transactions). Added this revision:
   §9/§24 — it is a logical convention over a shared session, not the physical, per-transaction
   guarantee this ADR reserves the name for; conflating the two was the original gap the audit
   found.
+- **An open `uow.repository_for(contract: type[R]) -> R` method on `UnitOfWork`.** Rejected per
+  §9/§24, after being proposed and then critically reviewed within this same revision — it would
+  let `UnitOfWork` become a general, ambient service locator, weakening dependency visibility,
+  static enforcement, and testability exactly as much as any other service locator does. Replaced
+  with an explicit, declarative per-handler `dependencies: type[TDeps]` mechanism scoped to
+  `ApprovalService`'s own registration API (§24), not a feature of `UnitOfWork` itself.
+- **Five separately-named `ViewInvalidationChannel` subscription methods
+  (`subscribe`/`subscribe_tenant_wide`/`subscribe_across_organizations`/`subscribe_across_tenants`/
+  `subscribe_to_platform_wide`).** Rejected per §12, after being proposed and then critically
+  reviewed within this same revision — the method count would keep growing with any future
+  filtering dimension. Replaced with one `subscribe(filter: ScopeFilter, handler)` method and a
+  small, closed, independently-extensible `ScopeFilter` dataclass hierarchy.
 - **Fixing the `SqlAlchemyApprovalRepository → ProjectORM` violation, or unifying the three
   controller bases wholesale, as part of this migration.** Rejected per §22/§13/§25 — genuine,
   real problems, but out of this ADR's scope; fixing them here would be uncontrolled scope creep
   into a migration that already has enough surface area.
+- **A `MultiOrganizationScope`/`organization_ids: list[str]`-shaped scope for facts affecting a
+  known, finite set of organizations.** Rejected per §3a — multiple individually-correct,
+  organization-scoped hints are simpler to route, test, and reason about, and nothing in this
+  product's current requirements evidences a need for genuine bulk multi-organization fan-out.
 
 ## Consequences
 
 - Every module (and, per capability, Platform) gains `domain/events.py`, an
   `application/event_handlers/{transactional,view_invalidation}.py` pair, and module/capability-
   owned invalidation-hint constants.
-- Every tenant-owned `DomainEvent` and `ViewInvalidationHint` now carries an explicit
-  `organization_id: str | None`, not just `tenant_id` — a real, structural change from this ADR's
-  earlier revisions, driven directly by this product's actual tenant/organization data model.
-- `ViewInvalidationChannel` gains five distinct subscription entry points instead of the three
-  earlier revisions specified, to make the organization dimension a structural boundary alongside
-  the tenant dimension.
+- Every tenant-owned `DomainEvent` now carries an explicit `organization_id: str | None`, not
+  just `tenant_id` — a real, structural change driven directly by this product's actual
+  tenant/organization data model. `ViewInvalidationHint` represents the same distinction through a
+  closed `EventScope` union (`PlatformScope`/`TenantScope`/`OrganizationScope`) instead of plain
+  fields, so the ambiguity of `organization_id=None` is resolved by the type system rather than by
+  convention (§3, §12).
+- `ViewInvalidationChannel` collapses to **one** `notify` and **one** `subscribe` method,
+  parameterized by a small, closed, independently-extensible `ScopeFilter` hierarchy — replacing
+  an intermediate draft of this revision that had proposed five separately-named subscription
+  methods (§12).
+- `UnitOfWork` does **not** gain a general `repository_for(contract)`-style lookup — an
+  intermediate draft of this revision proposed one and a critical review found it would make
+  `UnitOfWork` a hidden service locator; the one genuine cross-module need
+  (`ApprovalService`'s apply handlers) is met instead by an explicit, declarative
+  `dependencies: type[TDeps]` mechanism scoped to `ApprovalService`'s own registration API (§24).
 - `PostCommitEventHandler`'s signature gains an explicit `context: DomainEventContext` parameter
   — a deliberate, documented change from `(event) -> None` to `(event, context) -> None`.
 - `UnitOfWork` gains `record_event(event)` (the orchestration-fact escape hatch, §6) and a
@@ -1005,24 +1273,43 @@ reuse; a cyclical transactional setup fails loudly at `MAX_DISPATCH_ROUNDS` rath
 concurrent `publish()` calls don't corrupt the post-commit bus; the empty-queue/`_dispatching`-flip
 race is closed; handler-registry snapshots are lock-consistent with concurrent subscribe/dispose):
 
-- A `ViewInvalidationHint` for `(Tenant A, Organization A1)` reaches an exact-match
-  `subscribe(tenant_id="A", organization_id="A1")` subscriber and a
-  `subscribe_across_organizations(tenant_id="A")` subscriber, but **not** a
-  `subscribe(tenant_id="A", organization_id="A2")` subscriber, **not** a
-  `subscribe_tenant_wide(tenant_id="A")` subscriber, and **not** any `Tenant B` subscriber.
-- A tenant-wide hint (`organization_id=None`) for Tenant A reaches `subscribe_tenant_wide` and
-  `subscribe_across_organizations` subscribers for Tenant A, but **not** any exact-match
-  `subscribe(tenant_id="A", organization_id=...)` subscriber.
-- `subscribe_across_tenants` receives hints from every tenant; `subscribe_to_platform_wide`
-  receives only `PlatformViewInvalidationHint`s and never a tenant-scoped `ViewInvalidationHint`.
+- A `ViewInvalidationHint(scope=OrganizationScope("A", "A1"), ...)` reaches an
+  `ExactOrganization("A", "A1")` subscriber and an `AnyOrganizationInTenant("A")` subscriber, but
+  **not** an `ExactOrganization("A", "A2")` subscriber, **not** a `TenantWide("A")` subscriber,
+  and **not** any Tenant B subscriber (unless `AllTenants()`).
+- A `ViewInvalidationHint(scope=TenantScope("A"), ...)` reaches `TenantWide("A")` and
+  `AnyOrganizationInTenant("A")` subscribers, but **not** any `ExactOrganization("A", ...)`
+  subscriber for any organization value.
+- `AllTenants()` receives hints from every tenant, any scope kind except `PlatformScope`;
+  `PlatformWide()` receives only `PlatformScope`-scoped hints and never a tenant-scoped one.
+- **`TenantScope("A", organization_id="A1")` and `OrganizationScope("A")` (missing
+  `organization_id`) are both construction-time errors** — the type system, not a runtime check,
+  makes an organization-scoped fact without an organization, or a tenant-wide fact with one,
+  structurally impossible to construct (§12).
+- A mutation known to affect exactly `{A1, A2}` within Tenant A, not A3, is represented as two
+  `OrganizationScope`-scoped hints (`Hint(A, A1)`, `Hint(A, A2)`) — **never** as a single
+  `TenantScope(A)` hint — and neither reaches an `ExactOrganization("A", "A3")` subscriber (§3a),
+  directly tested as its own case distinct from the genuinely-tenant-wide case above.
+- A `TenantScope`/`PlatformScope` hint is only ever produced by an explicit, deliberate
+  construction call at the point a genuinely tenant-wide or platform-wide fact is known — never
+  derived implicitly from an organization-scoped fact whose organization happened to be omitted.
 - An organization-scoped `DomainEvent` constructed with `organization_id=None` where the event's
-  own type declares it required is a construction-time type error, not a runtime surprise.
+  own type declares it required is a construction-time type error, not a runtime surprise (§3).
 - A transactional handler loading and mutating a second aggregate that itself records a new event
   causes that event to be discovered and dispatched in a subsequent round (§10), directly tested.
 - `PostCommitEventHandler`'s context parameter carries the same `correlation_id` the triggering
   `UnitOfWork` was constructed with.
 - Integration-event mapping (where a module opts an event into it) happens strictly before
   `uow.commit()`, and a rolled-back transaction produces zero outbox rows for that event.
+- An event genuinely produced by an aggregate's own state transition, recorded instead via
+  `uow.record_event(...)` by mistake, is caught by the Phase P5 per-event reviewer checklist (§6)
+  — demonstrated by one worked aggregate-recorded example and one worked, justified
+  orchestration-authored example, not merely asserted.
+- `ApprovalService`'s apply handler receives a fully-constructed `deps: TDeps` matching exactly
+  what it declared via `dependencies=` at registration, bound to the *same* fresh session as the
+  triggering `approve_and_apply` call — and no handler can reach a repository it did not declare
+  (§24) — proven by a test asserting a handler's `TDeps` type is the only way it obtains a
+  repository, not an incidental fact about the current implementation.
 
 ## Implementation Evidence
 
