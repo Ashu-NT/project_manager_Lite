@@ -59,7 +59,8 @@ AppLayouts.WorkspaceFrame {
     }
     readonly property bool _hasInspector: String(root.workspaceController
         ? root.workspaceController.selectedResourceId : "").length > 0
-    readonly property bool _useSideInspector: root.width >= Theme.AppTheme.inspectorWidth + 720
+    readonly property int _sideInspectorThreshold: Theme.AppTheme.inspectorWidth + 720
+    readonly property bool _useSideInspector: root.width >= root._sideInspectorThreshold
     readonly property var _inspectorSections: root.resourceInspectorModel.fields || []
 
     function _clearInspector() {

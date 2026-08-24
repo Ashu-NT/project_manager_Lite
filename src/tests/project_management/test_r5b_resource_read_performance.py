@@ -86,7 +86,9 @@ def test_r5b_resource_inspector_scale_measurement(services) -> None:
         role="Planner",
     )
     resource_service = services["resource_service"]
+    cold_started = perf_counter()
     resource_service.get_resource_inspector(resource.id)
+    cold_ms = (perf_counter() - cold_started) * 1_000.0
 
     elapsed_ms: list[float] = []
     session = services["project_service"]._session
@@ -110,10 +112,46 @@ def test_r5b_resource_inspector_scale_measurement(services) -> None:
     per_query_statements = statement_count // len(elapsed_ms)
     print(
         f"R5B inspector p50_ms={sorted(elapsed_ms)[len(elapsed_ms)//2]:.2f} "
-        f"p95_ms={p95_ms:.2f} statements={per_query_statements}"
+        f"p95_ms={p95_ms:.2f} cold_ms={cold_ms:.2f} statements={per_query_statements}"
     )
     assert per_query_statements <= 2
     assert p95_ms <= 100.0
+    assert cold_ms <= 300.0
+
+
+def test_r5b_resource_summary_scale_measurement(services) -> None:
+    resource = services["resource_service"].create_resource(
+        name="Summary Performance Resource",
+        role="Planner",
+    )
+    resource_service = services["resource_service"]
+    resource_service.get_resource_summary(resource.id)
+    elapsed_ms: list[float] = []
+    session = services["project_service"]._session
+    engine = session.get_bind()
+    statement_count = 0
+
+    def count_statement(*_args, **_kwargs) -> None:
+        nonlocal statement_count
+        statement_count += 1
+
+    event.listen(engine, "before_cursor_execute", count_statement)
+    try:
+        for _ in range(10):
+            before = perf_counter()
+            resource_service.get_resource_summary(resource.id)
+            elapsed_ms.append((perf_counter() - before) * 1_000.0)
+    finally:
+        event.remove(engine, "before_cursor_execute", count_statement)
+
+    p95_ms = _p95(elapsed_ms)
+    per_query_statements = statement_count // len(elapsed_ms)
+    print(
+        f"R5B summary p50_ms={sorted(elapsed_ms)[len(elapsed_ms)//2]:.2f} "
+        f"p95_ms={p95_ms:.2f} statements={per_query_statements}"
+    )
+    assert per_query_statements <= 2
+    assert p95_ms <= 300.0
 
 
 def test_r5b_resource_catalog_sqlite_query_plan_evidence(services) -> None:

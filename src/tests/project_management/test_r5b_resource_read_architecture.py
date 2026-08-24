@@ -14,7 +14,8 @@ from src.core.modules.project_management.contracts.reads.resources import (
     ResourceInspectorFact,
     ResourceSummaryFact,
 )
-from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
+from src.core.platform.domain.security.auth.session import UserSessionPrincipal
 from src.ui_qml.modules.project_management.controllers.resources.resource_read_handler import (
     load_resource_inspector,
 )
@@ -115,6 +116,67 @@ def test_resource_inspector_and_summary_fail_closed_after_organization_switch(se
         organization_service.set_active_organization(original.id)
 
 
+def test_resource_inspector_and_summary_fail_closed_after_tenant_switch(services) -> None:
+    resource = services["resource_service"].create_resource(name="Tenant Scoped Planner")
+    resource_service = services["resource_service"]
+    organization_id = services["user_session"].stored_active_organization_id()
+
+    inspector = resource_service._resource_inspector_reader.read_inspector(
+        tenant_id="r5b-other-tenant",
+        organization_id=organization_id,
+        resource_id=resource.id,
+    )
+    summary = resource_service._resource_summary_reader.read_summary(
+        tenant_id="r5b-other-tenant",
+        organization_id=organization_id,
+        resource_id=resource.id,
+    )
+
+    assert inspector is None
+    assert summary is None
+
+
+def test_resource_inspector_and_summary_require_resource_read(services) -> None:
+    resource = services["resource_service"].create_resource(name="Protected Planner")
+    user_session = services["user_session"]
+    original = user_session.principal
+    assert original is not None
+    user_session.set_principal(
+        UserSessionPrincipal(
+            user_id=original.user_id,
+            username=original.username,
+            display_name=original.display_name,
+            role_names=frozenset(),
+            permissions=frozenset({"organization.access"}),
+            scoped_access=original.scoped_access,
+            active_tenant_id=original.active_tenant_id,
+            active_organization_id=original.active_organization_id,
+        )
+    )
+    try:
+        with pytest.raises(BusinessRuleError) as inspector_error:
+            services["resource_service"].get_resource_inspector(resource.id)
+        with pytest.raises(BusinessRuleError) as summary_error:
+            services["resource_service"].get_resource_summary(resource.id)
+        assert inspector_error.value.code == "PERMISSION_DENIED"
+        assert summary_error.value.code == "PERMISSION_DENIED"
+    finally:
+        user_session.set_principal(original)
+
+
+def test_inactive_resource_inspector_exposes_reactivate_only(services) -> None:
+    resource = services["resource_service"].create_resource(
+        name="Inactive Planner",
+        is_active=False,
+    )
+
+    inspector = services["resource_service"].get_resource_inspector(resource.id)
+
+    assert inspector.is_active is False
+    assert inspector.can_deactivate is False
+    assert inspector.can_reactivate is True
+
+
 def test_resource_catalog_search_excludes_contact_and_address_pii(services) -> None:
     resource_service = services["resource_service"]
     resource_service.create_resource(
@@ -161,7 +223,8 @@ def test_r5b_resource_qml_uses_final_sections_and_actual_workspace_width() -> No
     state = (root / "ResourcesWorkspaceState.qml").read_text(encoding="utf-8")
     panel = (root / "panels/ResourcesDetailPanel.qml").read_text(encoding="utf-8")
 
-    assert "root.width >= Theme.AppTheme.inspectorWidth + 720" in page
+    assert "root.width >= root._sideInspectorThreshold" in page
+    assert "Theme.AppTheme.inspectorWidth + 720" in page
     assert "Window.width" not in page
     assert "InspectorPanel" in page
     assert "resourceInspectorModel" in page
@@ -174,7 +237,7 @@ def test_r5b_resource_qml_uses_final_sections_and_actual_workspace_width() -> No
 
 @pytest.mark.parametrize(
     ("width", "height"),
-    [(1024, 640), (1280, 720), (1366, 768), (1440, 900), (1920, 1080)],
+    [(800, 640), (1024, 640), (1280, 720), (1366, 768), (1440, 900), (1920, 1080)],
 )
 def test_r5b_resource_workspace_runtime_geometry(qapp, width: int, height: int) -> None:
     messages: list[str] = []
@@ -199,7 +262,8 @@ def test_r5b_resource_workspace_runtime_geometry(qapp, width: int, height: int) 
         assert catalog is not None
         assert 0 < float(catalog.property("width")) <= width
         assert 0 < float(catalog.property("height")) <= height
-        assert bool(page.property("_useSideInspector")) is (width >= 1080)
+        threshold = int(page.property("_sideInspectorThreshold"))
+        assert bool(page.property("_useSideInspector")) is (width >= threshold)
     finally:
         qInstallMessageHandler(previous_handler)
 
