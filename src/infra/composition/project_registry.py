@@ -77,7 +77,6 @@ from src.core.modules.project_management.application.resources.assignment_valida
 )
 from src.core.modules.project_management.application.scheduling.calendars.project_calendar_adapter import ProjectCalendarAdapter
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
-from src.core.modules.project_management.application.resources.resource_availability_service import ResourceAvailabilityService
 from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
 from src.core.modules.project_management.application.resources.resource_workload_service import ResourceWorkloadService
 from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import PortfolioResourcePoolService
@@ -91,6 +90,7 @@ from src.core.modules.project_management.infrastructure.persistence.reads.projec
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.resources import (
     SqlAlchemyResourceCatalogReader,
+    SqlAlchemyResourceWorkloadDemandReader,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.register import (
     SqlAlchemyRegisterCatalogReader,
@@ -163,7 +163,6 @@ class ProjectManagementServiceBundle:
     enterprise_resource_availability: EnterpriseResourceAvailabilityService
     resource_capacity_calculator: ResourceCapacityCalculator
     resource_workload_service: ResourceWorkloadService
-    resource_multi_project_allocation_service: ResourceAvailabilityService
     portfolio_resource_pool_service: PortfolioResourcePoolService
 
 
@@ -634,25 +633,10 @@ def build_project_management_service_bundle(
     )
     resource_workload_service = ResourceWorkloadService(
         resource_repo=repositories.resource_repo,
-        assignment_repo=repositories.assignment_repo,
-        task_repo=repositories.task_repo,
+        demand_reader=SqlAlchemyResourceWorkloadDemandReader(session=session),
         availability_service=enterprise_resource_availability,
         user_session=platform_services.user_session,
-    )
-    # Percent-based (allocation_percent vs. Resource.capacity_percent)
-    # multi-project availability aggregation. NO LONGER the Task Assignment
-    # capacity authority (see enterprise_resource_availability /
-    # evaluate_task_assignment_capacity above, wired into TaskService for
-    # that) -- this instance's sole remaining legitimate consumer is the
-    # Resources workspace's own multi-project "Allocation Summary" display,
-    # which asks a genuinely different question ("is this resource
-    # overloaded across every project they're on") than Task Assignment's
-    # single-project capacity check. Kept, not deleted, per docs §44 §18.
-    resource_multi_project_allocation_service = ResourceAvailabilityService(
-        resource_repo=repositories.resource_repo,
-        assignment_repo=repositories.assignment_repo,
-        task_repo=repositories.task_repo,
-        calendar=work_calendar_engine,
+        tenant_context_service=platform_services.tenant_context_service,
     )
     portfolio_resource_pool_service = PortfolioResourcePoolService(
         reader=SqlAlchemyPortfolioResourcePoolReader(session=session),
@@ -713,7 +697,6 @@ def build_project_management_service_bundle(
         enterprise_resource_availability=enterprise_resource_availability,
         resource_capacity_calculator=resource_capacity_calculator,
         resource_workload_service=resource_workload_service,
-        resource_multi_project_allocation_service=resource_multi_project_allocation_service,
         portfolio_resource_pool_service=portfolio_resource_pool_service,
     )
 

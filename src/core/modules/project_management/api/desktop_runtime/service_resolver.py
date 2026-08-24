@@ -24,7 +24,6 @@ from src.core.modules.project_management.application.projects import ProjectServ
 from src.core.modules.project_management.application.resources import (
     PortfolioResourcePoolService,
     ProjectResourceService,
-    ResourceAvailabilityService,
     ResourceService,
     ResourceWorkloadService,
 )
@@ -52,10 +51,7 @@ class ProjectManagementDesktopRuntimeServices:
     collaboration_service: CollaborationService | None
     register_service: RegisterService | None
     resource_service: ResourceService | None
-    availability_service: (
-        ResourceAvailabilityService | EnterpriseResourceAvailabilityService | None
-    )
-    resource_multi_project_allocation_service: ResourceAvailabilityService | None
+    availability_service: EnterpriseResourceAvailabilityService | None
     resource_workload_service: ResourceWorkloadService | None
     pool_service: PortfolioResourcePoolService | None
     project_resource_service: ProjectResourceService | None
@@ -88,9 +84,6 @@ def resolve_project_management_desktop_runtime_services(
     register_service = services.get("register_service")
     resource_service = services.get("resource_service")
     availability_service = services.get("resource_availability_service")
-    resource_multi_project_allocation_service = services.get(
-        "resource_multi_project_allocation_service"
-    )
     resource_workload_service = services.get("resource_workload_service")
     pool_service = services.get("portfolio_resource_pool_service")
     project_resource_service = services.get("project_resource_service")
@@ -140,20 +133,7 @@ def resolve_project_management_desktop_runtime_services(
         ),
         availability_service=(
             availability_service
-            if isinstance(
-                availability_service,
-                (
-                    ResourceAvailabilityService,
-                    EnterpriseResourceAvailabilityService,
-                ),
-            )
-            else None
-        ),
-        resource_multi_project_allocation_service=(
-            resource_multi_project_allocation_service
-            if isinstance(
-                resource_multi_project_allocation_service, ResourceAvailabilityService
-            )
+            if isinstance(availability_service, EnterpriseResourceAvailabilityService)
             else None
         ),
         pool_service=(

@@ -7,6 +7,7 @@ from .models import (
     ResourceInspectorFact,
     ResourceSummaryFact,
 )
+from .workload_reader import ResourceWorkloadDemandFact, ResourceWorkloadDemandReader
 
 __all__ = [
     "ResourceCatalogReadItem",
@@ -17,4 +18,6 @@ __all__ = [
     "ResourceInspectorReader",
     "ResourceSummaryFact",
     "ResourceSummaryReader",
+    "ResourceWorkloadDemandFact",
+    "ResourceWorkloadDemandReader",
 ]

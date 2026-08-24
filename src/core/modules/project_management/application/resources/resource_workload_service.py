@@ -7,6 +7,12 @@ from decimal import Decimal
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_permission,
 )
+from src.core.modules.project_management.contracts.reads.resources import (
+    ResourceWorkloadDemandReader,
+)
+from src.core.platform.application.tenant.tenancy.tenant_context import (
+    TenantContextService,
+)
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 
 
@@ -57,16 +63,16 @@ class ResourceWorkloadService:
         self,
         *,
         resource_repo,
-        assignment_repo,
-        task_repo,
+        demand_reader: ResourceWorkloadDemandReader,
         availability_service,
         user_session,
+        tenant_context_service: TenantContextService,
     ) -> None:
         self._resources = resource_repo
-        self._assignments = assignment_repo
-        self._tasks = task_repo
+        self._demand_reader = demand_reader
         self._availability = availability_service
         self._user_session = user_session
+        self._tenant_context_service = tenant_context_service
 
     def read(
         self,
@@ -96,6 +102,10 @@ class ResourceWorkloadService:
         if resource is None:
             raise NotFoundError("Resource not found.", code="RESOURCE_NOT_FOUND")
 
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view resource availability"
+        )
+
         capacity_percent = _decimal(resource.capacity_percent)
         capacity_fraction = capacity_percent / Decimal("100")
         calendar_days = self._availability.get_availability_range(
@@ -107,11 +117,13 @@ class ResourceWorkloadService:
         )
         calendar_by_date = {day.date: day for day in calendar_days}
 
-        assignments = tuple(self._assignments.list_by_resource(resource_id))
-        task_ids = sorted({assignment.task_id for assignment in assignments})
-        tasks_by_id = {
-            task.id: task for task in self._tasks.list_by_ids(task_ids)
-        } if task_ids else {}
+        assignments = self._demand_reader.read_overlapping_assignments(
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            resource_id=resource_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
 
         planned_by_date: dict[date, Decimal] = {}
         assignments_by_date: dict[date, set[str]] = {}
@@ -119,22 +131,11 @@ class ResourceWorkloadService:
         relevant_assignment_ids: set[str] = set()
         allocated_planned_hours = Decimal("0")
         for assignment in assignments:
-            task = tasks_by_id.get(assignment.task_id)
-            if task is None:
-                continue
-            task_start = getattr(task, "start_date", None)
-            task_end = getattr(task, "end_date", None)
-            if task_start is None or task_end is None:
-                continue
-            overlap_start = max(start_date, task_start)
-            overlap_end = min(end_date, task_end)
-            if overlap_end < overlap_start:
-                continue
-            project_ids.add(str(task.project_id))
-            relevant_assignment_ids.add(str(assignment.id))
-            allocated_planned_hours += _decimal(
-                getattr(assignment, "allocated_planned_hours", Decimal("0"))
-            )
+            overlap_start = max(start_date, assignment.task_start)
+            overlap_end = min(end_date, assignment.task_end)
+            project_ids.add(assignment.project_id)
+            relevant_assignment_ids.add(assignment.assignment_id)
+            allocated_planned_hours += assignment.allocated_planned_hours
             allocation_fraction = _decimal(assignment.allocation_percent) / Decimal("100")
             current = overlap_start
             while current <= overlap_end:
@@ -145,7 +146,7 @@ class ResourceWorkloadService:
                         current, Decimal("0")
                     ) + raw_hours * allocation_fraction
                     assignments_by_date.setdefault(current, set()).add(
-                        str(assignment.id)
+                        assignment.assignment_id
                     )
                 current += timedelta(days=1)
 

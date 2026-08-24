@@ -80,10 +80,7 @@ from src.core.modules.project_management.api.desktop.resources.utils.resource_en
     coerce_cost_type,
     coerce_worker_type,
 )
-from src.core.modules.project_management.application.resources import (
-    ResourceAvailabilityService,
-    ResourceService,
-)
+from src.core.modules.project_management.application.resources import ResourceService
 from src.core.modules.project_management.application.resources.resource_master_events import (
     ResourceMasterChangeType,
 )
@@ -105,7 +102,6 @@ class ProjectManagementResourcesDesktopApi:
         *,
         resource_service: ResourceService | None = None,
         employee_service: EmployeeService | None = None,
-        availability_service: ResourceAvailabilityService | None = None,
         workload_service: object | None = None,
         task_service: object | None = None,
         project_service: object | None = None,
@@ -114,7 +110,6 @@ class ProjectManagementResourcesDesktopApi:
     ) -> None:
         self._resource_service = resource_service
         self._employee_service = employee_service
-        self._availability_service = availability_service
         self._workload_service = workload_service
         self._task_service = task_service
         self._project_service = project_service

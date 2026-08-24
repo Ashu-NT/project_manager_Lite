@@ -108,7 +108,6 @@ from src.core.platform.application.time_management.calendar.capacity.working_tim
 from src.core.modules.project_management.application.resources.resource_capacity_calculator import ResourceCapacityCalculator
 from src.core.modules.project_management.application.resources.resource_workload_service import ResourceWorkloadService
 from src.core.modules.project_management.application.resources.enterprise_resource_availability import EnterpriseResourceAvailabilityService
-from src.core.modules.project_management.application.resources.resource_availability_service import ResourceAvailabilityService
 from src.core.modules.project_management.application.resources.portfolio_resource_pool_service import PortfolioResourcePoolService
 from src.infra.composition.inventory_registry import build_inventory_procurement_service_bundle
 from src.infra.composition.platform_registry import build_platform_service_bundle
@@ -210,7 +209,6 @@ class ServiceGraph:
     resource_capacity_calculator: ResourceCapacityCalculator | None
     resource_workload_service: ResourceWorkloadService | None
     enterprise_resource_availability: EnterpriseResourceAvailabilityService | None
-    resource_multi_project_allocation_service: ResourceAvailabilityService | None
     portfolio_resource_pool_service: PortfolioResourcePoolService | None
 
     def as_dict(self) -> dict[str, Any]:
@@ -301,24 +299,9 @@ class ServiceGraph:
             "resource_capacity_calculator": self.resource_capacity_calculator,
             "resource_workload_service": self.resource_workload_service,
             # The calendar-based capacity authority for Task Assignment
-            # availability/overallocation (docs §44) -- TaskService receives
-            # this same instance directly (see project_registry.py), and it
-            # also backs the Resources workspace's "Allocation Summary"
-            # display path via resource_capacity_calculator above. The
-            # Resources workspace's "Derived Capacity" card remains
-            # deliberately unwired (see docs §44 §17) -- it needs a
-            # different, resource-wide (not single-task) capacity query
-            # shape this key does not provide on its own.
+            # availability/overallocation. Resource Detail Availability also
+            # uses this instance through the bounded Resource workload query.
             "resource_availability_service": self.enterprise_resource_availability,
-            # Percent-based (allocation_percent vs. Resource.capacity_percent)
-            # multi-project availability aggregation. NOT the Task Assignment
-            # capacity authority (that migrated to the calendar-based service
-            # above in docs §44's follow-up pass) -- this remains wired only
-            # for the Resources workspace's own multi-project "Allocation
-            # Summary" display, a genuinely different question (overloaded
-            # across every project a resource is on) than Task Assignment's
-            # single-project capacity check.
-            "resource_multi_project_allocation_service": self.resource_multi_project_allocation_service,
             "portfolio_resource_pool_service": self.portfolio_resource_pool_service,
         }
 
@@ -489,7 +472,6 @@ def build_service_graph(session: Session) -> ServiceGraph:
         resource_capacity_calculator=project_management_services.resource_capacity_calculator,
         resource_workload_service=project_management_services.resource_workload_service,
         enterprise_resource_availability=project_management_services.enterprise_resource_availability,
-        resource_multi_project_allocation_service=project_management_services.resource_multi_project_allocation_service,
         portfolio_resource_pool_service=project_management_services.portfolio_resource_pool_service,
     )
     logger.debug(

@@ -94,7 +94,6 @@ def build_project_management_desktop_runtime_apis(
         project_management_resources=build_project_management_resources_desktop_api(
             resource_service=resolved.resource_service,
             employee_service=platform_dependencies.employee_service,
-            availability_service=resolved.resource_multi_project_allocation_service,
             workload_service=resolved.resource_workload_service,
             task_service=resolved.task_service,
             project_service=resolved.project_service,

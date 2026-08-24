@@ -15,12 +15,11 @@ It also builds real, per-day existing/proposed committed-hours facts from
 actual TaskAssignment data, which none of the four existing calculators do
 for this specific "is this proposed task assignment capacity-safe" question.
 
-`ResourceAvailabilityService` (the plain percent-based one) and
-`ResourceLoadEngine`/`PortfolioResourcePoolService` are deliberately left
-alone by this module -- they serve other, still-legitimate call sites
-(Resources-workspace multi-project display; Dashboard/Scheduling KPIs;
-portfolio capacity) and are not being made to agree with this new
-authority in this pass. See docs §44 for the full accounting.
+Resource Detail's multi-project workload view now uses its own bounded reader
+and the same enterprise calendar adapter. `ResourceLoadEngine` and
+`PortfolioResourcePoolService` remain distinct set-based projection tools for
+Dashboard/Scheduling KPIs and portfolio capacity. See docs §44 for the full
+accounting.
 """
 
 from __future__ import annotations

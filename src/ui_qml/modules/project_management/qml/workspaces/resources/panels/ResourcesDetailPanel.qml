@@ -116,11 +116,13 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === 2
+        loadingMessage: "Loading Resource availability..."
         sourceComponent: Component {
-            ResourcesDeferredSection {
+            ResourcesAvailabilitySection {
                 width: parent ? parent.width : 0
-                title: "Availability"
-                message: "The authoritative calendar and workload projection is delivered in R5D. No legacy capacity formula is shown here."
+                resourceId: String(root.resourceDetail.id || "")
+                workspaceController: root.workspaceController
+                isBusy: root.isBusy
             }
         }
     }

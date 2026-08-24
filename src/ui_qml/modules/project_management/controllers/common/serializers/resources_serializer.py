@@ -12,6 +12,18 @@ from src.ui_qml.modules.project_management.view_models.resources import (
 )
 
 
+def _hours_label(value: float) -> str:
+    return f"{value:,.1f} h"
+
+
+def _availability_day_status(day) -> str:
+    if day.overallocated:
+        return "Over capacity"
+    if day.effective_capacity_hours <= 0:
+        return "Non-working"
+    return "Within capacity"
+
+
 def serialize_resource_catalog_overview_view_model(
     view_model: ResourceCatalogOverviewViewModel,
 ) -> dict[str, object]:
@@ -153,13 +165,17 @@ def serialize_resource_availability_view_model(
                 "workDate": d.work_date,
                 "dateLabel": d.date_label,
                 "baseCapacityHours": d.base_capacity_hours,
+                "baseCapacityLabel": _hours_label(d.base_capacity_hours),
                 "effectiveCapacityHours": d.effective_capacity_hours,
+                "effectiveCapacityLabel": _hours_label(d.effective_capacity_hours),
                 "plannedCommitmentHours": d.planned_commitment_hours,
+                "plannedCommitmentLabel": _hours_label(d.planned_commitment_hours),
                 "remainingCapacityHours": d.remaining_capacity_hours,
+                "remainingCapacityLabel": _hours_label(d.remaining_capacity_hours),
                 "utilizationPercent": d.utilization_percent,
                 "utilizationLabel": d.utilization_label,
                 "overallocated": d.overallocated,
-                "statusLabel": "Overallocated" if d.overallocated else "Available",
+                "statusLabel": _availability_day_status(d),
                 "assignmentCount": d.assignment_count,
             }
             for d in vm.days

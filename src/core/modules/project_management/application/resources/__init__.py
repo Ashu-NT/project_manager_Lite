@@ -14,12 +14,6 @@ from src.core.modules.project_management.application.resources.portfolio_resourc
 from src.core.modules.project_management.application.resources.project_resource_service import (
     ProjectResourceService,
 )
-from src.core.modules.project_management.application.resources.resource_availability_service import (
-    MultiProjectAvailabilityReport,
-    ResourceAvailabilityService,
-    ResourceAvailabilityWindow,
-    ResourceDateLoad,
-)
 from src.core.modules.project_management.application.resources.resource_service import (
     ResourceService,
 )
@@ -41,13 +35,9 @@ from src.core.modules.project_management.application.resources.resource_load_eng
 __all__ = [
     "AssignmentSkillValidator",
     "AssignmentValidationResult",
-    "MultiProjectAvailabilityReport",
     "PortfolioResourcePoolReport",
     "PortfolioResourcePoolService",
     "ProjectResourceService",
-    "ResourceAvailabilityService",
-    "ResourceAvailabilityWindow",
-    "ResourceDateLoad",
     "ResourceDemandEntry",
     "ResourceLoadEngine",
     "ResourceLoadMetric",

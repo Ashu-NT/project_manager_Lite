@@ -50,6 +50,15 @@ AppLayouts.WorkspaceFrame {
     property string _selectedSkillId: ""
     property string _selectedCertificationId: ""
     readonly property var detailPage: detailPageLoader.item
+    readonly property string _activeSectionError: {
+        if (root.workspaceController === null || root.detailPage === null) return ""
+        const errors = root.workspaceController.sectionErrors || {}
+        if (root.detailPage.activeSectionIndex === 1) return String(errors.skills || "")
+        if (root.detailPage.activeSectionIndex === 2) return String(errors.availability || "")
+        return ""
+    }
+    readonly property string _visibleDetailError: String(root.workspaceController
+        ? root.workspaceController.detailError : "") || root._activeSectionError
     readonly property var _detailActions: {
         const idx = detailPage ? detailPage.activeSectionIndex : 0
         return state.detailActionsForSection(idx, {
@@ -325,15 +334,15 @@ AppLayouts.WorkspaceFrame {
                 AppWidgets.SectionScopedInlineMessage {
                     width: parent ? parent.width : 0
                     requestedVisible: root._detailOpen
-                        && String(root.workspaceController ? root.workspaceController.detailError : "").length > 0
+                        && root._visibleDetailError.length > 0
                     tone: "danger"
-                    message: root.workspaceController ? root.workspaceController.detailError : ""
+                    message: root._visibleDetailError
                 }
                 AppWidgets.SectionScopedInlineMessage {
                     width: parent ? parent.width : 0
                     requestedVisible: root._detailOpen
                         && String(root.workspaceController ? root.workspaceController.feedbackMessage : "").length > 0
-                        && String(root.workspaceController ? root.workspaceController.detailError : "").length === 0
+                        && root._visibleDetailError.length === 0
                     tone: "success"
                     message: root.workspaceController ? root.workspaceController.feedbackMessage : ""
                 }
