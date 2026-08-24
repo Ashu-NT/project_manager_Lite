@@ -1,7 +1,6 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
-import App.Theme 1.0 as Theme
 import App.Widgets 1.0 as AppWidgets
 import workspaces.resources.sections 1.0
 
@@ -85,48 +84,28 @@ Item {
         active: root._idx === 1
         loadingMessage: "Loading Resource capability..."
         sourceComponent: Component {
-            Column {
+            ResourcesCapabilitySection {
                 width: parent ? parent.width : 0
-                spacing: Theme.AppTheme.spacingMd
-
-                ResourcesSkillsSection {
-                    width: parent.width
-                    workspaceController: root.workspaceController
-                    hasResource: root._hasResource
-                    canManageSkills: root.canManageSkills
-                    isBusy: root.isBusy
-                    onAddSkillRequested: root.addSkillRequested()
-                    onSelectionChanged: function(skillId) {
-                        root.selectedSkillId = String(skillId || "")
-                        if (root.selectedSkillId.length > 0 && root.selectedCertificationId.length > 0) {
-                            root.selectedCertificationId = ""
-                            root.certificationSelectionChanged("")
-                        }
-                        root.skillSelectionChanged(root.selectedSkillId)
-                    }
-                    onRemoveSkillRequested: function(skillId) {
-                        root.removeSkillRequested(skillId)
-                    }
+                resourceId: String(root.resourceDetail.id || "")
+                workspaceController: root.workspaceController
+                hasResource: root._hasResource
+                canManageSkills: root.canManageSkills
+                isBusy: root.isBusy
+                onAddSkillRequested: root.addSkillRequested()
+                onAddCertificationRequested: root.addCertificationRequested()
+                onSkillSelectionChanged: function(skillId) {
+                    root.selectedSkillId = String(skillId || "")
+                    root.skillSelectionChanged(root.selectedSkillId)
                 }
-
-                ResourcesCertificationsSection {
-                    width: parent.width
-                    workspaceController: root.workspaceController
-                    hasResource: root._hasResource
-                    canManageSkills: root.canManageSkills
-                    isBusy: root.isBusy
-                    onAddCertificationRequested: root.addCertificationRequested()
-                    onSelectionChanged: function(certId) {
-                        root.selectedCertificationId = String(certId || "")
-                        if (root.selectedCertificationId.length > 0 && root.selectedSkillId.length > 0) {
-                            root.selectedSkillId = ""
-                            root.skillSelectionChanged("")
-                        }
-                        root.certificationSelectionChanged(root.selectedCertificationId)
-                    }
-                    onRemoveCertificationRequested: function(certId) {
-                        root.removeCertificationRequested(certId)
-                    }
+                onCertificationSelectionChanged: function(certId) {
+                    root.selectedCertificationId = String(certId || "")
+                    root.certificationSelectionChanged(root.selectedCertificationId)
+                }
+                onRemoveSkillRequested: function(skillId) {
+                    root.removeSkillRequested(skillId)
+                }
+                onRemoveCertificationRequested: function(certId) {
+                    root.removeCertificationRequested(certId)
                 }
             }
         }

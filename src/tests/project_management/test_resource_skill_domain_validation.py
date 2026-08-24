@@ -33,6 +33,19 @@ class _RecordingSkillRepo:
     def list_by_resource(self, resource_id: str) -> list[ResourceSkill]:
         return [skill for skill in self.added if skill.resource_id == resource_id]
 
+    def count_by_resource(self, resource_id: str) -> int:
+        return len([skill for skill in self.added if skill.resource_id == resource_id])
+
+    def code_exists(
+        self, resource_id: str, skill_code: str, *, exclude_id: str | None = None
+    ) -> bool:
+        return any(
+            skill.resource_id == resource_id
+            and skill.skill_code == skill_code
+            and skill.id != exclude_id
+            for skill in self.added
+        )
+
     def delete(self, skill_id: str) -> None:
         self.added = [skill for skill in self.added if skill.id != skill_id]
 
@@ -50,6 +63,23 @@ class _RecordingCertRepo:
 
     def list_by_resource(self, resource_id: str) -> list[ResourceCertification]:
         return [cert for cert in self.added if cert.resource_id == resource_id]
+
+    def count_by_resource(self, resource_id: str) -> int:
+        return len([cert for cert in self.added if cert.resource_id == resource_id])
+
+    def code_exists(
+        self,
+        resource_id: str,
+        certification_code: str,
+        *,
+        exclude_id: str | None = None,
+    ) -> bool:
+        return any(
+            cert.resource_id == resource_id
+            and cert.certification_code == certification_code
+            and cert.id != exclude_id
+            for cert in self.added
+        )
 
     def delete(self, cert_id: str) -> None:
         self.added = [cert for cert in self.added if cert.id != cert_id]
@@ -109,14 +139,16 @@ def test_resource_certification_dto_normalizes_and_validates_ranges() -> None:
         certification_name="  Project Management Professional  ",
         issued_date=date(2026, 1, 1),
         expiry_date=date(2026, 12, 31),
-        issuing_body="  PMI  ",
+        certificate_number="  PMP-001  ",
+        issuer="  PMI  ",
         notes="  Current cert  ",
     )
 
     assert cert.resource_id == "res-1"
     assert cert.certification_code == "pmp"
     assert cert.certification_name == "Project Management Professional"
-    assert cert.issuing_body == "PMI"
+    assert cert.certificate_number == "PMP-001"
+    assert cert.issuer == "PMI"
     assert cert.notes == "Current cert"
 
     with pytest.raises(ValidationError) as exc_name:
@@ -149,7 +181,7 @@ def test_resource_certification_owns_lifecycle_status_boundaries() -> None:
             expiry_date=expiry_date,
         )
 
-    assert certification(None).status_on(as_of) == CertificationStatus.VALID
+    assert certification(None).status_on(as_of) == CertificationStatus.NO_EXPIRY
     assert certification(date(2026, 5, 31)).status_on(as_of) == CertificationStatus.EXPIRED
     assert (
         certification(date(2026, 6, 1)).status_on(as_of)
@@ -214,7 +246,17 @@ def test_task_skill_requirement_dto_normalizes_and_validates_shape() -> None:
     assert exc_mode.value.code == "TASK_SKILL_REQUIREMENT_MODE_INVALID"
 
 
-def test_resource_service_skill_and_certification_commands_use_domain_validation() -> None:
+def test_resource_service_skill_and_certification_commands_use_domain_validation(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "src.core.modules.project_management.application.resources.commands.skill_commands.require_permission",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        "src.core.modules.project_management.application.resources.commands.skill_commands.record_activity",
+        lambda *args, **kwargs: None,
+    )
     skill_repo = _RecordingSkillRepo()
     cert_repo = _RecordingCertRepo()
     service = _make_resource_service(skill_repo=skill_repo, cert_repo=cert_repo)
@@ -232,14 +274,16 @@ def test_resource_service_skill_and_certification_commands_use_domain_validation
         certification_name="  PMP  ",
         issued_date=date(2026, 1, 1),
         expiry_date=date(2026, 12, 31),
-        issuing_body="  PMI  ",
+        certificate_number="  PMP-001  ",
+        issuer="  PMI  ",
         notes="  Verified  ",
     )
 
     assert skill_repo.added[0].skill_code == "python"
     assert skill.proficiency == SkillProficiencyLevel.EXPERT
     assert cert_repo.added[0].certification_code == "pmp"
-    assert cert.issuing_body == "PMI"
+    assert cert.certificate_number == "PMP-001"
+    assert cert.issuer == "PMI"
 
     with pytest.raises(ValidationError) as exc_skill:
         service.add_resource_skill(
@@ -259,3 +303,27 @@ def test_resource_service_skill_and_certification_commands_use_domain_validation
             expiry_date=date(2026, 1, 1),
         )
     assert exc_cert.value.code == "RESOURCE_CERTIFICATION_DATE_RANGE_INVALID"
+
+
+def test_resource_capability_counts_are_repository_backed(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "src.core.modules.project_management.application.resources.queries.skill_queries.require_permission",
+        lambda *args, **kwargs: None,
+    )
+    skill_repo = _RecordingSkillRepo()
+    cert_repo = _RecordingCertRepo()
+    skill_repo.add(
+        ResourceSkill.create("res-1", "python", "Python")
+    )
+    skill_repo.add(
+        ResourceSkill.create("res-1", "sql", "SQL")
+    )
+    cert_repo.add(
+        ResourceCertification.create("res-1", "pmp", "PMP")
+    )
+    service = _make_resource_service(skill_repo=skill_repo, cert_repo=cert_repo)
+
+    counts = service.get_resource_capability_counts("res-1")
+
+    assert counts.skill_count == 2
+    assert counts.certification_count == 1

@@ -19,6 +19,12 @@ Item {
     readonly property var _skills: root.workspaceController
         ? (root.workspaceController.resourceSkills || []) : []
     property string _selectedSkillId: ""
+
+    function clearSelection() {
+        if (root._selectedSkillId.length === 0) return
+        root._selectedSkillId = ""
+        root.selectionChanged("")
+    }
     readonly property int _tableH: {
         const n = root._skills.length
         const rH = Theme.AppTheme.compactRowHeight

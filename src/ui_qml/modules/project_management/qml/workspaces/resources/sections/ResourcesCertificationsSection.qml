@@ -19,6 +19,12 @@ Item {
     readonly property var _certs: root.workspaceController
         ? (root.workspaceController.resourceCertifications || []) : []
     property string _selectedCertId: ""
+
+    function clearSelection() {
+        if (root._selectedCertId.length === 0) return
+        root._selectedCertId = ""
+        root.selectionChanged("")
+    }
     readonly property int _tableH: {
         const n = root._certs.length
         const rH = Theme.AppTheme.compactRowHeight

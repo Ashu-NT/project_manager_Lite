@@ -20,6 +20,9 @@ class ResourceSkillRepository(ABC):
     def list_by_resource(self, resource_id: str) -> list[ResourceSkill]: ...
 
     @abstractmethod
+    def count_by_resource(self, resource_id: str) -> int: ...
+
+    @abstractmethod
     def update(self, skill: ResourceSkill, *, expected_version: int) -> ResourceSkill: ...
 
     @abstractmethod
@@ -40,6 +43,9 @@ class ResourceCertificationRepository(ABC):
 
     @abstractmethod
     def list_by_resource(self, resource_id: str) -> list[ResourceCertification]: ...
+
+    @abstractmethod
+    def count_by_resource(self, resource_id: str) -> int: ...
 
     @abstractmethod
     def update(

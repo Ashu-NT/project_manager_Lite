@@ -55,6 +55,9 @@ from src.core.modules.project_management.api.desktop.resources.models.resources 
     ResourceInspectorDesktopDto,
     ResourceSummaryDesktopDto,
 )
+from src.core.modules.project_management.api.desktop.resources.models.capability import (
+    ResourceCapabilityCountsDesktopDto,
+)
 from src.core.modules.project_management.api.desktop.resources.models.skills import (
     ResourceSkillDesktopDto,
 )
@@ -328,6 +331,17 @@ class ProjectManagementResourcesDesktopApi:
         service = self._require_resource_service()
         skills = service.list_resource_skills(resource_id)
         return tuple(serialize_skill(skill) for skill in skills)
+
+    def get_resource_capability_counts(
+        self, resource_id: str
+    ) -> ResourceCapabilityCountsDesktopDto:
+        counts = self._require_resource_service().get_resource_capability_counts(
+            resource_id
+        )
+        return ResourceCapabilityCountsDesktopDto(
+            skill_count=counts.skill_count,
+            certification_count=counts.certification_count,
+        )
 
     def list_resource_certifications(
         self,

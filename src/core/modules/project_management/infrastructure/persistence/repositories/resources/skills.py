@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 
-from sqlalchemy import delete
+from sqlalchemy import delete, func
 from sqlalchemy.orm import Session
 
 from src.core.modules.project_management.contracts.repositories.resources.skills import (
@@ -91,6 +91,14 @@ class SqlAlchemyResourceSkillRepository(
         )
         rows = self.session.execute(stmt).scalars().all()
         return [skill_from_orm(row) for row in rows]
+
+    def count_by_resource(self, resource_id: str) -> int:
+        stmt = (
+            self._resource_skill_scoped_stmt(operation_label="count resource skills")
+            .where(ResourceSkillORM.resource_id == resource_id)
+            .with_only_columns(func.count(ResourceSkillORM.id))
+        )
+        return int(self.session.execute(stmt).scalar_one())
 
     def update(self, skill: ResourceSkill, *, expected_version: int) -> ResourceSkill:
         self._ensure_resource_in_scope(skill.resource_id)
@@ -192,6 +200,16 @@ class SqlAlchemyResourceCertificationRepository(
         )
         rows = self.session.execute(stmt).scalars().all()
         return [cert_from_orm(row) for row in rows]
+
+    def count_by_resource(self, resource_id: str) -> int:
+        stmt = (
+            self._resource_cert_scoped_stmt(
+                operation_label="count resource certifications"
+            )
+            .where(ResourceCertificationORM.resource_id == resource_id)
+            .with_only_columns(func.count(ResourceCertificationORM.id))
+        )
+        return int(self.session.execute(stmt).scalar_one())
 
     def update(
         self, cert: ResourceCertification, *, expected_version: int

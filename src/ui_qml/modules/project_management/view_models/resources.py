@@ -104,6 +104,12 @@ class ResourceCertificationViewModel:
     cert_status_label: str
     version: int
 
+
+@dataclass(frozen=True)
+class ResourceCapabilityCountsViewModel:
+    skill_count: int = 0
+    certification_count: int = 0
+
 @dataclass(frozen=True)
 class ResourceAvailabilityDayViewModel:
     work_date: str
@@ -167,6 +173,7 @@ __all__ = [
     "ResourceCatalogOverviewViewModel",
     "ResourceCatalogWorkspaceViewModel",
     "ResourceCertificationViewModel",
+    "ResourceCapabilityCountsViewModel",
     "ResourceDetailFieldViewModel",
     "ResourceDetailViewModel",
     "ResourceEmployeeOptionViewModel",

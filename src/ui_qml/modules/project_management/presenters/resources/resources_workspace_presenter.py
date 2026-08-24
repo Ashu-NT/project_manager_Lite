@@ -10,6 +10,7 @@ from src.ui_qml.modules.project_management.view_models.resources import (
     ResourceAvailabilityViewModel,
     ResourceCatalogWorkspaceViewModel,
     ResourceCertificationViewModel,
+    ResourceCapabilityCountsViewModel,
     ResourceSkillViewModel,
 )
 
@@ -137,6 +138,15 @@ class ProjectResourcesWorkspacePresenter:
 
     def build_skills_state(self, resource_id: str) -> tuple[ResourceSkillViewModel, ...]:
         return build_skills_state(self._desktop_api, resource_id)
+
+    def build_capability_counts(
+        self, resource_id: str
+    ) -> ResourceCapabilityCountsViewModel:
+        counts = self._desktop_api.get_resource_capability_counts(resource_id)
+        return ResourceCapabilityCountsViewModel(
+            skill_count=counts.skill_count,
+            certification_count=counts.certification_count,
+        )
 
     def build_certifications_state(
         self, resource_id: str

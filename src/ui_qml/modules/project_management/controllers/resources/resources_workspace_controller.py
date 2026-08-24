@@ -101,6 +101,8 @@ class ProjectManagementResourcesWorkspaceController(
     resourceSortDirectionChanged = Signal()
     resourceSkillsChanged = Signal()
     resourceCertificationsChanged = Signal()
+    resourceSkillCountChanged = Signal()
+    resourceCertificationCountChanged = Signal()
     resourceAvailabilityChanged = Signal()
     resourceAssignmentsChanged = Signal()
 
@@ -146,6 +148,8 @@ class ProjectManagementResourcesWorkspaceController(
         self._resource_sort_direction = 0
         self._resource_skills: list[dict[str, object]] = []
         self._resource_certifications: list[dict[str, object]] = []
+        self._resource_skill_count = 0
+        self._resource_certification_count = 0
         self._resource_assignments: list[dict[str, object]] = []
         self._resource_availability: dict[str, object] = default_resource_availability()
 
@@ -265,6 +269,14 @@ class ProjectManagementResourcesWorkspaceController(
     @Property("QVariantList", notify=resourceCertificationsChanged)
     def resourceCertifications(self) -> list[dict[str, object]]:
         return list(self._resource_certifications)
+
+    @Property(int, notify=resourceSkillCountChanged)
+    def resourceSkillCount(self) -> int:
+        return self._resource_skill_count
+
+    @Property(int, notify=resourceCertificationCountChanged)
+    def resourceCertificationCount(self) -> int:
+        return self._resource_certification_count
 
     @Property(QObject, constant=True)
     def resourceSkillsTableModel(self) -> DynamicTableModel:

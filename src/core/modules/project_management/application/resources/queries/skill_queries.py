@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 
 from src.core.modules.project_management.contracts.repositories.resources.skills import (
     ResourceCertificationRepository,
@@ -38,5 +39,26 @@ class SkillQueryMixin:
             raise RuntimeError("Certification repository is not configured.")
         return self._cert_repo.list_by_resource(resource_id)
 
+    def get_resource_capability_counts(
+        self, resource_id: str
+    ) -> "ResourceCapabilityCounts":
+        require_permission(
+            self._user_session,
+            "resource.read",
+            operation_label="view resource capability summary",
+        )
+        if self._skill_repo is None or self._cert_repo is None:
+            raise RuntimeError("Resource capability repositories are not configured.")
+        return ResourceCapabilityCounts(
+            skill_count=self._skill_repo.count_by_resource(resource_id),
+            certification_count=self._cert_repo.count_by_resource(resource_id),
+        )
 
-__all__ = ["SkillQueryMixin"]
+
+@dataclass(frozen=True, slots=True)
+class ResourceCapabilityCounts:
+    skill_count: int
+    certification_count: int
+
+
+__all__ = ["ResourceCapabilityCounts", "SkillQueryMixin"]

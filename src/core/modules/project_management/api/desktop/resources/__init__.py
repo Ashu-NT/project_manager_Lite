@@ -32,6 +32,9 @@ from src.core.modules.project_management.api.desktop.resources.models.availabili
 from src.core.modules.project_management.api.desktop.resources.models.certifications import (
     ResourceCertificationDesktopDto,
 )
+from src.core.modules.project_management.api.desktop.resources.models.capability import (
+    ResourceCapabilityCountsDesktopDto,
+)
 from src.core.modules.project_management.api.desktop.resources.models.options import (
     ResourceCategoryDescriptor,
     ResourceEmployeeOptionDescriptor,
@@ -60,6 +63,7 @@ __all__ = [
     "ResourceAvailabilityDayDto",
     "ResourceAvailabilityDto",
     "ResourceCategoryDescriptor",
+    "ResourceCapabilityCountsDesktopDto",
     "ResourceCatalogItemDesktopDto",
     "ResourceCatalogPageDesktopDto",
     "ResourceCertificationDesktopDto",
