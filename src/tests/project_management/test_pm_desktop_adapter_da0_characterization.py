@@ -247,7 +247,7 @@ class _CapturingResourceService:
     def get_resource(self, _resource_id: str):
         return self.resource
 
-    def update_resource(self, _resource_id: str, **kwargs):
+    def update_resource(self, *, resource_id: str, **kwargs):
         self.update_kwargs = kwargs
         self.resource.hourly_rate = kwargs.get("hourly_rate") or self.resource.hourly_rate
         self.resource.currency_code = kwargs.get("currency_code") or self.resource.currency_code
@@ -261,10 +261,20 @@ def test_da3_desktop_forwards_rate_fields_without_policy_decision() -> None:
     api.update_resource(
         ResourceUpdateCommand(
             resource_id="resource-1",
+            code="RES-001",
+            kind="PERSON",
             name="Planner",
             role="Planner",
             hourly_rate=Decimal("120"),
+            cost_type="LABOR",
             currency_code="USD",
+            capacity_percent=100.0,
+            address="",
+            contact="",
+            worker_type="EXTERNAL",
+            employee_id=None,
+            department_id=None,
+            site_id=None,
             expected_version=1,
         )
     )

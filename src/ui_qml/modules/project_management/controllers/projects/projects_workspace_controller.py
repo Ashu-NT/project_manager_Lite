@@ -3,7 +3,6 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Qt, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.core.platform.finance.money.currency import ISO_4217_MINOR_UNITS
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 from src.ui_qml.modules.project_management.controllers.common import (
     ProjectManagementWorkspaceControllerBase,
@@ -13,6 +12,10 @@ from src.ui_qml.modules.project_management.controllers.common import (
     serialize_project_record_view_models,
     serialize_selector_options,
     serialize_workspace_view_model,
+)
+from src.ui_qml.shared.models.currency_options import (
+    CURRENCY_OPTIONS,
+    DEFAULT_CURRENCY_CODE,
 )
 from src.ui_qml.modules.project_management.presenters import (
     ProjectManagementWorkspacePresenter,
@@ -73,15 +76,6 @@ from .project_import_handler import cancel_import, execute_import, preview_impor
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
-
-_CURRENCY_OPTIONS: list[dict[str, str]] = [
-    {"value": code, "label": code}
-    for code in sorted(
-        code for code, minor_units in ISO_4217_MINOR_UNITS.items() if minor_units is not None
-    )
-]
-DEFAULT_CURRENCY_CODE = "XAF"
-
 
 @QmlElement
 @QmlUncreatable("Project management workspace controllers are provided by the shell runtime.")
@@ -221,7 +215,7 @@ class ProjectManagementProjectsWorkspaceController(
 
     @Property("QVariantList", constant=True)
     def currencyOptions(self) -> list[dict[str, str]]:
-        return _CURRENCY_OPTIONS
+        return CURRENCY_OPTIONS
 
     @Property(str, constant=True)
     def defaultCurrencyCode(self) -> str:

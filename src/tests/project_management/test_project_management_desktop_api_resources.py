@@ -60,7 +60,7 @@ def test_project_management_resources_desktop_api_mutates_resource_records() -> 
 
     employee_resource = api.create_resource(
         ResourceCreateCommand(
-            name="",
+                name="Alex Taylor",
             code="",
             kind="PERSON",
             role="",
@@ -220,7 +220,6 @@ class _FakeResourceService:
         self,
         *,
         resource_id: str,
-        *,
         expected_version: int,
         name: str,
         code: str,

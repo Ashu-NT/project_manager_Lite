@@ -31,6 +31,27 @@ def _line(**overrides) -> RateCardLine:
     return RateCardLine.create(**values)
 
 
+def _resource_replacement(resource, **overrides) -> dict[str, object]:
+    values: dict[str, object] = {
+        "name": resource.name,
+        "code": resource.code,
+        "kind": resource.kind,
+        "role": resource.role,
+        "hourly_rate": resource.hourly_rate,
+        "cost_type": resource.cost_type,
+        "currency_code": resource.currency_code,
+        "capacity_percent": resource.capacity_percent,
+        "address": resource.address,
+        "contact": resource.contact,
+        "worker_type": resource.worker_type,
+        "employee_id": resource.employee_id,
+        "department_id": resource.department_id,
+        "site_id": resource.site_id,
+    }
+    values.update(overrides)
+    return values
+
+
 def test_rate_card_line_domain_validation() -> None:
     line = _line()
     assert line.rate_type == RateType.COST
@@ -480,11 +501,12 @@ def test_update_resource_requires_expected_version_for_rate_change(services) -> 
     resource = resource_service.create_resource(
         "Version Required Dev", role="Developer", hourly_rate=90.0
     )
-    with pytest.raises(ValidationError) as exc:
+    with pytest.raises(TypeError, match="expected_version"):
         resource_service.update_resource(
-            resource.id, hourly_rate=100.0, effective_on=date.today()
+            resource_id=resource.id,
+            effective_on=date.today(),
+            **_resource_replacement(resource, hourly_rate=100.0),
         )
-    assert exc.value.code == "RESOURCE_RATE_VERSION_REQUIRED"
 
 
 def test_update_resource_defaults_rate_change_effective_date_from_service_clock(
@@ -497,9 +519,9 @@ def test_update_resource_defaults_rate_change_effective_date_from_service_clock(
     effective_on = resource_service._clock.today()
 
     resource_service.update_resource(
-        resource.id,
-        hourly_rate=100.0,
+        resource_id=resource.id,
         expected_version=resource.version,
+        **_resource_replacement(resource, hourly_rate=100.0),
     )
 
     replacement = next(
@@ -517,11 +539,14 @@ def test_update_resource_ignores_unchanged_rate_fields_for_rate_policy(services)
     )
 
     updated = resource_service.update_resource(
-        resource.id,
-        name="Renamed Unchanged Rate Dev",
-        hourly_rate=90.0,
-        currency_code="USD",
+        resource_id=resource.id,
         expected_version=resource.version,
+        **_resource_replacement(
+            resource,
+            name="Renamed Unchanged Rate Dev",
+            hourly_rate=90.0,
+            currency_code="USD",
+        ),
     )
 
     assert updated.name == "Renamed Unchanged Rate Dev"
@@ -537,10 +562,10 @@ def test_update_resource_same_day_positive_to_positive_deactivates_and_replaces(
     )
     today = date.today()
     updated = resource_service.update_resource(
-        resource.id,
-        hourly_rate=110.0,
+        resource_id=resource.id,
         expected_version=resource.version,
         effective_on=today,
+        **_resource_replacement(resource, hourly_rate=110.0),
     )
     lines = _legacy_lines_for_resource(services, updated.id)
     assert len(lines) == 2
@@ -559,10 +584,10 @@ def test_update_resource_later_date_positive_to_positive_closes_and_opens(servic
     )
     later = date.today() + timedelta(days=10)
     resource_service.update_resource(
-        resource.id,
-        hourly_rate=120.0,
+        resource_id=resource.id,
         expected_version=resource.version,
         effective_on=later,
+        **_resource_replacement(resource, hourly_rate=120.0),
     )
     lines = _legacy_lines_for_resource(services, resource.id)
     old_line = next(line for line in lines if line.rate_amount == Decimal("90.0"))
@@ -581,10 +606,10 @@ def test_update_resource_backdated_raises(services) -> None:
     earlier = date.today() - timedelta(days=10)
     with pytest.raises(BusinessRuleError, match="backdated"):
         resource_service.update_resource(
-            resource.id,
-            hourly_rate=120.0,
+            resource_id=resource.id,
             expected_version=resource.version,
             effective_on=earlier,
+            **_resource_replacement(resource, hourly_rate=120.0),
         )
 
 
@@ -595,7 +620,10 @@ def test_update_resource_positive_to_zero_deactivates_with_no_replacement(servic
     )
     today = date.today()
     resource_service.update_resource(
-        resource.id, hourly_rate=0.0, expected_version=resource.version, effective_on=today
+        resource_id=resource.id,
+        expected_version=resource.version,
+        effective_on=today,
+        **_resource_replacement(resource, hourly_rate=0.0),
     )
     lines = _legacy_lines_for_resource(services, resource.id)
     assert len(lines) == 1
@@ -608,7 +636,10 @@ def test_update_resource_zero_to_zero_touches_no_rate_line(services) -> None:
         "Still Zero Dev", role="Developer", hourly_rate=0.0
     )
     resource_service.update_resource(
-        resource.id, hourly_rate=0.0, expected_version=resource.version, effective_on=date.today()
+        resource_id=resource.id,
+        expected_version=resource.version,
+        effective_on=date.today(),
+        **_resource_replacement(resource, hourly_rate=0.0),
     )
     assert _legacy_lines_for_resource(services, resource.id) == []
 
@@ -620,10 +651,10 @@ def test_update_resource_currency_only_change_goes_through_supersession(services
     )
     today = date.today()
     resource_service.update_resource(
-        resource.id,
-        currency_code="usd",
+        resource_id=resource.id,
         expected_version=resource.version,
         effective_on=today,
+        **_resource_replacement(resource, currency_code="usd"),
     )
     lines = _legacy_lines_for_resource(services, resource.id)
     assert len(lines) == 2

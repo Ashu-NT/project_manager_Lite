@@ -17,6 +17,10 @@ AppWidgets.EntityDialog {
     property var resourceData: ({})
     property var workspaceController: null
     property string resourceCode: ""
+    readonly property var currencyOptions: root.workspaceController
+        ? (root.workspaceController.currencyOptions || []) : []
+    readonly property string defaultCurrencyCode: root.workspaceController
+        ? String(root.workspaceController.defaultCurrencyCode || "XAF") : "XAF"
     readonly property bool personKindSelected: root.currentKindValue() === "PERSON"
     readonly property bool employeeWorkerSelected: root.personKindSelected
         && String(root.currentWorkerTypeValue() || "") === "EMPLOYEE"
@@ -54,6 +58,17 @@ AppWidgets.EntityDialog {
         return String(option ? option.value || "PERSON" : "PERSON")
     }
 
+    function currencyIndexForValue(currencyValue) {
+        var wanted = String(currencyValue || root.defaultCurrencyCode)
+        var fallbackIndex = 0
+        for (var index = 0; index < root.currencyOptions.length; index += 1) {
+            var value = String(root.currencyOptions[index].value || "")
+            if (value === wanted) return index
+            if (value === root.defaultCurrencyCode) fallbackIndex = index
+        }
+        return fallbackIndex
+    }
+
     function selectedEmployeeOption() {
         var option = root.employeeOptions[employeeCombo.currentIndex]
         return option || ({})
@@ -87,7 +102,7 @@ AppWidgets.EntityDialog {
         nameField.text = String(state.name || "")
         roleField.text = String(state.role || "")
         hourlyRateField.text = String(state.hourlyRate || "0.00")
-        currencyField.text = String(state.currency || "")
+        currencyCombo.currentIndex = root.currencyIndexForValue(state.currency || "")
         addressField.text = String(state.address || "")
         contactField.text = String(state.contact || "")
         capacityField.text = String(state.capacityPercent || "100.0")
@@ -96,13 +111,15 @@ AppWidgets.EntityDialog {
     }
 
     function buildPayload() {
+        var currencyOption = root.currencyOptions[currencyCombo.currentIndex]
+            || { "value": root.defaultCurrencyCode }
         return {
             "name": nameField.text,
             "resourceCode": root.resourceCode,
             "kind": root.currentKindValue(),
             "role": roleField.text,
             "hourlyRate": hourlyRateField.text,
-            "currency": currencyField.text,
+            "currency": String(currencyOption.value || root.defaultCurrencyCode),
             "costType": String((root.categoryOptions[categoryCombo.currentIndex] || { "value": "LABOR" }).value || "LABOR"),
             "address": addressField.text,
             "contact": contactField.text,
@@ -231,7 +248,8 @@ AppWidgets.EntityDialog {
         AppWidgets.FormField {
             Layout.fillWidth: true
             label: "Currency"
-            AppControls.TextField { id: currencyField; Layout.fillWidth: true; placeholderText: "EUR" }
+            required: true
+            AppControls.ComboBox { id: currencyCombo; Layout.fillWidth: true; model: root.currencyOptions; textRole: "label" }
         }
 
         AppWidgets.FormField {

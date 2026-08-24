@@ -59,6 +59,10 @@ from .resource_read_handler import (
     load_resource_inspector,
     refresh_selected_resource_reads,
 )
+from src.ui_qml.shared.models.currency_options import (
+    CURRENCY_OPTIONS,
+    DEFAULT_CURRENCY_CODE,
+)
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -166,6 +170,14 @@ class ProjectManagementResourcesWorkspaceController(
     @Property("QVariantList", notify=siteOptionsChanged)
     def siteOptions(self) -> list[dict[str, object]]:
         return self._site_options
+
+    @Property("QVariantList", constant=True)
+    def currencyOptions(self) -> list[dict[str, str]]:
+        return CURRENCY_OPTIONS
+
+    @Property(str, constant=True)
+    def defaultCurrencyCode(self) -> str:
+        return DEFAULT_CURRENCY_CODE
 
     @Property("QVariantList", notify=categoryOptionsChanged)
     def categoryOptions(self) -> list[dict[str, object]]:

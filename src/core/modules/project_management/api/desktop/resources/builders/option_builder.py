@@ -41,28 +41,42 @@ def build_kind_options() -> tuple[ResourceKindDescriptor, ...]:
 
 def build_department_options(service: object | None) -> tuple[ResourceScopeOptionDescriptor, ...]:
     if service is None:
-        return ()
-    return tuple(
+        return (ResourceScopeOptionDescriptor(value="", label="No department", is_active=True),)
+    try:
+        rows = service.list_departments(active_only=None)
+    except Exception:
+        rows = ()
+    return (
+        ResourceScopeOptionDescriptor(value="", label="No department", is_active=True),
+        *(
         ResourceScopeOptionDescriptor(
             value=row.id,
-            label=row.name,
+            label=row.name if row.is_active else f"{row.name} (Inactive)",
             is_active=bool(row.is_active),
             site_id=str(row.site_id or ""),
         )
-        for row in service.list_departments(active_only=None)
+        for row in rows
+        ),
     )
 
 
 def build_site_options(service: object | None) -> tuple[ResourceScopeOptionDescriptor, ...]:
     if service is None:
-        return ()
-    return tuple(
+        return (ResourceScopeOptionDescriptor(value="", label="No site", is_active=True),)
+    try:
+        rows = service.list_sites(active_only=None)
+    except Exception:
+        rows = ()
+    return (
+        ResourceScopeOptionDescriptor(value="", label="No site", is_active=True),
+        *(
         ResourceScopeOptionDescriptor(
             value=row.id,
-            label=row.name,
+            label=row.name if row.is_active else f"{row.name} (Inactive)",
             is_active=bool(row.is_active),
         )
-        for row in service.list_sites(active_only=None)
+        for row in rows
+        ),
     )
 
 
