@@ -38,16 +38,15 @@ from .resource_selection_handler import (
     set_search_text,
 )
 from .resource_bulk_handler import (
-    bulk_delete_resources,
     clear_resource_bulk_selection,
     select_visible_resources,
     set_resource_bulk_selection,
 )
 from .resource_mutation_handler import (
     create_resource,
-    delete_resource,
+    deactivate_resource,
     generate_entity_code,
-    toggle_resource_active,
+    reactivate_resource,
     update_resource,
 )
 from .resource_skills_handler import (
@@ -77,6 +76,9 @@ class ProjectManagementResourcesWorkspaceController(
 ):
     overviewChanged = Signal()
     workerTypeOptionsChanged = Signal()
+    kindOptionsChanged = Signal()
+    departmentOptionsChanged = Signal()
+    siteOptionsChanged = Signal()
     categoryOptionsChanged = Signal()
     employeeOptionsChanged = Signal()
     selectedActiveFilterChanged = Signal()
@@ -118,6 +120,9 @@ class ProjectManagementResourcesWorkspaceController(
         )
         self._overview: dict[str, object] = default_overview()
         self._worker_type_options: list[dict[str, object]] = []
+        self._kind_options: list[dict[str, object]] = []
+        self._department_options: list[dict[str, object]] = []
+        self._site_options: list[dict[str, object]] = []
         self._category_options: list[dict[str, object]] = []
         self._employee_options: list[dict[str, object]] = []
         self._selected_active_filter = "all"
@@ -158,6 +163,18 @@ class ProjectManagementResourcesWorkspaceController(
     @Property("QVariantList", notify=workerTypeOptionsChanged)
     def workerTypeOptions(self) -> list[dict[str, object]]:
         return self._worker_type_options
+
+    @Property("QVariantList", notify=kindOptionsChanged)
+    def kindOptions(self) -> list[dict[str, object]]:
+        return self._kind_options
+
+    @Property("QVariantList", notify=departmentOptionsChanged)
+    def departmentOptions(self) -> list[dict[str, object]]:
+        return self._department_options
+
+    @Property("QVariantList", notify=siteOptionsChanged)
+    def siteOptions(self) -> list[dict[str, object]]:
+        return self._site_options
 
     @Property("QVariantList", notify=categoryOptionsChanged)
     def categoryOptions(self) -> list[dict[str, object]]:
@@ -300,6 +317,25 @@ class ProjectManagementResourcesWorkspaceController(
             self._set_worker_type_options(
                 serialize_selector_options(workspace_state.worker_type_options)
             )
+            self._set_kind_options(serialize_selector_options(workspace_state.kind_options))
+            self._set_department_options([
+                {
+                    "value": option.value,
+                    "label": option.label,
+                    "isActive": option.is_active,
+                    "siteId": option.site_id,
+                }
+                for option in workspace_state.department_options
+            ])
+            self._set_site_options([
+                {
+                    "value": option.value,
+                    "label": option.label,
+                    "isActive": option.is_active,
+                    "siteId": option.site_id,
+                }
+                for option in workspace_state.site_options
+            ])
             self._set_category_options(
                 serialize_selector_options(workspace_state.category_options)
             )
@@ -394,10 +430,6 @@ class ProjectManagementResourcesWorkspaceController(
     def selectVisibleResources(self) -> None:
         select_visible_resources(self)
 
-    @Slot("QVariantList", result="QVariantMap")
-    def bulkDeleteResources(self, resource_ids: list) -> dict[str, object]:
-        return bulk_delete_resources(self, resource_ids)
-
     # ── Skills / Certifications ──────────────────────────────────────────
 
     @Slot("QVariantMap", result="QVariantMap")
@@ -437,12 +469,12 @@ class ProjectManagementResourcesWorkspaceController(
         return update_resource(self, payload)
 
     @Slot(str, int, result="QVariantMap")
-    def toggleResourceActive(self, resource_id: str, expected_version: int) -> dict[str, object]:
-        return toggle_resource_active(self, resource_id, expected_version)
+    def deactivateResource(self, resource_id: str, expected_version: int) -> dict[str, object]:
+        return deactivate_resource(self, resource_id, expected_version)
 
-    @Slot(str, result="QVariantMap")
-    def deleteResource(self, resource_id: str) -> dict[str, object]:
-        return delete_resource(self, resource_id)
+    @Slot(str, int, result="QVariantMap")
+    def reactivateResource(self, resource_id: str, expected_version: int) -> dict[str, object]:
+        return reactivate_resource(self, resource_id, expected_version)
 
 
 __all__ = ["ProjectManagementResourcesWorkspaceController"]

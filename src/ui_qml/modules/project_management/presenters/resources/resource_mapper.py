@@ -10,6 +10,8 @@ def to_resource_record_view_model(resource: Any) -> ResourceRecordViewModel:
         "resourceId": resource.id,
         "resourceCode": resource.code,
         "role": resource.role,
+        "kind": resource.kind,
+        "kindLabel": resource.kind_label,
         "workerType": resource.worker_type,
         "workerTypeLabel": resource.worker_type_label,
         "costType": resource.cost_type,

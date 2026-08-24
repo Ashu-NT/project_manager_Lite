@@ -16,6 +16,8 @@ def build_resource_state(resource: Any) -> dict[str, object]:
         "name": resource.name,
         "resourceCode": resource.code,
         "role": resource.role,
+        "kind": resource.kind,
+        "kindLabel": resource.kind_label,
         "workerType": resource.worker_type,
         "workerTypeLabel": resource.worker_type_label,
         "costType": resource.cost_type,
@@ -64,6 +66,7 @@ def build_detail_view_model(resource: Any) -> ResourceDetailViewModel:
         description=description,
         fields=(
             ResourceDetailFieldViewModel("Code", resource.code or "-"),
+            ResourceDetailFieldViewModel("Resource kind", resource.kind_label),
             ResourceDetailFieldViewModel("Worker type", resource.worker_type_label),
             ResourceDetailFieldViewModel("Role", resource.role or "-"),
             ResourceDetailFieldViewModel("Organization", resource.organization_label or "-"),

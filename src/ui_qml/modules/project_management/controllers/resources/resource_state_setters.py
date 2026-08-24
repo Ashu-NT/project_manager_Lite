@@ -15,6 +15,24 @@ class ResourceStateSettersMixin:
         self._worker_type_options = worker_type_options
         self.workerTypeOptionsChanged.emit()
 
+    def _set_kind_options(self, options: list[dict[str, object]]) -> None:
+        if options == self._kind_options:
+            return
+        self._kind_options = options
+        self.kindOptionsChanged.emit()
+
+    def _set_department_options(self, options: list[dict[str, object]]) -> None:
+        if options == self._department_options:
+            return
+        self._department_options = options
+        self.departmentOptionsChanged.emit()
+
+    def _set_site_options(self, options: list[dict[str, object]]) -> None:
+        if options == self._site_options:
+            return
+        self._site_options = options
+        self.siteOptionsChanged.emit()
+
     def _set_category_options(self, category_options: list[dict[str, object]]) -> None:
         if category_options == self._category_options:
             return

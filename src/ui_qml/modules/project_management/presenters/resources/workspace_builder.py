@@ -6,6 +6,7 @@ from src.core.modules.project_management.api.desktop import (
 from src.ui_qml.modules.project_management.view_models.resources import (
     ResourceCatalogWorkspaceViewModel,
     ResourceEmployeeOptionViewModel,
+    ResourceScopeOptionViewModel,
     ResourceSelectorOptionViewModel,
 )
 
@@ -52,6 +53,8 @@ def build_workspace_state(
             context=option.context,
             department=option.department,
             site=option.site,
+            department_id=option.department_id,
+            site_id=option.site_id,
             is_active=option.is_active,
         )
         for option in desktop_api.list_employees()
@@ -68,6 +71,28 @@ def build_workspace_state(
         sort_key=sort_key,
         sort_direction=sort_direction,
     )
+    kind_options = tuple(
+        ResourceSelectorOptionViewModel(value=option.value, label=option.label)
+        for option in desktop_api.list_resource_kinds()
+    )
+    department_options = tuple(
+        ResourceScopeOptionViewModel(
+            value=option.value,
+            label=option.label,
+            is_active=option.is_active,
+            site_id=option.site_id,
+        )
+        for option in desktop_api.list_departments()
+    )
+    site_options = tuple(
+        ResourceScopeOptionViewModel(
+            value=option.value,
+            label=option.label,
+            is_active=option.is_active,
+            site_id=option.site_id,
+        )
+        for option in desktop_api.list_sites()
+    )
     resolved_selected_resource_id = resolve_selected_resource_id(
         selected_resource_id, resource_page.items
     )
@@ -81,7 +106,10 @@ def build_workspace_state(
             average_capacity=resource_page.average_capacity,
         ),
         worker_type_options=worker_type_options,
+        kind_options=kind_options,
         category_options=category_options,
+        department_options=department_options,
+        site_options=site_options,
         employee_options=employee_options,
         selected_active_filter=normalized_active_filter,
         selected_category_filter=normalized_category_filter,

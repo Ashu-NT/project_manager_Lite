@@ -42,6 +42,8 @@ def serialize_resource_employee_option_view_models(
             "context": view_model.context,
             "department": view_model.department,
             "site": view_model.site,
+            "departmentId": view_model.department_id,
+            "siteId": view_model.site_id,
             "isActive": view_model.is_active,
         }
         for view_model in view_models
