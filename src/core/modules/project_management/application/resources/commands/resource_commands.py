@@ -64,7 +64,17 @@ class ResourceCommandMixin:
 
     @staticmethod
     def _resolved_worker_type(value: WorkerType | str | None) -> WorkerType:
-        return Resource.create(name="Worker Type Probe", worker_type=value).worker_type
+        if value is None:
+            return WorkerType.EXTERNAL
+        if isinstance(value, WorkerType):
+            return value
+        try:
+            return WorkerType(str(value).strip().upper())
+        except ValueError as exc:
+            raise ValidationError(
+                "Worker type must be EMPLOYEE or EXTERNAL.",
+                code="RESOURCE_WORKER_TYPE_INVALID",
+            ) from exc
 
     def _current_legacy_rate_line(self, resource_id: str) -> RateCardLine | None:
         rate_card_repo = getattr(self, "_project_rate_card_repo", None)
@@ -274,6 +284,7 @@ class ResourceCommandMixin:
         cost_type: CostType = CostType.LABOR,
         currency_code: str | None = None,
         capacity_percent: float = 100.0,
+        is_active: bool = True,
         address: str = "",
         contact: str = "",
         worker_type: WorkerType | str = WorkerType.EXTERNAL,
@@ -303,7 +314,7 @@ class ResourceCommandMixin:
             kind=kind,
             role=role,
             hourly_rate=hourly_rate,
-            is_active=True,
+            is_active=bool(is_active),
             cost_type=cost_type,
             currency_code=resolve_pm_currency(
                 tenant_context_service=getattr(self, "_tenant_context_service", None),

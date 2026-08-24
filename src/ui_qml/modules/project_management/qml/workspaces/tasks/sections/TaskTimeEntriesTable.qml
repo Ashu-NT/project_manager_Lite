@@ -148,15 +148,6 @@ Item {
                 }
             }
 
-            AppWidgets.TablePaginationBar {
-                Layout.fillWidth: true
-                currentPage: root._currentPage
-                pageSize: root._pageSize
-                totalItems: root._total
-                busy: root.isBusy
-                onPageRequested: function(page) { root.pageRequested(page) }
-            }
-
             AppControls.Label {
                 Layout.fillWidth: true
                 text: root._items.length > 0
@@ -166,6 +157,15 @@ Item {
                 font.family: Theme.AppTheme.fontFamily
                 font.pixelSize: Theme.AppTheme.captionSize
                 wrapMode: Text.WordWrap
+            }
+
+            AppWidgets.TablePaginationBar {
+                Layout.fillWidth: true
+                currentPage: root._currentPage
+                pageSize: root._pageSize
+                totalItems: root._total
+                busy: root.isBusy
+                onPageRequested: function(page) { root.pageRequested(page) }
             }
         }
     }

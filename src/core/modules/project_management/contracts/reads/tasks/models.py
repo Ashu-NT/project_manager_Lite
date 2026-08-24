@@ -74,6 +74,10 @@ class TaskAssignmentReadItem:
     response_status: str
     project_resource_id: str | None
     version: int
+    assignee_user_id: str | None = None
+    can_manage: bool = False
+    can_accept: bool = False
+    can_decline: bool = False
 
 
 @dataclass(frozen=True, slots=True)

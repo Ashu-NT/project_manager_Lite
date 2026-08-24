@@ -29,6 +29,7 @@ from src.core.modules.project_management.infrastructure.persistence.orm.task imp
     TaskORM,
 )
 from src.core.platform.infrastructure.persistence.orm.history.activity.activity import ActivityEntryORM
+from src.core.platform.infrastructure.persistence.orm.master_data.employee.employee import EmployeeORM
 from src.core.platform.infrastructure.persistence.orm.time_management.time.time import TimeEntryORM
 
 
@@ -101,6 +102,14 @@ class SqlAlchemyTaskWorkspaceReader:
             .join(TaskORM, TaskORM.id == TaskAssignmentORM.task_id)
             .join(ProjectORM, ProjectORM.id == TaskORM.project_id)
             .join(ResourceORM, ResourceORM.id == TaskAssignmentORM.resource_id)
+            .outerjoin(
+                EmployeeORM,
+                and_(
+                    EmployeeORM.id == ResourceORM.employee_id,
+                    EmployeeORM.tenant_id == tenant_id,
+                    EmployeeORM.organization_id == organization_id,
+                ),
+            )
             .outerjoin(time_actuals, time_actuals.c.assignment_id == TaskAssignmentORM.id)
         )
         total = int(self._session.scalar(
@@ -121,7 +130,7 @@ class SqlAlchemyTaskWorkspaceReader:
             ResourceORM.name, ResourceORM.role, TaskAssignmentORM.allocation_percent,
             TaskAssignmentORM.allocated_planned_hours, actual,
             TaskAssignmentORM.response_status, TaskAssignmentORM.project_resource_id,
-            TaskAssignmentORM.version,
+            TaskAssignmentORM.version, EmployeeORM.user_id,
         ).select_from(from_clause).where(*filters).order_by(*stable_order_by(
             sort=sort, expressions=sort_expressions, default_key="resourceName",
             tie_breakers=(TaskAssignmentORM.id,),
@@ -132,6 +141,7 @@ class SqlAlchemyTaskWorkspaceReader:
             allocation_percent=Decimal(str(r[5] or 0)), planned_hours=Decimal(str(r[6] or 0)),
             actual_hours=Decimal(str(r[7] or 0)), response_status=str(r[8] or "pending"),
             project_resource_id=str(r[9]) if r[9] else None, version=int(r[10] or 1),
+            assignee_user_id=str(r[11]) if r[11] else None,
         ) for r in rows), filtered_total=total, page=page, page_size=page_size, sort=sort)
 
     def read_dependencies_page(
@@ -529,11 +539,15 @@ class SqlAlchemyTaskWorkspaceReader:
                 rows.c.sort_order,
             ),
             "title": (func.lower(rows.c.name),),
+            "taskName": (func.lower(rows.c.name),),
             "statusLabel": (rows.c.status,),
             "projectName": (func.lower(rows.c.project_name), rows.c.project_id),
             "priorityLabel": (rows.c.priority,),
+            "priority": (rows.c.priority,),
             "startDateLabel": (rows.c.start_date,),
+            "startDate": (rows.c.start_date,),
             "endDateLabel": (rows.c.end_date,),
+            "endDate": (rows.c.end_date,),
             "progressValue": (rows.c.percent_complete,),
         }
         page_rows = self._session.execute(

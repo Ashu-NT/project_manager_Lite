@@ -28,6 +28,7 @@ from src.core.modules.project_management.contracts.reads.tasks import (
     TaskWorkspaceReader,
 )
 from src.core.modules.project_management.contracts.reads import ReadSort
+from src.core.platform.application.security.authorization import get_authorization_engine
 
 
 class TaskQueryMixin:
@@ -81,7 +82,34 @@ class TaskQueryMixin:
         if normalized_page != result.page:
             kwargs["page"] = normalized_page
             result = self._task_workspace_reader.read_assignments_page(**kwargs)
-        return result
+        engine = get_authorization_engine()
+        can_manage = engine.has_permission(
+            self._user_session, "task.manage"
+        ) and engine.has_scope_permission(
+            self._user_session, "project", task.project_id, "task.manage"
+        )
+        principal = self._user_session.principal if self._user_session is not None else None
+        principal_user_id = str(getattr(principal, "user_id", "") or "").strip()
+        return replace(
+            result,
+            items=tuple(
+                replace(
+                    item,
+                    can_manage=bool(can_manage),
+                    can_accept=bool(
+                        principal_user_id
+                        and principal_user_id == str(item.assignee_user_id or "")
+                        and item.response_status == "pending"
+                    ),
+                    can_decline=bool(
+                        principal_user_id
+                        and principal_user_id == str(item.assignee_user_id or "")
+                        and item.response_status == "pending"
+                    ),
+                )
+                for item in result.items
+            ),
+        )
 
     def query_task_dependencies_page(
         self, task_id: str, *, search_text: str = "", direction: str = "all",
@@ -182,11 +210,15 @@ class TaskQueryMixin:
             allowed_keys={
                 "wbsCode",
                 "title",
+                "taskName",
                 "statusLabel",
                 "projectName",
                 "priorityLabel",
+                "priority",
                 "startDateLabel",
+                "startDate",
                 "endDateLabel",
+                "endDate",
                 "progressValue",
             },
             default_key="wbsCode",

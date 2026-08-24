@@ -540,6 +540,8 @@ class ProjectManagementTasksDesktopApi:
             response_status_label=item.response_status.replace("_", " ").title(),
             allocated_planned_hours=str(item.planned_hours), version=item.version,
             remaining_planned_hours_label=str(item.planned_hours - item.actual_hours),
+            can_manage=item.can_manage, can_accept=item.can_accept,
+            can_decline=item.can_decline,
         ) for item in result.items), filtered_total=result.filtered_total,
             page=result.page, page_size=result.page_size, sort_key=result.sort.key,
             sort_direction=result.sort.direction.value)

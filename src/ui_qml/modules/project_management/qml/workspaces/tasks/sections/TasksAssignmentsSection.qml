@@ -173,61 +173,66 @@ Item {
             onActionClicked: root.retryRequested()
         }
 
-        Item {
+        RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: 360
+            Layout.preferredHeight: Math.max(360, _inspector.visible ? _inspector.implicitHeight : 0)
+            spacing: Theme.AppTheme.spacingMd
 
-            AppWidgets.DataTable {
-                anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: assignmentPagination.top
-                columns: root._columns
-                sourceModel: root.assignmentsTableModel
-                selectedRowId: root.selectedAssignmentId
-                loading: root.isBusy
-                sortingMode: "server"
-                sortKey: String(root.assignmentsModel.sortKey || "resourceName")
-                sortDirection: root.assignmentsModel.sortDirection === "desc" ? Qt.DescendingOrder : Qt.AscendingOrder
-                emptyText: root.assignmentsModel.emptyState || "No assignments match."
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
 
-                onRowSelected: function(rowId) {
-                    root.assignmentSelected(rowId)
-                    const item = root._itemForId(rowId)
-                    const state = item ? (item.state || {}) : {}
-                    root.previewRequested(
-                        String(state.projectResourceId || ""),
-                        String(state.taskId || "")
-                    )
+                AppWidgets.DataTable {
+                    anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: assignmentPagination.top
+                    columns: root._columns
+                    sourceModel: root.assignmentsTableModel
+                    selectedRowId: root.selectedAssignmentId
+                    loading: root.isBusy
+                    sortingMode: "server"
+                    sortKey: String(root.assignmentsModel.sortKey || "resourceName")
+                    sortDirection: root.assignmentsModel.sortDirection === "desc" ? Qt.DescendingOrder : Qt.AscendingOrder
+                    emptyText: root.assignmentsModel.emptyState || "No assignments match."
+
+                    onRowSelected: function(rowId) {
+                        root.assignmentSelected(rowId)
+                        const item = root._itemForId(rowId)
+                        const state = item ? (item.state || {}) : {}
+                        root.previewRequested(
+                            String(state.projectResourceId || ""),
+                            String(state.taskId || "")
+                        )
+                    }
+                    onRowActivated: function(rowId) {
+                        root.assignmentSelected(rowId)
+                        const item = root._itemForId(rowId)
+                        const state = item ? (item.state || {}) : {}
+                        root.previewRequested(
+                            String(state.projectResourceId || ""),
+                            String(state.taskId || "")
+                        )
+                    }
+                    onSortRequested: function(key, direction) { root.workspaceController.setTaskAssignmentsSort(key, direction) }
                 }
-                onRowActivated: function(rowId) {
-                    root.assignmentSelected(rowId)
-                    const item = root._itemForId(rowId)
-                    const state = item ? (item.state || {}) : {}
-                    root.previewRequested(
-                        String(state.projectResourceId || ""),
-                        String(state.taskId || "")
-                    )
-                }
-                onSortRequested: function(key, direction) { root.workspaceController.setTaskAssignmentsSort(key, direction) }
-            }
-            AppWidgets.TablePaginationBar {
-                id: assignmentPagination
-                anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                currentPage: Number(root.assignmentsModel.page || 1); pageSize: Number(root.assignmentsModel.pageSize || 25)
-                totalItems: Number(root.assignmentsModel.total || 0); busy: root.isBusy
-                onPageRequested: function(page) { root.workspaceController.setTaskAssignmentsPage(page) }
-                onPageSizeRequested: function(size) { root.workspaceController.setTaskAssignmentsPageSize(size) }
-            }
-        }
 
-        AppWidgets.InspectorPanel {
-            id: _inspector
-            Layout.fillWidth: true
-            Layout.topMargin: Theme.AppTheme.spacingMd
-            implicitWidth: parent ? parent.width : Theme.AppTheme.inspectorWidth
-            visible: root._selectedItem !== null
-            title: root._selectedItem ? String(root._selectedItem.title || "") : ""
-            statusLabel: String(root._selectedState.capacityStatusLabel || "")
-            showEditAction: false
-            showSecondaryAction: false
+                AppWidgets.TablePaginationBar {
+                    id: assignmentPagination
+                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                    currentPage: Number(root.assignmentsModel.page || 1); pageSize: Number(root.assignmentsModel.pageSize || 25)
+                    totalItems: Number(root.assignmentsModel.total || 0); busy: root.isBusy
+                    onPageRequested: function(page) { root.workspaceController.setTaskAssignmentsPage(page) }
+                    onPageSizeRequested: function(size) { root.workspaceController.setTaskAssignmentsPageSize(size) }
+                }
+            }
+
+            AppWidgets.InspectorPanel {
+                id: _inspector
+                Layout.fillHeight: true
+                visible: root._selectedItem !== null
+                Layout.preferredWidth: visible ? Theme.AppTheme.inspectorWidth : 0
+                title: root._selectedItem ? String(root._selectedItem.title || "") : ""
+                statusLabel: String(root._selectedState.capacityStatusLabel || "")
+                showEditAction: false
+                showSecondaryAction: false
 
             onCloseRequested: root.assignmentSelected("")
 
@@ -393,6 +398,7 @@ Item {
                         }
                     }
                 }
+            }
             }
         }
     }

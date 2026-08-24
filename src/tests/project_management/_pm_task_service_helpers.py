@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -10,6 +11,11 @@ from src.core.modules.project_management.api.desktop import (
     build_project_management_tasks_desktop_api,
 )
 from src.core.modules.project_management.domain.enums import DependencyType, TaskStatus
+from src.core.modules.project_management.contracts.reads import ReadSort
+from src.core.modules.project_management.contracts.reads.tasks import (
+    TaskAssignmentReadItem,
+    TaskAssignmentReadPage,
+)
 from src.core.platform.domain.master_data.documents import DocumentStorageKind
 from src.ui_qml.modules.project_management.context import ProjectManagementWorkspaceCatalog
 from src.tests.project_management._fake_task_workspace_query import (
@@ -322,6 +328,62 @@ class _FakeTaskService:
 
     def list_assignments_for_task(self, task_id: str) -> list[SimpleNamespace]:
         return [a for a in self._assignments.values() if a.task_id == task_id]
+
+    def query_task_assignments_page(
+        self,
+        task_id: str,
+        *,
+        search_text: str = "",
+        response_status: str = "all",
+        page: int = 1,
+        page_size: int = 25,
+        sort_key: str = "resourceName",
+        sort_direction: str = "asc",
+    ) -> TaskAssignmentReadPage:
+        rows = self.list_assignments_for_task(task_id)
+        if response_status != "all":
+            rows = [row for row in rows if row.response_status == response_status]
+        if search_text:
+            needle = search_text.casefold()
+            rows = [row for row in rows if needle in str(row.resource_id).casefold()]
+        rows.sort(key=lambda row: (str(row.resource_id).casefold(), str(row.id)))
+        if sort_direction == "desc":
+            rows.reverse()
+        start = (page - 1) * page_size
+        selected = rows[start : start + page_size]
+        return TaskAssignmentReadPage(
+            items=tuple(
+                TaskAssignmentReadItem(
+                    assignment_id=row.id,
+                    resource_id=row.resource_id,
+                    resource_code="",
+                    resource_name=row.resource_id,
+                    role="",
+                    allocation_percent=Decimal(str(row.allocation_percent)),
+                    planned_hours=Decimal(str(getattr(row, "allocated_planned_hours", 0))),
+                    actual_hours=Decimal(str(row.hours_logged)),
+                    response_status=row.response_status,
+                    project_resource_id=row.project_resource_id,
+                    version=int(getattr(row, "version", 1)),
+                    can_manage=True,
+                    can_accept=row.response_status == "pending",
+                    can_decline=row.response_status == "pending",
+                )
+                for row in selected
+            ),
+            filtered_total=len(rows),
+            page=page,
+            page_size=page_size,
+            sort=ReadSort.normalize(
+                key=sort_key,
+                direction=sort_direction,
+                allowed_keys={
+                    "resourceName", "resourceCode", "role", "allocationPercent",
+                    "plannedHours", "actualHours", "remainingHours", "responseStatus",
+                },
+                default_key="resourceName",
+            ),
+        )
 
     def assign_project_resource(
         self,
