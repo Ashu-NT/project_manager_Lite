@@ -352,6 +352,8 @@ def build_project_management_service_bundle(
         resource_catalog_reader=resource_read_reader,
         resource_inspector_reader=resource_read_reader,
         resource_summary_reader=resource_read_reader,
+        department_service=platform_services.department_service,
+        site_service=platform_services.site_service,
     )
     financial_configuration_service = FinancialConfigurationService(
         session=session,

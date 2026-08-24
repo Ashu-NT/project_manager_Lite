@@ -17,6 +17,7 @@ class ResourceCatalogReadItem:
     is_active: bool
     capacity_percent: float
     organization_id: str
+    kind: str = "PERSON"
     organization_label: str = ""
     department_id: str | None = None
     employee_name: str = ""
@@ -38,6 +39,7 @@ class ResourceInspectorFact:
     is_active: bool
     capacity_percent: float
     organization_id: str
+    kind: str = "PERSON"
     organization_label: str = ""
     department_id: str | None = None
     department_label: str = ""
@@ -69,6 +71,7 @@ class ResourceSummaryFact:
     address: str
     contact: str
     organization_id: str
+    kind: str = "PERSON"
     organization_label: str = ""
     department_id: str | None = None
     department_label: str = ""

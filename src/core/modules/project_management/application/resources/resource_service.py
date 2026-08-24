@@ -61,6 +61,8 @@ class ResourceService(
         resource_catalog_reader: ResourceCatalogReader | None = None,
         resource_inspector_reader: ResourceInspectorReader | None = None,
         resource_summary_reader: ResourceSummaryReader | None = None,
+        department_service=None,
+        site_service=None,
     ):
         self._session: Session = session
         self._resource_repo: ResourceRepository = resource_repo
@@ -79,6 +81,8 @@ class ResourceService(
         self._resource_catalog_reader = resource_catalog_reader
         self._resource_inspector_reader = resource_inspector_reader
         self._resource_summary_reader = resource_summary_reader
+        self._department_service = department_service
+        self._site_service = site_service
 
 
 __all__ = ["ResourceService"]

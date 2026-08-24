@@ -833,9 +833,10 @@ def upgrade() -> None:
 
     op.create_table('resources',
     sa.Column('id', sa.String(), nullable=False),
-    sa.Column('tenant_id', sa.String(), nullable=True),
+    sa.Column('tenant_id', sa.String(), nullable=False),
     sa.Column('resource_code', sa.String(length=64), nullable=True),
     sa.Column('name', sa.String(), nullable=False),
+    sa.Column('kind', sa.Enum('PERSON', 'CREW', 'EQUIPMENT', name='resourcekind'), server_default='PERSON', nullable=False),
     sa.Column('role', sa.String(), nullable=False),
     sa.Column('hourly_rate', sa.Numeric(precision=19, scale=8), server_default='0', nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
@@ -848,10 +849,12 @@ def upgrade() -> None:
     sa.Column('employee_id', sa.String(), nullable=True),
     sa.Column('organization_id', sa.String(), nullable=False),
     sa.Column('department_id', sa.String(), nullable=True),
+    sa.Column('site_id', sa.String(), nullable=True),
     sa.Column('version', sa.Integer(), server_default='1', nullable=False),
     sa.ForeignKeyConstraint(['department_id'], ['departments.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['employee_id'], ['employees.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], ondelete='RESTRICT'),
+    sa.ForeignKeyConstraint(['site_id'], ['sites.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['tenant_id'], ['tenants.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id')
     )
@@ -859,8 +862,11 @@ def upgrade() -> None:
         batch_op.create_index('idx_resources_department', ['department_id'], unique=False)
         batch_op.create_index('idx_resources_employee', ['employee_id'], unique=False)
         batch_op.create_index('idx_resources_organization', ['organization_id'], unique=False)
+        batch_op.create_index('idx_resources_scope', ['tenant_id', 'organization_id'], unique=False)
+        batch_op.create_index('idx_resources_site', ['site_id'], unique=False)
         batch_op.create_index('idx_resources_tenant', ['tenant_id'], unique=False)
-        batch_op.create_index('ux_resources_code', ['resource_code'], unique=True)
+        batch_op.create_index('ux_resources_scope_code', ['tenant_id', 'organization_id', 'resource_code'], unique=True)
+        batch_op.create_index('ux_resources_scope_employee', ['tenant_id', 'organization_id', 'employee_id'], unique=True, sqlite_where=sa.text('employee_id IS NOT NULL'), postgresql_where=sa.text('employee_id IS NOT NULL'))
 
     op.create_table('role_bindings',
     sa.Column('id', sa.String(), nullable=False),
@@ -3580,8 +3586,11 @@ def downgrade() -> None:
 
     op.drop_table('role_bindings')
     with op.batch_alter_table('resources', schema=None) as batch_op:
-        batch_op.drop_index('ux_resources_code')
+        batch_op.drop_index('ux_resources_scope_employee', sqlite_where=sa.text('employee_id IS NOT NULL'), postgresql_where=sa.text('employee_id IS NOT NULL'))
+        batch_op.drop_index('ux_resources_scope_code')
         batch_op.drop_index('idx_resources_tenant')
+        batch_op.drop_index('idx_resources_site')
+        batch_op.drop_index('idx_resources_scope')
         batch_op.drop_index('idx_resources_organization')
         batch_op.drop_index('idx_resources_employee')
         batch_op.drop_index('idx_resources_department')

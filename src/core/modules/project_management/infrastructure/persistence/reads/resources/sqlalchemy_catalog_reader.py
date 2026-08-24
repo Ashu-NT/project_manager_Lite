@@ -34,6 +34,7 @@ from src.core.platform.infrastructure.persistence.orm.master_data.site.sites imp
 
 ResourceDepartment = aliased(DepartmentORM, name="resource_department")
 EmployeeDepartment = aliased(DepartmentORM, name="employee_department")
+ResourceSite = aliased(SiteORM, name="resource_site")
 EmployeeSite = aliased(SiteORM, name="employee_site")
 DepartmentSite = aliased(SiteORM, name="department_site")
 
@@ -69,6 +70,12 @@ def _with_resource_context_joins(statement):
             & (EmployeeDepartment.organization_id == ResourceORM.organization_id),
         )
         .outerjoin(
+            ResourceSite,
+            (ResourceSite.id == ResourceORM.site_id)
+            & (ResourceSite.tenant_id == ResourceORM.tenant_id)
+            & (ResourceSite.organization_id == ResourceORM.organization_id),
+        )
+        .outerjoin(
             EmployeeSite,
             (EmployeeSite.id == EmployeeORM.site_id)
             & (EmployeeSite.tenant_id == ResourceORM.tenant_id)
@@ -97,11 +104,17 @@ def _department_label_expression():
 
 
 def _site_id_expression():
-    return func.coalesce(EmployeeORM.site_id, ResourceDepartment.site_id)
+    return func.coalesce(ResourceORM.site_id, EmployeeORM.site_id, ResourceDepartment.site_id)
 
 
 def _site_label_expression():
-    return func.coalesce(EmployeeSite.name, DepartmentSite.name, EmployeeORM.site_name, "")
+    return func.coalesce(
+        ResourceSite.name,
+        EmployeeSite.name,
+        DepartmentSite.name,
+        EmployeeORM.site_name,
+        "",
+    )
 
 
 class SqlAlchemyResourceCatalogReader:
@@ -171,6 +184,7 @@ class SqlAlchemyResourceCatalogReader:
                 ResourceORM.id,
                 ResourceORM.resource_code,
                 ResourceORM.name,
+                ResourceORM.kind,
                 ResourceORM.role,
                 ResourceORM.worker_type,
                 ResourceORM.cost_type,
@@ -220,21 +234,22 @@ class SqlAlchemyResourceCatalogReader:
                     resource_id=str(row[0]),
                     code=str(row[1] or ""),
                     name=str(row[2] or ""),
-                    role=str(row[3] or ""),
-                    worker_type=str(getattr(row[4], "value", row[4]) or ""),
-                    cost_type=str(getattr(row[5], "value", row[5]) or ""),
-                    is_active=bool(row[6]),
-                    capacity_percent=float(row[7] or 0.0),
-                    organization_id=str(row[8]),
-                    organization_label=str(row[9] or ""),
-                    department_id=str(row[10]) if row[10] else None,
-                    department_label=str(row[11] or ""),
-                    site_id=str(row[12]) if row[12] else None,
-                    site_label=str(row[13] or ""),
-                    employee_id=str(row[14]) if row[14] else None,
-                    employee_name=str(row[15] or ""),
-                    employee_title=str(row[16] or ""),
-                    version=int(row[17] or 1),
+                    kind=str(getattr(row[3], "value", row[3]) or "PERSON"),
+                    role=str(row[4] or ""),
+                    worker_type=str(getattr(row[5], "value", row[5]) or ""),
+                    cost_type=str(getattr(row[6], "value", row[6]) or ""),
+                    is_active=bool(row[7]),
+                    capacity_percent=float(row[8] or 0.0),
+                    organization_id=str(row[9]),
+                    organization_label=str(row[10] or ""),
+                    department_id=str(row[11]) if row[11] else None,
+                    department_label=str(row[12] or ""),
+                    site_id=str(row[13]) if row[13] else None,
+                    site_label=str(row[14] or ""),
+                    employee_id=str(row[15]) if row[15] else None,
+                    employee_name=str(row[16] or ""),
+                    employee_title=str(row[17] or ""),
+                    version=int(row[18] or 1),
                 )
                 for row in rows
             ),
@@ -281,6 +296,7 @@ class SqlAlchemyResourceCatalogReader:
                 ResourceORM.id,
                 ResourceORM.resource_code,
                 ResourceORM.name,
+                ResourceORM.kind,
                 ResourceORM.role,
                 ResourceORM.worker_type,
                 ResourceORM.is_active,
@@ -309,21 +325,22 @@ class SqlAlchemyResourceCatalogReader:
             resource_id=str(row[0]),
             code=str(row[1] or ""),
             name=str(row[2] or ""),
-            role=str(row[3] or ""),
-            worker_type=str(getattr(row[4], "value", row[4]) or ""),
-            is_active=bool(row[5]),
-            capacity_percent=float(row[6] or 0.0),
-            organization_id=str(row[7]),
-            organization_label=str(row[8] or ""),
-            department_id=str(row[9]) if row[9] else None,
-            department_label=str(row[10] or ""),
-            site_id=str(row[11]) if row[11] else None,
-            site_label=str(row[12] or ""),
-            employee_id=str(row[13]) if row[13] else None,
-            employee_name=str(row[14] or ""),
-            project_count=int(row[15] or 0),
-            assignment_count=int(row[16] or 0),
-            version=int(row[17] or 1),
+            kind=str(getattr(row[3], "value", row[3]) or "PERSON"),
+            role=str(row[4] or ""),
+            worker_type=str(getattr(row[5], "value", row[5]) or ""),
+            is_active=bool(row[6]),
+            capacity_percent=float(row[7] or 0.0),
+            organization_id=str(row[8]),
+            organization_label=str(row[9] or ""),
+            department_id=str(row[10]) if row[10] else None,
+            department_label=str(row[11] or ""),
+            site_id=str(row[12]) if row[12] else None,
+            site_label=str(row[13] or ""),
+            employee_id=str(row[14]) if row[14] else None,
+            employee_name=str(row[15] or ""),
+            project_count=int(row[16] or 0),
+            assignment_count=int(row[17] or 0),
+            version=int(row[18] or 1),
         )
 
     def read_summary(
@@ -338,6 +355,7 @@ class SqlAlchemyResourceCatalogReader:
                 ResourceORM.id,
                 ResourceORM.resource_code,
                 ResourceORM.name,
+                ResourceORM.kind,
                 ResourceORM.role,
                 ResourceORM.worker_type,
                 ResourceORM.cost_type,
@@ -370,25 +388,26 @@ class SqlAlchemyResourceCatalogReader:
             resource_id=str(row[0]),
             code=str(row[1] or ""),
             name=str(row[2] or ""),
-            role=str(row[3] or ""),
-            worker_type=str(getattr(row[4], "value", row[4]) or ""),
-            cost_type=str(getattr(row[5], "value", row[5]) or ""),
-            hourly_rate=Decimal(str(row[6] or 0)),
-            currency_code=str(row[7]).upper() if row[7] else None,
-            is_active=bool(row[8]),
-            capacity_percent=float(row[9] or 0.0),
-            address=str(row[10] or ""),
-            contact=str(row[11] or ""),
-            organization_id=str(row[12]),
-            organization_label=str(row[13] or ""),
-            department_id=str(row[14]) if row[14] else None,
-            department_label=str(row[15] or ""),
-            site_id=str(row[16]) if row[16] else None,
-            site_label=str(row[17] or ""),
-            employee_id=str(row[18]) if row[18] else None,
-            employee_name=str(row[19] or ""),
-            employee_title=str(row[20] or ""),
-            version=int(row[21] or 1),
+            kind=str(getattr(row[3], "value", row[3]) or "PERSON"),
+            role=str(row[4] or ""),
+            worker_type=str(getattr(row[5], "value", row[5]) or ""),
+            cost_type=str(getattr(row[6], "value", row[6]) or ""),
+            hourly_rate=Decimal(str(row[7] or 0)),
+            currency_code=str(row[8]).upper() if row[8] else None,
+            is_active=bool(row[9]),
+            capacity_percent=float(row[10] or 0.0),
+            address=str(row[11] or ""),
+            contact=str(row[12] or ""),
+            organization_id=str(row[13]),
+            organization_label=str(row[14] or ""),
+            department_id=str(row[15]) if row[15] else None,
+            department_label=str(row[16] or ""),
+            site_id=str(row[17]) if row[17] else None,
+            site_label=str(row[18] or ""),
+            employee_id=str(row[19]) if row[19] else None,
+            employee_name=str(row[20] or ""),
+            employee_title=str(row[21] or ""),
+            version=int(row[22] or 1),
         )
 
 

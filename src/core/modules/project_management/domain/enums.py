@@ -53,11 +53,18 @@ class WorkerType(str, Enum):
     EXTERNAL = "EXTERNAL"
 
 
+class ResourceKind(str, Enum):
+    PERSON = "PERSON"
+    CREW = "CREW"
+    EQUIPMENT = "EQUIPMENT"
+
+
 __all__ = [
     "ProjectStatus",
     "TaskStatus",
     "DependencyType",
     "ConstraintType",
     "CostType",
+    "ResourceKind",
     "WorkerType",
 ]

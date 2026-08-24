@@ -27,6 +27,10 @@ class ResourceDesktopDto:
     is_active: bool
     active_label: str
     version: int
+    kind: str = "PERSON"
+    kind_label: str = "Person"
+    department_id: str | None = None
+    site_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -52,6 +56,8 @@ class ResourceCatalogItemDesktopDto:
     capacity_percent: float
     capacity_label: str
     version: int
+    kind: str = "PERSON"
+    kind_label: str = "Person"
 
 
 @dataclass(frozen=True)
@@ -81,6 +87,8 @@ class ResourceInspectorDesktopDto:
     can_manage: bool
     can_deactivate: bool
     can_reactivate: bool
+    kind: str = "PERSON"
+    kind_label: str = "Person"
 
 
 @dataclass(frozen=True)
@@ -115,6 +123,8 @@ class ResourceSummaryDesktopDto:
     version: int
     can_read: bool
     can_manage: bool
+    kind: str = "PERSON"
+    kind_label: str = "Person"
 
 
 @dataclass(frozen=True)

@@ -66,6 +66,12 @@ def serialize_resource(
         is_active=is_active,
         active_label="Active" if is_active else "Inactive",
         version=int(getattr(resource, "version", 1) or 1),
+        kind=str(getattr(getattr(resource, "kind", None), "value", getattr(resource, "kind", None)) or "PERSON"),
+        kind_label=format_enum_label(
+            str(getattr(getattr(resource, "kind", None), "value", getattr(resource, "kind", None)) or "PERSON")
+        ),
+        department_id=getattr(resource, "department_id", None),
+        site_id=getattr(resource, "site_id", None),
     )
 
 
@@ -97,6 +103,8 @@ def serialize_resource_catalog_item(
         capacity_percent=capacity_percent,
         capacity_label=f"{capacity_percent:.1f}%",
         version=fact.version,
+        kind=fact.kind,
+        kind_label=format_enum_label(fact.kind),
     )
 
 
@@ -131,6 +139,8 @@ def serialize_resource_inspector(
         can_manage=fact.can_manage,
         can_deactivate=fact.can_deactivate,
         can_reactivate=fact.can_reactivate,
+        kind=fact.kind,
+        kind_label=format_enum_label(fact.kind),
     )
 
 
@@ -172,6 +182,8 @@ def serialize_resource_summary(fact: ResourceSummaryFact) -> ResourceSummaryDesk
         version=fact.version,
         can_read=fact.can_read,
         can_manage=fact.can_manage,
+        kind=fact.kind,
+        kind_label=format_enum_label(fact.kind),
     )
 
 
