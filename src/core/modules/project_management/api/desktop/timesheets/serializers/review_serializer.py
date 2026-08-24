@@ -12,14 +12,8 @@ from src.core.modules.project_management.api.desktop.timesheets.formatters.time_
 from src.core.modules.project_management.api.desktop.timesheets.models.periods import (
     TimesheetPeriodSummaryDesktopDto,
 )
-from src.core.modules.project_management.api.desktop.timesheets.models.review import (
-    TimesheetReviewDetailDesktopDto,
-    TimesheetReviewEntryDesktopDto,
-)
-from src.core.modules.project_management.api.desktop.timesheets.services.project_lookup_service import (
-    project_name_for_id,
-    project_names_from_ids,
-)
+from src.core.modules.project_management.api.desktop.timesheets.models.review import TimesheetReviewDetailDesktopDto
+from src.core.modules.project_management.api.desktop.timesheets.services.project_lookup_service import project_names_from_ids
 from src.core.modules.project_management.contracts.reads.timesheets import (
     TimesheetReviewInspectorFact,
 )
@@ -71,7 +65,6 @@ def serialize_review_detail(
             detail.summary,
             project_service=project_service,
         ),
-        entries=(),
     )
 
 

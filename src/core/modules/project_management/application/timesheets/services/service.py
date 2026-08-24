@@ -5,6 +5,7 @@ from datetime import date
 
 from src.core.modules.project_management.access.scope_permissions import (
     require_any_project_permission,
+    require_project_permission,
 )
 from src.core.modules.project_management.application.common.module_guard import (
     ProjectManagementModuleGuardMixin,
@@ -27,7 +28,7 @@ from src.core.platform.application.security.authorization.enforcement.permission
     require_any_permission,
 )
 from src.core.platform.application.security.authorization import get_authorization_engine
-from src.core.platform.common.exceptions import NotFoundError
+from src.core.platform.common.exceptions import BusinessRuleError, NotFoundError
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 
 
@@ -180,13 +181,52 @@ class TimesheetService(
             )
         )
 
+    def _require_timesheet_review_scope(
+        self, permission_code: str, entries: list
+    ) -> None:
+        session = self._user_session
+        if session is None or not session.is_project_restricted():
+            return
+        project_ids = self._project_ids_for_entries(entries)
+        if not project_ids:
+            raise BusinessRuleError(
+                "Project-scoped reviewers cannot decide an unscoped timesheet period.",
+                code="PERMISSION_DENIED",
+            )
+        for project_id in project_ids:
+            require_project_permission(
+                session,
+                project_id,
+                permission_code,
+                operation_label="review timesheet period",
+            )
+
+    def _has_review_project_permission(
+        self, item: TimesheetReviewQueueFact, permission_code: str
+    ) -> bool:
+        session = self._user_session
+        if session is None:
+            return False
+        if not session.is_project_restricted():
+            return True
+        project_ids = set(item.project_ids)
+        return bool(project_ids) and project_ids.issubset(
+            session.project_ids_for(permission_code)
+        )
+
     def _with_review_capabilities(
         self,
         item: TimesheetReviewQueueFact,
     ) -> TimesheetReviewQueueFact:
         engine = get_authorization_engine()
-        can_decide = engine.has_permission(self._user_session, "timesheet.approve")
-        can_lock = engine.has_permission(self._user_session, "timesheet.lock")
+        can_decide = (
+            engine.has_permission(self._user_session, "timesheet.approve")
+            and self._has_review_project_permission(item, "timesheet.approve")
+        )
+        can_lock = (
+            engine.has_permission(self._user_session, "timesheet.lock")
+            and self._has_review_project_permission(item, "timesheet.lock")
+        )
         return replace(
             item,
             can_approve=can_decide and item.status == TimesheetPeriodStatus.SUBMITTED,

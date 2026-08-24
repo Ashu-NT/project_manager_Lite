@@ -61,13 +61,8 @@ class TimesheetDetailViewModel:
 class TimesheetsWorkspaceViewModel:
     overview: TimesheetOverviewViewModel
     project_options: tuple[TimesheetSelectorOptionViewModel, ...] = field(default_factory=tuple)
-    assignment_options: tuple[TimesheetSelectorOptionViewModel, ...] = field(default_factory=tuple)
-    period_options: tuple[TimesheetSelectorOptionViewModel, ...] = field(default_factory=tuple)
     queue_status_options: tuple[TimesheetSelectorOptionViewModel, ...] = field(default_factory=tuple)
     queue_resource_options: tuple[TimesheetSelectorOptionViewModel, ...] = field(default_factory=tuple)
-    selected_project_id: str = "all"
-    selected_assignment_id: str = ""
-    selected_period_start: str = ""
     selected_queue_status: str = "SUBMITTED"
     queue_search_text: str = ""
     selected_queue_project_id: str = "all"
@@ -76,11 +71,7 @@ class TimesheetsWorkspaceViewModel:
     queue_period_start_to: str = ""
     queue_sort_key: str = "submittedAt"
     queue_sort_direction: str = "desc"
-    selected_entry_id: str = ""
     selected_queue_period_id: str = ""
-    assignment_summary: TimesheetDetailViewModel = field(default_factory=TimesheetDetailViewModel)
-    entries: TimesheetCollectionViewModel = field(default_factory=lambda: TimesheetCollectionViewModel("", "", ""))
-    selected_entry_detail: TimesheetDetailViewModel = field(default_factory=TimesheetDetailViewModel)
     review_queue: TimesheetCollectionViewModel = field(default_factory=lambda: TimesheetCollectionViewModel("", "", ""))
     review_detail: TimesheetDetailViewModel = field(default_factory=TimesheetDetailViewModel)
     empty_state: str = ""

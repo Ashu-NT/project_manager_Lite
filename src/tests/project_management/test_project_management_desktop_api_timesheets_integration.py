@@ -129,7 +129,6 @@ def test_project_management_timesheets_desktop_api_supports_assignment_periods_a
     assert submitted_period.status == "SUBMITTED"
     assert review_queue[0].entry_count == 2
     assert review_detail.summary.resource_name == "Electrical Crew"
-    assert review_detail.entries == ()
     assert review_detail.summary.project_count == 1
     assert approved_period.status == "APPROVED"
     assert locked_period.status == "LOCKED"

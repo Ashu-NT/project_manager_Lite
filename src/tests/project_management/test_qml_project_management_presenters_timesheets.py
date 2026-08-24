@@ -207,10 +207,10 @@ def test_project_management_workspace_catalog_exposes_typed_timesheets_controlle
     controller = catalog.timesheetsWorkspace
 
     assert controller.workspace["routeId"] == "project_management.timesheets"
-    assert controller.overview["title"] == "Timesheets"
-    assert controller.assignmentOptions[0]["label"] == "Plant Upgrade | Cable Pull | Electrical Crew"
-    assert controller.entries["items"][0]["title"] == "2026-05-03"
-    assert controller.selectedEntry["fields"][0]["value"] == "2026-05-03"
+    assert controller.overview["title"] == "Review Queue"
+    assert not hasattr(controller, "assignmentOptions")
+    assert not hasattr(controller, "entries")
+    assert not hasattr(controller, "selectedEntry")
     assert controller.reviewQueue["items"][0]["title"] == "Electrical Crew | May 2026"
 
     controller.setQueueStatus("all")

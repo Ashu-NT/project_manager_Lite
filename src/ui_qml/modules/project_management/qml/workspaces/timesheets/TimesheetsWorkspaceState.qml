@@ -19,8 +19,8 @@ Item {
         ? root.workspaceController.workspace
         : ({
             "routeId": "project_management.timesheets",
-            "title": "Timesheets",
-            "summary": "Time entry, review, labor capture, and project time reporting."
+            "title": "Review Queue",
+            "summary": "Version-safe TimesheetPeriod review and decisions."
         })
 
     readonly property var overviewModel: root.workspaceController
@@ -47,26 +47,7 @@ Item {
             "statusLabel": "",
             "subtitle": "",
             "description": "",
-            "emptyState": "Select a timesheet period to review entries and manage approval.",
-            "fields": [],
-            "state": {}
-        })
-
-    readonly property var entriesModel: root.workspaceController
-        ? root.workspaceController.entries
-        : ({
-            "title": "Time Entries",
-            "subtitle": "",
-            "emptyState": "No time entries for the selected period.",
-            "items": []
-        })
-
-    readonly property var selectedEntryModel: root.workspaceController
-        ? root.workspaceController.selectedEntry
-        : ({
-            "title": "",
-            "subtitle": "",
-            "emptyState": "Select an entry to review its labor note and details.",
+            "emptyState": "Select a timesheet period to inspect its decision context.",
             "fields": [],
             "state": {}
         })

@@ -25,7 +25,6 @@ from src.core.modules.project_management.api.desktop.timesheets.models.periods i
 )
 from src.core.modules.project_management.api.desktop.timesheets.models.review import (
     TimesheetReviewDetailDesktopDto,
-    TimesheetReviewEntryDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.timesheets.models.snapshots import (
     TimesheetAssignmentSnapshotDesktopDto,
@@ -43,7 +42,6 @@ __all__ = [
     "TimesheetPeriodSummaryDesktopDto",
     "TimesheetProjectOptionDescriptor",
     "TimesheetReviewDetailDesktopDto",
-    "TimesheetReviewEntryDesktopDto",
     "TimesheetReviewPageDesktopDto",
     "build_project_management_timesheets_desktop_api",
 ]

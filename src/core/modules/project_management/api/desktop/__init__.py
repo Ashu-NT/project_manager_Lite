@@ -245,7 +245,6 @@ from src.core.modules.project_management.api.desktop.timesheets import (
     TimesheetPeriodSummaryDesktopDto,
     TimesheetProjectOptionDescriptor,
     TimesheetReviewDetailDesktopDto,
-    TimesheetReviewEntryDesktopDto,
     build_project_management_timesheets_desktop_api,
 )
 from src.core.modules.project_management.api.desktop.workspaces import (
@@ -480,7 +479,6 @@ __all__ = [
     "TimesheetPeriodSummaryDesktopDto",
     "TimesheetProjectOptionDescriptor",
     "TimesheetReviewDetailDesktopDto",
-    "TimesheetReviewEntryDesktopDto",
     "build_project_management_tasks_desktop_api",
     "build_project_management_timesheets_desktop_api",
     "ProjectManagementWorkspaceDescriptor",

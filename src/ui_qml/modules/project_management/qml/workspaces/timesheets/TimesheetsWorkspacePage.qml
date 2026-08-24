@@ -32,8 +32,6 @@ AppLayouts.WorkspaceFrame {
     readonly property var overviewModel: state.overviewModel
     readonly property var reviewQueueModel: state.reviewQueueModel
     readonly property var selectedPeriodModel: state.selectedPeriodModel
-    readonly property var entriesModel: state.entriesModel
-    readonly property var selectedEntryModel: state.selectedEntryModel
 
     // ── Column management ─────────────────────────────────────────────────
     property var _columns: state.columns

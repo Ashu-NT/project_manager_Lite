@@ -5,7 +5,7 @@ import logging
 
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
-from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.exceptions import ConcurrencyError, ValidationError
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.domain.time_management.time import TimesheetPeriod, TimesheetPeriodStatus
 from src.core.platform.application.time_management.time.timesheet_query import TimesheetPeriodAggregate
@@ -69,11 +69,13 @@ class TimesheetPeriodsMixin:
             operation_label="approve timesheet period",
         )
         period = self._require_timesheet_period(period_id)
+        self._require_current_period_version(period, expected_version)
         if period.status != TimesheetPeriodStatus.SUBMITTED:
             raise ValidationError("Only submitted timesheet periods can be approved.")
         entries = self.list_time_entries_for_resource_period(
             period.resource_id, period_start=period.period_start
         )
+        self._require_timesheet_review_scope("timesheet.approve", entries)
         principal = getattr(self._user_session, "principal", None)
         period.status = TimesheetPeriodStatus.APPROVED
         period.decided_at = datetime.now(timezone.utc)
@@ -106,11 +108,13 @@ class TimesheetPeriodsMixin:
                 code="TIMESHEET_REVIEW_REASON_REQUIRED",
             )
         period = self._require_timesheet_period(period_id)
+        self._require_current_period_version(period, expected_version)
         if period.status != TimesheetPeriodStatus.SUBMITTED:
             raise ValidationError("Only submitted timesheet periods can be returned.")
         entries = self.list_time_entries_for_resource_period(
             period.resource_id, period_start=period.period_start
         )
+        self._require_timesheet_review_scope("timesheet.approve", entries)
         principal = getattr(self._user_session, "principal", None)
         period.status = TimesheetPeriodStatus.REJECTED
         period.decided_at = datetime.now(timezone.utc)
@@ -136,11 +140,13 @@ class TimesheetPeriodsMixin:
             operation_label="lock timesheet period",
         )
         period = self._require_timesheet_period(period_id)
+        self._require_current_period_version(period, expected_version)
         if period.status != TimesheetPeriodStatus.APPROVED:
             raise ValidationError("Only approved timesheet periods can be locked.")
         entries = self.list_time_entries_for_resource_period(
             period.resource_id, period_start=period.period_start
         )
+        self._require_timesheet_review_scope("timesheet.lock", entries)
         period.status = TimesheetPeriodStatus.LOCKED
         period.locked_at = datetime.now(timezone.utc)
         period.decision_note = str(note or "").strip() or period.decision_note
@@ -162,11 +168,13 @@ class TimesheetPeriodsMixin:
             operation_label="unlock timesheet period",
         )
         period = self._require_timesheet_period(period_id)
+        self._require_current_period_version(period, expected_version)
         if period.status != TimesheetPeriodStatus.LOCKED:
             raise ValidationError("Only explicitly locked timesheet periods can be unlocked.")
         entries = self.list_time_entries_for_resource_period(
             period.resource_id, period_start=period.period_start
         )
+        self._require_timesheet_review_scope("timesheet.lock", entries)
         period.status = TimesheetPeriodStatus.APPROVED
         period.locked_at = None
         period.decision_note = str(note or "").strip() or period.decision_note
@@ -191,11 +199,13 @@ class TimesheetPeriodsMixin:
         if not reason:
             raise ValidationError("A correction reason is required.")
         period = self._require_timesheet_period(period_id)
+        self._require_current_period_version(period, expected_version)
         if period.status != TimesheetPeriodStatus.APPROVED:
             raise ValidationError("Only an approved, unlocked timesheet period can be corrected.")
         entries = self.list_time_entries_for_resource_period(
             period.resource_id, period_start=period.period_start
         )
+        self._require_timesheet_review_scope("timesheet.approve", entries)
         period.status = TimesheetPeriodStatus.OPEN
         period.decision_note = reason
         period.decided_at = None
@@ -209,6 +219,21 @@ class TimesheetPeriodsMixin:
             entries=entries,
             severity="high",
         )
+
+    @staticmethod
+    def _require_current_period_version(
+        period: TimesheetPeriod, expected_version: int
+    ) -> None:
+        if expected_version < 1 or period.version != expected_version:
+            raise ConcurrencyError(
+                "Timesheet period changed since it was loaded. Refresh and try again.",
+                code="TIMESHEET_PERIOD_STALE",
+            )
+
+    def _require_timesheet_review_scope(
+        self, permission_code: str, entries: list
+    ) -> None:
+        """Extension point for a module-owned scope model such as PM projects."""
 
     def _persist_timesheet_transition(
         self,

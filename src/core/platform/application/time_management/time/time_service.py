@@ -11,7 +11,6 @@ from src.core.platform.application.tenant.tenancy.tenant_context import TenantCo
 from src.core.platform.application.time_management.time.timesheet_entries import TimesheetEntriesMixin
 from src.core.platform.application.time_management.time.timesheet_periods import TimesheetPeriodsMixin
 from src.core.platform.application.time_management.time.timesheet_query import TimesheetQueryMixin
-from src.core.platform.application.time_management.time.timesheet_review import TimesheetReviewMixin
 from src.core.platform.application.time_management.time.timesheet_support import TimesheetSupportMixin
 from src.core.platform.application.time_management.time.timesheet_financial_events import TimesheetFinancialEventsMixin
 from src.core.platform.application.integration import IntegrationOutboxService
@@ -28,7 +27,6 @@ class TimeService(
     TimesheetEntriesMixin,
     TimesheetPeriodsMixin,
     TimesheetQueryMixin,
-    TimesheetReviewMixin,
     TimesheetSupportMixin,
     TimesheetFinancialEventsMixin,
 ):

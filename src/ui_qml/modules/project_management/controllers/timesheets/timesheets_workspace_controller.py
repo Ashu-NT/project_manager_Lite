@@ -3,9 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlElement, QmlUncreatable
 
-from src.ui_qml.modules.project_management.controllers.common import (
-    ProjectManagementWorkspaceControllerBase,
-)
+from src.ui_qml.modules.project_management.controllers.common import ProjectManagementWorkspaceControllerBase
 from src.ui_qml.modules.project_management.presenters import (
     ProjectManagementWorkspacePresenter,
     ProjectTimesheetsWorkspacePresenter,
@@ -13,7 +11,6 @@ from src.ui_qml.modules.project_management.presenters import (
 from src.ui_qml.shared.models.data_table_model import DynamicTableModel
 
 from . import state_setters as _setters
-from .detail_builder import build_entry_detail
 from .domain_event_binder import bind_timesheets_domain_events
 from .mutation_handler import TimesheetsMutationHandler
 from .refresh_service import refresh_timesheets_workspace
@@ -27,21 +24,8 @@ from .review_queue_controller import (
     set_queue_search_text,
     set_queue_sort,
 )
-from .selection_handler import (
-    select_assignment,
-    select_period,
-    select_project,
-    set_queue_status,
-)
-from .state import (
-    default_assignment_summary,
-    default_entries,
-    default_overview,
-    default_review_detail,
-    default_review_queue,
-    default_selected_entry,
-)
-from .table_models import create_timesheets_table_models
+from .selection_handler import set_queue_status
+from .state import default_overview, default_review_detail, default_review_queue
 
 QML_IMPORT_NAME = "ProjectManagement.Controllers"
 QML_IMPORT_MAJOR_VERSION = 1
@@ -49,24 +33,13 @@ QML_IMPORT_MAJOR_VERSION = 1
 
 @QmlElement
 @QmlUncreatable("Project management workspace controllers are provided by the shell runtime.")
-class ProjectManagementTimesheetsWorkspaceController(
-    ProjectManagementWorkspaceControllerBase
-):
+class ProjectManagementTimesheetsWorkspaceController(ProjectManagementWorkspaceControllerBase):
     overviewChanged = Signal()
     projectOptionsChanged = Signal()
-    assignmentOptionsChanged = Signal()
-    periodOptionsChanged = Signal()
     queueStatusOptionsChanged = Signal()
     queueResourceOptionsChanged = Signal()
-    selectedProjectIdChanged = Signal()
-    selectedAssignmentIdChanged = Signal()
-    selectedPeriodStartChanged = Signal()
     selectedQueueStatusChanged = Signal()
-    selectedEntryIdChanged = Signal()
     selectedQueuePeriodIdChanged = Signal()
-    assignmentSummaryChanged = Signal()
-    entriesChanged = Signal()
-    selectedEntryChanged = Signal()
     reviewQueueChanged = Signal()
     reviewDetailChanged = Signal()
     queuePageChanged = Signal()
@@ -80,21 +53,11 @@ class ProjectManagementTimesheetsWorkspaceController(
     queueSortKeyChanged = Signal()
     queueSortDirectionChanged = Signal()
 
-    def __init__(
-        self,
-        *,
-        workspace_presenter: ProjectManagementWorkspacePresenter | None = None,
-        timesheets_workspace_presenter: ProjectTimesheetsWorkspacePresenter | None = None,
-        parent: QObject | None = None,
-    ) -> None:
+    def __init__(self, *, workspace_presenter=None, timesheets_workspace_presenter=None, parent: QObject | None = None) -> None:
         super().__init__(parent)
-        self._workspace_presenter = workspace_presenter or ProjectManagementWorkspacePresenter(
-            "project_management.timesheets"
-        )
-        self._timesheets_workspace_presenter = (
-            timesheets_workspace_presenter or ProjectTimesheetsWorkspacePresenter()
-        )
-        self._table_models = create_timesheets_table_models(self)
+        self._workspace_presenter = workspace_presenter or ProjectManagementWorkspacePresenter("project_management.timesheets")
+        self._timesheets_workspace_presenter = timesheets_workspace_presenter or ProjectTimesheetsWorkspacePresenter()
+        self._review_queue_table_model = DynamicTableModel(self)
         self._mutations = TimesheetsMutationHandler(
             presenter=self._timesheets_workspace_presenter,
             request_domain_refresh=self._request_domain_refresh,
@@ -102,23 +65,14 @@ class ProjectManagementTimesheetsWorkspaceController(
             set_error_message=self._set_error_message,
             set_feedback_message=self._set_feedback_message,
         )
-        self._overview: dict[str, object] = default_overview()
-        self._project_options: list[dict[str, str]] = []
-        self._assignment_options: list[dict[str, str]] = []
-        self._period_options: list[dict[str, str]] = []
-        self._queue_status_options: list[dict[str, str]] = []
-        self._queue_resource_options: list[dict[str, str]] = []
-        self._selected_project_id = "all"
-        self._selected_assignment_id = ""
-        self._selected_period_start = ""
+        self._overview = default_overview()
+        self._project_options = []
+        self._queue_status_options = []
+        self._queue_resource_options = []
         self._selected_queue_status = "SUBMITTED"
-        self._selected_entry_id = ""
         self._selected_queue_period_id = ""
-        self._assignment_summary: dict[str, object] = default_assignment_summary()
-        self._entries: dict[str, object] = default_entries()
-        self._selected_entry: dict[str, object] = default_selected_entry()
-        self._review_queue: dict[str, object] = default_review_queue()
-        self._review_detail: dict[str, object] = default_review_detail()
+        self._review_queue = default_review_queue()
+        self._review_detail = default_review_detail()
         self._queue_page = 1
         self._queue_page_size = 25
         self._queue_total_count = 0
@@ -132,294 +86,81 @@ class ProjectManagementTimesheetsWorkspaceController(
         bind_timesheets_domain_events(self)
         self.refresh()
 
-    # ── Properties ────────────────────────────────────────────────────
-
-    @Property("QVariantMap", notify=overviewChanged)
-    def overview(self) -> dict[str, object]:
-        return self._overview
-
-    @Property("QVariantList", notify=projectOptionsChanged)
-    def projectOptions(self) -> list[dict[str, str]]:
-        return self._project_options
-
-    @Property("QVariantList", notify=assignmentOptionsChanged)
-    def assignmentOptions(self) -> list[dict[str, str]]:
-        return self._assignment_options
-
-    @Property("QVariantList", notify=periodOptionsChanged)
-    def periodOptions(self) -> list[dict[str, str]]:
-        return self._period_options
-
-    @Property("QVariantList", notify=queueStatusOptionsChanged)
-    def queueStatusOptions(self) -> list[dict[str, str]]:
-        return self._queue_status_options
-
-    @Property("QVariantList", notify=queueResourceOptionsChanged)
-    def queueResourceOptions(self) -> list[dict[str, str]]:
-        return self._queue_resource_options
-
-    @Property(str, notify=selectedProjectIdChanged)
-    def selectedProjectId(self) -> str:
-        return self._selected_project_id
-
-    @Property(str, notify=selectedAssignmentIdChanged)
-    def selectedAssignmentId(self) -> str:
-        return self._selected_assignment_id
-
-    @Property(str, notify=selectedPeriodStartChanged)
-    def selectedPeriodStart(self) -> str:
-        return self._selected_period_start
-
-    @Property(str, notify=selectedQueueStatusChanged)
-    def selectedQueueStatus(self) -> str:
-        return self._selected_queue_status
-
-    @Property(str, notify=selectedEntryIdChanged)
-    def selectedEntryId(self) -> str:
-        return self._selected_entry_id
-
-    @Property(str, notify=selectedQueuePeriodIdChanged)
-    def selectedQueuePeriodId(self) -> str:
-        return self._selected_queue_period_id
-
-    @Property("QVariantMap", notify=assignmentSummaryChanged)
-    def assignmentSummary(self) -> dict[str, object]:
-        return self._assignment_summary
-
-    @Property("QVariantMap", notify=entriesChanged)
-    def entries(self) -> dict[str, object]:
-        return self._entries
-
-    @Property("QVariantMap", notify=selectedEntryChanged)
-    def selectedEntry(self) -> dict[str, object]:
-        return self._selected_entry
-
-    @Property("QVariantMap", notify=reviewQueueChanged)
-    def reviewQueue(self) -> dict[str, object]:
-        return self._review_queue
-
-    @Property(QObject, constant=True)
-    def entriesTableModel(self) -> DynamicTableModel:
-        return self._table_models.entries
-
-    @Property(QObject, constant=True)
-    def reviewQueueTableModel(self) -> DynamicTableModel:
-        return self._table_models.review_queue
-
-    @Property("QVariantMap", notify=reviewDetailChanged)
-    def reviewDetail(self) -> dict[str, object]:
-        return self._review_detail
-
-    @Property(int, notify=queuePageChanged)
-    def queuePage(self) -> int:
-        return self._queue_page
-
-    @Property(int, notify=queuePageSizeChanged)
-    def queuePageSize(self) -> int:
-        return self._queue_page_size
-
-    @Property(int, notify=queueTotalCountChanged)
-    def queueTotalCount(self) -> int:
-        return self._queue_total_count
-
-    @Property(str, notify=queueSearchTextChanged)
-    def queueSearchText(self) -> str:
-        return self._queue_search_text
-
-    @Property(str, notify=selectedQueueProjectIdChanged)
-    def selectedQueueProjectId(self) -> str:
-        return self._selected_queue_project_id
-
-    @Property(str, notify=selectedQueueResourceIdChanged)
-    def selectedQueueResourceId(self) -> str:
-        return self._selected_queue_resource_id
-
-    @Property(str, notify=queuePeriodStartFromChanged)
-    def queuePeriodStartFrom(self) -> str:
-        return self._queue_period_start_from
-
-    @Property(str, notify=queuePeriodStartToChanged)
-    def queuePeriodStartTo(self) -> str:
-        return self._queue_period_start_to
-
-    @Property(str, notify=queueSortKeyChanged)
-    def queueSortKey(self) -> str:
-        return self._queue_sort_key
-
-    @Property(int, notify=queueSortDirectionChanged)
-    def queueSortDirection(self) -> int:
-        return self._queue_sort_direction
-
-    # ── Refresh ───────────────────────────────────────────────────────
+    overview = Property("QVariantMap", lambda self: self._overview, notify=overviewChanged)
+    projectOptions = Property("QVariantList", lambda self: self._project_options, notify=projectOptionsChanged)
+    queueStatusOptions = Property("QVariantList", lambda self: self._queue_status_options, notify=queueStatusOptionsChanged)
+    queueResourceOptions = Property("QVariantList", lambda self: self._queue_resource_options, notify=queueResourceOptionsChanged)
+    selectedQueueStatus = Property(str, lambda self: self._selected_queue_status, notify=selectedQueueStatusChanged)
+    selectedQueuePeriodId = Property(str, lambda self: self._selected_queue_period_id, notify=selectedQueuePeriodIdChanged)
+    reviewQueue = Property("QVariantMap", lambda self: self._review_queue, notify=reviewQueueChanged)
+    reviewDetail = Property("QVariantMap", lambda self: self._review_detail, notify=reviewDetailChanged)
+    queuePage = Property(int, lambda self: self._queue_page, notify=queuePageChanged)
+    queuePageSize = Property(int, lambda self: self._queue_page_size, notify=queuePageSizeChanged)
+    queueTotalCount = Property(int, lambda self: self._queue_total_count, notify=queueTotalCountChanged)
+    queueSearchText = Property(str, lambda self: self._queue_search_text, notify=queueSearchTextChanged)
+    selectedQueueProjectId = Property(str, lambda self: self._selected_queue_project_id, notify=selectedQueueProjectIdChanged)
+    selectedQueueResourceId = Property(str, lambda self: self._selected_queue_resource_id, notify=selectedQueueResourceIdChanged)
+    queuePeriodStartFrom = Property(str, lambda self: self._queue_period_start_from, notify=queuePeriodStartFromChanged)
+    queuePeriodStartTo = Property(str, lambda self: self._queue_period_start_to, notify=queuePeriodStartToChanged)
+    queueSortKey = Property(str, lambda self: self._queue_sort_key, notify=queueSortKeyChanged)
+    queueSortDirection = Property(int, lambda self: self._queue_sort_direction, notify=queueSortDirectionChanged)
+    reviewQueueTableModel = Property(QObject, lambda self: self._review_queue_table_model, constant=True)
 
     @Slot()
-    def refresh(self) -> None:
-        refresh_timesheets_workspace(self)
-
-    # ── Selection slots ───────────────────────────────────────────────
+    def refresh(self) -> None: refresh_timesheets_workspace(self)
 
     @Slot(str)
-    def selectProject(self, project_id: str) -> None:
-        select_project(self, project_id)
-
-    @Slot(str)
-    def selectAssignment(self, assignment_id: str) -> None:
-        select_assignment(self, assignment_id)
-
-    @Slot(str)
-    def selectPeriod(self, period_start: str) -> None:
-        select_period(self, period_start)
-
-    @Slot(str)
-    def setQueueStatus(self, queue_status: str) -> None:
-        set_queue_status(self, queue_status)
-
-    @Slot(str)
-    def selectEntry(self, entry_id: str) -> None:
-        normalized = (entry_id or "").strip()
-        if normalized == self._selected_entry_id:
-            return
-        self._set_selected_entry_id(normalized)
-        self._set_selected_entry(build_entry_detail(normalized, self._entries))
+    def setQueueStatus(self, value: str) -> None: set_queue_status(self, value)
 
     @Slot(str)
     def selectQueuePeriod(self, period_id: str) -> None:
-        normalized = (period_id or "").strip()
-        if normalized == self._selected_queue_period_id:
-            return
-        self._set_selected_queue_period_id(normalized)
-        load_queue_period_detail(self, normalized)
-
-    # ── Queue management slots ────────────────────────────────────────
+        normalized = str(period_id or "").strip()
+        if normalized != self._selected_queue_period_id:
+            self._set_selected_queue_period_id(normalized)
+            load_queue_period_detail(self, normalized)
 
     @Slot(int)
-    def setQueuePage(self, page: int) -> None:
-        set_queue_page(self, page)
-
+    def setQueuePage(self, value: int) -> None: set_queue_page(self, value)
     @Slot(int)
-    def setQueuePageSize(self, page_size: int) -> None:
-        set_queue_page_size(self, page_size)
-
+    def setQueuePageSize(self, value: int) -> None: set_queue_page_size(self, value)
     @Slot(str)
-    def setQueueSearchText(self, value: str) -> None:
-        set_queue_search_text(self, value)
-
+    def setQueueSearchText(self, value: str) -> None: set_queue_search_text(self, value)
     @Slot(str)
-    def setQueueProject(self, value: str) -> None:
-        set_queue_project(self, value)
-
+    def setQueueProject(self, value: str) -> None: set_queue_project(self, value)
     @Slot(str)
-    def setQueueResource(self, value: str) -> None:
-        set_queue_resource(self, value)
-
+    def setQueueResource(self, value: str) -> None: set_queue_resource(self, value)
     @Slot(str, str)
-    def setQueuePeriodRange(self, start: str, end: str) -> None:
-        set_queue_period_range(self, start, end)
-
+    def setQueuePeriodRange(self, start: str, end: str) -> None: set_queue_period_range(self, start, end)
     @Slot(str, int)
-    def setQueueSort(self, key: str, direction: int) -> None:
-        set_queue_sort(self, key, direction)
-
-    # ── Mutation slots ────────────────────────────────────────────────
+    def setQueueSort(self, key: str, direction: int) -> None: set_queue_sort(self, key, direction)
 
     @Slot("QVariantMap", result="QVariantMap")
-    def approvePeriod(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._mutations.approve_period(payload)
-
+    def approvePeriod(self, payload): return self._mutations.approve_period(payload)
     @Slot("QVariantMap", result="QVariantMap")
-    def rejectPeriod(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._mutations.reject_period(payload)
-
+    def rejectPeriod(self, payload): return self._mutations.reject_period(payload)
     @Slot("QVariantMap", result="QVariantMap")
-    def lockPeriod(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._mutations.lock_period(payload)
-
+    def lockPeriod(self, payload): return self._mutations.lock_period(payload)
     @Slot("QVariantMap", result="QVariantMap")
-    def unlockPeriod(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._mutations.unlock_period(payload)
+    def unlockPeriod(self, payload): return self._mutations.unlock_period(payload)
 
-    # ── State setters ─────────────────────────────────────────────────
-
-    def _set_overview(self, v: dict[str, object]) -> None:
-        _setters.set_overview(self, v)
-
-    def _set_project_options(self, v: list[dict[str, str]]) -> None:
-        _setters.set_project_options(self, v)
-
-    def _set_assignment_options(self, v: list[dict[str, str]]) -> None:
-        _setters.set_assignment_options(self, v)
-
-    def _set_period_options(self, v: list[dict[str, str]]) -> None:
-        _setters.set_period_options(self, v)
-
-    def _set_queue_status_options(self, v: list[dict[str, str]]) -> None:
-        _setters.set_queue_status_options(self, v)
-
-    def _set_queue_resource_options(self, v: list[dict[str, str]]) -> None:
-        _setters.set_queue_resource_options(self, v)
-
-    def _set_selected_project_id(self, v: str) -> None:
-        _setters.set_selected_project_id(self, v)
-
-    def _set_selected_assignment_id(self, v: str) -> None:
-        _setters.set_selected_assignment_id(self, v)
-
-    def _set_selected_period_start(self, v: str) -> None:
-        _setters.set_selected_period_start(self, v)
-
-    def _set_selected_queue_status(self, v: str) -> None:
-        _setters.set_selected_queue_status(self, v)
-
-    def _set_selected_entry_id(self, v: str) -> None:
-        _setters.set_selected_entry_id(self, v)
-
-    def _set_selected_queue_period_id(self, v: str) -> None:
-        _setters.set_selected_queue_period_id(self, v)
-
-    def _set_assignment_summary(self, v: dict[str, object]) -> None:
-        _setters.set_assignment_summary(self, v)
-
-    def _set_entries(self, v: dict[str, object]) -> None:
-        _setters.set_entries(self, v)
-
-    def _set_selected_entry(self, v: dict[str, object]) -> None:
-        _setters.set_selected_entry(self, v)
-
-    def _set_review_queue(self, v: dict[str, object]) -> None:
-        _setters.set_review_queue(self, v)
-
-    def _set_review_detail(self, v: dict[str, object]) -> None:
-        _setters.set_review_detail(self, v)
-
-    def _set_queue_page(self, v: int) -> None:
-        _setters.set_queue_page(self, v)
-
-    def _set_queue_page_size(self, v: int) -> None:
-        _setters.set_queue_page_size(self, v)
-
-    def _set_queue_total_count(self, v: int) -> None:
-        _setters.set_queue_total_count(self, v)
-
-    def _set_queue_search_text(self, v: str) -> None:
-        _setters.set_queue_search_text(self, v)
-
-    def _set_selected_queue_project_id(self, v: str) -> None:
-        _setters.set_selected_queue_project_id(self, v)
-
-    def _set_selected_queue_resource_id(self, v: str) -> None:
-        _setters.set_selected_queue_resource_id(self, v)
-
-    def _set_queue_period_start_from(self, v: str) -> None:
-        _setters.set_queue_period_start_from(self, v)
-
-    def _set_queue_period_start_to(self, v: str) -> None:
-        _setters.set_queue_period_start_to(self, v)
-
-    def _set_queue_sort_key(self, v: str) -> None:
-        _setters.set_queue_sort_key(self, v)
-
-    def _set_queue_sort_direction(self, v: int) -> None:
-        _setters.set_queue_sort_direction(self, v)
+    def _set_overview(self, v): _setters.set_overview(self, v)
+    def _set_project_options(self, v): _setters.set_project_options(self, v)
+    def _set_queue_status_options(self, v): _setters.set_queue_status_options(self, v)
+    def _set_queue_resource_options(self, v): _setters.set_queue_resource_options(self, v)
+    def _set_selected_queue_status(self, v): _setters.set_selected_queue_status(self, v)
+    def _set_selected_queue_period_id(self, v): _setters.set_selected_queue_period_id(self, v)
+    def _set_review_queue(self, v): _setters.set_review_queue(self, v)
+    def _set_review_detail(self, v): _setters.set_review_detail(self, v)
+    def _set_queue_page(self, v): _setters.set_queue_page(self, v)
+    def _set_queue_page_size(self, v): _setters.set_queue_page_size(self, v)
+    def _set_queue_total_count(self, v): _setters.set_queue_total_count(self, v)
+    def _set_queue_search_text(self, v): _setters.set_queue_search_text(self, v)
+    def _set_selected_queue_project_id(self, v): _setters.set_selected_queue_project_id(self, v)
+    def _set_selected_queue_resource_id(self, v): _setters.set_selected_queue_resource_id(self, v)
+    def _set_queue_period_start_from(self, v): _setters.set_queue_period_start_from(self, v)
+    def _set_queue_period_start_to(self, v): _setters.set_queue_period_start_to(self, v)
+    def _set_queue_sort_key(self, v): _setters.set_queue_sort_key(self, v)
+    def _set_queue_sort_direction(self, v): _setters.set_queue_sort_direction(self, v)
 
 
 __all__ = ["ProjectManagementTimesheetsWorkspaceController"]
