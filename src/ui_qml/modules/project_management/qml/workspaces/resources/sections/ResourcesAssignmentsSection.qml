@@ -204,6 +204,7 @@ Item {
 
             AppWidgets.TablePaginationBar {
                 id: pagination
+                objectName: "resourceAssignmentsPagination"
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom

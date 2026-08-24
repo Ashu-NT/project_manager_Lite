@@ -146,6 +146,7 @@ Item {
         }
 
         AppWidgets.TablePaginationBar {
+            objectName: "resourceActivityPagination"
             Layout.fillWidth: true
             currentPage: root.workspaceController ? root.workspaceController.resourceActivityPage : 1
             pageSize: root.workspaceController ? root.workspaceController.resourceActivityPageSize : 25
