@@ -370,7 +370,7 @@ Item {
                 AppControls.SecondaryButton {
                     Layout.fillWidth: true
                     text: "Manage Project Resources"
-                    iconName: "resource"
+                    iconName: "resources"
                     onClicked: root.manageProjectResourcesRequested()
                 }
             }

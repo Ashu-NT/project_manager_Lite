@@ -109,3 +109,9 @@ def test_assignments_section_loads_with_a_selected_over_capacity_row() -> None:
     )
     assert root is not None
     engine.deleteLater()
+
+
+def test_assignments_section_uses_registered_resources_icon() -> None:
+    source = TASKS_ASSIGNMENTS_SECTION.read_text(encoding="utf-8")
+    assert 'iconName: "resources"' in source
+    assert 'iconName: "resource"' not in source
