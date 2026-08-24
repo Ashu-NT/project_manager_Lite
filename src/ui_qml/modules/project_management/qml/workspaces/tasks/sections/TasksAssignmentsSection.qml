@@ -17,6 +17,7 @@ Item {
     property var    projectResourceUsage: null
     property var    taskDetail: null
     property string errorText: ""
+    property var workspaceController: null
 
     signal createRequested()
     signal assignmentSelected(string assignmentId)
@@ -107,12 +108,14 @@ Item {
     }
 
     readonly property var _columns: [
-        { key: "resourceName", label: "Resource", flex: 2, sortable: true },
-        { key: "allocationLabel", label: "Allocation", flex: 1, minWidth: 100 },
-        { key: "plannedLabel", label: "Planned Work", flex: 1, minWidth: 110 },
-        { key: "actualLabel", label: "Actual", flex: 1, minWidth: 90 },
-        { key: "remainingLabel", label: "Remaining", flex: 1, minWidth: 100 },
-        { key: "capacityStatusLabel", label: "Capacity Status", flex: 1, minWidth: 140, type: "status" }
+        { key: "resourceName", label: "Resource", flex: 2, minWidth: 160, sortable: true },
+        { key: "resourceCode", label: "Code", flex: 0, minWidth: 85, sortable: true },
+        { key: "role", label: "Role", flex: 1.2, minWidth: 110, sortable: true },
+        { key: "allocationPercent", label: "Allocation", flex: 0, minWidth: 95, sortable: true },
+        { key: "plannedHours", label: "Planned", flex: 0, minWidth: 90, sortable: true },
+        { key: "actualHours", label: "Actual", flex: 0, minWidth: 85, sortable: true },
+        { key: "remainingHours", label: "Remaining", flex: 0, minWidth: 95, sortable: true },
+        { key: "responseStatus", label: "Response", flex: 0, minWidth: 100, type: "status", sortable: true }
     ]
     readonly property int _tableH: {
         const count = root._items.length
@@ -144,6 +147,23 @@ Item {
             }
         }
 
+        AppWidgets.TableToolbar {
+            Layout.fillWidth: true
+            searchText: String(root.assignmentsModel.searchText || "")
+            searchPlaceholder: "Search resource, code, or role..."
+            showFilter: false
+            showRefresh: true
+            isBusy: root.isBusy
+            onSearchChanged: function(text) { if (root.workspaceController) root.workspaceController.setTaskAssignmentsSearch(text) }
+            onRefreshRequested: root.retryRequested()
+            AppControls.ComboBox {
+                implicitWidth: 130; textRole: "label"
+                model: [{"value":"all","label":"All responses"},{"value":"pending","label":"Pending"},
+                        {"value":"accepted","label":"Accepted"},{"value":"declined","label":"Declined"}]
+                onActivated: function(index) { if (root.workspaceController) root.workspaceController.setTaskAssignmentsResponse(String(model[index].value)) }
+            }
+        }
+
         AppWidgets.InlineMessage {
             Layout.fillWidth: true
             visible: root.errorText.length > 0
@@ -153,25 +173,20 @@ Item {
             onActionClicked: root.retryRequested()
         }
 
-        AppWidgets.EmptyState {
-            Layout.fillWidth: true
-            Layout.topMargin: Theme.AppTheme.spacingLg
-            Layout.bottomMargin: Theme.AppTheme.spacingLg
-            visible: !root.isBusy && root._items.length === 0
-            title: root.assignmentsModel.emptyState || "No assignments for this task."
-        }
-
         Item {
             Layout.fillWidth: true
-            Layout.preferredHeight: root._tableH
-            visible: root._items.length > 0
+            Layout.preferredHeight: 360
 
             AppWidgets.DataTable {
-                anchors.fill: parent
+                anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: assignmentPagination.top
                 columns: root._columns
                 sourceModel: root.assignmentsTableModel
                 selectedRowId: root.selectedAssignmentId
                 loading: root.isBusy
+                sortingMode: "server"
+                sortKey: String(root.assignmentsModel.sortKey || "resourceName")
+                sortDirection: root.assignmentsModel.sortDirection === "desc" ? Qt.DescendingOrder : Qt.AscendingOrder
+                emptyText: root.assignmentsModel.emptyState || "No assignments match."
 
                 onRowSelected: function(rowId) {
                     root.assignmentSelected(rowId)
@@ -191,6 +206,15 @@ Item {
                         String(state.taskId || "")
                     )
                 }
+                onSortRequested: function(key, direction) { root.workspaceController.setTaskAssignmentsSort(key, direction) }
+            }
+            AppWidgets.TablePaginationBar {
+                id: assignmentPagination
+                anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                currentPage: Number(root.assignmentsModel.page || 1); pageSize: Number(root.assignmentsModel.pageSize || 25)
+                totalItems: Number(root.assignmentsModel.total || 0); busy: root.isBusy
+                onPageRequested: function(page) { root.workspaceController.setTaskAssignmentsPage(page) }
+                onPageSizeRequested: function(size) { root.workspaceController.setTaskAssignmentsPageSize(size) }
             }
         }
 

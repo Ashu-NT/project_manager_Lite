@@ -133,6 +133,7 @@ class TaskStateSettersMixin:
         if v == self._task_activity:
             return
         self._task_activity = v
+        self._task_activity_table_model.set_rows(v.get("items", []))
         self.taskActivityChanged.emit()
         self.taskActivitySectionLoadedChanged.emit()
 

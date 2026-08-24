@@ -379,6 +379,7 @@ AppLayouts.WorkspaceFrame {
                     projectResourcesTableModel: root.workspaceController ? root.workspaceController.projectResourcesTableModel : null
                     projectRisksModel: root.workspaceController ? root.workspaceController.projectRisks : ({})
                     projectActivityModel: root.workspaceController ? root.workspaceController.projectActivity : ({})
+                    projectActivityTableModel: root.workspaceController ? root.workspaceController.projectActivityTableModel : null
                     assignableResourceOptions: root.workspaceController ? (root.workspaceController.assignableResourceOptions || []) : []
                     selectedProjectResourceId: root.workspaceController ? root.workspaceController.selectedProjectResourceId : ""
                     onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedProjectModel)

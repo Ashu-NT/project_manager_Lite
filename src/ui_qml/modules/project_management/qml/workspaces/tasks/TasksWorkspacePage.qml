@@ -466,6 +466,7 @@ AppLayouts.WorkspaceFrame {
                     scheduleImpactModel: root.scheduleImpactModel
                     scheduleImpactPreviewModel: root.scheduleImpactPreviewModel
                     taskActivityModel: root.taskActivityModel
+                    taskActivityTableModel: root.workspaceController ? root.workspaceController.taskActivityTableModel : null
 
                     onRetrySectionRequested: function(sectionName) {
                         const idx = (root._detailSections || []).indexOf(sectionName)

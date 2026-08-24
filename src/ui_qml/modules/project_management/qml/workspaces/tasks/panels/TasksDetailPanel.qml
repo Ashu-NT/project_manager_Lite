@@ -47,6 +47,7 @@ Item {
     property var taskActivityModel: ({
         "title": "Activity", "subtitle": "", "emptyState": "No activity has been recorded for this task yet.", "items": []
     })
+    property var taskActivityTableModel: null
     property var sectionErrors: ({})
     property var scheduleImpactModel: ({
         "isAvailable": false, "taskId": "", "currentStartLabel": "--", "currentFinishLabel": "--",
@@ -265,6 +266,7 @@ Item {
                     isBusy: root.isBusy
                     canCreate: root._hasTask && !root._isSummary && root.assignmentOptions.length > 0
                     errorText: String(root.sectionErrors["assignments"] || "")
+                    workspaceController: root.pmCatalog ? root.pmCatalog.tasksWorkspace : null
 
                     onCreateRequested: root.createAssignmentRequested()
                     onAssignmentSelected: function(id) { root.assignmentSelected(id) }
@@ -290,6 +292,8 @@ Item {
                 TasksDependenciesSection {
                     width: parent ? parent.width : 0
                     dependenciesModel: root.dependenciesModel
+                    dependenciesTableModel: root.dependenciesTableModel
+                    workspaceController: root.pmCatalog ? root.pmCatalog.tasksWorkspace : null
                     isBusy: root.isBusy
                     canCreate: root._hasTask && !root._isSummary && root.dependencyTaskOptions.length > 0
                     errorText: String(root.sectionErrors["dependencies"] || "")
@@ -425,12 +429,13 @@ Item {
             active: root._idx === root._secIdx("Activity")
             loadingMessage: "Loading activity..."
             sourceComponent: Component {
-                PMWidgets.ActivityLogSection {
+                TasksActivitySection {
                     width: parent ? parent.width : 0
-                    label: "Activity"
-                    errorKey: "activity"
-                    sectionErrors: root.sectionErrors
                     activityModel: root.taskActivityModel
+                    activityTableModel: root.taskActivityTableModel
+                    workspaceController: root.pmCatalog ? root.pmCatalog.tasksWorkspace : null
+                    errorText: String(root.sectionErrors["activity"] || "")
+                    isBusy: root.isBusy
                 }
             }
         }

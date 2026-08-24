@@ -8,3 +8,4 @@ TaskCommentCard 1.0 TaskCommentCard.qml
 TasksMaterialDemandSection 1.0 TasksMaterialDemandSection.qml
 TasksSkillsSection 1.0 TasksSkillsSection.qml
 TasksScheduleImpactSection 1.0 TasksScheduleImpactSection.qml
+TasksActivitySection 1.0 TasksActivitySection.qml

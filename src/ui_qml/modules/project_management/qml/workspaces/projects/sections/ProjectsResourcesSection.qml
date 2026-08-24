@@ -48,6 +48,32 @@ Item {
             if (ctrl) ctrl.loadAssignableResources()
         }
 
+        AppWidgets.TableToolbar {
+            width: parent.width
+            searchText: String(root.projectResourcesModel.searchText || "")
+            searchPlaceholder: "Search resource, code, or role..."
+            showFilter: false
+            showRefresh: true
+            isBusy: root.isBusy
+            onSearchChanged: function(text) {
+                const ctrl = root.pmCatalog ? root.pmCatalog.projectsWorkspace : null
+                if (ctrl) ctrl.setProjectResourcesSearch(text)
+            }
+            onRefreshRequested: {
+                const ctrl = root.pmCatalog ? root.pmCatalog.projectsWorkspace : null
+                if (ctrl) ctrl.loadProjectResources()
+            }
+            AppControls.ComboBox {
+                implicitWidth: 125
+                textRole: "label"
+                model: [{"value":"all","label":"All staffing"},{"value":"active","label":"Active"},{"value":"inactive","label":"Inactive"}]
+                onActivated: function(index) {
+                    const ctrl = root.pmCatalog ? root.pmCatalog.projectsWorkspace : null
+                    if (ctrl) ctrl.setProjectResourcesActive(String(model[index].value))
+                }
+            }
+        }
+
         AppWidgets.ContextualActionToolbar {
             width: parent.width
             title: "Resources"
@@ -69,13 +95,19 @@ Item {
             width: parent.width
             height: Math.min(360, Math.max(200, implicitHeight))
             columns: [
-                { key: "title",          label: "Resource",      flex: 2, sortable: true },
-                { key: "subtitle",       label: "Role",          flex: 1.5 },
-                { key: "supportingText", label: "Planned Hours", flex: 1, minWidth: 100 },
-                { key: "metaText",       label: "Hourly Rate",   flex: 1, minWidth: 100 },
+                { key: "resourceName",   label: "Resource",      flex: 2, sortable: true },
+                { key: "resourceCode",   label: "Code",          flex: 0, minWidth: 90, sortable: true },
+                { key: "role",           label: "Role",          flex: 1.2, sortable: true },
+                { key: "plannedHours",   label: "Project Plan",  flex: 0, minWidth: 105, sortable: true },
+                { key: "allocatedHours", label: "To Tasks",      flex: 0, minWidth: 95, sortable: true },
+                { key: "actualHours",    label: "Actual",        flex: 0, minWidth: 85, sortable: true },
+                { key: "remainingHours", label: "Remaining",     flex: 0, minWidth: 95, sortable: true },
                 { key: "statusLabel",    label: "Status",        flex: 0, minWidth: 90, type: "status" }
             ]
             sourceModel: root.projectResourcesTableModel
+            sortingMode: "server"
+            sortKey: String(root.projectResourcesModel.sortKey || "resourceName")
+            sortDirection: root.projectResourcesModel.sortDirection === "desc" ? Qt.DescendingOrder : Qt.AscendingOrder
             selectedRowId: root.selectedProjectResourceId
             loading: root.isBusy
             emptyText: root.projectResourcesModel.emptyState || "No resources allocated to this project."
@@ -83,6 +115,20 @@ Item {
                 const ctrl = root.pmCatalog ? root.pmCatalog.projectsWorkspace : null
                 if (ctrl) ctrl.selectProjectResource(rowId)
             }
+            onSortRequested: function(key, direction) {
+                const ctrl = root.pmCatalog ? root.pmCatalog.projectsWorkspace : null
+                if (ctrl) ctrl.setProjectResourcesSort(key, direction)
+            }
+        }
+
+        AppWidgets.TablePaginationBar {
+            width: parent.width
+            currentPage: Number(root.projectResourcesModel.page || 1)
+            pageSize: Number(root.projectResourcesModel.pageSize || 25)
+            totalItems: Number(root.projectResourcesModel.total || 0)
+            busy: root.isBusy
+            onPageRequested: function(page) { root.pmCatalog.projectsWorkspace.setProjectResourcesPage(page) }
+            onPageSizeRequested: function(size) { root.pmCatalog.projectsWorkspace.setProjectResourcesPageSize(size) }
         }
 
         AppWidgets.EntityDialog {

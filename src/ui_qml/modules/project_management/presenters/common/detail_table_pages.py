@@ -51,7 +51,7 @@ def project_tasks_page(page) -> dict[str, object]:
 
 def project_resources_page(page) -> dict[str, object]:
     rows = [{
-        "id": item.id, "resourceName": item.resource_name,
+        "id": item.id, "title": item.resource_name, "resourceName": item.resource_name,
         "resourceCode": item.resource_code or "--", "role": item.role or "Team member",
         "plannedHours": _hours(item.planned_hours), "allocatedHours": _hours(item.allocated_hours),
         "actualHours": _hours(item.actual_hours), "remainingHours": _hours(item.remaining_hours),
@@ -75,9 +75,13 @@ def task_assignments_page(page) -> dict[str, object]:
         "remainingHours": _hours(Decimal(str(item.allocated_planned_hours or 0)) - Decimal(str(item.hours_logged or 0))),
         "responseStatus": item.response_status_label,
         "state": {"assignmentId": item.id, "resourceId": item.resource_id,
+                  "taskId": item.task_id,
                   "projectResourceId": item.project_resource_id,
                   "allocationPercent": item.allocation_percent,
                   "allocatedPlannedHours": item.allocated_planned_hours,
+                  "plannedHours": item.allocated_planned_hours,
+                  "hoursLogged": item.hours_logged,
+                  "remainingPlannedLabel": _hours(Decimal(str(item.allocated_planned_hours or 0)) - Decimal(str(item.hours_logged or 0))),
                   "version": item.version, "canManage": item.can_manage,
                   "canAccept": item.can_accept, "canDecline": item.can_decline},
     } for item in page.items]
