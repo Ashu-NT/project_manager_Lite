@@ -22,8 +22,13 @@ from src.core.modules.project_management.api.desktop.resources.commands.skill_co
 from src.core.modules.project_management.api.desktop.resources.factories.resources_api_factory import (
     build_project_management_resources_desktop_api,
 )
-from src.core.modules.project_management.api.desktop.resources.models.assignments import (
+from src.core.modules.project_management.api.desktop.resources.models.context import (
+    ResourceActivityDesktopDto,
+    ResourceActivityPageDesktopDto,
     ResourceAssignmentDesktopDto,
+    ResourceAssignmentsPageDesktopDto,
+    ResourceProjectDesktopDto,
+    ResourceProjectsPageDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.resources.models.availability import (
     ResourceAvailabilityDayDto,
@@ -60,6 +65,9 @@ __all__ = [
     "ResourceRemoveCertificationCommand",
     "ResourceRemoveSkillCommand",
     "ResourceAssignmentDesktopDto",
+    "ResourceAssignmentsPageDesktopDto",
+    "ResourceActivityDesktopDto",
+    "ResourceActivityPageDesktopDto",
     "ResourceAvailabilityDayDto",
     "ResourceAvailabilityDto",
     "ResourceCategoryDescriptor",
@@ -74,6 +82,8 @@ __all__ = [
     "ResourceKindDescriptor",
     "ResourceLifecycleCommand",
     "ResourcePurgeCommand",
+    "ResourceProjectDesktopDto",
+    "ResourceProjectsPageDesktopDto",
     "ResourceScopeOptionDescriptor",
     "ResourceSkillDesktopDto",
     "ResourceUpdateCommand",

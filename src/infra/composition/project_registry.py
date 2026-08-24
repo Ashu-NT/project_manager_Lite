@@ -90,6 +90,7 @@ from src.core.modules.project_management.infrastructure.persistence.reads.projec
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.resources import (
     SqlAlchemyResourceCatalogReader,
+    SqlAlchemyResourceContextReader,
     SqlAlchemyResourceWorkloadDemandReader,
 )
 from src.core.modules.project_management.infrastructure.persistence.reads.register import (
@@ -335,6 +336,7 @@ def build_project_management_service_bundle(
     # not two independent ways of asking "what time is it."
     system_clock = SystemClock()
     resource_read_reader = SqlAlchemyResourceCatalogReader(session=session)
+    resource_context_reader = SqlAlchemyResourceContextReader(session=session)
     resource_service = ResourceService(
         session,
         repositories.resource_repo,
@@ -353,6 +355,9 @@ def build_project_management_service_bundle(
         resource_catalog_reader=resource_read_reader,
         resource_inspector_reader=resource_read_reader,
         resource_summary_reader=resource_read_reader,
+        resource_projects_reader=resource_context_reader,
+        resource_assignments_reader=resource_context_reader,
+        resource_activity_reader=resource_context_reader,
         department_service=platform_services.department_service,
         site_service=platform_services.site_service,
     )

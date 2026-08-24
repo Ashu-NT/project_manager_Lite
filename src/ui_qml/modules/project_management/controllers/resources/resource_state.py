@@ -56,9 +56,14 @@ def default_resource_availability() -> dict[str, object]:
     }
 
 
+def default_resource_context_page() -> dict[str, object]:
+    return {"items": [], "total": 0, "page": 1, "pageSize": 25}
+
+
 __all__ = [
     "default_overview",
     "default_resource_availability",
+    "default_resource_context_page",
     "default_resource_inspector",
     "default_resources",
     "default_selected_resource",

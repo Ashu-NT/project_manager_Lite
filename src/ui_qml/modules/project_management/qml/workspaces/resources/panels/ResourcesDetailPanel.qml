@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import App.Widgets 1.0 as AppWidgets
+import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import workspaces.resources.sections 1.0
 
 Item {
@@ -15,6 +16,7 @@ Item {
     property bool isBusy: false
     property var detailPage: null
     property var workspaceController: null
+    property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
     property bool canManageSkills: false
     property string selectedSkillId: ""
     property string selectedCertificationId: ""
@@ -133,10 +135,11 @@ Item {
         anchors.right: parent.right
         active: root._idx === 3
         sourceComponent: Component {
-            ResourcesDeferredSection {
+            ResourcesProjectsSection {
                 width: parent ? parent.width : 0
-                title: "Projects"
-                message: "The scoped, paged Resource-to-Projects reader is delivered in R5E."
+                resourceId: String(root.resourceDetail.id || "")
+                workspaceController: root.workspaceController
+                pmCatalog: root.pmCatalog
             }
         }
     }
@@ -147,10 +150,11 @@ Item {
         anchors.right: parent.right
         active: root._idx === 4
         sourceComponent: Component {
-            ResourcesDeferredSection {
+            ResourcesAssignmentsSection {
                 width: parent ? parent.width : 0
-                title: "Assignments"
-                message: "The scoped, paged Resource-to-Assignments reader is delivered in R5E."
+                resourceId: String(root.resourceDetail.id || "")
+                workspaceController: root.workspaceController
+                pmCatalog: root.pmCatalog
             }
         }
     }
@@ -161,10 +165,11 @@ Item {
         anchors.right: parent.right
         active: root._idx === 5
         sourceComponent: Component {
-            ResourcesDeferredSection {
+            ResourcesActivitySection {
                 width: parent ? parent.width : 0
-                title: "Activity"
-                message: "Authoritative audit and activity history is delivered in R5E. Assignment snapshots are not presented as history."
+                resourceId: String(root.resourceDetail.id || "")
+                workspaceController: root.workspaceController
+                pmCatalog: root.pmCatalog
             }
         }
     }

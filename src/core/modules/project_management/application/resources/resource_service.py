@@ -14,6 +14,9 @@ from src.core.modules.project_management.application.resources.queries.resource_
 from src.core.modules.project_management.application.resources.queries.skill_queries import (
     SkillQueryMixin,
 )
+from src.core.modules.project_management.application.resources.queries.resource_context_queries import (
+    ResourceContextQueryMixin,
+)
 from src.core.modules.project_management.contracts.repositories.projects.project import ProjectResourceRepository
 from src.core.modules.project_management.contracts.repositories.finance.rate_cards.rate_cards import ProjectRateCardRepository
 from src.core.modules.project_management.contracts.repositories.resources.resource import ResourceRepository
@@ -21,6 +24,9 @@ from src.core.modules.project_management.contracts.reads.resources import (
     ResourceCatalogReader,
     ResourceInspectorReader,
     ResourceSummaryReader,
+    ResourceActivityReader,
+    ResourceAssignmentsReader,
+    ResourceProjectsReader,
 )
 from src.core.modules.project_management.contracts.repositories.resources.skills import (
     ResourceCertificationRepository,
@@ -37,6 +43,7 @@ class ResourceService(
     ProjectManagementModuleGuardMixin,
     ResourceCommandMixin,
     ResourceQueryMixin,
+    ResourceContextQueryMixin,
     SkillCommandMixin,
     SkillQueryMixin,
 ):
@@ -61,6 +68,9 @@ class ResourceService(
         resource_catalog_reader: ResourceCatalogReader | None = None,
         resource_inspector_reader: ResourceInspectorReader | None = None,
         resource_summary_reader: ResourceSummaryReader | None = None,
+        resource_projects_reader: ResourceProjectsReader | None = None,
+        resource_assignments_reader: ResourceAssignmentsReader | None = None,
+        resource_activity_reader: ResourceActivityReader | None = None,
         department_service=None,
         site_service=None,
     ):
@@ -81,6 +91,9 @@ class ResourceService(
         self._resource_catalog_reader = resource_catalog_reader
         self._resource_inspector_reader = resource_inspector_reader
         self._resource_summary_reader = resource_summary_reader
+        self._resource_projects_reader = resource_projects_reader
+        self._resource_assignments_reader = resource_assignments_reader
+        self._resource_activity_reader = resource_activity_reader
         self._department_service = department_service
         self._site_service = site_service
 

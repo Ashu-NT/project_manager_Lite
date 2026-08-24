@@ -55,6 +55,9 @@ AppLayouts.WorkspaceFrame {
         const errors = root.workspaceController.sectionErrors || {}
         if (root.detailPage.activeSectionIndex === 1) return String(errors.skills || "")
         if (root.detailPage.activeSectionIndex === 2) return String(errors.availability || "")
+        if (root.detailPage.activeSectionIndex === 3) return String(errors.projects || "")
+        if (root.detailPage.activeSectionIndex === 4) return String(errors.assignments || "")
+        if (root.detailPage.activeSectionIndex === 5) return String(errors.activity || "")
         return ""
     }
     readonly property string _visibleDetailError: String(root.workspaceController
@@ -289,6 +292,12 @@ AppLayouts.WorkspaceFrame {
                         root.workspaceController.loadSkillsAndCerts(
                             root.workspaceController.selectedResourceId
                         )
+                    } else if (index === 3 && root.workspaceController !== null) {
+                        root.workspaceController.loadResourceProjects()
+                    } else if (index === 4 && root.workspaceController !== null) {
+                        root.workspaceController.loadResourceAssignments()
+                    } else if (index === 5 && root.workspaceController !== null) {
+                        root.workspaceController.loadResourceActivity()
                     }
                 }
 
@@ -354,6 +363,7 @@ AppLayouts.WorkspaceFrame {
                     resourceDetail: root.selectedResourceModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     workspaceController: root.workspaceController
+                    pmCatalog: root.pmCatalog
                     canManageSkills: root.pmCatalog ? root.pmCatalog.pmCapabilityController.canManageSkills : false
                     onSkillSelectionChanged: function(skillId) {
                         root._selectedSkillId = String(skillId || "")

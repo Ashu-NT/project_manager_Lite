@@ -6,6 +6,7 @@ from .resource_read_handler import (
     load_resource_inspector,
 )
 from .resource_state import default_selected_resource
+from .resource_context_handler import clear_resource_context
 
 
 def set_search_text(controller, search_text: str) -> None:
@@ -41,6 +42,7 @@ def select_resource(controller, resource_id: str) -> None:
         return
     controller._set_selected_resource_id(normalized)
     controller._set_selected_resource(default_selected_resource())
+    clear_resource_context(controller)
     if normalized:
         load_resource_inspector(controller, normalized)
     else:

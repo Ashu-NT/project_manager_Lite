@@ -14,7 +14,11 @@ from src.ui_qml.modules.project_management.view_models.resources import (
     ResourceSkillViewModel,
 )
 
-from .assignments_builder import build_resource_assignments
+from .context_builder import (
+    build_resource_activity_page,
+    build_resource_assignments_page,
+    build_resource_projects_page,
+)
 from .availability_builder import build_resource_availability_state
 from .certifications_builder import (
     add_certification,
@@ -123,8 +127,14 @@ class ProjectResourcesWorkspacePresenter:
     def reactivate_resource(self, resource_id: str, expected_version: int) -> None:
         reactivate_resource(self._desktop_api, resource_id, expected_version)
 
-    def build_resource_assignments(self, resource_id: str) -> list[dict[str, object]]:
-        return build_resource_assignments(self._desktop_api, resource_id)
+    def build_resource_projects_page(self, resource_id: str, **query) -> dict[str, object]:
+        return build_resource_projects_page(self._desktop_api, resource_id, **query)
+
+    def build_resource_assignments_page(self, resource_id: str, **query) -> dict[str, object]:
+        return build_resource_assignments_page(self._desktop_api, resource_id, **query)
+
+    def build_resource_activity_page(self, resource_id: str, **query) -> dict[str, object]:
+        return build_resource_activity_page(self._desktop_api, resource_id, **query)
 
     def build_resource_availability(
         self, resource_id: str, *, start_date: str, end_date: str

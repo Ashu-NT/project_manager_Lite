@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from src.core.modules.project_management.api.desktop.resources.builders.assignment_builder import (
-    build_resource_assignments,
-)
 from src.core.modules.project_management.api.desktop.resources.builders.availability_builder import (
     build_resource_availability,
 )
@@ -33,8 +30,11 @@ from src.core.modules.project_management.api.desktop.resources.commands.skill_co
     ResourceRemoveSkillCommand,
     ResourceUpdateSkillCommand,
 )
-from src.core.modules.project_management.api.desktop.resources.models.assignments import (
+from src.core.modules.project_management.api.desktop.resources.models.context import (
+    ResourceActivityPageDesktopDto,
     ResourceAssignmentDesktopDto,
+    ResourceAssignmentsPageDesktopDto,
+    ResourceProjectsPageDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.resources.models.availability import (
     ResourceAvailabilityDto,
@@ -73,6 +73,11 @@ from src.core.modules.project_management.api.desktop.resources.serializers.resou
 from src.core.modules.project_management.api.desktop.resources.serializers.skill_serializer import (
     serialize_skill,
 )
+from src.core.modules.project_management.api.desktop.resources.serializers.context_serializer import (
+    serialize_resource_activity,
+    serialize_resource_assignment,
+    serialize_resource_project,
+)
 from src.core.modules.project_management.api.desktop.resources.utils.date_utils import (
     parse_date,
 )
@@ -81,6 +86,7 @@ from src.core.modules.project_management.api.desktop.resources.utils.resource_en
     coerce_worker_type,
 )
 from src.core.modules.project_management.application.resources import ResourceService
+from src.core.modules.project_management.domain.enums import ProjectStatus, TaskStatus
 from src.core.modules.project_management.application.resources.resource_master_events import (
     ResourceMasterChangeType,
 )
@@ -96,6 +102,26 @@ from src.core.modules.project_management.application.resources.resource_capabili
 from src.core.platform.application.master_data.employee.employee_service import EmployeeService
 
 
+def _coerce_project_status(value: object) -> ProjectStatus | None:
+    normalized = str(value or "all").strip().upper()
+    if normalized == "ALL":
+        return None
+    try:
+        return ProjectStatus(normalized)
+    except ValueError:
+        return None
+
+
+def _coerce_task_status(value: object) -> TaskStatus | None:
+    normalized = str(value or "all").strip().upper()
+    if normalized == "ALL":
+        return None
+    try:
+        return TaskStatus(normalized)
+    except ValueError:
+        return None
+
+
 class ProjectManagementResourcesDesktopApi:
     def __init__(
         self,
@@ -103,16 +129,12 @@ class ProjectManagementResourcesDesktopApi:
         resource_service: ResourceService | None = None,
         employee_service: EmployeeService | None = None,
         workload_service: object | None = None,
-        task_service: object | None = None,
-        project_service: object | None = None,
         department_service: object | None = None,
         site_service: object | None = None,
     ) -> None:
         self._resource_service = resource_service
         self._employee_service = employee_service
         self._workload_service = workload_service
-        self._task_service = task_service
-        self._project_service = project_service
         self._department_service = department_service
         self._site_service = site_service
         session = getattr(resource_service, "_session", None)
@@ -443,14 +465,109 @@ class ProjectManagementResourcesDesktopApi:
             change_type=ResourceCapabilityChangeType.REMOVED,
         )
 
-    def list_resource_assignments(
+    def list_resource_projects_page(
         self,
         resource_id: str,
-    ) -> tuple[ResourceAssignmentDesktopDto, ...]:
-        return build_resource_assignments(
+        *,
+        search_text: str = "",
+        active: str = "all",
+        status: str = "all",
+        page: int = 1,
+        page_size: int = 25,
+        sort_key: str = "projectName",
+        sort_direction: str = "asc",
+    ) -> ResourceProjectsPageDesktopDto:
+        active_value = (
+            True if str(active).lower() == "active"
+            else False if str(active).lower() == "inactive"
+            else None
+        )
+        result = self._require_resource_service().query_resource_projects_page(
             resource_id,
-            task_service=self._task_service,
-            project_service=self._project_service,
+            search_text=search_text,
+            active=active_value,
+            status=_coerce_project_status(status),
+            page=page,
+            page_size=page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
+        )
+        return ResourceProjectsPageDesktopDto(
+            items=tuple(serialize_resource_project(item) for item in result.items),
+            filtered_total=result.filtered_total,
+            page=result.page,
+            page_size=result.page_size,
+            sort_key=result.sort.key,
+            sort_direction=result.sort.direction.value,
+        )
+
+    def list_resource_assignments_page(
+        self,
+        resource_id: str,
+        *,
+        search_text: str = "",
+        project_id: str = "",
+        task_status: str = "all",
+        assignment_status: str = "all",
+        lifecycle: str = "current",
+        start_date: str = "",
+        end_date: str = "",
+        page: int = 1,
+        page_size: int = 25,
+        sort_key: str = "scheduledStart",
+        sort_direction: str = "asc",
+    ) -> ResourceAssignmentsPageDesktopDto:
+        result = self._require_resource_service().query_resource_assignments_page(
+            resource_id,
+            search_text=search_text,
+            project_id=project_id or None,
+            task_status=_coerce_task_status(task_status),
+            assignment_status=(
+                None if str(assignment_status or "all").lower() == "all"
+                else str(assignment_status).lower()
+            ),
+            lifecycle=lifecycle,
+            start_date=parse_date(start_date),
+            end_date=parse_date(end_date),
+            page=page,
+            page_size=page_size,
+            sort_key=sort_key,
+            sort_direction=sort_direction,
+        )
+        return ResourceAssignmentsPageDesktopDto(
+            items=tuple(serialize_resource_assignment(item) for item in result.items),
+            filtered_total=result.filtered_total,
+            page=result.page,
+            page_size=result.page_size,
+            sort_key=result.sort.key,
+            sort_direction=result.sort.direction.value,
+        )
+
+    def list_resource_activity_page(
+        self,
+        resource_id: str,
+        *,
+        category: str = "all",
+        start_date: str = "",
+        end_date: str = "",
+        page: int = 1,
+        page_size: int = 25,
+    ) -> ResourceActivityPageDesktopDto:
+        result = self._require_resource_service().query_resource_activity_page(
+            resource_id,
+            category=category,
+            start_date=parse_date(start_date),
+            end_date=parse_date(end_date),
+            page=page,
+            page_size=page_size,
+        )
+        return ResourceActivityPageDesktopDto(
+            items=tuple(serialize_resource_activity(item) for item in result.items),
+            filtered_total=result.filtered_total,
+            page=result.page,
+            page_size=result.page_size,
+            sort_key=result.sort.key,
+            sort_direction=result.sort.direction.value,
         )
 
     def build_resource_availability(

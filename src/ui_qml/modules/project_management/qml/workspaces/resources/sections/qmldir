@@ -4,4 +4,6 @@ ResourcesSkillsSection 1.0 ResourcesSkillsSection.qml
 ResourcesCertificationsSection 1.0 ResourcesCertificationsSection.qml
 ResourcesCapabilitySection 1.0 ResourcesCapabilitySection.qml
 ResourcesAvailabilitySection 1.0 ResourcesAvailabilitySection.qml
-ResourcesDeferredSection 1.0 ResourcesDeferredSection.qml
+ResourcesProjectsSection 1.0 ResourcesProjectsSection.qml
+ResourcesAssignmentsSection 1.0 ResourcesAssignmentsSection.qml
+ResourcesActivitySection 1.0 ResourcesActivitySection.qml

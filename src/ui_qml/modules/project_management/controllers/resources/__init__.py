@@ -43,9 +43,11 @@ from src.ui_qml.modules.project_management.controllers.resources.resource_skills
     set_resource_certifications,
     set_resource_skills,
 )
-from src.ui_qml.modules.project_management.controllers.resources.resource_assignments_handler import (
+from src.ui_qml.modules.project_management.controllers.resources.resource_context_handler import (
+    clear_resource_context,
+    load_resource_activity,
     load_resource_assignments,
-    set_resource_assignments,
+    load_resource_projects,
 )
 from src.ui_qml.modules.project_management.controllers.resources.resource_export_handler import (
     export_resources,
@@ -69,6 +71,9 @@ __all__ = [
     "export_resources",
     "generate_entity_code",
     "load_resource_assignments",
+    "load_resource_activity",
+    "load_resource_projects",
+    "clear_resource_context",
     "load_skills_and_certs",
     "reactivate_resource",
     "reload_skills_and_certs",
@@ -80,7 +85,6 @@ __all__ = [
     "set_resource_certifications",
     "set_resource_page",
     "set_resource_page_size",
-    "set_resource_assignments",
     "set_resource_skills",
     "set_search_text",
     "update_resource",

@@ -10,6 +10,7 @@ class ResourceTableModels:
     resources: DynamicTableModel
     resource_skills: DynamicTableModel
     resource_certifications: DynamicTableModel
+    resource_projects: DynamicTableModel
     resource_assignments: DynamicTableModel
 
 
@@ -18,6 +19,7 @@ def create_resource_table_models(parent) -> ResourceTableModels:
         resources=DynamicTableModel(parent),
         resource_skills=DynamicTableModel(parent),
         resource_certifications=DynamicTableModel(parent),
+        resource_projects=DynamicTableModel(parent),
         resource_assignments=DynamicTableModel(parent),
     )
 
