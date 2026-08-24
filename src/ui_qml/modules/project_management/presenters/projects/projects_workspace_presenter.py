@@ -43,6 +43,11 @@ from .resources_builder import build_assignable_resource_options, build_project_
 from .risks_builder import build_project_risks_state
 from .tasks_builder import build_project_tasks_state
 from .workspace_builder import build_project_detail_state, build_workspace_state
+from src.ui_qml.modules.project_management.presenters.common.detail_table_pages import (
+    activity_page,
+    project_resources_page,
+    project_tasks_page,
+)
 
 class ProjectProjectsWorkspacePresenter:
     def __init__(
@@ -157,8 +162,26 @@ class ProjectProjectsWorkspacePresenter:
     def build_project_tasks_state(self, *, project_id: str) -> ProjectCatalogWorkspaceViewModel:
         return build_project_tasks_state(self._tasks_desktop_api, project_id=project_id)
 
+    def build_project_tasks_page(self, *, project_id: str, search_text: str = "",
+                                 status: str = "all", schedule: str = "all",
+                                 page: int = 1, page_size: int = 25,
+                                 sort_key: str = "wbsCode", sort_direction: str = "asc") -> dict[str, object]:
+        return project_tasks_page(self._tasks_desktop_api.list_task_page(
+            project_id=project_id, search_text=search_text, status=status,
+            schedule=schedule, page=page, page_size=page_size,
+            sort_key=sort_key, sort_direction=sort_direction))
+
     def build_project_resources_state(self, *, project_id: str) -> ProjectCatalogWorkspaceViewModel:
         return build_project_resources_state(self._desktop_api, project_id=project_id)
+
+    def build_project_resources_page(self, *, project_id: str, search_text: str = "",
+                                     active: str = "all", page: int = 1,
+                                     page_size: int = 25, sort_key: str = "resourceName",
+                                     sort_direction: str = "asc") -> dict[str, object]:
+        active_value = True if active == "active" else False if active == "inactive" else None
+        return project_resources_page(self._desktop_api.list_project_resources_page(
+            project_id, search_text=search_text, active=active_value, page=page,
+            page_size=page_size, sort_key=sort_key, sort_direction=sort_direction))
 
     def build_assignable_resource_options(self, *, project_id: str) -> list[dict[str, str]]:
         return build_assignable_resource_options(self._desktop_api, project_id=project_id)
@@ -217,6 +240,13 @@ class ProjectProjectsWorkspacePresenter:
             user_api=self._user_api,
             employee_api=self._employee_api,
         )
+
+    def build_project_activity_page(self, *, project_id: str, search_text: str = "",
+                                    category: str = "all", page: int = 1,
+                                    page_size: int = 25) -> dict[str, object]:
+        return activity_page(self._desktop_api.list_project_activity_page(
+            project_id, search_text=search_text, category=category,
+            page=page, page_size=page_size))
 
     def suggest_code(self, payload: dict[str, Any]) -> str:
         return suggest_code(self._desktop_api, payload)

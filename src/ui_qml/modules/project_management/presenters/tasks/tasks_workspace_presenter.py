@@ -55,6 +55,11 @@ from .schedule_impact_builder import (
 )
 from .skill_requirements_builder import build_task_skill_requirements_state
 from .task_activity_builder import build_task_activity_state
+from src.ui_qml.modules.project_management.presenters.common.detail_table_pages import (
+    activity_page,
+    task_assignments_page,
+    task_dependencies_page,
+)
 from .task_command_handler import (
     apply_bulk_status,
     bulk_delete_tasks,
@@ -217,6 +222,15 @@ class ProjectTasksWorkspacePresenter:
             project_id=project_id,
         )
 
+    def build_task_assignments_page(self, *, task_id: str, search_text: str = "",
+                                    response_status: str = "all", page: int = 1,
+                                    page_size: int = 25, sort_key: str = "resourceName",
+                                    sort_direction: str = "asc") -> dict[str, object]:
+        return task_assignments_page(self._desktop_api.list_assignments_page(
+            task_id, search_text=search_text, response_status=response_status,
+            page=page, page_size=page_size, sort_key=sort_key,
+            sort_direction=sort_direction))
+
     def build_task_dependencies_state(
         self,
         *,
@@ -228,6 +242,16 @@ class ProjectTasksWorkspacePresenter:
             task_id=task_id,
             project_id=project_id,
         )
+
+    def build_task_dependencies_page(self, *, task_id: str, search_text: str = "",
+                                     direction: str = "all", dependency_type: str = "all",
+                                     page: int = 1, page_size: int = 25,
+                                     sort_key: str = "linkedTask",
+                                     sort_direction: str = "asc") -> dict[str, object]:
+        return task_dependencies_page(self._desktop_api.list_dependencies_page(
+            task_id, search_text=search_text, direction=direction,
+            dependency_type=dependency_type, page=page, page_size=page_size,
+            sort_key=sort_key, sort_direction=sort_direction))
 
     def build_task_time_state(
         self,
@@ -327,6 +351,13 @@ class ProjectTasksWorkspacePresenter:
             user_api=self._user_api,
             employee_api=self._employee_api,
         )
+
+    def build_task_activity_page(self, *, task_id: str, search_text: str = "",
+                                 category: str = "all", page: int = 1,
+                                 page_size: int = 25) -> dict[str, object]:
+        return activity_page(self._desktop_api.list_task_activity_page(
+            task_id, search_text=search_text, category=category,
+            page=page, page_size=page_size))
 
     def create_task(self, payload: dict[str, Any]) -> None:
         create_task(self._desktop_api, payload)

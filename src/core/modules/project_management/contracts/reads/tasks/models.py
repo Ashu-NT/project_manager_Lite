@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 
@@ -59,6 +59,76 @@ class TaskWorkspaceSummary:
     blocked: int = 0
     done: int = 0
     overdue: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class TaskAssignmentReadItem:
+    assignment_id: str
+    resource_id: str
+    resource_code: str
+    resource_name: str
+    role: str
+    allocation_percent: Decimal
+    planned_hours: Decimal
+    actual_hours: Decimal
+    response_status: str
+    project_resource_id: str | None
+    version: int
+
+
+@dataclass(frozen=True, slots=True)
+class TaskAssignmentReadPage:
+    items: tuple[TaskAssignmentReadItem, ...] = ()
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = 25
+    sort: ReadSort = ReadSort("resourceName")
+
+
+@dataclass(frozen=True, slots=True)
+class TaskDependencyReadItem:
+    dependency_id: str
+    direction: str
+    linked_task_id: str
+    linked_task_code: str
+    linked_task_name: str
+    linked_task_status: str
+    linked_task_start: date | None
+    linked_task_end: date | None
+    dependency_type: str
+    lag_days: int
+    version: int
+
+
+@dataclass(frozen=True, slots=True)
+class TaskDependencyReadPage:
+    items: tuple[TaskDependencyReadItem, ...] = ()
+    filtered_total: int = 0
+    predecessor_total: int = 0
+    successor_total: int = 0
+    page: int = 1
+    page_size: int = 25
+    sort: ReadSort = ReadSort("linkedTask")
+
+
+@dataclass(frozen=True, slots=True)
+class TaskActivityFact:
+    activity_id: str
+    occurred_at: datetime
+    actor_id: str | None
+    action: str
+    entity_type: str
+    summary: str
+    details: dict[str, object]
+
+
+@dataclass(frozen=True, slots=True)
+class TaskActivityPage:
+    items: tuple[TaskActivityFact, ...] = ()
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = 25
+    sort: ReadSort = ReadSort("occurredAt")
 
 
 @dataclass(frozen=True, slots=True)
@@ -135,6 +205,12 @@ class TaskTimeEntriesPage:
 
 __all__ = [
     "TaskResourceTimeBreakdownRow",
+    "TaskActivityFact",
+    "TaskActivityPage",
+    "TaskAssignmentReadItem",
+    "TaskAssignmentReadPage",
+    "TaskDependencyReadItem",
+    "TaskDependencyReadPage",
     "TaskTimeEntriesPage",
     "TaskTimeEntryRow",
     "TaskTimeSummaryFact",

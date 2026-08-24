@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal
 
 from src.core.modules.project_management.domain.projects.project import Project
@@ -61,9 +62,57 @@ class ProjectResourceUsageFact:
     version: int
 
 
+@dataclass(frozen=True, slots=True)
+class ProjectResourceDetailFact:
+    project_resource_id: str
+    resource_id: str
+    resource_code: str
+    resource_name: str
+    role: str
+    planned_hours: Decimal
+    allocated_hours: Decimal
+    actual_hours: Decimal
+    remaining_hours: Decimal
+    is_active: bool
+    version: int
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectResourceDetailPage:
+    items: tuple[ProjectResourceDetailFact, ...] = ()
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = 25
+    sort: ReadSort = ReadSort("resourceName")
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectActivityFact:
+    activity_id: str
+    occurred_at: datetime
+    actor_id: str | None
+    action: str
+    entity_type: str
+    summary: str
+    details: dict[str, object]
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectActivityPage:
+    items: tuple[ProjectActivityFact, ...] = ()
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = 25
+    sort: ReadSort = ReadSort("occurredAt")
+
+
 __all__ = [
     "ProjectCatalogReadItem",
     "ProjectCatalogReadPage",
     "ProjectCatalogSummary",
+    "ProjectActivityFact",
+    "ProjectActivityPage",
+    "ProjectResourceDetailFact",
+    "ProjectResourceDetailPage",
     "ProjectResourceUsageFact",
 ]

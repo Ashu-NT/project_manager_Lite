@@ -89,7 +89,9 @@ def build_task_dependencies_state(
                 dependencies=(),
             ),
         )
-    dependencies = desktop_api.list_dependencies(normalized_task_id)
+    # Relationship rows use the bounded detail page query; this build owns
+    # only command options needed by dependency dialogs.
+    dependencies = ()
     all_tasks = load_tasks_for_project(desktop_api, selected_task.project_id)
     dependency_type_options = build_dependency_type_options(desktop_api)
     dependency_task_options = build_dependency_task_options(

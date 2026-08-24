@@ -5,7 +5,12 @@ from typing import Protocol
 
 from src.core.modules.project_management.domain.enums import ProjectStatus
 
-from .models import ProjectCatalogReadItem, ProjectCatalogReadPage
+from .models import (
+    ProjectActivityPage,
+    ProjectCatalogReadItem,
+    ProjectCatalogReadPage,
+    ProjectResourceDetailPage,
+)
 from src.core.modules.project_management.contracts.reads.sorting import ReadSort
 
 
@@ -41,6 +46,17 @@ class ProjectCatalogReader(Protocol):
         project_id: str,
         include_approved_budget: bool,
     ) -> ProjectCatalogReadItem | None: ...
+
+    def read_resources_page(
+        self, *, tenant_id: str, organization_id: str, project_id: str,
+        search_text: str, active: bool | None, page: int, page_size: int,
+        sort: ReadSort,
+    ) -> ProjectResourceDetailPage: ...
+
+    def read_activity_page(
+        self, *, tenant_id: str, organization_id: str, project_id: str,
+        search_text: str, category: str, page: int, page_size: int,
+    ) -> ProjectActivityPage: ...
 
 
 __all__ = ["ProjectCatalogReader"]

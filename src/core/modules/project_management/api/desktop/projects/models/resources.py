@@ -49,8 +49,35 @@ class ProjectResourceUsageDesktopDto:
     version: int
 
 
+@dataclass(frozen=True)
+class ProjectResourceDetailDesktopDto:
+    id: str
+    resource_id: str
+    resource_code: str
+    resource_name: str
+    role: str
+    planned_hours: str
+    allocated_hours: str
+    actual_hours: str
+    remaining_hours: str
+    is_active: bool
+    version: int
+
+
+@dataclass(frozen=True)
+class ProjectResourceDetailPageDesktopDto:
+    items: tuple[ProjectResourceDetailDesktopDto, ...] = ()
+    filtered_total: int = 0
+    page: int = 1
+    page_size: int = 25
+    sort_key: str = "resourceName"
+    sort_direction: str = "asc"
+
+
 __all__ = [
     "ProjectAssignableResourceOptionDescriptor",
     "ProjectResourceDesktopDto",
+    "ProjectResourceDetailDesktopDto",
+    "ProjectResourceDetailPageDesktopDto",
     "ProjectResourceUsageDesktopDto",
 ]

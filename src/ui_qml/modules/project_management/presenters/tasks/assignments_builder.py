@@ -80,7 +80,9 @@ def build_task_assignments_state(
                 assignment_options=(),
             ),
         )
-    assignments = desktop_api.list_assignments(normalized_task_id)
+    # The detail table is loaded through the bounded page query by the
+    # assignment subcontroller. This state build owns only command options.
+    assignments = ()
     assignment_options = build_assignment_options(
         desktop_api,
         selected_task.project_id or project_id,

@@ -78,22 +78,34 @@ class PMAssignmentController(QObject):
         }
         self._assignment_preview: dict[str, object] = dict(_EMPTY_ASSIGNMENT_PREVIEW)
         self._project_resource_usage: dict[str, object] | None = None
+        self._task_id = ""
+        self._assignments.update({"searchText": "", "responseStatus": "all", "page": 1,
+                                  "pageSize": 25, "total": 0,
+                                  "sortKey": "resourceName", "sortDirection": "asc"})
 
     # ── Populate from workspace state ────────────────────────────────
 
     def _update(self, workspace_state: object) -> None:
+        self._task_id = str(getattr(workspace_state, "selected_task_id", "") or "")
         self._set_assignment_options(
             serialize_selector_options(workspace_state.assignment_options)
         )
-        self._set_assignments(
-            serialize_task_collection_view_model(workspace_state.assignments)
-        )
-        self._assignments_table_model.set_rows(
-            [
-                to_assignment_table_row(item)
-                for item in workspace_state.assignments.items
-            ]
-        )
+        if self._task_id:
+            self._reload()
+
+    def _reload(self, **changes) -> None:
+        state = dict(self._assignments)
+        state.update(changes)
+        if any(key not in {"page", "pageSize"} for key in changes):
+            state["page"] = 1
+        page = self._presenter.build_task_assignments_page(
+            task_id=self._task_id, search_text=str(state.get("searchText", "")),
+            response_status=str(state.get("responseStatus", "all")),
+            page=int(state.get("page", 1)), page_size=int(state.get("pageSize", 25)),
+            sort_key=str(state.get("sortKey", "resourceName")),
+            sort_direction=str(state.get("sortDirection", "asc")))
+        self._set_assignments({"title": "Assignments", "subtitle": f"{page['total']} matching assignment(s).",
+                               "emptyState": "No assignments match the selected filters.", **state, **page})
 
     # ── Properties ───────────────────────────────────────────────────
 
@@ -120,6 +132,28 @@ class PMAssignmentController(QObject):
     @Property("QVariantMap", notify=projectResourceUsageChanged)
     def projectResourceUsage(self) -> dict[str, object]:
         return self._project_resource_usage or {}
+
+    @Slot(str)
+    def setSearch(self, value: str) -> None:
+        self._reload(searchText=str(value or "").strip())
+
+    @Slot(str)
+    def setResponseStatus(self, value: str) -> None:
+        self._reload(responseStatus=value)
+
+    @Slot(int)
+    def setPage(self, value: int) -> None:
+        self._reload(page=max(1, value))
+
+    @Slot(int)
+    def setPageSize(self, value: int) -> None:
+        self._reload(pageSize=max(1, value), page=1)
+
+    @Slot(str, int)
+    def setSort(self, key: str, direction: int) -> None:
+        from PySide6.QtCore import Qt
+        self._reload(sortKey=key,
+                     sortDirection="desc" if direction == Qt.DescendingOrder.value else "asc")
 
     # ── Mutation slots ────────────────────────────────────────────────
 

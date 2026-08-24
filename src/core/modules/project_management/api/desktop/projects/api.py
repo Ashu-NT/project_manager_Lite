@@ -20,7 +20,13 @@ from src.core.modules.project_management.api.desktop.projects.models.project imp
 from src.core.modules.project_management.api.desktop.projects.models.resources import (
     ProjectAssignableResourceOptionDescriptor,
     ProjectResourceDesktopDto,
+    ProjectResourceDetailDesktopDto,
+    ProjectResourceDetailPageDesktopDto,
     ProjectResourceUsageDesktopDto,
+)
+from src.core.modules.project_management.api.desktop.common.detail_pages import (
+    DetailActivityDesktopDto,
+    DetailActivityPageDesktopDto,
 )
 from src.core.modules.project_management.api.desktop.projects.commands.project_commands import (
     ProjectCreateCommand,
@@ -331,6 +337,41 @@ class ProjectManagementProjectsDesktopApi:
             for pr in project_resources
         ]
         return tuple(sorted(rows, key=lambda r: (not r.is_active, r.resource_name.casefold())))
+
+    def list_project_resources_page(
+        self, project_id: str, *, search_text: str = "", active: bool | None = None,
+        page: int = 1, page_size: int = 25, sort_key: str = "resourceName",
+        sort_direction: str = "asc",
+    ) -> ProjectResourceDetailPageDesktopDto:
+        result = self._require_project_service().query_project_resources_page(
+            project_id, search_text=search_text, active=active, page=page,
+            page_size=page_size, sort_key=sort_key, sort_direction=sort_direction)
+        return ProjectResourceDetailPageDesktopDto(
+            items=tuple(ProjectResourceDetailDesktopDto(
+                id=item.project_resource_id, resource_id=item.resource_id,
+                resource_code=item.resource_code, resource_name=item.resource_name,
+                role=item.role, planned_hours=str(item.planned_hours),
+                allocated_hours=str(item.allocated_hours), actual_hours=str(item.actual_hours),
+                remaining_hours=str(item.remaining_hours), is_active=item.is_active,
+                version=item.version,
+            ) for item in result.items), filtered_total=result.filtered_total,
+            page=result.page, page_size=result.page_size, sort_key=result.sort.key,
+            sort_direction=result.sort.direction.value)
+
+    def list_project_activity_page(
+        self, project_id: str, *, search_text: str = "", category: str = "all",
+        page: int = 1, page_size: int = 25,
+    ) -> DetailActivityPageDesktopDto:
+        result = self._require_project_service().query_project_activity_page(
+            project_id, search_text=search_text, category=category,
+            page=page, page_size=page_size)
+        return DetailActivityPageDesktopDto(
+            items=tuple(DetailActivityDesktopDto(
+                id=item.activity_id, occurred_at=item.occurred_at.isoformat(),
+                actor_id=item.actor_id, action=item.action, entity_type=item.entity_type,
+                summary=item.summary, details=item.details,
+            ) for item in result.items), filtered_total=result.filtered_total,
+            page=result.page, page_size=result.page_size)
 
     def list_assignable_resources(self, project_id: str) -> tuple[ProjectAssignableResourceOptionDescriptor, ...]:
         normalized_id = str(project_id or "").strip()
