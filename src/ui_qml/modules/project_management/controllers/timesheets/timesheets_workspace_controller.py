@@ -18,10 +18,7 @@ from .domain_event_binder import bind_timesheets_domain_events
 from .mutation_handler import TimesheetsMutationHandler
 from .refresh_service import refresh_timesheets_workspace
 from .review_queue_controller import (
-    clear_queue_bulk_selection,
     load_queue_period_detail,
-    select_visible_queue_periods,
-    set_queue_bulk_selection,
     set_queue_page,
     set_queue_page_size,
     set_queue_period_range,
@@ -82,8 +79,6 @@ class ProjectManagementTimesheetsWorkspaceController(
     queuePeriodStartToChanged = Signal()
     queueSortKeyChanged = Signal()
     queueSortDirectionChanged = Signal()
-    selectedQueuePeriodIdsChanged = Signal()
-    selectedQueuePeriodCountChanged = Signal()
 
     def __init__(
         self,
@@ -134,7 +129,6 @@ class ProjectManagementTimesheetsWorkspaceController(
         self._queue_period_start_to = ""
         self._queue_sort_key = "submittedAt"
         self._queue_sort_direction = 1
-        self._selected_queue_period_ids: list[str] = []
         bind_timesheets_domain_events(self)
         self.refresh()
 
@@ -256,14 +250,6 @@ class ProjectManagementTimesheetsWorkspaceController(
     def queueSortDirection(self) -> int:
         return self._queue_sort_direction
 
-    @Property("QVariantList", notify=selectedQueuePeriodIdsChanged)
-    def selectedQueuePeriodIds(self) -> list[str]:
-        return self._selected_queue_period_ids
-
-    @Property(int, notify=selectedQueuePeriodCountChanged)
-    def selectedQueuePeriodCount(self) -> int:
-        return len(self._selected_queue_period_ids)
-
     # ── Refresh ───────────────────────────────────────────────────────
 
     @Slot()
@@ -334,43 +320,7 @@ class ProjectManagementTimesheetsWorkspaceController(
     def setQueueSort(self, key: str, direction: int) -> None:
         set_queue_sort(self, key, direction)
 
-    @Slot(str, bool)
-    def setQueueBulkSelection(self, period_id: str, selected: bool) -> None:
-        set_queue_bulk_selection(self, period_id, selected)
-
-    @Slot()
-    def selectVisibleQueuePeriods(self) -> None:
-        select_visible_queue_periods(self)
-
-    @Slot()
-    def clearQueueBulkSelection(self) -> None:
-        clear_queue_bulk_selection(self)
-
     # ── Mutation slots ────────────────────────────────────────────────
-
-    @Slot("QVariantList", result="QVariantMap")
-    def bulkApprovePeriods(self, period_ids: list) -> dict[str, object]:
-        return self._mutations.bulk_approve_periods(period_ids)
-
-    @Slot("QVariantList", result="QVariantMap")
-    def bulkRejectPeriods(self, period_ids: list) -> dict[str, object]:
-        return self._mutations.bulk_reject_periods(period_ids)
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def addTimeEntry(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._mutations.add_time_entry(payload)
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def updateTimeEntry(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._mutations.update_time_entry(payload)
-
-    @Slot(str, result="QVariantMap")
-    def deleteTimeEntry(self, entry_id: str) -> dict[str, object]:
-        return self._mutations.delete_time_entry(entry_id)
-
-    @Slot("QVariantMap", result="QVariantMap")
-    def submitPeriod(self, payload: dict[str, object]) -> dict[str, object]:
-        return self._mutations.submit_period(payload)
 
     @Slot("QVariantMap", result="QVariantMap")
     def approvePeriod(self, payload: dict[str, object]) -> dict[str, object]:
@@ -470,9 +420,6 @@ class ProjectManagementTimesheetsWorkspaceController(
 
     def _set_queue_sort_direction(self, v: int) -> None:
         _setters.set_queue_sort_direction(self, v)
-
-    def _set_selected_queue_period_ids(self, ids: list[str]) -> None:
-        _setters.set_selected_queue_period_ids(self, ids)
 
 
 __all__ = ["ProjectManagementTimesheetsWorkspaceController"]

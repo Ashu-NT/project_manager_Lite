@@ -178,14 +178,6 @@ def set_queue_sort_direction(controller, v: int) -> None:
     _set_value(controller, "_queue_sort_direction", v, controller.queueSortDirectionChanged)
 
 
-def set_selected_queue_period_ids(controller, ids: list[str]) -> None:
-    if ids == controller._selected_queue_period_ids:
-        return
-    controller._selected_queue_period_ids = ids
-    controller.selectedQueuePeriodIdsChanged.emit()
-    controller.selectedQueuePeriodCountChanged.emit()
-
-
 __all__ = [
     "set_assignment_options",
     "set_assignment_summary",
@@ -213,6 +205,5 @@ __all__ = [
     "set_selected_period_start",
     "set_selected_project_id",
     "set_selected_queue_period_id",
-    "set_selected_queue_period_ids",
     "set_selected_queue_status",
 ]

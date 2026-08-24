@@ -133,12 +133,12 @@ def build_workspace_state(
         ),
         items=tuple(to_review_queue_record(row) for row in review_queue_rows),
     )
-    resolved_queue_period_id = resolve_selected_id(
-        selected_queue_period_id,
-        tuple(
-            TimesheetSelectorOptionViewModel(value=row.period_id, label=row.resource_name)
-            for row in review_queue_rows
-        ),
+    requested_queue_period_id = str(selected_queue_period_id or "").strip()
+    visible_queue_period_ids = {row.period_id for row in review_queue_rows}
+    resolved_queue_period_id = (
+        requested_queue_period_id
+        if requested_queue_period_id in visible_queue_period_ids
+        else ""
     )
     entries_collection = TimesheetCollectionViewModel(
         title="Time Entries",

@@ -42,6 +42,8 @@ def serialize_period_summary(
         total_hours=aggregate.total_hours,
         total_hours_label=format_hours(aggregate.total_hours),
         project_names=tuple(project_names),
+        version=aggregate.version,
+        project_count=len(aggregate.project_ids),
     )
 
 

@@ -129,48 +129,57 @@ class _FakeTimesheetService:
         period.submitted_at = datetime(2026, 5, 4, 17, 0)
         period.submitted_by_username = "alex"
         period.decision_note = note
+        period.version += 1
         return self._aggregate(period)
 
     def approve_timesheet_period(
-        self, period_id: str, *, note: str = ""
+        self, period_id: str, *, expected_version: int, note: str = ""
     ) -> TimesheetPeriodAggregate:
         period = self._period_by_id(period_id)
+        assert period.version == expected_version
         period.status = TimesheetPeriodStatus.APPROVED
         period.decided_at = datetime(2026, 5, 5, 9, 0)
         period.decided_by_username = "jamie"
         period.decision_note = note
+        period.version += 1
         return self._aggregate(period)
 
     def reject_timesheet_period(
-        self, period_id: str, *, note: str = ""
+        self, period_id: str, *, expected_version: int, note: str
     ) -> TimesheetPeriodAggregate:
         period = self._period_by_id(period_id)
+        assert period.version == expected_version
         period.status = TimesheetPeriodStatus.REJECTED
         period.decided_at = datetime(2026, 5, 5, 9, 0)
         period.decided_by_username = "jamie"
         period.decision_note = note
+        period.version += 1
         return self._aggregate(period)
 
     def lock_timesheet_period(
         self,
-        resource_id: str,
+        period_id: str,
         *,
-        period_start: date,
+        expected_version: int,
         note: str = "",
     ) -> TimesheetPeriodAggregate:
-        period = self._ensure_period(resource_id, period_start)
+        period = self._period_by_id(period_id)
+        assert period.version == expected_version
         period.status = TimesheetPeriodStatus.LOCKED
         period.locked_at = datetime(2026, 5, 6, 18, 0)
         period.decision_note = note
+        period.version += 1
         return self._aggregate(period)
 
     def unlock_timesheet_period(
-        self, period_id: str, *, note: str = ""
+        self, period_id: str, *, expected_version: int, note: str = ""
     ) -> TimesheetPeriodAggregate:
         period = self._period_by_id(period_id)
-        period.status = TimesheetPeriodStatus.OPEN
+        assert period.version == expected_version
+        period.status = TimesheetPeriodStatus.APPROVED
         period.decision_note = note
         period.locked_at = None
+        period.version += 1
         return self._aggregate(period)
 
     def summarize_timesheet_period(
@@ -282,6 +291,11 @@ class _FakeTimesheetService:
             )
         return SimpleNamespace(summary=summary, entries=tuple(review_entries))
 
+    def get_review_queue_inspector(self, period_id: str) -> SimpleNamespace:
+        return SimpleNamespace(
+            summary=self._build_review_summary(self._period_by_id(period_id))
+        )
+
     def _build_review_summary(self, period: TimesheetPeriod) -> SimpleNamespace:
         entries = self.list_time_entries_for_resource_period(
             period.resource_id,
@@ -310,6 +324,14 @@ class _FakeTimesheetService:
             entry_count=len(entries),
             total_hours=sum(float(entry.hours or 0.0) for entry in entries),
             project_ids=tuple(project_ids),
+            version=period.version,
+            project_count=len(project_ids),
+            task_count=len(entries),
+            generic_entry_count=0,
+            can_approve=period.status == TimesheetPeriodStatus.SUBMITTED,
+            can_reject=period.status == TimesheetPeriodStatus.SUBMITTED,
+            can_lock=period.status == TimesheetPeriodStatus.APPROVED,
+            can_unlock=period.status == TimesheetPeriodStatus.LOCKED,
         )
 
     def _ensure_period(self, resource_id: str, period_start: date) -> TimesheetPeriod:
@@ -369,6 +391,7 @@ class _FakeTimesheetService:
             entry_count=len(entries),
             total_hours=sum(float(entry.hours or 0.0) for entry in entries),
             project_ids=project_ids,
+            version=period.version if period else 1,
         )
 
     def _period_by_id(self, period_id: str) -> TimesheetPeriod:

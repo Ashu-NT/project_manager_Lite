@@ -34,6 +34,7 @@ class TimesheetPeriodAggregate:
     entry_count: int
     total_hours: float
     project_ids: tuple[str, ...]
+    version: int = 1
 
 
 class TimesheetQueryMixin:
@@ -174,6 +175,7 @@ class TimesheetQueryMixin:
             entry_count=len(entries),
             total_hours=self._sum_entry_hours(entries),
             project_ids=tuple(self._project_ids_for_entries(entries)),
+            version=period.version if period is not None else 1,
         )
 
 

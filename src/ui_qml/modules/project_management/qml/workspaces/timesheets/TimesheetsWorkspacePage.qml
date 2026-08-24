@@ -81,34 +81,12 @@ AppLayouts.WorkspaceFrame {
                     if (root.workspaceController !== null) root.workspaceController.selectQueuePeriod(rowId)
                     root._openDetail(0)
                 }
-                onRowSelectionToggled: function(rowId, selected) {
-                    if (root.workspaceController !== null)
-                        root.workspaceController.setQueueBulkSelection(rowId, selected)
-                }
-                onSelectAllToggled: function(allSelected) {
-                    if (root.workspaceController === null) return
-                    if (allSelected) root.workspaceController.selectVisibleQueuePeriods()
-                    else root.workspaceController.clearQueueBulkSelection()
-                }
                 onColumnsStateChanged: function(cols) {
                     if (root.workspaceController !== null) root._saveColumnState(cols)
                 }
                 onFilterClicked: filterPopup.open()
                 onRefreshRequested: {
                     if (root.workspaceController !== null) root.workspaceController.refresh()
-                }
-                onBulkCancelRequested: {
-                    if (root.workspaceController !== null)
-                        root.workspaceController.clearQueueBulkSelection()
-                }
-                onBulkActionRequested: function(actionId) {
-                    if (root.workspaceController === null)
-                        return
-                    const ids = root.workspaceController.selectedQueuePeriodIds || []
-                    if (actionId === "approve")
-                        root.workspaceController.bulkApprovePeriods(ids)
-                    else if (actionId === "reject")
-                        root.workspaceController.bulkRejectPeriods(ids)
                 }
             }
 
@@ -155,14 +133,9 @@ AppLayouts.WorkspaceFrame {
                     onBackRequested: root._detailOpen = false
                     onActionTriggered: function(actionId) {
                         if (root.workspaceController === null) return
-                        const st = root.selectedPeriodModel ? (root.selectedPeriodModel.state || {}) : {}
-                        const periodId = String(st.periodId || "")
-                        if (!periodId) return
-                        if (actionId === "submit")       root.workspaceController.submitPeriod({ "periodId": periodId })
-                        else if (actionId === "approve") root.workspaceController.approvePeriod({ "periodId": periodId })
-                        else if (actionId === "reject")  root.workspaceController.rejectPeriod({ "periodId": periodId })
-                        else if (actionId === "lock")    root.workspaceController.lockPeriod({ "periodId": periodId })
-                        else if (actionId === "unlock")  root.workspaceController.unlockPeriod({ "periodId": periodId })
+                        reviewDecisionDialog.actionMode = actionId
+                        reviewDecisionDialog.reviewData = root.selectedPeriodModel
+                        reviewDecisionDialog.open()
                     }
                 }
 
@@ -186,16 +159,32 @@ AppLayouts.WorkspaceFrame {
                     width: parent ? parent.width : 0
                     detailPage: detailPageLoader.item
                     reviewDetail: root.selectedPeriodModel
-                    entriesModel: root.entriesModel
-                    entriesTableModel: root.workspaceController ? root.workspaceController.entriesTableModel : null
-                    selectedEntry: root.selectedEntryModel
-                    selectedEntryId: root.workspaceController ? root.workspaceController.selectedEntryId : ""
-                    isBusy: root.workspaceController ? root.workspaceController.isBusy : false
-
-                    onEntrySelected: function(entryId) {
-                        if (root.workspaceController !== null) root.workspaceController.selectEntry(entryId)
-                    }
                 }
+            }
+        }
+    }
+
+    Components.TimesheetReviewDecisionDialog {
+        id: reviewDecisionDialog
+        reviewData: root.selectedPeriodModel
+        busy: root.workspaceController ? root.workspaceController.isBusy : false
+
+        onSubmitted: function(payload) {
+            if (root.workspaceController === null) return
+            let result = ({ "ok": false })
+            if (reviewDecisionDialog.actionMode === "approve")
+                result = root.workspaceController.approvePeriod(payload)
+            else if (reviewDecisionDialog.actionMode === "reject")
+                result = root.workspaceController.rejectPeriod(payload)
+            else if (reviewDecisionDialog.actionMode === "lock")
+                result = root.workspaceController.lockPeriod(payload)
+            else if (reviewDecisionDialog.actionMode === "unlock")
+                result = root.workspaceController.unlockPeriod(payload)
+            if (result.ok === true) {
+                reviewDecisionDialog.close()
+                root._detailOpen = false
+            } else {
+                reviewDecisionDialog.errorMessage = String(result.message || "The review item changed. Refresh and try again.")
             }
         }
     }

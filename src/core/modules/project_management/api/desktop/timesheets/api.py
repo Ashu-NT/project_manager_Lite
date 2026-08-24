@@ -164,7 +164,7 @@ class ProjectManagementTimesheetsDesktopApi:
         )
 
     def get_review_detail(self, period_id: str) -> TimesheetReviewDetailDesktopDto:
-        detail = self._require_timesheet_service().get_timesheet_review_detail(
+        detail = self._require_timesheet_service().get_review_queue_inspector(
             str(period_id or "").strip()
         )
         return serialize_review_detail(detail, project_service=self._project_service)
@@ -224,10 +224,12 @@ class ProjectManagementTimesheetsDesktopApi:
         self,
         period_id: str,
         *,
+        expected_version: int,
         note: str = "",
     ) -> TimesheetPeriodSummaryDesktopDto:
         aggregate = self._require_timesheet_service().approve_timesheet_period(
             str(period_id or "").strip(),
+            expected_version=int(expected_version),
             note=note,
         )
         return serialize_period_aggregate(
@@ -240,10 +242,12 @@ class ProjectManagementTimesheetsDesktopApi:
         self,
         period_id: str,
         *,
-        note: str = "",
+        expected_version: int,
+        note: str,
     ) -> TimesheetPeriodSummaryDesktopDto:
         aggregate = self._require_timesheet_service().reject_timesheet_period(
             str(period_id or "").strip(),
+            expected_version=int(expected_version),
             note=note,
         )
         return serialize_period_aggregate(
@@ -254,14 +258,14 @@ class ProjectManagementTimesheetsDesktopApi:
 
     def lock_period(
         self,
+        period_id: str,
         *,
-        resource_id: str,
-        period_start: date,
+        expected_version: int,
         note: str = "",
     ) -> TimesheetPeriodSummaryDesktopDto:
         aggregate = self._require_timesheet_service().lock_timesheet_period(
-            str(resource_id or "").strip(),
-            period_start=period_start,
+            str(period_id or "").strip(),
+            expected_version=int(expected_version),
             note=note,
         )
         return serialize_period_aggregate(
@@ -274,10 +278,12 @@ class ProjectManagementTimesheetsDesktopApi:
         self,
         period_id: str,
         *,
+        expected_version: int,
         note: str = "",
     ) -> TimesheetPeriodSummaryDesktopDto:
         aggregate = self._require_timesheet_service().unlock_timesheet_period(
             str(period_id or "").strip(),
+            expected_version=int(expected_version),
             note=note,
         )
         return serialize_period_aggregate(
@@ -290,10 +296,12 @@ class ProjectManagementTimesheetsDesktopApi:
         self,
         period_id: str,
         *,
+        expected_version: int,
         reason: str,
     ) -> TimesheetPeriodSummaryDesktopDto:
         aggregate = self._require_timesheet_service().reopen_approved_timesheet_period_for_correction(
             str(period_id or "").strip(),
+            expected_version=int(expected_version),
             note=str(reason or "").strip(),
         )
         return serialize_period_aggregate(

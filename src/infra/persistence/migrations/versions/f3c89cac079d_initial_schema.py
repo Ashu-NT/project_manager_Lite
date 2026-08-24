@@ -1430,6 +1430,7 @@ def upgrade() -> None:
     sa.Column('decided_by_username', sa.String(length=128), nullable=True),
     sa.Column('decision_note', sa.Text(), nullable=True),
     sa.Column('locked_at', sa.DateTime(), nullable=True),
+    sa.Column('version', sa.Integer(), server_default='1', nullable=False),
     sa.ForeignKeyConstraint(['organization_id'], ['organizations.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['resource_id'], ['resources.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['tenant_id'], ['tenants.id'], ondelete='RESTRICT'),

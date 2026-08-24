@@ -214,6 +214,7 @@ class TimesheetPeriod:
     decided_by_username: str | None = None
     decision_note: str | None = None
     locked_at: datetime | None = None
+    version: int = 1
 
     @field_validator("resource_id", mode="before")
     @classmethod
@@ -262,6 +263,23 @@ class TimesheetPeriod:
     @classmethod
     def _validate_period_datetimes(cls, value: object) -> datetime | None:
         return _validate_optional_datetime(value, code="TIMESHEET_PERIOD_TIMESTAMP_INVALID")
+
+    @field_validator("version", mode="before")
+    @classmethod
+    def _validate_version(cls, value: object) -> int:
+        try:
+            version = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ValidationError(
+                "Timesheet period version must be a positive integer.",
+                code="TIMESHEET_PERIOD_VERSION_INVALID",
+            ) from exc
+        if version < 1:
+            raise ValidationError(
+                "Timesheet period version must be a positive integer.",
+                code="TIMESHEET_PERIOD_VERSION_INVALID",
+            )
+        return version
 
     @model_validator(mode="after")
     def _validate_period_range(self) -> "TimesheetPeriod":

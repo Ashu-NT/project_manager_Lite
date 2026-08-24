@@ -216,7 +216,8 @@ def test_project_management_workspace_catalog_exposes_typed_timesheets_controlle
     controller.setQueueStatus("all")
 
     assert controller.selectedQueueStatus == "all"
-    assert controller.reviewDetail["title"] == "Electrical Crew | May 2026"
+    assert controller.selectedQueuePeriodId == ""
+    assert controller.reviewDetail["title"] == "No review period selected"
 
     controller.setQueuePage(2)
     controller.setQueueSort("title", 0)

@@ -74,6 +74,7 @@ def timesheet_period_to_orm(period: TimesheetPeriod) -> TimesheetPeriodORM:
         decided_by_username=period.decided_by_username,
         decision_note=period.decision_note,
         locked_at=period.locked_at,
+        version=period.version,
     )
 
 
@@ -93,6 +94,7 @@ def timesheet_period_from_orm(obj: TimesheetPeriodORM) -> TimesheetPeriod:
         decided_by_username=obj.decided_by_username,
         decision_note=obj.decision_note,
         locked_at=obj.locked_at,
+        version=obj.version,
     )
 
 

@@ -1,3 +1,4 @@
 module ProjectManagement.TimesheetsComponents
 TimesheetsListPage 1.0 TimesheetsListPage.qml
 TimesheetsFilterPopup 1.0 TimesheetsFilterPopup.qml
+TimesheetReviewDecisionDialog 1.0 TimesheetReviewDecisionDialog.qml

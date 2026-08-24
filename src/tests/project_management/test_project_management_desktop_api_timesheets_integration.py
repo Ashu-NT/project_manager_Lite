@@ -107,15 +107,17 @@ def test_project_management_timesheets_desktop_api_supports_assignment_periods_a
     review_detail = api.get_review_detail(submitted_period.period_id)
     approved_period = api.approve_period(
         submitted_period.period_id,
+        expected_version=submitted_period.version,
         note="Approved after weekly close review.",
     )
     locked_period = api.lock_period(
-        resource_id=resource.id,
-        period_start=date(2026, 5, 1),
+        approved_period.period_id,
+        expected_version=approved_period.version,
         note="Month-end payroll lock.",
     )
     unlocked_period = api.unlock_period(
         locked_period.period_id,
+        expected_version=locked_period.version,
         note="Reopened for correction.",
     )
     api.delete_time_entry(created_entry.entry_id)
@@ -127,10 +129,12 @@ def test_project_management_timesheets_desktop_api_supports_assignment_periods_a
     assert submitted_period.status == "SUBMITTED"
     assert review_queue[0].entry_count == 2
     assert review_detail.summary.resource_name == "Electrical Crew"
-    assert review_detail.entries[0].task_name == "Cable Pull"
+    assert review_detail.entries == ()
+    assert review_detail.summary.project_count == 1
     assert approved_period.status == "APPROVED"
     assert locked_period.status == "LOCKED"
-    assert unlocked_period.status == "OPEN"
+    assert unlocked_period.status == "APPROVED"
+    assert unlocked_period.version == submitted_period.version + 3
     assert [entry.entry_id for entry in api.build_assignment_snapshot(assignment.id).entries] != [
         created_entry.entry_id
     ]

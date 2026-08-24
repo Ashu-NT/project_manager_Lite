@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from src.core.platform.contract.repositories.time_management.time.contracts import TimeEntryRepository, TimesheetPeriodRepository
 from src.core.platform.domain.time_management.time import TimeEntry, TimesheetPeriod, TimesheetPeriodStatus
+from src.core.platform.common.exceptions import ConcurrencyError, NotFoundError
 from src.core.platform.infrastructure.persistence.repositories._tenant_scope import (
     TenantScopedRepositorySupport,
 )
@@ -205,6 +206,62 @@ class SqlAlchemyTimesheetPeriodRepository(
         obj.decided_by_username = period.decided_by_username
         obj.decision_note = period.decision_note
         obj.locked_at = period.locked_at
+        obj.version = period.version
+
+    def transition(
+        self,
+        period: TimesheetPeriod,
+        *,
+        expected_status: TimesheetPeriodStatus,
+        expected_version: int,
+    ) -> TimesheetPeriod:
+        ctx = self._context(operation_label="transition timesheet period")
+        next_version = int(expected_version) + 1
+        result = self.session.execute(
+            update(TimesheetPeriodORM)
+            .where(
+                TimesheetPeriodORM.id == period.id,
+                TimesheetPeriodORM.tenant_id == ctx.tenant_id,
+                TimesheetPeriodORM.organization_id == ctx.organization_id,
+                TimesheetPeriodORM.status == expected_status,
+                TimesheetPeriodORM.version == expected_version,
+            )
+            .values(
+                resource_id=period.resource_id,
+                period_start=period.period_start,
+                period_end=period.period_end,
+                status=period.status,
+                submitted_at=period.submitted_at,
+                submitted_by_user_id=period.submitted_by_user_id,
+                submitted_by_username=period.submitted_by_username,
+                decided_at=period.decided_at,
+                decided_by_user_id=period.decided_by_user_id,
+                decided_by_username=period.decided_by_username,
+                decision_note=period.decision_note,
+                locked_at=period.locked_at,
+                version=next_version,
+            )
+        )
+        if result.rowcount != 1:
+            existing = self.session.execute(
+                select(TimesheetPeriodORM.id).where(
+                    TimesheetPeriodORM.id == period.id,
+                    TimesheetPeriodORM.tenant_id == ctx.tenant_id,
+                    TimesheetPeriodORM.organization_id == ctx.organization_id,
+                )
+            ).scalar_one_or_none()
+            if existing is None:
+                raise NotFoundError(
+                    "Timesheet period not found in the active scope.",
+                    code="TIMESHEET_PERIOD_NOT_FOUND",
+                )
+            raise ConcurrencyError(
+                "This timesheet period changed after it was loaded. Refresh it before deciding.",
+                code="TIMESHEET_PERIOD_STALE",
+            )
+        self.session.flush()
+        period.version = next_version
+        return period
 
     def get_by_resource_period(self, resource_id: str, period_start: date) -> TimesheetPeriod | None:
         ctx = self._context(operation_label="access timesheet periods")

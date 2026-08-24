@@ -23,6 +23,14 @@ class TimesheetPeriodSummaryDesktopDto:
     total_hours: float
     total_hours_label: str
     project_names: tuple[str, ...]
+    version: int = 1
+    project_count: int = 0
+    task_count: int = 0
+    generic_entry_count: int = 0
+    can_approve: bool = False
+    can_reject: bool = False
+    can_lock: bool = False
+    can_unlock: bool = False
 
 
 @dataclass(frozen=True)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 
 from src.core.modules.project_management.access.scope_permissions import (
@@ -15,6 +16,9 @@ from src.core.modules.project_management.application.common.pagination import (
 )
 from src.core.modules.project_management.contracts.reads.timesheets import (
     TimesheetReviewCriteria,
+    TimesheetReviewInspectorFact,
+    TimesheetReviewInspectorReader,
+    TimesheetReviewQueueFact,
     TimesheetReviewReadPage,
     TimesheetReviewReader,
 )
@@ -22,6 +26,8 @@ from src.core.modules.project_management.contracts.reads import ReadSort, ReadSo
 from src.core.platform.application.security.authorization.enforcement.permission_checks import (
     require_any_permission,
 )
+from src.core.platform.application.security.authorization import get_authorization_engine
+from src.core.platform.common.exceptions import NotFoundError
 from src.core.platform.domain.time_management.time import TimesheetPeriodStatus
 
 
@@ -35,10 +41,14 @@ class TimesheetService(
         self,
         *args,
         timesheet_review_reader: TimesheetReviewReader | None = None,
+        timesheet_review_inspector_reader: TimesheetReviewInspectorReader | None = None,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
         self._timesheet_review_reader = timesheet_review_reader
+        self._timesheet_review_inspector_reader = (
+            timesheet_review_inspector_reader or timesheet_review_reader
+        )
 
     def _require_time_project_scope(
         self,
@@ -84,21 +94,24 @@ class TimesheetService(
         sort = ReadSort.normalize(
             key=sort_key,
             direction=sort_direction,
-            allowed_keys={"title", "statusLabel", "supportingText", "metaText"},
+            allowed_keys={
+                "resource",
+                "title",
+                "period",
+                "status",
+                "statusLabel",
+                "totalHours",
+                "supportingText",
+                "submittedAt",
+                "metaText",
+            },
             default_key="submittedAt",
             default_direction=ReadSortDirection.DESCENDING,
         )
         scope = self._tenant_context_service.require_active_scope_ids(
             operation_label="view timesheet review queue"
         )
-        allowed_project_ids: tuple[str, ...] | None = None
-        if self._user_session is not None and self._user_session.is_project_restricted():
-            allowed_project_ids = tuple(
-                sorted(
-                    self._user_session.project_ids_for("timesheet.approve")
-                    | self._user_session.project_ids_for("timesheet.lock")
-                )
-            )
+        allowed_project_ids = self._review_allowed_project_ids()
         read_kwargs = dict(
             tenant_id=scope.tenant_id,
             organization_id=scope.organization_id,
@@ -124,7 +137,63 @@ class TimesheetService(
         if normalized_page != result.page:
             read_kwargs["page"] = normalized_page
             result = self._timesheet_review_reader.read_page(**read_kwargs)
-        return result
+        return replace(
+            result,
+            items=tuple(self._with_review_capabilities(item) for item in result.items),
+        )
+
+    def get_review_queue_inspector(
+        self,
+        item_id: str,
+    ) -> TimesheetReviewInspectorFact:
+        require_any_permission(
+            self._user_session,
+            ("timesheet.approve", "timesheet.lock"),
+            operation_label="view timesheet review inspector",
+        )
+        reader = self._timesheet_review_inspector_reader
+        if reader is None or self._tenant_context_service is None:
+            raise RuntimeError("Timesheet review inspector reader is not configured.")
+        scope = self._tenant_context_service.require_active_scope_ids(
+            operation_label="view timesheet review inspector"
+        )
+        fact = reader.read_item(
+            item_id=str(item_id or "").strip(),
+            tenant_id=scope.tenant_id,
+            organization_id=scope.organization_id,
+            allowed_project_ids=self._review_allowed_project_ids(),
+        )
+        if fact is None:
+            raise NotFoundError(
+                "Timesheet review item was not found in the active scope.",
+                code="TIMESHEET_REVIEW_ITEM_NOT_FOUND",
+            )
+        return replace(fact, summary=self._with_review_capabilities(fact.summary))
+
+    def _review_allowed_project_ids(self) -> tuple[str, ...] | None:
+        if self._user_session is None or not self._user_session.is_project_restricted():
+            return None
+        return tuple(
+            sorted(
+                self._user_session.project_ids_for("timesheet.approve")
+                | self._user_session.project_ids_for("timesheet.lock")
+            )
+        )
+
+    def _with_review_capabilities(
+        self,
+        item: TimesheetReviewQueueFact,
+    ) -> TimesheetReviewQueueFact:
+        engine = get_authorization_engine()
+        can_decide = engine.has_permission(self._user_session, "timesheet.approve")
+        can_lock = engine.has_permission(self._user_session, "timesheet.lock")
+        return replace(
+            item,
+            can_approve=can_decide and item.status == TimesheetPeriodStatus.SUBMITTED,
+            can_reject=can_decide and item.status == TimesheetPeriodStatus.SUBMITTED,
+            can_lock=can_lock and item.status == TimesheetPeriodStatus.APPROVED,
+            can_unlock=can_lock and item.status == TimesheetPeriodStatus.LOCKED,
+        )
 
 
 __all__ = ["TimesheetService"]

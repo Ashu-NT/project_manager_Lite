@@ -19,6 +19,15 @@ def require_float(payload: dict[str, Any], key: str, message: str) -> float:
         raise ValueError(message)
     return float(value)
 
+def require_positive_int(payload: dict[str, Any], key: str, message: str) -> int:
+    value = payload.get(key)
+    if value in (None, ""):
+        raise ValueError(message)
+    parsed = int(value)
+    if parsed < 1:
+        raise ValueError(message)
+    return parsed
+
 def require_date(payload: dict[str, Any], key: str, message: str) -> date:
     value = str(payload.get(key, "") or "").strip()
     if not value:

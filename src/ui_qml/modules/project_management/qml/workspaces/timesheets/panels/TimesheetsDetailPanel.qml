@@ -1,10 +1,11 @@
 pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
-import App.Controls 1.0 as AppControls
 
 Item {
     id: root
@@ -13,44 +14,24 @@ Item {
         "title": "", "statusLabel": "", "subtitle": "",
         "description": "", "emptyState": "", "fields": [], "state": {}
     })
-    property var entriesModel: ({
-        "title": "", "subtitle": "", "emptyState": "", "items": []
-    })
-    property var entriesTableModel: null
-    property var selectedEntry: ({
-        "title": "", "subtitle": "", "emptyState": "", "fields": [], "state": {}
-    })
-    property string selectedEntryId: ""
-    property bool isBusy: false
     property var detailPage: null
 
-    signal entrySelected(string entryId)
-
-    readonly property bool _hasPeriod: String(root.reviewDetail.title || "").length > 0
+    readonly property bool _hasPeriod: String(root.reviewDetail.id || "").length > 0
     readonly property int _idx: root.detailPage ? root.detailPage.activeSectionIndex : 0
-    readonly property int _activeSectionH: {
-        if (root._idx === 0) return _sec0.implicitHeight
-        if (root._idx === 1) return _sec1.implicitHeight
-        return _sec2.implicitHeight
-    }
+    readonly property var _state: root.reviewDetail.state || ({})
+    readonly property real _activeHeight: root._idx === 0
+        ? summarySection.implicitHeight
+        : historySection.implicitHeight
 
-    readonly property var _entryColumns: [
-        { "key": "title",         "label": "Date",               "flex": 0, "minWidth": 110 },
-        { "key": "subtitle",      "label": "Task / Assignment",  "flex": 2 },
-        { "key": "metaText",      "label": "Hours",              "flex": 0, "minWidth": 80 },
-        { "key": "statusLabel",   "label": "Status",             "flex": 0, "minWidth": 100, "type": "status" },
-        { "key": "supportingText","label": "Notes",              "flex": 1 }
-    ]
-
-    implicitHeight: _activeSectionH
+    implicitHeight: _activeHeight
     height: implicitHeight
 
     AppWidgets.LazySectionLoader {
-        id: _sec0
+        id: summarySection
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === 0
-        loadingMessage: "Loading timesheet..."
+        loadingMessage: "Loading review summary..."
         sourceComponent: Component {
             Column {
                 width: parent ? parent.width : 0
@@ -58,225 +39,127 @@ Item {
 
                 AppWidgets.SectionHeading {
                     width: parent.width
-                    label: "Entries"
+                    label: "Review Summary"
                 }
 
                 AppWidgets.EmptyState {
                     width: parent.width
                     visible: !root._hasPeriod
-                    message: root.reviewDetail.emptyState || "Select a timesheet period to review its captured entries."
+                    message: root.reviewDetail.emptyState || "Select a timesheet period to inspect its decision context."
                 }
 
-                Item {
+                GridLayout {
                     width: parent.width
-                    height: 240
                     visible: root._hasPeriod
+                    columns: width >= 760 ? 2 : 1
+                    columnSpacing: Theme.AppTheme.spacingLg
+                    rowSpacing: 0
 
-                    AppWidgets.DataTable {
-                        anchors.fill: parent
-                        columns: root._entryColumns
-                        sourceModel: root.entriesTableModel
-                        loading: root.isBusy
-                        emptyText: root.entriesModel.emptyState || "No time entries for this period."
-                        selectedRowId: root.selectedEntryId
+                    Repeater {
+                        model: root.reviewDetail.fields || []
 
-                        onRowSelected: function(rowId) { root.entrySelected(rowId) }
-                        onRowActivated: function(rowId) { root.entrySelected(rowId) }
+                        delegate: Item {
+                            id: fieldRow
+                            required property var modelData
+                            Layout.fillWidth: true
+                            implicitHeight: fieldContent.implicitHeight + Theme.AppTheme.spacingMd * 2
+
+                            ColumnLayout {
+                                id: fieldContent
+                                anchors.fill: parent
+                                anchors.margins: Theme.AppTheme.spacingMd
+                                spacing: Theme.AppTheme.spacingXs
+
+                                AppControls.Label {
+                                    Layout.fillWidth: true
+                                    text: String(fieldRow.modelData.label || "")
+                                    color: Theme.AppTheme.textMuted
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.captionSize
+                                }
+                                AppControls.Label {
+                                    Layout.fillWidth: true
+                                    text: String(fieldRow.modelData.value || "-")
+                                    color: Theme.AppTheme.textPrimary
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.bodySize
+                                    font.bold: true
+                                    wrapMode: Text.WordWrap
+                                }
+                                AppControls.Label {
+                                    Layout.fillWidth: true
+                                    visible: text.length > 0
+                                    text: String(fieldRow.modelData.supportingText || "")
+                                    color: Theme.AppTheme.textSecondary
+                                    font.family: Theme.AppTheme.fontFamily
+                                    font.pixelSize: Theme.AppTheme.smallSize
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
+                        }
                     }
-                }
-
-                Rectangle {
-                    width: parent.width
-                    height: 1
-                    color: Theme.AppTheme.divider
-                    visible: root._hasPeriod
                 }
             }
         }
     }
 
     AppWidgets.LazySectionLoader {
-        id: _sec1
+        id: historySection
         anchors.left: parent.left
         anchors.right: parent.right
         active: root._idx === 1
-        loadingMessage: "Loading entries..."
+        loadingMessage: "Loading decision history..."
         sourceComponent: Component {
-            Column {
+            ColumnLayout {
                 width: parent ? parent.width : 0
-                spacing: 0
+                spacing: Theme.AppTheme.spacingMd
 
                 AppWidgets.SectionHeading {
-                    width: parent.width
-                    label: "Approval History"
+                    Layout.fillWidth: true
+                    label: "Decision History"
                 }
 
                 AppWidgets.EmptyState {
-                    width: parent.width
+                    Layout.fillWidth: true
                     visible: !root._hasPeriod
-                    message: "Select a timesheet period to review its approval history."
+                    message: "Select a timesheet period to inspect its latest decision evidence."
                 }
 
-                AppWidgets.EmptyState {
-                    width: parent.width
-                    visible: root._hasPeriod && (root.reviewDetail.fields || []).length === 0
-                    message: root.reviewDetail.emptyState || "No approval events recorded for this period."
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.AppTheme.spacingMd
+                    Layout.rightMargin: Theme.AppTheme.spacingMd
+                    visible: root._hasPeriod
+                    text: "Submitted by " + String(root._state.submittedBy || "-")
+                        + " at " + String(root._state.submittedAt || "-")
+                    color: Theme.AppTheme.textPrimary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.bodySize
+                    wrapMode: Text.WordWrap
                 }
 
-                Repeater {
-                    model: root._hasPeriod ? (root.reviewDetail.fields || []) : []
-
-                    delegate: Item {
-                        id: _historyRow
-                        required property var modelData
-                        width: root.width
-                        implicitHeight: _historyContent.implicitHeight + Theme.AppTheme.spacingMd * 2
-                    height: implicitHeight
-
-                        ColumnLayout {
-                            id: _historyContent
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.top: parent.top
-                            anchors.margins: Theme.AppTheme.spacingMd
-                            spacing: Theme.AppTheme.spacingXs
-
-                            AppControls.Label {
-                                Layout.fillWidth: true
-                                text: String(_historyRow.modelData.label || "")
-                                color: Theme.AppTheme.textMuted
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.captionSize
-                            }
-
-                            AppControls.Label {
-                                Layout.fillWidth: true
-                                text: String(_historyRow.modelData.value || "")
-                                color: Theme.AppTheme.textPrimary
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.bodySize
-                                font.bold: true
-                                wrapMode: Text.WordWrap
-                            }
-
-                            AppControls.Label {
-                                Layout.fillWidth: true
-                                visible: String(_historyRow.modelData.supportingText || "").length > 0
-                                text: String(_historyRow.modelData.supportingText || "")
-                                color: Theme.AppTheme.textSecondary
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.smallSize
-                                wrapMode: Text.WordWrap
-                            }
-                        }
-
-                        Rectangle {
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.bottom: parent.bottom
-                            height: 1
-                            color: Theme.AppTheme.divider
-                        }
-                    }
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.AppTheme.spacingMd
+                    Layout.rightMargin: Theme.AppTheme.spacingMd
+                    visible: root._hasPeriod
+                    text: "Latest decision by " + String(root._state.decidedBy || "-")
+                        + " at " + String(root._state.decidedAt || "-")
+                    color: Theme.AppTheme.textSecondary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.bodySize
+                    wrapMode: Text.WordWrap
                 }
 
-                Rectangle {
-                    width: parent.width
-                    height: 1
-                    color: Theme.AppTheme.divider
-                    visible: root._hasPeriod && (root.reviewDetail.fields || []).length > 0
+                AppWidgets.InlineMessage {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Theme.AppTheme.spacingMd
+                    Layout.rightMargin: Theme.AppTheme.spacingMd
+                    visible: root._hasPeriod
+                    tone: "info"
+                    message: String(root._state.decisionNote || "No decision note recorded.")
                 }
             }
         }
     }
-
-    AppWidgets.LazySectionLoader {
-        id: _sec2
-        anchors.left: parent.left
-        anchors.right: parent.right
-        active: root._idx === 2
-        loadingMessage: "Loading entries..."
-        sourceComponent: Component {
-            Column {
-                width: parent ? parent.width : 0
-                spacing: 0
-
-                AppWidgets.SectionHeading {
-                    width: parent.width
-                    label: "Labor Notes"
-                }
-
-                AppWidgets.EmptyState {
-                    width: parent.width
-                    visible: (root.selectedEntry.fields || []).length === 0
-                    message: root.selectedEntry.emptyState || "Select a time entry from the Entries section to view its labor notes."
-                }
-
-                Repeater {
-                    model: root.selectedEntry.fields || []
-
-                    delegate: Item {
-                        id: _noteRow
-                        required property var modelData
-                        width: root.width
-                        implicitHeight: _noteContent.implicitHeight + Theme.AppTheme.spacingMd * 2
-                    height: implicitHeight
-
-                        ColumnLayout {
-                            id: _noteContent
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.top: parent.top
-                            anchors.margins: Theme.AppTheme.spacingMd
-                            spacing: Theme.AppTheme.spacingXs
-
-                            AppControls.Label {
-                                Layout.fillWidth: true
-                                text: String(_noteRow.modelData.label || "")
-                                color: Theme.AppTheme.textMuted
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.captionSize
-                            }
-
-                            AppControls.Label {
-                                Layout.fillWidth: true
-                                text: String(_noteRow.modelData.value || "")
-                                color: Theme.AppTheme.textPrimary
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.bodySize
-                                wrapMode: Text.WordWrap
-                            }
-
-                            AppControls.Label {
-                                Layout.fillWidth: true
-                                visible: String(_noteRow.modelData.supportingText || "").length > 0
-                                text: String(_noteRow.modelData.supportingText || "")
-                                color: Theme.AppTheme.textSecondary
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.smallSize
-                                wrapMode: Text.WordWrap
-                            }
-                        }
-
-                        Rectangle {
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.bottom: parent.bottom
-                            height: 1
-                            color: Theme.AppTheme.divider
-                        }
-                    }
-                }
-
-                Rectangle {
-                    width: parent.width
-                    height: 1
-                    color: Theme.AppTheme.divider
-                    visible: (root.selectedEntry.fields || []).length > 0
-                }
-            }
-        }
-    }
-
-
 }

@@ -73,29 +73,23 @@ Item {
 
     // ── Detail sections ──────────────────────────────────────────────────
     readonly property var detailSections: [
-        "Entries",
-        "Approval History",
-        "Labor Notes"
+        "Review Summary",
+        "Decision History"
     ]
 
     // ── Detail actions ───────────────────────────────────────────────────
     readonly property var detailActions: {
         const st = root.selectedPeriodModel ? (root.selectedPeriodModel.state || {}) : {}
-        const status = String(st.periodStatus || "").toUpperCase()
-        const hasPeriod = Boolean(st.periodId)
-        const hasStatus = status.length > 0
-        return [
-            { "id": "submit",  "label": "Submit",        "icon": "approve",
-              "enabled": hasPeriod && (!hasStatus || status === "DRAFT" || status === "OPEN"), "danger": false },
-            { "id": "approve", "label": "Approve",       "icon": "approve",
-              "enabled": hasPeriod && (!hasStatus || status === "SUBMITTED"), "danger": false },
-            { "id": "reject",  "label": "Reject",        "icon": "close",
-              "enabled": hasPeriod && (!hasStatus || status === "SUBMITTED"), "danger": true  },
-            { "id": "lock",    "label": "Lock Period",   "icon": "lock",
-              "enabled": hasPeriod && (!hasStatus || status === "APPROVED"), "danger": false },
-            { "id": "unlock",  "label": "Unlock Period", "icon": "edit",
-              "enabled": hasPeriod && (!hasStatus || status === "LOCKED"), "danger": false }
-        ]
+        const actions = []
+        if (st.canApprove === true)
+            actions.push({ "id": "approve", "label": "Approve", "icon": "approve", "enabled": true, "danger": false })
+        if (st.canReject === true)
+            actions.push({ "id": "reject", "label": "Return", "icon": "close", "enabled": true, "danger": true })
+        if (st.canLock === true)
+            actions.push({ "id": "lock", "label": "Lock Period", "icon": "lock", "enabled": true, "danger": false })
+        if (st.canUnlock === true)
+            actions.push({ "id": "unlock", "label": "Unlock Period", "icon": "edit", "enabled": true, "danger": false })
+        return actions
     }
 
     // ── Column configuration ─────────────────────────────────────────────
