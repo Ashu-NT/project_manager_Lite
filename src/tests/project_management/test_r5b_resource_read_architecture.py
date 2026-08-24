@@ -233,7 +233,8 @@ def test_r5b_resource_qml_uses_final_sections_and_actual_workspace_width() -> No
     assert "Item {\n    id: root\n\n    property" in list_page
     assert "id: root\n\n    anchors.fill: parent" not in list_page
     assert '"Overview", "Capability", "Availability", "Projects", "Assignments", "Activity"' in state
-    assert "No legacy capacity formula is shown here" in panel
+    assert "ResourcesAvailabilitySection" in panel
+    assert "No legacy capacity formula is shown here" not in panel
     assert "Assignment snapshots are not presented as history" in panel
 
 

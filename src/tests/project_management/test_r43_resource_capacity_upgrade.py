@@ -308,7 +308,7 @@ def test_overallocation_strict_policy_still_allows_non_conflicting_allocation(se
 
 def test_assign_project_resource_rejects_inactive_resource(services):
     ps, ts, rs, prs, project, resource, project_resource, task = _setup_project_resource(services)
-    rs.update_resource(resource.id, is_active=False)
+    rs.deactivate_resource(resource_id=resource.id, expected_version=resource.version)
 
     with pytest.raises(BusinessRuleError) as exc:
         ts.assign_project_resource(

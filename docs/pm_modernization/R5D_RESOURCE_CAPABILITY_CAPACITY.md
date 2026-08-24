@@ -2,7 +2,7 @@
 
 ## 1. Status
 
-**IN PROGRESS.** R5A-R5C are the approved baseline. R5D owns only Resource Detail `Capability` and `Availability`; it stops before R5E, R5F, and R6. The characterization below was completed against the production code before R5D behavior changes.
+**IMPLEMENTED; FINAL CLOSURE GATES IN PROGRESS.** R5A-R5C are the approved baseline. Resource Detail `Capability` and `Availability` are now production-backed; R5D stops before R5E, R5F, and R6. The remaining work is final targeted reconciliation of all R5D closure gates, not product implementation for deferred sections.
 
 ## 2. Scope
 
@@ -65,8 +65,8 @@ Comparison outcomes are deterministic and explainable: `SATISFIED`, `MISSING`, `
 - `EnterpriseCalendarResolver` is Platform working-time authority and owns calendar precedence, holidays, exceptions, and working hours.
 - `EnterpriseResourceAvailabilityService` adapts Resource/Employee identity to that resolver but does not apply `Resource.capacity_percent` or TaskAssignment demand.
 - `ResourceCapacityCalculator` aggregates resolver output but currently omits the Resource modifier, clamps remaining hours, and needs caller-supplied demand.
-- `compute_resource_capacity_from_assignments` derives assignment percentages in Python and is a transitional Resource-detail helper.
-- `ResourceAvailabilityService` is a legacy percent/day implementation used by the current desktop Resource detail path; it uses a generic calendar protocol, treats zero capacity as 100%, and is not the final authority.
+- `compute_resource_capacity_from_assignments` was an unreferenced transitional Resource-detail helper and has been deleted.
+- `ResourceAvailabilityService` was an obsolete percent/day implementation. Its file, exports, desktop API parameter, runtime resolver field, service-graph field/key, composition construction, and legacy tests have been deleted.
 - `evaluate_task_assignment_capacity` applies the modifier and exact Decimal math but currently limits existing load to one project; it is an adapter candidate, not a second truth.
 - `ResourceLoadEngine` and portfolio pool calculations serve scheduling/dashboard/portfolio consumers and require classification/parity before deletion or adaptation.
 
@@ -108,7 +108,7 @@ The final immutable Decimal-safe fact includes Resource ID, range, calendar sour
 
 ## 26. Availability Read Architecture
 
-Target flow: Resource Detail -> desktop API -> typed workload query -> bounded PM reader/orchestrator -> batched TaskAssignment demand plus EnterpriseCalendarResolver -> immutable ResourceWorkloadFact -> desktop DTO -> presenter/QML. Query failures remain failures, not empty facts.
+Implemented flow: Resource Detail -> desktop API -> `ResourceWorkloadService` -> tenant/organization-scoped `SqlAlchemyResourceWorkloadDemandReader` overlap query plus `EnterpriseResourceAvailabilityService` -> immutable `ResourceWorkloadFact` -> desktop DTO -> presenter/controller -> QML. SQL filters TaskAssignment demand by the explicit Task date overlap before materialization. Query failures remain section failures, not empty facts.
 
 ## 27. Catalog Summary Integration
 
@@ -124,7 +124,7 @@ Capability remains one Resource Detail destination containing Skills and Certifi
 
 ## 30. Availability UI
 
-Availability displays explicit range controls, capacity/commitment/remaining/utilization summaries, source context, overload/conflict state, and a bounded daily breakdown. It does not expose editable calendar rules or fabricate project/task navigation.
+Implemented. Availability lazy-loads only when its Resource Detail destination is active and provides 30/60/90-day presets plus custom bounded dates, capacity/commitment/remaining/utilization summaries, calendar source and workload context, overload/conflict state, and a read-only daily DataTable. The section performs no working-day or capacity calculation in QML and exposes no editable calendar rules or fabricated project/task navigation.
 
 ## 31. Responsive Matrix
 
@@ -132,11 +132,11 @@ Validate 1024x640, 1280x720, 1366x768, 1440x900, and 1920x1080. Compact layouts 
 
 ## 32. Legacy Capacity Implementations
 
-Each implementation in section 16 must be classified as canonical component, delegating adapter, distinct valid scheduling/portfolio projection, or superseded legacy. R4.4 scheduling semantics are frozen during R5D.
+Classification is complete for the Resource Detail path. `EnterpriseCalendarResolver` and `EnterpriseResourceAvailabilityService` remain calendar authority/adapters; `ResourceWorkloadService` plus its bounded SQL demand reader own Resource Detail workload truth; `evaluate_task_assignment_capacity` remains the Task command preview/enforcement path; `ResourceLoadEngine` and portfolio readers remain distinct set-based projections. R4.4 scheduling semantics were not changed.
 
 ## 33. Legacy Deletions / Adapters
 
-`ResourceAvailabilityService` and `compute_resource_capacity_from_assignments` are explicit retirement candidates after all callers move and parity differences are classified. `evaluate_task_assignment_capacity` must delegate to shared canonical math before it can remain. Files are deleted only after zero-reference verification; no permanent transition-only dead code is allowed.
+Completed retirement: `ResourceAvailabilityService` and `compute_resource_capacity_from_assignments` were deleted after zero-production-reference verification. All percent-based service DI aliases and constructor parameters were removed rather than retained as compatibility code. `evaluate_task_assignment_capacity` remains because Tasks actively use it for assignment preview and save-time enforcement against the enterprise calendar adapter; it is not transition-only dead code.
 
 ## 34. RLS / Scope
 
@@ -148,7 +148,7 @@ Capability lists are paged and measured at 10/100/1,000 rows. Single-Resource Av
 
 ## 36. Test Results
 
-Pending implementation. Record targeted domain, repository, service/UoW, desktop API, controller/presenter, QML source/runtime, capacity math/calendar authority, scope/RLS, R4.4 regression, compilation, qmllint, and diff-check results here. Unavailable optional tooling must be reported honestly.
+Availability/capability focused suite: **58 passed** covering canonical R4.3 capacity regression, R5B Resource reads/runtime geometry, R5D bounded workload/range/permission/scope/QML contracts, capability controller, and secondary-write tenant hardening. Python targeted compilation passed. `qmllint` passed for `ResourcesAvailabilitySection.qml`; shared page lint reports only pre-existing generated-QML-type metadata warnings. `git diff --check` is part of the final exit pass. Optional `ruff` was unavailable in `pmenv` (`No module named ruff`).
 
 ## 37. Explicit Deferred Scope
 
