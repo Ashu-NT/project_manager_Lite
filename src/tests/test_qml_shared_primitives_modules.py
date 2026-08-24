@@ -210,6 +210,17 @@ def test_data_table_server_sort_is_emit_only() -> None:
     assert 'root._effectiveSortingMode !== "none"' in table_qml
 
 
+def test_data_table_nested_vertical_scroll_is_edge_aware() -> None:
+    table_qml = (QML_SHARED_ROOT / "Widgets" / "DataTable.qml").read_text(
+        encoding="utf-8"
+    )
+
+    assert "property bool   alwaysShowVerticalScrollBar: false" in table_qml
+    assert "function _scrollVerticallyBy(deltaPixels)" in table_qml
+    assert "event.accepted = root._scrollVerticallyBy(inputDelta)" in table_qml
+    assert "ScrollBar.AlwaysOn : ScrollBar.AsNeeded" in table_qml
+
+
 def test_non_pm_data_tables_keep_legacy_client_sorting_default() -> None:
     consumers = [
         path

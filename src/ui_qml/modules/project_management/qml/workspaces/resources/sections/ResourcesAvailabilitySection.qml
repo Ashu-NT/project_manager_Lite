@@ -285,7 +285,7 @@ Item {
             Layout.fillWidth: true
             visible: root.resourceId.length > 0
             Layout.preferredHeight: root._activeTabIndex === 0
-                ? summaryContent.implicitHeight : dailyCard.implicitHeight
+                ? summaryContent.implicitHeight : dailyContent.implicitHeight
             implicitHeight: Layout.preferredHeight
 
             ColumnLayout {
@@ -320,7 +320,8 @@ Item {
                     Layout.fillWidth: true
                     title: "Capacity context"
                     outlined: true
-                    implicitHeight: contextContent.implicitHeight + root._cardChromeHeight
+                    implicitHeight: contextContent.implicitHeight
+                        + root._cardChromeHeight + Theme.AppTheme.spacingLg
 
                     ColumnLayout {
                         id: contextContent
@@ -408,47 +409,61 @@ Item {
                 }
             }
 
-            AppWidgets.SectionCard {
-                id: dailyCard
+            ColumnLayout {
+                id: dailyContent
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
                 visible: root._activeTabIndex === 1
-                title: "Daily availability"
-                outlined: true
-                implicitHeight: dailyContent.implicitHeight + root._cardChromeHeight
+                spacing: Theme.AppTheme.spacingSm
 
-                ColumnLayout {
-                    id: dailyContent
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: Theme.AppTheme.marginMd
+                RowLayout {
+                    Layout.fillWidth: true
                     spacing: Theme.AppTheme.spacingSm
 
                     AppControls.Label {
                         Layout.fillWidth: true
-                        text: "Daily facts are read-only and preserve non-working days and negative remaining capacity."
-                        color: Theme.AppTheme.textSecondary
+                        text: "Daily capacity by date"
+                        color: Theme.AppTheme.textPrimary
                         font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.captionSize
-                        wrapMode: Text.WordWrap
+                        font.pixelSize: Theme.AppTheme.sectionTitleSize
+                        font.bold: true
                     }
 
-                    Item {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: root._tableHeight
+                    AppControls.Label {
+                        visible: root._hasData
+                        text: String(root._availability.fromDateLabel || "")
+                            + " - " + String(root._availability.toDateLabel || "")
+                        color: Theme.AppTheme.textMuted
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                    }
+                }
 
-                        AppWidgets.DataTable {
-                            anchors.fill: parent
-                            columns: root._dailyColumns
-                            rows: root._days
-                            sortingMode: "none"
-                            loading: root.isBusy
-                            emptyText: root._hasData
-                                ? "No calendar days were returned for this range."
-                                : "Availability has not been loaded."
-                        }
+                AppControls.Label {
+                    Layout.fillWidth: true
+                    text: "Read-only calendar facts preserve non-working days and negative remaining capacity."
+                    color: Theme.AppTheme.textSecondary
+                    font.family: Theme.AppTheme.fontFamily
+                    font.pixelSize: Theme.AppTheme.captionSize
+                    wrapMode: Text.WordWrap
+                }
+
+                Item {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: root._tableHeight
+
+                    AppWidgets.DataTable {
+                        anchors.fill: parent
+                        columns: root._dailyColumns
+                        rows: root._days
+                        sortingMode: "none"
+                        alwaysShowVerticalScrollBar: root._days.length
+                            * Theme.AppTheme.compactRowHeight > root._tableHeight
+                        loading: root.isBusy
+                        emptyText: root._hasData
+                            ? "No calendar days were returned for this range."
+                            : "Availability has not been loaded."
                     }
                 }
             }
