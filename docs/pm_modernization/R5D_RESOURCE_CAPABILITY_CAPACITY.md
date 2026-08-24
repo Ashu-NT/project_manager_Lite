@@ -124,7 +124,7 @@ Capability remains one Resource Detail destination containing Skills and Certifi
 
 ## 30. Availability UI
 
-Implemented. Availability lazy-loads only when its Resource Detail destination is active and provides 30/60/90-day presets plus custom bounded dates, capacity/commitment/remaining/utilization summaries, calendar source and workload context, overload/conflict state, and a read-only daily DataTable. The section performs no working-day or capacity calculation in QML and exposes no editable calendar rules or fabricated project/task navigation.
+Implemented. Availability lazy-loads only when its Resource Detail destination is active. Shared 30/60/90-day presets and custom bounded dates sit above two result tabs because the selected range governs both: `Summary` owns capacity/commitment/remaining/utilization metrics plus calendar/workload context, while `Daily Availability` owns the read-only daily DataTable. The section performs no working-day or capacity calculation in QML and exposes no editable calendar rules or fabricated project/task navigation.
 
 ## 31. Responsive Matrix
 

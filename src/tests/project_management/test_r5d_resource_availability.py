@@ -157,7 +157,9 @@ def test_resource_availability_qml_uses_authoritative_detail_contract() -> None:
     assert "loadResourceAvailability" in section
     assert 'sortingMode: "none"' in section
     assert "AppControls.DateField" in section
+    assert '"label": "Summary"' in section
+    assert '"label": "Daily Availability"' in section
+    assert section.index("Availability window") < section.index("AppWidgets.DetailTabBar")
     assert "plannedCommitmentHours" in section
     assert "calendarSourceLabel" in section
     assert "ResourceAvailabilityService" not in section
-

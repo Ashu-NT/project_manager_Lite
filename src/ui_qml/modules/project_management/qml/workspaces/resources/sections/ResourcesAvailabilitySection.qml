@@ -15,10 +15,15 @@ Item {
     property bool _initialized: false
     property int _presetDays: 30
     property string _rangeError: ""
+    property int _activeTabIndex: 0
 
     readonly property var _availability: root.workspaceController
         ? (root.workspaceController.resourceAvailability || {}) : ({})
     readonly property var _days: root._availability.days || []
+    readonly property var _tabs: [
+        { "id": "summary", "label": "Summary" },
+        { "id": "daily", "label": "Daily Availability" }
+    ]
     readonly property bool _hasData: root.resourceId.length > 0
         && String(root._availability.resourceId || "") === root.resourceId
         && String(root._availability.startDate || "").length > 0
@@ -123,6 +128,7 @@ Item {
     }
 
     onResourceIdChanged: {
+        root._activeTabIndex = 0
         if (root._initialized) root._loadDefault()
     }
 
@@ -266,156 +272,183 @@ Item {
             message: "Select a resource to review its calendar-backed availability."
         }
 
-        GridLayout {
+        AppWidgets.DetailTabBar {
             Layout.fillWidth: true
             visible: root.resourceId.length > 0
-            columns: root._summaryColumns
-            columnSpacing: Theme.AppTheme.spacingSm
-            rowSpacing: Theme.AppTheme.spacingSm
-
-            Repeater {
-                model: root._summaryMetrics
-                delegate: AppWidgets.MetricCard {
-                    id: metricCard
-                    required property var modelData
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 124
-                    label: String(metricCard.modelData.label || "")
-                    value: root._hasData ? String(metricCard.modelData.value || "") : "--"
-                    supportingText: String(metricCard.modelData.supporting || "")
-                }
-            }
+            tabs: root._tabs
+            currentIndex: root._activeTabIndex
+            onTabSelected: function(index) { root._activeTabIndex = index }
         }
 
-        AppWidgets.SectionCard {
+        Item {
+            id: tabContentHost
             Layout.fillWidth: true
             visible: root.resourceId.length > 0
-            title: "Capacity context"
-            outlined: true
-            implicitHeight: contextContent.implicitHeight + root._cardChromeHeight
+            Layout.preferredHeight: root._activeTabIndex === 0
+                ? summaryContent.implicitHeight : dailyCard.implicitHeight
+            implicitHeight: Layout.preferredHeight
 
             ColumnLayout {
-                id: contextContent
+                id: summaryContent
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                anchors.margins: Theme.AppTheme.marginMd
                 spacing: Theme.AppTheme.spacingSm
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: Theme.AppTheme.spacingSm
-
-                    AppWidgets.StatusChip {
-                        status: !root._hasData ? "Not loaded"
-                            : (root._availability.overallocated === true
-                                ? "Over capacity" : "Within capacity")
-                    }
-                    AppControls.Label {
-                        Layout.fillWidth: true
-                        text: root._hasData
-                            ? String(root._availability.fromDateLabel || "")
-                                + " to " + String(root._availability.toDateLabel || "")
-                            : "Load a date range to calculate availability."
-                        color: Theme.AppTheme.textSecondary
-                        font.family: Theme.AppTheme.fontFamily
-                        font.pixelSize: Theme.AppTheme.smallSize
-                        elide: Text.ElideRight
-                    }
-                }
+                visible: root._activeTabIndex === 0
 
                 GridLayout {
                     Layout.fillWidth: true
-                    columns: root._contextColumns
-                    columnSpacing: Theme.AppTheme.spacingLg
+                    columns: root._summaryColumns
+                    columnSpacing: Theme.AppTheme.spacingSm
                     rowSpacing: Theme.AppTheme.spacingSm
 
                     Repeater {
-                        model: [
-                            { "label": "Calendar capacity", "value": root._hours(root._availability.baseCapacityHours) },
-                            { "label": "Capacity modifier", "value": Number(root._availability.capacityPercent || 0).toLocaleString(Qt.locale(), "f", 1) + "%" },
-                            { "label": "Projects", "value": String(root._availability.projectCount || 0) },
-                            { "label": "Assignments", "value": String(root._availability.assignmentCount || 0) },
-                            { "label": "Conflict days", "value": String(root._availability.conflictDays || 0) },
-                            { "label": "Allocated planned work", "value": root._hours(root._availability.allocatedPlannedHours) }
-                        ]
-
-                        delegate: ColumnLayout {
-                            id: contextFact
+                        model: root._summaryMetrics
+                        delegate: AppWidgets.MetricCard {
+                            id: metricCard
                             required property var modelData
                             Layout.fillWidth: true
-                            spacing: 2
-                            AppControls.Label {
-                                Layout.fillWidth: true
-                                text: String(contextFact.modelData.label || "")
-                                color: Theme.AppTheme.textMuted
-                                font.family: Theme.AppTheme.fontFamily
-                                font.pixelSize: Theme.AppTheme.captionSize
-                                font.bold: true
-                                elide: Text.ElideRight
+                            Layout.preferredHeight: 124
+                            label: String(metricCard.modelData.label || "")
+                            value: root._hasData ? String(metricCard.modelData.value || "") : "--"
+                            supportingText: String(metricCard.modelData.supporting || "")
+                        }
+                    }
+                }
+
+                AppWidgets.SectionCard {
+                    Layout.fillWidth: true
+                    title: "Capacity context"
+                    outlined: true
+                    implicitHeight: contextContent.implicitHeight + root._cardChromeHeight
+
+                    ColumnLayout {
+                        id: contextContent
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: Theme.AppTheme.marginMd
+                        spacing: Theme.AppTheme.spacingSm
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: Theme.AppTheme.spacingSm
+
+                            AppWidgets.StatusChip {
+                                status: !root._hasData ? "Not loaded"
+                                    : (root._availability.overallocated === true
+                                        ? "Over capacity" : "Within capacity")
                             }
                             AppControls.Label {
                                 Layout.fillWidth: true
-                                text: root._hasData ? String(contextFact.modelData.value || "") : "--"
-                                color: Theme.AppTheme.textPrimary
+                                text: root._hasData
+                                    ? String(root._availability.fromDateLabel || "")
+                                        + " to " + String(root._availability.toDateLabel || "")
+                                    : "Load a date range to calculate availability."
+                                color: Theme.AppTheme.textSecondary
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.smallSize
                                 elide: Text.ElideRight
                             }
                         }
+
+                        GridLayout {
+                            Layout.fillWidth: true
+                            columns: root._contextColumns
+                            columnSpacing: Theme.AppTheme.spacingLg
+                            rowSpacing: Theme.AppTheme.spacingSm
+
+                            Repeater {
+                                model: [
+                                    { "label": "Calendar capacity", "value": root._hours(root._availability.baseCapacityHours) },
+                                    { "label": "Capacity modifier", "value": Number(root._availability.capacityPercent || 0).toLocaleString(Qt.locale(), "f", 1) + "%" },
+                                    { "label": "Projects", "value": String(root._availability.projectCount || 0) },
+                                    { "label": "Assignments", "value": String(root._availability.assignmentCount || 0) },
+                                    { "label": "Conflict days", "value": String(root._availability.conflictDays || 0) },
+                                    { "label": "Allocated planned work", "value": root._hours(root._availability.allocatedPlannedHours) }
+                                ]
+
+                                delegate: ColumnLayout {
+                                    id: contextFact
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    spacing: 2
+                                    AppControls.Label {
+                                        Layout.fillWidth: true
+                                        text: String(contextFact.modelData.label || "")
+                                        color: Theme.AppTheme.textMuted
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.captionSize
+                                        font.bold: true
+                                        elide: Text.ElideRight
+                                    }
+                                    AppControls.Label {
+                                        Layout.fillWidth: true
+                                        text: root._hasData ? String(contextFact.modelData.value || "") : "--"
+                                        color: Theme.AppTheme.textPrimary
+                                        font.family: Theme.AppTheme.fontFamily
+                                        font.pixelSize: Theme.AppTheme.smallSize
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                            }
+                        }
+
+                        AppControls.Label {
+                            Layout.fillWidth: true
+                            text: root._hasData && String(root._availability.calendarSourceLabel || "").length > 0
+                                ? "Calendar source: " + String(root._availability.calendarSourceLabel)
+                                : "Calendar source will be shown after the range is resolved."
+                            color: Theme.AppTheme.textSecondary
+                            font.family: Theme.AppTheme.fontFamily
+                            font.pixelSize: Theme.AppTheme.captionSize
+                            wrapMode: Text.WordWrap
+                        }
                     }
                 }
-
-                AppControls.Label {
-                    Layout.fillWidth: true
-                    text: root._hasData && String(root._availability.calendarSourceLabel || "").length > 0
-                        ? "Calendar source: " + String(root._availability.calendarSourceLabel)
-                        : "Calendar source will be shown after the range is resolved."
-                    color: Theme.AppTheme.textSecondary
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.captionSize
-                    wrapMode: Text.WordWrap
-                }
             }
-        }
 
-        AppWidgets.SectionCard {
-            Layout.fillWidth: true
-            visible: root.resourceId.length > 0
-            title: "Daily availability"
-            outlined: true
-            implicitHeight: dailyContent.implicitHeight + root._cardChromeHeight
-
-            ColumnLayout {
-                id: dailyContent
+            AppWidgets.SectionCard {
+                id: dailyCard
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                anchors.margins: Theme.AppTheme.marginMd
-                spacing: Theme.AppTheme.spacingSm
+                visible: root._activeTabIndex === 1
+                title: "Daily availability"
+                outlined: true
+                implicitHeight: dailyContent.implicitHeight + root._cardChromeHeight
 
-                AppControls.Label {
-                    Layout.fillWidth: true
-                    text: "Daily facts are read-only and preserve non-working days and negative remaining capacity."
-                    color: Theme.AppTheme.textSecondary
-                    font.family: Theme.AppTheme.fontFamily
-                    font.pixelSize: Theme.AppTheme.captionSize
-                    wrapMode: Text.WordWrap
-                }
+                ColumnLayout {
+                    id: dailyContent
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.margins: Theme.AppTheme.marginMd
+                    spacing: Theme.AppTheme.spacingSm
 
-                Item {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: root._tableHeight
+                    AppControls.Label {
+                        Layout.fillWidth: true
+                        text: "Daily facts are read-only and preserve non-working days and negative remaining capacity."
+                        color: Theme.AppTheme.textSecondary
+                        font.family: Theme.AppTheme.fontFamily
+                        font.pixelSize: Theme.AppTheme.captionSize
+                        wrapMode: Text.WordWrap
+                    }
 
-                    AppWidgets.DataTable {
-                        anchors.fill: parent
-                        columns: root._dailyColumns
-                        rows: root._days
-                        sortingMode: "none"
-                        loading: root.isBusy
-                        emptyText: root._hasData
-                            ? "No calendar days were returned for this range."
-                            : "Availability has not been loaded."
+                    Item {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: root._tableHeight
+
+                        AppWidgets.DataTable {
+                            anchors.fill: parent
+                            columns: root._dailyColumns
+                            rows: root._days
+                            sortingMode: "none"
+                            loading: root.isBusy
+                            emptyText: root._hasData
+                                ? "No calendar days were returned for this range."
+                                : "Availability has not been loaded."
+                        }
                     }
                 }
             }
