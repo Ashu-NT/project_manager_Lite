@@ -449,12 +449,19 @@ Item {
                     wrapMode: Text.WordWrap
                 }
 
-                Item {
+                Rectangle {
                     Layout.fillWidth: true
+                    Layout.rightMargin: Theme.AppTheme.spacingLg
                     Layout.preferredHeight: root._tableHeight
+                    radius: Theme.AppTheme.radiusSm
+                    color: Theme.AppTheme.surfaceRaised
+                    border.color: Theme.AppTheme.subtleBorder
+                    border.width: 1
+                    clip: true
 
                     AppWidgets.DataTable {
                         anchors.fill: parent
+                        anchors.margins: 1
                         columns: root._dailyColumns
                         rows: root._days
                         sortingMode: "none"

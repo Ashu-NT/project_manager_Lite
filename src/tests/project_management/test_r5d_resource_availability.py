@@ -163,6 +163,8 @@ def test_resource_availability_qml_uses_authoritative_detail_contract() -> None:
     daily_section = section[section.index("id: dailyContent") :]
     assert "AppWidgets.SectionCard" not in daily_section
     assert "alwaysShowVerticalScrollBar" in daily_section
+    assert "Layout.rightMargin: Theme.AppTheme.spacingLg" in daily_section
+    assert "border.color: Theme.AppTheme.subtleBorder" in daily_section
     assert "+ root._cardChromeHeight + Theme.AppTheme.spacingLg" in section
     assert "plannedCommitmentHours" in section
     assert "calendarSourceLabel" in section
