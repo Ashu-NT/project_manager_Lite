@@ -122,8 +122,6 @@ class ResourceCatalogWorkspaceViewModel:
     search_text: str = ""
     resources: tuple[ResourceRecordViewModel, ...] = field(default_factory=tuple)
     selected_resource_id: str = ""
-    selected_resource_detail: ResourceDetailViewModel = field(default_factory=ResourceDetailViewModel)
-    resource_availability: ResourceAvailabilityViewModel = field(default_factory=ResourceAvailabilityViewModel)
     empty_state: str = ""
     total_count: int = 0
     page: int = 1

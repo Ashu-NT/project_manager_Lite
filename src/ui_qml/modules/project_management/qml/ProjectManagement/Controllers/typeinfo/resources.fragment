@@ -41,6 +41,14 @@ Component {
     Method { name: "setResourcePage"; Parameter { name: "page"; type: "int" } }
     Method { name: "setResourcePageSize"; Parameter { name: "pageSize"; type: "int" } }
     Method { name: "setResourceSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
+    Method { name: "setResourceBulkSelection"; Parameter { name: "resourceId"; type: "QString" } Parameter { name: "selected"; type: "bool" } }
+    Method { name: "clearResourceBulkSelection" }
+    Method { name: "selectVisibleResources" }
+    Method { name: "bulkDeleteResources"; type: "QVariantMap"; Parameter { name: "resourceIds"; type: "QVariantList" } }
+    Method { name: "addSkill"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "removeSkill"; type: "QVariantMap"; Parameter { name: "skillId"; type: "QString" } }
+    Method { name: "addCertification"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "removeCertification"; type: "QVariantMap"; Parameter { name: "certificationId"; type: "QString" } }
     Method { name: "createResource"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "updateResource"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
     Method { name: "toggleResourceActive"; type: "QVariantMap"; Parameter { name: "resourceId"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }

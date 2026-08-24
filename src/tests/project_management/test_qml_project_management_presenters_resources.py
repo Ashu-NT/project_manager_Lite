@@ -236,6 +236,11 @@ def test_project_management_workspace_catalog_exposes_typed_resources_controller
     assert controller.resourceInspector["title"] == "Electrical Crew"
     assert controller.selectedResource["id"] == ""
 
+    controller.refresh()
+
+    assert controller.selectedResourceId == "res-1"
+    assert controller.resourceInspector["title"] == "Electrical Crew"
+
     assert controller.activateResource("res-1") is True
     assert controller.selectedResource["title"] == "Electrical Crew"
 
@@ -243,6 +248,8 @@ def test_project_management_workspace_catalog_exposes_typed_resources_controller
 
     assert controller.selectedActiveFilter == "inactive"
     assert [item["title"] for item in controller.resources["items"]] == ["Alex Taylor"]
+    assert controller.selectedResourceId == ""
+    assert controller.resourceInspector["id"] == ""
 
     controller.setSearchText("crew")
 

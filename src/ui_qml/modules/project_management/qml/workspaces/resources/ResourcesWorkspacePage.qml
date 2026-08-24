@@ -10,7 +10,6 @@ import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "components" as Components
 import "dialogs" as Dialogs
-import "sections" as Sections
 import "panels" as Panels
 
 AppLayouts.WorkspaceFrame {
@@ -134,6 +133,7 @@ AppLayouts.WorkspaceFrame {
 
             Components.ResourcesListPage {
                 id: listPage
+                objectName: "resourcesCatalogListPage"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 workspaceController: root.workspaceController
@@ -370,8 +370,6 @@ AppLayouts.WorkspaceFrame {
                     onCertificationSelectionChanged: function(certId) {
                         root._selectedCertificationId = String(certId || "")
                     }
-                    onEditRequested: dialogHostLoader.invoke("openEditDialog", root.selectedResourceModel)
-                    onDeleteRequested: dialogHostLoader.invoke("openDeleteDialog", root.selectedResourceModel)
                     onAddSkillRequested: dialogHostLoader.invoke("openAddSkillDialog")
                     onAddCertificationRequested: dialogHostLoader.invoke("openAddCertificationDialog")
                     onRemoveSkillRequested: function(skillId) {

@@ -20,9 +20,6 @@ Item {
     property string selectedSkillId: ""
     property string selectedCertificationId: ""
 
-    signal editRequested()
-    signal toggleRequested()
-    signal deleteRequested()
     signal addSkillRequested()
     signal addCertificationRequested()
     signal removeSkillRequested(string skillId)

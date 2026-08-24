@@ -72,13 +72,14 @@ Item {
                         model: root.resourceDetail.fields || []
 
                         delegate: ColumnLayout {
+                            id: profileField
                             required property var modelData
                             Layout.fillWidth: true
                             spacing: 2
 
                             AppControls.Label {
                                 Layout.fillWidth: true
-                                text: String(modelData.label || "")
+                                text: String(profileField.modelData.label || "")
                                 color: Theme.AppTheme.textMuted
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.captionSize
@@ -87,7 +88,7 @@ Item {
 
                             AppControls.Label {
                                 Layout.fillWidth: true
-                                text: String(modelData.value || "-")
+                                text: String(profileField.modelData.value || "-")
                                 color: Theme.AppTheme.textPrimary
                                 font.family: Theme.AppTheme.fontFamily
                                 font.pixelSize: Theme.AppTheme.smallSize
