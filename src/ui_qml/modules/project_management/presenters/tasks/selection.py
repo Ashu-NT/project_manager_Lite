@@ -36,4 +36,6 @@ def resolve_time_entry_id(selected_time_entry_id: str | None, entries: Any) -> s
     available_values = [str(entry.entry_id or "") for entry in entries]
     if normalized_id and normalized_id in available_values:
         return normalized_id
-    return available_values[0] if available_values else ""
+    # Time capture and entry editing are separate user intents. Never turn a
+    # refresh into edit mode by implicitly selecting the first ledger row.
+    return ""

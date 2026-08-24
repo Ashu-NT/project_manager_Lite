@@ -6,6 +6,9 @@ from pathlib import Path
 from PySide6.QtGui import QGuiApplication
 
 from src.tests.path_rewrites import REPO_ROOT
+from src.ui_qml.modules.project_management.presenters.tasks.selection import (
+    resolve_time_entry_id,
+)
 from src.ui_qml.shell.qml_engine import create_qml_engine, load_qml
 
 
@@ -127,6 +130,33 @@ def test_task_time_interactions_and_payload_contract_are_preserved() -> None:
         '"note"',
     ):
         assert payload_key in source
+
+
+def test_time_entry_selection_is_explicit_and_never_defaults_to_first_row() -> None:
+    class _Entry:
+        def __init__(self, entry_id: str) -> None:
+            self.entry_id = entry_id
+
+    entries = (_Entry("entry-1"), _Entry("entry-2"))
+
+    assert resolve_time_entry_id(None, entries) == ""
+    assert resolve_time_entry_id("", entries) == ""
+    assert resolve_time_entry_id("missing", entries) == ""
+    assert resolve_time_entry_id("entry-2", entries) == "entry-2"
+
+
+def test_time_entry_editor_has_success_reset_and_confirmed_delete_contract() -> None:
+    editor_source = (SECTION_ROOT / "TaskTimeEntryEditor.qml").read_text(encoding="utf-8")
+    section_source = ROOT_COMPONENT.read_text(encoding="utf-8")
+    panel_source = DETAIL_PANEL.read_text(encoding="utf-8")
+
+    assert "function resetForCreate()" in editor_source
+    assert '_dateField.text = ""' in editor_source
+    assert '_hoursField.text = ""' in editor_source
+    assert '_noteArea.text = ""' in editor_source
+    assert "AppControls.ConfirmationDialog" in editor_source
+    assert "function resetTimeEntryEditor()" in section_source
+    assert "function resetTimeEntryEditor()" in panel_source
 
 
 def test_log_time_uses_description_label_not_labor_note() -> None:

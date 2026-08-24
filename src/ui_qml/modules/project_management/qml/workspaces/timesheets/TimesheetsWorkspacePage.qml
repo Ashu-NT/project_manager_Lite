@@ -1,15 +1,10 @@
 ﻿pragma ComponentBehavior: Bound
 
 import QtQuick
-import QtQuick.Controls
-import QtQuick.Layouts
-import App.Controls 1.0 as AppControls
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
-import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "components" as Components
-import "sections" as Sections
 import "panels" as Panels
 
 AppLayouts.WorkspaceFrame {

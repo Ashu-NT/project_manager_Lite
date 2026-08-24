@@ -1,7 +1,10 @@
 from dataclasses import FrozenInstanceError
 from pathlib import Path
 
+from alembic import command
+from alembic.config import Config
 import pytest
+import sqlalchemy as sa
 
 from src.core.modules.project_management.contracts.reads.timesheets import (
     ReviewQueueItemType,
@@ -31,6 +34,17 @@ def test_review_queue_fact_is_immutable_and_typed() -> None:
         period_start=__import__("datetime").date(2026, 8, 1),
         period_end=__import__("datetime").date(2026, 8, 31),
         status=TimesheetPeriodStatus.SUBMITTED,
+        submitted_at=None,
+        submitted_by_username=None,
+        decided_at=None,
+        decided_by_username=None,
+        decision_note=None,
+        total_hours=0.0,
+        project_count=0,
+        task_count=0,
+        entry_count=0,
+        generic_entry_count=0,
+        project_ids=(),
     )
 
     assert fact.item_type is ReviewQueueItemType.TIMESHEET_PERIOD
@@ -71,3 +85,26 @@ def test_review_controller_and_presenter_do_not_own_personal_time_state() -> Non
         assert obsolete not in controller
     assert "submit_period" not in presenter
     assert "add_time_entry" not in presenter
+
+
+def test_r5f_migration_repairs_a_pre_baseline_edit_database(tmp_path) -> None:
+    database = tmp_path / "r5f-repair.db"
+    config = Config(str(ROOT / "infra/persistence/migrations/alembic.ini"))
+    config.set_main_option("sqlalchemy.url", f"sqlite:///{database.as_posix()}")
+    command.upgrade(config, "c817a91e5f24")
+    engine = sa.create_engine(config.get_main_option("sqlalchemy.url"), future=True)
+    with engine.begin() as connection:
+        connection.execute(sa.text("ALTER TABLE timesheet_periods DROP COLUMN version"))
+    assert "version" not in {
+        column["name"] for column in sa.inspect(engine).get_columns("timesheet_periods")
+    }
+    engine.dispose()
+
+    command.upgrade(config, "head")
+    engine = sa.create_engine(config.get_main_option("sqlalchemy.url"), future=True)
+    columns = {
+        column["name"]: column
+        for column in sa.inspect(engine).get_columns("timesheet_periods")
+    }
+    assert columns["version"]["nullable"] is False
+    engine.dispose()

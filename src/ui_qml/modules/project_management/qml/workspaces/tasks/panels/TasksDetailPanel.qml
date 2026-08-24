@@ -168,6 +168,12 @@ Item {
         if (name === "Activity")        return _sec8.implicitHeight
         return 0
     }
+
+    function resetTimeEntryEditor() {
+        if (_sec3.item && _sec3.item.resetTimeEntryEditor) {
+            _sec3.item.resetTimeEntryEditor()
+        }
+    }
     readonly property real _tableSectionAvailableHeight: Math.max(
         0,
         root.availableHeight

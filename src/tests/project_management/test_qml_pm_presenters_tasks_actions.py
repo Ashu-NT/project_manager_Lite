@@ -304,11 +304,16 @@ def test_pm_tasks_time_entries_collaboration_and_bulk_delete(tmp_path: Path, qap
     )
     controller.loadSelectedTaskTime()
 
+    # A successful mutation must leave the section in capture mode rather
+    # than implicitly editing the first refreshed ledger row.
+    controller._set_selected_time_entry_id("entry-under-edit")
+
     time_entry_result = controller.addTaskTimeEntry(
         {"assignmentId": "assign-1", "entryDate": "2026-05-06", "hours": "2.5", "note": "Punchlist support"}
     )
 
     assert time_entry_result == {"ok": True, "message": "Task time entry added."}
+    assert controller.selectedTimeEntryId == ""
     assert timesheets_api.added_entries[-1]["hours"] == 2.5
     controller.loadSelectedTaskTime()
     # This fake harness's TaskService double doesn't track time entries at

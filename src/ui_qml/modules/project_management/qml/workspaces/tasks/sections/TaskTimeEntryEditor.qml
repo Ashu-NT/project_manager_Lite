@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import App.Controls 1.0 as AppControls
 import App.Theme 1.0 as Theme
@@ -70,6 +71,24 @@ Rectangle {
         }
     }
 
+    function resetForCreate() {
+        // Retain a valid assignment to make repeated logging efficient, but
+        // clear all entry-specific values after a successful mutation.
+        let assignmentStillAvailable = false
+        for (let i = 0; i < root.assignmentOptions.length; i += 1) {
+            if (String(root.assignmentOptions[i].value || "") === root._selectedAssignmentId) {
+                assignmentStillAvailable = true
+                break
+            }
+        }
+        if (!assignmentStillAvailable) {
+            root._selectedAssignmentId = root._defaultAssignmentId()
+        }
+        _dateField.text = ""
+        _hoursField.text = ""
+        _noteArea.text = ""
+    }
+
     onEntryStateChanged: Qt.callLater(root._syncEditorFields)
     onAssignmentOptionsChanged: {
         if (!root._selectedAssignmentId) {
@@ -101,7 +120,7 @@ Rectangle {
 
                 AppControls.Label {
                     Layout.fillWidth: true
-                    text: "Log Time"
+                    text: root._hasEntry ? "Edit Time Entry" : "Log Time"
                     color: Theme.AppTheme.textPrimary
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.bodySize
@@ -110,7 +129,9 @@ Rectangle {
 
                 AppControls.Label {
                     Layout.fillWidth: true
-                    text: "Record actual work performed against this task."
+                    text: root._hasEntry
+                        ? "Update the selected recorded-work entry."
+                        : "Record actual work performed against this task."
                     color: Theme.AppTheme.textMuted
                     font.family: Theme.AppTheme.fontFamily
                     font.pixelSize: Theme.AppTheme.smallSize
@@ -319,6 +340,15 @@ Rectangle {
             Layout.fillWidth: true
             spacing: Theme.AppTheme.spacingSm
 
+            AppControls.SecondaryButton {
+                text: "Delete"
+                iconName: "delete"
+                danger: true
+                visible: root._hasEntry
+                enabled: !root.isBusy
+                onClicked: _deleteConfirmation.open()
+            }
+
             AppControls.Label {
                 Layout.fillWidth: true
                 text: root._hasAssignment
@@ -340,7 +370,10 @@ Rectangle {
             AppControls.PrimaryButton {
                 text: root._hasEntry ? "Save Changes" : "Log Time"
                 iconName: root._hasEntry ? "save" : "add"
-                enabled: !root.isBusy && root._hasAssignment
+                enabled: !root.isBusy
+                    && root._hasAssignment
+                    && _dateField.text.trim().length > 0
+                    && _hoursField.text.trim().length > 0
                 onClicked: {
                     if (root._hasEntry) {
                         root.updateRequested({
@@ -360,14 +393,20 @@ Rectangle {
                 }
             }
 
-            AppControls.SecondaryButton {
-                text: "Delete"
-                iconName: "delete"
-                danger: true
-                visible: root._hasEntry
-                enabled: !root.isBusy
-                onClicked: root.deleteRequested(String(root._entryState.entryId || ""))
-            }
         }
+    }
+
+    AppControls.ConfirmationDialog {
+        id: _deleteConfirmation
+        title: "Delete Time Entry"
+        closePolicy: Popup.CloseOnEscape
+        confirmLabel: "Delete Entry"
+        confirmIcon: "delete"
+        confirmDanger: true
+        message: "Delete the selected time entry?"
+        supportingText: String(root._entryState.entryDate || "") + " - "
+            + String(root._entryState.hours || "")
+            + " h. The recorded work will be removed from task and timesheet totals."
+        onConfirmed: root.deleteRequested(String(root._entryState.entryId || ""))
     }
 }

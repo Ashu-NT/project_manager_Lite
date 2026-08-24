@@ -126,6 +126,6 @@ def test_lifecycle_and_capability_restrictions_remain_on_real_actions() -> None:
     assert "st.canApprove === true" in timesheets
     assert "st.canReject === true" in timesheets
     assert 'status === "SUBMITTED"' not in timesheets
-    assert 'status === "APPROVED"' in timesheets
-    assert 'status === "LOCKED"' in timesheets
+    assert "st.canLock === true" in timesheets
+    assert "st.canUnlock === true" in timesheets
     assert '"id": "export"' not in timesheets

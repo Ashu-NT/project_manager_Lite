@@ -578,17 +578,26 @@ AppLayouts.WorkspaceFrame {
                     }
                     onTimeAddRequested: function(payload) {
                         if (root.workspaceController !== null) {
-                            root.workspaceController.addTaskTimeEntry(payload)
+                            const result = root.workspaceController.addTaskTimeEntry(payload)
+                            if (result && result.ok === true) {
+                                tasksDetailPanel.resetTimeEntryEditor()
+                            }
                         }
                     }
                     onTimeUpdateRequested: function(payload) {
                         if (root.workspaceController !== null) {
-                            root.workspaceController.updateTaskTimeEntry(payload)
+                            const result = root.workspaceController.updateTaskTimeEntry(payload)
+                            if (result && result.ok === true) {
+                                tasksDetailPanel.resetTimeEntryEditor()
+                            }
                         }
                     }
                     onTimeDeleteRequested: function(entryId) {
                         if (root.workspaceController !== null) {
-                            root.workspaceController.deleteTaskTimeEntry(entryId)
+                            const result = root.workspaceController.deleteTaskTimeEntry(entryId)
+                            if (result && result.ok === true) {
+                                tasksDetailPanel.resetTimeEntryEditor()
+                            }
                         }
                     }
                     onOpenTimesheetsRequested: root._openTimesheetsRoute()

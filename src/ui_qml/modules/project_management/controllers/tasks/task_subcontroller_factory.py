@@ -33,7 +33,7 @@ def create_subcontrollers(controller) -> None:
         }
     )
     controller._time_ctrl = PMTimeController(
-        **_cb, refresh_time_entries=controller._refresh_time_entries_only
+        **_cb, refresh_time_entries=controller._refresh_time_entries_after_mutation
     )
     controller._collab_ctrl = PMCollaborationController(**_cb)
     bind_task_facade_signals(

@@ -816,5 +816,12 @@ class ProjectManagementTasksWorkspaceController(
     def _refresh_time_entries_only(self) -> None:
         refresh_time_entries_only(self)
 
+    def _refresh_time_entries_after_mutation(self) -> None:
+        # Successful create/update/delete returns Time to capture mode. The
+        # mutation refresh must not preserve an edit selection or select a row
+        # implicitly; failed mutations never call this and keep the draft.
+        self._set_selected_time_entry_id("")
+        refresh_time_entries_only(self)
+
 
 __all__ = ["ProjectManagementTasksWorkspaceController"]
