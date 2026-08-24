@@ -6,6 +6,7 @@ import App.Controls 1.0 as AppControls
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
+import ProjectManagement.Widgets 1.0 as PMWidgets
 
 Item {
     id: root
@@ -13,6 +14,8 @@ Item {
     property string resourceId: ""
     property var workspaceController: null
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
+    property real availableHeight: 0
+    property string selectedActivityId: ""
 
     readonly property var _page: root.workspaceController
         ? root.workspaceController.resourceActivity : ({ "items": [] })
@@ -20,6 +23,14 @@ Item {
     function _value(model, index) {
         const item = model[index]
         return item ? String(item.value || "all") : "all"
+    }
+
+    function _indexForValue(model, value) {
+        const expected = String(value || "").toLowerCase()
+        for (let index = 0; index < model.length; index += 1) {
+            if (String(model[index].value || "").toLowerCase() === expected) return index
+        }
+        return 0
     }
 
     function _openSource(item) {
@@ -31,12 +42,21 @@ Item {
         else if (projectId.length) root.pmCatalog.pmNavigation.openEntity("projects", projectId, "activity")
     }
 
-    implicitHeight: content.implicitHeight
+    function _activityById(itemId) {
+        const items = root._page.items || []
+        for (let index = 0; index < items.length; index += 1) {
+            if (String(items[index].id || "") === String(itemId || "")) return items[index]
+        }
+        return null
+    }
+
+    implicitHeight: Math.max(content.implicitHeight, root.availableHeight)
 
     Component.onCompleted: {
         if (root.workspaceController) root.workspaceController.loadResourceActivity()
     }
     onResourceIdChanged: {
+        root.selectedActivityId = ""
         if (root.workspaceController && root.resourceId.length)
             root.workspaceController.loadResourceActivity()
     }
@@ -44,6 +64,7 @@ Item {
     ColumnLayout {
         id: content
         width: parent.width
+        height: root.implicitHeight
         spacing: Theme.AppTheme.spacingSm
 
         AppWidgets.TableToolbar {
@@ -53,7 +74,7 @@ Item {
             showRefresh: true
             isBusy: root.workspaceController ? root.workspaceController.resourceActivityLoading : false
             onRefreshRequested: {
-                if (root.workspaceController) root.workspaceController.loadResourceActivity()
+                if (root.workspaceController) root.workspaceController.refreshResourceActivity()
             }
 
             AppControls.ComboBox {
@@ -68,6 +89,10 @@ Item {
                     { "value": "work", "label": "Work" }
                 ]
                 textRole: "label"
+                currentIndex: root._indexForValue(
+                    model,
+                    root.workspaceController ? root.workspaceController.resourceActivityCategory : "all"
+                )
                 onActivated: function(index) {
                     if (root.workspaceController)
                         root.workspaceController.setResourceActivityCategory(root._value(model, index))
@@ -99,12 +124,25 @@ Item {
             modal: false
         }
 
-        AppWidgets.ActivityFeed {
+        PMWidgets.ActivityLogSection {
             Layout.fillWidth: true
-            Layout.preferredHeight: Math.max(120, implicitHeight)
-            items: root._page.items || []
-            emptyText: "No recorded activity matches these filters."
-            onItemActivated: function(item) { root._openSource(item) }
+            Layout.fillHeight: true
+            Layout.minimumHeight: 120
+            showHeading: false
+            showInlineError: false
+            showSearch: false
+            clientSideSearch: false
+            selectedItemId: root.selectedActivityId
+            activityModel: ({
+                "title": "",
+                "subtitle": "",
+                "emptyState": "No recorded activity matches these filters.",
+                "items": root._page.items || []
+            })
+            onItemSelected: function(itemId) {
+                root.selectedActivityId = itemId
+                root._openSource(root._activityById(itemId))
+            }
         }
 
         AppWidgets.TablePaginationBar {

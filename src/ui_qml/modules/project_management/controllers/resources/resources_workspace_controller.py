@@ -573,6 +573,18 @@ class ProjectManagementResourcesWorkspaceController(
     def loadResourceActivity(self) -> None:
         load_resource_activity(self)
 
+    @Slot()
+    def refreshResourceProjects(self) -> None:
+        load_resource_projects(self, force=True)
+
+    @Slot()
+    def refreshResourceAssignments(self) -> None:
+        load_resource_assignments(self, force=True)
+
+    @Slot()
+    def refreshResourceActivity(self) -> None:
+        load_resource_activity(self, force=True)
+
     @Slot(str)
     def setResourceProjectsSearch(self, value: str) -> None:
         value = str(value or "").strip()

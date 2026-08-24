@@ -14,6 +14,7 @@ Item {
     property var workspaceController: null
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
     property string selectedRowId: ""
+    property real availableHeight: 0
 
     readonly property var _page: root.workspaceController
         ? root.workspaceController.resourceAssignments : ({ "items": [] })
@@ -28,6 +29,14 @@ Item {
     function _value(model, index) {
         const item = model[index]
         return item ? String(item.value || "") : "all"
+    }
+
+    function _indexForValue(model, value) {
+        const expected = String(value || "").toLowerCase()
+        for (let index = 0; index < model.length; index += 1) {
+            if (String(model[index].value || "").toLowerCase() === expected) return index
+        }
+        return 0
     }
 
     function _applyFilters() {
@@ -46,7 +55,7 @@ Item {
         root.pmCatalog.pmNavigation.openEntity("tasks", taskId, "details")
     }
 
-    implicitHeight: content.implicitHeight
+    implicitHeight: Math.max(content.implicitHeight, root.availableHeight)
 
     Component.onCompleted: {
         if (root.workspaceController) root.workspaceController.loadResourceAssignments()
@@ -60,6 +69,7 @@ Item {
     ColumnLayout {
         id: content
         width: parent.width
+        height: root.implicitHeight
         spacing: Theme.AppTheme.spacingSm
 
         AppWidgets.TableToolbar {
@@ -73,7 +83,7 @@ Item {
                 if (root.workspaceController) root.workspaceController.setResourceAssignmentsSearch(text)
             }
             onRefreshRequested: {
-                if (root.workspaceController) root.workspaceController.loadResourceAssignments()
+                if (root.workspaceController) root.workspaceController.refreshResourceAssignments()
             }
 
             AppControls.ComboBox {
@@ -85,6 +95,10 @@ Item {
                     { "value": "all", "label": "All work" }
                 ]
                 textRole: "label"
+                currentIndex: root._indexForValue(
+                    model,
+                    root.workspaceController ? root.workspaceController.resourceAssignmentsLifecycle : "current"
+                )
                 onActivated: root._applyFilters()
             }
             AppControls.ComboBox {
@@ -98,6 +112,10 @@ Item {
                     { "value": "DONE", "label": "Done" }
                 ]
                 textRole: "label"
+                currentIndex: root._indexForValue(
+                    model,
+                    root.workspaceController ? root.workspaceController.resourceAssignmentsTaskStatus : "all"
+                )
                 onActivated: root._applyFilters()
             }
             AppControls.ComboBox {
@@ -110,6 +128,10 @@ Item {
                     { "value": "declined", "label": "Declined" }
                 ]
                 textRole: "label"
+                currentIndex: root._indexForValue(
+                    model,
+                    root.workspaceController ? root.workspaceController.resourceAssignmentsStatus : "all"
+                )
                 onActivated: root._applyFilters()
             }
         }
@@ -136,7 +158,7 @@ Item {
             visible: root._selectedRow !== null
             title: root._selectedRow ? String(root._selectedRow.taskName || "Task") : ""
             subtitle: "Task-owned assignment | Read only"
-            actions: [{ "id": "open", "label": "Open Task", "icon": "open", "enabled": true }]
+            actions: [{ "id": "open", "label": "Open Task", "icon": "chevron_right", "enabled": true }]
             onActionTriggered: function(actionId) {
                 if (actionId === "open") root._openTask(root._selectedRow)
             }
@@ -144,7 +166,8 @@ Item {
 
         Item {
             Layout.fillWidth: true
-            Layout.preferredHeight: 416
+            Layout.fillHeight: true
+            Layout.minimumHeight: 320
 
             AppWidgets.DataTable {
                 id: assignmentsTable

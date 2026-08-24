@@ -3,7 +3,6 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
-import App.Controls 1.0 as AppControls
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
@@ -46,6 +45,7 @@ AppLayouts.WorkspaceFrame {
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
     property bool _detailOpen: false
+    property real _detailContentViewportHeight: 0
     property int _pendingDetailSection: 0
     property string _selectedSkillId: ""
     property string _selectedCertificationId: ""
@@ -284,8 +284,15 @@ AppLayouts.WorkspaceFrame {
                 showDelete: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                 sections: state.detailSections
+                contentBottomPadding: activeSectionIndex >= 3 ? 0 : Theme.AppTheme.pagePadding
                 z: 20
-                Component.onCompleted: scrollToSection(root._pendingDetailSection)
+                onContentViewportHeightChanged: {
+                    root._detailContentViewportHeight = contentViewportHeight
+                }
+                Component.onCompleted: {
+                    root._detailContentViewportHeight = contentViewportHeight
+                    scrollToSection(root._pendingDetailSection)
+                }
 
                 onSectionChanged: function(index) {
                     if (index === 1 && root.workspaceController !== null) {
@@ -364,6 +371,7 @@ AppLayouts.WorkspaceFrame {
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                     workspaceController: root.workspaceController
                     pmCatalog: root.pmCatalog
+                    availableHeight: Math.max(0, root._detailContentViewportHeight - y)
                     canManageSkills: root.pmCatalog ? root.pmCatalog.pmCapabilityController.canManageSkills : false
                     onSkillSelectionChanged: function(skillId) {
                         root._selectedSkillId = String(skillId || "")

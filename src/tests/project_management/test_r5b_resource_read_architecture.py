@@ -235,7 +235,10 @@ def test_r5b_resource_qml_uses_final_sections_and_actual_workspace_width() -> No
     assert '"Overview", "Capability", "Availability", "Projects", "Assignments", "Activity"' in state
     assert "ResourcesAvailabilitySection" in panel
     assert "No legacy capacity formula is shown here" not in panel
-    assert "Assignment snapshots are not presented as history" in panel
+    assert "ResourcesProjectsSection" in panel
+    assert "ResourcesAssignmentsSection" in panel
+    assert "ResourcesActivitySection" in panel
+    assert "ResourcesDeferredSection" not in panel
 
 
 @pytest.mark.parametrize(

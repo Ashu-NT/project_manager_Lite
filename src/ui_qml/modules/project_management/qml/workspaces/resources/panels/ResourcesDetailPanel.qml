@@ -17,6 +17,7 @@ Item {
     property var detailPage: null
     property var workspaceController: null
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
+    property real availableHeight: 0
     property bool canManageSkills: false
     property string selectedSkillId: ""
     property string selectedCertificationId: ""
@@ -140,6 +141,7 @@ Item {
                 resourceId: String(root.resourceDetail.id || "")
                 workspaceController: root.workspaceController
                 pmCatalog: root.pmCatalog
+                availableHeight: root.availableHeight
             }
         }
     }
@@ -155,6 +157,7 @@ Item {
                 resourceId: String(root.resourceDetail.id || "")
                 workspaceController: root.workspaceController
                 pmCatalog: root.pmCatalog
+                availableHeight: root.availableHeight
             }
         }
     }
@@ -170,6 +173,7 @@ Item {
                 resourceId: String(root.resourceDetail.id || "")
                 workspaceController: root.workspaceController
                 pmCatalog: root.pmCatalog
+                availableHeight: root.availableHeight
             }
         }
     }

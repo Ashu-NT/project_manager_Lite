@@ -17,8 +17,10 @@ Item {
     property bool showDelete: true
     property var sections: []
     property bool sectionGroupsCollapsedByDefault: true
+    property real contentBottomPadding: Theme.AppTheme.pagePadding
 
     readonly property int activeSectionIndex: _activeIdx
+    readonly property real contentViewportHeight: contentFlickable.height
 
     signal backRequested()
     signal editRequested()
@@ -236,7 +238,7 @@ Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     contentWidth: width
-                    contentHeight: contentColumn.implicitHeight + Theme.AppTheme.pagePadding
+                    contentHeight: contentColumn.implicitHeight + root.contentBottomPadding
                     clip: true
 
                     Column {

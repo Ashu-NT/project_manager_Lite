@@ -449,6 +449,9 @@ Component {
     Method { name: "loadResourceProjects" }
     Method { name: "loadResourceAssignments" }
     Method { name: "loadResourceActivity" }
+    Method { name: "refreshResourceProjects" }
+    Method { name: "refreshResourceAssignments" }
+    Method { name: "refreshResourceActivity" }
     Method { name: "setResourcePage"; Parameter { name: "page"; type: "int" } }
     Method { name: "setResourcePageSize"; Parameter { name: "pageSize"; type: "int" } }
     Method { name: "setResourceSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }

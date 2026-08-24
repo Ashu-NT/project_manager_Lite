@@ -14,6 +14,7 @@ Item {
     property var workspaceController: null
     property ProjectManagementControllers.ProjectManagementWorkspaceCatalog pmCatalog
     property string selectedRowId: ""
+    property real availableHeight: 0
 
     readonly property var _page: root.workspaceController
         ? root.workspaceController.resourceProjects : ({ "items": [] })
@@ -30,6 +31,14 @@ Item {
         return item ? String(item.value || "") : "all"
     }
 
+    function _indexForValue(model, value) {
+        const expected = String(value || "").toLowerCase()
+        for (let index = 0; index < model.length; index += 1) {
+            if (String(model[index].value || "").toLowerCase() === expected) return index
+        }
+        return 0
+    }
+
     function _openProject(row) {
         const state = row ? (row.state || {}) : {}
         const projectId = String(state.projectId || "")
@@ -37,7 +46,7 @@ Item {
         root.pmCatalog.pmNavigation.openEntity("projects", projectId, "overview")
     }
 
-    implicitHeight: content.implicitHeight
+    implicitHeight: Math.max(content.implicitHeight, root.availableHeight)
 
     Component.onCompleted: {
         if (root.workspaceController) root.workspaceController.loadResourceProjects()
@@ -51,6 +60,7 @@ Item {
     ColumnLayout {
         id: content
         width: parent.width
+        height: root.implicitHeight
         spacing: Theme.AppTheme.spacingSm
 
         AppWidgets.TableToolbar {
@@ -64,7 +74,7 @@ Item {
                 if (root.workspaceController) root.workspaceController.setResourceProjectsSearch(text)
             }
             onRefreshRequested: {
-                if (root.workspaceController) root.workspaceController.loadResourceProjects()
+                if (root.workspaceController) root.workspaceController.refreshResourceProjects()
             }
 
             AppControls.ComboBox {
@@ -76,6 +86,10 @@ Item {
                     { "value": "inactive", "label": "Inactive" }
                 ]
                 textRole: "label"
+                currentIndex: root._indexForValue(
+                    model,
+                    root.workspaceController ? root.workspaceController.resourceProjectsActive : "all"
+                )
                 onActivated: function(index) {
                     if (root.workspaceController)
                         root.workspaceController.setResourceProjectsActive(root._value(model, index))
@@ -93,6 +107,10 @@ Item {
                     { "value": "COMPLETED", "label": "Completed" }
                 ]
                 textRole: "label"
+                currentIndex: root._indexForValue(
+                    model,
+                    root.workspaceController ? root.workspaceController.resourceProjectsStatus : "all"
+                )
                 onActivated: function(index) {
                     if (root.workspaceController)
                         root.workspaceController.setResourceProjectsStatus(root._value(model, index))
@@ -106,7 +124,7 @@ Item {
             visible: root._selectedRow !== null
             title: root._selectedRow ? String(root._selectedRow.projectName || "Project") : ""
             subtitle: "Project-owned staffing relationship"
-            actions: [{ "id": "open", "label": "Open Project", "icon": "open", "enabled": true }]
+            actions: [{ "id": "open", "label": "Open Project", "icon": "chevron_right", "enabled": true }]
             onActionTriggered: function(actionId) {
                 if (actionId === "open") root._openProject(root._selectedRow)
             }
@@ -114,7 +132,8 @@ Item {
 
         Item {
             Layout.fillWidth: true
-            Layout.preferredHeight: 396
+            Layout.fillHeight: true
+            Layout.minimumHeight: 300
 
             AppWidgets.DataTable {
                 id: projectsTable
