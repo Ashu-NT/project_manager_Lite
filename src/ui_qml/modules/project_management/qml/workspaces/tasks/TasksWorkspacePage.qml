@@ -4,6 +4,7 @@ import QtQuick
 import Shell.Context 1.0 as ShellContexts
 import App.Layouts 1.0 as AppLayouts
 import App.Widgets 1.0 as AppWidgets
+import App.Theme 1.0 as Theme
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
 import "components" as Components
 import "panels" as Panels
@@ -82,6 +83,7 @@ AppLayouts.WorkspaceFrame {
     title: root.overviewModel.title || root.workspaceModel.title
     subtitle: root.overviewModel.subtitle || root.workspaceModel.summary
     property bool _detailOpen: false
+    property real _detailContentViewportHeight: 0
     property int _pendingDetailSection: 0
     readonly property var detailPage: detailPageLoader.item
 
@@ -366,8 +368,18 @@ AppLayouts.WorkspaceFrame {
                 showDelete: false
                 isBusy: root.workspaceController ? root.workspaceController.isBusy : false
                 sections: root._detailSections
+                contentBottomPadding: {
+                    const entry = root._detailSections[activeSectionIndex] || ""
+                    const section = typeof entry === "string" ? entry : String(entry.label || "")
+                    return section === "Assignments" || section === "Dependencies" || section === "Activity"
+                        ? 0 : Theme.AppTheme.pagePadding
+                }
                 z: 20
+                onContentViewportHeightChanged: {
+                    root._detailContentViewportHeight = contentViewportHeight
+                }
                 Component.onCompleted: {
+                    root._detailContentViewportHeight = contentViewportHeight
                     scrollToSection(root._pendingDetailSection)
                     root._loadLazyDetailSection(root._pendingDetailSection)
                 }
@@ -431,6 +443,7 @@ AppLayouts.WorkspaceFrame {
                     id: tasksDetailPanel
                     width: parent ? parent.width : 0
                     detailPage: detailPageLoader.item
+                    availableHeight: Math.max(0, root._detailContentViewportHeight - y)
                     pmCatalog: root.pmCatalog
                     taskDetail: root.selectedTaskModel
                     isBusy: root.workspaceController ? root.workspaceController.isBusy : false

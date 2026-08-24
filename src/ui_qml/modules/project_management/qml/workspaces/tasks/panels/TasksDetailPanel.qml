@@ -6,7 +6,6 @@ import App.Widgets 1.0 as AppWidgets
 import App.Theme 1.0 as Theme
 import App.Controls 1.0 as AppControls
 import ProjectManagement.Controllers 1.0 as ProjectManagementControllers
-import ProjectManagement.Widgets 1.0 as PMWidgets
 import workspaces.tasks.sections 1.0
 
 Item {
@@ -15,6 +14,7 @@ Item {
     property var taskDetail: AppMock.MockFactory.detail()
     property bool isBusy: false
     property var detailPage: null
+    property real availableHeight: 0
 
     property var assignmentsModel: AppMock.MockFactory.catalog("Assignments", "", "Select a task.")
     property var assignmentsTableModel: null
@@ -168,6 +168,12 @@ Item {
         if (name === "Activity")        return _sec8.implicitHeight
         return 0
     }
+    readonly property real _tableSectionAvailableHeight: Math.max(
+        0,
+        root.availableHeight
+            - (_summaryStrip.visible ? _summaryStrip.height : 0)
+            - Theme.AppTheme.spacingLg
+    )
 
     Rectangle {
         id: _summaryStrip
@@ -258,6 +264,7 @@ Item {
             sourceComponent: Component {
                 TasksAssignmentsSection {
                     width: parent ? parent.width : 0
+                    availableHeight: root._tableSectionAvailableHeight
                     assignmentsModel: root.assignmentsModel
                     assignmentsTableModel: root.assignmentsTableModel
                     selectedAssignmentId: root.selectedAssignmentId
@@ -291,6 +298,7 @@ Item {
             sourceComponent: Component {
                 TasksDependenciesSection {
                     width: parent ? parent.width : 0
+                    availableHeight: root._tableSectionAvailableHeight
                     dependenciesModel: root.dependenciesModel
                     dependenciesTableModel: root.dependenciesTableModel
                     workspaceController: root.pmCatalog ? root.pmCatalog.tasksWorkspace : null
@@ -431,6 +439,7 @@ Item {
             sourceComponent: Component {
                 TasksActivitySection {
                     width: parent ? parent.width : 0
+                    availableHeight: root._tableSectionAvailableHeight
                     activityModel: root.taskActivityModel
                     activityTableModel: root.taskActivityTableModel
                     workspaceController: root.pmCatalog ? root.pmCatalog.tasksWorkspace : null

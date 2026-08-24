@@ -19,9 +19,16 @@ Item {
     property var assignableResourceOptions: []
     property string selectedProjectResourceId: ""
     property bool isBusy: false
+    property real availableHeight: 0
 
     readonly property bool _hasProject: String(root.projectDetail.id || "").length > 0
     readonly property int _resourceCount: (root.projectResourcesModel.items || []).length
+    readonly property int _tableHeight: Math.max(
+        120,
+        Theme.AppTheme.normalRowHeight
+            + Math.max(root._resourceCount, 1) * Theme.AppTheme.compactRowHeight
+            + 1
+    )
 
     function openEditSelected() {
         if (root.selectedProjectResourceId.length > 0) {
@@ -35,11 +42,12 @@ Item {
         }
     }
 
-    implicitHeight: _col.implicitHeight
+    implicitHeight: Math.max(_col.implicitHeight, root.availableHeight)
 
     ColumnLayout {
         id: _col
         width: parent.width
+        height: root.implicitHeight
         spacing: 0
 
         Component.onCompleted: {
@@ -92,7 +100,8 @@ Item {
 
         Item {
             Layout.fillWidth: true
-            Layout.preferredHeight: 360
+            Layout.fillHeight: true
+            Layout.preferredHeight: root._tableHeight + resourcePagination.implicitHeight
 
             AppWidgets.DataTable {
                 anchors.top: parent.top

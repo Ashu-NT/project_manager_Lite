@@ -17,6 +17,7 @@ Item {
     property var taskDetail: ({})
     property var dependencyImpactPreview: ({})
     property string _selectedId: ""
+    property real availableHeight: 0
 
     signal createRequested()
     signal editRequested(var dependencyData)
@@ -32,7 +33,13 @@ Item {
         return null
     }
     readonly property var _state: root._selectedItem ? (root._selectedItem.state || {}) : ({})
-    implicitHeight: 520
+    readonly property int _tableHeight: Math.max(
+        120,
+        Theme.AppTheme.normalRowHeight
+            + Math.max(root._items.length, 1) * Theme.AppTheme.compactRowHeight
+            + 1
+    )
+    implicitHeight: Math.max(content.implicitHeight, root.availableHeight)
 
     function _applyFilters() {
         if (root.workspaceController)
@@ -41,9 +48,13 @@ Item {
     }
     function clearSelection() { root._selectedId = ""; root.selectionChanged(null) }
     function openEditSelected() { if (root._selectedItem) root.editRequested(root._selectedItem) }
+    onDependenciesModelChanged: root.clearSelection()
 
     ColumnLayout {
-        anchors.fill: parent; spacing: Theme.AppTheme.spacingSm
+        id: content
+        anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+        height: root.implicitHeight
+        spacing: Theme.AppTheme.spacingSm
         AppWidgets.ContextualActionToolbar {
             Layout.fillWidth: true; title: "Dependencies"
             subtitle: Number(root.dependenciesModel.predecessorTotal || 0) + " predecessor(s), "
@@ -72,9 +83,17 @@ Item {
         }
         AppWidgets.InlineMessage { Layout.fillWidth: true; visible: root.errorText.length > 0; tone: "danger"; message: root.errorText }
         RowLayout {
-            Layout.fillWidth: true; Layout.fillHeight: true; spacing: Theme.AppTheme.spacingMd
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.preferredHeight: Math.max(
+                root._tableHeight + pagination.implicitHeight,
+                dependencyInspector.visible ? dependencyInspector.implicitHeight : 0
+            )
+            spacing: Theme.AppTheme.spacingMd
             Item {
-                Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumHeight: 360
+                Layout.fillWidth: true
+                Layout.preferredHeight: root._tableHeight + pagination.implicitHeight
+                Layout.alignment: Qt.AlignTop
                 AppWidgets.DataTable {
                     anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: pagination.top
                     columns: [{key:"direction",label:"Direction",minWidth:105,flex:0,type:"status",sortable:true},
@@ -103,7 +122,9 @@ Item {
                 }
             }
             AppWidgets.InspectorPanel {
-                Layout.preferredWidth: Theme.AppTheme.inspectorWidth; Layout.fillHeight: true
+                id: dependencyInspector
+                Layout.preferredWidth: visible ? Theme.AppTheme.inspectorWidth : 0
+                Layout.alignment: Qt.AlignTop
                 visible: root._selectedItem !== null; title: root._selectedItem ? String(root._selectedItem.linkedTask || "") : ""
                 statusLabel: root._selectedItem ? String(root._selectedItem.direction || "") : ""
                 sections: root._selectedItem ? [{"label":"Relationship","value":String(root._selectedItem.dependencyType || "")},

@@ -18,6 +18,7 @@ Item {
     property var    taskDetail: null
     property string errorText: ""
     property var workspaceController: null
+    property real availableHeight: 0
 
     signal createRequested()
     signal assignmentSelected(string assignmentId)
@@ -117,19 +118,21 @@ Item {
         { key: "remainingHours", label: "Remaining", flex: 0, minWidth: 95, sortable: true },
         { key: "responseStatus", label: "Response", flex: 0, minWidth: 100, type: "status", sortable: true }
     ]
-    readonly property int _tableH: {
-        const count = root._items.length
-        const natural = Theme.AppTheme.normalRowHeight + Math.max(count, 1) * Theme.AppTheme.compactRowHeight + 24
-        return Math.max(180, Math.min(natural, 420))
-    }
+    readonly property int _tableH: Math.max(
+        120,
+        Theme.AppTheme.normalRowHeight
+            + Math.max(root._items.length, 1) * Theme.AppTheme.compactRowHeight
+            + 1
+    )
 
-    implicitHeight: _col.implicitHeight
+    implicitHeight: Math.max(_col.implicitHeight, root.availableHeight)
 
     ColumnLayout {
         id: _col
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
+        height: root.implicitHeight
         spacing: 0
 
         AppWidgets.ContextualActionToolbar {
@@ -175,12 +178,17 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: Math.max(360, _inspector.visible ? _inspector.implicitHeight : 0)
+            Layout.fillHeight: true
+            Layout.preferredHeight: Math.max(
+                root._tableH + assignmentPagination.implicitHeight,
+                _inspector.visible ? _inspector.implicitHeight : 0
+            )
             spacing: Theme.AppTheme.spacingMd
 
             Item {
                 Layout.fillWidth: true
-                Layout.fillHeight: true
+                Layout.preferredHeight: root._tableH + assignmentPagination.implicitHeight
+                Layout.alignment: Qt.AlignTop
 
                 AppWidgets.DataTable {
                     anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: assignmentPagination.top
@@ -229,6 +237,7 @@ Item {
                 Layout.fillHeight: true
                 visible: root._selectedItem !== null
                 Layout.preferredWidth: visible ? Theme.AppTheme.inspectorWidth : 0
+                Layout.alignment: Qt.AlignTop
                 title: root._selectedItem ? String(root._selectedItem.title || "") : ""
                 statusLabel: String(root._selectedState.capacityStatusLabel || "")
                 showEditAction: false

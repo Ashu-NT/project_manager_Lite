@@ -12,9 +12,20 @@ Item {
     property var projectActivityTableModel: null
     property var workspaceController: null
     property bool isBusy: false
-    implicitHeight: 500
+    property real availableHeight: 0
+    readonly property var _items: root.projectActivityModel.items || []
+    readonly property int _tableHeight: Math.max(
+        120,
+        Theme.AppTheme.normalRowHeight
+            + Math.max(root._items.length, 1) * Theme.AppTheme.compactRowHeight
+            + 1
+    )
+    implicitHeight: Math.max(content.implicitHeight, root.availableHeight)
     ColumnLayout {
-        anchors.fill: parent; spacing: Theme.AppTheme.spacingSm
+        id: content
+        anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
+        height: root.implicitHeight
+        spacing: Theme.AppTheme.spacingSm
         AppWidgets.TableToolbar {
             Layout.fillWidth: true; showFilter: false; showRefresh: true; isBusy: root.isBusy
             searchText: String(root.projectActivityModel.searchText || "")
@@ -30,7 +41,9 @@ Item {
         }
         AppWidgets.InlineMessage { Layout.fillWidth: true; visible: String(root.sectionErrors["activity"] || "").length > 0; tone: "danger"; message: String(root.sectionErrors["activity"] || "") }
         Item {
-            Layout.fillWidth: true; Layout.fillHeight: true; Layout.minimumHeight: 360
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.preferredHeight: root._tableHeight + pagination.implicitHeight
             AppWidgets.DataTable {
                 anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: pagination.top
                 columns: [{key:"occurredAt",label:"When",minWidth:115,flex:0},
