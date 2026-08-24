@@ -1,0 +1,111 @@
+Component {
+    name: "ProjectManagementResourcesWorkspaceController"
+    accessSemantics: "reference"
+    prototype: "ProjectManagementWorkspaceControllerBase"
+    exports: ["ProjectManagement.Controllers/ProjectManagementResourcesWorkspaceController 1.0"]
+    Property { name: "overview"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "workerTypeOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "kindOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "departmentOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "siteOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "categoryOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "employeeOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "currencyOptions"; type: "QVariantList"; isReadonly: true }
+    Property { name: "defaultCurrencyCode"; type: "QString"; isReadonly: true }
+    Property { name: "selectedActiveFilter"; type: "QString"; isReadonly: true }
+    Property { name: "selectedCategoryFilter"; type: "QString"; isReadonly: true }
+    Property { name: "searchText"; type: "QString"; isReadonly: true }
+    Property { name: "resources"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "resourcesTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "selectedResource"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "resourceInspector"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "inspectorLoading"; type: "bool"; isReadonly: true }
+    Property { name: "inspectorError"; type: "QString"; isReadonly: true }
+    Property { name: "detailLoading"; type: "bool"; isReadonly: true }
+    Property { name: "detailError"; type: "QString"; isReadonly: true }
+    Property { name: "selectedResourceId"; type: "QString"; isReadonly: true }
+    Property { name: "resourcePage"; type: "int"; isReadonly: true }
+    Property { name: "resourcePageSize"; type: "int"; isReadonly: true }
+    Property { name: "resourceTotalCount"; type: "int"; isReadonly: true }
+    Property { name: "resourceSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "resourceSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "resourceSkills"; type: "QVariantList"; isReadonly: true }
+    Property { name: "resourceCertifications"; type: "QVariantList"; isReadonly: true }
+    Property { name: "resourceSkillCount"; type: "int"; isReadonly: true }
+    Property { name: "resourceCertificationCount"; type: "int"; isReadonly: true }
+    Property { name: "resourceSkillsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "resourceCertificationsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "resourceAvailability"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "resourceProjects"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "resourceProjectsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "resourceProjectsLoading"; type: "bool"; isReadonly: true }
+    Property { name: "resourceProjectsSearch"; type: "QString"; isReadonly: true }
+    Property { name: "resourceProjectsActive"; type: "QString"; isReadonly: true }
+    Property { name: "resourceProjectsStatus"; type: "QString"; isReadonly: true }
+    Property { name: "resourceProjectsPage"; type: "int"; isReadonly: true }
+    Property { name: "resourceProjectsPageSize"; type: "int"; isReadonly: true }
+    Property { name: "resourceProjectsTotal"; type: "int"; isReadonly: true }
+    Property { name: "resourceProjectsSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "resourceProjectsSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "resourceAssignments"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "resourceAssignmentsTableModel"; type: "QObject"; isReadonly: true }
+    Property { name: "resourceAssignmentsLoading"; type: "bool"; isReadonly: true }
+    Property { name: "resourceAssignmentsSearch"; type: "QString"; isReadonly: true }
+    Property { name: "resourceAssignmentsTaskStatus"; type: "QString"; isReadonly: true }
+    Property { name: "resourceAssignmentsStatus"; type: "QString"; isReadonly: true }
+    Property { name: "resourceAssignmentsLifecycle"; type: "QString"; isReadonly: true }
+    Property { name: "resourceAssignmentsPage"; type: "int"; isReadonly: true }
+    Property { name: "resourceAssignmentsPageSize"; type: "int"; isReadonly: true }
+    Property { name: "resourceAssignmentsTotal"; type: "int"; isReadonly: true }
+    Property { name: "resourceAssignmentsSortKey"; type: "QString"; isReadonly: true }
+    Property { name: "resourceAssignmentsSortDirection"; type: "int"; isReadonly: true }
+    Property { name: "resourceActivity"; type: "QVariantMap"; isReadonly: true }
+    Property { name: "resourceActivityLoading"; type: "bool"; isReadonly: true }
+    Property { name: "resourceActivityCategory"; type: "QString"; isReadonly: true }
+    Property { name: "resourceActivityPage"; type: "int"; isReadonly: true }
+    Property { name: "resourceActivityPageSize"; type: "int"; isReadonly: true }
+    Property { name: "resourceActivityTotal"; type: "int"; isReadonly: true }
+    Method { name: "refresh" }
+    Method { name: "exportResources" }
+    Method { name: "setSearchText"; Parameter { name: "searchText"; type: "QString" } }
+    Method { name: "setActiveFilter"; Parameter { name: "activeFilter"; type: "QString" } }
+    Method { name: "setCategoryFilter"; Parameter { name: "categoryFilter"; type: "QString" } }
+    Method { name: "selectResource"; Parameter { name: "resourceId"; type: "QString" } }
+    Method { name: "activateResource"; type: "bool"; Parameter { name: "resourceId"; type: "QString" } }
+    Method { name: "loadResourceInspector"; Parameter { name: "resourceId"; type: "QString" } }
+    Method { name: "loadResourceDetail"; type: "bool"; Parameter { name: "resourceId"; type: "QString" } }
+    Method { name: "loadSkillsAndCerts"; Parameter { name: "resourceId"; type: "QString" } }
+    Method { name: "loadResourceAvailability"; Parameter { name: "startDate"; type: "QString" } Parameter { name: "endDate"; type: "QString" } }
+    Method { name: "loadResourceProjects" }
+    Method { name: "loadResourceAssignments" }
+    Method { name: "loadResourceActivity" }
+    Method { name: "setResourcePage"; Parameter { name: "page"; type: "int" } }
+    Method { name: "setResourcePageSize"; Parameter { name: "pageSize"; type: "int" } }
+    Method { name: "setResourceSort"; Parameter { name: "sortKey"; type: "QString" } Parameter { name: "sortDirection"; type: "int" } }
+    Method { name: "setResourceProjectsSearch"; Parameter { name: "value"; type: "QString" } }
+    Method { name: "setResourceProjectsActive"; Parameter { name: "value"; type: "QString" } }
+    Method { name: "setResourceProjectsStatus"; Parameter { name: "value"; type: "QString" } }
+    Method { name: "setResourceProjectsPage"; Parameter { name: "value"; type: "int" } }
+    Method { name: "setResourceProjectsPageSize"; Parameter { name: "value"; type: "int" } }
+    Method { name: "setResourceProjectsSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setResourceAssignmentsSearch"; Parameter { name: "value"; type: "QString" } }
+    Method { name: "setResourceAssignmentsFilters"; Parameter { name: "lifecycle"; type: "QString" } Parameter { name: "taskStatus"; type: "QString" } Parameter { name: "assignmentStatus"; type: "QString" } }
+    Method { name: "setResourceAssignmentsDateRange"; Parameter { name: "startDate"; type: "QString" } Parameter { name: "endDate"; type: "QString" } }
+    Method { name: "setResourceAssignmentsPage"; Parameter { name: "value"; type: "int" } }
+    Method { name: "setResourceAssignmentsPageSize"; Parameter { name: "value"; type: "int" } }
+    Method { name: "setResourceAssignmentsSort"; Parameter { name: "key"; type: "QString" } Parameter { name: "direction"; type: "int" } }
+    Method { name: "setResourceActivityCategory"; Parameter { name: "value"; type: "QString" } }
+    Method { name: "setResourceActivityDateRange"; Parameter { name: "startDate"; type: "QString" } Parameter { name: "endDate"; type: "QString" } }
+    Method { name: "setResourceActivityPage"; Parameter { name: "value"; type: "int" } }
+    Method { name: "setResourceActivityPageSize"; Parameter { name: "value"; type: "int" } }
+    Method { name: "addSkill"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateSkill"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "removeSkill"; type: "QVariantMap"; Parameter { name: "skillId"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }
+    Method { name: "addCertification"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateCertification"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "removeCertification"; type: "QVariantMap"; Parameter { name: "certificationId"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }
+    Method { name: "createResource"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "updateResource"; type: "QVariantMap"; Parameter { name: "payload"; type: "QVariantMap" } }
+    Method { name: "deactivateResource"; type: "QVariantMap"; Parameter { name: "resourceId"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }
+    Method { name: "reactivateResource"; type: "QVariantMap"; Parameter { name: "resourceId"; type: "QString" } Parameter { name: "expectedVersion"; type: "int" } }
+}

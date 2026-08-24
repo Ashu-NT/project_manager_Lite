@@ -440,6 +440,8 @@ def upgrade() -> None:
     sa.Column('details_json', sa.Text(), server_default='{}', nullable=False),
     sa.Column('context_json', sa.Text(), server_default='{}', nullable=False),
     sa.Column('parent_entity_id', sa.String(), nullable=True),
+    sa.Column('related_entity_type', sa.String(length=64), nullable=True),
+    sa.Column('related_entity_id', sa.String(), nullable=True),
     sa.Column('icon', sa.String(length=64), nullable=True),
     sa.Column('color', sa.String(length=32), nullable=True),
     sa.Column('visibility', sa.String(length=32), server_default='workspace', nullable=False),
@@ -452,6 +454,7 @@ def upgrade() -> None:
         batch_op.create_index('idx_activity_entity', ['entity_type', 'entity_id'], unique=False)
         batch_op.create_index('idx_activity_module_entity', ['module', 'entity_type', 'entity_id'], unique=False)
         batch_op.create_index('idx_activity_org_timestamp', ['organization_id', 'timestamp'], unique=False)
+        batch_op.create_index('idx_activity_related', ['related_entity_type', 'related_entity_id', 'timestamp'], unique=False)
         batch_op.create_index('idx_activity_tenant_timestamp', ['tenant_id', 'timestamp'], unique=False)
         batch_op.create_index('idx_activity_workspace', ['workspace_id', 'timestamp'], unique=False)
 
@@ -2692,6 +2695,7 @@ def upgrade() -> None:
     )
     with op.batch_alter_table('task_assignments', schema=None) as batch_op:
         batch_op.create_index('idx_task_assignments_project_resource', ['project_resource_id'], unique=False)
+        batch_op.create_index('idx_task_assignments_resource', ['resource_id'], unique=False)
         batch_op.create_index('ux_task_assignments_task_resource', ['task_id', 'resource_id'], unique=True)
 
     op.create_table('task_comments',
@@ -3225,6 +3229,7 @@ def downgrade() -> None:
     op.drop_table('task_comments')
     with op.batch_alter_table('task_assignments', schema=None) as batch_op:
         batch_op.drop_index('ux_task_assignments_task_resource')
+        batch_op.drop_index('idx_task_assignments_resource')
         batch_op.drop_index('idx_task_assignments_project_resource')
 
     op.drop_table('task_assignments')
@@ -3685,6 +3690,7 @@ def downgrade() -> None:
     with op.batch_alter_table('activity_entries', schema=None) as batch_op:
         batch_op.drop_index('idx_activity_workspace')
         batch_op.drop_index('idx_activity_tenant_timestamp')
+        batch_op.drop_index('idx_activity_related')
         batch_op.drop_index('idx_activity_org_timestamp')
         batch_op.drop_index('idx_activity_module_entity')
         batch_op.drop_index('idx_activity_entity')

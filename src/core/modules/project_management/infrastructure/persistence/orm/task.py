@@ -139,6 +139,7 @@ class TaskAssignmentORM(Base):
 
 
 Index("idx_task_assignments_project_resource", TaskAssignmentORM.project_resource_id)
+Index("idx_task_assignments_resource", TaskAssignmentORM.resource_id)
 Index(
     "ux_task_assignments_task_resource",
     TaskAssignmentORM.task_id,

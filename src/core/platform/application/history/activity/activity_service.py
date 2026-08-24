@@ -39,6 +39,8 @@ class ActivityService:
         visibility: str = "workspace",
         icon: str | None = None,
         color: str | None = None,
+        related_entity_type: str | None = None,
+        related_entity_id: str | None = None,
         commit: bool = False,
     ) -> ActivityEntry:
         principal = self._user_session.principal if self._user_session else None
@@ -61,6 +63,8 @@ class ActivityService:
             icon=icon,
             color=color,
             visibility=visibility,
+            related_entity_type=related_entity_type,
+            related_entity_id=related_entity_id,
         )
         self._activity_repo.add(entry)
         if commit:

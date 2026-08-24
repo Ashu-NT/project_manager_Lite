@@ -33,6 +33,8 @@ def record_assignment_action(
         module="project_management",
         workspace_id=project_id,
         parent_entity_id=task_id,
+        related_entity_type="resource",
+        related_entity_id=resource_id,
         details=details,
     )
 

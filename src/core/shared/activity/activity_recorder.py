@@ -19,6 +19,8 @@ def record_activity(
     visibility: str = "workspace",
     icon: str | None = None,
     color: str | None = None,
+    related_entity_type: str | None = None,
+    related_entity_id: str | None = None,
     commit: bool = True,
 ) -> None:
     activity_service = getattr(owner, "_activity_service", None)
@@ -38,6 +40,8 @@ def record_activity(
         visibility=visibility,
         icon=icon,
         color=color,
+        related_entity_type=related_entity_type,
+        related_entity_id=related_entity_id,
         commit=commit,
     )
 

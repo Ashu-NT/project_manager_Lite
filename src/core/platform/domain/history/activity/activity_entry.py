@@ -28,6 +28,8 @@ class ActivityEntry:
     icon: str | None = None
     color: str | None = None
     visibility: str = "workspace"  # public | workspace | private
+    related_entity_type: str | None = None
+    related_entity_id: str | None = None
 
     @staticmethod
     def create(
@@ -49,6 +51,8 @@ class ActivityEntry:
         icon: str | None = None,
         color: str | None = None,
         visibility: str = "workspace",
+        related_entity_type: str | None = None,
+        related_entity_id: str | None = None,
     ) -> "ActivityEntry":
         return ActivityEntry(
             id=generate_id(),
@@ -70,6 +74,8 @@ class ActivityEntry:
             icon=icon,
             color=color,
             visibility=visibility,
+            related_entity_type=related_entity_type,
+            related_entity_id=related_entity_id,
         )
 
 

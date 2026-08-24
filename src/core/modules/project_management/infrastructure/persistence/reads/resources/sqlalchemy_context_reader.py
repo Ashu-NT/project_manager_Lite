@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from datetime import date
 from decimal import Decimal
 
@@ -43,11 +42,6 @@ from src.core.platform.infrastructure.persistence.orm.time_management.time.time 
 def _contains_pattern(value: str) -> str:
     escaped = value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     return f"%{escaped.lower()}%"
-
-
-def _json_field_pattern(field: str, value: str) -> str:
-    marker = json.dumps({field: value}, ensure_ascii=False)[1:-1]
-    return _contains_pattern(marker)
 
 
 def _scoped_resource_filter(*, tenant_id: str, organization_id: str, resource_id: str):
@@ -395,14 +389,15 @@ class SqlAlchemyResourceContextReader:
             ActivityEntryORM.entity_type == "resource",
             ActivityEntryORM.entity_id == resource_id,
         )
-        marker = _json_field_pattern("resource_id", resource_id)
         project_staffing = and_(
             ActivityEntryORM.entity_type == "project_resource",
-            func.lower(ActivityEntryORM.details_json).like(marker, escape="\\"),
+            ActivityEntryORM.related_entity_type == "resource",
+            ActivityEntryORM.related_entity_id == resource_id,
         )
         assignment_staffing = and_(
             ActivityEntryORM.entity_type == "task_assignment",
-            func.lower(ActivityEntryORM.details_json).like(marker, escape="\\"),
+            ActivityEntryORM.related_entity_type == "resource",
+            ActivityEntryORM.related_entity_id == resource_id,
         )
         if allowed_project_ids is not None:
             project_staffing = and_(

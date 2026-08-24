@@ -15,8 +15,8 @@ from src.core.modules.project_management.api.desktop.projects.serializers.resour
 from src.core.modules.project_management.api.desktop.resources.api import (
     ProjectManagementResourcesDesktopApi,
 )
-from src.core.modules.project_management.api.desktop.resources.builders.assignment_builder import (
-    build_resource_assignments,
+from src.core.modules.project_management.api.desktop.resources.serializers.context_serializer import (
+    serialize_resource_assignment,
 )
 from src.core.modules.project_management.api.desktop.resources.commands.resource_commands import (
     ResourceUpdateCommand,
@@ -59,6 +59,9 @@ from src.core.modules.project_management.domain.risk.register import (
     RegisterEntrySeverity,
     RegisterEntryStatus,
     RegisterEntryType,
+)
+from src.core.modules.project_management.contracts.reads.resources import (
+    ResourceAssignmentFact,
 )
 from src.core.modules.project_management.infrastructure.reporting.models.report_models import (
     ResourceLoadRow,
@@ -284,34 +287,36 @@ def test_da3_desktop_forwards_rate_fields_without_policy_decision() -> None:
     assert "effective_on" not in service.update_kwargs
 
 
-def test_da1_resource_assignments_use_public_task_service_query() -> None:
-    task_service = SimpleNamespace(
-        list_assignments_for_resource=lambda _resource_id: (
-            SimpleNamespace(
-                id="assignment-1",
-                task_id="task-1",
-                allocation_percent=75.0,
-                hours_logged=Decimal("3.5"),
-            ),
-        ),
-        list_tasks_for_resource=lambda _resource_id: (
-            SimpleNamespace(id="task-1", name="Planning", project_id="project-1"),
-        ),
+def test_da1_resource_assignments_use_authoritative_typed_read_fact() -> None:
+    row = serialize_resource_assignment(
+        ResourceAssignmentFact(
+            assignment_id="assignment-1",
+            resource_id="resource-1",
+            project_id="project-1",
+            project_code="PRJ-1",
+            project_name="Project One",
+            task_id="task-1",
+            task_code="TASK-1",
+            task_name="Planning",
+            task_status="IN_PROGRESS",
+            scheduled_start=date(2026, 8, 10),
+            scheduled_finish=date(2026, 8, 12),
+            allocated_planned_hours=Decimal("12"),
+            allocation_percent=Decimal("75"),
+            actual_hours=Decimal("3.5"),
+            actual_hours_source="time_entries",
+            response_status="accepted",
+            project_resource_id="project-resource-1",
+            assignment_version=2,
+        )
     )
 
-    rows = build_resource_assignments(
-        "resource-1",
-        task_service=task_service,
-        project_service=SimpleNamespace(
-            get_project=lambda _project_id: SimpleNamespace(name="Project One")
-        ),
-    )
-
-    assert len(rows) == 1
-    assert rows[0].id == "assignment-1"
-    assert rows[0].task_name == "Planning"
-    assert rows[0].project_name == "Project One"
-    assert rows[0].allocation_label == "75%"
+    assert row.id == "assignment-1"
+    assert row.task_name == "Planning"
+    assert row.project_name == "Project One"
+    assert row.allocation_percent == "75"
+    assert row.actual_hours == "3.5"
+    assert row.actual_hours_source == "time_entries"
 
 
 def test_da1_task_service_lists_authorized_resource_assignments(services) -> None:
