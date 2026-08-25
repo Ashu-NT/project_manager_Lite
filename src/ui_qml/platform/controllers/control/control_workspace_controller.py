@@ -189,6 +189,10 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
         return self._has_permission(WORKSPACE_PERMISSIONS["control"])
 
     def _bind_domain_events(self) -> None:
+        # P5B-3: `modules_changed` removed here (not migrated) -- traced end-to-end, this
+        # workspace's `refresh()` never reads any module-entitlement state (only the approval
+        # queue and audit feed); the subscription was incidental over-refresh from the coarse
+        # legacy signal, not a genuine dependency (see the P5B-3 report's consumer-chain trace).
         for signal in (
             domain_events.approvals_changed,
             domain_events.project_changed,
@@ -197,7 +201,6 @@ class PlatformControlWorkspaceController(PlatformWorkspaceControllerBase):
             domain_events.resources_changed,
             domain_events.baseline_changed,
             domain_events.register_changed,
-            domain_events.modules_changed,
         ):
             self._subscribe_domain_signal(signal, self._on_domain_event)
 

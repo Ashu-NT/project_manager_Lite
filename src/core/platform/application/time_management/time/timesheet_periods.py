@@ -16,7 +16,12 @@ logger = logging.getLogger(__name__)
 
 class TimesheetPeriodsMixin:
     def submit_timesheet_period(
-        self, resource_id: str, *, period_start: date, note: str = ""
+        self,
+        resource_id: str,
+        *,
+        period_start: date,
+        expected_version: int | None = None,
+        note: str = "",
     ) -> TimesheetPeriodAggregate:
         require_permission(
             self._user_session,
@@ -31,6 +36,8 @@ class TimesheetPeriodsMixin:
         period = self._get_or_create_timesheet_period(
             resource_id=resource_id, period_start=period_start
         )
+        if expected_version is not None:
+            self._require_current_period_version(period, expected_version)
         if period.status in {
             TimesheetPeriodStatus.SUBMITTED,
             TimesheetPeriodStatus.APPROVED,
@@ -54,7 +61,7 @@ class TimesheetPeriodsMixin:
         return self._persist_timesheet_transition(
             period=period,
             expected_status=previous_status,
-            expected_version=period.version,
+            expected_version=(period.version if expected_version is None else expected_version),
             action="timesheet_period.submit",
             entries=entries,
             severity="low",

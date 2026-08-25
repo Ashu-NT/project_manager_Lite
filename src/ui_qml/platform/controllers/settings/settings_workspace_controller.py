@@ -98,6 +98,14 @@ class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
         capabilities too), none of which are stale after a plain organization creation."""
         self._set_organization_profiles(serialize_action_list(self._catalog_presenter.build_organization_profiles()))
 
+    def refresh_module_entitlements(self) -> None:
+        """Narrow reaction to the module-entitlement-collection ViewInvalidation target (P5B-3
+        cutover) -- re-reads only the module entitlements list (and the metrics derived from it),
+        unlike `refresh()`'s full-workspace reload (organization profiles/integration
+        capabilities too), neither of which is stale after a module entitlement change."""
+        self._set_module_entitlements(serialize_action_list(self._catalog_presenter.build_module_entitlements()))
+        self._update_settings_metrics()
+
     @Slot(str)
     def toggleModuleLicensed(self, module_code: str) -> None:
         self._apply_entitlement_action(
@@ -129,10 +137,12 @@ class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
         return self._has_permission(WORKSPACE_PERMISSIONS["settings"])
 
     def _bind_domain_events(self) -> None:
-        self._subscribe_domain_signal(
-            domain_events.modules_changed,
-            self._on_domain_event,
-        )
+        # P5B-3: module-entitlement-triggered refresh no longer goes through the legacy
+        # `modules_changed` signal -- it is now the ViewInvalidation-driven
+        # `refresh_module_entitlements()`, wired via `ModuleEntitlementViewInvalidationAdapter` in
+        # `context.py`, exactly mirroring how `create_organization` moved off `organizations_changed`
+        # in P5A/P6A. `update_organization`/`set_active_organization` still emit
+        # `organizations_changed` directly, unchanged.
         self._subscribe_domain_signal(
             domain_events.organizations_changed,
             self._on_domain_event,

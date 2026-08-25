@@ -233,16 +233,24 @@ class PlatformAdminAccessWorkspaceController(PlatformWorkspaceControllerBase):
         return self._has_permission(WORKSPACE_PERMISSIONS["access"])
 
     def _bind_domain_events(self) -> None:
+
         for signal in (
             domain_events.auth_changed,
             domain_events.access_changed,
             domain_events.project_changed,
-            domain_events.modules_changed,
         ):
             self._subscribe_domain_signal(signal, self._on_domain_event)
 
     def _on_domain_event(self, _payload: object) -> None:
         self._request_domain_refresh()
+
+    def refresh_scope_type_options(self) -> None:
+        """Narrow reaction to the module-entitlement-collection ViewInvalidation target (P5B-3
+        cutover) -- re-reads only the scope-type options (whose enabled/disabled state depends on
+        module enablement, e.g. the storeroom scope type requires `inventory_procurement`),
+        unlike `refresh()`'s full-workspace reload (user/role/scope-grant/security-user lists
+        too), none of which are stale after a module entitlement change."""
+        self._refresh_scope_type_options()
 
     def _refresh_after_access_change(self) -> None:
         self._refresh_scope_grants()

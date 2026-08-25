@@ -5,9 +5,9 @@ guarantees P5B-SEM's design decided. Complements
 `test_module_entitlement_transaction_convergence.py` (transaction/scope mechanics) and
 `test_module_entitlement_semantic_commands.py` (the state machine itself).
 
-No ViewInvalidation, no Qt adapter, no `modules_changed` removal in this phase -- P5B-3 owns that
-work; `test_module_entitlement_p5b2_does_not_add_p5b3_view_invalidation_or_qt` (in the transaction
-convergence file) enforces that boundary.
+P5B-3 (see `test_module_entitlement_view_invalidation_qt_cutover.py`) later mapped these events
+onto `ViewInvalidationHint`, migrated the real Qt consumers, and retired the legacy
+`modules_changed` signal this file no longer tests directly.
 """
 
 from __future__ import annotations
@@ -570,35 +570,3 @@ def test_exactly_one_event_per_real_transition_no_duplication(services, monkeypa
         ModuleLicensed,
     ]
 
-
-# ---------------------------------------------------------------------------
-# Regression: legacy modules_changed still follows commit, unchanged
-# ---------------------------------------------------------------------------
-
-
-def test_modules_changed_still_fires_after_successful_commit_and_not_on_rollback(services, monkeypatch):
-    catalog = services["module_catalog_service"]
-    org = services["organization_service"].get_active_organization()
-    from src.core.shared.events.domain_events import domain_events
-
-    seen = []
-
-    def _on_modules_changed(code):
-        seen.append(code)
-
-    domain_events.modules_changed.connect(_on_modules_changed)
-    try:
-        catalog.disable_module(org.id, "project_management")
-        assert seen == ["project_management"]
-
-        seen.clear()
-
-        def _fail_commit(self):
-            raise RuntimeError("simulated commit failure")
-
-        monkeypatch.setattr(SqlAlchemyModuleEntitlementUnitOfWork, "commit", _fail_commit)
-        with pytest.raises(RuntimeError):
-            catalog.enable_module(org.id, "project_management")
-        assert seen == []
-    finally:
-        domain_events.modules_changed.disconnect(_on_modules_changed)

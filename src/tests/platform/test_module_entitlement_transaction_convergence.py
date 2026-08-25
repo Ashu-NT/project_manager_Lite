@@ -13,10 +13,14 @@ through those commands (using `disable_module` as the representative single-fiel
 
 P5B-2 then added the five typed `ModuleLicensed`/`ModuleLicenseRevoked`/`ModuleEnabled`/
 `ModuleDisabled`/`ModuleLifecycleTransitioned` DomainEvents at these same command boundaries (see
-`test_module_entitlement_events.py`) -- still no ViewInvalidation producer, no Qt adapter, no
-`modules_changed` removal, per the P5B-2 report.
-`test_module_entitlement_p5b2_does_not_add_p5b3_view_invalidation_or_qt` enforces that phase
-boundary.
+`test_module_entitlement_events.py`).
+
+P5B-3 then mapped those events (plus a direct provisioning-triggered case) onto
+`ViewInvalidationHint`, migrated the real Qt consumers, and retired `modules_changed` entirely --
+see `test_module_entitlement_view_invalidation_qt_cutover.py`.
+`test_module_entitlement_application_layer_stays_qt_free` enforces the remaining phase boundary:
+the application layer may produce transport-independent `ViewInvalidationHint`s, but must never
+import Qt or the Qt adapter package directly.
 """
 
 from __future__ import annotations
@@ -165,30 +169,27 @@ def test_non_active_organization_mutation_affects_only_that_organization(service
     assert a2_record.enabled is False
 
 
-def test_module_entitlement_p5b2_does_not_add_p5b3_view_invalidation_or_qt():
-    """Phase-boundary guard (superseding the old pre-P5B-2 guard, which correctly started
-    failing once P5B-2 legitimately added the five Module DomainEvents -- see
-    `test_p5a_does_not_add_p5b_plus_event_vocabulary`-style precedent from the Organization
-    slice). P5B-2 is DomainEvent implementation only: no ViewInvalidation producer/handler, no Qt
-    adapter, no legacy `modules_changed` removal, anywhere in the Module Entitlement capability."""
+def test_module_entitlement_application_layer_stays_qt_free():
+    """Phase-boundary guard (superseding the pre-P5B-3 guard, which correctly started failing
+    once P5B-3 legitimately added `ViewInvalidation` producer code to `module_catalog_mutation.py`
+    -- see `test_p5a_does_not_add_p5b_plus_event_vocabulary`-style precedent from the
+    Organization slice). P5B-3 is the direct Qt consumer cutover: the application layer may now
+    produce `ViewInvalidationHint`s (transport-independent), but must still never import Qt or
+    the Qt adapter package directly -- that boundary belongs to the Qt adapter alone."""
     for module_name in ("module_catalog_service", "module_catalog_mutation", "module_catalog_context"):
         module = __import__(
             f"src.core.platform.application.tenant.modules.{module_name}", fromlist=[module_name]
         )
         source = inspect.getsource(module)
-        for forbidden in (
-            "ViewInvalidation",
-            "ViewInvalidationHint",
-            "ViewInvalidationChannel",
-            "PySide6",
-            "ui_qml",
-        ):
+        for forbidden in ("PySide6", "ui_qml", "QObject", "Signal("):
             assert forbidden not in source
-    # The legacy signal must still be emitted -- P5B-2 does not remove or bridge it.
+    # The legacy `modules_changed` signal is fully retired (P5B-3 direct cutover, no bridge) --
+    # no `domain_events` import/usage remains anywhere in the mutation module.
     mutation_source = inspect.getsource(
         __import__(
             "src.core.platform.application.tenant.modules.module_catalog_mutation",
             fromlist=["module_catalog_mutation"],
         )
     )
-    assert "domain_events.modules_changed.emit(" in mutation_source
+    assert "domain_events" not in mutation_source
+    assert "domain_events.modules_changed" not in mutation_source

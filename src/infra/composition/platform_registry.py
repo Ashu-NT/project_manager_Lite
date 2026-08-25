@@ -51,6 +51,16 @@ from src.core.platform.application.master_data.org.event_handlers.view_invalidat
     build_organization_created_view_invalidation_handler,
 )
 from src.core.platform.domain.master_data.org.events import OrganizationCreated
+from src.core.platform.application.tenant.modules.event_handlers.view_invalidation import (
+    build_module_entitlement_view_invalidation_handler,
+)
+from src.core.platform.domain.tenant.modules.events import (
+    ModuleDisabled,
+    ModuleEnabled,
+    ModuleLicenseRevoked,
+    ModuleLicensed,
+    ModuleLifecycleTransitioned,
+)
 from src.core.platform.infrastructure.persistence.organization_unit_of_work import (
     SqlAlchemyOrganizationUnitOfWorkFactory,
 )
@@ -305,18 +315,24 @@ def build_platform_service_bundle(
         build_organization_created_view_invalidation_handler(platform_view_invalidation_channel),
     )
 
-    # P4 Step 2 (ADR-005 Section 24, Round 7/8): ApprovalService's own mutation-transaction
-    # ownership (request_change's transaction-owning mode, approve_and_apply, reject) now uses a
-    # genuinely fresh Session per call via this factory -- never the shared, process-lifetime
-    # `session` every other, not-yet-migrated Platform/PM/Inventory service still uses.
-    #
-    # Deliberately derived from `session.bind` (this composition root's own engine) rather than
-    # importing the global `SessionLocal` directly: in production `session` itself was built from
-    # `SessionLocal()` (src/ui_qml/shell/app.py's `build_services()`), so `session.bind` IS the
-    # same engine `SessionLocal` uses -- but in tests, `session` is bound to a throwaway
-    # per-test engine, never `SessionLocal`'s real, persistent one. Hardcoding `SessionLocal`
-    # here would make every approval mutation test open a real, on-disk database connection
-    # instead of the test's isolated in-memory one.
+    # P5B-3: direct Qt cutover for Module Entitlements, mirroring the Organization precedent
+    # above -- no legacy `modules_changed` bridge. All five Module Entitlement events collapse
+    # onto the SAME single mapping handler (the real UI consumers all re-read the whole
+    # entitlement collection in one call, never one module row at a time).
+    _module_entitlement_view_invalidation_handler = build_module_entitlement_view_invalidation_handler(
+        platform_view_invalidation_channel
+    )
+    for _module_entitlement_event_type in (
+        ModuleLicensed,
+        ModuleLicenseRevoked,
+        ModuleEnabled,
+        ModuleDisabled,
+        ModuleLifecycleTransitioned,
+    ):
+        platform_post_commit_bus.subscribe(
+            _module_entitlement_event_type, _module_entitlement_view_invalidation_handler
+        )
+
     approval_uow_session_factory = sessionmaker(bind=session.bind, future=True)
     approval_uow_factory = SqlAlchemyPlatformUnitOfWorkFactory(
         session_factory=approval_uow_session_factory,
@@ -539,6 +555,7 @@ def build_platform_service_bundle(
         organization_context_provider=_active_organization,
         uow_factory=module_entitlement_uow_factory,
         clock=SystemClock(),
+        view_invalidation_channel=platform_view_invalidation_channel,
     )
     logger.debug("Platform module catalog service created; bootstrapping defaults")
     module_catalog_service.bootstrap_defaults()

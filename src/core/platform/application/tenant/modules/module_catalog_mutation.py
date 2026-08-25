@@ -4,8 +4,12 @@ from typing import Callable, Iterable
 
 from src.core.shared.audit import record_audit_entry
 from src.core.platform.common.exceptions import ValidationError
-from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.application.tenant.modules.event_handlers.view_invalidation import (
+    MODULE_ENTITLEMENT_CATEGORY,
+    MODULE_ENTITLEMENTS_SCOPE_CODE,
+)
+from src.core.shared.events.view_invalidation import OrganizationScope, ViewInvalidationHint
 from src.core.platform.domain.tenant.modules.defaults import (
     MODULE_LIFECYCLE_INACTIVE,
     MODULE_RUNTIME_ACCESS_STATUSES,
@@ -157,7 +161,6 @@ class ModuleCatalogMutationMixin:
                 event_factory=event_factory,
             )
             uow.commit()
-        domain_events.modules_changed.emit(module_code)
         return entitlement
 
     def _apply_module_transition_using(
@@ -449,8 +452,32 @@ class ModuleCatalogMutationMixin:
         if commit:
             active_organization = self._current_organization()
             if active_organization is not None and active_organization.id == normalized_organization_id:
-                domain_events.modules_changed.emit(f"organization:{normalized_organization_id}")
+                # P5B-3: provisioning is bootstrap/default-row materialization, never one of the
+                # five Module DomainEvents (P5B-SEM's own decision, unchanged) -- but when the
+                # organization it just provisioned turns out to BE the active one (e.g.
+                # `provision_organization(is_active=True)`), the module entitlement collection any
+                # currently-open UI is showing just became stale, exactly as if a real mutation had
+                # happened. Direct ViewInvalidation, no DomainEvent -- mirrors the same
+                # activeness check the retired `modules_changed` emit used.
+                self._notify_module_entitlements_stale(normalized_organization_id)
         return self._entitlement_repo.list_all_for_organization_in_tenant(normalized_organization_id)
+
+    def _notify_module_entitlements_stale(self, organization_id: str) -> None:
+        channel = self._view_invalidation_channel
+        if channel is None:
+            return
+        tenant_id = self._active_tenant_id()
+        if not tenant_id:
+            return
+        channel.notify(
+            ViewInvalidationHint(
+                scope=OrganizationScope(tenant_id, organization_id),
+                category=MODULE_ENTITLEMENT_CATEGORY,
+                scope_code=MODULE_ENTITLEMENTS_SCOPE_CODE,
+                entity_type="module_entitlement",
+                entity_id=None,
+            )
+        )
 
 
 __all__ = ["ModuleCatalogMutationMixin"]
