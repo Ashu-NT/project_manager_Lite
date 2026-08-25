@@ -50,6 +50,18 @@ from src.core.modules.inventory_procurement.infrastructure.persistence.repositor
     SqlAlchemyReceiptLineRepository,
 )
 from src.core.modules.inventory_procurement.infrastructure.reporting import InventoryReportingService
+from src.core.modules.inventory_procurement.infrastructure.approval.procurement_apply_participant import (
+    ProcurementApprovalParticipant,
+)
+from src.core.modules.inventory_procurement.infrastructure.approval.purchasing_apply_participant import (
+    PurchasingApprovalParticipant,
+)
+from src.infra.composition.approval_apply_dependencies.procurement import (
+    build_procurement_approval_deps,
+)
+from src.infra.composition.approval_apply_dependencies.purchasing import (
+    build_purchasing_approval_deps,
+)
 from src.infra.composition.platform_registry import PlatformServiceBundle
 from src.core.platform.application.integration import IntegrationOutboxService
 
@@ -250,21 +262,37 @@ def build_inventory_procurement_service_bundle(
         tenant_context_service=platform_services.tenant_context_service,
         user_session=platform_services.user_session,
     )
+    # P4-PRE Step 1 (ADR-005 Section 24, Round 8): backed by module-owned, session-parameterized
+    # approval transaction participants (built here against the current shared session; Step 2
+    # will call each factory per approve_and_apply/reject call, against a fresh
+    # PlatformUnitOfWork session) rather than the long-lived instances' own bound methods.
+    procurement_approval_deps = build_procurement_approval_deps(
+        platform_services.session,
+        user_session=platform_services.user_session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    procurement_approval_participant = ProcurementApprovalParticipant()
     platform_services.approval_service.register_apply_handler(
         "purchase_requisition.submit",
-        inventory_procurement_service.apply_submitted_requisition_approval,
+        lambda req: procurement_approval_participant.apply(req, procurement_approval_deps),
     )
     platform_services.approval_service.register_reject_handler(
         "purchase_requisition.submit",
-        inventory_procurement_service.apply_submitted_requisition_rejection,
+        lambda req: procurement_approval_participant.reject(req, procurement_approval_deps),
     )
+    purchasing_approval_deps = build_purchasing_approval_deps(
+        platform_services.session,
+        user_session=platform_services.user_session,
+        tenant_context_service=platform_services.tenant_context_service,
+    )
+    purchasing_approval_participant = PurchasingApprovalParticipant()
     platform_services.approval_service.register_apply_handler(
         "purchase_order.submit",
-        inventory_purchasing_service.apply_submitted_purchase_order_approval,
+        lambda req: purchasing_approval_participant.apply(req, purchasing_approval_deps),
     )
     platform_services.approval_service.register_reject_handler(
         "purchase_order.submit",
-        inventory_purchasing_service.apply_submitted_purchase_order_rejection,
+        lambda req: purchasing_approval_participant.reject(req, purchasing_approval_deps),
     )
     inventory_reference_service = InventoryReferenceService(
         site_service=platform_services.site_service,

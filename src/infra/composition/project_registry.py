@@ -4,22 +4,41 @@ from src.core.platform.contract.port.time_management.calendar.calendar_protocol 
 
 import logging
 from dataclasses import dataclass
-from datetime import date
 from time import perf_counter
-from typing import Any
 
 from sqlalchemy.orm import Session
 
 from src.core.platform.access import ScopedRolePolicy
-from src.core.platform.common.exceptions import BusinessRuleError
-from src.core.platform.contract.models.approval.contracts import (
-    ApprovalHandlerResult,
-    ApprovalPostCommitEvent,
+from src.core.modules.project_management.infrastructure.approval.baseline_apply_participant import (
+    BaselineApprovalParticipant,
 )
-from src.core.modules.project_management.api.desktop.common.constraint_presentation import (
-    coerce_constraint_type,
+from src.core.modules.project_management.infrastructure.approval.billing_preparation_apply_participant import (
+    BillingPreparationApprovalParticipant,
 )
-from src.core.modules.project_management.domain.enums import DependencyType
+from src.core.modules.project_management.infrastructure.approval.budget_apply_participant import (
+    BudgetApprovalParticipant,
+)
+from src.core.modules.project_management.infrastructure.approval.financial_change_apply_participant import (
+    FinancialChangeApprovalParticipant,
+)
+from src.core.modules.project_management.infrastructure.approval.project_cost_apply_participant import (
+    ProjectCostApprovalParticipant,
+)
+from src.core.modules.project_management.infrastructure.approval.task_apply_participant import (
+    TaskApprovalParticipant,
+)
+from src.infra.composition.approval_apply_dependencies.baseline import build_baseline_approval_deps
+from src.infra.composition.approval_apply_dependencies.billing_preparation import (
+    build_billing_preparation_approval_deps,
+)
+from src.infra.composition.approval_apply_dependencies.budget import build_budget_approval_deps
+from src.infra.composition.approval_apply_dependencies.financial_change import (
+    build_financial_change_approval_deps,
+)
+from src.infra.composition.approval_apply_dependencies.project_cost import (
+    build_project_cost_approval_deps,
+)
+from src.infra.composition.approval_apply_dependencies.task import build_task_approval_deps
 from src.core.modules.project_management.access.policy import (
     PROJECT_SCOPE_ROLE_CHOICES,
     normalize_project_scope_role,
@@ -110,20 +129,6 @@ from src.infra.composition.repositories import RepositoryBundle
 
 
 logger = logging.getLogger(__name__)
-
-
-def _as_dependency_type(value: Any) -> DependencyType:
-    if isinstance(value, DependencyType):
-        return value
-    return DependencyType((value or DependencyType.FINISH_TO_START.value))
-
-
-def _as_optional_date(value: Any) -> date | None:
-    if value is None or value == "":
-        return None
-    if isinstance(value, date):
-        return value
-    return date.fromisoformat(value)
 
 
 @dataclass(frozen=True)
@@ -652,13 +657,14 @@ def build_project_management_service_bundle(
     logger.debug("Project Management core services built")
     _register_project_management_approval_handlers(
         approval_service=platform_services.approval_service,
-        baseline_service=baseline_service,
-        task_service=task_service,
-        budget_service=budget_service,
-        cost_entry_service=cost_entry_service,
-        financial_change_service=financial_change_service,
-        billing_preparation_service=billing_preparation_service,
         user_session=platform_services.user_session,
+        session=session,
+        tenant_context_service=platform_services.tenant_context_service,
+        module_catalog_service=platform_services.module_catalog_service,
+        work_calendar_engine=work_calendar_engine,
+        enterprise_calendar_resolver=platform_services.enterprise_calendar_resolver,
+        calendar_assignment_service=platform_services.calendar_assignment_service,
+        financial_period_service=platform_services.financial_period_service,
     )
     logger.debug("Project Management approval handlers registered")
     logger.debug(
@@ -709,226 +715,131 @@ def build_project_management_service_bundle(
 def _register_project_management_approval_handlers(
     *,
     approval_service,
-    baseline_service: BaselineService,
-    task_service: TaskService,
-    budget_service: BudgetService,
-    cost_entry_service: ProjectCostEntryService,
-    financial_change_service: FinancialChangeService,
-    billing_preparation_service: ProjectBillingPreparationService,
     user_session=None,
+    session=None,
+    tenant_context_service=None,
+    module_catalog_service=None,
+    work_calendar_engine=None,
+    enterprise_calendar_resolver=None,
+    calendar_assignment_service=None,
+    financial_period_service=None,
 ) -> None:
-    def _result(signal_name: str, payload: str) -> ApprovalHandlerResult:
-        return ApprovalHandlerResult(
-            post_commit_events=(ApprovalPostCommitEvent(signal_name, payload),)
-        )
-
-    def _apply_baseline(req) -> ApprovalHandlerResult:
-        project_id = req.payload["project_id"]
-
-        baseline_service._apply_baseline_creation_decision(
-            project_id=project_id,
-            name=req.payload.get("name") or "Baseline",
-            rate_as_of=date.today(),
-            commit=False,
-        )
-        return _result("baseline_changed", project_id)
-
-    def _apply_dependency_add(req) -> ApprovalHandlerResult:
-        task_service._apply_dependency_add_decision(
-            predecessor_id=req.payload["predecessor_id"],
-            successor_id=req.payload["successor_id"],
-            dependency_type=_as_dependency_type(req.payload.get("dependency_type", "FS")),
-            lag_days=int(req.payload.get("lag_days", 0) or 0),
-            commit=False,
-        )
-        return _result("tasks_changed", req.project_id or "")
-
-    def _apply_dependency_remove(req) -> ApprovalHandlerResult:
-        task_service._apply_dependency_remove_decision(
-            dependency_id=req.payload["dependency_id"],
-            commit=False,
-        )
-        return _result("tasks_changed", req.project_id or "")
-
-    def _apply_dependency_update(req) -> ApprovalHandlerResult:
-        task_service._apply_dependency_update_decision(
-            dependency_id=req.payload["dependency_id"],
-            dependency_type=_as_dependency_type(req.payload.get("dependency_type", "FS")),
-            lag_days=int(req.payload.get("lag_days", 0) or 0),
-            expected_version=req.payload.get("expected_version"),
-            commit=False,
-        )
-        return _result("tasks_changed", req.project_id or "")
-
-    def _apply_task_constraint_update(req) -> ApprovalHandlerResult:
-        task_service._apply_task_scheduling_constraint_decision(
-            task_id=req.payload["task_id"],
-            constraint_type=coerce_constraint_type(req.payload.get("constraint_type")),
-            constraint_date=_as_optional_date(req.payload.get("constraint_date")),
-            expected_version=req.payload.get("expected_version"),
-            commit=False,
-        )
-        return _result("tasks_changed", req.project_id or "")
-
-    def _apply_resource_leveling_plan(req) -> ApprovalHandlerResult:
-        task_service._apply_resource_leveling_plan_decision(
-            project_id=req.project_id,
-            moves=req.payload["moves"],
-            schedule_fingerprint=req.payload["schedule_fingerprint"],
-            commit=False,
-        )
-        return _result("tasks_changed", req.project_id or "")
-
-    def _require_financial_decision_actor() -> str:
-        principal = user_session.principal if user_session else None
-        if principal is None:
-            raise BusinessRuleError(
-                "An authenticated principal is required to decide a financial approval.",
-                code="PROJECT_FINANCIAL_APPROVAL_ACTOR_REQUIRED",
-            )
-        return principal.user_id
-
-    def _apply_budget_approval(req) -> ApprovalHandlerResult:
-        budget = budget_service._apply_approval_decision(
-            budget_id=req.payload["budget_id"],
-            approved_by=_require_financial_decision_actor(),
-            expected_version=req.payload["expected_version"],
-            notes=req.payload.get("notes", ""),
-            commit=False,
-        )
-        return _result("budgets_changed", budget.project_id)
-
-    def _apply_budget_rejection(req) -> ApprovalHandlerResult:
-        budget = budget_service._apply_rejection_decision(
-            budget_id=req.payload["budget_id"],
-            rejected_by=_require_financial_decision_actor(),
-            expected_version=req.payload["expected_version"],
-            notes=req.payload.get("notes", ""),
-            commit=False,
-        )
-        return _result("budgets_changed", budget.project_id)
-
-    def _apply_cost_entry_approval(req) -> ApprovalHandlerResult:
-        entry = cost_entry_service._apply_approval_decision(
-            entry_id=req.payload["entry_id"],
-            expected_version=req.payload["expected_version"],
-            actor_id=_require_financial_decision_actor(),
-            commit=False,
-        )
-        return _result("cost_entries_changed", entry.project_id)
-
-    def _apply_cost_entry_rejection(req) -> ApprovalHandlerResult:
-        entry = cost_entry_service._apply_rejection_decision(
-            entry_id=req.payload["entry_id"],
-            expected_version=req.payload["expected_version"],
-            actor_id=_require_financial_decision_actor(),
-            notes=req.payload.get("notes", ""),
-            commit=False,
-        )
-        return _result("cost_entries_changed", entry.project_id)
-
-    def _apply_financial_change(req) -> ApprovalHandlerResult:
-        change = financial_change_service._apply_approval_decision(
-            change_id=req.payload["change_id"],
-            approval_request_id=req.id,
-            applied_by=_require_financial_decision_actor(),
-            commit=False,
-        )
-        events = [
-            ApprovalPostCommitEvent("financial_changes_changed", change.project_id)
-        ]
-        if change.applied_budget_id:
-            events.append(ApprovalPostCommitEvent("budgets_changed", change.project_id))
-        if change.applied_forecast_id:
-            events.append(ApprovalPostCommitEvent("forecasts_changed", change.project_id))
-        if change.applied_schedule_count:
-            events.append(ApprovalPostCommitEvent("tasks_changed", change.project_id))
-        return ApprovalHandlerResult(post_commit_events=tuple(events))
-
-    def _reject_financial_change(req) -> ApprovalHandlerResult:
-        change = financial_change_service._apply_rejection_decision(
-            change_id=req.payload["change_id"],
-            approval_request_id=req.id,
-            rejected_by=_require_financial_decision_actor(),
-            notes=req.decision_note or "",
-            commit=False,
-        )
-        return _result("financial_changes_changed", change.project_id)
-
-    def _approve_billing_preparation(req) -> ApprovalHandlerResult:
-        preparation = billing_preparation_service._apply_approval_decision(
-            req.payload["preparation_id"],
-            approved_by=_require_financial_decision_actor(),
-            expected_version=req.payload["expected_version"] + 1,
-            commit=False,
-        )
-        return _result("billing_preparations_changed", preparation.project_id)
-
-    def _reject_billing_preparation(req) -> ApprovalHandlerResult:
-        preparation = billing_preparation_service._apply_rejection_decision(
-            req.payload["preparation_id"],
-            rejected_by=_require_financial_decision_actor(),
-            expected_version=req.payload["expected_version"] + 1,
-            notes=req.decision_note or "",
-            commit=False,
-        )
-        return _result("billing_preparations_changed", preparation.project_id)
-
+    """P4-PRE Step 1 (ADR-005 Section 24, Round 8): every request type below is now backed by a
+    module-owned, session-parameterized approval transaction participant, built once here (at
+    composition time, against the current shared `session` -- Step 2 will call each
+    `build_*_approval_deps` per `approve_and_apply`/`reject` call instead, against a fresh
+    `PlatformUnitOfWork` Session) rather than a closure capturing a long-lived service instance.
+    See src/core/modules/project_management/infrastructure/approval/ and
+    src/infra/composition/approval_apply_dependencies/ for each family's participant/deps-factory.
+    """
+    baseline_deps = build_baseline_approval_deps(
+        session,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+        module_catalog_service=module_catalog_service,
+        calendar=work_calendar_engine,
+    )
+    baseline_participant = BaselineApprovalParticipant()
     approval_service.register_apply_handler(
         "baseline.create",
-        _apply_baseline,
+        lambda req: baseline_participant.apply(req, baseline_deps),
     )
+
+    task_deps = build_task_approval_deps(
+        session,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+        module_catalog_service=module_catalog_service,
+        work_calendar_engine=work_calendar_engine,
+        enterprise_calendar_resolver=enterprise_calendar_resolver,
+        calendar_assignment_service=calendar_assignment_service,
+    )
+    task_participant = TaskApprovalParticipant()
     approval_service.register_apply_handler(
         "dependency.add",
-        _apply_dependency_add,
+        lambda req: task_participant.apply_dependency_add(req, task_deps),
     )
     approval_service.register_apply_handler(
         "dependency.remove",
-        _apply_dependency_remove,
+        lambda req: task_participant.apply_dependency_remove(req, task_deps),
     )
     approval_service.register_apply_handler(
         "dependency.update",
-        _apply_dependency_update,
+        lambda req: task_participant.apply_dependency_update(req, task_deps),
     )
     approval_service.register_apply_handler(
         "task.constraint.update",
-        _apply_task_constraint_update,
+        lambda req: task_participant.apply_task_constraint_update(req, task_deps),
     )
     approval_service.register_apply_handler(
         "scheduling.leveling.apply",
-        _apply_resource_leveling_plan,
+        lambda req: task_participant.apply_resource_leveling_plan(req, task_deps),
     )
+
+    budget_deps = build_budget_approval_deps(
+        session,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+        module_catalog_service=module_catalog_service,
+    )
+    budget_participant = BudgetApprovalParticipant()
     approval_service.register_apply_handler(
         "budget.approve",
-        _apply_budget_approval,
+        lambda req: budget_participant.apply(req, budget_deps),
     )
     approval_service.register_reject_handler(
         "budget.approve",
-        _apply_budget_rejection,
+        lambda req: budget_participant.reject(req, budget_deps),
     )
+
+    project_cost_deps = build_project_cost_approval_deps(
+        session,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+        financial_period_service=financial_period_service,
+        module_catalog_service=module_catalog_service,
+    )
+    project_cost_participant = ProjectCostApprovalParticipant()
     approval_service.register_apply_handler(
         "project_cost.approve",
-        _apply_cost_entry_approval,
+        lambda req: project_cost_participant.apply(req, project_cost_deps),
     )
     approval_service.register_reject_handler(
         "project_cost.approve",
-        _apply_cost_entry_rejection,
+        lambda req: project_cost_participant.reject(req, project_cost_deps),
     )
+
+    financial_change_deps = build_financial_change_approval_deps(
+        session,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+        work_calendar_engine=work_calendar_engine,
+        module_catalog_service=module_catalog_service,
+    )
+    financial_change_participant = FinancialChangeApprovalParticipant()
     approval_service.register_apply_handler(
         "financial_change.apply",
-        _apply_financial_change,
+        lambda req: financial_change_participant.apply(req, financial_change_deps),
     )
     approval_service.register_reject_handler(
         "financial_change.apply",
-        _reject_financial_change,
+        lambda req: financial_change_participant.reject(req, financial_change_deps),
     )
+
+    billing_preparation_deps = build_billing_preparation_approval_deps(
+        session,
+        user_session=user_session,
+        tenant_context_service=tenant_context_service,
+        module_catalog_service=module_catalog_service,
+    )
+    billing_preparation_participant = BillingPreparationApprovalParticipant()
     approval_service.register_apply_handler(
         "project_billing_preparation.approve",
-        _approve_billing_preparation,
+        lambda req: billing_preparation_participant.apply(req, billing_preparation_deps),
     )
     approval_service.register_reject_handler(
         "project_billing_preparation.approve",
-        _reject_billing_preparation,
+        lambda req: billing_preparation_participant.reject(req, billing_preparation_deps),
     )
 
 
