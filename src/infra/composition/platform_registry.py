@@ -44,6 +44,9 @@ from src.core.platform.infrastructure.persistence.read.overview.platform_overvie
     SqlAlchemyPlatformOverviewRollupReader,
 )
 from src.core.platform.application.master_data.org.organization_service import OrganizationService
+from src.core.platform.infrastructure.persistence.organization_unit_of_work import (
+    SqlAlchemyOrganizationUnitOfWorkFactory,
+)
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.application.master_data.site.site_service import SiteService
@@ -354,9 +357,18 @@ def build_platform_service_bundle(
         (perf_counter() - started) * 1000,
     )
 
+    organization_uow_session_factory = sessionmaker(bind=session.bind, future=True)
+    organization_uow_factory = SqlAlchemyOrganizationUnitOfWorkFactory(
+        session_factory=organization_uow_session_factory,
+        transactional_dispatcher=InProcessTransactionalEventDispatcher(),
+        post_commit_bus=InProcessPostCommitEventBus(),
+        tenant_context_service=tenant_context_service,
+        user_session=user_session,
+    )
     organization_service = OrganizationService(
         session=session,
         organization_repo=repositories.organization_repo,
+        uow_factory=organization_uow_factory,
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,

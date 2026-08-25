@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import pytest
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import sessionmaker
 
 from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.domain.security.authorization.roles.role_permission_catalog import (
@@ -19,11 +20,31 @@ from src.core.platform.infrastructure.persistence.repositories.master_data.org.o
 )
 from src.core.platform.application.master_data.org.organization_service import OrganizationService
 from src.core.platform.domain.master_data.org.organization import Organization
+from src.core.platform.infrastructure.persistence.organization_unit_of_work import (
+    SqlAlchemyOrganizationUnitOfWorkFactory,
+)
+from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommitEventBus
+from src.infra.events.in_process_transactional_event_dispatcher import (
+    InProcessTransactionalEventDispatcher,
+)
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _make_organization_uow_factory(session, tenant_context_service, user_session):
+    """P4B: mirrors `platform_registry.py`'s own `organization_uow_factory` construction --
+    derived from `session.bind` so it resolves to the test's isolated engine, never a real,
+    on-disk database."""
+    return SqlAlchemyOrganizationUnitOfWorkFactory(
+        session_factory=sessionmaker(bind=session.bind, future=True),
+        transactional_dispatcher=InProcessTransactionalEventDispatcher(),
+        post_commit_bus=InProcessPostCommitEventBus(),
+        tenant_context_service=tenant_context_service,
+        user_session=user_session,
+    )
+
 
 def _make_session_context(tenant_id: str) -> UserSessionContext:
     ctx = UserSessionContext()
@@ -71,7 +92,12 @@ def test_deactivate_other_organizations_does_not_touch_other_tenants(services):
     session.flush()
 
     ctx_a = _make_session_context(tenant_a)
-    svc_a = OrganizationService(session=session, organization_repo=repo, user_session=ctx_a)
+    svc_a = OrganizationService(
+        session=session,
+        organization_repo=repo,
+        uow_factory=_make_organization_uow_factory(session, tenant_context_service, ctx_a),
+        user_session=ctx_a,
+    )
 
     svc_a._deactivate_other_organizations(tenant_id=tenant_a, exclude_id=org_a1.id)
     session.flush()
@@ -102,7 +128,12 @@ def test_list_organizations_is_scoped_to_active_tenant(services):
     session.flush()
 
     ctx_a = _make_session_context(tenant_a)
-    svc_a = OrganizationService(session=session, organization_repo=repo, user_session=ctx_a)
+    svc_a = OrganizationService(
+        session=session,
+        organization_repo=repo,
+        uow_factory=_make_organization_uow_factory(session, tenant_context_service, ctx_a),
+        user_session=ctx_a,
+    )
 
     result = svc_a.list_organizations()
 
@@ -129,7 +160,12 @@ def test_get_active_organization_returns_tenant_scoped_active_org(services):
     session.flush()
 
     ctx_a = _make_session_context(tenant_a)
-    svc_a = OrganizationService(session=session, organization_repo=repo, user_session=ctx_a)
+    svc_a = OrganizationService(
+        session=session,
+        organization_repo=repo,
+        uow_factory=_make_organization_uow_factory(session, tenant_context_service, ctx_a),
+        user_session=ctx_a,
+    )
 
     # Should return tenant_a's active org, not tenant_b's
     active = svc_a.get_active_organization()
