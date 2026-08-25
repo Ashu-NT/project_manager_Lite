@@ -120,7 +120,16 @@ class PlatformRuntimeApplicationService:
         enabled: bool | None = None,
         lifecycle_status: str | None = None,
     ):
+        # P5B prerequisite: `ModuleCatalogService.set_module_state` now requires an explicit
+        # organization_id (never ambient) -- this orchestrator resolves "whichever organization
+        # is currently active" itself, exactly preserving every existing caller's observable
+        # behavior, while the mutation method itself no longer reconstructs that from session
+        # state internally.
+        active_organization = self.get_active_organization()
+        if active_organization is None:
+            raise RuntimeError("Active organization is required to manage module entitlements.")
         return self._module_catalog_service.set_module_state(
+            active_organization.id,
             module_code,
             licensed=licensed,
             enabled=enabled,

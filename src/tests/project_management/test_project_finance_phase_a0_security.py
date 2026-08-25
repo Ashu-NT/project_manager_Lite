@@ -92,6 +92,7 @@ def test_finance_export_requires_distinct_export_permission(services):
     tenant_id = services["user_session"].stored_active_tenant_id()
     organization_id = services["user_session"].stored_active_organization_id()
     services["module_catalog_service"].set_module_state(
+        organization_id,
         "project_management",
         licensed=True,
         enabled=True,

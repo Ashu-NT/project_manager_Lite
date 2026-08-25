@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Iterable
 
 from src.core.shared.audit import record_audit_entry
-from src.core.platform.common.exceptions import NotFoundError, ValidationError
+from src.core.platform.common.exceptions import ValidationError
 from src.core.shared.events.domain_events import domain_events
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
 from src.core.platform.domain.tenant.modules.defaults import (
@@ -19,21 +19,69 @@ from src.core.platform.domain.tenant.modules.subscription import ModuleEntitleme
 class ModuleCatalogMutationMixin:
     def set_module_state(
         self,
+        organization_id: str,
         module_code: str,
         *,
         licensed: bool | None = None,
         enabled: bool | None = None,
         lifecycle_status: str | None = None,
     ) -> ModuleEntitlement:
+        """License/enable/disable/lifecycle-transition a module for `organization_id` --
+        explicit (P5B prerequisite), never derived ambiently from the active-session
+        organization. `organization_id` may be ANY organization within the caller's own
+        authenticated tenant, not only the currently active one (structurally impossible before
+        this change -- see the P5B report). Callers that mean "whichever organization is
+        currently active" (e.g. `PlatformRuntimeApplicationService.set_module_state`) must
+        resolve that explicitly themselves and pass it in -- this method never reads
+        `UserSessionContext`/`TenantContextService` to guess."""
         require_permission(
             self._user_session,
             "settings.manage",
             operation_label="manage module entitlements",
         )
+        normalized_organization_id = str(organization_id or "").strip()
+        if not normalized_organization_id:
+            raise ValidationError(
+                "Organization context is required to manage module entitlements.",
+                code="ORGANIZATION_REQUIRED",
+            )
+        if self._uow_factory is None:
+            raise RuntimeError("Module entitlement UnitOfWork factory is not configured.")
+
+        with self._uow_factory.create(context=self._new_context()) as uow:
+            entitlement = self._set_module_state_using(
+                uow.entitlements,
+                uow,
+                organization_id=normalized_organization_id,
+                module_code=module_code,
+                licensed=licensed,
+                enabled=enabled,
+                lifecycle_status=lifecycle_status,
+            )
+            uow.commit()
+        domain_events.modules_changed.emit(module_code)
+        return entitlement
+
+    def _set_module_state_using(
+        self,
+        entitlement_repo,
+        uow,
+        *,
+        organization_id: str,
+        module_code: str,
+        licensed: bool | None,
+        enabled: bool | None,
+        lifecycle_status: str | None,
+    ) -> ModuleEntitlement:
+        """The module-entitlement state-transition business operation, transaction-agnostic:
+        does not open or commit a transaction itself -- that remains the caller's
+        responsibility. `uow` is duck-typed against `_enterprise_audit_service`
+        (`record_audit_entry`'s existing contract), never a concrete UoW class import."""
         module = self._require_module(module_code)
-        current = self.get_entitlement(module.code)
-        if current is None:
-            raise NotFoundError("Module not found.", code="MODULE_NOT_FOUND")
+        current_record = entitlement_repo.get_for_organization_in_tenant(organization_id, module.code)
+        current = self._build_entitlement(
+            module, {current_record.module_code: current_record} if current_record is not None else {}
+        )
 
         next_licensed = current.licensed if licensed is None else bool(licensed)
         next_enabled = current.enabled if enabled is None else bool(enabled)
@@ -77,16 +125,21 @@ class ModuleCatalogMutationMixin:
                     )
                 next_enabled = False
 
-        self._persist_state(
-            ModuleEntitlementRecord(
-                module_code=module.code,
-                licensed=next_licensed,
-                enabled=next_enabled,
-                lifecycle_status=next_status,
-            )
+        record = ModuleEntitlementRecord(
+            module_code=module.code,
+            licensed=next_licensed,
+            enabled=next_enabled,
+            lifecycle_status=next_status,
         )
+        entitlement_repo.upsert_for_organization_in_tenant(organization_id, record)
+        # P5B prerequisite fix: staged in the SAME transaction as the entitlement write (ADR-003)
+        # -- the previous implementation recorded this audit entry *after* the business mutation's
+        # own commit, via a second, independent commit (never atomic). Fixing the ordering is a
+        # necessary consequence of the fresh UoW's commit-then-close lifecycle, not opportunistic
+        # cleanup: calling `record_audit_entry` after `uow.commit()` would hit an already-closed
+        # Session.
         record_audit_entry(
-            self,
+            uow,
             operation="update",
             entity_type="module_entitlement",
             entity_id=module.code,
@@ -94,18 +147,16 @@ class ModuleCatalogMutationMixin:
             severity="low",
             metadata={
                 "action": "module.entitlement.update",
+                "organization_id": organization_id,
                 "module_code": module.code,
                 "licensed": str(next_licensed),
                 "enabled": str(next_enabled),
                 "lifecycle_status": next_status,
                 "stage": module.stage,
             },
+            commit=False,
         )
-        domain_events.modules_changed.emit(module.code)
-        entitlement = self.get_entitlement(module.code)
-        if entitlement is None:
-            raise NotFoundError("Module entitlement not found after update.", code="MODULE_NOT_FOUND")
-        return entitlement
+        return self._build_entitlement(module, {record.module_code: record})
 
     def provision_organization_entitlements(
         self,

@@ -57,6 +57,9 @@ from src.core.platform.infrastructure.persistence.organization_unit_of_work impo
 from src.core.platform.infrastructure.persistence.platform_provisioning_unit_of_work import (
     SqlAlchemyPlatformProvisioningUnitOfWorkFactory,
 )
+from src.core.platform.infrastructure.persistence.module_entitlement_unit_of_work import (
+    SqlAlchemyModuleEntitlementUnitOfWorkFactory,
+)
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.application.master_data.site.site_service import SiteService
@@ -508,6 +511,18 @@ def build_platform_service_bundle(
     module_entitlement_reader = SqlAlchemyModuleEntitlementReader(session)
     configure_session_rls_context(session, user_session=user_session)
     validate_postgresql_execution_role(session)
+    # P5B prerequisite (Module Entitlement Transaction Convergence): mirrors
+    # `organization_uow_factory`/`provisioning_uow_factory` above -- derived from `session.bind`
+    # for the same reason, and sharing the SAME composition-owned dispatcher/post-commit bus so a
+    # future Module* event handler is reachable regardless of which UoW recorded it.
+    module_entitlement_uow_session_factory = sessionmaker(bind=session.bind, future=True)
+    module_entitlement_uow_factory = SqlAlchemyModuleEntitlementUnitOfWorkFactory(
+        session_factory=module_entitlement_uow_session_factory,
+        transactional_dispatcher=platform_transactional_dispatcher,
+        post_commit_bus=platform_post_commit_bus,
+        tenant_context_service=tenant_context_service,
+        user_session=user_session,
+    )
     module_catalog_service = ModuleCatalogService(
         modules=DEFAULT_ENTERPRISE_MODULES,
         enabled_codes=parse_enabled_module_codes(os.getenv("PM_ENABLED_MODULES")),
@@ -522,6 +537,7 @@ def build_platform_service_bundle(
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         organization_context_provider=_active_organization,
+        uow_factory=module_entitlement_uow_factory,
     )
     logger.debug("Platform module catalog service created; bootstrapping defaults")
     module_catalog_service.bootstrap_defaults()

@@ -22,23 +22,6 @@ class ModuleCatalogContextMixin:
     _entitlement_repo: ModuleEntitlementRepository
     _entitlement_reader: ModuleEntitlementReader | None
 
-    def _persist_state(self, record: ModuleEntitlementRecord) -> None:
-        module_code = record.module_code
-        normalized_record = record
-        if self._entitlement_repo is None:
-            if normalized_record.licensed:
-                self._licensed_codes.add(module_code)
-            else:
-                self._licensed_codes.discard(module_code)
-            if normalized_record.enabled and normalized_record.licensed:
-                self._enabled_codes.add(module_code)
-            else:
-                self._enabled_codes.discard(module_code)
-            return
-        self._entitlement_repo.upsert(normalized_record)
-        if self._session is not None:
-            self._session.commit()
-
     def _active_tenant_id(self) -> str | None:
         if self._user_session is not None:
             return self._user_session.active_tenant_id()

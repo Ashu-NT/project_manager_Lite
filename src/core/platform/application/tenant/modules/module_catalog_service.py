@@ -13,8 +13,13 @@ from src.core.platform.application.tenant.modules.module_catalog_mutation import
     ModuleCatalogMutationMixin,
 )
 from src.core.platform.application.tenant.modules.module_catalog_query import ModuleCatalogQueryMixin
+from src.core.platform.contract.persistence.module_entitlement_unit_of_work import (
+    ModuleEntitlementUnitOfWorkFactory,
+)
 from src.core.platform.contract.repositories.tenant.modules.contracts import ModuleEntitlementRepository
 from src.core.platform.contract.read.tenant.modules.module_entitlement_reader import ModuleEntitlementReader
+from src.core.platform.common.ids import generate_id
+from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.platform.domain.tenant.modules import (
     DEFAULT_ENTERPRISE_MODULES,
     DEFAULT_PLATFORM_CAPABILITIES,
@@ -54,6 +59,7 @@ class ModuleCatalogService(
         user_session: Any = None,
         enterprise_audit_service: Any = None,
         organization_context_provider: Callable[[], Organization | None] | None = None,
+        uow_factory: ModuleEntitlementUnitOfWorkFactory | None = None,
     ) -> None:
         known_modules = tuple(modules)
         known_codes = {module.code for module in known_modules}
@@ -82,6 +88,10 @@ class ModuleCatalogService(
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._organization_context_provider = organization_context_provider
+        self._uow_factory = uow_factory
+
+    def _new_context(self, *, causation_id: str | None = None) -> DomainEventContext:
+        return DomainEventContext(correlation_id=generate_id(), causation_id=causation_id)
 
 
 def build_default_module_catalog(

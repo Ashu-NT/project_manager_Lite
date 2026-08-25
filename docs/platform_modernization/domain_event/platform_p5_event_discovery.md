@@ -490,6 +490,18 @@ the legacy mechanism until their own event slice (not part of P5A) is proposed.
 4. **`set_module_state`'s exact transition set** was not read method-by-method in this discovery
    (time-boxed); the `ModuleLicensed`/`Enabled`/`Disabled` split is provisional and must be
    confirmed against the real state machine before P5B starts.
+   **Resolved (2026-08-25, P5B prerequisite pass): confirmed a real mismatch, not just a naming
+   detail.** `set_module_state`'s real state model has three independent fields
+   (`licensed`/`enabled`/`lifecycle_status`, the last a 5-value enum: inactive/active/trial/
+   suspended/expired) that can all change in ONE call, plus a real, reachable UI action
+   (`toggle_module_license`) that flips `licensed` in EITHER direction via the identical control
+   -- there is no dedicated "revoke license" event name in the 3-name vocabulary, and
+   `lifecycle_status` transitions (e.g. active→suspended, active→trial, active→expired) are real,
+   distinct business facts the 3-name vocabulary does not address at all. Whether a license
+   revocation that cascades into forcing `enabled=False` and `lifecycle_status=inactive` is one
+   compound fact or up to three is a genuine business-owner decision, not an engineering guess --
+   P5B's own transaction/scope prerequisites were completed (see the P5B report), but typed event
+   implementation remains blocked on this vocabulary question.
 5. **The `platform/access` vs. `platform/domain/security/authorization` package-ownership
    question** (already flagged as open in ADR-005 itself) still needs resolving before deciding
    which package owns `ScopeAccessGranted`/`Revoked`'s domain module.

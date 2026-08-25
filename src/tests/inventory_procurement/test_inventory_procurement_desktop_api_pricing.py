@@ -29,6 +29,7 @@ def test_inventory_pricing_desktop_api_builds_snapshot_and_exports_reports(
     tmp_path,
 ) -> None:
     services["module_catalog_service"].set_module_state(
+        services["organization_service"].get_active_organization().id,
         "inventory_procurement",
         licensed=True,
         enabled=True,

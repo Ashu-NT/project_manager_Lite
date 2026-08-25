@@ -325,6 +325,7 @@ def test_reporting_api_requires_report_export_permission_from_live_session(servi
     tenant_id = services["user_session"].stored_active_tenant_id()
     organization_id = services["user_session"].stored_active_organization_id()
     services["module_catalog_service"].set_module_state(
+        organization_id,
         "project_management",
         licensed=True,
         enabled=True,

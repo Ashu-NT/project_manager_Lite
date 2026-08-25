@@ -18,16 +18,6 @@ Item {
     readonly property var _nav: root.pmCatalog ? root.pmCatalog.pmNavigation : null
     readonly property string _activeWorkspaceKey: root._nav ? root._nav.workspaceKey : "dashboard"
 
-    // R2.12: lazy on first activation only. A destination's Loader turns
-    // on the first time it's selected, and then stays on -- switching away
-    // only hides it (Loader.visible), it never tears the page back down.
-    // This is deliberate, not just an optimization: several capability
-    // pages host the shared SectionDetailPage, which schedules a
-    // Qt.callLater() reparent that can fire after its context is destroyed
-    // if the page is torn down and recreated while such a call is
-    // pending. Keeping a visited destination mounted sidesteps that
-    // shared-widget hazard entirely instead of patching a widely-used
-    // primitive as a side effect of R2.
     property var _activatedKeys: ({})
 
     function _markActiveKeyLoaded() {
@@ -86,14 +76,6 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
 
-                // R2.6: each capability page is loaded dynamically by URL
-                // (Qt.resolvedUrl, resolved relative to THIS file) rather
-                // than a static cross-folder `import` -- this codebase's
-                // architecture guardrails forbid parent-relative QML
-                // imports, and each capability's own qmldir `module` name
-                // doesn't match its physical folder path, so neither a
-                // relative import nor a dotted-module import resolves
-                // cross-folder. A dynamic Loader.source URL needs neither.
                 Repeater {
                     model: [
                         { key: "dashboard", file: "../workspaces/dashboard/DashboardWorkspacePage.qml" },

@@ -17,7 +17,9 @@ def _suffix() -> str:
 
 
 def _enable_inventory_module(services) -> None:
+    active_org = services["organization_service"].get_active_organization()
     services["module_catalog_service"].set_module_state(
+        active_org.id,
         "inventory_procurement",
         licensed=True,
         enabled=True,
