@@ -451,6 +451,15 @@ membership-removal fact, and emits no event at all -- see
 shape ended up exactly `membership_id`/`tenant_id`/`user_id`/`occurred_at` as this row
 anticipated, with no `organization_id`. P5D-3 (ViewInvalidation + Qt) remains not started.
 
+**P5 Closeout (2026-08-26, implemented): residual `auth_changed` audit.** The P5D-3 final
+report's own flagged concern -- `RoleGovernanceService`'s two `auth_changed` producers looking
+like legacy duplicates of the already-implemented RoleBinding ViewInvalidation path -- was
+confirmed and corrected: both removed, no bridge. `auth_changed` itself is NOT deleted globally;
+20 legitimate non-RoleBinding/non-membership producers remain (custom-role definition, session/
+authentication, user-account, password/MFA/federated-identity, registration/bootstrap). See
+`platform_domain_event_implementation_plan.md`'s "P5 Closeout" section for the full inventory,
+evidence, and the Legacy Signal Ownership Matrix that now bounds future modernization work.
+
 ### Approval — explicitly NOT a P5 slice yet
 
 Approval's events (`ApprovalRequested`/`Approved`/`Rejected`) are fully specified above (§3-§9)

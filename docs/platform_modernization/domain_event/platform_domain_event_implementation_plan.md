@@ -2181,6 +2181,119 @@ work per that file's existing docstring.
 **Explicit non-goals:** Approval events, any P5C RoleBinding event/ViewInvalidation change, any
 change to the four membership events' fields or semantics.
 
+## P5 Closeout — Residual `auth_changed` Audit and RoleBinding Legacy Cleanup (implemented)
+
+**Status:** implemented, reviewed. The P5D-3 final report flagged one residual defect:
+`RoleGovernanceService.assign_role`/`revoke_role_binding` still emitted the legacy `auth_changed`
+signal even though P5C-2/P5C-3 had already given RoleBinding its own typed
+event -> ViewInvalidation -> narrow-consumer path. This closeout removed those two emit sites,
+re-verified no compatibility bridge was needed, and produced the final auth_changed inventory
+below. No new DomainEvent, no new ViewInvalidation target, no membership-event change.
+
+**Full production `auth_changed` re-inventory (before this pass, 22 producers, re-counted from
+source, not assumed from the prior report):**
+
+| File | Emits | Business fact |
+|---|---|---|
+| `role_governance_service.py` | 2 | `assign_role`/`revoke_role_binding` -- **removed this pass** |
+| `tenant_role_administration_service.py` | 2 | custom-role definition create/retire |
+| `role_policy_reconciliation_service.py` | 1 | permission-set reconciliation for affected users |
+| `session_service.py` | 2 | session/login lifecycle |
+| `user_admin_service.py` | 3 | `UserAccount.is_active` toggle / profile update -- a platform-level flag, distinct from `UserTenantMembership.status` |
+| `registration_service.py` | 1 | new-account creation |
+| `bootstrap_service.py` | 1 | initial platform-admin bootstrap |
+| `password_service.py` | 3 | password change/reset |
+| `mfa_service.py` | 3 | MFA enroll/disable |
+| `federated_identity_service.py` | 1 | federated identity link/update |
+| `authentication_transactions.py` | 2 | login/lockout transactions |
+
+Exactly 2 production consumers exist repository-wide (confirmed by grep, not assumed):
+`AccessWorkspaceController._on_auth_changed` and the Admin Console's coarse composite
+`domain_event_binder.py`. Neither was touched -- both remain, for the 22 (now 20) legitimate
+non-RoleBinding producers.
+
+**RoleGovernanceService producer analysis:** both were pure legacy duplicates of
+`RoleBindingAssigned`/`RoleBindingRevoked`'s own already-implemented ViewInvalidation path, with
+no independent responsibility. Verified directly, not assumed: current-principal refresh
+(`refresh_current_session_if_user`) is called explicitly by BOTH calling facades
+(`role_assignment_service.assign_role`/`revoke_role`, `AccessControlService.assign_scope_grant`/
+`remove_scope_grant`), as a separate, unconditional step after the `RoleGovernanceService` call
+returns -- never wired through `auth_changed` (confirmed: zero `.connect()`/`.subscribe()` calls
+to `auth_changed` exist anywhere outside the two UI controllers named above). `access_changed`
+was already retired from `AccessControlService` in P5C-3. Neither facade has its own separate
+`auth_changed.emit(...)` call, so removing the two sites inside `RoleGovernanceService` leaves
+**zero** `auth_changed` emission from any RoleBinding mutation, through any path.
+
+**Removed, no bridge:** the two `domain_events.auth_changed.emit(...)` calls in `assign_role`/
+`revoke_role_binding`, and the now-unused `domain_events` import. No
+`RoleBindingAssigned -> auth_changed` compatibility shim was added — pre-release direct
+convergence, per the same policy P5C-3/P5D-3 already established.
+
+**Custom Role Definition, session/authentication, user-account, and password/identity
+producers:** deliberately NOT touched. None represent a RoleBinding fact — `TenantRole
+AdministrationService`'s two producers are custom role-definition lifecycle (a distinct,
+not-yet-modernized capability); the rest are session/registration/bootstrap/credential facts
+with no typed-event/ViewInvalidation equivalent yet. They remain legacy until their own
+capability is modernized — out of this closeout's scope by explicit instruction.
+
+**Double-refresh proof (real end-to-end):** a real `assign_role`/`revoke_role_binding` call
+through the normal application path now produces exactly one narrow `refresh_role_bindings()`
+call and zero `_refresh_after_security_change()` (the `auth_changed`-driven reaction) calls --
+proven for both assignment and revocation. The admin console's coarse composite binder is also
+proven unreached by an isolated RoleBinding mutation (it never had a narrow RoleBinding reaction
+to begin with; P5C-3 wired that to the access workspace only).
+
+**Membership-removal composition re-verified:** `TenantMembershipRemoved` +
+`RoleBindingRevoked` (the default grant) still produce exactly one membership refresh and
+exactly one RoleBinding refresh, with zero coarse `auth_changed`-driven refresh from either fact
+-- unchanged in outcome from P5D-3, re-proven after this pass's edits.
+
+**Current-user / other-user security regression:** both re-verified directly. Self-assignment
+still refreshes the caller's own principal (and still fails closed if rebuilding it raises) via
+the facade's own explicit call, completely unaffected by the signal's removal. An admin mutating
+a different user's binding still updates the correct binding, fires the narrow ViewInvalidation
+once, and leaves the acting admin's own principal untouched.
+
+**Legacy Signal Ownership Matrix (the boundary for future modernization work):**
+
+| Capability | Typed events | ViewInvalidation | Legacy `auth_changed` |
+|---|---|---|---|
+| Organization | YES | YES | NO |
+| Module Entitlements | YES | YES | NO |
+| RoleBinding | YES | YES | NO (removed this pass) |
+| Tenant Membership | YES | YES | NO |
+| Custom Role Definition | NO | NO | YES |
+| Session/Authentication | NO | NO | YES |
+| User-account activation/profile | NO | NO | YES |
+| Password/credential security | NO | NO | YES |
+| MFA | NO | NO | YES |
+| Federated identity | NO | NO | YES |
+| Registration/bootstrap | NO | NO | YES |
+
+**Test coverage:** `test_p5_closeout_auth_changed_audit.py` (10 tests) -- source-level guards
+(neither `RoleGovernanceService` nor `TenantMembershipService` reference `auth_changed`/
+`domain_events` at all; exactly the 2 expected production consumers remain), the real
+double-refresh proof for both assignment and revocation, the admin-console-coarse-binder
+isolation proof, rollback-silence (unaffected by the removal), current-principal
+regression, other-user regression, and the membership-removal composition re-proof. Three
+pre-existing test files updated to stop asserting the now-removed emission:
+`test_role_governance_unit_of_work_cutover.py` (dropped its `auth_changed`
+connect/disconnect scaffolding from the commit-failure test since there was nothing left to
+observe either way; renamed and corrected its vocabulary guard to assert `emitted_signals ==
+set()`), `test_role_binding_events.py` (renamed `test_legacy_auth_changed_still_fires_alongside_
+the_new_typed_event` to `test_legacy_auth_changed_no_longer_fires_for_role_binding_mutations`,
+asserting `seen_signals == []`).
+
+**Regression:** full Platform suite and architecture suite both run at the same failure
+identities/counts as the established baseline (15 failed/12 errors in Platform, 13 pre-existing
+failures/142 passed in architecture) -- zero regressions. `git rev-parse HEAD` was identical
+before and after the long suite runs.
+
+**Explicit non-goals:** any new DomainEvent, any new ViewInvalidation target, any change to
+membership events, Approval work, modernizing Custom Role Definition/session/user-account/
+password/MFA/federated-identity/registration capabilities (all remain legitimate `auth_changed`
+producers, deliberately untouched).
+
 ## P6 — Qt Invalidation Adapter Consolidation
 
 **Goal:** build the one shared Qt adapter, and migrate the three existing controller bases to
