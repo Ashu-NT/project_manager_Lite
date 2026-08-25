@@ -112,29 +112,38 @@ class PlatformRuntimeApplicationService:
     def get_entitlement(self, module_code: str):
         return self._module_catalog_service.get_entitlement(module_code)
 
-    def set_module_state(
-        self,
-        module_code: str,
-        *,
-        licensed: bool | None = None,
-        enabled: bool | None = None,
-        lifecycle_status: str | None = None,
-    ):
-        # P5B prerequisite: `ModuleCatalogService.set_module_state` now requires an explicit
+    def license_module(self, module_code: str):
+        active_organization = self._require_active_organization_for_module_mutation()
+        return self._module_catalog_service.license_module(active_organization.id, module_code)
+
+    def revoke_module_license(self, module_code: str):
+        active_organization = self._require_active_organization_for_module_mutation()
+        return self._module_catalog_service.revoke_module_license(active_organization.id, module_code)
+
+    def enable_module(self, module_code: str):
+        active_organization = self._require_active_organization_for_module_mutation()
+        return self._module_catalog_service.enable_module(active_organization.id, module_code)
+
+    def disable_module(self, module_code: str):
+        active_organization = self._require_active_organization_for_module_mutation()
+        return self._module_catalog_service.disable_module(active_organization.id, module_code)
+
+    def transition_module_lifecycle(self, module_code: str, lifecycle_status: str):
+        active_organization = self._require_active_organization_for_module_mutation()
+        return self._module_catalog_service.transition_module_lifecycle(
+            active_organization.id, module_code, lifecycle_status
+        )
+
+    def _require_active_organization_for_module_mutation(self):
+        # P5B-SEM: `ModuleCatalogService`'s semantic commands require an explicit
         # organization_id (never ambient) -- this orchestrator resolves "whichever organization
         # is currently active" itself, exactly preserving every existing caller's observable
-        # behavior, while the mutation method itself no longer reconstructs that from session
+        # behavior, while the mutation methods themselves never reconstruct that from session
         # state internally.
         active_organization = self.get_active_organization()
         if active_organization is None:
             raise RuntimeError("Active organization is required to manage module entitlements.")
-        return self._module_catalog_service.set_module_state(
-            active_organization.id,
-            module_code,
-            licensed=licensed,
-            enabled=enabled,
-            lifecycle_status=lifecycle_status,
-        )
+        return active_organization
 
     def shell_summary(self) -> str:
         return self._module_catalog_service.shell_summary()

@@ -502,6 +502,29 @@ the legacy mechanism until their own event slice (not part of P5A) is proposed.
    compound fact or up to three is a genuine business-owner decision, not an engineering guess --
    P5B's own transaction/scope prerequisites were completed (see the P5B report), but typed event
    implementation remains blocked on this vocabulary question.
+   **Further resolved (2026-08-25, P5B-SEM design pass): investigation of the real domain model,
+   the three real presenter-level UI commands (`toggle_module_license`, `toggle_module_enabled`,
+   `change_module_lifecycle_status`), the lifecycle dropdown (`active`/`trial`/`suspended`/
+   `expired` only -- `inactive` is never user-selectable, only reached automatically on license
+   revocation), and `_set_module_state_using`'s cascade rules resolves the ambiguity without
+   further business-owner input.** `ModuleEntitlement` is a plain frozen dataclass/projection with
+   no transition methods -- it does not currently own its invariants; all state-machine logic
+   lives in `_set_module_state_using`. Real business commands, in order of independence:
+   `LICENSE_MODULE`/`REVOKE_MODULE_LICENSE` (one bidirectional command; revocation cascades to
+   `enabled=False`+`lifecycle_status=inactive` as an implementation consequence, not a separate
+   business fact -- never combined with enable/lifecycle in the same real call), `ENABLE_MODULE`/
+   `DISABLE_MODULE` (pure activation toggle, requires already-licensed, blocked while
+   suspended/expired), and `TRANSITION_MODULE_LIFECYCLE` (explicit user selection among
+   active/trial/suspended/expired; moving into suspended/expired cascades `enabled=False` as an
+   implementation consequence of that one transition, not a second fact). `provision_organization_entitlements`
+   is a separate bootstrap/materialization operation (writes rows, licensed or not, for every
+   catalog module for a brand-new organization) -- not decomposable into per-module `ModuleLicensed`
+   facts. A previously-undocumented fourth, currently-silent producer was found:
+   `ModuleCatalogContextMixin._ensure_context_defaults` lazily seeds default entitlement rows on
+   first read for an organization with none yet -- no domain event, no `modules_changed` emit, no
+   audit entry today; out of scope for P5B-SEM's command design but flagged for P5B-1's audit review.
+   See `platform_domain_event_implementation_plan.md`'s P5B-SEM section for the full recommended
+   command/event model and phased implementation sequence (P5B-1/P5B-2/P5B-3).
 5. **The `platform/access` vs. `platform/domain/security/authorization` package-ownership
    question** (already flagged as open in ADR-005 itself) still needs resolving before deciding
    which package owns `ScopeAccessGranted`/`Revoked`'s domain module.

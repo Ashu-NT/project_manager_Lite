@@ -881,6 +881,232 @@ documents, access, modules, approval all still solely on legacy signals). The le
 framework (`domain_events`) is not retired -- `organizations_changed` remains live for
 update/activation and every other still-legacy signal.
 
+## P5B — Module Entitlement Transaction/Scope Convergence (prerequisite complete; event implementation blocked)
+
+**Status:** transaction/scope convergence prerequisite complete and tested. Typed event
+implementation (`ModuleLicensed`/`ModuleEnabled`/`ModuleDisabled`) deliberately NOT started --
+blocked on a confirmed event-vocabulary mismatch requiring a business-owner decision (see below).
+
+**Prerequisite gate findings (before any event code was considered):**
+
+- **Ambient-scope bug, confirmed and fixed.** The pre-P5B `set_module_state` wrote through
+  `ModuleCatalogService`'s repo `upsert()` -> `upsert_for_organization()` ->
+  `TenantScopedRepositorySupport._require_organization_scope()`, which hard-required
+  `organization_id == ctx.organization_id` (the currently active organization). Targeting a
+  non-active organization was not merely "ambient by default" -- it was structurally
+  impossible through the old public API. Fixed by adding
+  `ModuleEntitlementRepository.get_for_organization_in_tenant(...)` and rewriting
+  `set_module_state(organization_id, module_code, ...)` to take an explicit, required
+  `organization_id` targeting any organization within the caller's own authenticated tenant --
+  never derived from `UserSessionContext`/`TenantContextService`.
+  `PlatformRuntimeApplicationService.set_module_state` now resolves the active organization
+  itself and passes its id explicitly; it no longer relies on ambient resolution inside the
+  catalog service.
+- **Second, independent audit-atomicity bug, confirmed and fixed** (same pattern as
+  Organization's pre-existing `update_organization` bug found during P4B). The audit entry was
+  written via a separate `record_audit_entry(..., commit=True)` call *after* the entitlement
+  write's own commit -- never atomic; a crash between the two calls left an unaudited mutation.
+  Fixed by staging the audit entry with `commit=False` inside the same fresh
+  `ModuleEntitlementUnitOfWork` before its single `uow.commit()`.
+- **Transaction ownership converged onto a canonical UoW.** New narrow
+  `ModuleEntitlementUnitOfWork`/Factory (`src/core/platform/contract/persistence/module_entitlement_unit_of_work.py`,
+  `src/core/platform/infrastructure/persistence/module_entitlement_unit_of_work.py`) mirrors
+  `SqlAlchemyOrganizationUnitOfWork`'s exact pattern; wired in `platform_registry.py` onto the
+  same shared `platform_transactional_dispatcher`/`platform_post_commit_bus` triple as
+  Organization/Approval/Provisioning. `set_module_state` now opens a fresh session per call via
+  this factory, never touching the legacy process-lifetime `Session`. No leftover
+  `commit: bool` switch was found on `set_module_state` itself (it never had one);
+  `provision_organization_entitlements`'s own `commit: bool` was left untouched -- out of scope,
+  a separate provisioning-time operation with its own caller contract, not part of this
+  convergence.
+- **Event-vocabulary mismatch, confirmed -- the reason event implementation is blocked.**
+  `set_module_state`'s real state model is three independent fields
+  (`licensed`/`enabled`/`lifecycle_status`, the last a 5-value enum:
+  inactive/active/trial/suspended/expired) all changeable in one call, plus a real, reachable UI
+  action (`toggle_module_license`) that flips `licensed` in either direction through the
+  identical control. The proposed 3-name vocabulary
+  (`ModuleLicensed`/`ModuleEnabled`/`ModuleDisabled`) has no event name for license *revocation*,
+  and no event name at all for `lifecycle_status` transitions (active->suspended,
+  active->trial, active->expired). Whether a revocation that cascades into forcing
+  `enabled=False`/`lifecycle_status=inactive` is one compound business fact or up to three
+  separate ones is a business-owner decision, not an engineering guess -- matching the same kind
+  of open question already flagged, and left open, for `OrganizationActivated`'s
+  sibling-deactivation case in P5A's own discovery pass. Recorded in
+  `platform_p5_event_discovery.md` §17 item #4's resolution note.
+
+**What was NOT implemented, by design:** no `ModuleLicensed`/`ModuleEnabled`/`ModuleDisabled`
+DomainEvent type; no `uow.record_event(...)` call anywhere in the Module Entitlement capability;
+no ViewInvalidation producer/adapter for modules; the legacy `modules_changed` signal remains the
+sole notification path for module-entitlement changes, unchanged. A dedicated architecture-guard
+test (`test_module_entitlement_prerequisite_does_not_add_event_vocabulary`) enforces this
+boundary by source inspection.
+
+**Explicit non-goals:** Access/RBAC (P5C), Tenant Membership (P5D), Approval events; the
+Organization slice (untouched); any other Platform capability's Qt consumers.
+
+**Rollback/recovery:** the new `ModuleEntitlementUnitOfWork` and `get_for_organization_in_tenant`
+addition are additive; the `set_module_state` signature change (explicit, required
+`organization_id`) is the only breaking change, confined to its ~13 known call sites, all
+updated.
+
+## P5B-SEM — Module Entitlement Business Transition Design (design only, not implemented)
+
+**Status:** design/investigation complete. No production code or tests changed in this pass. No
+`DomainEvent` classes, no `ViewInvalidation`, no Qt migration, no P5C.
+
+**Domain model finding:** `ModuleEntitlement` (`domain/tenant/modules/module_entitlement.py`) is a
+plain frozen dataclass/read projection with no transition methods (`license()`/`enable()`/etc.
+do not exist) -- it does not currently own its own invariants. Every state-machine rule
+(license-before-enable, lifecycle-forces-enablement, planned-module blocking) lives in
+`_set_module_state_using`, an application-layer function, not the aggregate.
+
+**Real business commands** (identified from the three real presenter methods in
+`settings_catalog_presenter.py`, never from field names):
+
+| Command | Presenter entry point | Fields touched | Cascade | Requires |
+|---|---|---|---|---|
+| `LICENSE_MODULE` / `REVOKE_MODULE_LICENSE` | `toggle_module_license` (one bidirectional toggle) | `licensed` | Revoke forces `enabled=False`, `lifecycle_status=inactive`; grant always lands on `inactive->active` (never enables) | not planned |
+| `ENABLE_MODULE` / `DISABLE_MODULE` | `toggle_module_enabled` | `enabled` | none | licensed; lifecycle not in {suspended, expired} |
+| `TRANSITION_MODULE_LIFECYCLE` | `change_module_lifecycle_status` (dropdown: active/trial/suspended/expired -- `inactive` is never user-selectable, only reached via revocation) | `lifecycle_status` | Moving into suspended/expired forces `enabled=False` | licensed |
+
+No real caller ever combines more than one dimension in a single call, even though the
+underlying `set_module_state`/desktop-API `patch_module_state` signature is generic across all
+three. The genericity is plumbing, not actual usage.
+
+**Provisioning is a separate bootstrap fact, not N licensing facts:**
+`provision_organization_entitlements` (single caller: `provision_organization`) bulk-materializes
+entitlement rows for every catalog module on a brand-new organization -- most left
+unlicensed/inactive by default. This is "default entitlements materialized for a new
+organization," not decomposable into per-module `ModuleLicensed` events.
+
+**Previously-undocumented fourth producer found (silent, out of scope for this design):**
+`ModuleCatalogContextMixin._ensure_context_defaults` lazily seeds default entitlement rows on
+first read for an organization with none yet -- no event, no `modules_changed` emit, no audit
+entry today. Flagged for the P5B-1 audit-vocabulary review, not resolved here.
+
+**Scope finding:** all three fields (`licensed`/`enabled`/`lifecycle_status`) are stored per
+`(tenant_id, organization_id, module_code)` -- confirmed from the `organization_module_entitlements`
+schema. No tenant-vs-organization split is needed; every event is `OrganizationScope(tenant_id,
+organization_id)`, matching the original discovery assumption.
+
+**Audit/permission evidence:** both `set_module_state` and `provision_organization_entitlements`
+enforce the same single permission (`settings.manage`) and write the same generic audit action
+name (`module.entitlement.update` / `organization.modules.provision`) regardless of which
+dimension changed -- weak evidence on its own, but consistent with (not contradicting) the
+three-command model derived from the UI layer.
+
+**Recommended target command API** (`ModuleEntitlementService`, replacing the generic
+`set_module_state` as the public mutation surface -- pre-release, no compatibility shim kept):
+
+- `license_module(organization_id, module_code)`
+- `revoke_module_license(organization_id, module_code)`
+- `enable_module(organization_id, module_code)`
+- `disable_module(organization_id, module_code)`
+- `transition_module_lifecycle(organization_id, module_code, lifecycle_status)`
+
+Each validates its own preconditions explicitly (no shared generic patch-and-infer-what-changed
+path) and returns the updated `ModuleEntitlement` projection. `provision_organization_entitlements`
+keeps its own, separate bootstrap-shaped signature -- not folded into this command set.
+
+**Aggregate vs. service ownership:** recommend keeping recording at the application/service layer
+(`uow.record_event(...)` from inside each new command method), not moving to aggregate-recorded
+events. `ModuleEntitlement` would need to become a real aggregate with its own `license()`/
+`enable()`/etc. methods to record events itself, which is a larger, separately-scoped refactor
+that P5B-SEM's task boundaries explicitly exclude; the five-command service split already makes
+each transition unambiguous without it.
+
+**Recommended event vocabulary (5 events, Strategy A -- semantic transition events, not one
+generic `ModuleEntitlementTransitioned`):**
+
+| Event | Meaning | Trigger | Fields | Provisioning emits it? |
+|---|---|---|---|---|
+| `ModuleLicensed` | module licensed for an organization | `license_module` | `tenant_id`, `organization_id`, `module_code`, `occurred_at` | No |
+| `ModuleLicenseRevoked` | module license revoked (also ends enablement/lifecycle -- one compound fact) | `revoke_module_license` | same | No |
+| `ModuleEnabled` | module runtime-activated | `enable_module` | same | No |
+| `ModuleDisabled` | module runtime-deactivated (explicit command only -- see below) | `disable_module` | same | No |
+| `ModuleLifecycleTransitioned` | lifecycle moved to a new status | `transition_module_lifecycle` | same + `lifecycle_status` | No |
+
+**Rejected candidates:** `ModuleUnlicensed` (grant/revoke terminology fits a SaaS entitlement
+model better than a bare negation); one event per persisted field
+(`LicensedChanged`/`EnabledChanged`/`LifecycleStatusChanged` -- rejected per this pass's own
+"business facts, not field patches" constraint); one generic `ModuleEntitlementTransitioned`
+carrying before/after state (rejected -- pushes interpretation onto every consumer and
+reintroduces `ModuleChanged` under a new name); per-module `ModuleLicensed` events fired from
+provisioning (rejected -- provisioning is a bootstrap fact, not N licensing facts).
+
+**Cascade → event count decision:** a suspend/expire lifecycle transition that internally forces
+`enabled=False` emits only `ModuleLifecycleTransitioned` -- never also `ModuleDisabled` -- because
+the enablement change is an implementation consequence of the one lifecycle command, not an
+independent business action (mirrors this same pass's own §9 example). Symmetrically, revoking a
+license emits only `ModuleLicenseRevoked`, never also `ModuleDisabled`/a lifecycle event.
+
+**ViewInvalidation / Qt implications (not implemented, recorded for P5B-3):** discovery's
+existing matrix already names three real consumers of `modules_changed` -- settings, control, and
+access workspace controllers, all currently full-refreshing. All five recommended events map to
+the same `OrganizationScope(tenant_id, organization_id)` / `module_entitlement` category; a single
+shared handler can normalize all five into one `ViewInvalidationHint`, since all three current
+consumers react identically today regardless of which sub-fact changed.
+
+**Recommended implementation sequence:**
+
+- **P5B-1** — replace `set_module_state` with the five explicit command methods on
+  `ModuleEntitlementService` (no `DomainEvent`s yet); update the ~13 existing call sites and the
+  three presenter methods; resolve the silent fourth-producer audit gap found above. → review.
+- **P5B-2** — add the 5 `DomainEvent`s at the now-unambiguous command boundaries, recorded via
+  `uow.record_event(...)`. → review.
+- **P5B-3** — map to `ViewInvalidationHint`/`OrganizationScope` and migrate the three real Qt
+  consumers directly (pre-release direct convergence, no bridge), per the same policy already
+  applied to Organization in P5A/P6A. → review.
+
+**Explicit non-goals:** no `DomainEvent` classes added; no `ViewInvalidation`; no Qt consumer
+migration; no change to `provision_organization_entitlements`'s own signature or the silent
+fourth producer's behavior; P5C not started; no commits.
+
+### P5B-1 — Module Entitlement Semantic Command Model (implemented)
+
+**Status:** implemented, reviewed. The generic `set_module_state(licensed=..., enabled=...,
+lifecycle_status=...)` mutation API is retired -- direct pre-release convergence, no compatibility
+wrapper kept.
+
+**Command API** (`ModuleCatalogMutationMixin`, `src/core/platform/application/tenant/modules/module_catalog_mutation.py`):
+`license_module`, `revoke_module_license`, `enable_module`, `disable_module`,
+`transition_module_lifecycle` -- each requires an explicit `organization_id` (unchanged from the
+P5B prerequisite pass), enforces its own preconditions, and shares one private transaction/audit
+helper (`_run_module_transition`/`_apply_module_transition_using`) that opens exactly one fresh
+`ModuleEntitlementUnitOfWork`, applies one pure transition function, stages the audit entry in the
+same Session, and commits once. `PlatformRuntimeApplicationService` and
+`PlatformRuntimeDesktopApi` grew matching five-method surfaces (resolving/forwarding the active
+organization respectively); `ModuleStatePatchCommand` is deleted. The settings-workspace
+presenter's three UI actions (`toggle_module_license`/`toggle_module_enabled`/
+`change_module_lifecycle_status`) now route to the matching semantic call directly -- no QML
+change was needed, since QML already called presenter/controller intentions, not raw state.
+
+**Idempotency:** each command always persists (preserving the legacy-storage-code normalization,
+e.g. `payroll` -> `hr_management`, that any real mutation call performs), but a value-for-value
+no-op (e.g. enabling an already-enabled module) never changes the resulting business state --
+`license_module` on an already-licensed module explicitly preserves the current
+`lifecycle_status`/`enabled` (never resets a trial back to `active`).
+
+**Naming decision:** kept `ModuleLicensed`/`ModuleEnabled`/`ModuleDisabled` for the eventual P5B-2
+vocabulary rather than switching to `ModuleLicenseGranted` -- the command method is named
+`license_module` (not `grant_module_license`), and "license"/"revoke" already reads clearly as a
+grant/revoke pair without needing the extra word; `ModuleLicenseRevoked` stays as originally
+proposed since a bare `ModuleUnlicensed` reads less clearly than its counterpart.
+
+**Remaining debt (explicitly not resolved in P5B-1):** `ModuleCatalogContextMixin._ensure_context_defaults`
+still silently seeds default entitlement rows on first read for an organization with none yet, with
+no audit entry and no signal -- flagged, not fixed, since resolving it is unrelated to the command
+API refactor and was never in scope.
+
+**Exit criteria met:** all five commands implemented and unit-tested against the full state
+machine (grant/revoke, enable/disable, all four user-selectable lifecycle targets, rejected
+`inactive` target, idempotency, non-active-organization scope, UoW/audit atomicity, commit-failure
+rollback); zero `DomainEvent`/`record_event(` occurrences in the Module Entitlement capability
+(enforced by an updated architecture guard test); architecture guardrail suite (13 failed/160
+passed), full Platform suite (13 failed/12 errors/912 passed), and PM/Inventory suite (14
+failed/1481 passed) all show the same pre-existing failure identities as the established baseline
+-- no new regression.
+
 ## P6 — Qt Invalidation Adapter Consolidation
 
 **Goal:** build the one shared Qt adapter, and migrate the three existing controller bases to

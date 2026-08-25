@@ -18,12 +18,8 @@ def _suffix() -> str:
 
 def _enable_inventory_module(services) -> None:
     active_org = services["organization_service"].get_active_organization()
-    services["module_catalog_service"].set_module_state(
-        active_org.id,
-        "inventory_procurement",
-        licensed=True,
-        enabled=True,
-    )
+    services["module_catalog_service"].license_module(active_org.id, "inventory_procurement")
+    services["module_catalog_service"].enable_module(active_org.id, "inventory_procurement")
 
 
 def _create_inventory_context(services):
