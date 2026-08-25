@@ -530,6 +530,26 @@ the legacy mechanism until their own event slice (not part of P5A) is proposed.
    which package owns `ScopeAccessGranted`/`Revoked`'s domain module.
 6. **Whether `DocumentLinked`/`DocumentUnlinked` (Class B) ever gets promoted to Class A** depends
    on a future, currently-nonexistent consumer — not a blocker, just explicitly deferred.
+7. **`assign_scope_grant`/`remove_scope_grant`'s ambient-tenant/missing-organization
+   scope-derivation bug (referenced above and in §7's producer table) — status update.**
+   **Resolved (2026-08-25, P5C prerequisite pass): fixed for storeroom** by changing
+   `_storeroom_exists` (`inventory_registry.py`) to compare the storeroom's own organization
+   against `organization_repo.get_for_tenant(...)` rather than the ambient active organization.
+   **REOPENED and CORRECTLY resolved (2026-08-25, P5C-1):** the prerequisite fix was incomplete
+   -- `_storeroom_exists`'s first line, `StoreroomRepository.get(storeroom_id)`, was itself
+   unconditionally filtered to the ambient active organization (a repository-level filter, one
+   layer beneath the resolver's own comparison logic the prerequisite pass fixed), and the
+   prerequisite's own regression test was a false negative (it flipped the DB `Organization
+   .is_active` flag, not the session-level active organization `require_active_scope_ids()`
+   actually reads, so it never exercised the real bug). P5C-1 closed this properly by adding a
+   genuinely tenant-scoped (non-active-org) `get_for_tenant()` read to `StoreroomRepository`
+   (and, since the same defect class was found to also affect `project` and `site`, to
+   `ProjectRepository`/`SiteRepository` as well) and rewriting the regression test to
+   manipulate the real session-level active organization. See
+   `platform_domain_event_implementation_plan.md`'s P5C-1 section for the full resource-resolver
+   audit table (organization/project/site/storeroom/department). The event-vocabulary
+   payload-enrichment prerequisite (`user_id`, `scope_type`, `role_name`) referenced above remains
+   outstanding, deferred to P5C-2.
 
 No factual contradiction was found in ADR-005/the Execution Plan/the Implementation Plan requiring
 a correction, **except one**: the Execution Plan's Phase 2B discovery table stated `access_changed`

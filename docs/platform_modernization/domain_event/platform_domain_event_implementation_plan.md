@@ -1263,6 +1263,130 @@ same pre-existing failure identities as the established baseline -- no new regre
 
 **Explicit non-goals:** P5C not started. Organization slice untouched.
 
+## P5C — Access/RBAC Transaction & Scope Convergence
+
+### P5C Prerequisite / Discovery Audit (complete)
+
+Access-security-sensitive, so P5C began with an investigation-only pass before any event
+vocabulary was proposed. Key findings:
+
+- **Access and RBAC are ONE persistence/business-fact capability, not two.**
+  `AccessControlService.assign_scope_grant`/`remove_scope_grant` (canonical scope types
+  `project`/`site`/`storeroom`) are thin facades that delegate entirely to
+  `RoleGovernanceService.assign_role`/`revoke_role_binding` -- there is no separate
+  `ScopedAccessGrant` persistence table; it is a read/write DTO facade over the canonical
+  `RoleBinding` model.
+- **Future assignment event vocabulary decided:** `RoleBindingAssigned`/`RoleBindingRevoked`
+  (not implemented until P5C-2).
+- **Confirmed ambient-organization bug in the storeroom scope resolver:** `_storeroom_exists`
+  (`inventory_registry.py`) compared `storeroom.organization_id` against the CURRENTLY ACTIVE
+  organization, making it structurally impossible to grant/revoke storeroom-scoped access for a
+  storeroom in any non-active organization within the caller's own tenant. A narrow fix was
+  applied at the time (`organization_repo.get_for_tenant(storeroom.organization_id, tenant_id)`
+  instead of an ambient comparison) and validated by a new regression test.
+- Custom-role *definition* CRUD (`TenantRoleAdministrationService`) is a separate, unrelated
+  capability, explicitly out of scope for P5C.
+
+**Outcome:** P5C PREREQUISITE COMPLETE — DESIGN DECISION REQUIRED. P5C-1 (below) was scoped as
+transaction/scope convergence only, deferring the event vocabulary to P5C-2.
+
+### P5C-1 — Role Governance Transaction & Scope Convergence (implemented)
+
+**Status:** implemented, reviewed. `RoleGovernanceService`'s four mutation methods
+(`assign_role`/`revoke_role_binding`/`create_delegation_policy`/`revoke_delegation_policy`) cut
+over from the shared process-lifetime `Session` and inline `commit()`/`rollback()` onto a
+canonical `RoleGovernanceUnitOfWork` -- one fresh `Session` per call, matching the established
+`OrganizationUnitOfWork`/`ModuleEntitlementUnitOfWork`/`PlatformProvisioningUnitOfWork` pattern.
+No `RoleBindingAssigned`/`RoleBindingRevoked` events, no ViewInvalidation, no Qt migration, no
+`access_changed`/`auth_changed` removal -- all explicitly deferred to P5C-2/P5C-3.
+
+**Scope resolution model:** a new closed union, `ResolvedRoleBindingScope`
+(`PlatformBindingScope`/`TenantBindingScope`/`ResourceBindingScope`), resolved INSIDE the
+transaction before commit -- `organization_id=None` is never used as a magic "tenant-wide"
+signal; `ResourceBindingScope.organization_id` is `None` only when the resource genuinely has no
+organization owner.
+
+**REOPENED FINDING — the P5C prerequisite's storeroom fix was incomplete (discovered and closed
+during P5C-1):** the prerequisite fix corrected `_storeroom_exists`'s own comparison logic, but
+its FIRST line, `storeroom_repo.get(storeroom_id)`, itself unconditionally filters to the
+ambient active organization (`TenantScopedRepositorySupport._apply_scope`, via
+`require_active_scope_ids()` reading the SESSION-level active organization) -- so for a
+storeroom in a non-active organization, that read still returned `None` before the "fixed"
+comparison logic was ever reached. The prerequisite's own regression test
+(`test_storeroom_scope_grant_targets_a_non_active_organization`) was a **false negative**: it
+only flipped `Organization.is_active` in the database (via
+`create_organization(is_active=True)`), a completely different mechanism from the
+SESSION-level active organization (`tenant_context_service`/`user_session
+.active_organization_id()`) that `require_active_scope_ids()` actually reads -- the ambient
+session org never moved off the original organization, so the test never exercised the bug it
+claimed to prove fixed.
+
+**Resource-resolver audit (repository call chain, traced to the actual filter, not just the
+resolver function):**
+
+| Scope type | `scope_exists_resolver` registered? | Underlying repository read | Ambient-org-scoped? | Organization ownership | Fixed in P5C-1 |
+|---|---|---|---|---|---|
+| `organization` | Yes (`platform_registry.py`, at `RoleGovernanceService` construction) | `OrganizationRepository.get_for_tenant()` | No (never was -- an organization cannot be scoped to itself) | Identity (`organization_id` == the resource id) | N/A, already correct |
+| `project` | Yes (`project_registry.py`) | Was `ProjectRepository.get()` (ambient); now `ProjectRepository.get_for_tenant()` (new, tenant-scoped only) | Was YES, now NO | `Project.organization_id` (optional in the domain model -- some projects genuinely have none) | **Yes** |
+| `site` | Yes (`platform_registry.py`, at `RoleGovernanceService` construction -- a registration the P5C prerequisite pass's own resolver inventory missed entirely, since it only grepped for `register_scope_exists_resolver(...)` calls) | Was `SiteRepository.get()` (ambient); now `SiteRepository.get_for_tenant()` (new, tenant-scoped only) | Was YES, now NO | `Site.organization_id` (required) | **Yes** |
+| `storeroom` | Yes (`inventory_registry.py`) | Was `StoreroomRepository.get()` (ambient, the reopened finding); now `StoreroomRepository.get_for_tenant()` (new, tenant-scoped only) | Was YES, now NO | `Storeroom.organization_id` (required) | **Yes** |
+| `department` | **No** -- not registered anywhere in composition | `DepartmentRepository.get()` is ALSO ambient-org-scoped, but this is moot | Unreachable regardless | `Department.organization_id` (required) | Not fixed -- enabling a brand-new resource scope from scratch (a `ScopedRolePolicy`, role choices, a catalog role, a delegation-namespace convention) is a materially larger feature addition than closing an existing resolver's ambient-scope defect, and stays out of P5C-1's boundary. Documented, not implemented. |
+
+**Fix mechanics:** each of `ProjectRepository`/`SiteRepository`/`StoreroomRepository` gained a
+new `get_for_tenant(resource_id, tenant_id)` method (contract + implementation), mirroring
+`OrganizationRepository.get_for_tenant`'s existing shape -- a plain tenant-id filter, never the
+ambient active organization. `RoleGovernanceService`'s own `ScopeExistsResolver`/
+`OrganizationOwnerResolver` callables were additionally changed to take the calling
+`RoleGovernanceUnitOfWork`'s own `Session` as their first argument (`RoleGovernanceUnitOfWork`
+now exposes `session` as a capability-specific typed accessor, per ADR-005 §9's guidance that
+the shared `UnitOfWork` Protocol itself stays session-free) -- composition constructs a fresh,
+capability-appropriate repository bound to that Session per call, so the resource-scope
+existence/ownership check reads within the SAME transaction as the binding mutation and audit
+entry it gates, never a separate legacy Session. `AccessControlService`'s own (separate,
+non-transactional) pre-flight `_assert_scope_exists` check and `AuthService`'s effective-
+permissions resolver keep the older `(tenant_id, scope_id) -> bool` signature, now backed by the
+same fixed `get_for_tenant` reads for correctness, without adopting the session parameter (out
+of scope -- `AuthService`'s `CanonicalRoleResolver` is a read-time, non-transactional
+effective-permissions computation, not audited further in this pass).
+
+**Organization-ownership resolvers registered:** `organization` (identity), `project`, `site`,
+`storeroom` -- all now resolve a RESOURCE-scoped binding's authoritative `organization_id`
+inside the transaction, so a future P5C-2 event never needs a post-commit re-query. `department`
+has none (unreachable).
+
+**Session-refresh characterization:** `RoleGovernanceService.assign_role`/`revoke_role_binding`
+themselves never call `refresh_current_session_if_user` -- that is deliberately the calling
+facade's responsibility (`role_assignment_service.py`'s legacy tenant-role functions,
+`AccessControlService`). The already-established fail-closed mechanism
+(`refresh_current_session_if_user` clearing the session if rebuilding the principal fails after
+a successful commit) needed no redesign; `AccessControlService`'s own weaker, non-fail-closed
+duplicate was fixed to delegate to the canonical helper.
+
+**Retained legacy duplication (documented, not resolved):** going through the Access facade
+fires both `auth_changed` (from `RoleGovernanceService`) and `access_changed` (from
+`AccessControlService`) for the same underlying mutation, while the legacy tenant-role facade
+fires only `auth_changed`. Left for P5C-3.
+
+**Test coverage:** `test_role_governance_unit_of_work_cutover.py` (fresh-session-per-mutation,
+shared-UoW-session repository/audit, no global-Session touch, commit-failure rollback with zero
+legacy notification, non-active-organization success for storeroom/project/site/organization,
+cross-tenant storeroom rejection, department's confirmed non-reachability, self-assignment
+session-refresh ordering, fail-closed refresh-failure characterization, facade non-transaction-
+ownership, architecture guards for no inline commit/rollback and no P5C-2 event vocabulary) plus
+a corrected `test_storeroom_scope_grant_targets_a_non_active_organization` (now manipulating the
+real session-level active organization, with an added inverse-direction test) in
+`test_platform_access_scopes.py`.
+
+**Regression:** architecture suite, full Platform suite (`src/tests/platform`), and PM/Inventory
+suites all run against a single stable HEAD (no concurrent-commit drift observed); failures
+present are the same pre-existing/unrelated identities already tracked before this phase (the
+two `Site` domain-validator datetime-comparison failures were independently confirmed present in
+the very first commit of this working session, unrelated to any P5C-1 change).
+
+**Explicit non-goals:** `RoleBindingAssigned`/`RoleBindingRevoked` events (P5C-2), ViewInvalidation
+and Qt migration (P5C-3), `access_changed`/`auth_changed` removal, custom-role CRUD, Tenant
+Membership (P5D), and enabling `department` as a new role-assignment scope.
+
 ## P6 — Qt Invalidation Adapter Consolidation
 
 **Goal:** build the one shared Qt adapter, and migrate the three existing controller bases to
