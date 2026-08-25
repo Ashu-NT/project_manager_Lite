@@ -13,7 +13,6 @@ from __future__ import annotations
 import inspect
 
 import pytest
-from sqlalchemy import text
 
 from src.core.platform.application.master_data.org import organization_service as organization_service_module
 from src.core.platform.application.master_data.org.organization_service import OrganizationService
@@ -244,36 +243,29 @@ def test_set_active_organization_default_mode_uses_a_fresh_uow(services, monkeyp
     assert organization_service.get_active_organization().id == organization.id
 
 
-def test_set_active_organization_caller_owned_mode_still_uses_the_shared_session_unchanged(
-    services,
-):
-    """The documented, still-valid exception (P4B, mirrors ADR-005 Section 24 Round 8's
-    `request_change(commit=False)` precedent): `PlatformRuntimeService.provision_organization`
-    must see byte-for-byte unchanged behavior -- staged on the shared session, never a fresh
-    UoW, so it can fold activation into its own outer transaction."""
+def test_create_and_activate_organization_no_longer_accept_a_commit_argument(services):
+    """P4C removes the grandfathered `commit=False` transaction switch from both methods --
+    `provision_organization` now expresses its own transaction participation structurally via
+    `_create_organization_using`/`_activate_organization_using` and a `PlatformProvisioningUnitOfWork`,
+    never a boolean. Structural proof, not just a grep: the public methods genuinely reject it."""
     organization_service = services["organization_service"]
-    session = services["session"]
     organization = organization_service.create_organization(
-        organization_code=_unique_code("CALLEROWNED"), display_name="Caller Owned Org", is_active=False
+        organization_code=_unique_code("NOCOMMITARG"), display_name="No Commit Arg Org"
     )
-
-    candidate = organization_service.set_active_organization(organization.id, commit=False)
-
-    assert candidate.is_active is True
-    assert session.in_transaction()
-    # Not yet durable via a fresh, independent read -- only flushed on the shared session.
-    session.rollback()
-    reloaded = organization_service._organization_repo.get(organization.id)
-    assert reloaded.is_active is False
+    with pytest.raises(TypeError):
+        organization_service.create_organization(
+            organization_code=_unique_code("NOCOMMITARG2"), display_name="x", commit=False
+        )
+    with pytest.raises(TypeError):
+        organization_service.set_active_organization(organization.id, commit=False)
 
 
 def test_provision_organization_still_commits_organization_and_entitlements_atomically(services):
     """Real regression for the one genuine caller-owned case: `provision_organization` composes
-    `create_organization(commit=False)` + module entitlement provisioning +
-    `set_active_organization(commit=False)` into one outer transaction. Must be unaffected by
-    the fresh-UoW cutover of the default, commit=True mode."""
+    Organization creation, module entitlement provisioning, and (optionally) activation into one
+    `PlatformProvisioningUnitOfWork` transaction (P4C) -- structurally, not via `commit=False`.
+    Must remain atomic and externally unaffected by the P4B/P4C cutovers."""
     app_service = services["platform_runtime_application_service"]
-    module_catalog = services["module_catalog_service"]
 
     created = app_service.provision_organization(
         organization_code=_unique_code("PROVISION"),

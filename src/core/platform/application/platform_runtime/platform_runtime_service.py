@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from src.core.platform.api.desktop_runtime.service_resolver import (
     ModuleRuntimeSnapshot,
@@ -10,10 +10,16 @@ from src.core.platform.api.desktop_runtime.service_resolver import (
 )
 from src.core.platform.application.tenant.modules import ModuleCatalogService
 from src.core.platform.application.security.authorization.enforcement.permission_checks import require_permission
+from src.core.platform.common.exceptions import ValidationError
+from src.core.platform.common.ids import generate_id
+from src.core.platform.contract.persistence.platform_provisioning_unit_of_work import (
+    PlatformProvisioningUnitOfWorkFactory,
+)
 from src.core.platform.domain.security.auth.session import UserSessionContext
 from src.core.platform.application.master_data.org.organization_service import OrganizationService
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.application.tenant.tenancy import TenantContextService
+from src.core.shared.events.domain_event_context import DomainEventContext
 from src.core.shared.events.domain_events import domain_events
 
 
@@ -37,13 +43,13 @@ class PlatformRuntimeApplicationService:
         organization_service: OrganizationService | None = None,
         tenant_context_service: TenantContextService | None = None,
         user_session: UserSessionContext | None = None,
-        session: Session | None = None,
+        provisioning_uow_factory: PlatformProvisioningUnitOfWorkFactory | None = None,
     ) -> None:
         self._module_catalog_service = module_catalog_service
         self._organization_service = organization_service
         self._tenant_context_service = tenant_context_service
         self._user_session = user_session
-        self._session = session
+        self._provisioning_uow_factory = provisioning_uow_factory
 
     @property
     def module_catalog_service(self) -> ModuleCatalogService:
@@ -204,8 +210,26 @@ class PlatformRuntimeApplicationService:
     ) -> Organization:
         if self._organization_service is None:
             raise RuntimeError("Organization service is not configured.")
-        if self._session is None:
-            raise RuntimeError("Session is not configured.")
+        if self._provisioning_uow_factory is None:
+            raise RuntimeError("Provisioning UnitOfWork factory is not configured.")
+
+        # P4C (Platform Runtime Organization Provisioning Transaction Convergence): organization
+        # creation, module entitlement provisioning, and (if requested) activation now all
+        # participate in ONE fresh `PlatformProvisioningUnitOfWork` -- never the shared,
+        # process-lifetime Session, and never a nested UnitOfWork inside `OrganizationService`.
+        # `create_organization()`/`set_active_organization()` are not called here (each opens its
+        # OWN fresh `OrganizationUnitOfWork`, which would split this transaction in two); instead
+        # this method calls the same shared, transaction-agnostic business operations those
+        # methods themselves call (`_create_organization_using`/`_activate_organization_using`),
+        # passing this provisioning UnitOfWork's own repository/audit-owner -- one implementation
+        # of each business rule, two different transaction owners (ADR-005 Section 9/24's "one
+        # business operation, one transaction owner" principle, applied to provisioning).
+        require_permission(self._user_session, "settings.manage", operation_label="provision organization")
+        tenant_id = self._organization_service.require_current_tenant_id(
+            operation_label="provision organization"
+        )
+        if is_active:
+            self._require_settings_manage("set active organization context")
 
         selected_module_codes = (
             set(initial_module_codes)
@@ -216,29 +240,55 @@ class PlatformRuntimeApplicationService:
                 if module.default_enabled and module.stage != "planned"
             }
         )
-        # Stage every write with commit=False so the organization row, its
-        # module entitlements, and (if requested) its activation all commit
-        # in one transaction, together with their audit entries (ADR-003).
-        organization = self._organization_service.create_organization(
-            organization_code=organization_code,
-            display_name=display_name,
-            timezone_name=timezone_name,
-            base_currency=base_currency,
-            is_active=False,
-            commit=False,
-        )
-        self._module_catalog_service.provision_organization_entitlements(
-            organization.id,
-            licensed_module_codes=selected_module_codes,
-            enabled_module_codes=selected_module_codes,
-            commit=False,
-        )
-        if is_active:
-            self._require_settings_manage("set active organization context")
-            organization = self._organization_service.set_active_organization(
-                organization.id, commit=False
-            )
-        self._session.commit()
+
+        context = DomainEventContext(correlation_id=generate_id())
+        with self._provisioning_uow_factory.create(context=context) as uow:
+            try:
+                organization = self._organization_service._create_organization_using(
+                    uow.organizations,
+                    uow,
+                    organization_code=organization_code,
+                    display_name=display_name,
+                    timezone_name=timezone_name,
+                    base_currency=base_currency,
+                    is_active=False,
+                    tenant_id=tenant_id,
+                )
+                # A throwaway `ModuleCatalogService` instance bound to this provisioning UoW's own
+                # fresh Session -- reuses `provision_organization_entitlements`'s existing,
+                # unmodified business logic (module catalog metadata is read-only ambient data,
+                # safely shared from the long-lived instance) without duplicating it, mirroring
+                # the same "fresh instance of the same service class" pattern used for the 8
+                # approval-backed PM/Inventory services (P4-PRE Step 1). Never touches the
+                # long-lived `module_catalog_service`'s own in-memory
+                # licensed/enabled-module-code state -- that instance is untouched by this call.
+                provisioning_module_catalog_service = ModuleCatalogService(
+                    modules=self._module_catalog_service.list_modules(),
+                    enabled_codes=None,
+                    licensed_codes=None,
+                    platform_capabilities=self._module_catalog_service.list_platform_capabilities(),
+                    entitlement_repo=uow.entitlements,
+                    session=uow._session,
+                    user_session=self._user_session,
+                    enterprise_audit_service=uow._enterprise_audit_service,
+                )
+                provisioning_module_catalog_service.provision_organization_entitlements(
+                    organization.id,
+                    licensed_module_codes=selected_module_codes,
+                    enabled_module_codes=selected_module_codes,
+                    commit=False,
+                )
+                if is_active:
+                    organization = self._organization_service._activate_organization_using(
+                        uow.organizations, uow, organization_id=organization.id, tenant_id=tenant_id
+                    )
+                uow.commit()
+            except IntegrityError as exc:
+                raise ValidationError(
+                    "Organization code already exists.", code="ORGANIZATION_CODE_EXISTS"
+                ) from exc
+        # Runtime context change follows commit, never precedes or survives a rolled-back
+        # provisioning transaction.
         domain_events.organizations_changed.emit(organization.id)
         if is_active:
             if self._tenant_context_service is None:

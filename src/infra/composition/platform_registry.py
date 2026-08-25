@@ -47,6 +47,9 @@ from src.core.platform.application.master_data.org.organization_service import O
 from src.core.platform.infrastructure.persistence.organization_unit_of_work import (
     SqlAlchemyOrganizationUnitOfWorkFactory,
 )
+from src.core.platform.infrastructure.persistence.platform_provisioning_unit_of_work import (
+    SqlAlchemyPlatformProvisioningUnitOfWorkFactory,
+)
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.application.master_data.site.site_service import SiteService
@@ -495,12 +498,24 @@ def build_platform_service_bundle(
         "Platform module catalog defaults bootstrapped duration_ms=%.1f",
         (perf_counter() - started) * 1000,
     )
+    # P4C (Platform Runtime Organization Provisioning Transaction Convergence): mirrors
+    # `organization_uow_factory`/`approval_uow_session_factory` above -- derived from
+    # `session.bind` for the same reason (real engine in production, isolated test engine in
+    # tests, never the shared `session` itself).
+    provisioning_uow_session_factory = sessionmaker(bind=session.bind, future=True)
+    provisioning_uow_factory = SqlAlchemyPlatformProvisioningUnitOfWorkFactory(
+        session_factory=provisioning_uow_session_factory,
+        transactional_dispatcher=InProcessTransactionalEventDispatcher(),
+        post_commit_bus=InProcessPostCommitEventBus(),
+        tenant_context_service=tenant_context_service,
+        user_session=user_session,
+    )
     platform_runtime_application_service = PlatformRuntimeApplicationService(
         module_catalog_service=module_catalog_service,
         organization_service=organization_service,
         tenant_context_service=tenant_context_service,
         user_session=user_session,
-        session=session,
+        provisioning_uow_factory=provisioning_uow_factory,
     )
     runtime_execution_service = RuntimeExecutionService(
         runtime_execution_repo=SqlAlchemyRuntimeExecutionRepository(
