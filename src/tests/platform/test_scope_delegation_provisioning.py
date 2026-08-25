@@ -15,6 +15,9 @@ from src.core.platform.application.security.authorization.roles import (
     ScopeDelegationProvisioningService,
 )
 from src.core.platform.common.exceptions import BusinessRuleError
+from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
+    SqlAlchemyRoleDelegationPolicyRepository,
+)
 
 
 def _service(services) -> ScopeDelegationProvisioningService:
@@ -22,7 +25,7 @@ def _service(services) -> ScopeDelegationProvisioningService:
     role_governance_service = services["role_governance_service"]
     return ScopeDelegationProvisioningService(
         role_repo=auth._role_repo,
-        delegation_repo=role_governance_service._delegation_repo,
+        delegation_repo=SqlAlchemyRoleDelegationPolicyRepository(services["session"]),
         role_governance_service=role_governance_service,
     )
 

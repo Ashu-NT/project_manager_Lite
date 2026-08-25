@@ -26,7 +26,32 @@ from src.core.platform.common.exceptions import (
 )
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.domain.tenant.tenancy import Tenant
+from src.core.platform.infrastructure.persistence.repositories.history.audit.audit_entry import (
+    SqlAlchemyAuditRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
+    SqlAlchemyRoleBindingRepository,
+    SqlAlchemyRoleRepository,
+)
+from src.core.platform.infrastructure.persistence.repositories.tenant.tenancy.tenant import (
+    SqlAlchemyTenantRepository,
+)
 from src.infra.persistence.migrations.runner import run_migrations
+
+
+def _role_binding_repo(services):
+    """P5C-1: RoleGovernanceService no longer holds `_role_binding_repo` (it opens a fresh
+    UoW-bound one per mutation) -- a freshly-constructed repository bound to the same shared
+    test `session` reads/writes the identical underlying data for setup/assertion purposes."""
+    return SqlAlchemyRoleBindingRepository(services["session"])
+
+
+def _role_repo(services):
+    return SqlAlchemyRoleRepository(services["session"])
+
+
+def _tenant_repo(services):
+    return SqlAlchemyTenantRepository(services["session"])
 
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -185,7 +210,7 @@ def test_organization_role_assignment_rejects_cross_tenant_organization(
         tenant_code="ORG-ROLE-OTHER",
         display_name="Other Org Role Tenant",
     )
-    services["role_governance_service"]._tenant_repo.add(other_tenant)
+    _tenant_repo(services).add(other_tenant)
     services["session"].flush()
     other_organization = Organization.create(
         organization_code="ORG-ROLE-OTHER-ORG",
@@ -606,7 +631,7 @@ def test_canonical_assignment_is_tenant_scoped_and_audited(services) -> None:
     assert binding.tenant_id == _tenant_id(services)
     assert binding.actual_scope_type == ROLE_SCOPE_TENANT
     assert (
-        services["role_governance_service"]._role_binding_repo.get(
+        _role_binding_repo(services).get(
             binding.id
         )
         == binding
@@ -630,7 +655,7 @@ def test_expired_binding_is_revoked_before_reassignment(services) -> None:
         revoked_at=None,
         version=1,
     )
-    services["role_governance_service"]._role_binding_repo.add(expired)
+    _role_binding_repo(services).add(expired)
     services["session"].commit()
 
     replacement = services["role_governance_service"].assign_role(
@@ -638,7 +663,7 @@ def test_expired_binding_is_revoked_before_reassignment(services) -> None:
         role_id=target_role.id,
     )
 
-    retired = services["role_governance_service"]._role_binding_repo.get(
+    retired = _role_binding_repo(services).get(
         expired.id
     )
     assert retired is not None
@@ -675,14 +700,14 @@ def test_tenant_owned_role_cannot_cross_tenant_namespace(services) -> None:
         tenant_code="ROLE-OTHER",
         display_name="Other Role Tenant",
     )
-    services["role_governance_service"]._tenant_repo.add(other_tenant)
+    _tenant_repo(services).add(other_tenant)
     services["session"].flush()
     other_role = Role.create(
         name="other_tenant_planner",
         is_system=False,
         tenant_id=other_tenant.id,
     )
-    services["role_governance_service"]._role_repo.add(other_role)
+    _role_repo(services).add(other_role)
     services["session"].commit()
 
     with pytest.raises(BusinessRuleError) as exc_info:
@@ -703,8 +728,8 @@ def test_legacy_role_catalog_does_not_leak_or_offer_custom_roles(
         tenant_code="ROLE-CATALOG-OTHER",
         display_name="Other Catalog Tenant",
     )
-    role_repo = services["role_governance_service"]._role_repo
-    services["role_governance_service"]._tenant_repo.add(other_tenant)
+    role_repo = _role_repo(services)
+    _tenant_repo(services).add(other_tenant)
     services["session"].flush()
     current_role = Role.create(
         name="current_custom_role",
@@ -745,7 +770,7 @@ def test_canonical_assignment_enforces_separation_of_duties(
     )
     planner_role = services["auth_service"]._role_repo.get_by_name("planner")
     assert planner_role is not None
-    services["role_governance_service"]._role_binding_repo.add(
+    _role_binding_repo(services).add(
         RoleBinding.create(
             principal_id=target.id,
             role_id=planner_role.id,
@@ -785,9 +810,7 @@ def test_canonical_binding_revocation_uses_same_delegation_guard(
 
     assert revoked.revoked_at is not None
     assert revoked.version == binding.version + 1
-    persisted = services[
-        "role_governance_service"
-    ]._role_binding_repo.get(binding.id)
+    persisted = _role_binding_repo(services).get(binding.id)
     assert persisted is not None
     assert persisted.revoked_at is not None
 
@@ -801,8 +824,10 @@ def test_canonical_assignment_rolls_back_when_audit_persistence_fails(
     def _fail_audit(*_args, **_kwargs) -> None:
         raise RuntimeError("audit unavailable")
 
+    # P5C-1: RoleGovernanceService builds a fresh SqlAlchemyAuditRepository per UoW call, so
+    # patching one instance would not affect the next call -- patch the class method instead.
     monkeypatch.setattr(
-        services["role_governance_service"]._audit_repo,
+        SqlAlchemyAuditRepository,
         "add_for_tenant",
         _fail_audit,
     )
@@ -814,9 +839,7 @@ def test_canonical_assignment_rolls_back_when_audit_persistence_fails(
         )
 
     assert (
-        services[
-            "role_governance_service"
-        ]._role_binding_repo.get_active_for_assignment(
+        _role_binding_repo(services).get_active_for_assignment(
             principal_id=target.id,
             role_id=target_role.id,
             tenant_id=_tenant_id(services),

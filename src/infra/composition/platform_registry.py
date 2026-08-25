@@ -70,6 +70,9 @@ from src.core.platform.infrastructure.persistence.platform_provisioning_unit_of_
 from src.core.platform.infrastructure.persistence.module_entitlement_unit_of_work import (
     SqlAlchemyModuleEntitlementUnitOfWorkFactory,
 )
+from src.core.platform.infrastructure.persistence.role_governance_unit_of_work import (
+    SqlAlchemyRoleGovernanceUnitOfWorkFactory,
+)
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.application.master_data.site.site_service import SiteService
@@ -606,20 +609,24 @@ def build_platform_service_bundle(
             and repositories.site_repo.get(site_id) is not None
         ),
     }
+    organization_owner_resolvers = {
+        "organization": lambda _tenant_id, organization_id: organization_id,
+        "site": lambda _tenant_id, site_id: (
+            getattr(repositories.site_repo.get(site_id), "organization_id", None)
+        ),
+    }
+    role_governance_uow_session_factory = sessionmaker(bind=session.bind, future=True)
+    role_governance_uow_factory = SqlAlchemyRoleGovernanceUnitOfWorkFactory(
+        session_factory=role_governance_uow_session_factory,
+        transactional_dispatcher=platform_transactional_dispatcher,
+        post_commit_bus=platform_post_commit_bus,
+    )
     role_governance_service = RoleGovernanceService(
-        session=session,
-        role_repo=repositories.role_repo,
-        role_binding_repo=repositories.role_binding_repo,
-        delegation_repo=repositories.role_delegation_policy_repo,
-        role_permission_repo=repositories.role_permission_repo,
-        permission_repo=repositories.permission_repo,
-        user_repo=repositories.user_repo,
-        tenant_repo=repositories.tenant_repo,
-        membership_repo=repositories.user_tenant_repo,
-        audit_repo=repositories.audit_entry_repo,
+        uow_factory=role_governance_uow_factory,
         user_session=user_session,
         tenant_context_service=tenant_context_service,
         scope_exists_resolvers=scope_exists_resolvers,
+        organization_owner_resolvers=organization_owner_resolvers,
         allow_platform_customer_context=(
             security_configuration.tenancy_mode
             is TenancyMode.LOCAL_SINGLE_TENANT

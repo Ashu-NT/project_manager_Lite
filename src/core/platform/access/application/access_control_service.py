@@ -22,6 +22,9 @@ from src.core.platform.application.security.authorization.enforcement.permission
     authorization_denied,
     require_permission,
 )
+from src.core.platform.application.security.auth.session.session_service import (
+    refresh_current_session_if_user,
+)
 from src.core.platform.contract.repositories.security.auth import UserRepository
 from src.core.platform.domain.tenant.tenancy import MEMBERSHIP_STATUS_ACTIVE
 
@@ -488,14 +491,7 @@ class AccessControlService:
         )
 
     def _refresh_current_session_if_needed(self, user_id: str) -> None:
-        principal = self._user_session.principal if self._user_session is not None else None
-        if principal is None or principal.user_id != user_id:
-            return
-        user = self._user_repo.get(user_id)
-        if user is None:
-            self._user_session.clear()
-            return
-        self._user_session.set_principal(self._auth_service.build_principal(user))
+        refresh_current_session_if_user(self._auth_service, user_id)
 
 
 __all__ = ["AccessControlService", "ScopeExistsResolver"]

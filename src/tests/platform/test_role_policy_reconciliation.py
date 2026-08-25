@@ -20,6 +20,7 @@ from src.core.platform.common.exceptions import BusinessRuleError
 from src.core.platform.common.ids import generate_id
 from src.core.platform.infrastructure.persistence.repositories.security.auth.auth import (
     SqlAlchemyAuthPolicyReconciliationRepository,
+    SqlAlchemyRoleBindingRepository,
 )
 
 
@@ -31,6 +32,9 @@ _REMOVED_TENANT_ADMIN_PERMISSIONS = {
 
 
 def _reconciliation_service(services) -> RolePolicyReconciliationService:
+    # P5C-1: RoleGovernanceService no longer holds its own `_role_binding_repo` (it opens a
+    # fresh UoW-bound one per mutation) -- a freshly-constructed repository bound to the same
+    # shared test `session` reads/writes the identical underlying data.
     auth = services["auth_service"]
     return RolePolicyReconciliationService(
         session=services["session"],
@@ -43,9 +47,7 @@ def _reconciliation_service(services) -> RolePolicyReconciliationService:
             services["session"]
         ),
         user_session=services["user_session"],
-        role_binding_repo=services[
-            "role_governance_service"
-        ]._role_binding_repo,
+        role_binding_repo=SqlAlchemyRoleBindingRepository(services["session"]),
     )
 
 
