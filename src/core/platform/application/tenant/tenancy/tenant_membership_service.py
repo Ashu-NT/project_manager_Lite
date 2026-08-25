@@ -43,6 +43,10 @@ from src.core.platform.domain.tenant.tenancy import (
     MEMBERSHIP_STATUS_INVITED,
     MEMBERSHIP_STATUS_REMOVED,
     MEMBERSHIP_STATUS_SUSPENDED,
+    TenantMembershipActivated,
+    TenantMembershipReactivated,
+    TenantMembershipRemoved,
+    TenantMembershipSuspended,
     UserTenantMembership,
 )
 from src.core.platform.application.tenant.tenancy.tenant_context import TenantContextService
@@ -83,6 +87,17 @@ class TenantMembershipService:
     `suspend_member`/`reactivate_member` never touch RoleBinding rows -- confirmed by the P5D-1
     audit, not assumed: they only transition the membership's own status and (suspend only)
     revoke the target's affected AuthSessions. Neither emits a RoleBinding event.
+
+    P5D-2: each of the four non-trivial aggregate transition methods this service actually
+    invokes -- `accept_invitation()`, `suspend()`, `reactivate()`, `remove()` -- now has this
+    service record exactly one corresponding fact (`TenantMembershipActivated`/`Suspended`/
+    `Reactivated`/`Removed`) via `uow.record_event(...)`, atomically with that same transition,
+    inside the SAME outer UoW. `issue_invitation`/`reinvite` (still `invited`) and
+    `revoke_invitation` (a distinct invitation-lifecycle fact, not a membership-removal fact --
+    see `revoke_invitation`'s own comment for the evidence) deliberately record none. Recording
+    is this service's responsibility alone: `UserTenantMembership` stays a plain aggregate that
+    owns its own state invariants and does not implement `RecordsDomainEvents` -- one recording
+    responsibility, not two.
     """
 
     def __init__(
@@ -288,6 +303,20 @@ class TenantMembershipService:
             new_status=MEMBERSHIP_STATUS_ACTIVE,
             metadata={"target_user_id": target.id},
         )
+        # P5D-2: recorded last, preserving this method's own execution order -- the default
+        # RoleBinding grant above (a distinct business fact) has already recorded its own
+        # `RoleBindingAssigned` event(s) by the time this membership fact is recorded. Never
+        # emitted for `reinvite`/`issue_invitation`: `accept_invitation()` (the aggregate method
+        # this event anchors to) only ever fires on the invited -> active transition, regardless
+        # of how many times this membership was previously removed and reinvited.
+        uow.record_event(
+            TenantMembershipActivated(
+                membership_id=accepted.id,
+                tenant_id=accepted.tenant_id,
+                user_id=accepted.user_id,
+                occurred_at=self._clock.now(),
+            )
+        )
         uow.commit()
         return accepted
 
@@ -303,6 +332,19 @@ class TenantMembershipService:
                 operation_label="revoke an invitation for",
             )
             membership = self._require_membership(uow.memberships, target.id, tenant_id)
+            # P5D-2 decision (documented, not inferred from `status == "removed""): invitation
+            # revocation is a distinct invitation-lifecycle fact, not a membership-removal fact,
+            # so it deliberately emits NO `TenantMembershipRemoved` (and no other membership
+            # event). Evidence: (1) the invited principal was never an active tenant member --
+            # every membership-facing guard (self-lockout, `is_active_member`, the last-admin
+            # count) gates on ACTIVE status, never INVITED; (2) the audit vocabulary already
+            # distinguishes the two facts ("invitation_revoked" vs "removed"); (3) the aggregate
+            # itself marks a different field (`revoked_at`, never set by `remove()`) and this
+            # command never calls `_revoke_affected_sessions` or touches RoleBinding rows at
+            # all, unlike `remove_member` -- there is nothing to invalidate because acceptance,
+            # the only path that ever creates a session/binding footprint, never happened. A
+            # separate `TenantInvitationRevoked` fact is deliberately NOT added either, per this
+            # phase's own scope: no concrete consumer needs it yet.
             revoked = membership.revoke_invitation()
             uow.memberships.update(revoked)
             self._record_membership_audit(
@@ -358,6 +400,17 @@ class TenantMembershipService:
                     "invalidated_session_count": invalidated_sessions,
                 },
             )
+            # P5D-2: AuthSession invalidation above is a persistence/security side effect, not a
+            # separate membership event. Verified (P5D-1): suspension never touches RoleBinding
+            # rows, so this transition never emits a RoleBinding event either.
+            uow.record_event(
+                TenantMembershipSuspended(
+                    membership_id=suspended.id,
+                    tenant_id=tenant_id,
+                    user_id=target.id,
+                    occurred_at=now,
+                )
+            )
             uow.commit()
         domain_events.auth_changed.emit(target.id)
         return suspended
@@ -375,7 +428,8 @@ class TenantMembershipService:
                 require_active=True,
             )
             membership = self._require_membership(uow.memberships, target.id, tenant_id)
-            reactivated = membership.reactivate()
+            now = self._clock.now()
+            reactivated = membership.reactivate(reactivated_at=now)
             uow.memberships.update(reactivated)
             self._record_membership_audit(
                 uow.audit,
@@ -387,6 +441,16 @@ class TenantMembershipService:
                 old_status=MEMBERSHIP_STATUS_SUSPENDED,
                 new_status=reactivated.status,
                 metadata={"target_user_id": target.id},
+            )
+            # P5D-1 verified reactivation never touches RoleBinding rows -- zero RoleBinding
+            # events here, by the same evidence as suspend_member above.
+            uow.record_event(
+                TenantMembershipReactivated(
+                    membership_id=reactivated.id,
+                    tenant_id=tenant_id,
+                    user_id=target.id,
+                    occurred_at=now,
+                )
             )
             uow.commit()
         domain_events.auth_changed.emit(target.id)
@@ -436,6 +500,18 @@ class TenantMembershipService:
                     "invalidated_session_count": invalidated_sessions,
                     "revoked_binding_count": revoked_binding_count,
                 },
+            )
+            # P5D-2: recorded last, preserving this method's own execution order -- the cascade
+            # revocation above has already recorded its own `RoleBindingRevoked` event(s) (one
+            # per genuinely active binding, zero for an already-expired one) by the time this
+            # membership fact is recorded.
+            uow.record_event(
+                TenantMembershipRemoved(
+                    membership_id=removed.id,
+                    tenant_id=tenant_id,
+                    user_id=target.id,
+                    occurred_at=now,
+                )
             )
             uow.commit()
         domain_events.auth_changed.emit(target.id)

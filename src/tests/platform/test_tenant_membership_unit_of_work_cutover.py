@@ -395,19 +395,13 @@ def test_tenant_membership_service_never_calls_role_governance_service():
     assert "role_governance_service" not in source
 
 
-def test_tenant_membership_service_adds_no_p5d2_event_vocabulary():
-    """P5D-1 is transaction/scope convergence only -- the four approved membership events
-    (`TenantMembershipActivated`/`Suspended`/`Reactivated`/`Removed`) are P5D-2's job."""
+def test_tenant_membership_service_adds_no_p5d3_ui_vocabulary():
+    """P5D-1/P5D-2 are transaction convergence and typed DomainEvents only -- ViewInvalidation
+    and any Qt/UI wiring for membership are P5D-3's job, not started here. (The four
+    `TenantMembership*` event names are legitimately P5D-2 vocabulary as of this phase --
+    see `test_tenant_membership_typed_events.py` for their own positive/negative coverage.)"""
     source = _tenant_membership_service_source()
-    for forbidden in (
-        "TenantMembershipActivated",
-        "TenantMembershipSuspended",
-        "TenantMembershipReactivated",
-        "TenantMembershipRemoved",
-        "ViewInvalidation",
-        "PySide6",
-        "ui_qml",
-    ):
+    for forbidden in ("ViewInvalidation", "PySide6", "ui_qml"):
         assert forbidden not in source
 
 

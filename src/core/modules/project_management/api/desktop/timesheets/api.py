@@ -142,9 +142,11 @@ class ProjectManagementTimesheetsDesktopApi:
     ) -> tuple[TimesheetAssignmentOptionDescriptor, ...]:
         target = str(resource_id or "").strip()
         return tuple(
-            option
-            for option in self.list_assignments(project_id=project_id)
-            if option.resource_id == target
+            build_assignment_options(
+                project_id=project_id,
+                resource_id=target,
+                task_service=self._task_service,
+            )
         )
 
     def get_resource_timesheet_period(

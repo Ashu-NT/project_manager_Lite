@@ -348,6 +348,7 @@ class SqlAlchemyAssignmentRepository(AssignmentRepository):
         *,
         project_id: str | None = None,
         assignment_id: str | None = None,
+        resource_id: str | None = None,
     ) -> list[TimesheetAssignmentContext]:
         ctx = self._context()
         stmt = (
@@ -374,6 +375,8 @@ class SqlAlchemyAssignmentRepository(AssignmentRepository):
             stmt = stmt.where(ProjectORM.id == project_id)
         if assignment_id is not None:
             stmt = stmt.where(TaskAssignmentORM.id == assignment_id)
+        if resource_id is not None:
+            stmt = stmt.where(ResourceORM.id == resource_id)
         rows = self.session.execute(
             stmt.order_by(ProjectORM.name, TaskORM.name, ResourceORM.name)
         ).all()

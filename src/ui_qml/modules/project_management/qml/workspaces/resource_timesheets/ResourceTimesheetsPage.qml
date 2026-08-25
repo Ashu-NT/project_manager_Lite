@@ -82,73 +82,92 @@ Item {
         }
 
         Rectangle {
-            Layout.fillWidth: true
+            readonly property bool hasResourceSelector: root.workspaceController
+                && root.workspaceController.canSelectResource
+
+            Layout.fillWidth: hasResourceSelector
+            Layout.alignment: Qt.AlignLeft
             visible: root.workspaceController
                 && (root.workspaceController.canSelectScope || root.workspaceController.canSelectResource)
+            implicitWidth: selectorLayout.implicitWidth + Theme.AppTheme.spacingMd * 2
             implicitHeight: selectorLayout.implicitHeight + Theme.AppTheme.spacingMd * 2
             radius: Theme.AppTheme.radiusMd
             color: Theme.AppTheme.surfaceRaised
             border.color: Theme.AppTheme.subtleBorder
 
-            ColumnLayout {
+            RowLayout {
                 id: selectorLayout
                 anchors.fill: parent
                 anchors.margins: Theme.AppTheme.spacingMd
                 spacing: Theme.AppTheme.spacingSm
 
-                RowLayout {
-                    Layout.fillWidth: true
+                AppControls.Label {
+                    text: "View"
+                    font.bold: true
                     visible: root.workspaceController && root.workspaceController.canSelectScope
-                    AppControls.Label { text: "View"; font.bold: true }
-                    AppControls.ComboBox {
-                        Layout.preferredWidth: 190
-                        model: root.workspaceController ? root.workspaceController.scopeOptions : []
-                        textRole: "label"
-                        currentIndex: root.optionIndex(model, root.workspaceController ? root.workspaceController.selectedScope : "")
-                        onActivated: function(index) {
-                            const option = model[index]
-                            if (root.workspaceController && option)
-                                root.workspaceController.setTimesheetScope(String(option.value || ""))
-                        }
+                }
+                AppControls.ComboBox {
+                    Layout.minimumWidth: 0
+                    Layout.preferredWidth: 140
+                    Layout.maximumWidth: 160
+                    visible: root.workspaceController && root.workspaceController.canSelectScope
+                    model: root.workspaceController ? root.workspaceController.scopeOptions : []
+                    textRole: "label"
+                    currentIndex: root.optionIndex(model, root.workspaceController ? root.workspaceController.selectedScope : "")
+                    onActivated: function(index) {
+                        const option = model[index]
+                        if (root.workspaceController && option)
+                            root.workspaceController.setTimesheetScope(String(option.value || ""))
                     }
-                    Item { Layout.fillWidth: true }
                 }
 
-                RowLayout {
-                    Layout.fillWidth: true
+                AppControls.Label {
+                    text: "Resource"
+                    font.bold: true
                     visible: root.workspaceController && root.workspaceController.canSelectResource
-                    AppControls.Label { text: "Resource"; font.bold: true }
-                    AppControls.SearchField {
-                        Layout.preferredWidth: 240
-                        placeholderText: "Search name or code..."
-                        text: root.workspaceController ? root.workspaceController.resourceSearchText : ""
-                        onTextEdited: function(value) {
-                            if (root.workspaceController) root.workspaceController.setResourceSearchText(value)
-                        }
+                }
+                AppControls.SearchField {
+                    Layout.minimumWidth: 0
+                    Layout.preferredWidth: 200
+                    Layout.maximumWidth: 220
+                    visible: root.workspaceController && root.workspaceController.canSelectResource
+                    placeholderText: "Search name or code..."
+                    text: root.workspaceController ? root.workspaceController.resourceSearchText : ""
+                    onTextEdited: function(value) {
+                        if (root.workspaceController) root.workspaceController.setResourceSearchText(value)
                     }
-                    AppControls.ComboBox {
-                        Layout.fillWidth: true
-                        model: root.workspaceController ? root.workspaceController.resourceOptions : []
-                        textRole: "label"
-                        currentIndex: root.optionIndex(model, root.workspaceController ? root.workspaceController.selectedResourceId : "")
-                        onActivated: function(index) {
-                            const option = model[index]
-                            if (root.workspaceController && option)
-                                root.workspaceController.selectTimesheetResource(String(option.value || ""))
-                        }
+                }
+                AppControls.ComboBox {
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.preferredWidth: 240
+                    visible: root.workspaceController && root.workspaceController.canSelectResource
+                    model: root.workspaceController ? root.workspaceController.resourceOptions : []
+                    textRole: "label"
+                    currentIndex: root.optionIndex(model, root.workspaceController ? root.workspaceController.selectedResourceId : "")
+                    onActivated: function(index) {
+                        const option = model[index]
+                        if (root.workspaceController && option)
+                            root.workspaceController.selectTimesheetResource(String(option.value || ""))
                     }
-                    AppControls.SecondaryButton {
-                        text: "Prev"
-                        enabled: root.workspaceController && root.workspaceController.resourcePage > 1
-                        onClicked: root.workspaceController.setResourcePage(root.workspaceController.resourcePage - 1)
-                    }
-                    AppControls.SecondaryButton {
-                        text: "Next"
-                        enabled: root.workspaceController
-                            && root.workspaceController.resourcePage * root.workspaceController.resourcePageSize
-                                < root.workspaceController.resourceTotal
-                        onClicked: root.workspaceController.setResourcePage(root.workspaceController.resourcePage + 1)
-                    }
+                }
+                AppControls.SecondaryButton {
+                    Layout.minimumWidth: 0
+                    Layout.preferredWidth: 68
+                    visible: root.workspaceController && root.workspaceController.canSelectResource
+                    text: "Prev"
+                    enabled: root.workspaceController && root.workspaceController.resourcePage > 1
+                    onClicked: root.workspaceController.setResourcePage(root.workspaceController.resourcePage - 1)
+                }
+                AppControls.SecondaryButton {
+                    Layout.minimumWidth: 0
+                    Layout.preferredWidth: 68
+                    visible: root.workspaceController && root.workspaceController.canSelectResource
+                    text: "Next"
+                    enabled: root.workspaceController
+                        && root.workspaceController.resourcePage * root.workspaceController.resourcePageSize
+                            < root.workspaceController.resourceTotal
+                    onClicked: root.workspaceController.setResourcePage(root.workspaceController.resourcePage + 1)
                 }
             }
         }
