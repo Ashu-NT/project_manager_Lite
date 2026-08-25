@@ -20,7 +20,6 @@ from src.core.platform.application.master_data.org.organization_service import O
 from src.core.platform.domain.master_data.org import Organization
 from src.core.platform.application.tenant.tenancy import TenantContextService
 from src.core.shared.events.domain_event_context import DomainEventContext
-from src.core.shared.events.domain_events import domain_events
 
 
 @dataclass(frozen=True)
@@ -288,8 +287,11 @@ class PlatformRuntimeApplicationService:
                     "Organization code already exists.", code="ORGANIZATION_CODE_EXISTS"
                 ) from exc
         # Runtime context change follows commit, never precedes or survives a rolled-back
-        # provisioning transaction.
-        domain_events.organizations_changed.emit(organization.id)
+        # provisioning transaction. (P5A: the legacy `organizations_changed` reaction is now
+        # driven post-commit from the committed `OrganizationCreated` fact recorded inside
+        # `_create_organization_using`, via the registered legacy-compatibility handler -- never
+        # emitted directly here, so standalone creation and provisioning both produce exactly one
+        # legacy reaction from the same business fact.)
         if is_active:
             if self._tenant_context_service is None:
                 raise RuntimeError("Tenant context service is not configured.")

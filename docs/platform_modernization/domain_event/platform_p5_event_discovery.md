@@ -465,6 +465,17 @@ lifecycle, password/MFA/session security, user registration) remain on the legac
 untouched, until their own future slices are separately proposed — this document does not commit
 to a timeline for those.
 
+**P5A outcome (implemented, corrects this section's own "bridge adapter" default for
+`organizations_changed` specifically):** tracing both real `organizations_changed` consumers
+(admin console organization list, settings organization-profiles list) end-to-end found exactly
+two, both reading a tenant-wide `list_organizations()`. Rather than the bridge-adapter default
+above, both were migrated directly onto `ViewInvalidationChannel` (a Qt adapter,
+`OrganizationViewInvalidationAdapter`, scoped only to the Organization slice — not a general P6
+migration) since a temporary bridge would have been dead code immediately in a pre-release app
+with exactly two, already-identified consumers. `organizations_changed` itself is **not**
+removed — `update_organization`/`set_active_organization` still emit it directly and remain on
+the legacy mechanism until their own event slice (not part of P5A) is proposed.
+
 ## 17. Unresolved / Blocking Questions
 
 1. **`ApprovalRequest` has no `tenant_id` field.** Must be resolved (add the field, or a

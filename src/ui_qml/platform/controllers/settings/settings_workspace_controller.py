@@ -91,6 +91,13 @@ class PlatformSettingsWorkspaceController(PlatformWorkspaceControllerBase):
         self._set_empty_state("" if has_items else str(self._module_entitlements.get("emptyState") or self._organization_profiles.get("emptyState") or ""))
         self._set_is_loading(False)
 
+    def refresh_organization_profiles(self) -> None:
+        """Narrow reaction to the organization-collection ViewInvalidation target (P5A +
+        Organization-specific P6A cutover) -- re-reads only the organization profiles list,
+        unlike `refresh()`'s full-workspace reload (overview/module entitlements/integration
+        capabilities too), none of which are stale after a plain organization creation."""
+        self._set_organization_profiles(serialize_action_list(self._catalog_presenter.build_organization_profiles()))
+
     @Slot(str)
     def toggleModuleLicensed(self, module_code: str) -> None:
         self._apply_entitlement_action(

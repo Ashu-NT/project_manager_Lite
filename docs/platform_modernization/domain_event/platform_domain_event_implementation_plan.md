@@ -826,6 +826,61 @@ controller layer (P6). Does not migrate any business module's own signals.
 still-live legacy bridge — reverting one capability's typing work does not affect any other
 capability or any already-completed phase.
 
+## P5A — OrganizationCreated (implemented)
+
+**Status:** implemented, reviewed. Unblocked by P4C (both real Organization-creation paths --
+standalone `create_organization` and `PlatformRuntimeApplicationService.provision_organization`
+-- already used canonical fresh-session UnitOfWorks calling the same shared
+`OrganizationService._create_organization_using` business operation).
+
+**Event:** `OrganizationCreated` (`src/core/platform/domain/master_data/org/events.py`) --
+exactly the platform_p5_event_discovery.md §7 field set: `tenant_id`, `organization_id`, `name`,
+`code`, `occurred_at`. Application-authored via `uow.record_event(...)` from
+`_create_organization_using` (both `OrganizationUnitOfWork` and `PlatformProvisioningUnitOfWork`
+satisfy the same duck-typed `record_event`/`_enterprise_audit_service` shape -- the shared
+operation never imports either concrete UoW class). `Clock` (`src/core/shared/time/clock.py`,
+concrete `SystemClock`) is now injected into `OrganizationService` -- its first real consumer.
+Recorded before `uow.commit()`; exactly one event per successful creation, on either path;
+nothing observable on rollback or commit failure (proven for both paths).
+
+**ViewInvalidation:** `src/core/platform/application/master_data/org/event_handlers/view_invalidation.py`
+maps `OrganizationCreated` to exactly the two discovery-matrix targets --
+`TenantScope(tenant_id)`/`organization_list` (tenant-wide) and
+`OrganizationScope(tenant_id, organization_id)`/`organization_details` (per-organization, no
+current UI consumer, produced for future use per ADR-005 §3a). Registered once on a
+composition-owned `InProcessPostCommitEventBus`/`InProcessViewInvalidationChannel` pair now
+shared by every Platform capability UnitOfWork factory (Approval/Organization/Provisioning),
+replacing each factory's previous throwaway dispatcher/bus instances.
+
+**Organization-specific P6A cutover (pulled forward from P6, scope limited to Organization):**
+after tracing both real `organizations_changed` consumer chains end-to-end (admin console
+organization list, settings organization-profiles list -- both ultimately read
+`list_organizations()`, a tenant-wide read), a temporary `OrganizationCreated ->
+organizations_changed` compatibility bridge was rejected as unnecessary: this is pre-release, the
+consumer set is exactly two, and both were migrated directly onto `ViewInvalidationChannel` via a
+new `OrganizationViewInvalidationAdapter` (`src/ui_qml/platform/adapters/`) -- the Qt-facing
+translation layer ADR-005 §13 assigns to P6, implemented here only for the Organization slice.
+Controllers/presenters never import `DomainEvent`/`OrganizationCreated`/`ScopeFilter` -- they
+connect to the adapter's plain `organizationCollectionStale` Qt signal. `create_organization`/
+`provision_organization` no longer emit `organizations_changed` at all (neither directly nor via
+a bridge); `update_organization`/`set_active_organization` still do, unchanged -- the legacy
+signal remains genuinely required for those two operations and was not removed.
+
+**Exit criteria met:** exactly-once event recording (both paths, explicit tests); no event
+observable on validation/commit/late-provisioning failure; deterministic `Clock`; cross-org and
+cross-tenant `ScopeFilter` routing proven against the real channel; one failing post-commit
+handler does not block the ViewInvalidation reaction (ISOLATE_AND_CONTINUE); real end-to-end
+proof through `PlatformWorkspaceCatalog` that both UI consumers refresh after standalone and
+provisioning creation, and do not refresh on a rolled-back attempt; update/activation UI refresh
+proven unaffected; architecture guardrails and full P0-P4C/PM/Inventory regression suites show no
+new failure identity.
+
+**Explicit non-goals:** P5B (Module Entitlements)/P5C (Access-RBAC)/P5D (Tenant Membership)/
+Approval events not started. No other Platform capability's Qt consumers migrated (calendar,
+documents, access, modules, approval all still solely on legacy signals). The legacy event
+framework (`domain_events`) is not retired -- `organizations_changed` remains live for
+update/activation and every other still-legacy signal.
+
 ## P6 — Qt Invalidation Adapter Consolidation
 
 **Goal:** build the one shared Qt adapter, and migrate the three existing controller bases to
@@ -1104,3 +1159,30 @@ the P4B section above) and reviewed; P5A remains not started — no `Organizatio
 pass, enforced by `test_p4b_does_not_add_p5a_event_vocabulary`. This pass's own documentation edit
 (this section plus the new P4B section and the `organizations_changed` discovery-table row above)
 is separate from, and follows, the P4B implementation itself.
+
+**Fifth pass (2026-08-25, same day) — P4C, then P5A, then the Organization-specific
+Qt-cutover correction.** P4B's own report identified a second, real prerequisite gap:
+`PlatformRuntimeApplicationService.provision_organization` still composed
+`create_organization(commit=False)` + module-entitlement provisioning + `set_active_organization
+(commit=False)` on the shared Session -- a second real Organization-creation path with no
+canonical UoW. P4C resolved it: a narrow `PlatformProvisioningUnitOfWork`
+(`organizations`/`entitlements`/`_enterprise_audit_service`), the `commit: bool` switch removed
+entirely from `create_organization`/`set_active_organization` (confirmed the sole real caller),
+and their actual business logic extracted into `_create_organization_using`/
+`_activate_organization_using` -- shared, transaction-agnostic operations both the standalone
+fresh UoW and the provisioning UoW call directly, never a nested UnitOfWork.
+
+P5A then implemented `OrganizationCreated` on top of both now-canonical paths. Before finalizing
+the ViewInvalidation targets, an end-to-end trace of both real `organizations_changed` UI
+consumers (admin console organization list, settings organization-profiles list) confirmed the
+discovery's proposed targets were correct (both consumers read a tenant-wide organization list;
+neither reads a distinct "active organization" context from mere creation). A first pass wired a
+temporary `OrganizationCreated -> organizations_changed` compatibility handler for those two
+consumers; this was explicitly rejected and replaced: since the app is pre-release and the
+consumer set is exactly two, both were migrated directly onto `ViewInvalidationChannel` via a new
+`OrganizationViewInvalidationAdapter`, pulling forward only the Organization slice of P6 (not a
+general P6 migration) rather than shipping a bridge that would be dead code from day one.
+`update_organization`/`set_active_organization` keep emitting `organizations_changed` directly,
+unchanged -- confirmed still required, not removed. This pass changed real production code (P4C
+and P5A implementation) and added tests; no commit was made by the assistant at any point
+(self-committed by the user between turns, per this project's established pattern).

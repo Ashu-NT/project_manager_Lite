@@ -207,10 +207,21 @@ def test_provisioning_remains_tenant_scoped(services):
     assert reloaded is not None
 
 
-def test_p4c_does_not_add_p5a_event_vocabulary():
-    """Phase-boundary guard: P4C is transaction convergence only. `OrganizationCreated`,
-    `ModuleLicensed`/`ModuleEnabled`/`ModuleDisabled`, and any `uow.record_event(` call belong to
-    P5A/P5B, not this phase."""
+def test_p5a_does_not_add_p5b_plus_event_vocabulary():
+    """Phase-boundary guard (superseding P4C's own, now-obsolete guard now that P5A legitimately
+    records `OrganizationCreated` end-to-end, including through provisioning): no P5B+ event
+    vocabulary belongs in this module."""
     source = inspect.getsource(platform_runtime_service_module)
-    for forbidden in ("OrganizationCreated", "ModuleLicensed", "ModuleEnabled", "ModuleDisabled", "record_event("):
+    for forbidden in (
+        "ModuleLicensed",
+        "ModuleEnabled",
+        "ModuleDisabled",
+        "ScopeAccessGranted",
+        "ScopeAccessRevoked",
+        "RoleAssignmentGranted",
+        "RoleAssignmentRevoked",
+        "ApprovalRequested",
+        "ApprovalApproved",
+        "ApprovalRejected",
+    ):
         assert forbidden not in source

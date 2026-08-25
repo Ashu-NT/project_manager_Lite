@@ -1,11 +1,9 @@
-"""P4B (Organization Capability Transaction Convergence): `OrganizationService`'s
-transaction-owning commands (`create_organization`, `update_organization`,
-`set_active_organization` in their default commit=True mode, `bootstrap_defaults`) cut over onto
-the canonical fresh-session `OrganizationUnitOfWork`. Mirrors
-`test_approval_service_unit_of_work_cutover.py` (P4 Step 2's own equivalent for Approval).
-
-P4B is transaction convergence only -- no `OrganizationCreated` DomainEvent, no ViewInvalidation
-producer. `test_p4b_does_not_add_p5a_event_vocabulary` enforces that phase boundary.
+"""P4B (Organization Capability Transaction Convergence) + P5A (OrganizationCreated):
+`OrganizationService`'s transaction-owning commands (`create_organization`, `update_organization`,
+`set_active_organization`, `bootstrap_defaults`) use the canonical fresh-session
+`OrganizationUnitOfWork`. `create_organization` additionally records exactly one
+`OrganizationCreated` before commit (P5A) and no longer emits the legacy `organizations_changed`
+signal at all -- `update_organization`/`set_active_organization` still do, unchanged.
 """
 
 from __future__ import annotations
@@ -16,6 +14,9 @@ import pytest
 
 from src.core.platform.application.master_data.org import organization_service as organization_service_module
 from src.core.platform.application.master_data.org.organization_service import OrganizationService
+from src.core.platform.application.master_data.org.event_handlers.view_invalidation import (
+    ORGANIZATION_LIST_SCOPE_CODE,
+)
 from src.core.platform.common.exceptions import NotFoundError, ValidationError
 from src.core.platform.domain.security.auth.session import UserSessionContext, UserSessionPrincipal
 from src.core.platform.infrastructure.persistence.orm.tenant.tenancy.tenant import TenantORM
@@ -23,6 +24,7 @@ from src.core.platform.infrastructure.persistence.organization_unit_of_work impo
     SqlAlchemyOrganizationUnitOfWork,
 )
 from src.core.shared.events.domain_events import domain_events
+from src.core.shared.events.view_invalidation import AllTenants, TenantScope
 
 _COUNTER = {"n": 0}
 
@@ -80,12 +82,20 @@ def test_create_organization_repository_and_audit_share_the_uow_session(services
     assert seen["uow_session"] is seen["audit_session"]
 
 
-def test_successful_create_organization_commits_and_fires_legacy_signal_only_after_commit(
+def test_successful_create_organization_commits_and_publishes_view_invalidation_only_after_commit(
     services,
 ):
+    """P5A + Organization-specific P6A cutover: organization creation no longer emits the legacy
+    `organizations_changed` signal at all (that direct emission and its temporary-bridge
+    alternative were both removed) -- it produces exactly one `OrganizationCreated` ->
+    `ViewInvalidationHint` for the tenant-wide organization-list target, published only after
+    commit, via the real composition-owned `ViewInvalidationChannel`."""
     organization_service = services["organization_service"]
+    channel = services["platform_view_invalidation_channel"]
     signal_calls = []
     domain_events.organizations_changed.connect(lambda org_id: signal_calls.append(org_id))
+    hints = []
+    channel.subscribe(AllTenants(), lambda hint: hints.append(hint))
 
     code = _unique_code("SUCCESS")
     organization = organization_service.create_organization(
@@ -93,7 +103,10 @@ def test_successful_create_organization_commits_and_fires_legacy_signal_only_aft
     )
 
     assert organization.organization_code == code
-    assert signal_calls == [organization.id]
+    assert signal_calls == [], "creation must not emit the legacy organizations_changed signal"
+    list_hints = [h for h in hints if h.scope_code == ORGANIZATION_LIST_SCOPE_CODE]
+    assert len(list_hints) == 1
+    assert isinstance(list_hints[0].scope, TenantScope)
     reloaded = organization_service._organization_repo.get(organization.id)
     assert reloaded is not None
     assert reloaded.organization_code == code
@@ -320,6 +333,7 @@ def test_migrated_create_and_update_remain_tenant_isolated(services):
         session=organization_service._session,
         organization_repo=organization_service._organization_repo,
         uow_factory=organization_service._uow_factory,
+        clock=organization_service._clock,
         user_session=ctx_b,
         enterprise_audit_service=organization_service._enterprise_audit_service,
         tenant_context_service=None,
@@ -331,10 +345,20 @@ def test_migrated_create_and_update_remain_tenant_isolated(services):
         service_as_b.update_organization(organization_a.id, display_name="Hijacked")
 
 
-def test_p4b_does_not_add_p5a_event_vocabulary():
-    """Phase-boundary guard: P4B is transaction convergence only. `OrganizationCreated` and any
-    `uow.record_event(` call belong to P5A, not this phase."""
+def test_p5a_does_not_add_p5b_plus_event_vocabulary():
+    """Phase-boundary guard (superseding P4B's own, now-obsolete guard now that P5A legitimately
+    records `OrganizationCreated`): no P5B+ event vocabulary belongs in this module."""
     source = inspect.getsource(organization_service_module)
-    assert "OrganizationCreated" not in source
-    assert "record_event(" not in source
-    assert not hasattr(organization_service_module, "OrganizationCreated")
+    for forbidden in (
+        "ModuleLicensed",
+        "ModuleEnabled",
+        "ModuleDisabled",
+        "ScopeAccessGranted",
+        "ScopeAccessRevoked",
+        "RoleAssignmentGranted",
+        "RoleAssignmentRevoked",
+        "ApprovalRequested",
+        "ApprovalApproved",
+        "ApprovalRejected",
+    ):
+        assert forbidden not in source

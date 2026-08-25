@@ -310,6 +310,14 @@ class PlatformAdminWorkspaceController(PlatformWorkspaceControllerBase):
     def refresh(self) -> None:
         do_refresh(self)
 
+    def refresh_organizations(self) -> None:
+        """Narrow reaction to the organization-collection ViewInvalidation target (P5A +
+        Organization-specific P6A cutover) -- delegates to the organization sub-controller's own
+        narrow refresh, unlike `refresh()`'s coarse cascade over every entity sub-controller
+        (calendars/sites/departments/etc.), none of which are stale after an organization
+        creation."""
+        self._organization_controller.refresh_organizations()
+
     @Slot(str, "QVariantMap", result=str)
     def generateEntityCode(self, entity_type: str, payload: dict[str, object]) -> str:
         return generate_entity_code(self, entity_type, payload)

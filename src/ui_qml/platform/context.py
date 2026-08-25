@@ -5,6 +5,9 @@ from PySide6.QtQml import QmlElement, QmlUncreatable
 
 from src.core.platform.api.desktop.integration import IntegrationCapabilityDesktopApi
 from src.core.platform.api.desktop.platform_runtime.runtime import PlatformRuntimeDesktopApi
+from src.ui_qml.platform.adapters.organization_view_invalidation_adapter import (
+    OrganizationViewInvalidationAdapter,
+)
 from src.ui_qml.platform.controllers.admin_console import PlatformAdminWorkspaceController
 from src.ui_qml.platform.controllers.identity_access.access import (
     PlatformAdminAccessWorkspaceController,
@@ -149,6 +152,27 @@ class PlatformWorkspaceCatalog(QObject):
         )
         self._tenant_switcher.refresh()
         self._route_by_id = {route.route_id: route for route in build_platform_routes()}
+
+        # P5A + Organization-specific P6A cutover: the two real Organization-creation UI
+        # consumers (admin console organization list, settings organization profiles list) react
+        # to the typed OrganizationCreated event via this Qt adapter, never the legacy
+        # organizations_changed signal -- which remains wired, unchanged, for
+        # update/activation-triggered refreshes only.
+        view_invalidation_channel = (
+            getattr(desktop_api_registry, "platform_view_invalidation_channel", None)
+            if desktop_api_registry is not None
+            else None
+        )
+        self._organization_view_invalidation_adapter = OrganizationViewInvalidationAdapter(
+            channel=view_invalidation_channel,
+            parent=self,
+        )
+        self._organization_view_invalidation_adapter.organizationCollectionStale.connect(
+            self._admin_workspace.refresh_organizations
+        )
+        self._organization_view_invalidation_adapter.organizationCollectionStale.connect(
+            self._settings_workspace.refresh_organization_profiles
+        )
 
     @Property(PlatformAdminWorkspaceController, constant=True)
     def adminWorkspace(self) -> PlatformAdminWorkspaceController:

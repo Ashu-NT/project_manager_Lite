@@ -24,6 +24,9 @@ from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommi
 from src.infra.events.in_process_transactional_event_dispatcher import (
     InProcessTransactionalEventDispatcher,
 )
+from src.infra.events.in_process_view_invalidation_channel import InProcessViewInvalidationChannel
+from src.core.shared.events.view_invalidation import ViewInvalidationChannel
+from src.infra.time.system_clock import SystemClock
 from src.core.platform.application.history.audit import EnterpriseAuditService
 from src.core.platform.application.finance import FinancialPeriodService
 from src.core.platform.application.events.notifications.notification_service import NotificationService
@@ -44,6 +47,10 @@ from src.core.platform.infrastructure.persistence.read.overview.platform_overvie
     SqlAlchemyPlatformOverviewRollupReader,
 )
 from src.core.platform.application.master_data.org.organization_service import OrganizationService
+from src.core.platform.application.master_data.org.event_handlers.view_invalidation import (
+    build_organization_created_view_invalidation_handler,
+)
+from src.core.platform.domain.master_data.org.events import OrganizationCreated
 from src.core.platform.infrastructure.persistence.organization_unit_of_work import (
     SqlAlchemyOrganizationUnitOfWorkFactory,
 )
@@ -175,6 +182,7 @@ class PlatformServiceBundle:
     site_repo: SiteRepository
     party_repo: PartyRepository
     tenant_context_service: TenantContextService
+    platform_view_invalidation_channel: ViewInvalidationChannel
     platform_runtime_application_service: PlatformRuntimeApplicationService
     module_catalog_service: ModuleCatalogService
     auth_service: AuthService
@@ -272,6 +280,28 @@ def build_platform_service_bundle(
         user_session=user_session,
         tenant_context_service=tenant_context_service,
     )
+    # P5A (ADR-005 Sections 7/8/12): ONE composition-owned `TransactionalEventDispatcher`/
+    # `PostCommitEventPublisher`/`ViewInvalidationChannel` per running app, shared by every
+    # Platform capability UnitOfWork factory below -- never one throwaway instance per factory.
+    # A handler registered once here (e.g. `OrganizationCreated`'s post-commit reactions) is
+    # reachable regardless of which UoW recorded the event, since they all publish through the
+    # SAME bus. Composition-root-scoped (one instance per `build_platform_registry()` call, i.e.
+    # per running app/test), never a module-level import singleton.
+    platform_transactional_dispatcher = InProcessTransactionalEventDispatcher()
+    platform_post_commit_bus = InProcessPostCommitEventBus()
+    platform_view_invalidation_channel = InProcessViewInvalidationChannel()
+    # P5A + Organization-specific P6A cutover: no legacy `organizations_changed` compatibility
+    # bridge for creation -- the two real UI consumers (admin console organization list, settings
+    # organization profiles list) are migrated directly onto `ViewInvalidationChannel` via
+    # `OrganizationViewInvalidationAdapter` (src/ui_qml/platform/adapters/), since this app is
+    # pre-release and a temporary bridge would be dead code the moment it shipped.
+    # `update_organization`/`set_active_organization` still emit `organizations_changed` directly,
+    # unchanged -- only organization *creation* moved to the typed-event path.
+    platform_post_commit_bus.subscribe(
+        OrganizationCreated,
+        build_organization_created_view_invalidation_handler(platform_view_invalidation_channel),
+    )
+
     # P4 Step 2 (ADR-005 Section 24, Round 7/8): ApprovalService's own mutation-transaction
     # ownership (request_change's transaction-owning mode, approve_and_apply, reject) now uses a
     # genuinely fresh Session per call via this factory -- never the shared, process-lifetime
@@ -287,8 +317,8 @@ def build_platform_service_bundle(
     approval_uow_session_factory = sessionmaker(bind=session.bind, future=True)
     approval_uow_factory = SqlAlchemyPlatformUnitOfWorkFactory(
         session_factory=approval_uow_session_factory,
-        transactional_dispatcher=InProcessTransactionalEventDispatcher(),
-        post_commit_bus=InProcessPostCommitEventBus(),
+        transactional_dispatcher=platform_transactional_dispatcher,
+        post_commit_bus=platform_post_commit_bus,
         tenant_context_service=tenant_context_service,
         user_session=user_session,
     )
@@ -363,8 +393,8 @@ def build_platform_service_bundle(
     organization_uow_session_factory = sessionmaker(bind=session.bind, future=True)
     organization_uow_factory = SqlAlchemyOrganizationUnitOfWorkFactory(
         session_factory=organization_uow_session_factory,
-        transactional_dispatcher=InProcessTransactionalEventDispatcher(),
-        post_commit_bus=InProcessPostCommitEventBus(),
+        transactional_dispatcher=platform_transactional_dispatcher,
+        post_commit_bus=platform_post_commit_bus,
         tenant_context_service=tenant_context_service,
         user_session=user_session,
     )
@@ -372,6 +402,7 @@ def build_platform_service_bundle(
         session=session,
         organization_repo=repositories.organization_repo,
         uow_factory=organization_uow_factory,
+        clock=SystemClock(),
         user_session=user_session,
         enterprise_audit_service=enterprise_audit_service,
         tenant_context_service=tenant_context_service,
@@ -505,8 +536,8 @@ def build_platform_service_bundle(
     provisioning_uow_session_factory = sessionmaker(bind=session.bind, future=True)
     provisioning_uow_factory = SqlAlchemyPlatformProvisioningUnitOfWorkFactory(
         session_factory=provisioning_uow_session_factory,
-        transactional_dispatcher=InProcessTransactionalEventDispatcher(),
-        post_commit_bus=InProcessPostCommitEventBus(),
+        transactional_dispatcher=platform_transactional_dispatcher,
+        post_commit_bus=platform_post_commit_bus,
         tenant_context_service=tenant_context_service,
         user_session=user_session,
     )
@@ -716,6 +747,7 @@ def build_platform_service_bundle(
         site_repo=repositories.site_repo,
         party_repo=repositories.party_repo,
         tenant_context_service=tenant_context_service,
+        platform_view_invalidation_channel=platform_view_invalidation_channel,
         platform_runtime_application_service=platform_runtime_application_service,
         module_catalog_service=module_catalog_service,
         auth_service=auth_service,

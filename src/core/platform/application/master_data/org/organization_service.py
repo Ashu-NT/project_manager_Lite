@@ -23,12 +23,14 @@ from src.core.platform.contract.persistence.organization_unit_of_work import (
 from src.core.platform.contract.read.overview.platform_overview_rollup_reader import PlatformOverviewRollupReader
 from src.core.platform.contract.repositories.master_data.org.contracts import OrganizationRepository
 from src.core.platform.domain.master_data.org import Organization
+from src.core.platform.domain.master_data.org.events import OrganizationCreated
 from src.core.platform.domain.master_data.org.support import (
     DEFAULT_ORGANIZATION_CODE,
     DEFAULT_ORGANIZATION_CURRENCY,
     DEFAULT_ORGANIZATION_NAME,
     DEFAULT_ORGANIZATION_TIMEZONE,
 )
+from src.core.shared.time.clock import Clock
 
 if TYPE_CHECKING:
     from src.core.platform.application.history.audit.enterprise_audit_service import EnterpriseAuditService
@@ -43,6 +45,7 @@ class OrganizationService:
         organization_repo: OrganizationRepository,
         *,
         uow_factory: OrganizationUnitOfWorkFactory,
+        clock: Clock,
         user_session: UserSessionContext | None = None,
         enterprise_audit_service: EnterpriseAuditService | None = None,
         tenant_context_service: TenantContextService | None = None,
@@ -51,6 +54,7 @@ class OrganizationService:
         self._session = session
         self._organization_repo = organization_repo
         self._uow_factory = uow_factory
+        self._clock = clock
         self._user_session = user_session
         self._enterprise_audit_service = enterprise_audit_service
         self._tenant_context_service = tenant_context_service
@@ -182,7 +186,11 @@ class OrganizationService:
                 raise ValidationError(
                     "Organization code already exists.", code="ORGANIZATION_CODE_EXISTS"
                 ) from exc
-        domain_events.organizations_changed.emit(organization.id)
+        # P5A: the legacy `organizations_changed` reaction is now driven post-commit from the
+        # committed `OrganizationCreated` fact (recorded inside `_create_organization_using`) via
+        # the registered legacy-compatibility handler -- never emitted directly here, so
+        # standalone creation and `provision_organization` both produce exactly one legacy
+        # reaction from the same business fact, not two independent emission sites.
         return organization
 
     def update_organization(
@@ -302,7 +310,7 @@ class OrganizationService:
     def _create_organization_using(
         self,
         organization_repo: OrganizationRepository,
-        audit_owner: object,
+        uow: object,
         *,
         organization_code: str,
         display_name: str,
@@ -311,12 +319,17 @@ class OrganizationService:
         is_active: bool,
         tenant_id: str,
     ) -> Organization:
-        """The Organization-creation business operation (P4C), shared by `create_organization`'s
-        own fresh `OrganizationUnitOfWork` and `PlatformRuntimeApplicationService.provision_organization`'s
+        """The Organization-creation business operation, shared by `create_organization`'s own
+        fresh `OrganizationUnitOfWork` and `PlatformRuntimeApplicationService.provision_organization`'s
         provisioning UnitOfWork -- one implementation, reused via whichever transaction-bound
-        repository/audit-owner pair the caller's own UoW provides. Does not open or commit a
-        transaction itself -- that remains the caller's responsibility (never nest a UnitOfWork
-        inside this operation)."""
+        repository/UoW pair the caller supplies. Does not open or commit a transaction itself --
+        that remains the caller's responsibility (never nest a UnitOfWork inside this operation).
+
+        `uow` is duck-typed against the canonical `UnitOfWork` contract
+        (`record_event`) plus the `_enterprise_audit_service` accessor both
+        `OrganizationUnitOfWork` and `PlatformProvisioningUnitOfWork` declare -- never a concrete
+        `SqlAlchemyOrganizationUnitOfWork`/`SqlAlchemyPlatformProvisioningUnitOfWork` import here
+        (P5A, ADR-005 Section 9's no-service-locator/no-concrete-coupling principle)."""
         organization = Organization.create(
             organization_code=organization_code,
             display_name=display_name,
@@ -334,7 +347,7 @@ class OrganizationService:
         # mutation and successful security audit intent commit atomically" for platform
         # provisioning) — never a second, separate commit.
         record_audit_entry(
-            audit_owner,
+            uow,
             operation="create",
             entity_type="organization",
             entity_id=organization.id,
@@ -350,6 +363,20 @@ class OrganizationService:
             },
             commit=False,
             fail_closed=True,
+        )
+        # P5A (ADR-005 Section 6's application-authored escape hatch): Organization has no
+        # aggregate transition methods to record itself on, and a creation fact has no prior
+        # instance regardless. Recorded before `uow.commit()` so it participates in the canonical
+        # UoW event lifecycle -- transactional dispatch, then only-on-successful-commit
+        # post-commit publication (never observable if this transaction rolls back).
+        uow.record_event(
+            OrganizationCreated(
+                tenant_id=tenant_id,
+                organization_id=organization.id,
+                name=organization.display_name,
+                code=organization.organization_code,
+                occurred_at=self._clock.now(),
+            )
         )
         return organization
 

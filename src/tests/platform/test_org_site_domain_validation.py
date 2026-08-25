@@ -136,6 +136,9 @@ class _FakeOrganizationUnitOfWork:
     def commit(self) -> None:
         return None
 
+    def record_event(self, event) -> None:
+        return None
+
 
 class _FakeOrganizationUnitOfWorkFactory:
     def __init__(self, organization_repo: "_FakeOrganizationRepo", enterprise_audit_service) -> None:
@@ -144,6 +147,11 @@ class _FakeOrganizationUnitOfWorkFactory:
 
     def create(self, *, context) -> _FakeOrganizationUnitOfWork:
         return _FakeOrganizationUnitOfWork(self._organization_repo, self._enterprise_audit_service)
+
+
+class _FakeClock:
+    def now(self) -> datetime:
+        return datetime(2026, 1, 1, tzinfo=timezone.utc)
 
 
 class _FakeTenantContext:
@@ -204,6 +212,7 @@ def _make_organization_service(monkeypatch: pytest.MonkeyPatch) -> OrganizationS
         session=_FakeSession(),
         organization_repo=organization_repo,
         uow_factory=_FakeOrganizationUnitOfWorkFactory(organization_repo, enterprise_audit_service),
+        clock=_FakeClock(),
         user_session=_FakeUserSession(),
         enterprise_audit_service=enterprise_audit_service,
     )

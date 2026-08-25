@@ -27,6 +27,7 @@ from src.infra.events.in_process_post_commit_event_bus import InProcessPostCommi
 from src.infra.events.in_process_transactional_event_dispatcher import (
     InProcessTransactionalEventDispatcher,
 )
+from src.infra.time.system_clock import SystemClock
 
 
 # ---------------------------------------------------------------------------
@@ -96,6 +97,7 @@ def test_deactivate_other_organizations_does_not_touch_other_tenants(services):
         session=session,
         organization_repo=repo,
         uow_factory=_make_organization_uow_factory(session, tenant_context_service, ctx_a),
+        clock=SystemClock(),
         user_session=ctx_a,
     )
 
@@ -132,6 +134,7 @@ def test_list_organizations_is_scoped_to_active_tenant(services):
         session=session,
         organization_repo=repo,
         uow_factory=_make_organization_uow_factory(session, tenant_context_service, ctx_a),
+        clock=SystemClock(),
         user_session=ctx_a,
     )
 
@@ -164,6 +167,7 @@ def test_get_active_organization_returns_tenant_scoped_active_org(services):
         session=session,
         organization_repo=repo,
         uow_factory=_make_organization_uow_factory(session, tenant_context_service, ctx_a),
+        clock=SystemClock(),
         user_session=ctx_a,
     )
 
